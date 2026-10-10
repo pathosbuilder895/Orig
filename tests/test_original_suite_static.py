@@ -12,7 +12,10 @@ em dash.
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -38,7 +41,6 @@ NOTICE = (
 # these is allowed while the file is missing. test_planned_pages_are_still_missing
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
-    "students.html",
     "submissions.html",
     "writing-state.html",
     "packet.html",
@@ -78,6 +80,9 @@ BANNED_PHRASES = (
     "103 ",
     "fictional",
     "JetBrains",
+    # Bluebook's own integrity numbers are never shown in the suite.
+    "ai_score",
+    "aiscore",
 )
 
 
@@ -95,28 +100,60 @@ def _code_files() -> list[Path]:
 
 
 class _Refs(HTMLParser):
-    """(tag, url) for every href / src attribute, in document order."""
+    """(tag, url) for every href / src attribute, in document order, plus the
+    text of every inline <script>."""
 
     def __init__(self) -> None:
         super().__init__()
         self.refs: list[tuple[str, str]] = []
+        self.scripts: list[str] = []
+        self._in_script = False
 
     def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            self._in_script = True
+            self.scripts.append("")
         for name, value in attrs:
             if name in ("href", "src") and value:
                 self.refs.append((tag, value))
 
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self._in_script = False
+
+    def handle_data(self, data):
+        if self._in_script:
+            self.scripts[-1] += data
+
+
+# A URL written as a string literal in script code: an explicit scheme, or a
+# protocol-relative host. (A bare '//' is not matched, so a quoted example of a
+# bad path in a comment is not a finding.)
+_JS_URL = (
+    re.compile(r"""['"`]\s*((?:https?|wss?|ftp)://[^\s'"`]+)"""),
+    re.compile(r"""['"`]\s*(//[\w.-]+\.\w[^\s'"`]*)"""),
+)
+
 
 def _refs(path: Path) -> list[tuple[str, str]]:
-    """Every URL a file points at: tag attributes, CSS url() and @import."""
+    """Every URL a file points at: tag attributes, CSS url() and @import (in
+    any file, since a script can build a style), and URL literals in script
+    code (a .js file, or an inline <script>)."""
     text = path.read_text(encoding="utf-8")
     refs: list[tuple[str, str]] = []
+    scripts: list[str] = []
     if path.suffix == ".html":
         parser = _Refs()
         parser.feed(text)
         refs.extend(parser.refs)
+        scripts = parser.scripts
+    elif path.suffix == ".js":
+        scripts = [text]
     refs.extend(("css", u) for u in re.findall(r"url\(\s*['\"]?([^)'\"]+?)['\"]?\s*\)", text))
     refs.extend(("css", u) for u in re.findall(r"@import\s+['\"]([^'\"]+)['\"]", text))
+    for code in scripts:
+        for pattern in _JS_URL:
+            refs.extend(("js", u) for u in pattern.findall(code))
     return refs
 
 
@@ -184,7 +221,9 @@ def test_live_js_checks_the_origin_of_every_request(live_js):
 def test_live_js_reads_a_magic_link_student_session(live_js):
     # A Bluebook magic link stores bluebook_student_id and a session token but
     # no original_role; Live.gate must still send that visitor to /bluebook/.
-    assert "bluebook_student_id" in live_js
+    # The key also sits in EXTRA_KEYS (sign-out), so assert on the check itself.
+    assert "read('bluebook_student_id')" in live_js
+    assert "read('original_session_token')" in live_js
 
 
 def test_live_js_exposes_the_shared_interface(live_js):
@@ -198,6 +237,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         "notices",
         "empty",
         "gate",
+        "roster",
         "signOut",
     ):
         assert re.search(rf"\b{key}\s*:", exported), f"Live.{key} is not exported"
@@ -211,7 +251,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         assert f"'{token_key}'" in live_js
 
 
-@pytest.mark.parametrize("path", [*PAGES, *sorted(SUITE.glob("*.css"))], ids=lambda p: p.name)
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
 def test_references_stay_on_this_site_and_resolve_under_demo(path):
     demo = DEMO.resolve()
     for tag, raw in _refs(path):
@@ -267,11 +307,13 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
     "url",
     [
         "/original/",
+        "/original/students.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
         "/original/js/fingerprint.js",
         "/original/assets/radcliffe-night-stars.jpeg",
+        "/original/assets/st-andrews-quad.jpg",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -284,3 +326,195 @@ def test_original_root_serves_the_page_with_live_js(mounted_pilot_client):  # no
     r = mounted_pilot_client.get("/original/")
     assert r.status_code == 200
     assert "live.js" in r.text
+
+
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
+def test_no_suite_file_reads_bluebooks_ai_score_or_flagged_status(path):
+    # Bluebook's own integrity number and FLAGGED status are not shown here.
+    text = path.read_text(encoding="utf-8")
+    assert "FLAGGED" not in text, f"{path.name} mentions Bluebook's FLAGGED status"
+
+
+def test_students_page_loads_through_live_roster():
+    page = (SUITE / "students.html").read_text(encoding="utf-8")
+    assert "Live.roster()" in page
+    # The loader is shared: the page keeps no copy of its requests.
+    for endpoint in ("/readiness", "/bluebook/students", "/bluebook/submissions"):
+        assert endpoint not in page, f"students.html calls {endpoint} itself"
+
+
+# ── Live.roster, run for real under node ──────────────────────────────────────
+# live.js is plain browser script with no module system, so these run it in a
+# bare `node` with a stubbed window, document and fetch. They need only node
+# 18+ (global fetch types are not used; URL and Headers are).
+
+HARNESS = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const src = fs.readFileSync(sc.live, 'utf8');
+const window = {
+  location: { href: 'http://suite.test/original/students.html', origin: 'http://suite.test', replace() {} },
+  localStorage: { getItem() { return null; }, removeItem() {} },
+};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+let active = 0, max = 0;
+const calls = [];
+function route(path) {
+  let m;
+  if (path === '/health') return [200, { environment: 'demo' }];
+  if (path === '/students') return sc.students;
+  if ((m = path.match(/^\/students\/(.+)\/readiness$/))) {
+    return (sc.readiness || {})[decodeURIComponent(m[1])] || sc.readinessDefault || [404, { detail: 'x' }];
+  }
+  if (path === '/bluebook/students') return sc.bbStudents || [200, { students: [] }];
+  if (path === '/bluebook/submissions') return sc.bbSubmissions || [200, { submissions: [] }];
+  return [404, {}];
+}
+function fakeFetch(href) {
+  const path = new URL(href).pathname;
+  calls.push(path);
+  active++;
+  max = Math.max(max, active);
+  const [status, body] = route(path);
+  return new Promise((resolve) => setTimeout(() => {
+    active--;
+    resolve({ ok: status >= 200 && status < 300, status, text: () => Promise.resolve(JSON.stringify(body)) });
+  }, 5));
+}
+new Function('window', 'document', 'fetch', src)(window, document, fakeFetch);
+window.Live.roster().then((result) => process.stdout.write(JSON.stringify({ result, max, calls })));
+"""
+
+needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+
+
+def _roster(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", HARNESS],
+        input=json.dumps({"live": str(SUITE / "live.js"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
+
+
+def _ready(verdict: str, auth: int = 5, samples: int = 5) -> list:
+    return [200, {"verdict": verdict, "authenticated_count": auth, "sample_count": samples}]
+
+
+@needs_node
+def test_roster_asks_readiness_of_the_first_60_and_never_more_than_6_at_a_time():
+    ids = [f"s{i:02d}" for i in range(70)]
+    out = _roster(students=[200, {"students": ids, "roster": None}], readinessDefault=_ready("ready"))
+    readiness = [c for c in out["calls"] if c.endswith("/readiness")]
+    assert len(readiness) == 60
+    assert out["max"] <= 6
+    res = out["result"]
+    assert res["ok"] and not res["scoped"]
+    assert [s["id"] for s in res["students"]] == ids
+    assert res["beyondCap"] == 10
+    assert [s["verdict"] for s in res["students"][:60]] == ["ready"] * 60
+    assert [s["verdict"] for s in res["students"][60:]] == [None] * 10
+    # An ids-only list takes its counts from the readiness response.
+    assert res["students"][0]["approved"] == 5 and res["students"][0]["samples"] == 5
+    assert res["students"][65]["approved"] is None
+
+
+@needs_node
+def test_roster_reports_the_servers_verdict_and_treats_ids_as_ids():
+    roster = [
+        {"id": "constructor", "name": "Ada", "authenticated_count": 6, "sample_count": 7},
+        {"id": "__proto__", "name": "", "authenticated_count": 2, "sample_count": 2},
+        {"id": "ten:a", "name": "Cy", "authenticated_count": None, "sample_count": 1},
+    ]
+    out = _roster(
+        students=[200, {"students": [r["id"] for r in roster], "roster": roster}],
+        readiness={
+            "constructor": _ready("ready"),
+            "__proto__": _ready("banana"),  # not one of the server's three words
+            "ten:a": [500, {"detail": "boom"}],
+        },
+        bbStudents=[
+            200,
+            {
+                "students": [
+                    {
+                        "student_id": "constructor",
+                        "email": "ada@example.org",
+                        "last_submitted_at": "2026-10-01T10:00:00Z",
+                        "courses": [
+                            {"course_id": "c1", "code": "THEO 301", "name": "Theology"},
+                            {"course_id": "c2", "code": "", "name": "Biblical studies"},
+                            {"course_id": "c3", "code": "THEO 301", "name": "Same label again"},
+                        ],
+                    },
+                    {"student_id": "ten:a", "email": None, "courses": []},
+                ]
+            },
+        ],
+        bbSubmissions=[
+            200,
+            {
+                "submissions": [
+                    {"id": "b1", "student_id": "constructor", "created_at": "2026-10-01T10:00:00Z", "graded_at": "2026-10-02T10:00:00Z", "ai_score": 0.9, "status": "FLAGGED"},
+                    {"id": "b2", "student_id": "constructor", "created_at": "2026-10-03T10:00:00Z", "graded_at": None},
+                    {"id": "b3", "student_id": "ten:a", "created_at": "2026-09-20T10:00:00Z", "graded_at": None},
+                ]
+            },
+        ],
+    )
+    res = out["result"]
+    assert res["ok"] and res["scoped"] and res["bluebook"] == "ok" and not res["bluebookOff"]
+    by_id = {s["id"]: s for s in res["students"]}
+    assert [s["name"] for s in res["students"]] == ["Ada", "__proto__", "Cy"]  # no name: the id
+    assert {i: s["verdict"] for i, s in by_id.items()} == {"constructor": "ready", "__proto__": None, "ten:a": None}
+    ada = by_id["constructor"]
+    assert ada["email"] == "ada@example.org"
+    assert ada["courses"] == [
+        {"id": "c1", "code": "THEO 301", "name": "Theology"},
+        {"id": "c2", "code": "", "name": "Biblical studies"},
+    ]
+    assert (ada["approved"], ada["samples"]) == (6, 7)
+    assert (ada["sealed"], ada["pending"]) == (2, 1)
+    assert ada["lastSealed"] == "2026-10-01T10:00:00Z"
+    assert by_id["__proto__"]["email"] is None and by_id["__proto__"]["sealed"] == 0
+    assert by_id["__proto__"]["lastSealed"] is None
+    assert by_id["ten:a"]["approved"] is None  # the roster had no count, and its readiness call failed
+    assert by_id["ten:a"]["lastSealed"] == "2026-09-20T10:00:00Z"  # newest sealed exam when Bluebook has no date
+    assert res["sealedToReview"] == 2
+    assert res["courseCount"] == 3
+    # Nothing Bluebook computed about a submission is passed on.
+    assert all(set(s) == {"id", "student_id", "created_at", "graded_at"} for s in res["submissions"])
+
+
+@needs_node
+@pytest.mark.parametrize("status", [403])
+def test_roster_without_bluebook_still_lists_students(status):
+    out = _roster(
+        students=[200, {"students": ["a"], "roster": None}],
+        readinessDefault=_ready("developing", auth=3),
+        bbStudents=[status, {"detail": "no"}],
+        bbSubmissions=[status, {"detail": "no"}],
+    )
+    res = out["result"]
+    assert res["ok"] and res["bluebookOff"] and res["bluebook"] == "off"
+    assert res["sealedToReview"] is None and res["submissions"] == []
+    assert res["students"][0]["verdict"] == "developing"
+    assert res["students"][0]["sealed"] is None and res["students"][0]["lastSealed"] is None
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "students",
+    [
+        [500, {"detail": "boom"}],
+        [200, {"students": [], "roster": [None]}],  # a shape the loader cannot read
+    ],
+)
+def test_roster_that_cannot_read_the_students_says_so_instead_of_rejecting(students):
+    res = _roster(students=students)["result"]
+    assert res["ok"] is False
+    assert res["error"]
+    assert res["students"] == []

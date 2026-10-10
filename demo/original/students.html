@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Students</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="suite.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --flag:#e0725a;--warn:#d8b04a;--ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:0.4rem 1.9rem 1.9rem;min-height:0;position:relative;z-index:1;}
+  .body.gated{display:grid;}
+  nav{position:relative;z-index:2;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.54),rgba(22,36,79,0.54)),url('assets/st-andrews-quad.jpg') center 58%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.58) brightness(.5) contrast(1.14) hue-rotate(184deg);opacity:.78;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.36) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.94) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
+  .head h1{text-shadow:0 2px 18px rgba(7,11,28,0.9);}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.4rem 0 1.2rem;}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2rem;color:var(--cream);}
+  .head h1 span{color:var(--gold-2);}
+  .head .sub{color:var(--dim);font-style:italic;font-size:.95rem;margin-top:.15rem;}
+  .add-btn{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.6rem 1.1rem;cursor:pointer;font-weight:600;text-decoration:none;flex-shrink:0;}
+  .add-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
+  .add-btn:focus-visible,.chip:focus-visible,.r-row:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  /* summary strip */
+  .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;margin-bottom:1.2rem;}
+  .strip .s{background:rgba(255,255,255,0.025);padding:1rem 1.2rem;}
+  .strip .l{font-size:.8rem;color:var(--dim);}
+  .strip .v{font-family:var(--mono);font-weight:700;font-size:1.7rem;margin-top:.3rem;color:var(--cream);}
+  .strip .v.green{color:var(--ok);}.strip .v.amber{color:var(--warn);}.strip .v.red{color:var(--flag);}
+  .strip .v.note{font-family:var(--body);font-weight:400;font-style:italic;font-size:1rem;color:var(--dim);margin-top:.65rem;}
+  /* filters */
+  .filters{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
+  .chip{font-family:var(--body);font-size:.85rem;color:var(--dim);background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;cursor:pointer;transition:all .15s;}
+  .chip:hover{color:var(--cream);border-color:var(--line);}
+  .chip.on{background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.4);color:var(--gold-2);}
+  .chip.on.red{background:rgba(224,114,90,0.12);border-color:rgba(224,114,90,0.4);color:#f0a690;}
+  .chip.on.green{background:rgba(107,191,138,0.12);border-color:rgba(107,191,138,0.4);color:var(--ok);}
+  .search{margin-left:auto;display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;}
+  .search:focus-within{border-color:var(--line);}
+  .search svg{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:1.8;}
+  .search input{background:none;border:none;outline:none;color:var(--cream);font-family:var(--body);font-size:.88rem;width:150px;}
+  .search input::placeholder{color:var(--dim-2);}
+  /* table */
+  .roster{border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;}
+  .r-head,.r-row{display:grid;grid-template-columns:2.4fr 1.3fr 1fr 1.4fr 1fr 60px;gap:1rem;align-items:center;padding:.85rem 1.2rem;}
+  .r-head{background:rgba(255,255,255,0.025);border-bottom:1px solid var(--line-soft);}
+  .r-head div{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);}
+  .r-head .r{text-align:right;}
+  .r-row{border-top:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background .13s;position:relative;color:inherit;text-decoration:none;}
+  .r-row:first-of-type{border-top:none;}
+  .r-row:hover{background:rgba(201,160,40,0.055);}
+  .r-row:hover::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);}
+  .ident{display:flex;align-items:center;gap:.8rem;min-width:0;}
+  .ident>div:last-child{min-width:0;}
+  .s-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:.82rem;color:var(--gold-2);}
+  .s-nm{font-size:.98rem;color:var(--cream);font-weight:500;}
+  .s-em{font-family:var(--mono);font-size:.64rem;color:var(--dim-2);margin-top:.1rem;}
+  .s-nm,.s-em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .courses{display:flex;flex-wrap:wrap;gap:.3rem;}
+  .ct{font-family:var(--mono);font-size:.62rem;color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);border-radius:5px;padding:.15rem .45rem;white-space:nowrap;}
+  .bpill{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.22rem .6rem;border-radius:999px;}
+  .bpill .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .bpill.strong{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.22);}
+  .bpill.building{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.25);}
+  .bpill.none{color:var(--flag);background:rgba(224,114,90,0.1);border:1px solid rgba(224,114,90,0.25);}
+  .bpill.unk{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
+  .dev{display:flex;align-items:center;gap:.6rem;}
+  .dev-n{font-family:var(--mono);font-size:.78rem;min-width:34px;text-align:right;}
+  .dev-n.none{color:var(--dim-2);}
+  .last{font-family:var(--mono);font-size:.76rem;color:var(--dim);text-align:right;}
+  .go{display:flex;justify-content:flex-end;}
+  .go svg{width:16px;height:16px;stroke:var(--dim-2);fill:none;stroke-width:1.8;transition:stroke .13s,transform .13s;}
+  .r-row:hover .go svg{stroke:var(--gold-2);transform:translateX(2px);}
+  .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
+  .foot{margin-top:.8rem;font-size:.84rem;color:var(--dim-2);font-style:italic;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .strip{grid-template-columns:repeat(2,1fr);}
+    .r-head{display:none;}.r-row{grid-template-columns:1fr auto;gap:.5rem .8rem;}
+    .r-row>.courses,.r-row>.dev,.r-row>.last{grid-column:1/-1;}
+    .last{text-align:left;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="students.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="head">
+      <div>
+        <h1>Students <span id="count"></span></h1>
+        <div class="sub" id="sub">Loading</div>
+      </div>
+      <a class="add-btn" id="add-btn" href="/bluebook/" title="Opens Bluebook, where students are added to a course"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add student</a>
+    </div>
+    <div class="strip">
+      <div class="s"><div class="l">Enrolled</div><div class="v" id="v-all">-</div></div>
+      <div class="s"><div class="l">Baseline ready</div><div class="v green" id="v-ready">-</div></div>
+      <div class="s"><div class="l">Building baseline</div><div class="v amber" id="v-building">-</div></div>
+      <div class="s"><div class="l">No baseline yet</div><div class="v red" id="v-none">-</div></div>
+      <div class="s"><div class="l">Sealed exams to review</div><div class="v" id="v-review">-</div></div>
+    </div>
+    <div class="filters" role="group" aria-label="Filter students by baseline">
+      <button type="button" class="chip on" data-f="all" aria-pressed="true">All</button>
+      <button type="button" class="chip green" data-f="ready" aria-pressed="false">Ready</button>
+      <button type="button" class="chip" data-f="developing" aria-pressed="false">Building</button>
+      <button type="button" class="chip red" data-f="insufficient" aria-pressed="false">No baseline yet</button>
+      <div class="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="q" type="text" placeholder="Find a student" aria-label="Find a student by name, id or email" autocomplete="off" /></div>
+    </div>
+    <div class="roster">
+      <div class="r-head">
+        <div>Student</div><div>Courses</div><div>Baseline</div><div>Deviation from their voice</div><div class="r" title="Date of the most recent sealed exam">Last exam</div><div></div>
+      </div>
+      <div id="rows"></div>
+      <div class="empty" id="empty" style="display:block">Loading</div>
+    </div>
+    <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
+  </main>
+</div>
+<script src="live.js"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const plural=(n,one,many)=>n+' '+(n===1?one:many||one+'s');
+  const DASH='–';
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  function fmtDate(iso){
+    const d=new Date(iso); if(isNaN(d.getTime())) return '';
+    const o={day:'numeric',month:'short'};
+    if(d.getFullYear()!==new Date().getFullYear()) o.year='numeric';
+    return d.toLocaleDateString(undefined,o);
+  }
+
+  // The pill is the server's own baseline verdict (see Live.roster), never a rule of this page.
+  const PILL={
+    ready:{cls:'strong',label:'Ready'},
+    developing:{cls:'building',label:'Building'},
+    insufficient:{cls:'none',label:'None yet'}
+  };
+  const UNKNOWN={cls:'unk',label:'Not available'};
+  const rank=v=>v==='insufficient'?0:v==='developing'?1:v==='ready'?2:3;
+
+  // Needs a baseline first, then building, then ready, then the unknowns; by name within each.
+  function byReadiness(a,b){
+    return (rank(a.verdict)-rank(b.verdict))
+      || a.name.localeCompare(b.name,undefined,{sensitivity:'base'})
+      || (a.id<b.id?-1:a.id>b.id?1:0);
+  }
+
+  let students=[], curF='all', loaded=false;
+
+  function rowHTML(s){
+    const p=PILL[s.verdict]||UNKNOWN;
+    const chips=s.courses.map(c=>'<span class="ct">'+esc(c.code||c.name)+'</span>').join('');
+    return '<a class="r-row" href="'+esc('baseline.html?student='+encodeURIComponent(s.id))+'">'+
+      '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><div class="s-nm">'+esc(s.name)+'</div>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
+      '<div class="courses">'+chips+'</div>'+
+      '<div><span class="bpill '+p.cls+'"><span class="d"></span>'+p.label+'</span></div>'+
+      '<div class="dev"><span class="dev-n none">'+DASH+'</span></div>'+
+      '<div class="last">'+esc(s.lastSealed?(fmtDate(s.lastSealed)||'None yet'):'None yet')+'</div>'+
+      '<div class="go"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>'+
+    '</a>';
+  }
+
+  let emptyText='No students on your roster yet. Add them in Bluebook.';
+  function applyF(){
+    const q=($('q').value||'').trim().toLowerCase();
+    const list=students.filter(s=>{
+      if(curF!=='all'&&s.verdict!==curF) return false;
+      if(q&&(s.name+' '+s.id+' '+(s.email||'')).toLowerCase().indexOf(q)<0) return false;
+      return true;
+    });
+    $('rows').innerHTML=list.map(rowHTML).join('');
+    const e=$('empty');
+    if(list.length){ e.style.display='none'; }
+    else { e.textContent=students.length?'No students match that filter.':emptyText; e.style.display='block'; }
+    $('foot').style.display=list.length?'':'none';
+    $('count').textContent=loaded?String(list.length):'';
+  }
+
+  function setF(btn){
+    document.querySelectorAll('.chip[data-f]').forEach(c=>{
+      const on=c===btn;
+      c.classList.toggle('on',on);
+      c.setAttribute('aria-pressed',on?'true':'false');
+    });
+    curF=btn.dataset.f;
+    applyF();
+  }
+  document.querySelectorAll('.chip[data-f]').forEach(c=>c.addEventListener('click',()=>setF(c)));
+  $('q').addEventListener('input',applyF);
+
+  function render(res){
+    loaded=!!res.ok;
+    if(!res.ok){
+      students=[];
+      emptyText='Your students could not be loaded just now. Try reloading the page.';
+      ['v-all','v-ready','v-building','v-none'].forEach(id=>{ $(id).textContent='-'; });
+      $('sub').textContent='';
+    } else {
+      students=res.students.slice().sort(byReadiness);
+      if(res.bluebookOff) emptyText='No students on your roster yet.';
+      const n=k=>students.filter(s=>s.verdict===k).length;
+      $('v-all').textContent=String(students.length);
+      $('v-ready').textContent=String(n('ready'));
+      $('v-building').textContent=String(n('developing'));
+      $('v-none').textContent=String(n('insufficient'));
+
+      // A student with no verdict is counted in none of the three baseline cells; say so.
+      const unknown=students.filter(s=>!s.verdict).length;
+      const parts=[];
+      if(res.bluebook==='ok'&&res.courseCount>0) parts.push(plural(res.courseCount,'course'));
+      if(students.length) parts.push('sorted by baseline readiness');
+      if(unknown) parts.push('readiness not available for '+unknown);
+      $('sub').textContent=parts.join(' · ');
+    }
+
+    const rv=$('v-review');
+    if(res.bluebook==='ok'){
+      rv.textContent=String(res.sealedToReview);
+      rv.className='v'+(res.sealedToReview>0?' red':'');
+    } else {
+      rv.textContent=res.bluebookOff?'Bluebook is off':'Could not load sealed exams';
+      rv.className='v note';
+    }
+    // Without Bluebook there is nowhere to add a student from here.
+    if(res.bluebookOff) $('add-btn').style.display='none';
+    applyF();
+  }
+
+  // ── go ──
+  // Any answer of an unexpected shape ends in the "could not be loaded" state,
+  // never in a page stuck on "Loading".
+  Live.session().then(renderChrome);
+  const main=document.querySelector('main');
+  Live.gate(main).then(async sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    try { render(await Live.roster()); }
+    catch(e){
+      try { render({ok:false,bluebook:'error',students:[]}); } catch(e2){}
+    }
+  });
+})();
+</script>
+</body>
+</html>

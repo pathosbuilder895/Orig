@@ -270,7 +270,7 @@
 (function(){
   const $=id=>document.getElementById(id);
   const esc=Live.esc;
-  const DAY=86400000, WEEKS=6, STATE_CAP=60;
+  const DAY=86400000, WEEKS=6;
   const reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ── account menu ──
@@ -328,7 +328,7 @@
   // rows: one per student on the roster. approved/total are null for a student
   // whose sample counts could not be read (see load). sealed is null when
   // Bluebook data is not available (bb !== 'ok').
-  let rows=[], rosterOk=false, bb='ok', subs=[], courseCount=0;
+  let rows=[], rosterOk=false, bb='ok', subs=[], courseCount=0, beyondCap=0;
 
   function weekCounts(list){
     const now=Date.now(), c=new Array(WEEKS).fill(0);
@@ -344,81 +344,25 @@
     return Array.from({length:WEEKS},(_,i)=>new Date(now-(WEEKS-i)*7*DAY).toLocaleDateString(undefined,{day:'numeric',month:'short'}));
   }
 
-  const VERDICTS=['ready','developing','insufficient'];
-  const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
-
-  async function load(sess){
-    const hasBb=sess.products.indexOf('bluebook')>=0;
-    const stP=Live.api('/students');
-    const bsP=hasBb?Live.api('/bluebook/students'):null;
-    const sbP=hasBb?Live.api('/bluebook/submissions'):null;
-    const st=await stP;
-
-    rosterOk=!!(st.ok&&st.data);
-    const roster=rosterOk&&Array.isArray(st.data.roster)?st.data.roster:null;
-    const ids=rosterOk&&Array.isArray(st.data.students)?st.data.students:[];
-
-    // A workspace roster carries each student's counts; without one (the open
-    // demo) /students lists ids only and the id stands in for the name.
-    const base=roster
-      ? roster.map(r=>({id:String(r.id),name:r.name,ac:num(r.authenticated_count),sc:num(r.sample_count),verdict:null}))
-      : ids.map(id=>({id:String(id),name:'',ac:null,sc:null,verdict:null}));
-
-    // The server's own readiness verdict per student (first STATE_CAP, in
-    // parallel with the Bluebook calls). The same response carries the counts
-    // that an ids-only list lacks.
-    const checks=await Promise.all(base.slice(0,STATE_CAP).map(r=>Live.api('/students/'+encodeURIComponent(r.id)+'/readiness')));
-    const [bs,sb]=await Promise.all([bsP,sbP]);
-    base.forEach((r,i)=>{
-      const d=checks[i]&&checks[i].ok&&checks[i].data;
-      if(!d) return;
-      if(VERDICTS.indexOf(d.verdict)>=0) r.verdict=d.verdict;
-      if(!roster){ r.ac=num(d.authenticated_count); r.sc=num(d.sample_count); }
-    });
-
-    // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
-    let byStudent=new Map(), bbById=new Map();
-    if(!hasBb||(sb&&sb.status===403)||(bs&&bs.status===403)) bb='off';
-    else if(!sb||!sb.ok||!sb.data||!Array.isArray(sb.data.submissions)) bb='error';
-    else bb='ok';
-    subs=bb==='ok'?sb.data.submissions:[];
-    try {
-      subs.forEach(s=>{
-        let e=byStudent.get(s.student_id);
-        if(!e){ e={n:0,pending:0,last:''}; byStudent.set(s.student_id,e); }
-        e.n++; if(!s.graded_at) e.pending++;
-        if(s.created_at&&s.created_at>e.last) e.last=s.created_at;
-      });
-      if(bb==='ok'&&bs&&bs.ok&&bs.data&&Array.isArray(bs.data.students)){
-        bs.data.students.forEach(x=>{ bbById.set(x.student_id,x); });
-      }
-    } catch(e){
-      // Sealed-exam data of an unexpected shape must not hide the roster.
-      bb='error'; subs=[]; byStudent=new Map(); bbById=new Map();
-    }
-
-    const courseIds=new Set();
-    rows=base.map(r=>{
-      const b=bbById.get(r.id), e=byStudent.get(r.id);
-      const seen=new Set(), courses=[];
-      (b&&Array.isArray(b.courses)?b.courses:[]).forEach(c=>{
-        if(!c) return;
-        courseIds.add(c.course_id);
-        const l=c.code||c.name; if(l&&!seen.has(l)){ seen.add(l); courses.push(l); }
-      });
-      return {
-        id:r.id,
-        name:r.name||r.id,
-        courses:courses,
-        approved:r.ac,
-        total:r.sc,
-        verdict:r.verdict,
-        sealed:bb==='ok'?(e?e.n:0):null,
-        pending:bb==='ok'?(e?e.pending:0):null,
-        last:bb==='ok'?((b&&b.last_submitted_at)||(e&&e.last)||''):''
-      };
-    });
-    courseCount=courseIds.size;
+  // Live.roster() does the loading (see live.js); this page only reshapes it.
+  async function load(){
+    const res=await Live.roster();
+    rosterOk=res.ok;
+    bb=res.bluebook;
+    subs=res.submissions;
+    courseCount=res.courseCount;
+    beyondCap=res.beyondCap;
+    rows=res.students.map(s=>({
+      id:s.id,
+      name:s.name,
+      courses:s.courses.map(c=>c.code||c.name),
+      approved:s.approved,
+      total:s.samples,
+      verdict:s.verdict,
+      sealed:s.sealed,
+      pending:s.pending,
+      last:s.lastSealed||''
+    }));
   }
 
   // ── term view (the left rail, the sentence, the table) ──
@@ -453,7 +397,7 @@
 
     // "Ready" is the server's verdict (GET /students/{id}/readiness), never a rule of this page.
     const ready=rows.filter(r=>r.verdict==='ready').length;
-    const checked=rows.filter(r=>r.verdict).length, unchecked=rows.length-checked;
+    const checked=rows.filter(r=>r.verdict).length, unchecked=rows.length-checked, unread=unchecked-beyondCap;
     const rs=$('ready-s');
     if(!rosterOk) Live.empty(rs,'Could not load your students');
     else if(!rows.length) Live.empty(rs,'Appears once students have approved samples');
@@ -481,7 +425,7 @@
     else if(!rows.length) pr.textContent='No students yet. A student appears here once a writing sample of theirs is on file.';
     else {
       let h=checked
-        ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' a ready baseline.'+(unchecked?' Readiness could not be read for '+unchecked+'.':'')
+        ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' a ready baseline.'+(unread?' Readiness could not be read for '+unread+'.':'')+(beyondCap?' Readiness was not checked for '+beyondCap+'.':'')
         : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
       if(bb==='ok') h+=pending>0
         ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Bluebook.'
@@ -555,11 +499,11 @@
   // ── go ──
   // Any answer of an unexpected shape ends in the "could not be loaded" states,
   // never in cards stuck on "Loading".
-  function failState(){ rosterOk=false; rows=[]; bb='error'; subs=[]; courseCount=0; }
+  function failState(){ rosterOk=false; rows=[]; bb='error'; subs=[]; courseCount=0; beyondCap=0; }
   Live.session().then(renderChrome);
   Live.gate(document.querySelector('main')).then(async sess=>{
     if(!sess) return;
-    try { await load(sess); } catch(e){ failState(); }
+    try { await load(); } catch(e){ failState(); }
     try { renderTerm(true); renderTable(); }
     catch(e){ failState(); try { renderTerm(false); renderTable(); } catch(e2){} }
   });
