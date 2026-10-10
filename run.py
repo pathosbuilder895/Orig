@@ -167,6 +167,11 @@ def main():
         host="0.0.0.0",
         port=args.port,
         log_level="info",
+        # Uvicorn's access log prints each request line with its query
+        # string, and launch, invite, reset and phone-park links carry their
+        # token there. RequestLoggingMiddleware (original/core/logging.py)
+        # already logs every request by path alone.
+        access_log=False,
     )
 
 
