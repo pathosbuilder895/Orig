@@ -42,7 +42,6 @@ NOTICE = (
 # these is allowed while the file is missing. test_planned_pages_are_still_missing
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
-    "packet.html",
     "baseline.html",
     "voice.html",
     "my-work.html",
@@ -306,6 +305,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/",
         "/original/students.html",
         "/original/writing-state.html",
+        "/original/packet.html",
         "/original/settings.html",
         "/original/submissions.html",
         "/original/reports.html",
@@ -591,6 +591,77 @@ def _node_major() -> int | None:
 needs_node = pytest.mark.skipif(
     (_node_major() or 0) < 18, reason="node 18 or newer is not installed"
 )
+
+
+# ── Conversation Packet (packet.html) ─────────────────────────────────────────
+# A printable page that shows an Original result. The testing label sits at the
+# top on screen and again in a print footer that repeats on every printed page;
+# the label's text lives only in live.js, so the page carries two empty slots.
+
+
+def _packet() -> str:
+    return (SUITE / "packet.html").read_text(encoding="utf-8")
+
+
+def _media_print_block(page: str) -> str:
+    """The text of the page's @media print { ... } block, braces matched."""
+    start = page.index("@media print")
+    depth = 0
+    for i in range(page.index("{", start), len(page)):
+        depth += {"{": 1, "}": -1}.get(page[i], 0)
+        if depth == 0:
+            return page[start : i + 1]
+    raise AssertionError("unclosed @media print block")
+
+
+def test_packet_has_a_testing_notice_slot_on_screen_and_a_print_footer_that_shows_it():
+    page = _packet()
+    # Two slots, both empty in the file: Live.notices() fills them from live.js.
+    assert page.count('data-testing-notice="on-paper"></div>') == 2
+    # The second slot sits in the table footer the print rule turns on.
+    assert re.search(r'<tfoot class="print-notice"[^>]*>.*?data-testing-notice', page, re.S)
+    # Hidden on screen...
+    assert re.search(r"\.print-notice\s*\{\s*display\s*:\s*none", page.replace(_media_print_block(page), ""))
+    # ...and shown by the print rule, which also drops the on-screen shell.
+    printed = _media_print_block(page)
+    assert re.search(r"\.print-notice\s*\{\s*display\s*:\s*table-footer-group", printed)
+    assert re.search(r"nav\s*,\s*\.chrome\s*\{\s*display\s*:\s*none", printed)
+
+
+def test_packet_reads_what_writing_state_stores_and_nothing_else_about_the_result():
+    page = _packet()
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    # One key, one shape: the producer writes it, this page reads it.
+    for needle in ("original_last_result", "original_writing_state"):
+        assert needle in state and needle in page, needle
+    assert "sessionStorage.getItem(STORE_KEY)" in page
+    # The packet never scores or corrects anything itself.
+    for endpoint in ("/score", "/correct", "/baseline"):
+        assert endpoint not in page, f"packet.html calls {endpoint}"
+    # The baseline list comes from the student's own record.
+    assert "Live.api('/students/'+encodeURIComponent(id))" in page
+    # The stored analysis names a student, so it does not outlive a sign-out.
+    assert "removeItem(STORE_KEY)" in page
+
+
+def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines():
+    page = _packet()
+    assert "<title>Original · Conversation packet</title>" in page
+    title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
+    assert "flag" not in title
+    # No case numbers, no quoted passages (no text positions exist to quote).
+    assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
+    assert "<mark" not in page
+    # Outcome and signature are blank form lines for the teacher, never data.
+    assert page.count('<div class="line"></div>') == 2
+    assert "Teacher signature" in page and "Outcome of the conversation" in page
+    assert "<input" not in page and "<textarea" not in page
+    # Without a stored result the page sends the teacher back to Writing State.
+    assert "Run an analysis on the Writing State page first" in page
+    assert "writing-state.html" in page
+
+
+needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 # ── Teachers land on these pages; the old page stays one click away ───────────
 # Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
