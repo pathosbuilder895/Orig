@@ -41,11 +41,7 @@ NOTICE = (
 # nav of an earlier page links to them at their final name, so a link to one of
 # these is allowed while the file is missing. test_planned_pages_are_still_missing
 # makes the list shrink: delete a name here in the commit that adds its page.
-PLANNED_PAGES = {
-    "baseline.html",
-    "voice.html",
-    "my-work.html",
-}
+PLANNED_PAGES: set[str] = set()
 
 # The student pages: a student's own writing voice and the piece they compare.
 # They are not teacher pages, so the teacher account menu (Settings, Analysis
