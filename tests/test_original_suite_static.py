@@ -689,10 +689,11 @@ function store(initial) {
   };
 }
 const replaced = [];
+const blocked = new Proxy({}, { get() { throw new Error('storage is blocked'); } });
 const window = {
   location: { href: 'http://suite.test/original/students.html', origin: 'http://suite.test', replace(u) { replaced.push(u); } },
-  localStorage: store(sc.local),
-  sessionStorage: store(sc.session),
+  localStorage: sc.blockStorage ? blocked : store(sc.local),
+  sessionStorage: sc.blockStorage ? blocked : store(sc.session),
 };
 const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
 let active = 0, max = 0;
@@ -732,8 +733,10 @@ const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: A
   const out = {};
   if (sc.call === 'signOut') {
     window.Live.signOut();
-    out.local = window.localStorage.keys();
-    out.session = window.sessionStorage.keys();
+    if (!sc.blockStorage) {
+      out.local = window.localStorage.keys();
+      out.session = window.sessionStorage.keys();
+    }
   } else if (sc.call === 'sealed') {
     out.result = plain(await window.Live.sealed());
   } else if (sc.call === 'both') {
@@ -1028,3 +1031,57 @@ def test_roster_and_sealed_share_one_load_and_one_definition_of_awaiting_review(
     assert out["result"]["sealedToReview"] == len(awaiting)
     assert [(s["id"], s["pending"]) for s in out["result"]["students"]] == [("s1", 1), ("s2", 1)]
     assert [r["id"] for r in out["result"]["submissions"]] == ["a", "b", "c"]
+
+
+# ── Live.signOut ──────────────────────────────────────────────────────────────
+# A kept paper is the full text of a student's writing plus its result. On a
+# shared computer it must not outlive the teacher's session.
+
+
+def test_live_js_sign_out_names_the_kept_paper_keys(live_js):
+    assert "var PORTFOLIO_PREFIX = 'original_portfolio_'" in live_js
+    assert "var LAST_RESULT_KEY = 'original_last_result'" in live_js
+    body = live_js[live_js.index("function signOut()") :]
+    body = body[: body.index("\n  }\n")]
+    assert "keptPaperKeys()" in body
+    assert "window.sessionStorage.removeItem(LAST_RESULT_KEY)" in body
+
+
+def test_every_literal_storage_key_the_pages_write_is_cleared_on_sign_out(live_js):
+    # A page that starts keeping something new under a fixed key must teach
+    # signOut about it (or this test says so). Keyed-by-student lists use the
+    # original_portfolio_ prefix, which signOut clears by prefix.
+    cleared = {"original_last_result"}
+    for path in _code_files():
+        if path == SUITE / "live.js":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for key in re.findall(r"""[sS]torage\.setItem\(\s*['"]([^'"]+)['"]""", text):
+            assert key in cleared, f"{path.name} keeps {key!r} but sign-out does not clear it"
+
+
+@needs_node
+def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
+    papers = {f"original_portfolio_s{i:02d}": '[{"text":"a whole paper"}]' for i in range(9)}
+    out = _roster(
+        call="signOut",
+        local={
+            "original_principal_token": "tok",
+            "original_name": "Pat",
+            "original_email": "pat@example.org",
+            "original_portfolio_": "a prefix with no student id still goes",
+            **papers,
+            "original_portfolio": "not a kept paper: no trailing underscore",
+            "another_site_key": "left alone",
+        },
+        session={"original_last_result": '{"result":{}}', "unrelated": "left alone"},
+    )
+    assert sorted(out["local"]) == ["another_site_key", "original_portfolio"]
+    assert out["session"] == ["unrelated"]
+    assert out["replaced"] == ["/index.html"]
+
+
+@needs_node
+def test_sign_out_still_leaves_when_the_browser_blocks_storage():
+    out = _roster(call="signOut", blockStorage=True)
+    assert out["replaced"] == ["/index.html"]

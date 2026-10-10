@@ -13,7 +13,7 @@
    Live.gate(el)     sign-in / "Original is off" panel, or the session
    Live.roster()     the teacher's students with the server's baseline verdicts
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
-   Live.signOut()    forget the session and go to the sign-in page */
+   Live.signOut()    forget the session and the kept papers, go to the sign-in page */
 (function (window, document) {
   'use strict';
 
@@ -35,6 +35,12 @@
     'bluebook_candidate_email',
     'bluebook_proctor_token'
   ];
+
+  // Papers the Writing State page keeps on this computer (the full text and the
+  // results, one key per student, original_portfolio_<id>) and its last result
+  // (sessionStorage). On a shared computer they must not outlive the session.
+  var PORTFOLIO_PREFIX = 'original_portfolio_';
+  var LAST_RESULT_KEY = 'original_last_result';
 
   var NOTICE = 'Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.';
 
@@ -435,10 +441,25 @@
     return session().then(loadRoster).then(null, rosterFailure);
   }
 
+  // Every localStorage key that starts with the prefix. The keys are collected
+  // first and removed afterwards: removing while counting skips entries.
+  function keptPaperKeys() {
+    var found = [];
+    try {
+      var ls = window.localStorage;
+      for (var i = 0; i < ls.length; i++) {
+        var k = ls.key(i);
+        if (k && k.indexOf(PORTFOLIO_PREFIX) === 0) found.push(k);
+      }
+    } catch (e) { /* storage blocked */ }
+    return found;
+  }
+
   function signOut() {
-    TOKEN_KEYS.concat(EXTRA_KEYS).forEach(function (k) {
+    TOKEN_KEYS.concat(EXTRA_KEYS, keptPaperKeys()).forEach(function (k) {
       try { window.localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
     });
+    try { window.sessionStorage.removeItem(LAST_RESULT_KEY); } catch (e) { /* storage blocked */ }
     window.location.replace('/index.html');
   }
 
