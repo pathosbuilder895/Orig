@@ -18,7 +18,7 @@ PR #227 merged into main after this review (`c962a9177`). Rows marked "#227" are
 | 3 | Readiness (ready at 5 or more authenticated samples) is advisory: scoring never withholds an action; the only cap is client-side in `professor.html`; Bluebook ignores readiness | Open | `students.py:110-140`, `scoring.py:1951-1961`, `professor.html:2904-2916` |
 | 4 | Bluebook's integrity readings (`stylometric`, `ai_score`, `status`) are computed in the student's browser and stored as sent | Open | `Exam.jsx:506-524`, `bluebook.py:236-237`; a posted `stylometric=100` returned 201 |
 | 5 | Students can read classmates' Bluebook readings, and `/students/{own}/score` returns the full professor output (a scoring oracle that contradicts ADR-005) | Open | `bluebook.py:301-310`, `students_scoring.py:36-48` |
-| 6 | The pilot has never been deployed; there is no staging environment | Open | `original-pilot.onrender.com/health` is a Render 404; `render.yaml` has two services |
+| 6 | The pilot has never been deployed; there is no staging environment | Superseded: deployed on Render since 6 Oct 2026 (NORTH_STAR v0.3); still no staging | `original-pilot.onrender.com/health` was a Render 404 on 5 Oct; `render.yaml` has two services |
 | 7 | Public over-claims: "FERPA Compliant", "stored encrypted", "Secure · Encrypted · Monitored"; the DPA promises automatic deletion that no sweeper performs | Pages fixed by #227; DPA text unchanged | `index.html:750,893`, `explainer.html:221`, `Landing.jsx:280`, `dpa_template.md:170-171` |
 | 8 | A score cannot be reproduced later: no text, baseline snapshot, flag set or SHA is stored | Open | `store.py:203-210,298-304` |
 
@@ -111,7 +111,7 @@ React, ReactDOM and Babel standalone (about 4.3 MB, used only by the Tweaks pane
 
 1. [ ] Andrew: review both reconciliation tables; revert any line that reflects a deliberate product direction.
 2. [ ] Andrew: choose final images. Genuine public-domain scans of the two plates, licensed photographs, or none (today's state).
-3. [ ] Andrew: decide where the landing lives. With `original-demo` gone it is reachable only at `original-pilot/landing.html`, whose root opens Bluebook; it is unlinked there.
+3. [ ] Andrew: decide where the landing lives. With `original-demo` gone it is reachable only at `original-pilot/landing.html`, whose root opens Bluebook; it is unlinked there. The pilot has been live since 6 Oct 2026, so **merging this PR publishes the page at a public URL** on the next deploy, even though nothing links to it.
 4. [ ] If it should live on the static `bluebook-teacher-demo` origin instead, add `landing.html`, `styles/original-landing.css`, `js/{cursor,fingerprint,tension-arc,live-demo,scenes}.js` and the `assets/fonts/` files the page uses to `scripts/build_teacher_demo_site.sh` (owned outside task B).
 5. [ ] Give Original its own privacy and terms pages and link them from the footer. `demo/legal/` (from #227) is Bluebook's draft policy, awaits counsel, and does not yet describe Original.
 6. [ ] Build the teacher-facing Original view as milestone 3 asks: real data, inside the teacher workspace, with the rule-10 label. Never show real student data on the public page.
