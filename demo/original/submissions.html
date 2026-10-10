@@ -202,16 +202,6 @@
     return d.toLocaleDateString(undefined,o);
   }
 
-  // Bluebook's submission list carries more than this page may show (its own
-  // integrity readings, a status label, the teacher's id). Only the fields
-  // named here are ever copied out of a response; everything else stays behind.
-  const FIELDS=['id','exam_id','student_id','candidate','exam','course','created_at','late','mark','graded_at'];
-  function allowlisted(raw){
-    const out={};
-    FIELDS.forEach(k=>{ out[k]=raw&&raw[k]!=null?raw[k]:null; });
-    return out;
-  }
-
   const docIco='<svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>';
   const goIco='<span class="go"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>';
 
@@ -285,32 +275,18 @@
     applyF();
   }
 
-  // GET /bluebook/submissions is the list; /bluebook/students names the students
-  // and /bluebook/exams fills in a title or course a sealed exam did not carry.
-  async function load(sess){
-    if(sess.products.indexOf('bluebook')<0) return render('off',[]);
-    const [sb,bs,ex]=await Promise.all([
-      Live.api('/bluebook/submissions'),
-      Live.api('/bluebook/students'),
-      Live.api('/bluebook/exams')
-    ]);
-    if(sb.status===403) return render('off',[]);
-    if(!sb.ok||!sb.data||!Array.isArray(sb.data.submissions)) return render('error',[]);
-
-    // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
-    const names=new Map(), exams=new Map();
-    if(bs.ok&&bs.data&&Array.isArray(bs.data.students)){
-      bs.data.students.forEach(s=>{ if(s&&s.name) names.set(s.student_id,String(s.name)); });
-    }
-    if(ex.ok&&ex.data&&Array.isArray(ex.data.exams)){
-      ex.data.exams.forEach(e=>{ if(e) exams.set(e.id,e); });
-    }
-    const subs=sb.data.submissions.map(raw=>{
-      const r=allowlisted(raw), e=exams.get(r.exam_id);
-      r.title=r.exam||(e&&e.title?String(e.title):'')||'Untitled exam';
-      r.courseLabel=r.course||(e&&e.course?String(e.course):'');
+  // Live.sealed() (live.js) loads the sealed exams, names the students and fills
+  // in a title or course a sealed exam did not carry. It copies only an explicit
+  // list of fields out of Bluebook's response; this page adds what it shows.
+  async function load(){
+    const sl=await Live.sealed();
+    if(sl.bluebook!=='ok') return render(sl.bluebook,[]);
+    const subs=sl.submissions.map(raw=>{
+      const r=Object.assign({},raw), e=sl.exams.get(r.exam_id);
+      r.title=r.exam||(e&&e.title)||'Untitled exam';
+      r.courseLabel=r.course||(e&&e.course)||'';
       // The roster name, else the name written at the sitting, else the id.
-      r.who=names.get(r.student_id)||(r.candidate?String(r.candidate):'')||String(r.student_id||'Unknown student');
+      r.who=sl.names.get(r.student_id)||(r.candidate?String(r.candidate):'')||String(r.student_id||'Unknown student');
       return r;
     });
     render('ok',subs);
@@ -323,7 +299,7 @@
   const main=document.querySelector('main');
   Live.gate(main).then(async sess=>{
     if(!sess){ main.classList.add('gated'); return; }
-    try { await load(sess); }
+    try { await load(); }
     catch(e){ try { render('error',[]); } catch(e2){} }
   });
 })();

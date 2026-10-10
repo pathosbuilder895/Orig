@@ -12,6 +12,7 @@
    Live.empty(el,t)  an honest empty state inside a card
    Live.gate(el)     sign-in / "Original is off" panel, or the session
    Live.roster()     the teacher's students with the server's baseline verdicts
+   Live.sealed()     the teacher's sealed exams, copied through one allowlist
    Live.signOut()    forget the session and go to the sign-in page */
 (function (window, document) {
   'use strict';
@@ -181,14 +182,125 @@
     });
   }
 
+  // ── Live.sealed ──────────────────────────────────────────────────────────
+  // The one loader for sealed exams. Every page that lists, counts or groups
+  // them calls this (Live.roster does too) and never keeps its own copy.
+  //
+  //   GET /bluebook/submissions   the sealed exams
+  //   GET /bluebook/students      names, for the students who sat them
+  //   GET /bluebook/exams         title, course and course id of each exam
+  //
+  // Resolves, and never rejects:
+  //   bluebook       'ok' | 'off' | 'error'. 'off' is no Bluebook product in
+  //                  this workspace, or a 403; 'error' is any other answer
+  //                  that is not a list of sealed exams
+  //   submissions[]  one object per sealed exam, holding exactly SEALED_FIELDS
+  //                  plus course_id (the exam record's, else null). Nothing
+  //                  else Bluebook sent about a submission (its integrity
+  //                  readings, a status label, warnings, the grader, the
+  //                  feedback, the paper text) is ever copied out
+  //   names          Map(student_id -> name) from Bluebook's rosters
+  //   exams          Map(exam_id -> {title, course, course_id})
+  //
+  // Memoised: the three requests are made once per page load, whoever asks.
+  // An exam is awaiting review when it has no graded_at (see pendingReview).
+
+  var ROSTER_CAP = 60;        // readiness is asked for the first 60 students
+  var ROSTER_IN_FLIGHT = 6;   // requests in flight at once, across the whole load
+
+  // The only fields that ever leave a /bluebook/submissions response.
+  var SEALED_FIELDS = ['id', 'exam_id', 'student_id', 'candidate', 'exam', 'course', 'created_at', 'late', 'mark', 'graded_at'];
+
+  // Runs the calls it is given at most `max` at a time, in the order given.
+  function limiter(max) {
+    var active = 0, waiting = [];
+    function pump() {
+      while (active < max && waiting.length) {
+        (function (job) {
+          active++;
+          var p;
+          try { p = Promise.resolve(job.fn()); } catch (e) { p = Promise.resolve(failed()); }
+          var done = function (v) { active--; job.resolve(v); pump(); };
+          p.then(done, function () { done(failed()); });
+        })(waiting.shift());
+      }
+    }
+    return function (fn) {
+      return new Promise(function (resolve) { waiting.push({ fn: fn, resolve: resolve }); pump(); });
+    };
+  }
+
+  // One limiter for the page: the roster's calls and the sealed-exam calls share
+  // the same six slots.
+  var get = limiter(ROSTER_IN_FLIGHT);
+
+  function pendingReview(s) {
+    return !s.graded_at;
+  }
+
+  function sealedRow(raw, exams) {
+    var out = {};
+    SEALED_FIELDS.forEach(function (k) { out[k] = raw[k] != null ? raw[k] : null; });
+    var e = exams.get(out.exam_id);
+    out.course_id = e ? e.course_id : null;
+    return out;
+  }
+
+  function sealedState(state) {
+    return { view: { bluebook: state, submissions: [], names: new Map(), exams: new Map() }, students: null };
+  }
+
+  function loadSealed(sess) {
+    if (sess.products.indexOf('bluebook') < 0) return Promise.resolve(sealedState('off'));
+    var sbP = get(function () { return api('/bluebook/submissions'); });
+    var bsP = get(function () { return api('/bluebook/students'); });
+    var exP = get(function () { return api('/bluebook/exams'); });
+    return Promise.all([sbP, bsP, exP]).then(function (all) {
+      var sb = all[0], bs = all[1], ex = all[2];
+      if (sb.status === 403 || bs.status === 403) return sealedState('off');
+      if (!sb.ok || !sb.data || !Array.isArray(sb.data.submissions)) return sealedState('error');
+
+      // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
+      var names = new Map(), exams = new Map(), students = null;
+      if (bs.ok && bs.data && Array.isArray(bs.data.students)) {
+        students = bs.data.students.filter(function (x) { return x && typeof x === 'object'; });
+        students.forEach(function (x) { if (x.name) names.set(x.student_id, String(x.name)); });
+      }
+      if (ex.ok && ex.data && Array.isArray(ex.data.exams)) {
+        ex.data.exams.forEach(function (e) {
+          if (!e || typeof e !== 'object') return;
+          exams.set(e.id, {
+            title: e.title ? String(e.title) : '',
+            course: e.course ? String(e.course) : '',
+            course_id: (e.course_id != null && e.course_id !== '') ? String(e.course_id) : null
+          });
+        });
+      }
+      var submissions = sb.data.submissions
+        .filter(function (r) { return r && typeof r === 'object'; })
+        .map(function (r) { return sealedRow(r, exams); });
+      return { view: { bluebook: 'ok', submissions: submissions, names: names, exams: exams }, students: students };
+    }).then(null, function () { return sealedState('error'); });
+  }
+
+  var sealedPromise = null;
+  function sealedFor(sess) {
+    if (!sealedPromise) sealedPromise = loadSealed(sess);
+    return sealedPromise;
+  }
+
+  function sealed() {
+    return session().then(sealedFor).then(function (x) { return x.view; }, function () { return sealedState('error').view; });
+  }
+
   // ── Live.roster ──────────────────────────────────────────────────────────
   // The one loader for "my students". Every page that lists or counts students
   // calls this and never keeps its own copy.
   //
   //   GET /students                   the roster (a tenant-scoped session) or ids
   //   GET /students/{id}/readiness    the server's own baseline verdict, per student
-  //   GET /bluebook/students          courses and email from Bluebook's rosters
-  //   GET /bluebook/submissions       sealed exams
+  //   Live.sealed()                   sealed exams, plus Bluebook's rosters for
+  //                                   courses and email (same single load)
   //
   // Resolves, and never rejects:
   //   ok, error      ok is false when the student list itself could not be read
@@ -205,34 +317,14 @@
   //   bluebookOff    bluebook === 'off'
   //   courseCount    distinct Bluebook courses among these students
   //   beyondCap      students past ROSTER_CAP, whose readiness was never asked for
+  //                  (they are the last beyondCap entries of students[])
   //   submissions[]  {id, student_id, created_at, graded_at} only: nothing
   //                  Bluebook computed about a submission is passed on
 
-  var ROSTER_CAP = 60;        // readiness is asked for the first 60 students
-  var ROSTER_IN_FLIGHT = 6;   // requests in flight at once, across the whole load
   var VERDICTS = ['ready', 'developing', 'insufficient'];
 
   function count(v) {
     return (typeof v === 'number' && isFinite(v)) ? v : null;
-  }
-
-  // Runs the calls it is given at most `max` at a time, in the order given.
-  function limiter(max) {
-    var active = 0, waiting = [];
-    function pump() {
-      while (active < max && waiting.length) {
-        (function (job) {
-          active++;
-          var p;
-          try { p = job.fn(); } catch (e) { p = Promise.resolve(failed()); }
-          var done = function (v) { active--; job.resolve(v); pump(); };
-          p.then(done, function () { done(failed()); });
-        })(waiting.shift());
-      }
-    }
-    return function (fn) {
-      return new Promise(function (resolve) { waiting.push({ fn: fn, resolve: resolve }); pump(); });
-    };
   }
 
   function rosterFailure() {
@@ -244,11 +336,8 @@
   }
 
   function loadRoster(sess) {
-    var hasBb = sess.products.indexOf('bluebook') >= 0;
-    var get = limiter(ROSTER_IN_FLIGHT);
     var stP = get(function () { return api('/students'); });
-    var bsP = hasBb ? get(function () { return api('/bluebook/students'); }) : null;
-    var sbP = hasBb ? get(function () { return api('/bluebook/submissions'); }) : null;
+    var slP = sealedFor(sess);
 
     return stP.then(function (st) {
       var ok = !!(st.ok && st.data);
@@ -269,8 +358,8 @@
         return get(function () { return api('/students/' + encodeURIComponent(r.id) + '/readiness'); });
       });
 
-      return Promise.all([Promise.all(checks), bsP, sbP]).then(function (all) {
-        var bs = all[1], sb = all[2];
+      return Promise.all([Promise.all(checks), slP]).then(function (all) {
+        var sl = all[1], bluebook = sl.view.bluebook;
         asked.forEach(function (r, i) {
           var d = all[0][i] && all[0][i].ok && all[0][i].data;
           if (!d) return;
@@ -278,28 +367,21 @@
           if (!rows) { r.ac = count(d.authenticated_count); r.sc = count(d.sample_count); }
         });
 
-        var bluebook;
-        if (!hasBb || (sb && sb.status === 403) || (bs && bs.status === 403)) bluebook = 'off';
-        else if (!sb || !sb.ok || !sb.data || !Array.isArray(sb.data.submissions)) bluebook = 'error';
-        else bluebook = 'ok';
-
         // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
         var subs = [], byStudent = new Map(), bbById = new Map();
         try {
           if (bluebook === 'ok') {
-            subs = sb.data.submissions.map(function (s) {
+            subs = sl.view.submissions.map(function (s) {
               return { id: s.id, student_id: s.student_id, created_at: s.created_at, graded_at: s.graded_at };
             });
             subs.forEach(function (s) {
               var e = byStudent.get(s.student_id);
               if (!e) { e = { n: 0, pending: 0, last: '' }; byStudent.set(s.student_id, e); }
               e.n++;
-              if (!s.graded_at) e.pending++;
+              if (pendingReview(s)) e.pending++;
               if (s.created_at && s.created_at > e.last) e.last = s.created_at;
             });
-            if (bs && bs.ok && bs.data && Array.isArray(bs.data.students)) {
-              bs.data.students.forEach(function (x) { bbById.set(x.student_id, x); });
-            }
+            (sl.students || []).forEach(function (x) { bbById.set(x.student_id, x); });
           }
         } catch (e) {
           // Sealed-exam data of an unexpected shape must not hide the roster.
@@ -321,7 +403,7 @@
           });
           return {
             id: r.id,
-            name: r.name || r.id,
+            name: String(r.name || r.id),
             email: b && b.email ? String(b.email) : null,
             courses: courses,
             approved: r.ac,
@@ -338,7 +420,7 @@
           error: ok ? null : 'Could not load your students',
           scoped: rows !== null,
           students: students,
-          sealedToReview: bluebook === 'ok' ? subs.filter(function (s) { return !s.graded_at; }).length : null,
+          sealedToReview: bluebook === 'ok' ? subs.filter(pendingReview).length : null,
           bluebook: bluebook,
           bluebookOff: bluebook === 'off',
           courseCount: courseIds.size,
@@ -373,6 +455,7 @@
     empty: empty,
     gate: gate,
     roster: roster,
+    sealed: sealed,
     signOut: signOut
   };
 })(window, document);

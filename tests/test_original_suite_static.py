@@ -233,6 +233,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         "empty",
         "gate",
         "roster",
+        "sealed",
         "signOut",
     ):
         assert re.search(rf"\b{key}\s*:", exported), f"Live.{key} is not exported"
@@ -475,13 +476,58 @@ def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exi
 def test_submissions_page_never_names_bluebooks_integrity_readings():
     # GET /bluebook/submissions returns an AI-likelihood number, a stylometric
     # number and a FLAGGED status for each sealed exam. None of them is shown,
-    # so the page must not so much as name them: it copies an explicit list of
-    # safe fields out of each row and ignores the rest.
-    page = (SUITE / "submissions.html").read_text(encoding="utf-8").lower()
+    # so the page must not so much as name them. It does not copy fields out of
+    # the response either: Live.sealed() does, through one allowlist.
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8")
     for word in ("ai_score", "aiscore", "stylometric", "flagged", "authenticity"):
-        assert word not in page, f"submissions.html mentions {word}"
-    # The allowlist is the way fields leave the response.
-    assert "const FIELDS=[" in (SUITE / "submissions.html").read_text(encoding="utf-8")
+        assert word not in page.lower(), f"submissions.html mentions {word}"
+    assert "Live.sealed()" in page
+    assert "FIELDS" not in page
+
+
+def _inline_scripts(path: Path) -> str:
+    parser = _Refs()
+    parser.feed(path.read_text(encoding="utf-8"))
+    return "\n".join(parser.scripts)
+
+
+def test_submissions_page_names_no_bluebook_endpoint_itself():
+    # The loader is shared (Live.sealed in live.js): the page makes no request.
+    # A link to the Bluebook app ("/bluebook/") is not an endpoint.
+    code = _inline_scripts(SUITE / "submissions.html")
+    assert "Live.api(" not in code
+    assert not re.findall(r"/bluebook/\w", code), "submissions.html names a Bluebook endpoint"
+
+
+# The fields that may leave a /bluebook/submissions response. Pinned here so
+# adding one is a decision made in a test diff.
+SEALED_FIELDS = (
+    "id",
+    "exam_id",
+    "student_id",
+    "candidate",
+    "exam",
+    "course",
+    "created_at",
+    "late",
+    "mark",
+    "graded_at",
+)
+
+
+def test_live_js_has_one_sealed_exam_allowlist(live_js):
+    found = re.findall(r"var SEALED_FIELDS = \[([^\]]*)\]", live_js)
+    assert len(found) == 1
+    assert tuple(re.findall(r"'([a-z_]+)'", found[0])) == SEALED_FIELDS
+    # The allowlist is the only way a field is copied: no second list of
+    # submission fields anywhere in the suite.
+    for path in _code_files():
+        text = path.read_text(encoding="utf-8")
+        if path == SUITE / "live.js":
+            assert text.count("'candidate'") == 1
+        else:
+            assert "'candidate'" not in text, f"{path.name} keeps its own field list"
+            assert "const FIELDS" not in text, f"{path.name} keeps its own field list"
 
 
 def test_reports_page_counts_only_what_live_roster_returns():
@@ -496,7 +542,23 @@ def test_reports_page_counts_only_what_live_roster_returns():
     assert page.count("Appears once Original keeps analysis results") >= 3
 
 
-needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def _node_major() -> int | None:
+    """The major version of the installed ``node``, or None when there is none."""
+    node = shutil.which("node")
+    if node is None:
+        return None
+    try:
+        out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    found = re.match(r"v(\d+)\.", out.strip())
+    return int(found.group(1)) if found else None
+
+
+# The harness below uses fetch-shaped stubs, URL and Headers: node 18 or newer.
+needs_node = pytest.mark.skipif(
+    (_node_major() or 0) < 18, reason="node 18 or newer is not installed"
+)
 
 # ── Teachers land on these pages; the old page stays one click away ───────────
 # Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
@@ -606,7 +668,7 @@ def test_bluebooks_original_link_opens_the_new_pages(name):
     assert "../professor.html" not in text, f"{name} still links the old page"
 
 
-# ── Live.roster, run for real under node ──────────────────────────────────────
+# ── Live.roster and Live.sealed, run for real under node ──────────────────────
 # live.js is plain browser script with no module system, so these run it in a
 # bare `node` with a stubbed window, document and fetch. They need only node
 # 18+ (global fetch types are not used; URL and Headers are).
@@ -615,9 +677,22 @@ HARNESS = r"""
 const fs = require('fs');
 const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
 const src = fs.readFileSync(sc.live, 'utf8');
+function store(initial) {
+  const m = new Map(Object.entries(initial || {}));
+  return {
+    getItem(k) { return m.has(k) ? m.get(k) : null; },
+    setItem(k, v) { m.set(k, String(v)); },
+    removeItem(k) { m.delete(k); },
+    key(i) { const ks = Array.from(m.keys()); return i < ks.length ? ks[i] : null; },
+    get length() { return m.size; },
+    keys() { return Array.from(m.keys()); },
+  };
+}
+const replaced = [];
 const window = {
-  location: { href: 'http://suite.test/original/students.html', origin: 'http://suite.test', replace() {} },
-  localStorage: { getItem() { return null; }, removeItem() {} },
+  location: { href: 'http://suite.test/original/students.html', origin: 'http://suite.test', replace(u) { replaced.push(u); } },
+  localStorage: store(sc.local),
+  sessionStorage: store(sc.session),
 };
 const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
 let active = 0, max = 0;
@@ -625,27 +700,52 @@ const calls = [];
 function route(path) {
   let m;
   if (path === '/health') return [200, { environment: 'demo' }];
+  if (path === '/auth/me') return sc.me || [401, {}];
   if (path === '/students') return sc.students;
   if ((m = path.match(/^\/students\/(.+)\/readiness$/))) {
     return (sc.readiness || {})[decodeURIComponent(m[1])] || sc.readinessDefault || [404, { detail: 'x' }];
   }
   if (path === '/bluebook/students') return sc.bbStudents || [200, { students: [] }];
   if (path === '/bluebook/submissions') return sc.bbSubmissions || [200, { submissions: [] }];
+  if (path === '/bluebook/exams') return sc.bbExams || [200, { exams: [] }];
   return [404, {}];
 }
+const matches = (list, path) => (list || []).some((re) => new RegExp(re).test(path));
 function fakeFetch(href) {
   const path = new URL(href).pathname;
   calls.push(path);
+  if (matches(sc.throwOn, path)) throw new Error('fetch threw');
   active++;
   max = Math.max(max, active);
   const [status, body] = route(path);
-  return new Promise((resolve) => setTimeout(() => {
+  const bad = matches(sc.rejectOn, path);
+  return new Promise((resolve, reject) => setTimeout(() => {
     active--;
+    if (bad) { reject(new Error('network down')); return; }
     resolve({ ok: status >= 200 && status < 300, status, text: () => Promise.resolve(JSON.stringify(body)) });
   }, 5));
 }
 new Function('window', 'document', 'fetch', src)(window, document, fakeFetch);
-window.Live.roster().then((result) => process.stdout.write(JSON.stringify({ result, max, calls })));
+// A Map does not survive JSON, so it is written as its list of entries.
+const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: Array.from(r.exams) });
+(async () => {
+  const out = {};
+  if (sc.call === 'signOut') {
+    window.Live.signOut();
+    out.local = window.localStorage.keys();
+    out.session = window.sessionStorage.keys();
+  } else if (sc.call === 'sealed') {
+    out.result = plain(await window.Live.sealed());
+  } else if (sc.call === 'both') {
+    const [roster, sealed, again] = await Promise.all([window.Live.roster(), window.Live.sealed(), window.Live.sealed()]);
+    out.result = roster;
+    out.sealed = plain(sealed);
+    out.sameObject = sealed === again;
+  } else {
+    out.result = await window.Live.roster();
+  }
+  process.stdout.write(JSON.stringify(Object.assign(out, { max, calls, replaced })));
+})();
 """
 
 
@@ -658,6 +758,8 @@ def _roster(**scenario) -> dict:
         timeout=60,
     )
     assert run.returncode == 0, run.stderr
+    # Node exits with no output when a load never finishes (its event loop drains).
+    assert run.stdout, "the load never finished"
     return json.loads(run.stdout)
 
 
@@ -671,7 +773,8 @@ def test_roster_asks_readiness_of_the_first_60_and_never_more_than_6_at_a_time()
     out = _roster(students=[200, {"students": ids, "roster": None}], readinessDefault=_ready("ready"))
     readiness = [c for c in out["calls"] if c.endswith("/readiness")]
     assert len(readiness) == 60
-    assert out["max"] <= 6
+    # Exactly 6: the limiter is used to its full width, and never past it.
+    assert out["max"] == 6
     res = out["result"]
     assert res["ok"] and not res["scoped"]
     assert [s["id"] for s in res["students"]] == ids
@@ -681,6 +784,33 @@ def test_roster_asks_readiness_of_the_first_60_and_never_more_than_6_at_a_time()
     # An ids-only list takes its counts from the readiness response.
     assert res["students"][0]["approved"] == 5 and res["students"][0]["samples"] == 5
     assert res["students"][65]["approved"] is None
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "failing",
+    [
+        {"rejectOn": ["/readiness$"]},
+        {"throwOn": ["/readiness$"]},
+        {"rejectOn": ["^/bluebook/"]},
+        {"rejectOn": ["^/students/.+/readiness$", "^/bluebook/"], "throwOn": ["^/bluebook/exams$"]},
+    ],
+    ids=["readiness-rejects", "readiness-throws", "bluebook-rejects", "mixed"],
+)
+def test_a_failing_fetch_with_more_than_6_queued_does_not_stall(failing):
+    # 70 students queue 60 readiness calls behind 6 slots. A call that rejects
+    # or throws must still give its slot back, or everything behind it waits
+    # forever (the page would sit on "Loading").
+    ids = [f"s{i:02d}" for i in range(70)]
+    out = _roster(students=[200, {"students": ids, "roster": None}], readinessDefault=_ready("ready"), **failing)
+    res = out["result"]
+    assert res["ok"] and len(res["students"]) == 70
+    assert len([c for c in out["calls"] if c.endswith("/readiness")]) == 60
+    assert out["max"] <= 6
+    if "readiness" in str(failing):
+        assert [s["verdict"] for s in res["students"]] == [None] * 70
+    if "bluebook" in str(failing):
+        assert res["bluebook"] == "error" and res["sealedToReview"] is None
 
 
 @needs_node
@@ -751,6 +881,13 @@ def test_roster_reports_the_servers_verdict_and_treats_ids_as_ids():
 
 
 @needs_node
+def test_roster_names_are_always_strings():
+    roster = [{"id": "n1", "name": 5, "authenticated_count": 1, "sample_count": 1}]
+    res = _roster(students=[200, {"students": ["n1"], "roster": roster}], readinessDefault=_ready("ready"))["result"]
+    assert res["students"][0]["name"] == "5"
+
+
+@needs_node
 @pytest.mark.parametrize("status", [403])
 def test_roster_without_bluebook_still_lists_students(status):
     out = _roster(
@@ -779,3 +916,115 @@ def test_roster_that_cannot_read_the_students_says_so_instead_of_rejecting(stude
     assert res["ok"] is False
     assert res["error"]
     assert res["students"] == []
+
+
+# ── Live.sealed ───────────────────────────────────────────────────────────────
+
+SEALED_RESULT_KEYS = set(SEALED_FIELDS) | {"course_id"}
+
+
+@needs_node
+def test_sealed_copies_only_the_allowlisted_fields_and_adds_the_exams_course():
+    out = _roster(
+        call="sealed",
+        bbSubmissions=[
+            200,
+            {
+                "submissions": [
+                    {
+                        "id": "x1", "exam_id": "e1", "student_id": "s1", "candidate": "Ada L.",
+                        "exam": "Midterm", "course": "THEO 301", "created_at": "2026-10-01T10:00:00Z",
+                        "late": True, "mark": "B+", "graded_at": None,
+                        # Everything below is Bluebook's own and must never come through.
+                        "ai_score": 0.91, "aiScore": 0.91, "stylometric": 0.4, "status": "FLAGGED",
+                        "warnings": ["pasted"], "graded_by": "teacher-1", "feedback": "see me",
+                        "text": "the whole paper", "tenant_id": "demo",
+                    },
+                    None,
+                    "junk",
+                    {"id": "x2", "exam_id": "unknown-exam", "student_id": "constructor"},
+                ]
+            },
+        ],
+        bbStudents=[
+            200,
+            {"students": [{"student_id": "s1", "name": "Ada Lovelace", "email": "a@example.org"}, None, {"student_id": "s2"}]},
+        ],
+        bbExams=[
+            200,
+            {
+                "exams": [
+                    {"id": "e1", "title": "Midterm", "course": "THEO 301", "course_id": "c1", "prompt": "secret", "questions": [1], "tenant_id": "demo"},
+                    None,
+                ]
+            },
+        ],
+    )
+    res = out["result"]
+    assert res["bluebook"] == "ok"
+    first, second = res["submissions"]
+    assert set(first) == SEALED_RESULT_KEYS and set(second) == SEALED_RESULT_KEYS
+    assert first["course_id"] == "c1" and second["course_id"] is None  # the exam is not known
+    assert (first["id"], first["late"], first["mark"], first["graded_at"]) == ("x1", True, "B+", None)
+    assert (second["id"], second["mark"], second["candidate"]) == ("x2", None, None)
+    for leaked in ("ai_score", "aiScore", "stylometric", "status", "warnings", "graded_by", "feedback", "text", "tenant_id"):
+        assert leaked not in first, leaked
+    blob = json.dumps(res)
+    for value in ("FLAGGED", "0.91", "see me", "the whole paper", "teacher-1", "pasted", "secret"):
+        assert value not in blob, value
+    assert res["names"] == [["s1", "Ada Lovelace"]]
+    # An exam keeps only its title, course and course id.
+    assert res["exams"] == [["e1", {"title": "Midterm", "course": "THEO 301", "course_id": "c1"}]]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "scenario,state",
+    [
+        ({"bbSubmissions": [403, {"detail": "no"}]}, "off"),
+        ({"bbStudents": [403, {"detail": "no"}]}, "off"),
+        ({"bbSubmissions": [500, {"detail": "boom"}]}, "error"),
+        ({"bbSubmissions": [200, {"submissions": "nope"}]}, "error"),
+        ({"bbSubmissions": [200, {}]}, "error"),
+        ({"rejectOn": ["^/bluebook/submissions$"]}, "error"),
+    ],
+)
+def test_sealed_says_off_or_error_and_hands_back_nothing(scenario, state):
+    res = _roster(call="sealed", **scenario)["result"]
+    assert res["bluebook"] == state
+    assert res["submissions"] == [] and res["names"] == [] and res["exams"] == []
+
+
+@needs_node
+def test_sealed_is_off_without_a_bluebook_product_and_asks_for_nothing():
+    out = _roster(
+        call="sealed",
+        local={"original_principal_token": "t"},
+        me=[200, {"role": "professor", "products": ["original"], "tenant_id": "ten"}],
+    )
+    assert out["result"]["bluebook"] == "off"
+    assert not [c for c in out["calls"] if c.startswith("/bluebook/")]
+
+
+@needs_node
+def test_roster_and_sealed_share_one_load_and_one_definition_of_awaiting_review():
+    submissions = [
+        {"id": "a", "student_id": "s1", "exam_id": "e1", "created_at": "2026-10-01T10:00:00Z", "graded_at": None},
+        {"id": "b", "student_id": "s1", "exam_id": "e1", "created_at": "2026-10-02T10:00:00Z", "graded_at": "2026-10-03T10:00:00Z"},
+        {"id": "c", "student_id": "s2", "exam_id": "e2", "created_at": "2026-10-04T10:00:00Z", "graded_at": None},
+    ]
+    out = _roster(
+        call="both",
+        students=[200, {"students": ["s1", "s2"], "roster": None}],
+        readinessDefault=_ready("ready"),
+        bbSubmissions=[200, {"submissions": submissions}],
+    )
+    # Three Bluebook requests for the whole page, however many callers ask.
+    for endpoint in ("/bluebook/submissions", "/bluebook/students", "/bluebook/exams"):
+        assert out["calls"].count(endpoint) == 1, endpoint
+    assert out["sameObject"] is True
+    awaiting = [r["id"] for r in out["sealed"]["submissions"] if not r["graded_at"]]
+    assert awaiting == ["a", "c"]
+    assert out["result"]["sealedToReview"] == len(awaiting)
+    assert [(s["id"], s["pending"]) for s in out["result"]["students"]] == [("s1", 1), ("s2", 1)]
+    assert [r["id"] for r in out["result"]["submissions"]] == ["a", "b", "c"]
