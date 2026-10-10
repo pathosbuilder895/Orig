@@ -28,7 +28,6 @@ SECRETS = {
 
 
 def _env(service: str) -> dict[str, dict]:
-    # A static site (bluebook-teacher-demo) declares no envVars at all.
     return {e["key"]: e for e in SERVICES[service].get("envVars", [])}
 
 
@@ -65,7 +64,11 @@ def test_classroom_release_does_not_enable_research_scoring():
 def test_no_secret_value_is_committed(service):
     for key, entry in _env(service).items():
         if key in SECRETS:
-            assert "value" not in entry and entry.get("sync") is False, f"{service}:{key}"
+            assert "value" not in entry, f"{service}:{key}"
+            if service == "original-pilot" and key in {"SECRET_KEY", "MAINTENANCE_TOKEN"}:
+                assert entry.get("generateValue") is True and "sync" not in entry
+            else:
+                assert entry.get("sync") is False, f"{service}:{key}"
 
 
 def test_backup_job_fails_loudly_when_unconfigured():
@@ -95,7 +98,9 @@ def test_teacher_demo_is_a_separate_static_site():
     assert demo["runtime"] == "static"
     assert demo["buildCommand"] == "bash scripts/build_teacher_demo_site.sh dist-teacher-demo"
     assert demo["staticPublishPath"] == "./dist-teacher-demo"
-    assert "envVars" not in demo
+    assert _env("bluebook-teacher-demo") == {
+        "SKIP_INSTALL_DEPS": {"key": "SKIP_INSTALL_DEPS", "value": "true"}
+    }
 
 
 def test_blueprint_holds_only_the_pilot_and_its_teacher_demo():

@@ -5,10 +5,10 @@
 ---
 
 ## Project Overview
-Stylometric authorship verification system for academic integrity. Per-student quantum density matrix profiles scored via Born-rule projection. Targets seminaries and colleges. Positioned as pastoral, explainable, FERPA-compliant.
+Writing-consistency tool for independent teachers (invitation-only pilot, 1–3 teachers to start). Original is optional and off by default; when on, shown with testing-phase warning. Bluebook is a locked writing/exam app. See `docs/NORTH_STAR.md` for phase, mission, and non-negotiables.
 
-**Working directory:** `~/Desktop/Original`
-**Python environment:** always use `.venv/bin/python` and `.venv/bin/pytest` — NOT system python3
+**Working directory:** Repository root (wherever you checked it out)
+**Python environment:** always use `.venv/bin/python` and `.venv/bin/pytest` from the checkout's root — NOT system python3. Each checkout or worktree needs its own venv at its root (create with `python3.11 -m venv .venv` and install per README), or activate an existing venv and use plain `python -m pytest`.
 **Run server:** `python run.py --demo` (port 8001 by default)
 
 ---
@@ -16,30 +16,19 @@ Stylometric authorship verification system for academic integrity. Per-student q
 ## Server Management
 - **NEVER kill or restart running dev servers** without explicit user permission. Find a code-level workaround (env override, redirect flag, config change) and confirm first.
 - When starting servers, always check the correct `--frontend-dir` before launching. It should match the demo/ directory: `python run.py --demo --frontend-dir demo/`
-- The `.venv` is at `~/Desktop/Original/.venv/` — the system python3 has a broken pydantic_settings install that will cause conftest import errors.
+- The `.venv` is at the repository root — the system python3 has a broken pydantic_settings install that will cause conftest import errors.
 
 ---
 
 ## Testing
 ```bash
-.venv/bin/python -m pytest tests/ -q                  # full suite (~3275 collected as of 2026-08-20)
+.venv/bin/python -m pytest tests/ -q                  # full suite
 .venv/bin/python -m pytest tests/quantum/ -v          # quantum module only
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q   # exact CI command (clean local run)
 ```
-Test count grows regularly — treat the numbers above as approximate (get the
-current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`),
-not a pinned figure to keep in sync by hand.
-**Budget ~11–12 minutes for the full run, not seconds** — the exact CI command
-measured **11m14s** locally on 2026-08-20 with local Postgres up (3273 passed,
-5 skipped), and it routinely lands anywhere in 5–12 min depending on machine
-load. It will outrun a 600s tool timeout and get backgrounded, so do not run
-it on a short budget.
-Coverage on `original/` was **99.61%** in that run (combined statement +
-branch coverage, since CI runs with `--cov-branch`), against CI's
-`--cov-fail-under=98` — the margin is about 1.6 points, tighter than it
-sounds once branches are in the denominator, so a change that adds a
-meaningful amount of untested lines or branches can still fail CI on
-coverage alone while every test passes.
+Test count grows regularly — get the current count with `.venv/bin/python -m pytest --collect-only -q tests/ 2>&1 | tail -1`.
+CI (`.github/workflows/test.yml`) is the source of truth for the exact test command. **Budget several minutes for the full run** — it will outrun a 600s tool timeout and get backgrounded, so do not run it on a short budget.
+CI enforces combined statement + branch coverage (`--cov-branch`) with `coverage report --fail-under=98` on the merged shards. The margin is tight once branches are in the denominator, so a change that adds meaningful untested lines or branches can still fail CI on coverage alone while every test passes.
 The clean local command above excludes known-red tests via `-m "not blocker and not certification"`; a clean run is **0 failed**, treat any failure as real. `make test-known-red` (`scripts/known_red.py`) is how the known-red inventory itself is checked, and it expects those tests to FAIL — a pass or an unexplained skip there is the failure. `make test-cert` is red on purpose today (T-01).
 A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
 `scripts/changed_tests.py`) maps the pushed diff to its associated test files
@@ -201,12 +190,13 @@ Text → 109-feature pipeline (original/features/)
 **Store:** `original/store.py` — SQLite persistence + in-memory cache
 **API:** `original/api.py` — FastAPI endpoints (THE pilot backend)
 
-⚠️ **Two backends exist** — see `docs/ARCHITECTURE.md` before
-touching auth or LTI. The live stack is `original/api.py` + `demo/` +
+⚠️ **The live stack** is `original/api.py` + `original/routers/` + `demo/` +
 `demo/bluebook/` with LTI at `/lti/*` (`original/lti.py`). The v1 package
-(`original/api/`, `original/main.py`, `/canvas/lti/*`) is dormant. The dead
-`frontend/` and `web/` trees were removed 2026-07-07 (ADR-006); see git
-history. New pilot features go in the live stack only.
+(`original/api/`, `original/main.py`) was deleted in PR #90. The old
+`frontend/` and `web/` trees were removed in ADR-006. The dormant v1 `Settings`
+(`original/core/config.py`, reached via `original/cli/*`) still exists but has
+no effect on the live stack. See `docs/ARCHITECTURE.md` before touching auth or LTI.
+New pilot features go in the live stack only.
 
 **Bluebook frontend:** after editing any `demo/bluebook/*.jsx`, rebuild and
 commit the bundle: `cd demo/bluebook && npm run build` (Render has no Node —
@@ -232,7 +222,7 @@ the committed `bluebook.bundle.js` is what production serves).
 - One focused commit per logical change
 - Conventional: `Fix ...`, `Add ...`, `Refactor ...` (not `update` for new features)
 - Co-author line: `Co-Authored-By: Claude <current model name> <noreply@anthropic.com>` (e.g. Claude Fable 5)
-- Branch: `commit-changes` → PR to `main` on `pathosbuilder895/Orig`
+- Branch: work on `claude/<descriptive-name>`, open PR to `main`, never push to `main` directly or merge without approval
 
 ---
 
