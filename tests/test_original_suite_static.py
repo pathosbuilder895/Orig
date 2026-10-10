@@ -12,6 +12,7 @@ em dash.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import re
 import shutil
@@ -533,6 +534,7 @@ def test_live_js_has_one_sealed_exam_allowlist(live_js):
 def test_reports_page_counts_only_what_live_roster_returns():
     page = (SUITE / "reports.html").read_text(encoding="utf-8")
     assert "Live.roster()" in page
+    assert "Live.sealed()" in page
     # The loader is shared, and this page reads no other endpoint: its numbers are
     # counts of the roster, the server's verdicts and the sealed exams' dates.
     assert "Live.api(" not in page
@@ -540,6 +542,26 @@ def test_reports_page_counts_only_what_live_roster_returns():
         assert endpoint not in page, f"reports.html calls {endpoint} itself"
     # Cards with no stored source say so instead of showing a number.
     assert page.count("Appears once Original keeps analysis results") >= 3
+
+
+def test_reports_page_gives_no_unsourced_guidance_about_take_home_writing():
+    page = (SUITE / "reports.html").read_text(encoding="utf-8")
+    for gone in ("Take-home essays", "Higher is context", "more time and sources", "worry on its own"):
+        assert gone not in page, f"reports.html still says {gone!r}"
+    # What the repo's docs support: conditions differ, and a difference is a
+    # reason to talk, not evidence.
+    assert (
+        "Writing done under different conditions from a student's baseline, such as at home "
+        "rather than in class, can read differently for ordinary reasons. A difference is "
+        "context for a conversation, not evidence."
+    ) in page
+
+
+def test_reports_page_says_when_a_load_failed_and_how_readiness_was_missed():
+    page = (SUITE / "reports.html").read_text(encoding="utf-8")
+    assert "Nothing on file yet" not in page
+    assert "Readiness could not be read for " in page
+    assert "Readiness was not checked for " in page
 
 
 def _node_major() -> int | None:
@@ -673,7 +695,7 @@ def test_bluebooks_original_link_opens_the_new_pages(name):
 # bare `node` with a stubbed window, document and fetch. They need only node
 # 18+ (global fetch types are not used; URL and Headers are).
 
-HARNESS = r"""
+PRELUDE = r"""
 const fs = require('fs');
 const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
 const src = fs.readFileSync(sc.live, 'utf8');
@@ -695,7 +717,45 @@ const window = {
   localStorage: sc.blockStorage ? blocked : store(sc.local),
   sessionStorage: sc.blockStorage ? blocked : store(sc.session),
 };
-const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+// A document just big enough to run a page's script: elements are plain
+// objects that remember what the page wrote into them. The tab buttons the
+// reports page builds with innerHTML are parsed back out of it, so a test can
+// press one.
+const tabButtons = new Map();
+function makeEl(id) {
+  const e = {
+    id, textContent: '', innerHTML: '', className: '', hidden: false, style: {}, tabIndex: 0,
+    offsetLeft: 0, offsetWidth: 600, offsetHeight: 20, attrs: {}, handlers: {}, children: [],
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+    addEventListener(type, fn) { (this.handlers[type] = this.handlers[type] || []).push(fn); },
+    setAttribute(k, v) { this.attrs[k] = String(v); },
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    appendChild(c) { this.children.push(c); return c; },
+    querySelector() { return makeEl(); },
+    querySelectorAll(sel) {
+      if (id === 'course-tabs' && sel === '.ctab') {
+        return Array.from(this.innerHTML.matchAll(/data-c="([^"]*)"/g)).map((m) => {
+          if (!tabButtons.has(m[1])) tabButtons.set(m[1], makeEl('tab:' + m[1]));
+          const b = tabButtons.get(m[1]);
+          b.attrs['data-c'] = m[1];
+          return b;
+        });
+      }
+      return [];
+    },
+    focus() {},
+  };
+  return e;
+}
+const elements = new Map();
+const document = {
+  readyState: 'complete',
+  getElementById(id) { if (!elements.has(id)) elements.set(id, makeEl(id)); return elements.get(id); },
+  createElement() { return makeEl(); },
+  querySelector(sel) { return this.getElementById('query:' + sel); },
+  querySelectorAll() { return []; },
+  addEventListener() {},
+};
 let active = 0, max = 0;
 const calls = [];
 function route(path) {
@@ -727,6 +787,9 @@ function fakeFetch(href) {
   }, 5));
 }
 new Function('window', 'document', 'fetch', src)(window, document, fakeFetch);
+"""
+
+LIVE_TAIL = r"""
 // A Map does not survive JSON, so it is written as its list of entries.
 const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: Array.from(r.exams) });
 (async () => {
@@ -751,6 +814,38 @@ const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: A
 })();
 """
 
+PAGE_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+window.matchMedia = () => ({ matches: true });  // no animation timers
+new Function('window', 'document', 'Live', scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const snap = () => ({
+  headline: el('headline').innerHTML,
+  termD: el('term-d').textContent,
+  tabNote: { text: el('tab-note').textContent, hidden: el('tab-note').hidden },
+  tabs: el('course-tabs').innerHTML,
+  reviewed: [el('k3-v').textContent, el('k3-m').textContent],
+  ready: [el('k4-v').textContent, el('k4-m').textContent],
+});
+(async () => {
+  for (let i = 0; i < 500 && !el('headline').innerHTML; i++) await sleep(10);
+  const snaps = [snap()];
+  for (const key of sc.clicks || []) {
+    const btn = tabButtons.get(key);
+    if (!btn) throw new Error('no tab ' + key + ' among ' + Array.from(tabButtons.keys()));
+    btn.handlers.click.forEach((fn) => fn());
+    snaps.push(snap());
+  }
+  process.stdout.write(JSON.stringify({ snaps, calls }));
+})();
+"""
+
+HARNESS = PRELUDE + LIVE_TAIL
+PAGE_HARNESS = PRELUDE + PAGE_TAIL
+
 
 def _roster(**scenario) -> dict:
     run = subprocess.run(
@@ -763,6 +858,20 @@ def _roster(**scenario) -> dict:
     assert run.returncode == 0, run.stderr
     # Node exits with no output when a load never finishes (its event loop drains).
     assert run.stdout, "the load never finished"
+    return json.loads(run.stdout)
+
+
+def _page(page: str, **scenario) -> dict:
+    """Run one inline page script under node against stubbed endpoints."""
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PAGE_HARNESS],
+        input=json.dumps({"live": str(SUITE / "live.js"), "page": str(SUITE / page), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
     return json.loads(run.stdout)
 
 
@@ -1085,3 +1194,151 @@ def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
 def test_sign_out_still_leaves_when_the_browser_blocks_storage():
     out = _roster(call="signOut", blockStorage=True)
     assert out["replaced"] == ["/index.html"]
+
+
+# ── Reports page: the numbers the headline and the course tabs stand on ──────
+# reports.html is run for real (its inline script, under node) against stubbed
+# endpoints; the page's text is read back from the stubbed elements.
+
+
+def _ago(days: float) -> str:
+    when = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _course(cid: str, code: str) -> dict:
+    return {"course_id": cid, "code": code, "name": code + " name"}
+
+
+def _two_course_scenario(**extra) -> dict:
+    """Four students; two courses; five sealed exams, one of them (s4) on an
+    exam with no course and one (s5) from a student on no roster course."""
+    roster = [
+        {"id": sid, "name": sid.upper(), "authenticated_count": 5, "sample_count": 5}
+        for sid in ("a", "b", "c", "d")
+    ]
+    scenario = dict(
+        students=[200, {"students": [r["id"] for r in roster], "roster": roster}],
+        readinessDefault=_ready("ready"),
+        bbStudents=[
+            200,
+            {
+                "students": [
+                    {"student_id": "a", "courses": [_course("c1", "THEO 301")]},
+                    {"student_id": "b", "courses": [_course("c2", "BIB 101")]},
+                    {"student_id": "c", "courses": [_course("c1", "THEO 301"), _course("c2", "BIB 101")]},
+                ]
+            },
+        ],
+        bbExams=[
+            200,
+            {
+                "exams": [
+                    {"id": "e1", "title": "Midterm", "course": "THEO 301", "course_id": "c1"},
+                    {"id": "e2", "title": "Quiz", "course": "BIB 101", "course_id": "c2"},
+                    {"id": "e3", "title": "Open exam", "course": "", "course_id": None},
+                ]
+            },
+        ],
+        bbSubmissions=[
+            200,
+            {
+                "submissions": [
+                    {"id": "s1", "student_id": "a", "exam_id": "e1", "created_at": _ago(1), "graded_at": None},
+                    {"id": "s2", "student_id": "b", "exam_id": "e2", "created_at": _ago(2), "graded_at": _ago(1)},
+                    # Student c is in both courses, but this exam belongs to c1 only.
+                    {"id": "s3", "student_id": "c", "exam_id": "e1", "created_at": _ago(3), "graded_at": None},
+                    # No course on the exam: counted by student, so in both of c's tabs.
+                    {"id": "s4", "student_id": "c", "exam_id": "e3", "created_at": _ago(4), "graded_at": None},
+                    # No course, and the student is on no course roster: only in All courses.
+                    {"id": "s5", "student_id": "d", "exam_id": "e3", "created_at": _ago(5), "graded_at": None},
+                ]
+            },
+        ],
+        clicks=["c1", "c2"],
+    )
+    scenario.update(extra)
+    return scenario
+
+
+NOTE = "Counted by student for exams without a course: a student in two courses appears in both."
+
+
+@needs_node
+def test_reports_course_tabs_count_a_sealed_exam_under_the_exams_own_course():
+    everything, c1, c2 = _page("reports.html", **_two_course_scenario())["snaps"]
+    # All courses: five exams, four waiting. No fallback is in play, so no note.
+    assert "4 sealed exams</b> are waiting" in everything["headline"]
+    assert everything["termD"] == "2 courses · 4 students · 5 sealed exams"
+    assert everything["tabNote"]["hidden"] is True
+    assert 'data-c="c1"' in everything["tabs"] and 'data-c="c2"' in everything["tabs"]
+    # THEO 301: s1 and s3 by their exam, s4 by its student (c). Student c's s3 is
+    # not counted in BIB 101 even though c is on both rosters.
+    assert c1["headline"].startswith("THEO 301: ")
+    assert "3 sealed exams</b> are waiting" in c1["headline"]
+    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed exams"
+    assert c1["reviewed"] == ["0", "of 3 sealed · 3 waiting"]
+    # BIB 101: s2 (reviewed) by its exam, s4 by its student.
+    assert c2["headline"].startswith("BIB 101: ")
+    assert "1 sealed exam</b> is waiting" in c2["headline"]
+    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed exams"
+    assert c2["reviewed"] == ["1", "of 2 sealed · 1 waiting"]
+    # The note appears exactly in the tabs where an exam was counted by student.
+    for tab in (c1, c2):
+        assert tab["tabNote"] == {"text": NOTE, "hidden": False}
+
+
+@needs_node
+def test_reports_course_tab_with_every_exam_on_a_known_course_shows_no_note():
+    scenario = _two_course_scenario()
+    subs = [r for r in scenario["bbSubmissions"][1]["submissions"] if r["exam_id"] != "e3"]
+    scenario["bbSubmissions"] = [200, {"submissions": subs}]
+    _, c1, c2 = _page("reports.html", **scenario)["snaps"]
+    assert "2 sealed exams</b> are waiting" in c1["headline"]  # s1, s3
+    assert c1["tabNote"]["hidden"] is True and c2["tabNote"]["hidden"] is True
+
+
+@needs_node
+def test_reports_headline_says_how_many_students_readiness_was_not_read_for():
+    # 70 ids: the first 60 are asked about, the last 10 never are. Two of the 60
+    # answered with an error, so their verdict is missing rather than "not ready".
+    ids = [f"s{i:02d}" for i in range(70)]
+    snap = _page(
+        "reports.html",
+        students=[200, {"students": ids, "roster": None}],
+        readinessDefault=_ready("ready"),
+        readiness={"s03": [500, {"detail": "boom"}], "s07": [500, {"detail": "boom"}]},
+    )["snaps"][0]
+    assert snap["headline"].startswith("<b>58 of 70 students</b> have a ready baseline.")
+    assert " Readiness could not be read for 2." in snap["headline"]
+    assert " Readiness was not checked for 10." in snap["headline"]
+
+
+@needs_node
+def test_reports_headline_makes_no_ready_claim_when_no_verdict_was_read():
+    snap = _page("reports.html", students=[200, {"students": ["a", "b"], "roster": None}])["snaps"][0]
+    assert "ready baseline" not in snap["headline"]
+    assert snap["headline"].startswith("<b>2 students</b> on your roster.")
+
+
+@needs_node
+def test_reports_course_tab_counts_unread_readiness_within_its_own_students():
+    scenario = _two_course_scenario(readiness={"a": [500, {"detail": "boom"}]})
+    _, c1, c2 = _page("reports.html", **scenario)["snaps"]
+    assert "<b>1 of 2 students</b> has a ready baseline. Readiness could not be read for 1." in c1["headline"]
+    assert "Readiness could not be read" not in c2["headline"]  # a is not in BIB 101
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "scenario,term",
+    [
+        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed exams"),
+        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed exams"),
+        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed exams · 1 student"),
+    ],
+    ids=["all", "students", "sealed"],
+)
+def test_reports_term_block_says_could_not_load_instead_of_nothing_on_file(scenario, term):
+    snap = _page("reports.html", **scenario)["snaps"][0]
+    assert snap["termD"] == term

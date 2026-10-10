@@ -69,6 +69,7 @@
   /* course tabs: one for every course that has students */
   .course-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1.2rem;}
   .course-tabs:empty{display:none;}
+  .tab-note{font-size:.92rem;color:var(--dim);font-style:italic;margin:-.5rem 0 1.2rem;text-wrap:pretty;}
   .ctab{display:inline-flex;align-items:baseline;gap:.5rem;white-space:nowrap;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.5rem 1.05rem;font-family:var(--body);font-size:.96rem;cursor:pointer;transition:all .16s;}
   .ctab:hover{color:var(--cream);border-color:var(--line);}
   .ctab.on{background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.5);color:var(--gold-2);}
@@ -177,6 +178,7 @@
     </div>
 
     <div class="course-tabs" id="course-tabs" role="group" aria-label="Show one course, or all courses"></div>
+    <p class="tab-note" id="tab-note" hidden></p>
 
     <div class="kpis">
       <div class="kpi" style="--accent:var(--gold)"><div class="l">Papers analyzed</div><div class="v none" id="k1-v">–</div><div class="m" id="k1-m">Appears once Original keeps analysis results</div></div>
@@ -214,7 +216,7 @@
       <div class="card" style="margin-bottom:0;">
         <div class="card-h"><div><div class="t">By assignment type</div><div class="s">Average deviation: context, not a verdict</div></div></div>
         <div id="assign"></div>
-        <div class="bh-note">Take-home essays often deviate more than in-class writing, because students have more time and sources. <b>Higher is context</b>, not a reason to worry on its own.</div>
+        <div class="bh-note">Writing done under different conditions from a student's baseline, such as at home rather than in class, can read differently for ordinary reasons. A difference is context for a conversation, not evidence.</div>
       </div>
     </div>
   </main>
@@ -256,10 +258,11 @@
   }
 
   // ── data ──
-  // Live.roster() does all the loading (see live.js). Everything on this page is
-  // a count of what it returns: the server's baseline verdicts, the roster, and
-  // each sealed exam's created_at / graded_at. Nothing here scores or judges.
-  let res=null, courses=[], cur='all';
+  // Live.roster() and Live.sealed() do all the loading (see live.js; both share
+  // one load of the sealed exams). Everything on this page is a count of what
+  // they return: the server's baseline verdicts, the roster, and each sealed
+  // exam's created_at / graded_at / course. Nothing here scores or judges.
+  let res=null, sealed=[], courses=[], cur='all';
 
   function courseKey(c){ return (c.id!=null&&c.id!=='')?String(c.id):(c.code||c.name); }
 
@@ -274,15 +277,31 @@
     return Array.from(map.values()).sort((a,b)=>a.label.localeCompare(b.label,undefined,{sensitivity:'base'}));
   }
 
-  // The students and sealed exams the selected tab covers.
+  // The students and sealed exams the selected tab covers. A sealed exam belongs
+  // to the course of its exam (course_id, from Live.sealed). Only an exam with no
+  // known course falls back to its student's course list, so a student in two
+  // courses is counted in both for those; byStudent says how many of those the
+  // selected tab holds.
   function scope(){
     const c=cur==='all'?null:courses.find(x=>x.key===cur);
-    if(!c){ cur='all'; return {label:'',students:res.students,subs:res.submissions}; }
-    return {
-      label:c.label,
-      students:res.students.filter(s=>c.ids.has(s.id)),
-      subs:res.submissions.filter(s=>c.ids.has(s.student_id))
-    };
+    if(!c){ cur='all'; return {label:'',students:res.students,subs:sealed,byStudent:0}; }
+    const subs=[]; let byStudent=0;
+    sealed.forEach(s=>{
+      if(s.course_id!=null){ if(String(s.course_id)===c.key) subs.push(s); }
+      else if(c.ids.has(s.student_id)){ subs.push(s); byStudent++; }
+    });
+    return {label:c.label,students:res.students.filter(s=>c.ids.has(s.id)),subs:subs,byStudent:byStudent};
+  }
+
+  // Live.roster asks for the first students only; the last res.beyondCap were
+  // never asked. Any other student without a verdict was asked, and the answer
+  // could not be read.
+  function skipped(students){
+    const k=Math.min(res.beyondCap||0,res.students.length);
+    const beyond=new Set(res.students.slice(res.students.length-k).map(s=>s.id));
+    const none=students.filter(s=>!s.verdict);
+    const notChecked=none.filter(s=>beyond.has(s.id)).length;
+    return {notChecked:notChecked,unread:none.length-notChecked};
   }
 
   // Same week buckets as the Overview chart (index.html), over a longer window:
@@ -332,7 +351,13 @@
     if(!res.ok) h='Your students could not be loaded just now. Try reloading the page.';
     else {
       if(!n) h='No students yet.';
-      else if(checked) h='<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'has':'have')+' a ready baseline.';
+      else if(checked){
+        // Students whose verdict is missing are not "not ready": say how many there are.
+        const sk=skipped(sc.students);
+        h='<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'has':'have')+' a ready baseline.'+
+          (sk.unread?' Readiness could not be read for '+sk.unread+'.':'')+
+          (sk.notChecked?' Readiness was not checked for '+sk.notChecked+'.':'');
+      }
       else h='<b>'+plural(n,'student')+'</b> on your roster.';
       if(bbOk) h+=pending>0
         ? ' <b>'+plural(pending,'sealed exam')+'</b> '+(pending===1?'is':'are')+' waiting for your review.'
@@ -341,11 +366,20 @@
     }
     $('headline').innerHTML=h;
 
-    const parts=[];
+    const parts=[], sealedFailed=res.bluebook==='error';
+    if(!res.ok&&sealedFailed) parts.push('Could not load your students or sealed exams');
+    else {
+      if(!res.ok) parts.push('Could not load your students');
+      if(sealedFailed) parts.push('Could not load sealed exams');
+    }
     if(res.ok&&bbOk&&cur==='all'&&res.courseCount>0) parts.push(plural(res.courseCount,'course'));
     if(res.ok) parts.push(plural(n,'student'));
     if(bbOk) parts.push(plural(t.total,'sealed exam'));
-    $('term-d').textContent=(sc.label?sc.label+' · ':'')+(parts.join(' · ')||'Nothing on file yet');
+    $('term-d').textContent=(sc.label?sc.label+' · ':'')+parts.join(' · ');
+
+    const note=$('tab-note');
+    note.textContent='Counted by student for exams without a course: a student in two courses appears in both.';
+    note.hidden=!(bbOk&&sc.byStudent>0);
   }
 
   function setKpi(i,v,m,none){
@@ -469,13 +503,17 @@
   // never in a page stuck on "Loading".
   function failState(){
     res={ok:false,bluebook:'error',bluebookOff:false,students:[],submissions:[],courseCount:0,beyondCap:0,sealedToReview:null};
-    courses=[]; cur='all';
+    sealed=[]; courses=[]; cur='all';
   }
   Live.session().then(renderChrome);
   const main=document.querySelector('main');
   Live.gate(main).then(async sess=>{
     if(!sess){ main.classList.add('gated'); return; }
-    try { res=await Live.roster(); courses=res.ok&&res.bluebook==='ok'?buildCourses(res.students):[]; }
+    try {
+      const got=await Promise.all([Live.roster(),Live.sealed()]);
+      res=got[0]; sealed=res.bluebook==='ok'?got[1].submissions:[];
+      courses=res.ok&&res.bluebook==='ok'?buildCourses(res.students):[];
+    }
     catch(e){ failState(); }
     try { renderTabs(); renderAll(); }
     catch(e){ failState(); try { renderTabs(); renderAll(); } catch(e2){} }
