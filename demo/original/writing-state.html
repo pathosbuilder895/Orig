@@ -426,7 +426,7 @@
             <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
           </div>
           <div class="fpq-hint">Drag across the print to disturb it</div>
-          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing fingerprint · illustration</span></div>
+          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing fingerprint · decorative</span></div>
           <div class="plain-read" id="plain-read">Loading</div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
@@ -450,7 +450,7 @@
         </div>
         <!-- State vector -->
         <div>
-          <div class="sec-h"><b>State Vector |ψ⟩</b><span id="hm-sub">97 measured writing habits</span></div>
+          <div class="sec-h"><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></div>
           <div class="card hm-wrap">
             <div class="hm-grid" id="heatmap"></div>
             <div class="hm-band" id="heatmap-band"></div>
@@ -507,7 +507,7 @@
   const tierTitle=t=>plainTier(t)+(t.name!==plainTier(t)?' ('+t.name+')':'');
   const GROUPS=['Surface','Discourse','Rhetorical'];
   const GROUP_META={Surface:{c:'#4d90c8',sub:'what’s on the page: words, punctuation, grammar, slips'},Discourse:{c:'#9a7ad0',sub:'how ideas move: flow, rhythm, structure, suspense'},Rhetorical:{c:'#5aab7a',sub:'the voice: tone, focus, sourcing, drift'}};
-  const FAMILY={Surface:{cls:'gS',label:'how the sentences look'},Discourse:{cls:'gD',label:'how the ideas connect'},Rhetorical:{cls:'gR',label:'how the case is made'}};
+  const FAMILY_CLS={Surface:'gS',Discourse:'gD',Rhetorical:'gR'};
   const TIER_BY_KEY=new Map(TIERS.map(t=>[t.key,t]));
 
   // The server's recommended action (recommendation.action) in plain words.
@@ -925,18 +925,34 @@
     const list=[...S.D.keys()].map(c=>OF.byCode[c]);
     if(!list.length) return 'None of the habits measured in this paper sits outside '+esc(poss())+' usual range by Original\u2019s measure.';
     const named=list.map(f=>{
-      const fam=FAMILY[TIER_BY_KEY.get(f.tier).group]||FAMILY.Surface, b=baseOf(f), s=subOf(f);
-      return '<span class="'+fam.cls+'">'+esc(f.name)+'</span>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
+      const cls=FAMILY_CLS[TIER_BY_KEY.get(f.tier).group]||FAMILY_CLS.Surface, b=baseOf(f), s=subOf(f);
+      return '<span class="'+cls+'">'+esc(f.name)+'</span>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
     const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
     return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
   }
 
-  // Shown with a result when the server does not rate the baseline ready.
+  // When the roster gave no verdict (past its 60-student cap, a failed
+  // readiness call, or a student reached by link who is not on it), the
+  // server's own readiness rule (original/routers/students.py, readiness)
+  // applied to the score response: ready at 5 approved samples and 3
+  // effective, building from 2, else too little. Null when a field is missing.
+  function resultVerdict(){
+    const bc=S.result&&S.result.baseline_confidence;
+    const a=bc?num(bc.authenticated_count):null, e=bc?num(bc.effective_sample_count):null;
+    if(a==null||e==null) return null;
+    if(a>=5&&e>=3) return 'ready';
+    if(a>=2) return 'developing';
+    return 'insufficient';
+  }
+  const verdictNow=()=>S.verdict||(S.result?resultVerdict():null);
+
+  // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
-    const n=approved()||0;
-    if(S.verdict==='developing') return ' Original rates this baseline as still building ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
-    if(S.verdict==='insufficient') return ' Original rates this baseline as having too little approved writing ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    const n=approved()||0, v=verdictNow();
+    if(v==='developing') return ' Original rates this baseline as still building ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    if(v==='insufficient') return ' Original rates this baseline as having too little approved writing ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
 
@@ -998,9 +1014,9 @@
     setCard('none');
   }
   function thinNote(){
-    const n=approved()||0;
-    if(S.verdict==='developing') return 'Original rates this baseline as still building ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
-    if(S.verdict==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    const n=approved()||0, v=verdictNow();
+    if(v==='developing') return 'Original rates this baseline as still building ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
