@@ -305,7 +305,9 @@
   .ro-pur-body{margin:.45rem 0 .5rem auto;width:290px;text-align:left;font-family:var(--body);font-size:.84rem;letter-spacing:0;line-height:1.5;color:var(--dim);background:rgba(8,12,28,0.95);border:1px solid var(--line);border-radius:12px;padding:.75rem .9rem;z-index:7;}
   .ro-pur-body p+p{margin-top:.45rem;}
   .ro-pur-body b{color:var(--gold-2);font-weight:500;}
-  .hero-inner #result-notice,.hero-inner .fpq-readout details{pointer-events:auto;}
+  .hero-inner .fpq-readout details{pointer-events:auto;}
+  #result-notice{flex-shrink:0;}
+  #result-notice .live-testing{margin-top:0;max-width:none;}
   .fpq-btn:disabled{opacity:.45;cursor:default;}
   .fpq-btn:disabled:hover{color:var(--dim);}
   .tri-btn:disabled{opacity:.55;cursor:default;}
@@ -405,6 +407,7 @@
       </div>
 
       <div class="right-scroll" id="right-scroll">
+        <div id="result-notice" hidden><div data-testing-notice></div></div>
         <div class="hero-inner">
           <div class="fpq-toggle">
             <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
@@ -425,13 +428,12 @@
           <div class="fpq-hint">Drag across the print to disturb it</div>
           <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing fingerprint · illustration</span></div>
           <div class="plain-read" id="plain-read">Loading</div>
-          <div id="result-notice" hidden><div data-testing-notice></div></div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
             <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
             <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
             <span class="tri-done" id="tri-done" role="status"></span>
-            <span class="tri-note">Kept on this computer for now; saved to your workspace once Original keeps analysis results.</span>
+            <span class="tri-note">Kept on this computer only, for now.</span>
           </div>
           <div class="hero-evi" id="hero-evi">
             <div class="evi-head">
@@ -454,11 +456,11 @@
             <div class="hm-band" id="heatmap-band"></div>
             <div class="hm-labels" id="heatmap-labels"></div>
             <div class="hm-legend">
-              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline |ψᵢ|</span>
-              <span class="k"><i style="background:#c9a028"></i>Tick = submission |ξᵢ|</span>
+              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline value</span>
+              <span class="k"><i style="background:#c9a028"></i>Tick = this paper</span>
               <span class="k"><i style="background:#c0392b"></i>below ↓</span>
               <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
-              <span class="k">red and green ticks: outside their usual range</span>
+              <span class="k">red and green ticks: the habits furthest from their usual range</span>
             </div>
           </div>
           <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
@@ -472,7 +474,7 @@
           <div class="sec-h"><b>How the number is made</b></div>
           <div class="card mnote">
             <p>Each of the 97 measured habits is compared with the range this student shows across their teacher-approved samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
-            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same approved samples, and the fingerprint above is an illustration of it. It does not produce the deviation number.</p>
+            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same approved samples. It does not produce the deviation number. The fingerprint above is decorative, not drawn from ρ: it is the same print for every student.</p>
             <p>With few approved samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
           </div>
         </div>
@@ -498,13 +500,11 @@
   const signed=d=>(d>=0?'+':'')+d.toFixed(2);
   const lowerFirst=s=>s.charAt(0).toLowerCase()+s.slice(1);
   const DASH='–';
-  // quantum/scoring.py _decompose: the server returns at most five habits
-  // per direction, so five "outside the usual range" means "at least five".
-  const SERVER_LIST_CAP=5;
 
   // Plain-English tier labels (shared with Feature Profile)
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const plainTier=t=>PLAIN_TIER[t.key]||t.name;
+  const tierTitle=t=>plainTier(t)+(t.name!==plainTier(t)?' ('+t.name+')':'');
   const GROUPS=['Surface','Discourse','Rhetorical'];
   const GROUP_META={Surface:{c:'#4d90c8',sub:'what’s on the page: words, punctuation, grammar, slips'},Discourse:{c:'#9a7ad0',sub:'how ideas move: flow, rhythm, structure, suspense'},Rhetorical:{c:'#5aab7a',sub:'the voice: tone, focus, sourcing, drift'}};
   const FAMILY={Surface:{cls:'gS',label:'how the sentences look'},Discourse:{cls:'gD',label:'how the ideas connect'},Rhetorical:{cls:'gR',label:'how the case is made'}};
@@ -521,14 +521,11 @@
   const OTHER_ACTION={words:'See the habits below',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
   const BASE_LOOK={line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',color:'#8ba8dd'};
   const VERDICT_WORDS={ready:'baseline ready',developing:'baseline building',insufficient:'baseline too thin'};
-  // human_explanation is written for the classic page. Only a sentence that
-  // carries no verdict, authorship or detector wording is shown here.
-  const UNSAFE=/\bAI\b|authent|authorship|ghost|misconduct|plagiar|cheat|flag|verdict|suspic/i;
 
   // ── page state ──
   const S={
     id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
-    base:null, sub:null, result:null, D:new Map(), C:new Map(), capped:false,
+    base:null, sub:null, result:null, D:new Map(), C:new Map(),
     assignment:'', words:0, analysedAt:'', view:'baseline'
   };
   const who=()=>S.name||S.id;
@@ -587,7 +584,7 @@
     const N=FLAT.length;
     let cols=[], labs=[];
     // Tier band strip (x-axis in full view)
-    band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+esc(t.key)+'" style="grid-column:span '+t.features.length+';--tc:'+esc(t.c)+'" title="'+esc(plainTier(t)+' ('+t.name+')')+'"><span>'+esc(t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:''))+'</span></div>').join('');
+    band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+esc(t.key)+'" style="grid-column:span '+t.features.length+';--tc:'+esc(t.c)+'" title="'+esc(tierTitle(t))+'"><span>'+esc(t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:''))+'</span></div>').join('');
     band.querySelectorAll('.hbnd').forEach(b=>{ b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier)); });
     const TIER_GRP={}; TIERS.forEach(t=>{TIER_GRP[t.key]=t.group;});
 
@@ -722,7 +719,7 @@
     const wrap=$('tier-chips');
     wrap.innerHTML=GROUPS.map(g=>{
       const chips=TIERS.filter(t=>t.group===g).map(t=>
-        '<button type="button" class="tchip" data-tier="'+esc(t.key)+'" style="--tc:'+esc(t.c)+'" title="'+esc(plainTier(t)+' ('+t.name+')')+'"><span class="cl"><span class="cd"></span>'+esc(t.pill.replace('Tier ','T'))+'</span><span class="cw">'+esc(t.word)+'</span></button>'
+        '<button type="button" class="tchip" data-tier="'+esc(t.key)+'" style="--tc:'+esc(t.c)+'" title="'+esc(tierTitle(t))+'"><span class="cl"><span class="cd"></span>'+esc(t.pill.replace('Tier ','T'))+'</span><span class="cw">'+esc(t.word)+'</span></button>'
       ).join('');
       return '<div class="tgrp"><div class="tgrp-h" style="--gc:'+GROUP_META[g].c+'"><b>'+g+'</b><span>'+esc(GROUP_META[g].sub)+'</span></div><div class="tgrp-chips">'+chips+'</div></div>';
     }).join('');
@@ -810,10 +807,10 @@
           const out=[...S.D.keys()].map(c=>OF.byCode[c]), near=[...S.C.keys()].map(c=>OF.byCode[c]);
           let html='';
           if(out.length) html+='<div class="fd-grp-h" style="--fdg:#e0725a">Furthest from their usual</div>'+out.map(rowHTML).join('');
-          if(near.length) html+='<div class="fd-grp-h" style="--fdg:#6bbf8a">Closest to their usual</div>'+near.map(rowHTML).join('');
-          if(!out.length) html='<div class="fd-empty">No habit in this paper sits far outside '+esc(poss())+' usual range. Point at a tier chip, a bar in the state vector, or a band label above to see any tier.</div>'+(near.length?'<div class="fd-list">'+html+'</div>':'');
+          if(near.length) html+='<div class="fd-grp-h" style="--fdg:#6bbf8a">Within their usual range</div>'+near.map(rowHTML).join('');
+          if(!out.length) html='<div class="fd-empty">No habit in this paper sits outside '+esc(poss())+' usual range by Original\u2019s measure. Point at a tier chip, a bar in the state vector, or a band label above to see any tier.</div>'+(near.length?'<div class="fd-list">'+html+'</div>':'');
           else html='<div class="fd-list">'+html+'</div>';
-          paint('#c9a028','Largest differences','The habits Original marks as furthest from and closest to '+poss()+' usual range'+(S.capped?' (up to five each)':''),html,out.length+near.length||null);
+          paint('#c9a028','Largest differences','The habits Original lists as furthest from '+poss()+' usual range, and some within it (it lists up to five of each)',html,null);
           return;
         }
         card.style.setProperty('--fdc','#c9a028'); swatch.style.background='#c9a028';
@@ -920,16 +917,27 @@
     else { st.textContent='baseline of '+plural(approved()||0,'approved sample'); st.style.color=BASE_LOOK.color; }
   }
 
-  function familyLine(){
-    let h='';
-    GROUPS.forEach(g=>{
-      const list=[...S.D.keys()].map(c=>OF.byCode[c]).filter(f=>TIER_BY_KEY.get(f.tier).group===g);
-      if(!list.length) return;
-      const fam=FAMILY[g];
-      const named=list.slice(0,2).map(f=>{ const b=baseOf(f), s=subOf(f); return esc(f.name)+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':''); });
-      h+=' In '+fam.label+', <span class="'+fam.cls+'">'+plural(list.length,'habit')+'</span> '+(list.length>1?'differ':'differs')+': '+named.join(' and ')+(list.length>2?', and more':'')+'.';
+  // The habits the server returned as furthest from the usual range
+  // (interference.destructive_features, at most five), coloured by family as
+  // in the design. No count: about a third of the habits sit that far out by
+  // chance even in a student's own writing, so a count would mislead.
+  function furthestLine(){
+    const list=[...S.D.keys()].map(c=>OF.byCode[c]);
+    if(!list.length) return 'None of the habits measured in this paper sits outside '+esc(poss())+' usual range by Original\u2019s measure.';
+    const named=list.map(f=>{
+      const fam=FAMILY[TIER_BY_KEY.get(f.tier).group]||FAMILY.Surface, b=baseOf(f), s=subOf(f);
+      return '<span class="'+fam.cls+'">'+esc(f.name)+'</span>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
-    return h;
+    const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
+    return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
+  }
+
+  // Shown with a result when the server does not rate the baseline ready.
+  function thinResultLine(){
+    const n=approved()||0;
+    if(S.verdict==='developing') return ' Original rates this baseline as still building ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    if(S.verdict==='insufficient') return ' Original rates this baseline as having too little approved writing ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    return '';
   }
 
   function renderPlain(){
@@ -949,20 +957,12 @@
       pr.innerHTML=h;
       return;
     }
-    const nOut=S.D.size;
-    let h=nOut
-      ? 'This paper reads differently from '+esc(poss())+' usual writing in <b>'+(S.capped?'at least ':'')+nOut+' of '+N_HABITS+'</b> measured habits.'
-      : 'None of the '+N_HABITS+' measured habits in this paper sits far outside '+esc(poss())+' usual range.';
-    h+=familyLine();
+    let h=furthestLine();
     const words=esc(lowerFirst(look().words));
     if(actionOf()==='schedule_conversation') h+=' Overall: <b>'+words+'</b>, not a conclusion.';
-    else {
-      h+=' Overall: <b>'+words+'</b>.';
-      if(actionOf()!=='no_action') h+=' That is worth a conversation, not a conclusion.';
-    }
-    const he=S.result.human_explanation;
-    const note=he&&typeof he.confidence_note==='string'?he.confidence_note.trim():'';
-    if(note&&!UNSAFE.test(note)) h+=' '+esc(note);
+    else if(actionOf()==='no_action') h+=' Overall: <b>'+words+'</b>. A reading, not a conclusion.';
+    else h+=' Overall: <b>'+words+'</b>. That is worth a conversation, not a conclusion.';
+    h+=thinResultLine();
     pr.innerHTML=h;
   }
 
@@ -1054,7 +1054,7 @@
       if(me){
         S.name=String(me.name||S.id); S.verdict=me.verdict||null;
         if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
-        if(!S.stErr&&hasBaseline()&&!S.result&&$('an-done').hidden) note(thinNote());
+        if(!S.stErr&&hasBaseline()) note(thinNote());
         if(!hasBaseline()&&!S.stErr) notEnough();
       }
     }catch(e){ /* the id stays as the name */ }
@@ -1070,7 +1070,6 @@
     S.D=new Map(); S.C=new Map();
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
-    S.capped=dest.length>=SERVER_LIST_CAP;
     S.assignment=assignment; S.words=words; S.analysedAt=new Date().toISOString();
   }
 
@@ -1095,14 +1094,14 @@
       renderAll();
       $('an-done-t').textContent=assignment||'Untitled paper';
       $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
-      note(''); setCard('done');
+      note(thinNote()); setCard('done');
       $('tri-done').textContent=''; $('tri-done').classList.remove('err');
       document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
       return;
     }
     const detail=d&&typeof d.detail==='string'?d.detail:'';
-    if(res.status===404||(res.status===422&&/authenticated|baseline/i.test(detail))){ notEnough(); return; }
+    if(res.status===404||(res.status===422&&/baseline/i.test(detail))){ notEnough(); return; }
     if(res.status===401) msg('Your sign-in has ended. Sign in again, then analyse the paper.',true);
     else if(res.status===403) msg('You do not have access to this student’s writing.',true);
     else if(res.status===413) msg('This paper is too large to send. Try pasting only the essay text.',true);
@@ -1138,7 +1137,8 @@
     const entries=readPortfolio();
     entries.push({
       id:id,
-      assignment:assignment||('Writing State analysis · '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})),
+      // professor.html's History puts this label into innerHTML unescaped.
+      assignment:String(assignment||'').replace(/[<>&"']/g,'')||('Writing State analysis · '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'})),
       timestamp:new Date().toISOString(),
       response:resp,
       text:text
@@ -1172,8 +1172,6 @@
     const r=S.result; if(!r) return;
     const pick=vec=>{ const o={}; FLAT.forEach(f=>{ if(has(vec,f.code)&&num(vec[f.code])!=null) o[f.code]=vec[f.code]; }); return o; };
     const bc=r.baseline_confidence||{};
-    const he=r.human_explanation;
-    const noteText=he&&typeof he.confidence_note==='string'&&!UNSAFE.test(he.confidence_note)?he.confidence_note:null;
     const keep={
       kind:'original_writing_state', version:1,
       student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words,
@@ -1184,8 +1182,7 @@
         recommendation:{action:actionOf()},
         baseline_confidence:{purity:num(bc.purity),sample_count:num(bc.sample_count),authenticated_count:num(bc.authenticated_count),effective_sample_count:num(bc.effective_sample_count)},
         interference:{destructive_features:[...S.D.values()],constructive_features:[...S.C.values()]},
-        feature_vector:pick(S.sub), baseline_vector:pick(S.base),
-        human_explanation:noteText?{confidence_note:noteText}:null
+        feature_vector:pick(S.sub), baseline_vector:pick(S.base)
       }
     };
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }

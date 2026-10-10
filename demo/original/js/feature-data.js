@@ -7,6 +7,9 @@
    Taken from the navy design's js/feature-data.js with its invented
    baseline and submission values removed: this file carries names and
    descriptions only. Every number a page shows comes from the API.
+   One display name differs from the design: Tier 7 is renamed "Natural
+   Unevenness" (the pages' own plain label for it), because the design's
+   name for that tier used verdict wording.
 
    window.OriginalFeatures = {
      tiers:  [ {key,pill,name,status,c,blurb,word,group,features:[{code,name,desc,tier,tierName,c}]} ],
@@ -88,7 +91,7 @@
       ['list_marker_preference','List Marker Preference','Whether you reach for numbers, letters, or bullets when listing.'],
       ['abbreviation_tendency','Abbreviation Tendency','How often you shorten words (e.g., etc.) vs. writing them out.'],
     ]},
-    { key:'tier7', pill:'Tier 7', name:'Voice Authenticity', status:'active', c:'#4d6fc8',
+    { key:'tier7', pill:'Tier 7', name:'Natural Unevenness', status:'active', c:'#4d6fc8',
       blurb:'how evenly words, repetitions and transitions spread through the writing', features:[
       ['burstiness','Burstiness','How much your sentence length and complexity vary, burst to burst.'],
       ['perplexity_proxy','Perplexity Proxy','How predictable your word choices are from one word to the next.'],
