@@ -41,15 +41,10 @@ NOTICE = (
 # these is allowed while the file is missing. test_planned_pages_are_still_missing
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
-    "submissions.html",
-    "writing-state.html",
     "packet.html",
     "baseline.html",
-    "reports.html",
-    "settings.html",
     "voice.html",
     "my-work.html",
-    "library.html",
 }
 
 # Root-relative links a page may use without the target living in demo/original.
