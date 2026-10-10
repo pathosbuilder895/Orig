@@ -7181,7 +7181,7 @@
     },
     "/me/work": {
       "post": {
-        "description": "Submit a piece of writing as the signed-in student.\n\nAdds the text to the student's body of work and scores it server-side, then\nreturns ONLY the redacted formation-register result (headline + supportive\nsummary + steady-dimension affirmations + whether a review opportunity\nopened). The raw Layer-7 payload never leaves the server.",
+        "description": "Compare a piece of writing with the signed-in student's approved writing.\n\nScores the text server-side against the baseline the student's teacher has\napproved, then returns ONLY the redacted result (headline + supportive\nsummary + steady-dimension affirmations + whether a review opportunity\nopened). The piece is never added to the student's baseline: only\nteacher-approved writing becomes baseline, so the student's sample count\nis the same before and after. The raw Layer-7 payload never leaves the\nserver.",
         "operationId": "my_work_me_work_post",
         "requestBody": {
           "content": {

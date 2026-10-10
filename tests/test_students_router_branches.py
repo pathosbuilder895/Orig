@@ -490,12 +490,12 @@ class TestMyFormationAdvanceArms:
         assert r.json()["formation"]["current_step"] == 2
 
 
-# ── me.py: my_work — both downstream-failure except arms ────────────────────
-# my_work (me.py:81-125) always attempts add_baseline() first (always
-# provenance="unverified", auth_weight=0.5 > 0 — so even an "unverified" add
-# counts toward authenticated_count) and then score_submission(), catching an
-# HTTPException from either without failing the request. me.py:[105,108] is
-# add_baseline's exception; me.py:[114,116] is score_submission's.
+# ── me.py: my_work, compare only, never a baseline write ─────────────────
+# my_work scores the pasted piece against the baseline a teacher has approved
+# and returns the redacted result. It never calls add_baseline: only
+# teacher-approved writing becomes baseline (NORTH_STAR rule 8). The single
+# except arm is score_submission's HTTPException (no record, or no approved
+# baseline yet).
 
 U1 = (
     "The doctrine of vocation situates daily labor within a larger account of providence. "
@@ -519,19 +519,16 @@ OUTLIER_TEXT = (
 ) * 15
 
 
-class TestMyWorkExceptionArms:
-    def test_add_baseline_drift_hold_is_swallowed_and_scoring_still_happens(
-        self, live_client, store_reset
-    ):
-        """A wildly divergent /me/work submission trips the drift gate on
-        the (already-established, stylistically-uniform) baseline, so
-        add_baseline raises inside my_work — caught at me.py:[105,108] — but
-        because authenticated samples already exist, score_submission still
-        succeeds normally afterward (the "saved, not scored" fallback is
-        NOT reached here; that's the other test below)."""
+class TestMyWorkCompareOnly:
+    def test_scores_against_the_existing_baseline_and_adds_nothing(self, live_client, store_reset):
+        """A wildly divergent /me/work submission is scored against the
+        (already-established, stylistically-uniform) baseline and returns a real
+        reading, not the "nothing to compare" fallback. It is never added to
+        the baseline, whatever the reading."""
         token, sid, _ = _login(live_client, "MyWork Academy", "mw1@mywork.edu")
         for text in (U1, U2, U3):
             _add_sample(live_client, sid, text=text)
+        before = live_client.get(f"/students/{sid}").json()
 
         r = live_client.post(
             "/me/work",
@@ -540,40 +537,78 @@ class TestMyWorkExceptionArms:
         )
 
         assert r.status_code == 200, r.text
-        # Real score came back (not the generic "saved" fallback message),
-        # proving score_submission ran against the pre-existing baseline.
-        assert r.json()["headline"] != "Saved to your body of work."
+        body = r.json()
+        assert body["headline"] != "Nothing to compare this with yet."
+        after = live_client.get(f"/students/{sid}").json()
+        assert after["sample_count"] == before["sample_count"] == 3
+        assert after["authenticated_count"] == before["authenticated_count"]
+        assert len(after["samples"]) == len(before["samples"])
 
-    def test_falls_back_to_saved_not_scored_when_both_downstream_calls_fail(
-        self, live_client, store_reset, monkeypatch
+    def test_a_student_with_no_approved_writing_gets_the_nothing_to_compare_result(
+        self, live_client, store_reset
     ):
-        """me.py:[114,116] — score_submission's HTTPException arm. On a
-        genuinely fresh student, a successful add_baseline call always
-        leaves authenticated_count >= 1 (every AUTH_WEIGHTS value is > 0,
-        including "unverified"'s 0.5), so score_submission's own 422 can
-        never fire after a real add. The only way to reach this arm is for
-        add_baseline itself to fail without adding a sample — monkeypatched
-        directly here (the handler's own contract: "if either downstream
-        call raises, degrade to a saved-not-scored response" — a
-        content-blind check, independent of *why* either call failed)."""
-        from fastapi import HTTPException
+        """No approved baseline: the score call raises, and the student is told
+        plainly that there is nothing to compare with yet. Their piece is not
+        added, so a second submission is still nothing-to-compare (the old
+        behaviour made the first submission their baseline)."""
+        token, sid, _ = _login(live_client, "MyWork Academy Two", "mw2@mywork.edu")
 
+        for _ in range(2):
+            r = live_client.post(
+                "/me/work",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": U1, "title": "First ever submission"},
+            )
+            assert r.status_code == 200, r.text
+            body = r.json()
+            assert body["headline"] == "Nothing to compare this with yet."
+            assert "no approved writing" in body["summary"]
+            assert (
+                "Not added to your writing profile. Your teacher may choose to add this "
+                "to your writing profile."
+            ) in body["summary"]
+            assert body["steady"] == []
+            assert body["review_opportunity"] is False
+            # Nothing the old "saved" copy claimed.
+            said = (body["headline"] + " " + body["summary"]).lower()
+            for claim in ("saved", "body of work", "formation"):
+                assert claim not in said, claim
+
+        state = live_client.get(f"/students/{sid}").json()
+        assert state["sample_count"] == 0
+        assert state["authenticated_count"] == 0
+
+    def test_never_calls_add_baseline(self, live_client, store_reset, monkeypatch):
+        """The router no longer imports the baseline writer at all."""
         import original.routers.me as me_router
 
-        def _boom(*args, **kwargs):
-            raise HTTPException(status_code=422, detail="simulated add failure")
+        assert not hasattr(me_router, "add_baseline")
 
-        monkeypatch.setattr(me_router, "add_baseline", _boom)
+    def test_each_comparison_gets_its_own_audit_id(self, live_client, store_reset, monkeypatch):
+        """With the sample count frozen, scoring's default id would repeat; each
+        /me/work call passes a fresh one so comparisons never overwrite each
+        other (or a teacher's analysis of the same student)."""
+        import original.routers.me as me_router
 
-        token, _sid, _ = _login(live_client, "MyWork Academy Two", "mw2@mywork.edu")
+        token, sid, _ = _login(live_client, "MyWork Academy Three", "mw3@mywork.edu")
+        for text in (U1, U2, U3):
+            _add_sample(live_client, sid, text=text)
 
-        r = live_client.post(
-            "/me/work",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"text": U1, "title": "First ever submission"},
-        )
+        seen = []
+        real = me_router.score_submission
 
-        assert r.status_code == 200, r.text
-        body = r.json()
-        assert body["headline"] == "Saved to your body of work."
-        assert body["review_opportunity"] is False
+        def spy(student_id, req, *a, **kw):
+            seen.append(req.submission_id)
+            return real(student_id, req, *a, **kw)
+
+        monkeypatch.setattr(me_router, "score_submission", spy)
+        for _ in range(2):
+            r = live_client.post(
+                "/me/work",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": U1, "title": "Same piece twice"},
+            )
+            assert r.status_code == 200, r.text
+
+        assert len(seen) == 2 and len(set(seen)) == 2
+        assert all(sub_id.startswith(f"{sid}_work_") for sub_id in seen)

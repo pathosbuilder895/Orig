@@ -14,6 +14,7 @@ Three layers of defence:
      so the first-paint render before any data fetch is also clean.
 """
 
+import ast
 import json
 import pathlib
 import re
@@ -294,6 +295,21 @@ def test_project_headline_growth_bands():
     assert "up 3 since" in head2["subhead"]
 
 
+def test_project_headline_addresses_a_named_student_and_not_a_nameless_one():
+    assert voice_mod.project_headline("Dana Whitfield", [])["headline"] == (
+        "Dana, your voice is finding its shape."
+    )
+    # No name on file: never "Your, your voice".
+    for blank in ("", "   ", None):
+        head = voice_mod.project_headline(blank, [])
+        assert head["headline"] == "Your voice is finding its shape."
+    assert voice_mod.project_headline("", [{"fidelity": 40}, {"fidelity": 50}])["headline"] == (
+        "Your voice strengthened across this term."
+    )
+    # With nothing drawn yet, the subhead says where a profile comes from.
+    assert "teacher approves" in voice_mod.project_headline("Dana", [])["subhead"]
+
+
 def test_project_submission_result_handles_missing_recommendation_and_interference():
     # No "recommendation"/"interference" keys at all: the internal `_get`
     # helper must resolve `obj=None` for those lookups rather than raising.
@@ -384,6 +400,31 @@ def test_me_work_is_clean(student_token):
     _assert_submit_result_clean(r.json())
 
 
+def test_me_work_leaves_the_students_sample_count_unchanged(student_token):
+    """/me/work compares only: the piece never joins the baseline (NORTH_STAR
+    rule 8, only teacher-approved writing becomes baseline)."""
+    tok, sid = student_token
+    hdr = {"Authorization": f"Bearer {tok}"}
+    before = client.get(f"/students/{sid}", headers=hdr).json()
+
+    for _ in range(2):
+        r = client.post(
+            "/me/work",
+            headers=hdr,
+            json={"text": LONG_TEXT, "title": "A piece to compare"},
+        )
+        assert r.status_code == 200, r.text
+        _assert_submit_result_clean(r.json())
+
+    after = client.get(f"/students/{sid}", headers=hdr).json()
+    # (The student may already hold more than the fixture's two samples when
+    # another module shares the store; what matters is that nothing was added.)
+    assert before["sample_count"] >= 2
+    assert after["sample_count"] == before["sample_count"]
+    assert after["authenticated_count"] == before["authenticated_count"]
+    assert len(after["samples"]) == len(before["samples"])
+
+
 def test_student_cannot_read_a_classmate(student_token):
     """Self-only authz: a student token cannot read another student's record."""
     tok, sid = student_token
@@ -419,6 +460,107 @@ def test_student_can_still_read_self(student_token):
     tok, sid = student_token
     r = client.get(f"/students/{sid}", headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 200, r.text
+
+
+# ── Student-facing copy never says "formation" ───────────────────────────────
+# Owner decision 2026-10-09: the student pages do not use "formation" wording
+# (the pathway is still a feature; the word is not copy). Two nets, so neither a
+# new branch nor a new string slips past: every string literal in the two
+# modules that is not a docstring, and every string value the projections
+# actually return, across every state they can be in.
+
+STUDENT_COPY_MODULES = ("voice.py", "routers/me.py")
+# Not copy: the VoiceView key name (the API contract) and route paths.
+NOT_COPY = {"formation"}
+
+
+def _copy_literals(path: pathlib.Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            body = node.body
+            if body and isinstance(body[0], ast.Expr) and isinstance(
+                getattr(body[0], "value", None), ast.Constant
+            ):
+                docstrings.add(id(body[0].value))
+    return [
+        n.value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Constant)
+        and isinstance(n.value, str)
+        and id(n) not in docstrings
+        and n.value not in NOT_COPY
+        and not n.value.startswith("/")
+    ]
+
+
+@pytest.mark.parametrize("module", STUDENT_COPY_MODULES)
+def test_no_string_literal_in_the_student_modules_says_formation(module):
+    path = REPO_ROOT_FOR_COPY / "original" / module
+    found = [t for t in _copy_literals(path) if "formation" in t.lower()]
+    assert not found, f"original/{module} has student-facing copy with 'formation': {found}"
+
+
+REPO_ROOT_FOR_COPY = pathlib.Path(__file__).resolve().parent.parent
+
+
+def test_no_returned_string_says_formation_in_any_state():
+    # Every pathway state, every score action, with and without a baseline.
+    pathways = [
+        None,
+        {"current_step": 0, "total_steps": 3, "status": "open"},
+        {"current_step": 1, "total_steps": 3, "status": "open"},
+        {"current_step": 2, "total_steps": 3, "status": "open"},
+        {"current_step": 3, "total_steps": 3, "status": "completed"},
+    ]
+    views = []
+    for pathway in pathways:
+        for samples, auth in ((0, 0), (1, 0), (3, 0), (3, 1)):
+            for manifests in ([], [{"created_at": "2026-01-01T00:00:00", "action": "monitor",
+                                    "divergence_score": 0.4}]):
+                views.append(
+                    voice_mod.project_voice_view(
+                        name="Dana Whitfield",
+                        baseline_vector={code: 0.5 for code in ALL_FEATURE_CODES},
+                        sample_count=samples,
+                        authenticated_count=auth,
+                        manifests=manifests,
+                        corrections=[],
+                        pathway=pathway,
+                    )
+                )
+    results = [voice_mod.project_no_baseline_result()]
+    for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
+        layer7 = {
+            "recommendation": {"action": action},
+            "interference": {"constructive_features": [{"code": "burstiness"}]},
+        }
+        results.append(voice_mod.project_submission_result(layer7, "Dana"))
+
+    for blob in views + results:
+        for value in _walk_values(blob):
+            assert "formation" not in value.lower(), f"'formation' in returned copy: {value!r}"
+
+
+def test_no_baseline_result_is_honest_and_says_nothing_was_added():
+    res = voice_mod.project_no_baseline_result()
+    _assert_submit_result_clean(res)
+    assert res["headline"] == "Nothing to compare this with yet."
+    assert "no approved writing" in res["summary"]
+    assert (
+        "Not added to your writing profile. Your teacher may choose to add this to "
+        "your writing profile."
+    ) in res["summary"]
+    assert res["steady"] == [] and res["review_opportunity"] is False
+
+
+def test_compared_results_never_claim_the_piece_was_kept():
+    for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
+        res = voice_mod.project_submission_result({"recommendation": {"action": action}}, "Dana")
+        said = (res["headline"] + " " + res["summary"]).lower()
+        for claim in ("saved", "body of work", "record", "added"):
+            assert claim not in said, (action, claim)
 
 
 # ── Static-HTML: the first-paint render must not flash surveillance jargon ───

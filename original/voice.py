@@ -247,7 +247,7 @@ def project_milestones(
         {
             "label": "Voice Sampled",
             "state": state(reached_sampled),
-            "blurb": "Your writing has entered your formation record.",
+            "blurb": "Some of your writing is on file as reference.",
         },
         {
             "label": "Voice Established",
@@ -257,7 +257,7 @@ def project_milestones(
         {
             "label": "Voice Affirmed",
             "state": state(reached_affirmed),
-            "blurb": "A verified piece confirms this voice is genuinely yours.",
+            "blurb": "A piece your teacher approved is on file.",
         },
     ]
 
@@ -265,7 +265,7 @@ def project_milestones(
 _FORMATION_STEP_LABELS = {
     0: "Ready to begin",
     1: "Baseline Session",
-    2: "Formation Session",
+    2: "Development Session",
     3: "Verification Session",
 }
 
@@ -292,7 +292,7 @@ def project_formation(pathway: dict[str, Any] | None) -> dict[str, Any] | None:
         if not completed
         else "Complete",
         "supportive_copy": (
-            "Formation complete. Your record reflects the work you put in."
+            "Pathway complete. Your record reflects the work you put in."
             if completed
             else "A structured, developmental path — three short sessions, each one to "
             "strengthen your writing, not to assess it."
@@ -306,20 +306,23 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     Derived from the resolved fidelity trend only. No raw numbers other than the
     resolved fidelity already present in the Arc.
     """
-    first = (name or "Your").split(" ")[0] or "Your"
+    # A student with no name on file (a launch-link sitting is name-free by
+    # default) is not addressed by one: "Your voice is...", never "Your, your voice".
+    first = (name or "").strip().split(" ")[0]
+    lead = f"{first}, your voice" if first else "Your voice"
     if not arc:
         return {
-            "headline": f"{first}, your voice is finding its shape.",
-            "subhead": "Submit your first piece of work to reveal your voice profile.",
+            "headline": f"{lead} is finding its shape.",
+            "subhead": "Your voice profile builds from the writing your teacher approves.",
         }
     latest = arc[-1]["fidelity"]
     grew_by = (arc[-1]["fidelity"] - arc[0]["fidelity"]) if len(arc) >= 2 else 0
     if grew_by >= 8:
-        headline = f"{first}, your voice strengthened across this term."
+        headline = f"{lead} strengthened across this term."
     elif grew_by <= -8:
-        headline = f"{first}, your voice is finding its footing."
+        headline = f"{lead} is finding its footing."
     else:
-        headline = f"{first}, your voice is settling into itself."
+        headline = f"{lead} is settling into itself."
     sub = f"Voice fidelity {latest} on your latest piece"
     if grew_by > 0:
         sub += f" — up {grew_by} since the start of term"
@@ -361,9 +364,35 @@ def project_voice_view(
 
 # ── POST /me/work : redacted scoring result ──────────────────────────────────
 
+# /me/work compares a piece with the student's approved writing and keeps
+# nothing of it in their profile. The one sentence about that, for the result
+# that has to say so (the page that shows results carries it for every piece).
+NOT_ADDED_LINE = (
+    "Not added to your writing profile. Your teacher may choose to add this to your "
+    "writing profile."
+)
+
+
+def project_no_baseline_result() -> dict[str, Any]:
+    """The result when there is no approved writing to compare a piece with.
+
+    Honest, not an error: Original cannot say anything about a piece until a
+    teacher has approved some of the student's earlier writing. Carries no
+    reading of the piece at all.
+    """
+    return {
+        "headline": "Nothing to compare this with yet.",
+        "summary": (
+            "Original has no approved writing from you to compare this piece with yet, "
+            "so it cannot say anything about it. " + NOT_ADDED_LINE
+        ),
+        "steady": [],
+        "review_opportunity": False,
+    }
+
 
 def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
-    """Project a raw Layer-7 scoring result into the student's formation view.
+    """Project a raw Layer-7 scoring result into the student's supportive view.
 
     Accepts either the Pydantic ``Layer7OutputResponse`` or a plain dict with
     the same shape. Returns only: a headline, supportive summary prose, a few
@@ -387,9 +416,9 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     if not diverges:
         headline = "This reads like you."
         summary = (
-            "Your established voice comes through clearly here — in your sentence "
+            "Your established voice comes through clearly here: in your sentence "
             "rhythm, your vocabulary, the way you build an argument. This piece sits "
-            "comfortably within your body of work."
+            "comfortably alongside the writing your teacher has approved."
         )
     elif action == "monitor":
         headline = "Mostly your voice, with a few new notes."
@@ -402,7 +431,7 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         headline = "Some passages here read differently from your voice."
         summary = (
             "Parts of this piece diverge from your established voice. That is worth "
-            "revisiting — not a verdict, an invitation to look again. A formation "
+            "revisiting: not a verdict, an invitation to look again. A guided "
             "pathway is available if you would like a structured way through it."
         )
 
