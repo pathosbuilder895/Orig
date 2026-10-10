@@ -85,6 +85,7 @@
   .summary{font-size:1.08rem;line-height:1.7;}
   .summary b{font-weight:600;}
   .none-line{font-size:1rem;font-style:italic;color:var(--ink-2);line-height:1.6;}
+  .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
   /* habits, this paper beside their own writing (numbers, never quoted text) */
   .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
   .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
@@ -170,7 +171,7 @@
     .print-notice>tr>td{display:table-cell;padding:0;}
     .print-notice .live-testing{margin:.5rem 0 0;max-width:none;padding:.35rem .7rem;border-radius:6px;font-size:.78rem;line-height:1.35;}
     .ex,.g-card,.sign,.prov tr{break-inside:avoid;}
-    .sec-t{break-after:avoid;}
+    .sec-t,.sec-lede{break-after:avoid;}
     /* a little tighter than the screen so the packet stays short on paper */
     body{font-size:11pt;}
     h1{font-size:1.6rem;margin:1rem 0 .2rem;}
@@ -239,7 +240,7 @@
         </section>
 
         <section>
-          <div class="sec-t">Where it differs most <span>this paper&rsquo;s numbers beside their own approved writing</span></div>
+          <div class="sec-t">Furthest from their usual range <span>this paper&rsquo;s numbers beside their own approved writing</span></div>
           <div id="p-habits"></div>
         </section>
 
@@ -255,7 +256,7 @@
               <li>Open with the work, not the numbers: ask the student to walk you through the paper&rsquo;s argument in their own words.</li>
               <li>Show one of the habits above and ask what they notice about it.</li>
               <li>Ask about their process: drafts, tools, timeline, where they wrote it.</li>
-              <li>Offer a path back: a supervised piece of writing in Bluebook, which you can approve as reference writing if it helps.</li>
+              <li>Offer a way to add reference writing: a supervised piece in Bluebook, which you can approve as part of their baseline if it helps.</li>
             </ul></div>
             <div class="g-card dont"><b>Worth avoiding</b><ul>
               <li>Don&rsquo;t present the numbers as proof: they describe distance from the student&rsquo;s own habits, nothing more.</li>
@@ -328,8 +329,8 @@
   }
 
   // ── dates ──
-  const longDay=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const shortDay=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  const longDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+  const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
   function parseTime(iso){
     const d=new Date(String(iso||''));
     return isNaN(d.getTime())?null:d;
@@ -371,8 +372,13 @@
     else panel(NEED_ANALYSIS,'The packet is built from the last analysis you ran in this tab. Open a student on the Writing State page, analyse a paper, then press “Prepare conversation packet”.','writing-state.html','Open Writing State');
   }
 
-  // ── the habits that differ most (FeatureContributionOut) ──
-  function habitCards(d,who,poss,nUsed){
+  // ── the habits furthest from the usual range (FeatureContributionOut) ──
+  // The server's "destructive" features are simply |z| > 1, ranked by weighted
+  // contribution, at most five. About a third of habits sit that far out by
+  // chance even in a student's own writing, so nothing here counts them or
+  // calls them differences: it names the ones Original puts furthest out.
+  // nUsed is the approved-sample count, or null when it is not known.
+  function habitCards(d,poss,nUsed){
     const res=d.result, inter=res.interference&&typeof res.interference==='object'?res.interference:{};
     const list=Array.isArray(inter.destructive_features)?inter.destructive_features:[];
     const vecB=res.baseline_vector, vecS=res.feature_vector;
@@ -388,21 +394,28 @@
       const diff=s-b;
       const sub=[PLAIN_TIER[f.tier]||(t&&t.name)||'',family].filter(Boolean).join(' · ');
       const paper=(d.assignment&&typeof d.assignment==='string'?d.assignment:'This paper');
+      // baseline_mean is weighted by provenance (AUTH_WEIGHTS) and recency (RECENCY_DECAY)
+      const basedOn=nUsed!=null?plural(nUsed,'approved sample'):null;
+      const avgLine='A weighted average of '+(basedOn||poss+' approved samples')+' (newer and supervised writing counts for more), on the same scale as this paper.';
       cards.push(
         '<div class="ex">'+
           '<div class="ex-h"><b>'+esc(f.name)+'</b><span>'+esc(sub)+'</span></div>'+
           '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-big">'+esc(s.toFixed(2))+'</span>'+
-            '<div class="ex-q">'+esc('This paper sits outside the range '+who+' usually shows on this habit.')+'</div>'+
+            '<div class="ex-q">'+esc('This is one of the habits furthest from '+poss+' usual range in this paper, by Original’s measure.')+'</div>'+
             '<div class="ex-src">'+esc(paper)+'</div></div>'+
           '<div class="ex-col"><div class="ex-lbl base">'+esc(poss+' usual writing')+'</div><span class="ex-big base">'+esc(b.toFixed(2))+'</span>'+
-            '<div class="ex-q">'+esc('The average across '+plural(nUsed,'approved sample')+' of '+poss+' writing, on the same scale.')+'</div>'+
-            '<div class="ex-src">'+esc(plural(nUsed,'approved sample'))+'</div></div>'+
-          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>What this habit measures:</b> '+esc(f.desc):'')+'</div>'+
+            '<div class="ex-q">'+esc(avgLine)+'</div>'+
+            (basedOn?'<div class="ex-src">'+esc(basedOn)+'</div>':'')+'</div>'+
+          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>In general terms:</b> '+esc(f.desc):'')+'</div>'+
         '</div>');
     });
-    if(!cards.length) return '<p class="none-line">'+esc('No habit in this paper sits far outside '+poss+' usual range, so there is nothing to put side by side.')+'</p>';
-    let html=cards.join('');
-    if(list.length>=SHOW_HABITS) html+='<p class="more-note">Original lists up to five habits here; more may differ. Writing State shows the full picture.</p>';
+    if(!cards.length){
+      // The server named habits but their figures were not kept: say so rather than claim there are none.
+      if(list.length) return '<p class="none-line">The figures for these habits were not kept with this analysis, so there is nothing to put side by side. Run it again on the Writing State page.</p>';
+      return '<p class="none-line">'+esc('None of the habits measured in this paper sits outside '+poss+' usual range by Original’s measure, so there is nothing to put side by side.')+'</p>';
+    }
+    let html='<p class="sec-lede">Some habits sit this far from the usual range in a student’s own writing too; this is where to start looking, not a finding.</p>'+cards.join('');
+    if(list.length>=SHOW_HABITS) html+='<p class="more-note">(Original lists up to five.)</p>';
     return html;
   }
 
@@ -433,13 +446,27 @@
     }
     return Promise.all([one(),one(),one(),one()]);
   }
+  // The server's own readiness rule (original/routers/students.py,
+  // get_student_readiness), as writing-state.html's resultVerdict() applies it
+  // to the score response: ready at 5 approved samples and 3 effective,
+  // building from 2, else too little. Null when a field is missing.
+  function storedVerdict(bc){
+    const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
+    if(a==null||e==null) return null;
+    if(a>=5&&e>=3) return 'ready';
+    if(a>=2) return 'developing';
+    return 'insufficient';
+  }
+  // verdict: 'ready' | 'developing' | 'insufficient', or null when it cannot be read.
   function baselineNote(nUsed,onFile,verdict,poss){
     let t='';
     if(onFile!=null&&nUsed!=null&&onFile!==nUsed){
       t+='This analysis compared the paper with '+plural(nUsed,'approved sample')+'; '+onFile+' '+(onFile===1?'is':'are')+' on file now. ';
     }
     if(has(VERDICT_WORDS,verdict)){
-      t+='Original rates this baseline as '+VERDICT_WORDS[verdict]+'. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre. Weigh the numbers above lightly.';
+      t+='Original rates this baseline as '+VERDICT_WORDS[verdict]+'. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre, so treat this reading as inconclusive.';
+    } else if(verdict==null){
+      t+='Original could not read this baseline’s readiness, so treat this reading as inconclusive.';
     } else {
       t+='A paper on a new topic or in a new genre can look different from '+poss+' usual writing even when the student wrote it. The numbers above describe distance from their own habits, nothing more.';
     }
@@ -462,7 +489,10 @@
     const samples=(st.ok&&st.data&&Array.isArray(st.data.samples))?st.data.samples.filter(s=>s&&typeof s==='object'):null;
     const onFile=samples?samples.length:null;
     const nUsed=num(bc.authenticated_count)!=null?bc.authenticated_count:(st.ok&&st.data?num(st.data.authenticated_count):null);
-    const verdict=rd.ok&&rd.data&&typeof rd.data.verdict==='string'?rd.data.verdict:'';
+    // Fresh readiness call first; if it failed, the server rule on the counts
+    // stored with the analysis; else null (never silently "fine").
+    const fresh=rd.ok&&rd.data&&typeof rd.data.verdict==='string'?rd.data.verdict:'';
+    const verdict=(fresh==='ready'||fresh==='developing'||fresh==='insufficient')?fresh:storedVerdict(bc);
 
     // head
     const today=longDay(new Date());
@@ -486,16 +516,18 @@
     else $('p-summary').innerHTML='<span class="none-line">The plain-English summary was not kept with this analysis. Run it again on the Writing State page.</span>';
 
     // habits
-    $('p-habits').innerHTML=habitCards(d,who,poss,nUsed!=null?nUsed:0);
+    $('p-habits').innerHTML=habitCards(d,poss,nUsed);
 
     // baseline
+    // The thin-baseline caution is shown whether or not the sample list loaded.
     const box=$('p-baseline');
+    const note='<p class="prov-note">'+esc(baselineNote(nUsed,onFile,verdict,poss))+'</p>';
     if(!samples){
-      box.innerHTML='<p class="none-line">The list of approved samples could not be loaded just now. Reload the page to try again.</p>';
+      box.innerHTML='<p class="none-line">The list of approved samples could not be loaded just now. Reload the page to try again.</p>'+note;
     } else if(!samples.length){
-      box.innerHTML='<p class="none-line">No approved samples are on file for '+esc(who)+' now.</p>';
+      box.innerHTML='<p class="none-line">No approved samples are on file for '+esc(who)+' now.</p>'+note;
     } else {
-      box.innerHTML=baselineTable(samples)+'<p class="prov-note">'+esc(baselineNote(nUsed,onFile,verdict,poss))+'</p>';
+      box.innerHTML=baselineTable(samples)+note;
       fillLengths(id,box);
     }
 
