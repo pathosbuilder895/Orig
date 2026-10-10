@@ -123,3 +123,73 @@ A nav link to a page not built yet points at its final filename; the page is add
 - [ ] **Step 5: Test Minors from Task 1's review** in `tests/test_original_suite_static.py`: the magic-link tripwire asserts on the check itself (`"read('bluebook_student_id')"` or whatever expression line 101 of live.js uses), and the external-reference scan runs over every text file in `demo/original/` (html, js, css, md), not only `*.html` and top-level `*.css`. In `index.html`, "Readiness could not be read for N" says "was not checked" for students beyond the cap.
 - [ ] **Step 6: Run** `/Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/test_original_suite_static.py tests/test_pilot_lockdown.py tests/security/test_static_tree.py -q -p no:cacheprovider` (all pass) and `curl -s -o /dev/null -w "%{http_code}" localhost:8011/original/students.html` (200).
 - [ ] **Step 7: Commit** `Add the live Students page from the navy design`.
+
+---
+
+### Task 3: Teachers land on the new pages
+
+Owner decision 2026-10-10: sign-in sends teachers to `/original/` now; the old page stays reachable as "Analysis (classic)" until the new pages cover it.
+
+**Files:**
+- Modify: `demo/index.html` (post-login redirect for professors at about line 933, and the "Professor" role pill at about line 737: both go to `original/`), `demo/original/live.js` or each page's account menu (add "Analysis (classic)" linking to `/professor.html`, placed after Settings), `demo/bluebook/Dashboard.jsx:95` and `demo/bluebook/TeacherWorkspace.jsx:17` (the "Original Analysis" / Original link goes to `../original/`), then `cd demo/bluebook && npm run build` and commit the rebuilt bundle, `demo/original/assets/CREDITS.md` (record the caption printed in the Radcliffe photo, verbatim as observed: "Sarah Savić Kallesøe | Oxford by Night", noting the owner is asking her for permission; no other credit text), `tests/test_original_suite_static.py`.
+- Leave alone: `original/lti.py` and `original/routers/lti_routes.py` (LTI is deferred), admin, operator, lab and playground pages (staff tools).
+
+- [ ] **Step 1:** Make the redirects and links above. Check `demo/bluebook/e2e/*.spec.mjs` and `tests/` for any assertion that a professor login lands on `professor.html`; update it to `/original/` only where it tests the landing itself (specs that open `professor.html` directly keep doing so).
+- [ ] **Step 2:** Test: `demo/index.html` sends role `professor` to `original/` (static check of the redirect expression), and every suite page's account menu links to `/professor.html` with the text "Analysis (classic)".
+- [ ] **Step 3: Run** the suite contract, pilot lockdown, static tree, LTI tests (`tests/test_lti.py tests/test_lti_branches.py`), the Bluebook build, and the e2e specs that touch login or the professor page (`baselines.spec.mjs`, `scoring.spec.mjs`, plus any login spec) against a pilot-mode server.
+- [ ] **Step 4: Commit** `Send teachers to the new Original pages after sign-in`.
+
+---
+
+### Task 4: Writing State page (analyse a paper)
+
+**Files:**
+- Create: `demo/original/writing-state.html` (from #237 `original-quantum.html`), `demo/original/assets/radcliffe-observatory-watercolour.jpg`, `demo/original/js/feature-data.js` (from #237: the 97 active features with tier names; byte-identical except em dashes)
+- Modify: `demo/original/assets/CREDITS.md`, `tests/test_original_suite_static.py` (remove from `PLANNED_PAGES`)
+
+**What it does:** `writing-state.html?student=<id>` shows one student's Writing State in the mockup's layout. Before an analysis it shows the baseline (the "Baseline ρ" toggle state) and an "Analyse a paper" card in the mockup's card style: assignment label, a text area, and a file picker for .txt (and .docx/.pdf only if `demo/professor.html` already extracts them client-side with a library this repo serves locally; reuse that code path, do not add a dependency). "Analyse" calls `POST /students/{id}/score` with `{text, assignment}`. Without `?student=`, the card first asks which student (from `Live.roster()`).
+
+**Data mapping:**
+- Radar "Tier Profile": per-tier mean of `feature_vector` vs `baseline_vector` (dicts keyed by feature code) grouped by tier from `js/feature-data.js`; only the 97 active features; tiers 17 and 18 never appear.
+- State vector heatmap: bars = baseline value, ticks = submission value, per feature, same drawing as the mockup.
+- Readout: student name or id, "HABITS MEASURED · 97", purity Tr(ρ²) from `baseline_confidence.purity` moved inside a `<details>` that says what purity is and carries the T-01 caveat ("baselines of 3-5 samples produce false alarms; see docs/testing"), state word from `recommendation.action` mapped to plain words (no "flag", no verdict).
+- Plain-English line: count of features in `authorship` contributions (read `AuthorshipSignalOut` and `FeatureContributionOut` in `original/schemas.py`) that differ, "worth a conversation, not a conclusion", and `human_explanation` text if present.
+- Feature detail: from `FeatureContributionOut` (name, tier, baseline_value, submission_value, delta, direction).
+- Evidence panel ("This submission" / "Their own past work" quotes): the backend returns no text positions, so replace the quote columns with the feature's numbers and one sentence per side; no invented quotes.
+- Triage buttons: "Looks fine" / "Have a conversation" call the same correction endpoint and payload `demo/professor.html` uses (find `recordProfessorAction` and the `/submissions/{id}/correct` call); "Prepare conversation packet" stores the last result in `sessionStorage` (`original_last_result`) and opens `packet.html` (planned page).
+- Testing label: `<div data-testing-notice></div>` at the top of the result, filled by `Live.notices()`.
+- Never show `authorship_probability`, `ai_likelihood`, `style_authorship`, `fused_score`, or any "AI" wording.
+- Photo per #237's CREDITS row for `radcliffe-observatory-watercolour.jpg`.
+
+- [ ] Steps: copy and restore look; wire the analyse card; render from the real response; states via `Live.gate`; extend the contract test (the page has a `[data-testing-notice]` slot; `Tr(` appears only inside `<details>`); run the suite contract, pilot lockdown and static tree tests; check in the browser on :8011 with a seeded student (e.g. `whitfield_j`, 5 approved samples) by analysing a pasted paragraph; commit `Add the live Writing State page from the navy design`.
+
+---
+
+Every task below follows Task 1's pattern: start from the #237 cleaned copy (`git show claude/frontend-ui-implementation-b3024b:demo/prototypes/navy/<mockup>`), keep its markup and CSS, restore its photo per #237's `assets/CREDITS.md` row (re-encode anything over 700 KB), same shell (nav links, account menu with Settings, "Analysis (classic)" and Sign out), `Live.gate`, real data through `Live.api` / `Live.roster` only, honest empty states, remove the page from `PLANNED_PAGES`, run the suite contract + pilot lockdown + static tree tests, check in the browser on :8011 (seeded) and :8010 (empty), commit `Add the live <Page> page from the navy design`. Any card whose data has no source keeps its place and says what it will show once Original keeps analysis results (Task 12).
+
+### Task 5: Conversation Packet (`packet.html`, from `original-flagged.html`)
+Printable. Reads the last analysis from `sessionStorage.original_last_result` (written by Writing State) plus `GET /students/{id}` samples (assignment, provenance, date) for "what the baseline is made of". Shows: student, assignment, date, the plain-language summary, the top differing habits from `FeatureContributionOut` with baseline vs paper numbers, the baseline sample list, and blank outcome/signature lines for the teacher (form fields, not data). The testing label appears on screen and in the print footer (`@media print`). No side-by-side quotes (no text positions exist), no case numbers. Without a stored result: "Run an analysis on the Writing State page first" with a link.
+
+### Task 6: Voice Baseline (`baseline.html?student=<id>`, from `original-baseline-voice.html`)
+`GET /students/{id}` (samples: assignment, provenance, submitted_at, auth_weight; purity; effective_sample_count), `GET /students/{id}/readiness` (verdict and counts), `GET /students/{id}/samples/{i}/text` for a sample preview. "Where the baseline came from" = the samples table (effective weight = the API's `auth_weight`; do not compute recency yourself unless the API returns it). Add writing: single text (`POST /students/{id}/baseline`, same payload as professor.html), batch upload and Turnitin CSV import (reuse professor.html's exact endpoints and payloads). Sealed Bluebook exams awaiting approval for this student (bluebook_baselines.py approve/undo endpoints) replace professor.html's "pending baselines" (bbook_client, not used). "Signature habits" and "The short version": no narrative without a source; show the per-tier baseline profile from `baseline_vector` grouped by `js/feature-data.js`, and the readiness verdict in plain words. Purity only inside `<details>` with the T-01 caveat.
+
+### Task 7: Submissions (`submissions.html`, from `original-review.html`)
+Rows = sealed Bluebook exams from `GET /bluebook/submissions` (student, exam title if the shape carries it, date, late, reviewed = `graded_at` set, mark); click opens that submission in Bluebook (find its route; read-only in this task). Stats: "Awaiting review" = ungraded count, "Reviewed this week" = `graded_at` within 7 days; "Reads very differently" and "Worth a look" keep their place with "Appears once Original keeps analysis results". Never show `ai_score` or FLAGGED. "Analyse a paper" button goes to `writing-state.html`.
+
+### Task 8: Reports (`reports.html`, from `original-reports.html`)
+Real: students with a ready baseline (server verdicts via `Live.roster`), sealed exams per week, reviewed by teacher (graded count), roster size. Not stored yet (keep the card, say so): papers analysed, within their usual range, deviation by assignment. Never "% authentic" or a percentage of students "writing like themselves".
+
+### Task 9: Settings (`settings.html`, from `original-settings.html`)
+Account from `/auth/me` (role, products shown read-only: "Original is on/off for this workspace"), change password (`POST /auth/password`, read original/routers/auth.py for the payload), sign out. "Flag Sensitivity" is removed (no such setting); no Canvas/Blackboard (deferred). Demo mode: show that the demo has no account.
+
+### Task 10: Student pages (`voice.html`, `my-work.html`) and `/me/work` compare-only
+- `Live.gate(el, {audience:'student'})`: student sessions allowed, staff redirected to `index.html`; sign-in goes to `/bluebook/`. Student nav: My Voice, My Work, Bluebook.
+- `voice.html` (from `original-voice.html`): `GET /me/voice` only (headline, fingerprint, milestones, voice notes; read original/routers/me.py and original/voice.py). No class averages, no habit counts the API does not return, no term timeline.
+- `my-work.html` (from `original-my-work.html`): paste a piece, `POST /me/work`, show the redacted result in the mockup's layout; no phrase highlighting (no source). The line "Your teacher may choose to add this to your writing profile." appears.
+- Backend (owner decision 2 of the 2026-10-09 plan): `original/routers/me.py` `my_work` stops calling `add_baseline`; its "Saved to your body of work" / "added to your formation record" copy becomes accurate ("Not added to your writing profile. Your teacher may choose to add this to your writing profile."); remove "formation" wording from student-facing copy in `original/voice.py`. Update the tests that pin the old behaviour; add one asserting `/me/work` leaves the baseline sample count unchanged. Run `tests/test_me*.py`, `tests/test_voice*.py` (whatever exists) and the full suite in the background before the PR.
+
+### Task 11: Bluebook screens restyled (owner decision 2026-10-10: in this branch now)
+Teacher Sessions (`demo/bluebook/TeacherWorkspace.jsx` session setup, live and results screens) to `original-bluebook-teacher.html`; student exam booklet (`demo/bluebook/Exam.jsx`) to `original-bluebook-student.html`. Keep every behaviour, route and e2e selector; change look and copy only. Remove the teacher-facing "Authenticity" `ai_score` display (`Results.jsx`, about line 262) and any "typing rhythm strengthens your baseline" wording. Rebuild and commit the bundle; run the Bluebook e2e suite.
+
+### Task 12: Stored analysis results (backend) and the flag cards
+Per the 2026-10-09 plan's PR 5 and PR 6: `score_results` table (SQLite + Postgres + alembic), tenant-scoped list/overview/review endpoints, deletion and inventory coverage, the corrections-bug fix; then the flag cards on Your classes, Submissions and Reports, and reopening a past result on Writing State. Own spec and plan before code.
