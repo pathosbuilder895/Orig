@@ -812,6 +812,12 @@ const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: A
     }
   } else if (sc.call === 'sealed') {
     out.result = plain(await window.Live.sealed());
+  } else if (sc.call === 'rosterTwice') {
+    // Two callers at once, then a third after the load has finished.
+    const [a, b] = await Promise.all([window.Live.roster(), window.Live.roster()]);
+    const c = await window.Live.roster();
+    out.result = a;
+    out.sameObject = a === b && b === c;
   } else if (sc.call === 'both') {
     const [roster, sealed, again] = await Promise.all([window.Live.roster(), window.Live.sealed(), window.Live.sealed()]);
     out.result = roster;
@@ -1038,6 +1044,22 @@ def test_roster_that_cannot_read_the_students_says_so_instead_of_rejecting(stude
     assert res["ok"] is False
     assert res["error"]
     assert res["students"] == []
+
+
+@needs_node
+@pytest.mark.parametrize("readiness", ["answers", "fails"])
+def test_roster_is_loaded_once_per_page_however_many_times_it_is_asked_for(readiness):
+    # writing-state.html asks for the roster twice; two loads would also double
+    # every readiness request (10 for 5 students) when they fail.
+    ids = ["a", "b", "c", "d", "e"]
+    answer = _ready("ready") if readiness == "answers" else [500, {"detail": "boom"}]
+    out = _roster(call="rosterTwice", students=[200, {"students": ids, "roster": None}], readinessDefault=answer)
+    assert out["sameObject"] is True
+    assert out["result"]["ok"] and len(out["result"]["students"]) == 5
+    calls = out["calls"]
+    assert len([c for c in calls if c.endswith("/readiness")]) == 5
+    for endpoint in ("/students", "/bluebook/students", "/bluebook/submissions", "/bluebook/exams"):
+        assert calls.count(endpoint) == 1, endpoint
 
 
 # ── Live.sealed ───────────────────────────────────────────────────────────────

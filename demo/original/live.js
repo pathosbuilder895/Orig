@@ -308,7 +308,8 @@
   //   Live.sealed()                   sealed exams, plus Bluebook's rosters for
   //                                   courses and email (same single load)
   //
-  // Resolves, and never rejects:
+  // Memoised per page load (one in-flight promise): a second call makes no
+  // request. Resolves, and never rejects:
   //   ok, error      ok is false when the student list itself could not be read
   //   scoped         true when /students carried a roster (names and counts)
   //   students[]     {id, name, email, courses:[{id,code,name}], approved,
@@ -437,8 +438,13 @@
     });
   }
 
+  // Memoised like Live.sealed: the first call starts the load, every later call
+  // in the same page load gets the same answer without a request. Treat the
+  // result as read-only; it is shared by every caller.
+  var rosterPromise = null;
   function roster() {
-    return session().then(loadRoster).then(null, rosterFailure);
+    if (!rosterPromise) rosterPromise = session().then(loadRoster).then(null, rosterFailure);
+    return rosterPromise;
   }
 
   // Every localStorage key that starts with the prefix. The keys are collected
