@@ -46,6 +46,7 @@ PLANNED_PAGES = {
     "packet.html",
     "baseline.html",
     "reports.html",
+    "settings.html",
     "voice.html",
     "my-work.html",
     "library.html",
@@ -310,6 +311,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/writing-state.html",
         "/original/settings.html",
         "/original/submissions.html",
+        "/original/reports.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
@@ -319,6 +321,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/assets/st-andrews-quad.jpg",
         "/original/assets/radcliffe-observatory-watercolour.jpg",
         "/original/assets/radcliffe-interior.avif",
+        "/original/assets/gonville-caius-facade.jpg",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -484,6 +487,18 @@ def test_submissions_page_never_names_bluebooks_integrity_readings():
         assert word not in page, f"submissions.html mentions {word}"
     # The allowlist is the way fields leave the response.
     assert "const FIELDS=[" in (SUITE / "submissions.html").read_text(encoding="utf-8")
+
+
+def test_reports_page_counts_only_what_live_roster_returns():
+    page = (SUITE / "reports.html").read_text(encoding="utf-8")
+    assert "Live.roster()" in page
+    # The loader is shared, and this page reads no other endpoint: its numbers are
+    # counts of the roster, the server's verdicts and the sealed exams' dates.
+    assert "Live.api(" not in page
+    for endpoint in ("/readiness", "/bluebook/students", "/bluebook/submissions", "/score"):
+        assert endpoint not in page, f"reports.html calls {endpoint} itself"
+    # Cards with no stored source say so instead of showing a number.
+    assert page.count("Appears once Original keeps analysis results") >= 3
 
 
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
