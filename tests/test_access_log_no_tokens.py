@@ -60,6 +60,7 @@ def test_request_log_records_token_links_without_the_token(live_client, caplog):
     logged = [r.path for r in caplog.records if r.name == "original.http"]
     assert logged == [path for path, _ in links]
     # Every field of every server-side record, extras included (caplog.text
-    # has only the message). httpx is the test client's own logger.
-    server = [r for r in caplog.records if r.name != "httpx"]
+    # has only the message). The test client logs each URL it requests under
+    # "httpx" or, on newer installs, "httpx2"; that is the client, not us.
+    server = [r for r in caplog.records if not r.name.startswith("httpx")]
     assert not [r for r in server if SECRET in str(vars(r))]
