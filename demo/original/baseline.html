@@ -130,6 +130,7 @@
   .hs-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold-2));}
   .hs-lab{font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--dim-2);}
   .habit-desc{font-size:.94rem;line-height:1.55;color:var(--dim);text-wrap:pretty;}
+  .habits-key{padding:1rem 1.5rem .2rem;font-size:.84rem;font-style:italic;color:var(--dim);line-height:1.45;}
   .tier-feats{padding:.1rem 1.5rem 1.1rem;display:flex;flex-direction:column;gap:.7rem;}
   .tf{display:grid;grid-template-columns:230px 1fr;gap:1.3rem;align-items:center;}
   .tf .n{font-size:.9rem;color:var(--cream);}
@@ -222,11 +223,12 @@
   .qi button{background:none;border:none;color:var(--dim-2);cursor:pointer;font-size:1rem;line-height:1;padding:.1rem .3rem;}
   .qi button:hover{color:var(--cream);}
   .qi button:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .save-note{margin-top:.9rem;font-size:.88rem;font-style:italic;color:var(--gold-2);}
+  .ex-card .save-note{margin:0 0 .8rem;}
   .add-msg{margin-top:.9rem;font-size:.9rem;line-height:1.5;color:var(--dim);font-style:italic;min-height:1.4em;}
   .add-msg.ok{color:var(--ok);font-style:normal;}
   .add-msg.err{color:var(--flag);font-style:normal;}
   .add-msg div+div{margin-top:.25rem;}
-  .tt-out{margin-top:.9rem;white-space:pre-line;font-size:.88rem;line-height:1.5;color:var(--dim);border:1px solid var(--line-soft);border-radius:10px;padding:.7rem .9rem;background:rgba(255,255,255,0.03);}
   .pick-card{padding:1.2rem 1.4rem;max-width:30rem;pointer-events:auto;}
   @media (max-width:900px){
     body{padding:0;}
@@ -285,7 +287,7 @@
           <div class="val" id="s-n">-</div>
         </div>
         <div class="row">
-          <div class="lab">Effective samples<b>newer, better-verified papers count more</b></div>
+          <div class="lab">Effective samples<b>papers added more recently, and better verified, count more</b></div>
           <div class="val" id="s-eff">-</div>
         </div>
         <div class="row">
@@ -307,11 +309,10 @@
           </div>
           <div class="pur-leg">
             <div class="lr"><span>Right now</span><b id="pur-now" style="color:var(--gold-2)">-</b></div>
-            <div class="lr"><span>Lowest possible</span><b id="pur-floor">-</b></div>
             <div class="lr"><span>All papers identical</span><b>1.000</b></div>
           </div>
         </div>
-        <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the approved papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict. The lowest possible value is 1 divided by the effective samples.</div>
+        <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the approved papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict.</div>
         <div class="pur-note"><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</div>
       </details>
     </aside>
@@ -344,7 +345,7 @@
           </div>
 
           <div style="margin-top:1.3rem;">
-            <div class="sec-h"><b>Signature habits</b><span>where their approved papers sit on each measure, tier by tier</span></div>
+            <div class="sec-h"><b>Signature habits</b><span>the measures behind the baseline, tier by tier</span></div>
             <div class="card habits" id="habits"><div class="live-empty">Loading</div></div>
           </div>
 
@@ -352,7 +353,7 @@
             <div class="sec-h"><b>Where the baseline came from</b><span id="from-sub"></span></div>
             <div class="card tl-card">
               <div class="timeline" id="timeline"><div class="live-empty">Loading</div></div>
-              <div class="wt-note" id="wt-note" hidden>Each paper's weight is set by how it was verified. Original also lets more recent papers count a little more than older ones; that part is applied inside the baseline and is not shown per paper.</div>
+              <div class="wt-note" id="wt-note" hidden>Each paper's verification weight is set by how it was verified. Papers added more recently count more (by the order they were added, not the date written); that part is applied inside the baseline and is not shown per paper. Original currently counts student uploads toward a baseline too, at the lowest weight; students' own uploads are being retired from baselines.</div>
               <div class="traj" id="traj" hidden>
                 <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="1.5"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>
                 <div>
@@ -368,6 +369,7 @@
             <div class="sec-h"><b>Sealed Bluebook exams</b><span id="sealed-sub">waiting for your approval</span></div>
             <div class="card ex-card">
               <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</div>
+              <div class="save-note" id="save-note-sealed" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
               <div id="sealed-list"><div class="live-empty">Loading</div></div>
             </div>
           </div>
@@ -381,7 +383,6 @@
                 <div class="seg" role="group" aria-label="How to add writing">
                   <button type="button" data-tab="paste" aria-pressed="true">Paste text</button>
                   <button type="button" data-tab="files" aria-pressed="false">Upload files</button>
-                  <button type="button" data-tab="csv" aria-pressed="false">Turnitin CSV</button>
                 </div>
 
                 <div class="fld" id="prov-wrap">
@@ -401,7 +402,7 @@
                   </div>
                   <div class="fld-row">
                     <div class="fld"><label for="paste-assign">Assignment name (optional)</label><input id="paste-assign" type="text" maxlength="200" autocomplete="off" /></div>
-                    <div class="fld"><label for="paste-date">Date it was written</label><input id="paste-date" type="date" /></div>
+                    <div class="fld"><label for="paste-date">Date it was written</label><input id="paste-date" type="date" /><div class="hint">Recorded with the paper. It does not change how the paper is weighted.</div></div>
                   </div>
                   <button class="btn" id="paste-go" type="button">Add to baseline</button>
                 </div>
@@ -417,16 +418,7 @@
                   <button class="btn" id="files-go" type="button" disabled>Add files to baseline</button>
                 </div>
 
-                <div id="tab-csv" hidden>
-                  <div class="rule-note">A Turnitin export lists students, not their writing. This reads the First Name, Last Name and Student ID columns (any capitals) and creates an empty profile for each student who is not on your roster yet. It does not add any writing: add the papers themselves with Paste text or Upload files. Other columns are ignored.</div>
-                  <div class="fld-row">
-                    <div class="fld"><label for="tt-course">Course id</label><input id="tt-course" type="text" autocomplete="off" /></div>
-                    <div class="fld"><label for="tt-file">Turnitin CSV file</label><input id="tt-file" type="file" accept=".csv" /></div>
-                  </div>
-                  <button class="btn" id="tt-go" type="button">Import CSV</button>
-                  <div class="tt-out" id="tt-out" hidden></div>
-                </div>
-
+                <div class="save-note" id="save-note-add" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
                 <div class="add-msg" id="add-msg" role="status" aria-live="polite"></div>
               </div>
             </div>
@@ -452,19 +444,24 @@
 
   // ── what the page knows ──
   const S={
-    id:ID, name:ID, email:null, courses:[],
+    id:ID,
+    rosterName:'', sealedName:'',   // the name, from the roster or from Bluebook's rosters
+    email:null, courses:[],
     student:null,        // GET /students/{id}
     ready:null,          // GET /students/{id}/readiness
     status:'loading',    // loading | ok | none | forbidden | auth | error
-    known:false,         // this id is on the teacher's roster
+    known:false,         // on the roster, or has sat a sealed exam
     ro:null,             // the shared roster answer
-    sealedKnown:null,    // sealed exams for this student according to the roster (null = unknown)
-    bluebook:'unknown',  // unknown | ok | off | error
-    sealed:'loading',    // loading | ok | none | off | error
+    sealed:'loading',    // loading | ok | none | off | error  (Live.sealed())
     exams:[],
-    preview:new Map(),   // sample index -> {state:'loading'|'ok'|'error', data}
-    open:null            // the sample whose paper is showing
+    preview:new Map(),   // sample index -> {state:'loading'|'ok', data}
+    open:null,           // the sample whose paper is showing
+    saving:'',           // the one write in flight: '' | 'paste' | 'files' | 'approve' | 'undo'
+    savingId:'',         // the exam it is about, for approve and undo
+    heldPaste:new Set()  // pasted texts the server has held back on this visit
   };
+  const nm=()=>S.rosterName||S.sealedName||ID;
+  let queue=[];          // files waiting to be uploaded
 
   // ── account menu (same as every page in the suite) ──
   (function(){
@@ -504,18 +501,25 @@
   function detailText(d){ return d&&typeof d.detail==='string'?d.detail:''; }
 
   // Provenance in plain words. The API's words are proctored, verified, canvas, unverified.
+  // "Approved" means a teacher approved it: a supervised sitting, a paper the teacher
+  // verified, or one the teacher imported. A student upload is counted by the server, but
+  // nobody approved it.
   const PROV={
     proctored:{word:'Supervised sitting',color:'#4d90c8',tag:n=>plural(n,'supervised sitting')},
     verified:{word:'Verified by teacher',color:'#5aab7a',tag:n=>n+' verified by teacher'},
     canvas:{word:'Imported',color:'#9a7ad0',tag:n=>n+' imported'},
     unverified:{word:'Student upload',color:'#d8b04a',tag:n=>plural(n,'student upload')}
   };
+  const APPROVED=['proctored','verified','canvas'];
   const provOf=p=>has(PROV,p)?PROV[p]:{word:'Other source',color:'#8a8a8a',tag:n=>n+' other'};
 
+  // The server's readiness rule, in full (original/routers/students.py).
+  const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 2 counted samples.';
+
   const VERDICT={
-    ready:{word:'Ready',cls:'ok',sub:'enough approved writing to compare against'},
-    developing:{word:'Building',cls:'warn',sub:'Original may say it cannot tell'},
-    insufficient:{word:'Needs more',cls:'bad',sub:'too few approved samples to rely on'}
+    ready:{word:'Ready',cls:'ok',sub:'enough counted samples to compare against'},
+    developing:{word:'Building',cls:'warn',sub:'results are less reliable; false alarms are likely'},
+    insufficient:{word:'Needs more',cls:'bad',sub:'too few counted samples to rely on'}
   };
   const verdictOf=()=>{
     const v=S.ready&&S.ready.verdict;
@@ -523,8 +527,20 @@
   };
 
   const samples=()=>(S.student&&Array.isArray(S.student.samples))?S.student.samples.filter(s=>s&&typeof s==='object'):[];
+  const approvedN=()=>samples().filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
+  const uploadsN=()=>samples().filter(s=>s.provenance==='unverified').length;
+  // What the server counts toward the baseline (its authenticated_count): approved papers
+  // and, for now, student uploads. Never shown as "approved".
+  const countedN=()=>{
+    const r=S.ready;
+    return (r&&num(r.authenticated_count)!==null)?r.authenticated_count:samples().length;
+  };
   const isOpen=()=>S.status==='ok'||S.status==='none';
   const canAdd=()=>S.status==='ok'||(S.status==='none'&&S.known);
+  function unknownStudent(){
+    // No profile, not on the roster, and no sealed exam: and both lists did load.
+    return S.status==='none'&&!S.known&&!!(S.ro&&S.ro.ok)&&S.sealed!=='loading'&&S.sealed!=='error';
+  }
 
   // ── left column ──
   function renderHead(){
@@ -534,15 +550,15 @@
       $('analyse-link').hidden=true; $('add-link').hidden=true;
       return;
     }
-    $('greet').textContent=S.name||ID;
-    const sm=samples();
+    $('greet').textContent=nm();
     const parts=[ID];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
     if(S.status==='ok'){
-      const up=sm.filter(s=>s.provenance==='unverified').length;
-      parts.push(plural(sm.length-up,'teacher-approved sample'));
+      const sm=samples(), a=approvedN(), up=uploadsN(), other=sm.length-a-up;
+      parts.push(plural(a,'teacher-approved sample'));
       if(up) parts.push(plural(up,'student upload'));
+      if(other>0) parts.push(plural(other,'sample')+' from another source');
     }
     $('meta').textContent=parts.join(' · ');
     $('analyse-link').href='writing-state.html?student='+enc(ID);
@@ -563,17 +579,17 @@
   }
 
   function renderPurity(){
-    const st=S.student, p=num(st&&st.purity), eff=num(st&&st.effective_sample_count);
+    const st=S.student, p=num(st&&st.purity);
     const show=S.status==='ok'&&p!==null&&samples().length>0;
     $('pur-d').hidden=!show;
     if(!show) return;
     $('pur-n').textContent=p.toFixed(3);
     $('pur-now').textContent=p.toFixed(3);
-    $('pur-floor').textContent=(eff&&eff>0)?(1/eff).toFixed(3):'-';
     $('pur-arc').style.strokeDashoffset=String(314.2*(1-Math.max(0,Math.min(1,p))));
   }
 
   // ── hero ──
+  const NO_WRITING='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Bluebook exams you approve.';
   function renderHero(){
     const t=$('hero-title'), sum=$('hero-sum'), tags=$('hero-tags'), eb=$('hero-eyebrow');
     tags.innerHTML=''; $('hero-cap').hidden=!ID;
@@ -588,20 +604,15 @@
     if(S.status==='forbidden'){ t.innerHTML='You do not have access<br><span>to this student’s writing.</span>'; sum.textContent=''; return; }
     if(S.status==='auth'){ t.innerHTML='Your sign-in has ended.<br><span>Sign in again to see this baseline.</span>'; sum.textContent=''; return; }
     if(S.status==='error'){ t.innerHTML='This baseline could not<br><span>be loaded just now.</span>'; sum.textContent='Try reloading the page.'; return; }
-    if(S.status==='none'){
+    const sm=samples(), n=sm.length;
+    if(S.status==='none'||!n){
       if(unknownStudent()){
         t.innerHTML='No student with this id<br><span>is on your roster.</span>';
         sum.textContent='Check the link, or choose the student from the Students page.';
         return;
       }
-      t.innerHTML='No writing in the baseline yet<br><span>add some below to begin.</span>';
-      sum.textContent='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Bluebook exams you approve.';
-      return;
-    }
-    const sm=samples(), n=sm.length;
-    if(!n){
-      t.innerHTML='No writing in the baseline yet<br><span>add some below to begin.</span>';
-      sum.textContent='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Bluebook exams you approve.';
+      t.innerHTML='No approved writing yet<br><span>add some below to begin.</span>';
+      sum.textContent=NO_WRITING;
       return;
     }
     const ds=sm.map(s=>parseDate(s.submitted_at)).filter(Boolean).sort((a,b)=>a-b);
@@ -612,9 +623,9 @@
     }
     t.innerHTML=esc(plural(n,'paper'))+' in this baseline<br><span>'+esc(range)+'</span>';
     const k=new Set(sm.map(s=>String(s.assignment||'').trim()).filter(Boolean)).size;
-    const up=sm.filter(s=>s.provenance==='unverified').length;
-    let line='Original has read '+(n===1?'this paper':'these papers')+(k?', written for '+plural(k,'assignment'):'')+', and averaged '+(n===1?'its':'their')+' habits into the profile below. Writing joins a baseline when a teacher approves it: papers you add here, and sealed Bluebook exams you approve.';
-    if(up) line+=' '+(up===1?'1 paper was':up+' papers were')+' uploaded by the student and count for the least.';
+    const up=uploadsN();
+    let line='Original has read '+(n===1?'this paper':'these papers')+(k?', written for '+plural(k,'assignment'):'')+', and averaged '+(n===1?'its':'their')+' habits into the profile below. '+NO_WRITING;
+    if(up) line+=' '+(up===1?'1 paper was':up+' papers were')+' uploaded by the student; they are counted, but nobody approved them.';
     sum.textContent=line;
     const order=['proctored','verified','canvas','unverified'];
     const counts=new Map();
@@ -627,14 +638,10 @@
     });
   }
 
-  function unknownStudent(){
-    // The id has no profile and is not on a roster that did load.
-    return S.status==='none'&&!S.known&&!!(S.ro&&S.ro.ok);
-  }
-
   // ── the short version ──
-  // The server's own sentences, in this page's words: its "authenticated" is the teacher-approved baseline, and a dash becomes a colon.
-  function recWords(t){ return String(t).replace(/authenticated/gi,'approved').replace(/ \u2014 /g,': '); }
+  // The server's own sentences, in this page's words: its "authenticated" is a sample it
+  // counts (teacher-approved or, for now, a student upload), and a dash becomes a colon.
+  function recWords(t){ return String(t).replace(/authenticated/gi,'counted').split(' '+String.fromCharCode(8212)+' ').join(': '); }
   function renderShort(){
     const el=$('short');
     if(!ID){ Live.empty(el,'Choose a student above to read their baseline.'); return; }
@@ -642,33 +649,39 @@
     if(S.status==='forbidden'){ Live.empty(el,'You do not have access to this student’s writing.'); return; }
     if(S.status==='auth'){ Live.empty(el,'Your sign-in has ended. Sign in again to see this baseline.'); return; }
     if(S.status==='error'){ Live.empty(el,'This student’s baseline could not be loaded just now. Try reloading the page.'); return; }
-    const name=esc(S.name||ID);
+    const name=esc(nm());
     if(unknownStudent()){ Live.empty(el,'No student with this id is on your roster, so there is no baseline to show.'); return; }
     if(S.status==='none'||!samples().length){
-      el.innerHTML='<p>Original has <b>no writing on file</b> for '+name+' yet. A baseline is ready at 5 approved samples. Add papers below, or approve a sealed Bluebook exam.</p>'+
-        '<p>The rule is simple: writing joins a baseline when a teacher approves it.</p>';
+      el.innerHTML='<p>Original has <b>no approved writing</b> for '+name+' yet. '+esc(RULE)+' Add papers below, or approve a sealed Bluebook exam.</p>'+
+        '<p>The rule is simple: <em>writing joins a baseline when a teacher approves it</em>.</p>';
       return;
     }
     const r=S.ready, v=verdictOf();
-    const paras=[];
-    const auth=r&&num(r.authenticated_count)!==null?r.authenticated_count:samples().length;
+    const a=approvedN(), up=uploadsN(), counted=countedN();
     const eff=r&&num(r.effective_sample_count)!==null?r.effective_sample_count:num(S.student.effective_sample_count);
+    const split=esc(plural(counted,'counted sample'))+' ('+esc(a+' teacher-approved')+(up?', '+esc(plural(up,'student upload')):'')+')';
+    const paras=[];
     if(v==='ready'){
-      paras.push(name+'’s baseline is <b>ready to compare against</b>: '+esc(plural(auth,'approved sample'))+(eff!==null?', which count as about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recent it is':'')+'.');
+      paras.push(name+'’s baseline is <b>ready to compare against</b>: '+split+(eff!==null?', which come to about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recently it was added':'')+'.');
     } else if(v==='developing'){
-      paras.push(name+'’s baseline is <b>still building</b>: '+esc(plural(auth,'approved sample'))+' so far. Original looks for 5 or more, and baselines of 3 to 5 samples produce false alarms, so read any later result with extra care.');
+      paras.push(name+'’s baseline is <b>still building</b>: '+split+' so far. Results from it are less reliable, and false alarms are likely: baselines of 3 to 5 samples produce false alarms. '+esc(RULE));
     } else if(v==='insufficient'){
-      paras.push(name+' does not have <b>enough approved writing yet</b>: '+esc(plural(auth,'approved sample'))+'. Original calls a baseline “building” from 2 samples and ready from 5.');
+      paras.push(name+' does not have <b>enough counted samples yet</b>: '+split+'. '+esc(RULE));
     } else {
-      paras.push(name+' has <b>'+esc(plural(auth,'approved sample'))+'</b> in the baseline. Original’s readiness check could not be read just now.');
+      paras.push(name+' has <b>'+split+'</b> in the baseline. Original’s readiness check could not be read just now.');
     }
     const ws=r&&r.word_stats&&typeof r.word_stats==='object'?r.word_stats:null;
     const mix=r&&r.provenance_mix&&typeof r.provenance_mix==='object'?r.provenance_mix:null;
     const bits=[];
     if(ws&&num(ws.min)!==null&&num(ws.max)!==null){
-      let s='The papers run from <b>'+esc(ws.min)+'</b> to <b>'+esc(ws.max)+' words</b>';
-      if(num(ws.median)!==null) s+=' (the middle one is '+esc(ws.median)+')';
-      s+='.';
+      const total=samples().length;
+      let s;
+      if(ws.min===ws.max) s=(total===1?'The paper is ':'Every paper is ')+'<b>'+esc(ws.max)+' words</b>.';
+      else {
+        s='The papers run from <b>'+esc(ws.min)+'</b> to <b>'+esc(ws.max)+' words</b>';
+        if(num(ws.median)!==null) s+=' (the middle one is '+esc(ws.median)+')';
+        s+='.';
+      }
       if(num(ws.n_below_300)>0) s+=' '+esc(plural(ws.n_below_300,'is','are'))+' under 300 words, and Original prefers 300 or more for a steady reading.';
       bits.push(s);
     }
@@ -678,11 +691,12 @@
       if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
     }
     if(bits.length) paras.push(bits.join(' '));
-    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Bluebook exams you approve below are the ways in.');
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Bluebook exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.');
     el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
   }
 
-  // ── signature habits: one row per tier, from baseline_vector ──
+  // ── signature habits: tiers as headings, a bar for each measure inside ──
+  const KEY='Each bar shows where the student’s usual value sits between the ends of Original’s expected range for that measure.';
   function renderHabits(){
     const el=$('habits');
     const base=S.student&&S.student.baseline_vector&&typeof S.student.baseline_vector==='object'?S.student.baseline_vector:null;
@@ -693,15 +707,15 @@
       return;
     }
     const open=new Set(Array.from(el.querySelectorAll('details[open]')).map(d=>d.getAttribute('data-tier')));
-    el.innerHTML=OF.tiers.filter(t=>t.key!=='tiercomp').map(t=>{
-      const vals=t.features.map(f=>has(base,f.code)?num(base[f.code]):null);
-      const got=vals.filter(v=>v!==null);
-      const mean=got.length?got.reduce((a,b)=>a+b,0)/got.length:null;
-      const bar=m=>'<div class="habit-strength"><div class="hs-track"><div class="hs-fill" style="width:'+(m===null?0:Math.round(Math.max(0,Math.min(1,m))*100))+'%"></div></div><span class="hs-lab">'+(m===null?'-':m.toFixed(2))+'</span></div>';
-      const feats=t.features.map((f,i)=>'<div class="tf"><div><div class="n">'+esc(f.name)+'</div>'+bar(vals[i])+'</div><div class="d">'+esc(f.desc)+'</div></div>').join('');
+    const bar=v=>'<div class="habit-strength"><div class="hs-track"><div class="hs-fill" style="width:'+(v===null?0:Math.round(Math.max(0,Math.min(1,v))*100))+'%"></div></div><span class="hs-lab">'+(v===null?'-':v.toFixed(2))+'</span></div>';
+    el.innerHTML='<div class="habits-key">'+esc(KEY)+'</div>'+OF.tiers.filter(t=>t.key!=='tiercomp').map(t=>{
+      const feats=t.features.map(f=>{
+        const v=has(base,f.code)?num(base[f.code]):null;
+        return '<div class="tf"><div><div class="n">'+esc(f.name)+'</div>'+bar(v)+'</div><div class="d">'+esc(f.desc)+'</div></div>';
+      }).join('');
       const blurb=String(t.blurb||''); const cap=blurb.charAt(0).toUpperCase()+blurb.slice(1);
       return '<details class="tier" data-tier="'+esc(t.key)+'"'+(open.has(t.key)?' open':'')+'><summary>'+
-        '<div><div class="habit-name">'+esc(t.name)+'</div><div class="habit-sub">'+esc(t.pill)+' · '+esc(t.word)+'</div>'+bar(mean)+'</div>'+
+        '<div><div class="habit-name">'+esc(t.name)+'</div><div class="habit-sub">'+esc(t.pill)+' · '+esc(t.word)+'</div></div>'+
         '<div class="habit-desc">'+esc(cap)+'.</div>'+
         '<svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></summary>'+
         '<div class="tier-feats">'+feats+'</div></details>';
@@ -728,7 +742,7 @@
       return '<div class="ti" data-i="'+i+'"><div class="ti-dot" style="background:'+esc(p.color)+'">'+(pos+1)+'</div>'+
         '<div class="ti-body"><div class="ti-title">'+esc(String(s.assignment||'').trim()||'Untitled sample')+'</div><div class="ti-meta">'+esc(when)+'</div>'+
         '<div class="ti-tags"><span class="tg">'+esc(p.word)+'</span><button type="button" class="tg" data-read="'+i+'" aria-expanded="false">Read this paper</button></div></div>'+
-        '<div class="ti-w"><div class="l">Effective weight</div><div class="n">'+(w===null?'-':esc(w.toFixed(2)))+'</div><div class="l">from how it was verified</div></div>'+
+        '<div class="ti-w"><div class="l">Verification weight</div><div class="n">'+(w===null?'-':esc(w.toFixed(2)))+'</div><div class="l">set by how it was verified</div></div>'+
         '<div class="ti-prev" hidden></div></div>';
     }).join('');
     if(S.open!==null) showPreview(S.open,true);
@@ -739,8 +753,7 @@
     const v=verdictOf();
     const r=S.ready;
     if(!(S.status==='ok'||S.status==='none')||!r||!v){ box.hidden=true; return; }
-    const name=S.name||ID;
-    $('traj-t').textContent=v==='ready'?'A usable baseline':(v==='developing'?'Still getting to know '+name:'Not enough writing yet');
+    $('traj-t').textContent=v==='ready'?'A usable baseline':(v==='developing'?'Still getting to know '+nm():'Not enough writing yet');
     const recs=Array.isArray(r.recommendations)?r.recommendations.filter(x=>typeof x==='string'):[];
     $('traj-d').innerHTML=recs.map(x=>'<div>'+esc(recWords(x))+'</div>').join('');
     box.hidden=false;
@@ -789,6 +802,31 @@
     else if(t.hasAttribute('data-close')) closePreview();
   });
 
+  // ── one write at a time ──
+  // Pasting, uploading, approving and taking an exam out all change this one student's
+  // baseline. Only one of them may be in flight; while it is, every write button is
+  // disabled and the page says it is saving.
+  function startSave(kind,id){
+    if(S.saving) return false;
+    S.saving=kind; S.savingId=id||'';
+    applySaving();
+    return true;
+  }
+  function endSave(){
+    S.saving=''; S.savingId='';
+    applySaving();
+  }
+  function applySaving(){
+    const on=!!S.saving;
+    const pg=$('paste-go'), fg=$('files-go');
+    pg.disabled=on; pg.textContent=S.saving==='paste'?'Saving...':'Add to baseline';
+    fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Add files to baseline';
+    $('file-in').disabled=on;
+    ['save-note-add','save-note-sealed'].forEach(id=>{ $(id).hidden=!on; });
+    renderQueue();
+    renderSealed();
+  }
+
   // ── sealed Bluebook exams for this student ──
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');
@@ -796,10 +834,12 @@
     if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
     if(S.sealed==='loading'){ return; }
     if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Bluebook is off for this workspace, so there are no sealed exams to approve.'); return; }
-    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed exams could not be loaded just now. Try reloading the page.'); return; }
+    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed exams could not be loaded just now. If your sign-in has ended, sign in again; otherwise reload the page.'); return; }
     if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed exams for this student yet.'); return; }
     const waiting=S.exams.filter(m=>m.in_baseline!==true&&m.has_text!==false&&!m.held).length;
     sub.textContent=waiting?plural(waiting,'exam')+' waiting for your approval':'none waiting for your approval';
+    const dis=S.saving?' disabled':'';
+    const lbl=(act,m,text)=>(S.saving===act&&S.savingId===m.id)?'Saving...':text;
     el.innerHTML=S.exams.map(m=>{
       const meta=[fmtDate(m.created), m.course].filter(Boolean).join(' · ');
       let look='';
@@ -807,14 +847,14 @@
       if(why.length) look='<div class="ex-look">Worth a look before approving: '+esc(why.join(', '))+'.</div>';
       let st, btns='';
       if(m.has_text===false){ st='<span class="st off"><span class="d"></span>Nothing written</span>'; }
-      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Undo</button>'; }
+      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }
       else if(m.held){ st='<span class="st off"><span class="d"></span>Held back</span>'; }
-      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Approve</button>'; }
-      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Approve</button>'; }
+      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
+      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
       let ask='';
       if(m.confirm){
         ask='<div class="ex-ask">Take this exam out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
-          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+(m.busy?' disabled':'')+'>Take it out</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'">Keep it</button></div>';
+          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
       }
       return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled exam')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
         (m.msg?'<div class="ex-msg'+(m.kind?' '+m.kind:'')+'" role="status">'+esc(m.msg)+'</div>':'')+'</div>'+
@@ -823,31 +863,37 @@
   }
 
   const HELD='Not added: this exam differs strongly from the student’s existing samples. Approval does not override this check.';
+  const MAYBE='The server did not confirm the save, so it may not have been saved. Reload the page to check.';
+  const writeFailed=res=>res.status===0||res.status>=500;
   async function actOnExam(id,kind){
     const m=S.exams.find(x=>x.id===id);
-    if(!m||m.busy) return;
-    m.busy=true; m.confirm=false; m.msg='Working'; m.kind=''; renderSealed();
+    if(!m) return;
+    if(!startSave(kind,id)) return;
+    m.confirm=false; m.msg='Saving...'; m.kind=''; renderSealed();
     const res=await Live.api('/bluebook/submissions/'+enc(id)+'/baseline',{method:kind==='undo'?'DELETE':'POST'});
-    m.busy=false;
     const d=res.data, word=d&&typeof d.status==='string'?d.status:'', detail=detailText(d);
     let changed=false;
     if(res.ok&&kind==='approve'){
       if(word==='added'){ m.in_baseline=true; m.msg='Added to the baseline.'; m.kind='ok'; changed=true; }
       else if(word==='already_in_baseline'){ m.in_baseline=true; m.msg='It was already in the baseline.'; m.kind='ok'; }
-      else if(word==='held'){ m.held=true; m.msg=(typeof d.detail==='string'&&d.detail)?d.detail:HELD; m.kind='err'; }
+      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this exam on this visit.'; m.kind='err'; }
       else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
     } else if(res.ok&&kind==='undo'){
       if(word==='removed'){ m.in_baseline=false; m.msg='Taken out of the baseline. The baseline was recalculated from the remaining samples.'; m.kind='ok'; changed=true; }
       else if(word==='not_in_baseline'){ m.in_baseline=false; m.msg='It was not in the baseline.'; m.kind='ok'; }
       else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
     } else if(res.status===401){ m.msg='Your sign-in has ended. Sign in again, then try once more.'; m.kind='err'; }
-    else if(res.status===403||res.status===404||res.status===422){ m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err'; }
-    else { m.msg='That did not go through just now, so nothing changed. Try again.'; m.kind='err'; }
-    renderSealed();
+    else if(writeFailed(res)){ m.msg=MAYBE; m.kind='err'; }
+    else if(res.status===403||res.status===404||res.status===422){
+      if(res.status===422&&/nothing written/i.test(detail)) m.has_text=false;
+      m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err';
+    }
+    else { m.msg='That did not go through, so nothing changed.'; m.kind='err'; }
     if(changed) await refreshStudent();
+    endSave();
   }
   $('sealed-list').addEventListener('click',e=>{
-    const b=e.target.closest('button[data-act]'); if(!b) return;
+    const b=e.target.closest('button[data-act]'); if(!b||b.disabled) return;
     const id=b.getAttribute('data-id'), act=b.getAttribute('data-act');
     const m=S.exams.find(x=>x.id===id); if(!m) return;
     if(act==='approve') actOnExam(id,'approve');
@@ -871,15 +917,14 @@
     off.hidden=false; body.hidden=true;
     off.textContent=S.status==='forbidden'?'You do not have access to this student.':
       S.status==='auth'?'Your sign-in has ended. Sign in again to add writing.':
-      unknownStudent()?'Writing can only be added for a student on your roster.':
+      unknownStudent()?'Writing can only be added for a student on your roster or one who has sat a sealed exam.':
       'Writing cannot be added until this student has loaded. Try reloading the page.';
   }
-  const TABS=['paste','files','csv'];
+  const TABS=['paste','files'];
   function setTab(tab){
     TABS.forEach(t=>{ $('tab-'+t).hidden=(t!==tab); });
     document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.getAttribute('data-tab')===tab?'true':'false'));
-    $('prov-wrap').hidden=(tab==='csv');
-    addMsg('','');
+    if(!S.saving) addMsg('','');
   }
   document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>setTab(b.getAttribute('data-tab'))));
 
@@ -891,9 +936,10 @@
     return '';
   };
   // A held answer comes back as 202 (a flag for review) or 409 (rebuild the baseline).
-  function heldLines(res){
+  function heldLines(res,again){
     const d=res.data&&res.data.detail&&typeof res.data.detail==='object'?res.data.detail:null;
     const mag=d&&d.drift&&num(d.drift.drift_magnitude)!==null?' (difference '+d.drift.drift_magnitude.toFixed(2)+')':'';
+    if(again) return ['This paper was held back'+mag+'.','Nothing was stored. This check cannot be overridden.'];
     if(res.status===409||(d&&d.status==='rebaseline_required'))
       return ['Not added'+mag+': this is the second paper in a row that differs strongly from the baseline, so the baseline itself may be out of date and would need rebuilding.','Nothing was stored.'];
     return ['Not added'+mag+': this paper differs strongly from the writing already in the baseline.','Nothing was stored. This check cannot be overridden.'];
@@ -901,6 +947,7 @@
   function failLines(res,what){
     const d=detailText(res.data);
     if(res.status===401) return ['Your sign-in has ended. Sign in again, then try once more.'];
+    if(writeFailed(res)) return [MAYBE];
     if(res.status===403) return [d||'You do not have access to this student.'];
     if(res.status===413) return ['That is too large to send. Try a shorter paper or fewer files at once.'];
     if(res.status===422){
@@ -908,32 +955,39 @@
       const first=arr&&arr[0]&&typeof arr[0].msg==='string'?arr[0].msg:'';
       return [d||first||'The server did not accept that '+what+'.'];
     }
-    return ['That did not go through just now, so nothing was added. Try again.'];
+    return ['That did not go through, so nothing was added.'];
   }
+  const nowHas=()=>nm()+' now has '+plural(approvedN(),'teacher-approved sample')+'.';
 
-  let busy=false;
   async function addPasted(){
-    if(busy||!canAdd()) return;
+    if(S.saving||!canAdd()) return;
     const text=$('paste-text').value.trim();
     if(countWords(text)<50){ addMsg('Paste at least 50 words. Shorter text gives an unreliable reading.','err'); return; }
     if(text.length>200000){ addMsg('That is too long to add (the limit is 200,000 characters).','err'); return; }
     const prov=$('prov').value;
     const body={ text:text, provenance:prov, assignment:$('paste-assign').value.trim(), submitted_at:$('paste-date').value||today() };
-    busy=true; $('paste-go').disabled=true; addMsg('Adding. This takes a few seconds.','');
+    if(!startSave('paste')) return;
+    addMsg('Saving... This takes a few seconds.','');
     const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
-    busy=false; $('paste-go').disabled=false;
-    if(res.status===202||res.status===409){ addMsg(heldLines(res),'err'); return; }
+    if(res.status===202||res.status===409){
+      const again=S.heldPaste.has(text);
+      S.heldPaste.add(text);
+      addMsg(heldLines(res,again),'err');
+      endSave(); return;
+    }
     if(res.ok&&res.data&&typeof res.data==='object'){
       const d=res.data;
-      if(d.skipped){ addMsg('That paper is already in the baseline, so nothing was added.',''); return; }
-      const lines=['Added as sample '+((num(d.sample_index)!==null?d.sample_index:0)+1)+'. '+(S.name||ID)+' now has '+plural(num(d.authenticated_count)!==null?d.authenticated_count:0,'approved sample')+'.'];
-      const pn=provNote(d,prov); if(pn) lines.push(pn);
-      addMsg(lines,'ok');
+      if(d.skipped){ addMsg('That paper is already in the baseline, so nothing was added.',''); endSave(); return; }
+      const idx=num(d.sample_index)!==null?d.sample_index:0;
       $('paste-text').value=''; $('paste-assign').value=''; updatePasteWords();
       await refreshStudent();
-      return;
+      const lines=['Added as sample '+(idx+1)+'. '+nowHas()];
+      const pn=provNote(d,prov); if(pn) lines.push(pn);
+      addMsg(lines,'ok');
+      endSave(); return;
     }
     addMsg(failLines(res,'text'),'err');
+    endSave();
   }
   function updatePasteWords(){
     const n=countWords($('paste-text').value);
@@ -943,7 +997,6 @@
   $('paste-go').addEventListener('click',addPasted);
 
   // upload queue
-  let queue=[];
   function renderQueue(){
     const el=$('queue');
     el.innerHTML='';
@@ -951,18 +1004,19 @@
       const row=document.createElement('div'); row.className='qi';
       const n=document.createElement('span'); n.className='qn'; n.textContent=q.name;
       const s=document.createElement('span'); s.className='qs'+(q.status==='error'||q.status==='held'?' err':(q.status==='done'?' ok':''));
-      s.textContent=q.status==='pending'?'Ready':q.status==='sending'?'Sending':q.status==='done'?'Sent':q.status==='held'?'Held back':(q.error||'Error');
+      s.textContent=q.status==='pending'?'Ready':q.status==='sending'?'Saving...':q.status==='done'?'Sent':q.status==='held'?'Held back':(q.error||'Error');
       row.appendChild(n); row.appendChild(s);
       if(q.status==='pending'){
-        const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+q.name); x.textContent='×';
-        x.addEventListener('click',()=>{ queue.splice(i,1); renderQueue(); });
+        const x=document.createElement('button'); x.type='button'; x.setAttribute('aria-label','Remove '+q.name); x.textContent='×'; x.disabled=!!S.saving;
+        x.addEventListener('click',()=>{ queue.splice(i,1); renderQueue(); $('files-go').disabled=!!S.saving||!queue.some(z=>z.status==='pending'); });
         row.appendChild(x);
       }
       el.appendChild(row);
     });
-    $('files-go').disabled=!queue.some(q=>q.status==='pending')||busy;
+    $('files-go').disabled=!!S.saving||!queue.some(q=>q.status==='pending');
   }
   function queueFiles(files){
+    if(S.saving) return;
     Array.from(files).forEach(f=>{
       if(!/\.(pdf|docx|txt)$/i.test(f.name)) return;
       if(queue.some(q=>q.name===f.name&&q.status==='pending')) return;
@@ -979,7 +1033,7 @@
   })();
 
   async function addFiles(){
-    if(busy||!canAdd()) return;
+    if(S.saving||!canAdd()) return;
     const pend=queue.filter(q=>q.status==='pending');
     if(!pend.length){ addMsg('Choose at least one file first.','err'); return; }
     const prov=$('prov').value, assign=$('files-assign').value.trim();
@@ -987,10 +1041,10 @@
     pend.forEach(q=>fd.append('files',q.file));
     fd.append('provenance',prov);
     if(assign) fd.append('assignment',assign);
-    busy=true; pend.forEach(q=>{ q.status='sending'; }); renderQueue();
-    addMsg('Sending '+plural(pend.length,'file')+'. This can take a little while.','');
+    if(!startSave('files')) return;
+    pend.forEach(q=>{ q.status='sending'; }); renderQueue();
+    addMsg('Saving '+plural(pend.length,'file')+'... This can take a while.','');
     const res=await Live.api('/students/'+enc(ID)+'/baseline/upload-batch',{method:'POST',body:fd});
-    busy=false;
     if(res.ok&&res.data&&typeof res.data==='object'){
       const d=res.data;
       const errors=Array.isArray(d.errors)?d.errors.filter(x=>typeof x==='string'):[];
@@ -1006,47 +1060,20 @@
       let head='Added '+imported+', skipped '+plural(skipped,'duplicate');
       if(holds.length) head+=', held back '+holds.length+' that differ strongly from the baseline (nothing stored for those)';
       if(errors.length) head+=', '+plural(errors.length,'file')+' could not be read';
+      queue=queue.filter(q=>q.status!=='done');
+      if(imported) await refreshStudent();
       const lines=[head+'.'];
       errors.slice(0,5).forEach(e=>lines.push(e));
+      if(imported) lines.push(nowHas());
       const pn=provNote(d,prov); if(pn) lines.push(pn);
       addMsg(lines,(errors.length||holds.length)&&!imported?'err':'ok');
-      queue=queue.filter(q=>q.status!=='done');
-      renderQueue();
-      if(imported) await refreshStudent();
-      return;
+      endSave(); return;
     }
     pend.forEach(q=>{ q.status='pending'; });
-    renderQueue();
     addMsg(failLines(res,'files'),'err');
+    endSave();
   }
   $('files-go').addEventListener('click',addFiles);
-
-  async function importCsv(){
-    if(busy||!canAdd()) return;
-    const course=$('tt-course').value.trim(), f=$('tt-file').files&&$('tt-file').files[0];
-    if(!course){ addMsg('Enter the course id first.','err'); return; }
-    if(!f){ addMsg('Choose a Turnitin CSV file first.','err'); return; }
-    const fd=new FormData(); fd.append('file',f);
-    busy=true; $('tt-go').disabled=true; addMsg('Uploading the CSV.',''); $('tt-out').hidden=true;
-    const res=await Live.api('/import/courses/'+enc(course)+'/turnitin-csv',{method:'POST',body:fd});
-    busy=false; $('tt-go').disabled=false;
-    if(res.ok&&res.data&&typeof res.data==='object'){
-      const d=res.data, n=k=>num(d[k])||0;
-      const errors=Array.isArray(d.errors)?d.errors.filter(x=>typeof x==='string'):[];
-      const lines=[
-        'Read '+plural(n('total_rows'),'row'),
-        plural(n('matched_students'),'student')+' already on your roster, '+plural(n('created_students'),'new profile')+' created',
-        plural(n('flagged_submissions'),'submission stub')+' noted; no writing was added',
-        n('unmatched_rows')?plural(n('unmatched_rows'),'row')+' could not be matched':'',
-        errors.length?plural(errors.length,'error')+': '+errors.slice(0,3).join('; '):''
-      ].filter(Boolean);
-      addMsg('','');
-      const out=$('tt-out'); out.textContent=lines.join('\n'); out.hidden=false;
-      return;
-    }
-    addMsg(failLines(res,'CSV'),'err');
-  }
-  $('tt-go').addEventListener('click',importCsv);
 
   // ── loading ──
   async function loadStudent(){
@@ -1076,29 +1103,34 @@
     try{ ro=await Live.roster(); }catch(e){ ro=null; }
     S.ro=ro;
     if(ro&&ro.ok){
-      S.bluebook=ro.bluebook;
       const me=ro.students.find(s=>s.id===ID);
       if(me){
-        S.known=true; S.name=String(me.name||ID); S.email=me.email; S.courses=Array.isArray(me.courses)?me.courses:[];
-        S.sealedKnown=typeof me.sealed==='number'?me.sealed:null;
+        S.known=true; S.rosterName=String(me.name||''); S.email=me.email; S.courses=Array.isArray(me.courses)?me.courses:[];
       }
     }
   }
 
+  // This student's sealed exams come from Live.sealed(): the page asks for nothing else
+  // about the list. Only a 403 (or no Bluebook in the plan) is "off".
   async function loadSealed(){
-    if(S.bluebook==='off'){ S.sealed='off'; return; }
-    if(S.bluebook==='ok'&&S.sealedKnown===0){ S.sealed='none'; S.exams=[]; return; }
-    const res=await Live.api('/bluebook/submissions');
-    if(res.status===403||res.status===401){ S.sealed='off'; return; }
-    if(!res.ok||!res.data||!Array.isArray(res.data.submissions)){ S.sealed='error'; return; }
-    const mine=res.data.submissions.filter(r=>r&&typeof r==='object'&&r.student_id===ID).map(r=>({
-      id:String(r.id), exam_id:r.exam_id?String(r.exam_id):'', title:r.exam?String(r.exam):'',
-      course:r.course?String(r.course):'', created:r.created_at?String(r.created_at):'',
-      late:!!r.late, warns:Array.isArray(r.warnings)?r.warnings.length:0,
-      in_baseline:null, has_text:null, busy:false, confirm:false, held:false, msg:'', kind:''
-    }));
+    const sv=await Live.sealed();
+    if(sv.bluebook==='off'){ S.sealed='off'; return; }
+    if(sv.bluebook!=='ok'){ S.sealed='error'; return; }
+    if(sv.names.get(ID)){ S.known=true; S.sealedName=String(sv.names.get(ID)); }
+    const mine=sv.submissions.filter(r=>r&&r.student_id===ID).map(r=>{
+      const ex=sv.exams.get(r.exam_id);
+      return {
+        id:String(r.id), exam_id:r.exam_id?String(r.exam_id):'',
+        title:r.exam?String(r.exam):(ex?ex.title:''),
+        course:r.course?String(r.course):(ex?ex.course:''),
+        created:r.created_at?String(r.created_at):'',
+        late:!!r.late, warns:num(r.warning_count)||0,
+        in_baseline:null, has_text:null, confirm:false, held:false, msg:'', kind:''
+      };
+    });
     mine.sort((a,b)=>a.created<b.created?1:a.created>b.created?-1:0);
     if(!mine.length){ S.sealed='none'; S.exams=[]; return; }
+    S.known=true;
     const exIds=Array.from(new Set(mine.map(m=>m.exam_id).filter(Boolean)));
     await Promise.all(exIds.map(async eid=>{
       const r=await Live.api('/bluebook/exams/'+enc(eid)+'/baseline');
@@ -1139,15 +1171,15 @@
     if(!sess) return;
     startFingerprint();
     $('paste-date').value=today();
-    $('tt-file').value='';
     setTab('paste');
     if(!ID){ await pickStudent(); return; }
     renderAll();
     try{
-      await Promise.all([loadStudent(),loadRoster()]);
-      if(S.known&&S.courses[0]&&S.courses[0].id) $('tt-course').value=String(S.courses[0].id);
-      renderAll();
-      await loadSealed();
+      await Promise.all([
+        loadStudent(),
+        loadRoster(),
+        loadSealed().catch(()=>{ S.sealed='error'; })
+      ]);
     }catch(e){
       if(S.status==='loading') S.status='error';
       if(S.sealed==='loading') S.sealed='error';

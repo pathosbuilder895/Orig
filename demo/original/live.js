@@ -239,10 +239,12 @@
   //                  this workspace, or a 403; 'error' is any other answer
   //                  that is not a list of sealed exams
   //   submissions[]  one object per sealed exam, holding exactly SEALED_FIELDS
-  //                  plus course_id (the exam record's, else null). Nothing
-  //                  else Bluebook sent about a submission (its integrity
-  //                  readings, a status label, warnings, the grader, the
-  //                  feedback, the paper text) is ever copied out
+  //                  plus two derived values: course_id (the exam record's,
+  //                  else null) and warning_count (a number: how many warnings
+  //                  the sitting recorded). Nothing else Bluebook sent about a
+  //                  submission (its integrity readings, a status label, the
+  //                  warnings themselves, the grader, the feedback, the paper
+  //                  text) is ever copied out
   //   names          Map(student_id -> name) from Bluebook's rosters
   //   exams          Map(exam_id -> {title, course, course_id})
   //
@@ -287,6 +289,9 @@
     SEALED_FIELDS.forEach(function (k) { out[k] = raw[k] != null ? raw[k] : null; });
     var e = exams.get(out.exam_id);
     out.course_id = e ? e.course_id : null;
+    // Derived, never copied: how many warnings the sitting recorded, as a
+    // number. The warnings themselves stay behind.
+    out.warning_count = Array.isArray(raw.warnings) ? raw.warnings.length : 0;
     return out;
   }
 

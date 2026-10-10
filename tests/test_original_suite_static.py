@@ -1167,7 +1167,7 @@ def test_roster_is_loaded_once_per_page_however_many_times_it_is_asked_for(readi
 
 # ── Live.sealed ───────────────────────────────────────────────────────────────
 
-SEALED_RESULT_KEYS = set(SEALED_FIELDS) | {"course_id"}
+SEALED_RESULT_KEYS = set(SEALED_FIELDS) | {"course_id", "warning_count"}
 
 
 @needs_node
@@ -1216,6 +1216,11 @@ def test_sealed_copies_only_the_allowlisted_fields_and_adds_the_exams_course():
     assert (second["id"], second["mark"], second["candidate"]) == ("x2", None, None)
     for leaked in ("ai_score", "aiScore", "stylometric", "status", "warnings", "graded_by", "feedback", "text", "tenant_id"):
         assert leaked not in first, leaked
+    # warning_count is derived: a number, how many warnings the sitting recorded. The
+    # warnings themselves ("warnings") are not in the row, whatever Bluebook sent.
+    assert isinstance(first["warning_count"], int) and not isinstance(first["warning_count"], bool)
+    assert first["warning_count"] == 1 and "warnings" not in first
+    assert second["warning_count"] == 0 and "warnings" not in second  # no list sent: still a number
     blob = json.dumps(res)
     for value in ("FLAGGED", "0.91", "see me", "the whole paper", "teacher-1", "pasted", "secret"):
         assert value not in blob, value
@@ -2009,6 +2014,9 @@ def test_baseline_page_shows_purity_only_inside_a_details_block_with_the_t01_cav
     assert not [c for c in parser.outside if "Tr(" in c], "Tr( outside <details>"
     # The guard above passes vacuously if the purity ring loses its place.
     assert any("Tr(" in b and "T-01" in b for b in parser.blocks)
+    # 1 / effective samples is a bound this page never claims (it is not reached for
+    # real feature vectors, and it is false under RANK_REMEDIATION=shrinkage).
+    assert "Lowest possible" not in _baseline_page() and "pur-floor" not in _baseline_page()
 
 
 def test_baseline_page_carries_no_testing_label_because_it_shows_no_score():
@@ -2025,14 +2033,14 @@ def test_baseline_page_adds_writing_through_the_professor_pages_endpoints_and_pa
     assert "/baseline/upload-batch" in page
     for field in ("fd.append('files'", "fd.append('provenance'", "fd.append('assignment'"):
         assert field in page, field
-    # Turnitin CSV: multipart POST /import/courses/{id}/turnitin-csv with one `file` field.
-    assert "'/import/courses/'" in page and "/turnitin-csv" in page
-    assert "fd.append('file',f)" in page
     # Provenance values are the ones professor.html offers.
     assert 'value="verified"' in page and 'value="proctored"' in page
-    # Pasting, uploading and approving or undoing an exam each refresh what the page
-    # shows (the CSV import adds profiles, never writing, so it has nothing to refresh).
+    # Pasting, uploading and approving or undoing an exam each refresh what the page shows.
     assert page.count("await refreshStudent()") >= 3
+    # The Turnitin CSV import is not here: it creates empty profiles (never writing)
+    # and ignores its course id. The classic page keeps it.
+    for gone in ("turnitin", "/import/courses/", "tt-file"):
+        assert gone not in page.lower(), f"baseline.html still has {gone}"
 
 
 def test_baseline_page_approves_and_undoes_only_through_the_bluebook_baseline_routes():
@@ -2042,10 +2050,21 @@ def test_baseline_page_approves_and_undoes_only_through_the_bluebook_baseline_ro
     assert "method:kind==='undo'?'DELETE':'POST'" in page
     # Whether an exam is already in the baseline comes from the exam's own status route.
     assert "'/bluebook/exams/'+enc(eid)+'/baseline'" in page
-    # A held exam is shown as held (approval never overrides the drift check) and
-    # is not offered again.
+    # A held exam is shown as held (approval never overrides the drift check) and is
+    # not offered again on this visit (the page remembers it; the server does not).
     assert "'held'" in page and "m.held=true" in page
-    assert "does not override" in page
+    assert "does not override" in page and "not offered again" in page
+
+
+def test_baseline_page_gets_its_sealed_exams_from_live_sealed_and_never_names_the_list_route():
+    page = _baseline_page()
+    assert "Live.sealed()" in page
+    assert "Live.api('/bluebook/submissions')" not in page
+    # The number of warnings is derived in live.js; the warnings themselves never arrive.
+    assert "warning_count" in page
+    assert ".warnings" not in page
+    # Only a 403 (or a plan without Bluebook) is "off": Live.sealed() decides, not this page.
+    assert "res.status===403||res.status===401" not in page
 
 
 def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
@@ -2062,3 +2081,176 @@ def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
         assert word not in page.lower(), f"baseline.html mentions {word}"
     # The per-tier profile comes from the shared feature table, without tiers 17 and 18.
     assert "js/feature-data.js" in page and "OF.tiers" in page
+
+
+def test_baseline_page_says_what_the_baseline_holds_without_overclaiming():
+    page = _baseline_page()
+    # "Approved" is a teacher's act: only supervised, verified and imported samples.
+    assert "const APPROVED=['proctored','verified','canvas']" in page
+    # The server's authenticated_count is "counted" (student uploads are in it); it is
+    # never called approved, and the server's own sentences say "counted" too.
+    assert "replace(/authenticated/gi,'counted')" in page
+    assert "'approved')" not in page
+    # The full readiness rule, and the wording of the building verdict.
+    assert "5 or more counted samples with an effective count of 3 or more" in page
+    assert "results are less reliable; false alarms are likely" in page
+    assert "cannot tell" not in page
+    # Recency is by the order samples were added, not by the date written, and the
+    # date field says it changes nothing.
+    assert "by the order they were added, not the date written" in page
+    assert "a little" not in page
+    assert "It does not change how the paper is weighted." in page
+    # The weight column is the verification weight; there is no tier average bar.
+    assert "Verification weight" in page and "Effective weight" not in page
+    assert "Each bar shows where the student’s usual value sits between the ends of Original’s expected range for that measure." in page
+    # A held paste that is sent again is "held back", not "the second paper in a row".
+    assert "This paper was held back" in page
+    # A write whose answer never came may have been saved.
+    assert "may not have been saved" in page
+
+
+def test_baseline_page_has_one_write_in_flight_for_every_write():
+    page = _baseline_page()
+    for kind in ("startSave('paste')", "startSave('files')", "startSave(kind,id)"):
+        assert kind in page, kind
+    # Nothing writes without taking the flag first.
+    assert page.count("Live.api('/students/'+enc(ID)+'/baseline'") == 1
+    assert page.count("/baseline/upload-batch") == 1
+    assert page.count("endSave()") >= 6
+    assert "Saving..." in page
+
+
+# The page's own script, run under node against stubbed endpoints: a write takes the
+# one in-flight flag, every write button is disabled while it is held, and a second
+# write started in the meantime is not sent.
+BASELINE_HARNESS = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const store = new Map();
+const window = {
+  location: { href: 'http://suite.test/original/baseline.html?student=s1', origin: 'http://suite.test', replace() {} },
+  localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), removeItem: (k) => store.delete(k), key: () => null, length: 0 },
+  sessionStorage: { removeItem() {} },
+};
+const location = { search: '?student=s1', href: window.location.href };
+function makeEl(id) {
+  return {
+    id, textContent: '', innerHTML: '', className: '', hidden: false, disabled: false, value: '', style: {}, attrs: {}, handlers: {},
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+    addEventListener(t, fn) { (this.handlers[t] = this.handlers[t] || []).push(fn); },
+    setAttribute(k, v) { this.attrs[k] = String(v); },
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    appendChild() {}, querySelector() { return makeEl(); }, querySelectorAll() { return []; },
+    closest() { return null; }, focus() {},
+  };
+}
+const els = new Map();
+const document = {
+  readyState: 'complete',
+  getElementById(id) { if (!els.has(id)) els.set(id, makeEl(id)); return els.get(id); },
+  createElement() { return makeEl(); },
+  querySelector() { return makeEl(); }, querySelectorAll() { return []; }, addEventListener() {},
+};
+const calls = [];
+const WORDS = Array.from({ length: 80 }, (_, i) => 'word' + i).join(' ');
+let sample = 5;
+function route(method, path) {
+  if (path === '/health') return [200, { environment: 'demo' }];
+  if (path === '/auth/me') return [401, {}];
+  if (path === '/students') return [200, { students: ['s1'], roster: null }];
+  if (path === '/students/s1') {
+    const samples = Array.from({ length: sample }, (_, i) => ({ index: i, assignment: 'A' + i, provenance: i === 0 ? 'unverified' : 'proctored', submitted_at: '2026-01-0' + (i + 1), auth_weight: 1 }));
+    return [200, { student_id: 's1', sample_count: sample, authenticated_count: sample, purity: 0.5, effective_sample_count: 4, baseline_vector: {}, samples }];
+  }
+  if (path === '/students/s1/readiness') return [200, { verdict: 'developing', sample_count: sample, authenticated_count: sample, effective_sample_count: 4, recommendations: ['Collect 1 more authenticated sample(s) ' + String.fromCharCode(8212) + ' more is better.'], provenance_mix: {}, word_stats: null }];
+  if (path === '/bluebook/students') return [200, { students: [] }];
+  if (path === '/bluebook/exams') return [200, { exams: [] }];
+  if (path === '/bluebook/submissions') return [200, { submissions: [{ id: 'x1', exam_id: 'e1', student_id: 's1', exam: 'Midterm', course: 'THEO', created_at: '2026-10-01T10:00:00Z', late: false, warnings: ['a', 'b'], ai_score: 0.9 }] }];
+  if (path === '/bluebook/exams/e1/baseline') return [200, { submissions: [{ submission_id: 'x1', in_baseline: false, has_text: true }] }];
+  if (method === 'POST' && path === '/students/s1/baseline') { sample += 1; return [200, { sample_index: sample - 1, provenance: 'verified' }]; }
+  if (method === 'POST' && path === '/bluebook/submissions/x1/baseline') { sample += 1; return [200, { status: 'added' }]; }
+  return [404, {}];
+}
+function fakeFetch(href, init) {
+  const method = (init && init.method) || 'GET';
+  const path = new URL(href).pathname;
+  calls.push(method + ' ' + path);
+  const [status, body] = route(method, path);
+  const slow = method !== 'GET' ? 60 : 3;
+  return new Promise((resolve) => setTimeout(() => resolve({ ok: status >= 200 && status < 300, status, text: () => Promise.resolve(JSON.stringify(body)) }), slow));
+}
+new Function('window', 'document', 'fetch', fs.readFileSync(sc.features, 'utf8'))(window, document, fakeFetch);
+new Function('window', 'document', 'fetch', fs.readFileSync(sc.live, 'utf8'))(window, document, fakeFetch);
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script');
+new Function('window', 'document', 'Live', 'location', scripts[0])(window, document, window.Live, location);
+const el = (id) => document.getElementById(id);
+const click = (id) => (el(id).handlers.click || []).forEach((fn) => fn({ target: el(id), preventDefault() {} }));
+(async () => {
+  for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"'); i++) await sleep(10);
+  const out = { before: { sealed: el('sealed-list').innerHTML, short: el('short').innerHTML, meta: el('meta').textContent, traj: el('traj-d').innerHTML } };
+  el('paste-text').value = WORDS;
+  click('paste-go'); click('paste-go');
+  await sleep(10);
+  out.during = { paste: el('paste-go').disabled, pasteLabel: el('paste-go').textContent, files: el('files-go').disabled, sealed: el('sealed-list').innerHTML, noteAdd: el('save-note-add').hidden, noteSealed: el('save-note-sealed').hidden };
+  // An approve clicked while the paste is saving is not sent.
+  const btn = { disabled: false, getAttribute: (k) => ({ 'data-act': 'approve', 'data-id': 'x1' })[k] };
+  (el('sealed-list').handlers.click || []).forEach((fn) => fn({ target: { closest: () => btn } }));
+  await sleep(250);
+  out.after = { paste: el('paste-go').disabled, pasteLabel: el('paste-go').textContent, msg: el('add-msg').innerHTML, meta: el('meta').textContent };
+  out.calls = calls.filter((c) => c.startsWith('POST'));
+  process.stdout.write(JSON.stringify(out));
+  process.exit(0);
+})();
+"""
+
+
+def _baseline_run() -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", BASELINE_HARNESS],
+        input=json.dumps(
+            {
+                "live": str(SUITE / "live.js"),
+                "page": str(SUITE / "baseline.html"),
+                "features": str(SUITE / "js" / "feature-data.js"),
+            }
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_baseline_page_takes_one_write_at_a_time_and_says_it_is_saving():
+    out = _baseline_run()
+    # While the paste is saving: every write button is disabled and the page says so.
+    during = out["during"]
+    assert during["paste"] is True and during["pasteLabel"] == "Saving..."
+    assert during["files"] is True
+    assert during["noteAdd"] is False and during["noteSealed"] is False
+    assert 'data-act="approve"' in during["sealed"] and " disabled" in during["sealed"]
+    # Two clicks on Add and an Approve in the middle of it made exactly one write.
+    assert out["calls"] == ["POST /students/s1/baseline"]
+    # When it is done the buttons come back.
+    assert out["after"]["paste"] is False and out["after"]["pasteLabel"] == "Add to baseline"
+
+
+@needs_node
+def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_servers_count_counted():
+    out = _baseline_run()["before"]
+    # 5 samples: one student upload (never "approved") and 4 supervised sittings.
+    assert out["meta"] == "s1 · 4 teacher-approved samples · 1 student upload"
+    assert "5 counted samples (4 teacher-approved, 1 student upload)" in out["short"]
+    assert "approved sample" not in out["short"].replace("teacher-approved", "")
+    # The server's sentence is shown with its "authenticated" read as "counted", and no dash.
+    assert "Collect 1 more counted sample(s): more is better." in out["traj"]
+    assert "authenticated" not in out["traj"] and chr(0x2014) not in out["traj"]
+    # This exam's warning count (a number) is shown; Bluebook's own readings never arrive.
+    assert "2 lockdown warnings" in out["sealed"]
+    assert "ai_score" not in out["sealed"] and "0.9" not in out["sealed"]
