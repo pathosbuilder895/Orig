@@ -42,6 +42,7 @@ NOTICE = (
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
     "submissions.html",
+    "writing-state.html",
     "packet.html",
     "baseline.html",
     "reports.html",
@@ -308,6 +309,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/students.html",
         "/original/writing-state.html",
         "/original/settings.html",
+        "/original/submissions.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
@@ -316,6 +318,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/assets/radcliffe-night-stars.jpeg",
         "/original/assets/st-andrews-quad.jpg",
         "/original/assets/radcliffe-observatory-watercolour.jpg",
+        "/original/assets/radcliffe-interior.avif",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -469,6 +472,18 @@ def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exi
         assert gone not in page, f"settings.html still mentions {gone}"
     # The demo has no account to change.
     assert "The demo has no account; sign in on a real workspace to change your password." in page
+
+
+def test_submissions_page_never_names_bluebooks_integrity_readings():
+    # GET /bluebook/submissions returns an AI-likelihood number, a stylometric
+    # number and a FLAGGED status for each sealed exam. None of them is shown,
+    # so the page must not so much as name them: it copies an explicit list of
+    # safe fields out of each row and ignores the rest.
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8").lower()
+    for word in ("ai_score", "aiscore", "stylometric", "flagged", "authenticity"):
+        assert word not in page, f"submissions.html mentions {word}"
+    # The allowlist is the way fields leave the response.
+    assert "const FIELDS=[" in (SUITE / "submissions.html").read_text(encoding="utf-8")
 
 
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
