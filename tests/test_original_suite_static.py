@@ -43,9 +43,12 @@ NOTICE = (
 # makes the list shrink: delete a name here in the commit that adds its page.
 PLANNED_PAGES = {
     "baseline.html",
-    "voice.html",
-    "my-work.html",
 }
+
+# The student pages: a student's own writing voice and the piece they compare.
+# They are not teacher pages, so the teacher account menu (Settings, Analysis
+# (classic)) does not apply to them: theirs holds Sign out and nothing else.
+STUDENT_PAGES = {"voice.html", "my-work.html"}
 
 # Root-relative links a page may use without the target living in demo/original.
 ALLOWED_ABSOLUTE = {"/bluebook/", "/index.html"}
@@ -309,6 +312,8 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/settings.html",
         "/original/submissions.html",
         "/original/reports.html",
+        "/original/voice.html",
+        "/original/my-work.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
@@ -319,6 +324,8 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/assets/radcliffe-observatory-watercolour.jpg",
         "/original/assets/radcliffe-interior.avif",
         "/original/assets/gonville-caius-facade.jpg",
+        "/original/assets/all-souls-engraving-wide.jpg",
+        "/original/assets/white-stag.jpg",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -709,7 +716,9 @@ def _account_menu(path: Path) -> list[tuple[str, str]]:
     return parser.links
 
 
-@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+@pytest.mark.parametrize(
+    "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
+)
 def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
     links = _account_menu(path)
     assert links, f"{path.name} has no account menu"
@@ -718,6 +727,20 @@ def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
     classic = texts.index("Analysis (classic)")
     assert links[classic][0] == "/professor.html"
     assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
+
+
+@pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
+def test_student_account_menu_is_sign_out_only(name):
+    # A student has no Settings page and no classic analysis page; both are
+    # teacher tools, so the menu holds Sign out and nothing else.
+    links = _account_menu(SUITE / name)
+    assert [text for _, text in links] == ["Sign out"], f"{name}: {links}"
+
+
+def test_every_page_is_either_a_teacher_page_or_a_student_page():
+    # The two rules above are complementary: a page that is in neither set
+    # would be held to the teacher rule, so a student page must be named.
+    assert STUDENT_PAGES <= set(PAGE_IDS)
 
 
 def _sign_in_redirect() -> str:
@@ -839,9 +862,13 @@ const document = {
 };
 let active = 0, max = 0;
 const calls = [];
+const auths = [];
+const bodies = [];
 function route(path) {
   let m;
-  if (path === '/health') return [200, { environment: 'demo' }];
+  if (path === '/health') return sc.health || [200, { environment: 'demo' }];
+  if (path === '/me/voice') return sc.meVoice || [404, {}];
+  if (path === '/me/work') return sc.meWork || [404, {}];
   if (path === '/auth/me') return sc.me || [401, {}];
   if (path === '/students') return sc.students;
   if ((m = path.match(/^\/students\/(.+)\/readiness$/))) {
@@ -853,9 +880,11 @@ function route(path) {
   return [404, {}];
 }
 const matches = (list, path) => (list || []).some((re) => new RegExp(re).test(path));
-function fakeFetch(href) {
+function fakeFetch(href, init) {
   const path = new URL(href).pathname;
   calls.push(path);
+  auths.push(init && init.headers && typeof init.headers.get === 'function' ? init.headers.get('Authorization') : null);
+  bodies.push(init && init.body ? init.body : null);
   if (matches(sc.throwOn, path)) throw new Error('fetch threw');
   active++;
   max = Math.max(max, active);
@@ -1445,3 +1474,508 @@ def test_reports_course_tab_counts_unread_readiness_within_its_own_students():
 def test_reports_term_block_says_could_not_load_instead_of_nothing_on_file(scenario, term):
     snap = _page("reports.html", **scenario)["snaps"][0]
     assert snap["termD"] == term
+
+
+# ── The student pages (voice.html, my-work.html) ─────────────────────────────
+# Owner decision 2026-10-10: a student sees their own voice portrait and can
+# compare a piece with it, on real data only. Never a score, a deviation, an
+# action, "authentic", "AI", or teacher-side wording. The pages read GET
+# /me/voice and POST /me/work and nothing else.
+
+STUDENT_ENDPOINT = {"voice.html": "/me/voice", "my-work.html": "/me/work"}
+STUDENT_SENTENCE = (
+    "Your teacher may approve your sealed Bluebook work as reference writing for it, "
+    "and can undo that approval."
+)
+
+
+@pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
+def test_student_pages_gate_as_students_and_call_only_their_own_endpoint(name):
+    code = _inline_scripts(SUITE / name)
+    assert "Live.gate(" in code and "audience:'student'" in code
+    assert re.findall(r"Live\.api\(\s*'([^']+)'", code) == [STUDENT_ENDPOINT[name]]
+    for teacher_side in (
+        "Live.roster",
+        "Live.sealed",
+        "/students",
+        "/auth/",
+        "/bluebook/exams",
+        "/bluebook/submissions",
+        "/bluebook/students",
+        "sessionStorage",
+        "localStorage",
+    ):
+        assert teacher_side not in code, f"{name} reaches for {teacher_side}"
+
+
+@pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
+def test_student_pages_carry_the_student_label_slot_and_not_the_teachers(name):
+    page = (SUITE / name).read_text(encoding="utf-8")
+    assert page.count("data-student-notice") == 1
+    assert "data-testing-notice" not in page
+
+
+def test_student_label_lives_once_in_live_js_and_names_reference_writing(live_js):
+    assert live_js.count(STUDENT_SENTENCE) == 1
+    # The teacher's sentence is never shown to a student.
+    assert "never as evidence" not in STUDENT_SENTENCE
+    for path in _code_files():
+        if path != SUITE / "live.js":
+            assert _squash(STUDENT_SENTENCE) not in _squash(path.read_text(encoding="utf-8")), path.name
+
+
+@pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
+def test_student_pages_show_nothing_a_student_must_not_see(name):
+    text = (SUITE / name).read_text(encoding="utf-8")
+    # The design's own sentence says the page is "not a score, a likeness": that
+    # denial stays; any other mention of a score does not.
+    text = text.replace("not a score, a likeness", "")
+    banned = re.compile(
+        r"\b(scor\w*|deviat\w*|authentic\w*|AI|flag\w*|verdict|fidelity|purity|"
+        r"recommend\w*|escalat\w*|packet|baseline_vector|feature_vector)\b",
+        re.IGNORECASE,
+    )
+    assert not banned.findall(text), f"{name}: {banned.findall(text)}"
+
+
+@pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
+def test_student_pages_read_none_of_the_fields_that_carry_a_reading(name):
+    code = _inline_scripts(SUITE / name)
+    for field in (
+        "fidelity",
+        "attention",
+        "review_opportunit",
+        "formation",
+        "subhead",
+        "step_label",
+        "supportive_copy",
+    ):
+        assert field not in code, f"{name} reads {field}"
+    # (ctx.arc is the canvas call; V.arc is the term timeline the page leaves out.)
+    assert not re.search(r"(?<!ctx)\.arc\b", code), f"{name} reads the term timeline"
+
+
+def test_voice_page_reads_the_four_things_the_brief_names():
+    code = _inline_scripts(SUITE / "voice.html")
+    for field in ("V.headline", "V.fingerprint", "V.milestones", "V.voice_notes"):
+        assert field in code, field
+
+
+def test_my_work_page_says_a_teacher_may_add_the_piece_and_reads_only_the_redacted_result():
+    page = (SUITE / "my-work.html").read_text(encoding="utf-8")
+    assert "Your teacher may choose to add this to your writing profile." in page
+    code = _inline_scripts(SUITE / "my-work.html")
+    for field in ("r.headline", "r.summary", "r.steady"):
+        assert field in code, field
+    # The page makes no highlight of phrases: nothing in the response says where.
+    assert "<mark" not in page
+
+
+def test_voice_page_never_calls_its_picture_an_engraving():
+    page = (SUITE / "voice.html").read_text(encoding="utf-8")
+    assert '<img src="assets/all-souls-engraving-wide.jpg" alt="" />' in page
+    described = page.replace("all-souls-engraving-wide.jpg", "")
+    for word in ("engraving", "historical", "College"):
+        assert word.lower() not in described.lower(), word
+    credits = (SUITE / "assets" / "CREDITS.md").read_text(encoding="utf-8")
+    assert "appears to be AI-generated in an engraving style" in credits
+    assert "shipped at the owner's direction" in credits
+
+
+# The node harness: Live.gate with {audience:'student'}, and which token Live.api sends.
+
+STUDENT_TAIL = r"""
+(async () => {
+  const el = document.getElementById('main');
+  const out = {};
+  if (sc.call === 'gate') {
+    const s = await window.Live.gate(el, sc.opts);
+    out.session = s ? { role: s.role, mode: s.mode } : null;
+    out.html = el.innerHTML;
+  } else if (sc.call === 'api') {
+    out.res = await window.Live.api(sc.path, sc.opts);
+  }
+  process.stdout.write(JSON.stringify(Object.assign(out, { calls, auths, replaced })));
+})();
+"""
+
+
+def _student(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + STUDENT_TAIL],
+        input=json.dumps({"live": str(SUITE / "live.js"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the call never finished"
+    return json.loads(run.stdout)
+
+
+STUDENT_GATE = dict(call="gate", opts={"audience": "student"})
+STAFF_ME = [200, {"role": "professor", "products": ["original", "bluebook"], "tenant_id": "t"}]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "local",
+    [
+        {"original_session_token": "a-student-session"},
+        # A Bluebook launch link stores the student id (and a session token).
+        {"bluebook_student_id": "northfield:ab12cd34"},
+        {"original_session_token": "s", "bluebook_student_id": "northfield:ab12cd34"},
+    ],
+)
+def test_student_gate_lets_a_student_session_in_without_asking_the_server_who_they_are(local):
+    out = _student(local=local, **STUDENT_GATE)
+    assert out["session"] == {"role": "student", "mode": "signed-in"}
+    assert out["replaced"] == [] and out["html"] == ""
+    assert out["calls"] == []
+
+
+@needs_node
+def test_student_gate_sends_a_teacher_to_the_teacher_pages():
+    out = _student(local={"original_principal_token": "p"}, me=STAFF_ME, **STUDENT_GATE)
+    assert out["session"] is None
+    assert out["replaced"] == ["index.html"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "health",
+    [
+        [200, {"environment": "pilot"}],  # a real deploy, nobody signed in
+        [200, {"environment": "demo"}],  # the open demo has no student account
+    ],
+    ids=["signed-out", "open-demo"],
+)
+def test_student_gate_sends_everyone_else_to_bluebooks_sign_in(health):
+    out = _student(local={}, health=health, **STUDENT_GATE)
+    assert out["session"] is None
+    assert out["replaced"] == []
+    assert "Sign in to continue" in out["html"]
+    assert 'href="/bluebook/"' in out["html"]
+
+
+@needs_node
+def test_the_teacher_gate_is_unchanged_for_a_student():
+    # No options: a student on a teacher page still goes to Bluebook, as before.
+    out = _student(call="gate", local={"original_session_token": "s"})
+    assert out["session"] is None
+    assert out["replaced"] == ["/bluebook/"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "local,expected",
+    [
+        ({"original_session_token": "stu"}, "Bearer stu"),  # a student's session token
+        ({"original_principal_token": "prin"}, "Bearer prin"),  # a teacher's, as before
+        ({"original_principal_token": "prin", "original_session_token": "stu"}, "Bearer prin"),
+        ({}, None),
+    ],
+)
+def test_api_sends_the_principal_token_else_the_student_session_token(local, expected):
+    out = _student(call="api", path="/me/voice", local=local, meVoice=[200, {}])
+    assert out["auths"] == [expected]
+
+
+# The student pages, run for real under node against stubbed /me/* endpoints. The
+# stub document is the one the other page tests use, made a little richer (a
+# working classList, a 2-d canvas that draws nothing, element values).
+
+STUDENT_PAGE_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+const rich = new WeakSet();
+const getById = document.getElementById.bind(document);
+document.getElementById = (id) => {
+  const e = getById(id);
+  if (!rich.has(e)) {
+    rich.add(e);
+    const set = new Set();
+    e.classList = {
+      _s: set, add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c),
+      toggle: (c, on) => { const want = on === undefined ? !set.has(c) : !!on; want ? set.add(c) : set.delete(c); return want; },
+    };
+    e.style.setProperty = (k, v) => { e.style[k] = v; };
+    e.getContext = () => new Proxy({}, { get: (t, k) => (k === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {}), set: () => true });
+    e.getBoundingClientRect = () => ({ width: 400, height: 400 });
+    e.value = '';
+    e.scrollIntoView = () => {};
+  }
+  return e;
+};
+window.matchMedia = () => ({ matches: true });
+window.addEventListener = () => {};
+window.innerWidth = 1280;
+globalThis.requestAnimationFrame = () => 0;
+new Function('window', 'document', 'Live', scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const until = async (fn) => { for (let i = 0; i < 500 && !fn(); i++) await sleep(10); };
+const fire = (id, type) => (el(id).handlers[type] || []).forEach((fn) => fn({ preventDefault() {}, stopPropagation() {} }));
+const view = (ids) => Object.fromEntries(ids.map((id) => [id, { html: el(id).innerHTML, text: el(id).textContent, hidden: el(id).hidden, cls: Array.from(el(id).classList._s || []) }]));
+(async () => {
+  const out = {};
+  if (sc.name === 'voice.html') {
+    await until(() => el('who').innerHTML || el('gate').innerHTML || el('status').textContent);
+    await sleep(20);
+    out.view = view(['headline', 'who', 'p-n', 'p-l', 'p-cap', 'rich-pct', 'grow-t', 'dots', 'notes', 'mk-grid', 'fam-tabs', 'status', 'gate', 'content']);
+  } else {
+    await sleep(30);   // the gate has resolved
+    for (const run of sc.runs) {
+      el('title').value = run.title || '';
+      el('piece').value = run.text;
+      fire('piece', 'input');
+      const before = el('result').innerHTML;
+      fire('go', 'click');
+      if (run.text.trim()) await until(() => el('result').innerHTML !== before || el('hint').textContent.indexOf('could not') >= 0 || el('gate').innerHTML);
+      await sleep(30);
+      (out.runs = out.runs || []).push(view(['result', 'glance', 'glance-note', 'hint', 'count', 'go', 'gate', 'content', 'piece']));
+    }
+  }
+  process.stdout.write(JSON.stringify(Object.assign(out, { calls, bodies })));
+})();
+"""
+
+
+def _student_page(name: str, **scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + STUDENT_PAGE_TAIL],
+        input=json.dumps(
+            {"live": str(SUITE / "live.js"), "page": str(SUITE / name), "name": name, **scenario}
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+STUDENT_SESSION = {"original_session_token": "a-student-session", "original_name": "Sam Reader"}
+DIMENSIONS = ["Cadence", "Diction", "Texture", "Register", "Restraint", "Architecture", "Resonance"]
+
+
+def _voice_view(**extra) -> list:
+    view = {
+        "name": "Sam Reader",
+        "headline": "Sam, your voice is settling into itself.",
+        "subhead": "Voice fidelity 88 on your latest piece, up 6 since the start of term.",
+        "fingerprint": [{"name": d, "value": 0.2 + 0.1 * i} for i, d in enumerate(DIMENSIONS)],
+        "arc": [{"period": "2026-01-15", "fidelity": 88, "attention": True}],
+        "voice_notes": [
+            {"note": "You write long, then short.", "reviewer": "Dr. Pemberton", "date": "2026-01-15"}
+        ],
+        "review_opportunities": [{"invitation_prose": "Talk to your tutor.", "locator": "2026-01-15"}],
+        "milestones": [
+            {"label": "Voice Sampled", "state": "reached", "blurb": "Some of your writing is on file."},
+            {"label": "Voice Established", "state": "reached", "blurb": "Enough is on file."},
+            {"label": "Voice Affirmed", "state": "upcoming", "blurb": "A piece your teacher approved is on file."},
+        ],
+        "formation": {"active": True, "status": "open", "step_label": "Development Session"},
+    }
+    view.update(extra)
+    return [200, view]
+
+
+def _everything(view: dict) -> str:
+    """All the text the voice page rendered, as one lowercase string."""
+    return " ".join(f"{v['html']} {v['text']}" for v in view.values()).lower()
+
+
+@needs_node
+def test_voice_page_draws_the_headline_the_fingerprint_the_milestones_and_the_notes():
+    out = _student_page("voice.html", local=STUDENT_SESSION, meVoice=_voice_view())
+    v = out["view"]
+    assert out["calls"] == ["/me/voice"]
+    assert v["headline"]["html"] == "Sam, <em>your voice is settling into itself.</em>"
+    assert "portrait drawn from the writing your teacher has approved" in v["who"]["html"]
+    assert v["p-n"]["text"] == "7" and v["p-l"]["text"] == "parts of your voice"
+    # The seven parts, each with what it is about and a marker, and no number.
+    for d in DIMENSIONS:
+        assert f"<b>{d}</b>" in v["mk-grid"]["html"]
+    assert v["mk-grid"]["html"].count('class="hab"') == 7
+    # (the marker's position is a style; no number is printed anywhere in a card)
+    assert not re.search(r"\d", re.sub(r"<[^>]*>", " ", v["mk-grid"]["html"]))
+    # Milestones as the server worded them, two of three reached.
+    assert v["rich-pct"]["text"] == "2 of 3 reached"
+    assert v["dots"]["html"].count("dot on") == 2 and v["dots"]["html"].count('class="dot"') == 1
+    assert "Some of your writing is on file." in v["dots"]["html"]
+    assert v["grow-t"]["text"] == "Your portrait is still filling in"
+    # The teacher's note, with who wrote it and when.
+    assert "You write long, then short." in v["notes"]["html"]
+    assert "Dr. Pemberton" in v["notes"]["html"] and "15 Jan 2026" in v["notes"]["html"]
+    # Nothing that carries a reading: not the fidelity number, the term arc, the
+    # invitation to talk to a tutor, or the pathway.
+    shown = _everything(v)
+    for left_out in ("88", "fidelity", "since the start of term", "tutor", "development session", "pathway"):
+        assert left_out not in shown, left_out
+
+
+@needs_node
+def test_voice_page_with_every_milestone_says_the_portrait_is_filled_in():
+    done = [{"label": f"M{i}", "state": "reached", "blurb": "b"} for i in range(3)]
+    done[0]["label"] = "Voice Sampled"
+    out = _student_page("voice.html", local=STUDENT_SESSION, meVoice=_voice_view(milestones=done))
+    assert out["view"]["grow-t"]["text"] == "Your portrait is filled in"
+    assert out["view"]["rich-pct"]["text"] == "3 of 3 reached"
+
+
+@needs_node
+def test_voice_page_draws_no_portrait_from_a_neutral_fingerprint():
+    # No approved writing: the server still sends seven neutral 0.5 dimensions.
+    neutral = [{"name": d, "value": 0.5} for d in DIMENSIONS]
+    upcoming = [{"label": "Voice Sampled", "state": "upcoming", "blurb": "Not yet."}]
+    out = _student_page(
+        "voice.html",
+        local=STUDENT_SESSION,
+        meVoice=_voice_view(
+            name="", headline="Your voice is finding its shape.", fingerprint=neutral,
+            milestones=upcoming, voice_notes=[], arc=[],
+        ),
+    )
+    v = out["view"]
+    assert v["headline"]["html"] == "Your voice is finding its shape."
+    assert "no approved writing on file yet" in v["who"]["html"]
+    assert v["p-n"]["text"] == "\u2013" and v["p-l"]["text"] == "nothing drawn yet"
+    assert 'class="hab"' not in v["mk-grid"]["html"]
+    assert "once your teacher has approved some of your writing" in v["mk-grid"]["html"]
+    assert v["fam-tabs"]["html"] == ""
+    assert "has not left a note" in v["notes"]["html"]
+    assert v["rich-pct"]["text"] == "0 of 1 reached"
+
+
+@needs_node
+def test_voice_page_escapes_what_the_server_sends():
+    nasty = "<img src=x onerror=alert(1)>"
+    out = _student_page(
+        "voice.html",
+        local=STUDENT_SESSION,
+        meVoice=_voice_view(
+            headline=nasty,
+            voice_notes=[{"note": nasty, "reviewer": nasty, "date": "2026-01-15"}],
+            milestones=[{"label": "Voice Sampled", "state": "reached", "blurb": nasty}],
+        ),
+    )
+    shown = " ".join(v["html"] for v in out["view"].values())
+    assert "<img" not in shown and "&lt;img" in shown
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "reply,said",
+    [
+        ([401, {"detail": "Not signed in."}], "Your sign-in has ended"),
+        ([403, {"detail": "plan"}], "Original is off for your class"),
+    ],
+)
+def test_voice_page_says_why_when_the_server_refuses(reply, said):
+    out = _student_page("voice.html", local=STUDENT_SESSION, meVoice=reply)
+    assert said in out["view"]["gate"]["html"]
+    assert out["view"]["content"]["hidden"] is True and out["view"]["gate"]["hidden"] is False
+    assert 'href="/bluebook/"' in out["view"]["gate"]["html"]
+
+
+@needs_node
+@pytest.mark.parametrize("reply", [[500, {}], [200, None], [200, ["not", "a", "view"]]])
+def test_voice_page_says_so_when_the_view_cannot_be_read(reply):
+    out = _student_page("voice.html", local=STUDENT_SESSION, meVoice=reply)
+    assert "could not be loaded just now" in out["view"]["status"]["text"]
+    assert out["view"]["status"]["hidden"] is False
+    assert out["view"]["content"]["hidden"] is False
+
+
+PIECE = "Faithful work in an ordinary calling honors the same God who ordained the extraordinary. " * 4
+
+
+@needs_node
+def test_my_work_compares_a_piece_and_shows_only_the_redacted_result():
+    reply = [
+        200,
+        {
+            "headline": "Mostly your voice, with a few new notes.",
+            "summary": "Most of this reads like your established writing.",
+            "steady": ["Your cadence is consistent with your established voice."],
+            "review_opportunity": True,
+        },
+    ]
+    out = _student_page(
+        "my-work.html", local=STUDENT_SESSION, meWork=reply, runs=[{"title": " On vocation ", "text": PIECE}]
+    )
+    run = out["runs"][0]
+    assert out["calls"] == ["/me/work"]
+    assert json.loads(out["bodies"][0]) == {"text": PIECE, "title": "On vocation"}
+    assert "Mostly your voice, with a few new notes." in run["result"]["html"]
+    assert "Held steady" in run["result"]["html"] and "Your cadence is consistent" in run["result"]["html"]
+    # The yes/no that a review opportunity opened is not shown as such.
+    assert "review" not in _everything(run).replace("review_opportunity", "")
+    # At a glance: how long the piece is, and that it was not added.
+    assert "<b>56</b>" in run["glance"]["html"] and "Not added" in run["glance"]["html"]
+    # (the sentence itself is the page's own markup, checked above; here it stays shown)
+    assert run["glance-note"]["hidden"] is False
+    assert run["go"]["text"] == "Compare with my voice"
+
+
+@needs_node
+def test_my_work_says_the_piece_was_not_added_once_when_the_server_already_has():
+    nothing = [
+        200,
+        {
+            "headline": "Nothing to compare this with yet.",
+            "summary": (
+                "Original has no approved writing from you to compare this piece with yet, so it "
+                "cannot say anything about it. Not added to your writing profile. Your teacher may "
+                "choose to add this to your writing profile."
+            ),
+            "steady": [],
+            "review_opportunity": False,
+        },
+    ]
+    out = _student_page("my-work.html", local=STUDENT_SESSION, meWork=nothing, runs=[{"text": PIECE}])
+    run = out["runs"][0]
+    assert "Nothing to compare this with yet." in run["result"]["html"]
+    assert "Held steady" not in run["result"]["html"]
+    assert run["glance-note"]["hidden"] is True
+
+
+@needs_node
+def test_my_work_does_nothing_for_an_empty_piece_and_warns_about_a_short_one():
+    ok = [200, {"headline": "h", "summary": "s", "steady": [], "review_opportunity": False}]
+    out = _student_page(
+        "my-work.html", local=STUDENT_SESSION, meWork=ok, runs=[{"text": "   "}, {"text": "Only a few words here."}]
+    )
+    empty, short = out["runs"]
+    assert empty["go"]["text"] != "Comparing\u2026"
+    assert "0 words" in empty["count"]["text"]
+    assert "A short piece tells Original little" in short["hint"]["text"]
+    assert out["calls"] == ["/me/work"]  # only the short piece was sent
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "reply,said",
+    [
+        ([401, {"detail": "Not signed in."}], "Your sign-in has ended"),
+        ([403, {"detail": "plan"}], "Original is off for your class"),
+    ],
+)
+def test_my_work_says_why_when_the_server_refuses(reply, said):
+    out = _student_page("my-work.html", local=STUDENT_SESSION, meWork=reply, runs=[{"text": PIECE}])
+    run = out["runs"][0]
+    assert said in run["gate"]["html"] and run["content"]["hidden"] is True
+
+
+@needs_node
+@pytest.mark.parametrize("reply", [[500, {"detail": "boom"}], [200, {"nope": 1}], [200, None]])
+def test_my_work_keeps_the_text_and_says_so_when_a_comparison_fails(reply):
+    out = _student_page("my-work.html", local=STUDENT_SESSION, meWork=reply, runs=[{"text": PIECE}])
+    run = out["runs"][0]
+    assert "could not compare this piece just now" in run["hint"]["text"]
+    assert "err" in run["hint"]["cls"]
+    assert "Your text is still here" in run["hint"]["text"]
+    assert run["go"]["text"] == "Compare with my voice"

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Your Writing Voice</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="suite.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --ok:#6bbf8a;--base:#8ba8dd;--warm:#e0a06a;
+    --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--body);color:var(--cream);background:var(--navy-0);-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .page{max-width:1180px;margin:0 auto;padding:0 1.6rem 4rem;}
+  /* ── top bar ── */
+  nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.8rem;font-size:.9rem;color:var(--dim);flex-shrink:0;position:relative;}
+  .nav-right span{white-space:nowrap;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.9rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  /* sign-in and "Original is off" panels (live.js puts them in #gate) */
+  .gate{display:grid;min-height:min(560px,70vh);padding:2rem 1.6rem;}
+  .gate[hidden],#content[hidden]{display:none;}
+  /* ── hero ── */
+  .hero{position:relative;min-height:min(700px,90vh);display:flex;align-items:flex-end;overflow:hidden;border-bottom:1px solid var(--line);}
+  .hero-bg{position:absolute;inset:0;z-index:0;}
+  .hero-bg img{width:100%;height:100%;object-fit:cover;object-position:66% 42%;filter:saturate(.72) brightness(.9) contrast(1.02);}
+  .hero-tint{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(7,12,28,0.55) 0%,rgba(9,14,32,0.1) 30%,rgba(7,12,28,0.5) 68%,rgba(7,12,28,0.93) 93%,var(--navy-0) 100%),linear-gradient(90deg,rgba(7,12,28,0.86) 0%,rgba(7,12,28,0.4) 40%,transparent 66%),radial-gradient(70% 60% at 78% 42%,rgba(201,160,40,0.12),transparent 70%);}
+  .hero-inner{position:relative;z-index:2;width:100%;max-width:1180px;margin:0 auto;padding:6rem 1.6rem 3.2rem;display:grid;grid-template-columns:1.05fr .95fr;gap:2.6rem;align-items:end;}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);}
+  .hero h1{font-family:var(--display);font-weight:500;font-size:clamp(2.4rem,4.6vw,3.5rem);line-height:1.04;margin:.7rem 0 .1rem;text-wrap:balance;}
+  .hero h1 em{font-style:italic;color:var(--gold-2);}
+  .hero .who{font-size:1.05rem;color:var(--dim);font-style:italic;margin-top:.6rem;}
+  .hero .who b{font-style:normal;font-weight:500;color:var(--cream);}
+  .hero .lede{max-width:52ch;margin-top:1.1rem;font-size:1.06rem;line-height:1.62;color:rgba(245,239,224,0.8);text-wrap:pretty;}
+  .hero .status{max-width:52ch;margin-top:1rem;font-size:.98rem;font-style:italic;color:var(--warm);}
+  .hero .status[hidden]{display:none;}
+  .hero-cta{display:flex;gap:.7rem;margin-top:1.5rem;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;white-space:nowrap;border-radius:999px;padding:.68rem 1.35rem;font-family:var(--body);font-size:.98rem;text-decoration:none;cursor:pointer;border:1px solid var(--line);color:var(--cream);background:rgba(255,255,255,0.05);transition:all .16s;}
+  .btn:hover{border-color:rgba(201,160,40,0.5);color:var(--cream);}
+  .btn.pri{background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border-color:transparent;font-weight:600;box-shadow:0 8px 22px rgba(201,160,40,0.22);}
+  .btn.pri:hover{filter:brightness(1.06);color:#0d1530;}
+  .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  .btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  /* portrait */
+  .portrait{position:relative;aspect-ratio:1;width:100%;max-width:400px;max-height:400px;justify-self:end;margin-bottom:1.6rem;}
+  .portrait::before{content:'';position:absolute;inset:-8%;border-radius:50%;background:radial-gradient(circle,rgba(7,12,28,0.9) 0%,rgba(7,12,28,0.72) 46%,rgba(7,12,28,0.34) 72%,transparent 88%);pointer-events:none;}
+  .portrait canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .p-cap{position:absolute;left:50%;bottom:-.4rem;transform:translateX(-50%);width:100%;text-align:center;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;line-height:1.5;text-transform:uppercase;color:rgba(245,239,224,0.6);text-shadow:0 1px 8px rgba(7,12,28,0.9);}
+  .p-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+  .p-mid::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(7,12,28,0.92) 0%,rgba(7,12,28,0.7) 55%,transparent 100%);z-index:-1;}
+  .p-mid .n{font-family:var(--display);font-size:2.5rem;line-height:1;color:var(--cream);text-shadow:0 2px 14px rgba(7,12,28,0.9);}
+  .p-mid .l{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,239,224,0.82);margin-top:.4rem;text-shadow:0 1px 10px rgba(7,12,28,0.95);}
+  /* ── section shell ── */
+  section.blk{padding:3.4rem 0 0;}
+  .sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem;border-bottom:1px solid var(--line-soft);padding-bottom:.8rem;margin-bottom:1.5rem;}
+  .sec-h .t{font-family:var(--display);font-weight:500;font-size:1.6rem;}
+  .sec-h .s{font-size:.95rem;color:var(--dim);font-style:italic;max-width:46ch;text-align:right;}
+  /* growth strip */
+  .growth{display:grid;grid-template-columns:1.15fr 1fr;gap:1.4rem;align-items:stretch;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.4rem 1.5rem;}
+  .rich-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem;}
+  .rich-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .rich-h span{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+  .dots{display:flex;gap:.55rem;margin-bottom:1rem;}
+  .dot{flex:1;min-width:0;min-height:44px;border-radius:9px;border:1px dashed rgba(245,239,224,0.16);padding:.55rem .65rem;display:flex;flex-direction:column;gap:.3rem;color:var(--dim-2);}
+  .dot .l{font-family:var(--mono);font-size:.68rem;}
+  .dot .b{font-size:.86rem;line-height:1.4;font-style:italic;}
+  .dot.on{border-style:solid;border-color:rgba(201,160,40,0.45);background:linear-gradient(160deg,rgba(224,190,85,0.16),rgba(201,160,40,0.06));color:var(--gold-2);}
+  .dot.on .b{color:rgba(245,239,224,0.8);}
+  .rich-bar{height:7px;border-radius:5px;background:rgba(245,239,224,0.1);overflow:hidden;}
+  .rich-fill{height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,var(--gold),var(--gold-2));transition:width .8s cubic-bezier(.2,.8,.2,1);}
+  .rich-note{font-size:.95rem;color:var(--dim);line-height:1.55;margin-top:.9rem;font-style:italic;}
+  .rich-note b{font-style:normal;color:var(--gold-2);font-weight:500;}
+  .traits{display:flex;flex-direction:column;gap:.75rem;}
+  .traits b.h{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .trait{display:flex;gap:.8rem;align-items:flex-start;}
+  .trait .q{font-family:var(--hand);font-size:1.5rem;color:var(--gold);line-height:1;flex-shrink:0;margin-top:.1rem;}
+  .trait p{font-size:.98rem;line-height:1.5;color:rgba(245,239,224,0.82);overflow-wrap:anywhere;}
+  .trait .by{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);margin-top:.3rem;}
+  /* families + markers */
+  .fam-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+  .fam{display:inline-flex;align-items:center;gap:.55rem;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.5rem 1.05rem;font-family:var(--body);font-size:.96rem;cursor:pointer;transition:all .16s;}
+  .fam .sw{width:9px;height:9px;border-radius:50%;background:var(--fc);}
+  .fam:hover{color:var(--cream);}
+  .fam.on{color:var(--cream);border-color:var(--fc);background:rgba(255,255,255,0.07);}
+  .fam .n{font-family:var(--mono);font-size:.7rem;color:var(--dim-2);}
+  .fam:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:.8rem;}
+  .mk-grid .live-empty{grid-column:1/-1;}
+  .hab{background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-left:2px solid var(--mc);border-radius:12px;padding:.9rem 1rem;cursor:default;transition:background .16s,transform .16s;}
+  .hab:hover{background:rgba(255,255,255,0.07);transform:translateY(-2px);}
+  .hab-t{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;}
+  .hab-t b{font-size:1rem;font-weight:500;color:var(--cream);}
+  .hab-d{font-size:.9rem;line-height:1.5;color:var(--dim);margin-top:.35rem;text-wrap:pretty;}
+  .hab-scale{position:relative;height:5px;border-radius:4px;background:rgba(245,239,224,0.1);margin-top:.7rem;}
+  .hab-scale .you{position:absolute;top:-3px;width:3px;height:11px;border-radius:2px;background:var(--mc);box-shadow:0 0 8px var(--mc);}
+  .hab-f{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);margin-top:.4rem;}
+  /* work list */
+  .work{display:flex;flex-direction:column;}
+  .w-row{cursor:pointer;text-decoration:none;color:inherit;display:grid;grid-template-columns:1.6fr .8fr auto auto;gap:1rem;align-items:center;padding:.95rem .2rem;border-top:1px solid rgba(255,255,255,0.055);}
+  .w-row:first-child{border-top:none;}
+  .w-row:hover{background:rgba(255,255,255,0.04);}
+  .w-row:hover .w-t{color:var(--gold-2);}
+  .w-row:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .w-t{transition:color .14s;}
+  .w-t{font-size:1rem;color:var(--cream);}
+  .w-m{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);margin-top:.15rem;}
+  .w-c{font-size:.9rem;color:var(--dim);}
+  .w-add{font-family:var(--mono);font-size:.68rem;color:var(--dim-2);text-align:right;}
+  /* privacy */
+  .priv{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;}
+  .priv .card{padding:1.2rem 1.3rem;}
+  .priv b.h{font-family:var(--display);font-weight:500;font-size:1.05rem;display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;}
+  .priv b.h svg{width:16px;height:16px;stroke-width:1.8;fill:none;}
+  .priv ul{list-style:none;display:flex;flex-direction:column;gap:.45rem;}
+  .priv li{font-size:.94rem;line-height:1.5;color:rgba(245,239,224,0.8);padding-left:1.1rem;position:relative;}
+  .priv li::before{content:'';position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--pc);}
+  .priv .yes{--pc:var(--ok);}.priv .yes b.h{color:var(--ok);}.priv .yes b.h svg{stroke:var(--ok);}
+  .priv .no{--pc:var(--dim-2);}.priv .no b.h{color:var(--dim);}.priv .no b.h svg{stroke:var(--dim);}
+  .closing{margin-top:2.6rem;padding:2rem;text-align:center;border-top:1px solid var(--line-soft);}
+  .closing p{font-family:var(--display);font-style:italic;font-size:1.28rem;line-height:1.5;color:rgba(245,239,224,0.82);max-width:44ch;margin:0 auto;text-wrap:balance;}
+  .closing .att{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-2);margin-top:1rem;}
+  @media (max-width:900px){
+    nav.top{flex-wrap:wrap;gap:.6rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;padding-bottom:.2rem;}
+    .hero-inner{grid-template-columns:1fr;padding:3.4rem 1.2rem 2.2rem;gap:2rem;}
+    .portrait{justify-self:center;max-width:340px;}
+    .growth,.priv{grid-template-columns:1fr;}
+    .dots{flex-direction:column;}
+    .sec-h{flex-direction:column;align-items:flex-start;}.sec-h .s{text-align:left;}
+    .w-row{grid-template-columns:1fr auto;row-gap:.35rem;}.w-c{display:none;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<nav class="top">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <div class="pills">
+    <a class="pill on" href="voice.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
+    <a class="pill" href="my-work.html"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
+    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+  </div>
+  <div class="nav-right">
+    <button class="avatar" id="me-btn" type="button" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+    <div class="me-menu" id="me-menu">
+      <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub">Student</span></div>
+      <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+    </div>
+  </div>
+</nav>
+
+<main id="live-main">
+<div class="gate" id="gate" hidden></div>
+<div id="content">
+<div class="hero">
+  <div class="hero-bg"><img src="assets/all-souls-engraving-wide.jpg" alt="" /></div>
+  <div class="hero-tint"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">Your Voice Portrait</div>
+      <h1 id="headline">Your writing voice</h1>
+      <div class="who" id="who"></div>
+      <p class="lede">Original reads the small habits that make your prose yours: sentence rhythm, the way you connect ideas, how firmly you make a claim. This page is your side of that record: not a score, a likeness.</p>
+      <div data-student-notice></div>
+      <div class="status" id="status" role="status" hidden></div>
+      <div class="hero-cta">
+        <a class="btn pri" href="#markers"><svg viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg>See what makes it yours</a>
+        <a class="btn" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/></svg>Go to Bluebook</a>
+      </div>
+    </div>
+    <div class="portrait">
+      <canvas id="vp" role="img" aria-label="Your voice portrait: one thread for each part of your voice"></canvas>
+      <div class="p-mid"><div class="n" id="p-n">–</div><div class="l" id="p-l">nothing drawn yet</div></div>
+      <div class="p-cap" id="p-cap"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <section class="blk">
+    <div class="sec-h"><div class="t" id="grow-t">Your portrait is still filling in</div><div class="s">Every piece your teacher approves as reference writing gives Original more to compare with.</div></div>
+    <div class="growth">
+      <div class="card">
+        <div class="rich-h"><b>Portrait richness</b><span id="rich-pct"></span></div>
+        <div class="dots" id="dots"></div>
+        <div class="rich-bar"><div class="rich-fill" id="rich-fill"></div></div>
+        <div class="rich-note" id="rich-note">With only a few approved pieces, Original may say it <b>can't tell</b>, and that is a fair answer. Each approved piece gives it more to go on.</div>
+      </div>
+      <div class="card traits">
+        <b class="h">From your teacher</b>
+        <div id="notes"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="markers">
+    <div class="sec-h"><div class="t">The habits in your voice</div><div class="s">Grouped three ways: how your sentences look, how your ideas connect, how you make your case. Hover a card to find it in the portrait.</div></div>
+    <div class="fam-tabs" id="fam-tabs"></div>
+    <div class="mk-grid" id="mk-grid"></div>
+  </section>
+
+  <section class="blk" id="work">
+    <div class="sec-h"><div class="t">Your work</div><div class="s">A piece becomes part of your portrait only when your teacher approves it as reference writing.</div></div>
+    <div class="card work">
+      <a class="w-row" href="/bluebook/"><div><div class="w-t">Your sealed exams and written pieces</div><div class="w-m">IN BLUEBOOK</div></div><div class="w-c">Read what you have written there.</div><span></span><div class="w-add">Open →</div></a>
+      <a class="w-row" href="my-work.html"><div><div class="w-t">Compare a piece with your voice</div><div class="w-m">MY WORK</div></div><div class="w-c">Paste a piece and see how it sits beside your approved writing.</div><span></span><div class="w-add">Open →</div></a>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="sec-h"><div class="t">What Original keeps</div><div class="s">Your portrait is a set of numbers about how you write, nothing more.</div></div>
+    <div class="priv">
+      <div class="card yes">
+        <b class="h"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>Kept</b>
+        <ul>
+          <li>Measurements of the habits above, and how much they vary across your pieces.</li>
+          <li>The pieces your teacher approved as reference writing, so a measurement can always be traced back to its source.</li>
+          <li>A few Bluebook session facts: time spent, word count, paste attempts and times the window lost focus. They are context, not evidence.</li>
+          <li>A record that a comparison was made when you use My Work. The piece itself is not added to your writing profile.</li>
+        </ul>
+      </div>
+      <div class="card no">
+        <b class="h"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M6 18L18 6"/></svg>Never kept</b>
+        <ul>
+          <li>Anything from your screen, camera, microphone, or other applications.</li>
+          <li>How you type: no key-by-key timing is ever recorded.</li>
+          <li>Your drafts from outside a session, or what you searched while writing.</li>
+          <li>Any judgement of quality: Original measures likeness to <i>you</i>, never how good the writing is.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="closing">
+      <p>“If you tell the truth, you will become original without ever having noticed it.”</p>
+      <div class="att">After C. S. Lewis, Mere Christianity</div>
+    </div>
+  </section>
+</div>
+</div>
+</main>
+
+<script src="live.js"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const content=$('content'), gateEl=$('gate');
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+  }
+
+  // ── what the page shows when it cannot load ──
+  function panel(title,text,href,label){
+    content.hidden=true; gateEl.hidden=false;
+    gateEl.innerHTML='<div class="live-panel" role="status"><h2>'+esc(title)+'</h2><p>'+esc(text)+'</p><a href="'+esc(href)+'">'+esc(label)+'</a></div>';
+  }
+  function status(text){ const s=$('status'); s.textContent=text; s.hidden=!text; }
+
+  // ── the seven parts of a voice (GET /me/voice → fingerprint[].name) ──
+  // The server names them; what each one is about, and the three groups the
+  // page sorts them into, are written out here. A name the page does not know
+  // gets a plain line and no group.
+  const FAMS=[
+    {key:'A',name:'How your sentences look',c:'#e0be55'},
+    {key:'B',name:'How your ideas connect',c:'#8ba8dd'},
+    {key:'C',name:'How you make your case',c:'#c58fd0'}
+  ];
+  const KNOWN={
+    Cadence:{fam:'A',d:'The rhythm of your sentences: how long they run, how much they vary, where they take a breath.'},
+    Diction:{fam:'A',d:'Your choice of words: how wide your vocabulary is, and whether you favour plain words or long Latin ones.'},
+    Texture:{fam:'A',d:'How your sentences are built: your punctuation, and how many clauses you fold into one sentence.'},
+    Resonance:{fam:'A',d:'The sound of your prose: the pattern of stresses, and the way your sentences end.'},
+    Architecture:{fam:'B',d:'How your ideas are joined: transitions, the way one sentence picks up from the last, how a paragraph is built.'},
+    Register:{fam:'C',d:'How formal and specialised your wording is, from everyday to technical.'},
+    Restraint:{fam:'C',d:'How firmly or tentatively you make a claim: softening words, flat statements, questions and objections.'}
+  };
+  const GENERIC='One part of how your writing reads.';
+  const famOf=k=>FAMS.find(f=>f.key===k)||null;
+  const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
+
+  let DIMS=[];        // [{name, v 0..1, fam, desc, i}]
+  let HAS=false;      // Original has approved writing to draw the portrait from
+  let drawn=0;        // fraction of the milestones reached
+  let active=null;    // family filter, null = all
+  let hi=-1;          // dimension highlighted by hovering its card
+
+  // ── hero ──
+  function setHeadline(text){
+    const h=$('headline'), t=String(text||'').trim();
+    if(!t) return;
+    const m=/^([^,]{1,40}),\s+(.+)$/.exec(t);
+    h.innerHTML=m?esc(m[1])+', <em>'+esc(m[2])+'</em>':esc(t);
+  }
+
+  // ── milestones (GET /me/voice → milestones[]) ──
+  function renderMilestones(list){
+    const total=list.length, reached=list.filter(m=>m.state==='reached').length;
+    drawn=total?reached/total:0;
+    if(!total){
+      Live.empty($('dots'),'Your milestones are not available just now.');
+      $('rich-pct').textContent='';
+    }else{
+      $('rich-pct').textContent=reached+' of '+total+' reached';
+      $('dots').innerHTML=list.map(m=>
+        '<div class="dot'+(m.state==='reached'?' on':'')+'"><span class="l">'+(m.state==='reached'?'✓ ':'')+esc(m.label)+'</span><span class="b">'+esc(m.blurb)+'</span></div>').join('');
+    }
+    $('grow-t').textContent=(total&&reached===total)?'Your portrait is filled in':'Your portrait is still filling in';
+    requestAnimationFrame(()=>{$('rich-fill').style.width=Math.round(drawn*100)+'%';});
+  }
+
+  // ── voice notes (GET /me/voice → voice_notes[]) ──
+  function fmtDate(d){
+    const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d||''));
+    if(!m) return '';
+    const dt=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+    return isNaN(dt)?'':dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+  }
+  function renderNotes(list){
+    const box=$('notes');
+    if(!list.length){ Live.empty(box,'Your teacher has not left a note about your voice yet.'); return; }
+    box.innerHTML=list.map(n=>{
+      const by=[n.reviewer,fmtDate(n.date)].filter(Boolean).map(esc).join(' · ');
+      return '<div class="trait"><span class="q">“</span><div><p>'+esc(n.note)+'</p>'+(by?'<div class="by">'+by+'</div>':'')+'</div></div>';
+    }).join('');
+  }
+
+  // ── family tabs + cards ──
+  const tabs=$('fam-tabs'), grid=$('mk-grid');
+  function renderTabs(){
+    if(!HAS){ tabs.innerHTML=''; return; }
+    tabs.innerHTML='<button type="button" class="fam'+(active===null?' on':'')+'" style="--fc:var(--gold)" data-f="" aria-pressed="'+(active===null)+'">All habits <span class="n">'+DIMS.length+'</span></button>'+
+      FAMS.map(f=>{
+        const n=DIMS.filter(m=>m.fam===f.key).length;
+        return n?'<button type="button" class="fam'+(active===f.key?' on':'')+'" style="--fc:'+f.c+'" data-f="'+f.key+'" aria-pressed="'+(active===f.key)+'"><span class="sw"></span>'+esc(f.name)+' <span class="n">'+n+'</span></button>':'';
+      }).join('');
+    tabs.querySelectorAll('.fam').forEach(b=>b.onclick=()=>{active=b.dataset.f||null;renderTabs();renderGrid();});
+  }
+  function renderGrid(){
+    if(!HAS){
+      Live.empty(grid,'Your habits appear here once your teacher has approved some of your writing.');
+      return;
+    }
+    const list=active?DIMS.filter(m=>m.fam===active):DIMS;
+    grid.innerHTML=list.map(m=>{
+      const f=famOf(m.fam);
+      return '<div class="hab" data-i="'+m.i+'" style="--mc:'+(f?f.c:'var(--gold-2)')+'">'+
+        '<div class="hab-t"><b>'+esc(m.name)+'</b></div>'+
+        '<div class="hab-d">'+esc(m.desc)+'</div>'+
+        '<div class="hab-scale" role="img" aria-label="'+esc(m.name)+': where you sit between lower and higher"><div class="you" style="left:'+(m.v*100)+'%"></div></div>'+
+        '<div class="hab-f"><span>lower</span><span>higher</span></div></div>';
+    }).join('');
+    grid.querySelectorAll('.hab').forEach(el=>{
+      el.onmouseenter=()=>{hi=+el.dataset.i;};
+      el.onmouseleave=()=>{hi=-1;};
+    });
+  }
+
+  // ── voice portrait canvas ──
+  const cv=$('vp'), ctx=cv.getContext('2d');
+  let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1),t0=performance.now(),started=false;
+  const reduce=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function size(){
+    const r=cv.getBoundingClientRect();
+    W=Math.max(240,r.width);H=Math.max(240,r.height);
+    cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  const famC={A:[224,190,85],B:[139,168,221],C:[197,143,208]};
+  function draw(now){
+    const t=(now-t0)/1000;
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H/2, R=Math.min(W,H)/2-14;
+    // faint concentric guides
+    ctx.strokeStyle='rgba(245,239,224,0.08)';ctx.lineWidth=1;
+    [0.35,0.6,0.85].forEach(k=>{ctx.beginPath();ctx.arc(cx,cy,R*k,0,Math.PI*2);ctx.stroke();});
+    const rot=reduce?0:t*0.05;
+    if(HAS) DIMS.forEach((m,i)=>{
+      const a=(i/DIMS.length)*Math.PI*2 - Math.PI/2 + rot;
+      const [r,g,b]=famC[m.fam]||famC.A;
+      const isHi = hi===i;
+      const inner=R*0.3, outer=inner + (R*0.66)*m.v;
+      // thread: its length is where you sit on that part of your voice
+      const grad=ctx.createLinearGradient(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner,cx+Math.cos(a)*outer,cy+Math.sin(a)*outer);
+      grad.addColorStop(0,'rgba('+r+','+g+','+b+',0.05)');
+      grad.addColorStop(1,'rgba('+r+','+g+','+b+','+(isHi?1:0.78)+')');
+      ctx.strokeStyle=grad;ctx.lineWidth=isHi?4:3;ctx.lineCap='round';
+      ctx.shadowColor='rgba(7,12,28,0.85)';ctx.shadowBlur=6;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner);ctx.lineTo(cx+Math.cos(a)*outer,cy+Math.sin(a)*outer);ctx.stroke();
+      // beads along the thread
+      for(let k=0;k<6;k++){
+        const rr=inner+(outer-inner)*((k+1)/6.6);
+        const pulse=reduce?0:Math.sin(t*1.5+i*0.7+k)*0.4+0.6;
+        const rad=(isHi?2.1:1.4)*(0.7+0.4*pulse);
+        ctx.fillStyle='rgba('+r+','+g+','+b+','+(isHi?1:0.78)*(0.6+0.4*pulse)+')';
+        ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,rad,0,Math.PI*2);ctx.fill();
+      }
+      if(isHi){
+        ctx.fillStyle='rgba('+r+','+g+','+b+',1)';
+        ctx.beginPath();ctx.arc(cx+Math.cos(a)*outer,cy+Math.sin(a)*outer,3.4,0,Math.PI*2);ctx.fill();
+      }
+    });
+    // the arc: how much of the portrait has been drawn (milestones reached)
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(245,239,224,0.16)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,R*0.97,-Math.PI/2,-Math.PI/2+Math.PI*2,false);ctx.stroke();
+    if(drawn>0){
+      ctx.strokeStyle='rgba(201,160,40,0.55)';ctx.lineWidth=2;ctx.lineCap='round';
+      ctx.beginPath();ctx.arc(cx,cy,R*0.97,-Math.PI/2,-Math.PI/2+Math.PI*2*drawn,false);ctx.stroke();
+    }
+    // inner ring
+    ctx.strokeStyle='rgba(201,160,40,0.22)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,R*0.28,0,Math.PI*2);ctx.stroke();
+    requestAnimationFrame(draw);
+  }
+  function startPortrait(){
+    if(started) return;
+    started=true;
+    size();window.addEventListener('resize',size);
+    requestAnimationFrame(draw);
+  }
+
+  // ── render the whole view ──
+  function render(sess,V){
+    const list=a=>Array.isArray(a)?a.filter(x=>x&&typeof x==='object'):[];
+    const ms=list(V.milestones).map(m=>({label:String(m.label||''),state:String(m.state||''),blurb:String(m.blurb||'')})).filter(m=>m.label);
+    const notes=list(V.voice_notes).map(n=>({note:String(n.note||''),reviewer:String(n.reviewer||''),date:String(n.date||'')})).filter(n=>n.note);
+    // Original draws a portrait only from approved writing: the server's own
+    // "Voice Sampled" milestone says whether any is on file. Without it the
+    // fingerprint is neutral filler and is not drawn.
+    HAS=ms.some(m=>m.label==='Voice Sampled'&&m.state==='reached');
+    DIMS=list(V.fingerprint).filter(d=>d.name&&typeof d.value==='number'&&isFinite(d.value)).map((d,i)=>{
+      const k=has(KNOWN,d.name)?KNOWN[d.name]:null;
+      return {name:String(d.name),v:Math.max(0,Math.min(1,d.value)),fam:k?k.fam:null,desc:k?k.d:GENERIC,i};
+    });
+    if(!DIMS.length) HAS=false;
+
+    setHeadline(V.headline);
+    const nm=String(V.name||sess.name||'').trim();
+    $('who').innerHTML=(nm?'<b>'+esc(nm)+'</b> · ':'')+(HAS?'portrait drawn from the writing your teacher has approved':'no approved writing on file yet');
+    $('p-n').textContent=HAS?String(DIMS.length):'–';
+    $('p-l').textContent=HAS?'parts of your voice':'nothing drawn yet';
+    $('p-cap').textContent=HAS?'each thread is one part of your voice · its length is where you sit on it':'your portrait is drawn from the writing your teacher approves';
+
+    renderMilestones(ms);
+    renderNotes(notes);
+    renderTabs();renderGrid();
+    startPortrait();
+  }
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate(gateEl,{audience:'student'}).then(sess=>{
+    if(!sess){ content.hidden=true; gateEl.hidden=false; return; }
+    Live.api('/me/voice').then(res=>{
+      if(res.status===401){
+        panel('Your sign-in has ended','Sign in again to see your writing voice.','/bluebook/','Sign in');
+        return;
+      }
+      if(res.status===403){
+        panel('Original is off for your class','Your class uses Bluebook only, so there is no writing voice to show here.','/bluebook/','Open Bluebook');
+        return;
+      }
+      if(!res.ok||!res.data||typeof res.data!=='object'||Array.isArray(res.data)){
+        status('Your voice could not be loaded just now. Try reloading the page.');
+        renderMilestones([]);renderNotes([]);renderTabs();renderGrid();
+        startPortrait();
+        return;
+      }
+      render(sess,res.data);
+    });
+  });
+})();
+</script>
+</body>
+</html>

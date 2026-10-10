@@ -6,11 +6,15 @@
    Live.TOKEN_KEYS   localStorage keys a sign-in leaves behind
    Live.NOTICE       the testing-phase label, verbatim (the ONLY copy in the suite)
    Live.esc(s)       HTML-escape any value before it goes into innerHTML
-   Live.api(p, o)    same-origin fetch with the bearer token; never throws
+   Live.api(p, o)    same-origin fetch with the bearer token (a teacher's principal
+                     token, else a student's session token); never throws
    Live.session()    who is looking: demo, signed-in or signed-out
-   Live.notices()    fills every [data-testing-notice] with the label
+   Live.STUDENT_NOTICE  the testing-phase label the student pages show (the only copy)
+   Live.notices()    fills every [data-testing-notice] with the label, and every
+                     [data-student-notice] with the student label
    Live.empty(el,t)  an honest empty state inside a card
-   Live.gate(el)     sign-in / "Original is off" panel, or the session
+   Live.gate(el, o)  sign-in / "Original is off" panel, or the session; with
+                     {audience:'student'} the same for the student pages
    Live.roster()     the teacher's students with the server's baseline verdicts
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
    Live.signOut()    forget the session and the kept papers, go to the sign-in page */
@@ -43,6 +47,11 @@
   var LAST_RESULT_KEY = 'original_last_result';
 
   var NOTICE = 'Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.';
+
+  // The label on the student pages (voice.html, my-work.html): the same
+  // testing-phase warning, plus what NORTH_STAR rule 10 says a student must be
+  // told about their sealed work. A student never sees the teacher's sentence.
+  var STUDENT_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.';
 
   var ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -80,7 +89,11 @@
         init.body = JSON.stringify(opts.body);
         if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
       }
-      var tok = read('original_principal_token');
+      // A teacher carries a principal token. A student carries a session token
+      // (an account sign-in, or a Bluebook launch link) and never a principal
+      // token; the /me/* routes resolve the student from it. Same order as
+      // Bluebook's own client.
+      var tok = read('original_principal_token') || read('original_session_token');
       if (tok && !headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + tok);
       if (!headers.has('Accept')) headers.set('Accept', 'application/json');
       init.headers = headers;
@@ -137,20 +150,26 @@
     return sessionPromise;
   }
 
-  function notices() {
-    var cut = NOTICE.indexOf(':') + 1;
-    var html = '<b>' + esc(NOTICE.slice(0, cut)) + '</b>' + esc(NOTICE.slice(cut));
-    var nodes = document.querySelectorAll('[data-testing-notice]');
+  // Fills every node carrying `attr` with a label: its first sentence in bold.
+  function fillNotices(attr, text) {
+    var cut = text.indexOf(':') + 1;
+    var html = '<b>' + esc(text.slice(0, cut)) + '</b>' + esc(text.slice(cut));
+    var nodes = document.querySelectorAll('[' + attr + ']');
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i];
       n.classList.add('live-testing');
       // A value on the attribute names a variant class, e.g. "on-paper".
-      (n.getAttribute('data-testing-notice') || '').split(/\s+/).forEach(function (c) {
+      (n.getAttribute(attr) || '').split(/\s+/).forEach(function (c) {
         if (c) n.classList.add(c);
       });
       n.setAttribute('role', 'note');
       n.innerHTML = html;
     }
+  }
+
+  function notices() {
+    fillNotices('data-testing-notice', NOTICE);
+    fillNotices('data-student-notice', STUDENT_NOTICE);
   }
 
   function empty(el, text) {
@@ -165,9 +184,28 @@
   }
 
   // Resolves the session when the page may load its data; otherwise puts the
-  // right panel into el (or sends a student to Bluebook) and resolves null.
-  function gate(el) {
+  // right panel into el (or sends the visitor to the right page) and resolves null.
+  //
+  // opts.audience 'student' is for the student pages: a student session is
+  // allowed (its products are not known here, so a workspace without Original
+  // answers 403 to the page's first /me/ call, which the page words itself), a
+  // teacher or other staff member is sent to the teacher pages, and anyone not
+  // signed in as a student, the open demo included (it has no student account),
+  // gets the sign-in panel pointing at Bluebook's sign-in.
+  function gate(el, opts) {
+    var student = !!(opts && opts.audience === 'student');
     return session().then(function (s) {
+      if (student) {
+        if (s.role === 'student') return s;
+        if (s.mode === 'signed-in') {
+          window.location.replace('index.html');
+          return null;
+        }
+        panel(el, 'Sign in to continue',
+          'This page shows your own writing, so it needs you to be signed in as a student.',
+          '/bluebook/', 'Sign in');
+        return null;
+      }
       if (s.mode === 'signed-out') {
         panel(el, 'Sign in to continue',
           'This page shows your own classes and students, so it needs you to be signed in.',
@@ -475,6 +513,7 @@
   window.Live = {
     TOKEN_KEYS: TOKEN_KEYS,
     NOTICE: NOTICE,
+    STUDENT_NOTICE: STUDENT_NOTICE,
     esc: esc,
     api: api,
     session: session,

@@ -10,6 +10,8 @@ image. `tests/test_original_suite_static.py` fails if a file here has no row.
 | `radcliffe-observatory-watercolour.jpg` | `writing-state.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `radcliffe-interior.avif` | `submissions.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `gonville-caius-facade.jpg` | `reports.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `all-souls-engraving-wide.jpg` | `voice.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `white-stag.jpg` | `my-work.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 
 `st-andrews-quad.jpg` is the handoff photograph (3173 x 2068, 2.3 MB) re-encoded as a JPEG at quality 75 with its
 longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit.
@@ -26,3 +28,13 @@ other credit text, and none is shown on the page.
 watercolour, not a photograph. A handwritten inscription sits at the bottom left; as far as it can be read it gives a
 date in July 1953, "Oxford", and a signature that appears to read "Methuen". No other credit text is known, and none
 is shown on the page.
+
+`all-souls-engraving-wide.jpg` is the handoff image (`all-souls-engraving-wide.png`, 1983 x 793, 3.2 MB) re-encoded as a
+JPEG at quality 75 with its longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit. The
+handoff calls it an engraving of All Souls College, but it appears to be AI-generated in an engraving style (the
+credits file of #237 observed the same). It is shipped at the owner's direction, with no source or licence on record. It
+is never described on the page as a historical engraving: the image carries an empty `alt`, so it is decoration only.
+
+`white-stag.jpg` is the handoff image (`white-stag.png`, 1448 x 1086, 3.1 MB) re-encoded as a JPEG at quality 75
+with its longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit. Its origin is unknown
+(it looks like a photograph with a painterly effect applied). No credit text is known, and none is shown on the page.
