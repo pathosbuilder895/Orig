@@ -56,6 +56,8 @@ ALLOWED_ABSOLUTE = {"/bluebook/", "/index.html"}
 BINARY_SUFFIXES = {".woff2", ".woff", ".jpeg", ".jpg", ".png", ".avif", ".webp", ".gif"}
 TEXT_SUFFIXES = {".html", ".js", ".css", ".md", ".txt"}
 
+EXTERNAL_SCHEMES = {"http", "https", "ws", "wss", "ftp"}
+
 THIRD_PARTY_HOSTS = (
     "fonts.googleapis.com",
     "fonts.gstatic.com",
@@ -93,31 +95,44 @@ def _code_files() -> list[Path]:
 
 
 class _Refs(HTMLParser):
-    """href / src values of every tag, in document order."""
+    """(tag, url) for every href / src attribute, in document order."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.urls: list[str] = []
+        self.refs: list[tuple[str, str]] = []
 
     def handle_starttag(self, tag, attrs):
         for name, value in attrs:
             if name in ("href", "src") and value:
-                self.urls.append(value)
+                self.refs.append((tag, value))
 
 
-def _refs(path: Path) -> list[str]:
+def _refs(path: Path) -> list[tuple[str, str]]:
+    """Every URL a file points at: tag attributes, CSS url() and @import."""
     text = path.read_text(encoding="utf-8")
-    urls: list[str] = []
+    refs: list[tuple[str, str]] = []
     if path.suffix == ".html":
         parser = _Refs()
         parser.feed(text)
-        urls.extend(parser.urls)
-    urls.extend(re.findall(r"url\(\s*['\"]?([^)'\"]+?)['\"]?\s*\)", text))
-    return urls
+        refs.extend(parser.refs)
+    refs.extend(("css", u) for u in re.findall(r"url\(\s*['\"]?([^)'\"]+?)['\"]?\s*\)", text))
+    refs.extend(("css", u) for u in re.findall(r"@import\s+['\"]([^'\"]+)['\"]", text))
+    return refs
+
+
+def _normalise(url: str) -> str:
+    """What a browser's URL parser sees: no tabs or newlines, backslash as slash."""
+    return re.sub(r"[\t\r\n]", "", url).strip().replace("\\", "/")
 
 
 def _is_external(url: str) -> bool:
-    return bool(urlsplit(url).scheme) or url.startswith("//")
+    u = _normalise(url)
+    return u.startswith("//") or urlsplit(u).scheme in EXTERNAL_SCHEMES
+
+
+def _squash(text: str) -> str:
+    """Whitespace-insensitive, case-insensitive form for phrase checks."""
+    return " ".join(text.split()).lower()
 
 
 @pytest.fixture(scope="module")
@@ -129,35 +144,17 @@ def test_the_suite_has_pages():
     assert "index.html" in PAGE_IDS
 
 
-@pytest.mark.parametrize("page", PAGES, ids=PAGE_IDS)
-def test_page_makes_no_third_party_requests(page):
-    text = page.read_text(encoding="utf-8")
-    for host in THIRD_PARTY_HOSTS:
-        assert host not in text, f"{page.name} mentions {host}"
-    assert not re.search(r"<script[^>]+src=[\"'](?:https?:)?//", text), "remote script"
-    assert not re.search(r"<link[^>]+href=[\"'](?:https?:)?//", text), "remote stylesheet"
-    assert not re.search(r"@import|url\(\s*['\"]?(?:https?:)?//", text), "remote CSS"
-
-
 @pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
-def test_no_suite_file_loads_from_a_third_party(path):
+def test_no_suite_file_names_a_third_party_host(path):
     text = path.read_text(encoding="utf-8")
     for host in THIRD_PARTY_HOSTS:
         assert host not in text, f"{path.name} mentions {host}"
-    assert not re.search(r"url\(\s*['\"]?(?:https?:)?//", text), f"{path.name} loads remote CSS"
 
 
-@pytest.mark.parametrize("page", PAGES, ids=PAGE_IDS)
-def test_page_carries_none_of_the_retired_copy(page):
-    text = page.read_text(encoding="utf-8")
-    found = [phrase for phrase in BANNED_PHRASES if phrase in text]
-    assert not found, f"{page.name} still contains {found}"
-
-
-@pytest.mark.parametrize("path", _text_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
 def test_suite_files_carry_none_of_the_retired_copy(path):
-    text = path.read_text(encoding="utf-8")
-    found = [phrase for phrase in BANNED_PHRASES if phrase in text]
+    text = path.read_text(encoding="utf-8").lower()
+    found = [phrase for phrase in BANNED_PHRASES if phrase.lower() in text]
     assert not found, f"{path.name} contains {found}"
 
 
@@ -165,11 +162,29 @@ def test_testing_label_lives_once_in_live_js(live_js):
     assert live_js.count(NOTICE) == 1
 
 
-@pytest.mark.parametrize("page", PAGES, ids=PAGE_IDS)
-def test_testing_label_is_never_written_into_a_page(page):
-    text = page.read_text(encoding="utf-8")
-    assert NOTICE not in text
+@pytest.mark.parametrize(
+    "path",
+    [p for p in _code_files() if p != SUITE / "live.js"],
+    ids=lambda p: p.relative_to(SUITE).as_posix(),
+)
+def test_testing_label_is_written_nowhere_but_live_js(path):
+    text = _squash(path.read_text(encoding="utf-8"))
+    assert _squash(NOTICE) not in text
     assert "not yet validated on real student writing" not in text
+
+
+def test_live_js_checks_the_origin_of_every_request(live_js):
+    # A tripwire, not a proof: it fails if the guard that keeps the bearer token
+    # on this site is reverted to a look at the first characters of the path
+    # ('/\\evil.com/x' and '/<TAB>/evil.com/x' slip past that).
+    assert "new URL(" in live_js
+    assert ".origin !== window.location.origin" in live_js
+
+
+def test_live_js_reads_a_magic_link_student_session(live_js):
+    # A Bluebook magic link stores bluebook_student_id and a session token but
+    # no original_role; Live.gate must still send that visitor to /bluebook/.
+    assert "bluebook_student_id" in live_js
 
 
 def test_live_js_exposes_the_shared_interface(live_js):
@@ -197,10 +212,15 @@ def test_live_js_exposes_the_shared_interface(live_js):
 
 
 @pytest.mark.parametrize("path", [*PAGES, *sorted(SUITE.glob("*.css"))], ids=lambda p: p.name)
-def test_relative_references_resolve_under_demo(path):
+def test_references_stay_on_this_site_and_resolve_under_demo(path):
     demo = DEMO.resolve()
-    for url in _refs(path):
-        if url.startswith(("#", "data:", "mailto:", "tel:", "javascript:")) or _is_external(url):
+    for tag, raw in _refs(path):
+        if _is_external(raw):
+            # Only a plain link may leave the site; nothing may be loaded from it.
+            assert tag == "a", f"{path.name}: <{tag}> loads {raw} from a third party"
+            continue
+        url = _normalise(raw)
+        if url.startswith(("#", "data:", "mailto:", "tel:", "javascript:")):
             continue
         split = urlsplit(url)
         if split.path in ALLOWED_ABSOLUTE:

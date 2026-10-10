@@ -56,8 +56,13 @@
   function api(path, opts) {
     try {
       var p = String(path || '');
-      // The bearer token must never leave this site.
-      if (p.charAt(0) !== '/' || p.charAt(1) === '/') return Promise.resolve(failed());
+      if (p.charAt(0) !== '/') return Promise.resolve(failed());
+      // The bearer token must never leave this site. Checking the first two
+      // characters is not enough: the URL parser reads a backslash as a slash
+      // and drops tabs and newlines, so '/\\evil.com/x' and '/<TAB>/evil.com/x'
+      // both resolve to another host. Resolve the URL and compare origins.
+      var u = new URL(p, window.location.href);
+      if (u.origin !== window.location.origin) return Promise.resolve(failed());
       opts = opts || {};
       var init = {};
       Object.keys(opts).forEach(function (k) { init[k] = opts[k]; });
@@ -72,7 +77,7 @@
       if (!headers.has('Accept')) headers.set('Accept', 'application/json');
       init.headers = headers;
       init.credentials = 'same-origin';
-      return fetch(p, init).then(function (res) {
+      return fetch(u.href, init).then(function (res) {
         return res.text().then(function (text) {
           var data = null;
           if (text) { try { data = JSON.parse(text); } catch (e) { data = null; } }
@@ -90,9 +95,10 @@
     var name = read('original_name');
     var tenant = read('original_tenant');
     var token = read('original_principal_token');
-    // A student signed in with an account holds a session token, not a
-    // principal token, and /auth/me does not answer for it.
-    if (!token && read('original_role') === 'student' && read('original_session_token')) {
+    // A student holds a session token (an account sign-in) or a launch binding
+    // (a Bluebook magic link, which stores no original_role), never a
+    // principal token, and /auth/me does not answer for either.
+    if (!token && (read('original_session_token') || read('bluebook_student_id'))) {
       return Promise.resolve({ mode: 'signed-in', role: 'student', products: [], tenant: tenant, name: name });
     }
     var me = token ? api('/auth/me') : Promise.resolve(null);
