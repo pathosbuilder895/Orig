@@ -270,7 +270,7 @@
 (function(){
   const $=id=>document.getElementById(id);
   const esc=Live.esc;
-  const DAY=86400000, WEEKS=6, READY_AT=3;
+  const DAY=86400000, WEEKS=6, READY_AT=3, STATE_CAP=60;
   const reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ── account menu ──
@@ -301,9 +301,11 @@
   function setNum(el,v,animate){
     const tok=el._tok=(el._tok||0)+1;
     if(typeof v!=='number'){ el.textContent=v; return; }
-    if(!animate||reduceMotion||v<=0){ el.textContent=String(v); return; }
+    if(!animate||reduceMotion||document.hidden||v<=0){ el.textContent=String(v); return; }
     const t0=performance.now()+200, ease=x=>1-Math.pow(1-x,3);
     el.textContent='0';
+    // requestAnimationFrame stalls in a background tab; the number must still land.
+    setTimeout(()=>{ if(el._tok===tok) el.textContent=String(v); },1700);
     (function step(now){
       if(el._tok!==tok) return;
       if(now<t0){ requestAnimationFrame(step); return; }
@@ -323,10 +325,10 @@
   }
 
   // ── data ──
-  // rows: one per student on the roster. approved/total are null when the
-  // server sent ids only (no workspace roster). sealed is null when Bluebook
-  // data is not available (bb !== 'ok').
-  let rows=[], rosterOk=false, countsKnown=false, bb='ok', subs=[], courseCount=0;
+  // rows: one per student on the roster. approved/total are null for a student
+  // whose sample counts could not be read (see load). sealed is null when
+  // Bluebook data is not available (bb !== 'ok').
+  let rows=[], rosterOk=false, bb='ok', subs=[], courseCount=0;
 
   function weekCounts(list){
     const now=Date.now(), c=new Array(WEEKS).fill(0);
@@ -344,16 +346,22 @@
 
   async function load(sess){
     const hasBb=sess.products.indexOf('bluebook')>=0;
-    const [st,bs,sb]=await Promise.all([
-      Live.api('/students'),
-      hasBb?Live.api('/bluebook/students'):null,
-      hasBb?Live.api('/bluebook/submissions'):null
-    ]);
+    const stP=Live.api('/students');
+    const bsP=hasBb?Live.api('/bluebook/students'):null;
+    const sbP=hasBb?Live.api('/bluebook/submissions'):null;
+    const st=await stP;
 
     rosterOk=!!(st.ok&&st.data);
     const roster=rosterOk?(Array.isArray(st.data.roster)?st.data.roster:null):null;
     const ids=rosterOk&&Array.isArray(st.data.students)?st.data.students:[];
-    countsKnown=!!roster;
+
+    // A workspace roster carries each student's counts. Without one (the open
+    // demo), /students lists ids only, so read each student's own state: the
+    // response has counts but no display name, so the id stands in for the name.
+    const states=(!roster&&ids.length)
+      ? await Promise.all(ids.slice(0,STATE_CAP).map(id=>Live.api('/students/'+encodeURIComponent(id))))
+      : [];
+    const [bs,sb]=await Promise.all([bsP,sbP]);
 
     if(!hasBb||(sb&&sb.status===403)||(bs&&bs.status===403)) bb='off';
     else if(!sb||!sb.ok||!sb.data||!Array.isArray(sb.data.submissions)) bb='error';
@@ -371,7 +379,13 @@
       bs.data.students.forEach(x=>{ bbById[x.student_id]=x; });
     }
 
-    const base=roster||ids.map(id=>({id:String(id)}));
+    const num=v=>typeof v==='number'?v:null;
+    const base=roster
+      ? roster.map(r=>({id:r.id,name:r.name,ac:r.authenticated_count||0,sc:r.sample_count||0}))
+      : ids.map((id,i)=>{
+          const d=states[i]&&states[i].ok&&states[i].data;
+          return {id:String(id),name:'',ac:d?num(d.authenticated_count):null,sc:d?num(d.sample_count):null};
+        });
     const courseIds={};
     rows=base.map(r=>{
       const b=bbById[r.id], e=byStudent[r.id];
@@ -384,8 +398,8 @@
         id:r.id,
         name:r.name||r.id,
         courses:courses,
-        approved:countsKnown?(r.authenticated_count||0):null,
-        total:countsKnown?(r.sample_count||0):null,
+        approved:r.ac,
+        total:r.sc,
         sealed:bb==='ok'?(e?e.n:0):null,
         pending:bb==='ok'?(e?e.pending:0):null,
         last:bb==='ok'?((b&&b.last_submitted_at)||(e&&e.last)||''):''
@@ -425,11 +439,14 @@
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
 
     const ready=rows.filter(r=>r.approved!=null&&r.approved>=READY_AT).length;
+    const known=rows.filter(r=>r.approved!=null).length, missing=rows.length-known;
     const rs=$('ready-s');
     if(!rosterOk) Live.empty(rs,'Could not load your students');
     else if(!rows.length) Live.empty(rs,'Appears once students have approved samples');
-    else if(!countsKnown) Live.empty(rs,'Sample counts are not available here');
-    else rs.textContent=ready+' of '+plural(rows.length,'student')+(ready===1?' has ':' have ')+READY_AT+' or more approved samples';
+    else if(!known) Live.empty(rs,'Sample counts could not be loaded');
+    else rs.textContent=missing
+      ? ready+' of '+known+' students with a known count '+(ready===1?'has ':'have ')+READY_AT+' or more approved samples ('+missing+' not counted)'
+      : ready+' of '+plural(known,'student')+(ready===1?' has ':' have ')+READY_AT+' or more approved samples';
 
     if(!rosterOk){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Could not load your students'); }
     else {
@@ -451,8 +468,8 @@
     if(!rosterOk) pr.textContent='Your students could not be loaded just now. Try reloading the page.';
     else if(!rows.length) pr.textContent='No students yet. A student appears here once a writing sample of theirs is on file.';
     else {
-      let h=countsKnown
-        ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' '+READY_AT+' or more approved writing samples.'
+      let h=known
+        ? '<span class="fG">'+ready+' of '+plural(known,'student')+'</span> '+(ready===1?'has':'have')+' '+READY_AT+' or more approved writing samples.'+(missing?' Counts could not be read for '+missing+'.':'')
         : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
       if(bb==='ok') h+=pending>0
         ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Bluebook.'
