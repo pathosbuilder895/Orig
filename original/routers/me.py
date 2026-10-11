@@ -20,7 +20,7 @@ from ..schemas import (
     VoiceView,
 )
 from ._shared import _TRUSTED_PROVENANCE, _repo, _require_student_session
-from .students_scoring import score_submission
+from .students_scoring import _throttle_score, score_submission
 
 router = APIRouter()
 
@@ -102,6 +102,10 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     session = _require_student_session(request)
     sid = str(session["sid"])
     name = str(session.get("name", "") or "")
+    # Same scoring budget as /students/{id}/score (T-19). Checked here, outside
+    # the try below, because that block reports every HTTPException as "no
+    # writing on file", which would hide a 429.
+    _throttle_score(request)
 
     try:
         layer7 = score_submission(
