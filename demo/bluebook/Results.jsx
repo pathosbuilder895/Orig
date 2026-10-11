@@ -191,7 +191,7 @@ function ExpandedRow({ result, onClose }) {
         <div>
           <span className="bb-label">Session details</span>
           {result.status === 'FLAGGED' && (
-            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with this student's approved writing.</p>
+            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with the writing in this student's baseline.</p>
           )}
           <div className="bb-facts">
             {[
@@ -266,7 +266,7 @@ function ScoredResultsScreen({ onNavigate }) {
       </div>
 
       {counts.flagged > 0 && (
-        <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Worth a look: marked by Original's comparison with this student's approved writing.</p>
+        <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Worth a look: marked by Original's comparison with the writing in each student's baseline.</p>
       )}
 
       <div className="bb-filter" role="group" aria-label="Show submissions">

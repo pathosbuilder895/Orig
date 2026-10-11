@@ -56,10 +56,10 @@
 .bk-cover-note.state{max-width:46ch;font:1.02rem/1.5 var(--body);letter-spacing:0;text-transform:none;font-style:italic}
 .bk-leave{
   position:absolute;top:1.4rem;left:1.6rem;z-index:6;display:inline-flex;align-items:center;gap:.45rem;
-  padding:.4rem .9rem;border-radius:999px;border:1px solid rgba(233,238,251,.35);background:rgba(255,255,255,.08);
-  color:rgba(233,238,251,.92);font-size:.9rem;transition:all .15s;
+  padding:.4rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.5);background:transparent;
+  color:#fff;font-size:.9rem;transition:all .15s;
 }
-.bk-leave:hover{color:#fff;border-color:rgba(233,238,251,.7);background:rgba(255,255,255,.14)}
+.bk-leave:hover{color:#fff;border-color:#fff;background:rgba(34,60,116,.55)}
 .bk-leave svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
 /* The cover swings open when the booklet is entered. */
 .bk-cover-open{pointer-events:none;animation:bkOpen .9s cubic-bezier(.6,.05,.3,1) both;z-index:5}
