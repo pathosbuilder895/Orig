@@ -7182,7 +7182,7 @@
     },
     "/me/work": {
       "post": {
-        "description": "Compare a piece of writing with the writing on file in the signed-in\nstudent's profile (their baseline).\n\nScores the text server-side against that baseline, then returns ONLY the\nredacted result (headline + supportive summary + steady-dimension\naffirmations + whether a review opportunity opened). This route never adds\nthe piece to the student's baseline, so the student's sample count is the\nsame before and after, and the piece itself is not stored. The raw Layer-7\npayload never leaves the server.",
+        "description": "Compare a piece of writing with the writing on file in the signed-in\nstudent's profile (their baseline).\n\nScores the text server-side against that baseline, then returns ONLY the\nredacted result (headline + supportive summary + steady-dimension\naffirmations + whether a review opportunity opened). This route never adds\nthe piece to the student's baseline, so the student's sample count is the\nsame before and after, and the piece itself is not stored. The raw Layer-7\npayload never leaves the server. When the writing on file is too thin to\nrate ready (fewer than five counted samples, or less than three effective),\nthe answer is \"not enough writing on file to compare yet\", with no reading\nof the piece (``voice.project_inconclusive_result``).",
         "operationId": "my_work_me_work_post",
         "requestBody": {
           "content": {
