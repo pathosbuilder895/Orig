@@ -354,6 +354,31 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible()
   })
 
+  // ── 8a ───────────────────────────────────────────────────────────────
+  test('grading a sealed exam counts it as reviewed, by graded_at and not by a stored status', async ({
+    staffPage, workerTenant, request,
+  }) => {
+    // The server only ever stores SUBMITTED or FLAGGED; "reviewed" is a teacher
+    // having graded the exam (graded_at), the rule the Original suite uses too.
+    const { candidateName } = names(workerTenant)
+    await openScreen(staffPage, 'Results')
+    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
+
+    const graded = await request.patch(`/bluebook/submissions/${encodeURIComponent(journey.submission.id)}/feedback`, {
+      headers: staffAuth(workerTenant),
+      data: { mark: 'B+', feedback: 'E2E reviewed' },
+    })
+    expect(graded.ok()).toBe(true)
+
+    await openScreen(staffPage, 'Results')
+    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: 'Reviewed', exact: true }).click()
+    await expect(staffPage.getByText(candidateName)).toBeVisible()
+    await staffPage.getByRole('button', { name: 'Submitted', exact: true }).click()
+    // Graded, so no longer "Submitted" (waiting for review), whatever Original marked.
+    await expect(staffPage.getByText(candidateName)).toHaveCount(0)
+  })
+
   // ── 9 ────────────────────────────────────────────────────────────────
   test('the student appears on the Students screen with their sealed submission', async ({
     staffPage, workerTenant,

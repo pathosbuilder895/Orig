@@ -313,7 +313,7 @@
           </div>
         </div>
         <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the counted papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict.</div>
-        <div class="pur-note"><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</div>
+        <div class="pur-note"><b>Testing caveat (T-01):</b> Small baselines can produce false alarms, and Original is not yet validated on real student writing.</div>
       </details>
     </aside>
 
@@ -665,7 +665,7 @@
     if(v==='ready'){
       paras.push(name+'’s baseline is <b>ready to compare against</b>: '+split+(eff!==null?', which come to about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recently it was added':'')+'.');
     } else if(v==='developing'){
-      paras.push(name+'’s baseline is <b>still building</b>: '+split+' so far. Results from it are less reliable, and false alarms are likely: baselines of 3 to 5 samples produce false alarms. '+esc(RULE));
+      paras.push(name+'’s baseline is <b>still building</b>: '+split+' so far. Results from it are less reliable. Small baselines can produce false alarms, and Original is not yet validated on real student writing. '+esc(RULE));
     } else if(v==='insufficient'){
       paras.push(name+' does not have <b>enough counted samples yet</b>: '+split+'. '+esc(RULE));
     } else {

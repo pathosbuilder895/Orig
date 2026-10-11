@@ -214,7 +214,7 @@
       </div>
       <div class="stat-row">
         <div class="card stat">
-          <div class="card-s" id="stat1-l" style="color:var(--dim);">Students monitored</div>
+          <div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>
           <div class="led-num" id="stat1-n">-</div>
           <div class="u" id="stat1-u">Loading</div>
         </div>
@@ -391,7 +391,7 @@
     $('back-term').classList.remove('show');
     $('sum-term').style.display='flex';
     $('sum-stu').style.display='none';
-    $('stat1-l').textContent='Students monitored';
+    $('stat1-l').textContent='Enrolled';
     $('stat2-l').textContent='Sealed exams to review';
     $('trend-t').textContent='Sealed exams per week';
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
@@ -452,7 +452,7 @@
   function renderTable(){
     $('ops-count').textContent=rows.length?'/ '+rows.length+' on your roster':'';
     if(!rosterOk){ Live.empty($('ops-wrap'),'Your students could not be loaded just now. Try reloading the page.'); return; }
-    if(!rows.length){ Live.empty($('ops-wrap'),'Nothing to list yet. Flags will appear here once Original keeps analysis results.'); return; }
+    if(!rows.length){ Live.empty($('ops-wrap'),'No students on your roster yet.'); return; }
     $('ops-body').innerHTML=rows.map(r=>{
       const last=r.last?fmtDate(r.last):'';
       return '<tr class="flag-row" data-id="'+esc(r.id)+'" title="'+esc('Show '+r.name+'’s summary')+'">'+

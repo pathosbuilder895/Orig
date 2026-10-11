@@ -37,6 +37,12 @@ NOTICE = (
     "Treat any result as a reason for a conversation, never as evidence."
 )
 
+# The T-01 caveat, in the words every page uses. It states the measured failure (small
+# baselines false-alarm) and that Original is not validated on real writing, and points
+# at no internal document. It is not the testing label (NOTICE), which lives only in
+# live.js; it repeats one clause of it, so the uniqueness check below lets this sentence by.
+T01_CAVEAT = "Small baselines can produce false alarms, and Original is not yet validated on real student writing."
+
 # Filenames from the plan's page map that later tasks still have to build. The
 # nav of an earlier page links to them at their final name, so a link to one of
 # these is allowed while the file is missing. test_planned_pages_are_still_missing
@@ -201,7 +207,7 @@ def test_testing_label_lives_once_in_live_js(live_js):
     ids=lambda p: p.relative_to(SUITE).as_posix(),
 )
 def test_testing_label_is_written_nowhere_but_live_js(path):
-    text = _squash(path.read_text(encoding="utf-8"))
+    text = _squash(path.read_text(encoding="utf-8")).replace(_squash(T01_CAVEAT), "")
     assert _squash(NOTICE) not in text
     assert "not yet validated on real student writing" not in text
 
@@ -2353,6 +2359,29 @@ def test_worth_a_look_means_one_thing_in_the_suite():
     assert "Worth a look before approving" not in page
     used = {p.name for p in _code_files() if re.search(r"worth a look", p.read_text(encoding="utf-8"), re.IGNORECASE)}
     assert used == {"submissions.html"}
+
+
+def test_the_t01_caveat_is_the_same_sentence_on_both_pages_that_carry_it():
+    writing_state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    baseline = _baseline_page()
+    assert f"<b>Testing caveat (T-01):</b> {T01_CAVEAT}" in writing_state
+    assert f"<b>Testing caveat (T-01):</b> {T01_CAVEAT}" in baseline
+    # ...and the "building" paragraph of Voice Baseline's short version says it the same way.
+    assert f"Results from it are less reliable. {T01_CAVEAT} " in baseline
+    for path in _code_files():
+        text = path.read_text(encoding="utf-8")
+        assert "docs/testing" not in text, f"{path.name} points a teacher at an internal document"
+        assert "baselines of 3-5 samples" not in text and "baselines of 3 to 5 samples" not in text, path.name
+
+
+def test_your_classes_says_enrolled_like_students_and_its_empty_table_mentions_no_flags():
+    index = (SUITE / "index.html").read_text(encoding="utf-8")
+    assert '<div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>' in index
+    assert "$('stat1-l').textContent='Enrolled';" in index
+    assert "Live.empty($('ops-wrap'),'No students on your roster yet.')" in index
+    assert "Flags will appear" not in index
+    for path in _code_files():
+        assert "Students monitored" not in path.read_text(encoding="utf-8"), path.name
 
 
 def test_baseline_page_carries_no_testing_label_because_it_shows_no_score():

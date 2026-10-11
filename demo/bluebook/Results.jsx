@@ -14,8 +14,8 @@ const { useState: useResState } = React;
 const MOCK_RESULTS = [
   { id:'r1', student:'James Thornton',   candidateId:'00042', exam:'Ethics in the Modern World',           course:'PHIL 301A', words:847,  timeMin:72,  stylometric:94, aiScore:97, status:'SUBMITTED'  },
   { id:'r2', student:'Amelia Osei',      candidateId:'00043', exam:'Ethics in the Modern World',           course:'PHIL 301A', words:612,  timeMin:81,  stylometric:61, aiScore:43, status:'FLAGGED'    },
-  { id:'r3', student:'Oliver Mackenzie', candidateId:'00044', exam:'Foundations of Political Thought',     course:'POLS 204',  words:1034, timeMin:58,  stylometric:88, aiScore:91, status:'REVIEWED'   },
-  { id:'r4', student:'Priya Nair',       candidateId:'00045', exam:'Foundations of Political Thought',     course:'POLS 204',  words:923,  timeMin:55,  stylometric:91, aiScore:89, status:'REVIEWED'   },
+  { id:'r3', student:'Oliver Mackenzie', candidateId:'00044', exam:'Foundations of Political Thought',     course:'POLS 204',  words:1034, timeMin:58,  stylometric:88, aiScore:91, status:'SUBMITTED', graded_at:'2026-01-12T10:00:00Z' },
+  { id:'r4', student:'Priya Nair',       candidateId:'00045', exam:'Foundations of Political Thought',     course:'POLS 204',  words:923,  timeMin:55,  stylometric:91, aiScore:89, status:'SUBMITTED', graded_at:'2026-01-12T11:30:00Z' },
   { id:'r5', student:'Samuel Adeyemi',   candidateId:'00046', exam:'Constitutional Principles',            course:'LAW 101',   words:788,  timeMin:88,  stylometric:69, aiScore:41, status:'FLAGGED'    },
   { id:'r6', student:'Catherine Wolff',  candidateId:'00047', exam:'Metaphysics and Epistemology',         course:'PHIL 590',  words:1156, timeMin:114, stylometric:96, aiScore:98, status:'SUBMITTED'  },
   { id:'r7', student:'Hiroshi Tanaka',   candidateId:'00048', exam:'History of Economic Thought',          course:'ECON 203',  words:702,  timeMin:71,  stylometric:85, aiScore:82, status:'SUBMITTED'  },
@@ -25,9 +25,28 @@ const MOCK_RESULTS = [
 // The stored status words, said the way the Bluebook Sessions page says them.
 const STATUS_LABEL = { SUBMITTED: 'submitted', FLAGGED: 'worth a look', REVIEWED: 'reviewed' };
 const STATUS_TONE  = { SUBMITTED: 'ok', FLAGGED: 'warn', REVIEWED: 'ok' };
-function StatusPill({ status }) {
-  return <Badge tone={STATUS_TONE[status] || ''}>{STATUS_LABEL[status] || String(status || '').toLowerCase()}</Badge>;
+
+// "Reviewed" means the teacher has graded the exam (graded_at is set), the same
+// rule the Original suite uses for "awaiting review". The stored status never
+// becomes REVIEWED (the server only ever stores SUBMITTED or FLAGGED), so it is
+// not what the count, the filter or the pill reads. Stored values are unchanged.
+const isReviewed = r => !!r.graded_at;
+const stored = r => String(r.status || '').toUpperCase();
+// Original's mark stays visible on a graded exam; anything else graded reads "reviewed".
+const shownStatus = r => (stored(r) !== 'FLAGGED' && isReviewed(r) ? 'REVIEWED' : stored(r));
+
+function StatusPill({ result }) {
+  const status = shownStatus(result);
+  return <Badge tone={STATUS_TONE[status] || ''}>{STATUS_LABEL[status] || status.toLowerCase()}</Badge>;
 }
+
+// The rows each filter shows, and the counts above it, by one rule.
+const FILTERS = {
+  all:       () => true,
+  SUBMITTED: r => stored(r) === 'SUBMITTED' && !isReviewed(r),
+  FLAGGED:   r => stored(r) === 'FLAGGED',
+  REVIEWED:  isReviewed,
+};
 
 // The Examiner's Correction form asks whether Original's verdict on a sealed exam
 // was right. This screen no longer shows that verdict (Original's reading belongs in
@@ -100,14 +119,13 @@ function ScoredResultsScreen({ onNavigate }) {
   // Live submissions from Original, falling back to the demo set when empty.
   const results = (serverResults && serverResults.length) ? serverResults : (BB_API.isAuthed() ? [] : MOCK_RESULTS);
 
-  const filtered = statusFilter === 'all'
-    ? results
-    : results.filter(r => r.status === statusFilter);
+  const filtered = results.filter(FILTERS[statusFilter] || FILTERS.all);
 
   const counts = {
-    total:    results.length,
-    flagged:  results.filter(r => r.status === 'FLAGGED').length,
-    reviewed: results.filter(r => r.status === 'REVIEWED').length,
+    total:     results.length,
+    submitted: results.filter(FILTERS.SUBMITTED).length,
+    flagged:   results.filter(FILTERS.FLAGGED).length,
+    reviewed:  results.filter(FILTERS.REVIEWED).length,
   };
 
   if (loadError) return <div role="alert" className="bb-error">{loadError}</div>;
@@ -118,7 +136,7 @@ function ScoredResultsScreen({ onNavigate }) {
       meta={`${counts.total} submissions · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`}
     >
       <div className="bb-grid cols-3" style={{ marginBottom: '1.5rem' }}>
-        <Stat value={results.filter(r => r.status === 'SUBMITTED').length} label="Submitted" />
+        <Stat value={counts.submitted} label="Submitted" />
         <Stat value={counts.flagged} label="Worth a look" />
         <Stat value={counts.reviewed} label="Reviewed" />
       </div>
@@ -159,7 +177,7 @@ function ScoredResultsScreen({ onNavigate }) {
               </p>
               <span className="bb-rnum">{result.words.toLocaleString()}</span>
               <span className="bb-rnum">{result.timeMin}m</span>
-              <span><StatusPill status={result.status} /></span>
+              <span><StatusPill result={result} /></span>
             </div>
             {expanded === result.id && (
               <ExpandedRow result={result} onClose={() => setExpanded(null)} />

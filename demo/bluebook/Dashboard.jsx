@@ -1,11 +1,11 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, STOCK_CANDIDATE, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, BtnPrimary, GoldRule, Logotype, MetaLabel, STOCK_CANDIDATE, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 import { openManageExam } from './Teacher.jsx';
 import { TeacherFrame } from './TeacherWorkspace.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Dashboard Screens
-//  Instructor Overview · Examinations List
+//  Examinations List · the teacher frame
 // ════════════════════════════════════════════════════════════════
 
 const MOCK_EXAMS = [
@@ -144,144 +144,6 @@ function Sidebar({ activeScreen, onNavigate }) {
         </div>
       </div>
     </aside>
-  );
-}
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ label, value, note }) {
-  return (
-    <div style={{
-      background: BB.oxford,
-      border: '1px solid rgba(201,169,97,0.2)',
-      padding: '24px 28px 20px',
-      flex: 1,
-    }}>
-      <GoldRule style={{ marginBottom: 20 }} />
-      <p style={{
-        fontFamily: fontDisplay, fontSize: 52,
-        color: BB.cream, margin: '0 0 6px',
-        fontWeight: 400, lineHeight: 1,
-        letterSpacing: '-0.01em',
-      }}>{value}</p>
-      <MetaLabel>{label}</MetaLabel>
-      {note && <p style={{
-        fontFamily: fontMono, fontSize: 10,
-        color: BB.gold, letterSpacing: '0.12em',
-        marginTop: 6, textTransform: 'uppercase',
-      }}>{note}</p>}
-    </div>
-  );
-}
-
-// ─── Dashboard Overview ───────────────────────────────────────────────────────
-export function DashboardScreen({ onNavigate }) {
-  const [serverExams, setServerExams] = React.useState(null);
-  const [subs, setSubs] = React.useState([]);
-  const [loadError, setLoadError] = React.useState('');
-  React.useEffect(() => {
-    let live = true;
-    BB_API.listExams().then(l => { if (live) setServerExams(l || []); }).catch(err => { if (live) setLoadError(err.message); });
-    BB_API.listSubmissions().then(l => { if (live) setSubs(l || []); }).catch(err => { if (live) setLoadError(err.message); });
-    return () => { live = false; };
-  }, []);
-  const exams = (serverExams && serverExams.length) ? serverExams : (BB_API.isAuthed() ? [] : MOCK_EXAMS);
-  const id = BB_API.identity();
-  const greetName = id.authed ? (id.name || 'Instructor') : 'Dr. Chen';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const up = s => (s || '').toUpperCase();
-  const nActive    = exams.filter(e => up(e.status) === 'ACTIVE').length;
-  const nCompleted = exams.filter(e => up(e.status) === 'COMPLETED').length;
-  const nFlagged   = subs.filter(s => up(s.status) === 'FLAGGED').length;
-
-  if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
-  return (
-    <div style={{
-      flex: 1, overflowY: 'auto',
-      padding: '44px 48px',
-      background: BB.deep,
-    }}>
-      {/* Header */}
-      <div style={{ marginBottom: 10 }}>
-        <h1 style={{
-          fontFamily: fontDisplay, fontSize: 34,
-          color: BB.cream, fontWeight: 400,
-          letterSpacing: '0.01em', margin: '0 0 6px',
-        }}>{greeting}, {greetName}.</h1>
-        <MetaLabel>{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</MetaLabel>
-      </div>
-      <GoldRule double style={{ margin: '20px 0 36px' }} />
-
-      {/* Stat cards */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 44 }}>
-        <StatCard label="Examinations"  value={exams.length} />
-        <StatCard label="Active"        value={nActive}    note={nActive ? 'live now' : undefined} />
-        <StatCard label="Completed"     value={nCompleted} />
-        <StatCard label="Flagged"       value={nFlagged}   note={nFlagged ? 'review required' : undefined} />
-      </div>
-
-      <Ornament py={0} />
-
-      {/* Recent exams */}
-      <div style={{ marginTop: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-          <h2 style={{
-            fontFamily: fontDisplay, fontSize: 22,
-            color: BB.cream, fontWeight: 500,
-            letterSpacing: '0.02em', margin: 0,
-          }}>Recent Examinations</h2>
-          <button onClick={() => onNavigate('exams')} style={{
-            fontFamily: fontMono, fontSize: 10,
-            letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: BB.gold, background: 'none', border: 'none',
-            cursor: 'pointer',
-          }}>View All →</button>
-        </div>
-
-        <div style={{ border: '1px solid rgba(201,169,97,0.2)' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 100px 110px 80px 80px',
-            padding: '10px 20px',
-            borderBottom: '1px solid rgba(201,169,97,0.35)',
-          }}>
-            {['Examination', 'Course', 'Status', 'Duration', 'Submitted'].map(h => (
-              <MetaLabel key={h}>{h}</MetaLabel>
-            ))}
-          </div>
-          {exams.slice(0, 4).map((exam, i) => (
-            <div key={exam.id}>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 100px 110px 80px 80px',
-                padding: '14px 20px',
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-              }}
-                role="button" tabIndex={0} aria-label={exam.title}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,97,0.04)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                onClick={() => manageOrPreview(exam, onNavigate)}
-                onKeyDown={rowKeyDown(() => manageOrPreview(exam, onNavigate))}
-              >
-                <div>
-                  <p style={{
-                    fontFamily: fontBody, fontSize: 16,
-                    color: BB.cream, margin: 0, letterSpacing: '0.01em',
-                  }}>{exam.title}</p>
-                </div>
-                <MetaLabel>{exam.course}</MetaLabel>
-                <div><StatusBadge status={exam.status} pulse /></div>
-                <MetaLabel>{exam.duration}m</MetaLabel>
-                <MetaLabel>{exam.submissions || '—'}</MetaLabel>
-              </div>
-              {i < 3 && <GoldRule faint />}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 
