@@ -97,8 +97,9 @@ is deterministic, not that it is unchanged. Add a committed snapshot
 `tests/snapshots/openapi.json` and a test that diffs `app.openapi()` against it
 with `sort_keys=True`. A change is allowed but must be *deliberate*: the test
 message says "run `scripts/update_openapi_snapshot.py` and review the diff".
-Pair it with the TypeScript client generator already in `app/package.json`
-(`gen:client`) so the frontend's types cannot drift from the backend silently.
+This also proposed pairing it with the TypeScript client generator in
+`app/package.json` (`gen:client`); that generator went with `app/` in #243, and
+Bluebook has no generated client.
 **Implemented** (T-34): `tests/snapshots/openapi.json`, `tests/test_openapi_snapshot.py`,
 `scripts/update_openapi_snapshot.py`, and `make openapi-snapshot` now exist as
 described above.

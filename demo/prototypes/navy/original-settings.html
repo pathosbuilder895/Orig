@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Settings</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.62);--dim-2:rgba(245,239,224,0.42);
+    --flag:#e0725a;--ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav.top{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;white-space:nowrap;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;}
+  .head{padding:.6rem 0 1.3rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .head .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2rem;margin-top:.4rem;}
+  .head .s{font-size:.98rem;color:var(--dim);font-style:italic;margin-top:.3rem;max-width:58ch;}
+  .cols{display:grid;grid-template-columns:1.2fr 1fr;gap:1.5rem;align-items:start;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.4rem 1.5rem;}
+  .card-t{font-family:var(--display);font-weight:500;font-size:1.2rem;}
+  .card-s{font-size:.88rem;color:var(--dim);font-style:italic;margin-top:.2rem;}
+  .sens{display:flex;flex-direction:column;gap:.55rem;margin-top:1rem;}
+  .sens-opt{display:flex;align-items:flex-start;gap:.75rem;padding:.85rem 1rem;border-radius:12px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.02);cursor:pointer;transition:all .15s;text-align:left;font-family:var(--body);color:var(--cream);}
+  .sens-opt:hover{border-color:var(--line);background:rgba(255,255,255,0.04);}
+  .sens-opt.on{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);}
+  .sens-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--dim-2);flex-shrink:0;margin-top:.15rem;position:relative;transition:all .15s;}
+  .sens-opt.on .sens-dot{border-color:var(--gold);}
+  .sens-opt.on .sens-dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gold);}
+  .sens-txt b{display:block;font-weight:500;font-size:1rem;}
+  .sens-txt span{display:block;font-size:.84rem;color:var(--dim);font-style:italic;margin-top:.12rem;line-height:1.45;}
+  .sens-foot{font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--line-soft);}
+  .sens-foot b{color:var(--cream);font-weight:500;font-style:normal;}
+  .row{display:flex;align-items:center;gap:.9rem;padding:.85rem 0;border-top:1px solid rgba(255,255,255,0.05);}
+  .row:first-of-type{border-top:none;}
+  .row .t{font-size:1rem;}
+  .row .m{font-size:.8rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
+  .row .st{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;font-size:.82rem;padding:.24rem .7rem;border-radius:999px;white-space:nowrap;}
+  .row .st .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .st.ok{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
+  .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
+  .mini-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav.top{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
+    .cols{grid-template-columns:1fr;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav class="top">
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="original-dashboard.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="original-students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="original-review.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="original-bluebook-teacher.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="original-reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+      <a class="pill on" href="original-settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+    </div>
+    <div class="nav-right"><div class="avatar">RH</div></div>
+  </nav>
+  <div class="body">
+    <div class="head">
+      <div class="eyebrow">Settings</div>
+      <h1>How Original works for you.</h1>
+      <div class="s">Everything here changes only what you see, never how a student is measured, and never a student's record.</div>
+    </div>
+    <div class="cols">
+      <div class="card">
+        <div class="card-t">Flag Sensitivity</div>
+        <div class="card-s">How much should Original bring to your attention?</div>
+        <div class="sens" id="sens">
+          <button class="sens-opt" data-lvl="0" data-flags="3"><span class="sens-dot"></span><span class="sens-txt"><b>Only the clearest cases</b><span>Just papers that read very differently from the student</span></span></button>
+          <button class="sens-opt on" data-lvl="1" data-flags="7"><span class="sens-dot"></span><span class="sens-txt"><b>Balanced</b><span>The recommended middle ground for most courses</span></span></button>
+          <button class="sens-opt" data-lvl="2" data-flags="14"><span class="sens-dot"></span><span class="sens-txt"><b>Anything unusual</b><span>Surface every small departure, with more to review</span></span></button>
+        </div>
+        <div class="sens-foot"><b>Balanced</b> is the default. Changing this only affects what surfaces for you. It never changes a student's score, and a quieter setting never deletes evidence: everything stays available in each student's Writing State.</div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="mini-t">Your courses</div>
+          <div class="row"><div><div class="t">THEO 301: Systematic Theology</div><div class="m">34 students · monitoring on</div></div><span class="st ok"><span class="d"></span>Active</span></div>
+          <div class="row"><div><div class="t">HIST 210: Church History</div><div class="m">41 students · monitoring on</div></div><span class="st ok"><span class="d"></span>Active</span></div>
+          <div class="row"><div><div class="t">PHIL 140: Introduction to Philosophy</div><div class="m">28 students · monitoring on</div></div><span class="st ok"><span class="d"></span>Active</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const sens=document.getElementById('sens');
+  const KEY='original_flag_sensitivity';
+  try{const saved=localStorage.getItem(KEY);
+    if(saved!=null){sens.querySelectorAll('.sens-opt').forEach(o=>o.classList.toggle('on',o.dataset.lvl===saved));}}catch(e){}
+  sens.querySelectorAll('.sens-opt').forEach(o=>o.addEventListener('click',()=>{
+    sens.querySelectorAll('.sens-opt').forEach(x=>x.classList.remove('on'));
+    o.classList.add('on');
+    try{localStorage.setItem(KEY,o.dataset.lvl);}catch(e){}
+  }));
+</script>
+</body>
+</html>

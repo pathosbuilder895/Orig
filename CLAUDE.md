@@ -35,18 +35,32 @@ A `changed-tests` pre-push hook (`.pre-commit-config.yaml` →
 (naming convention + import scan; heuristics pinned by
 `tests/test_changed_tests_mapping.py`) and runs them, auto-detecting the local
 Postgres container so postgres-marked tests execute rather than skip.
+Each hook run gets its **own throwaway database** (`original_test_tmp_<pid>_<hex>`,
+created through the container's `postgres` maintenance database and dropped
+`WITH (FORCE)` when the run ends, also on Ctrl-C or SIGTERM). Parallel
+worktrees share that one container, and `tests/test_migration.py`'s `fresh_pg`
+runs `drop_all`, so a shared database let one session's push wipe another's
+tables mid-run (2026-10-11: `UndefinedTable: relation "tenants" does not
+exist`). If the database can't be created the hook prints a warning and falls
+back to the shared `original_test`; a `DATABASE_URL` you set yourself is
+always used as-is.
 `SKIP=changed-tests git push` bypasses it in an emergency.
 Without a reachable `DATABASE_URL`, most of that count reopens as skips: the
-`postgres`-marked tests (270 collected under `-m postgres`, up from 166 as the
-branch-coverage effort added new ones) self-skip when no Postgres instance is
-reachable. **Do not leave them skipped: run them locally.** `make test-postgres`
-(or `bash scripts/local_postgres.sh up` + `DATABASE_URL=$(bash scripts/local_postgres.sh url)`)
-starts a Docker Postgres 16 container identical to CI's service container and
-runs the marker suite — measured 270 passed in ~10s on 2026-08-20. CI also runs
-them (Postgres 16 service container in `.github/workflows/test.yml`), but if you
-touch the repository/persistence layer, run them locally before pushing — a
-plain local `pytest` green does not cover that layer. To include them in a full
-run, export `DATABASE_URL` the same way before `make test`.
+`postgres`-marked tests (304 on 2026-10-11) self-skip when no Postgres
+instance is reachable. **Do not leave them skipped: run them locally.**
+`make test-postgres` starts a Docker Postgres 16 container identical to CI's
+service container and runs the marker suite in a throwaway database of its
+own (304 passed in ~30s on 2026-10-11). Give anything else the same isolation
+by wrapping it: `bash scripts/local_postgres.sh run -- <command>`, e.g.
+`bash scripts/local_postgres.sh run -- make test` to include them in a full
+run. `bash scripts/local_postgres.sh url` still prints the **shared**
+`original_test` URL, which any parallel run can wipe; use it only when nothing
+else is running. A run killed with SIGKILL leaves its database behind: an
+`original_test_tmp_<pid>_<hex>` database whose `<pid>` has exited is safe to drop.
+CI also runs them (Postgres 16 service container in
+`.github/workflows/test.yml`), but if you touch the repository/persistence
+layer, run them locally before pushing: a plain local `pytest` green does not
+cover that layer.
 (Historical note: counts before 2026-06 were inflated ~2× by macOS
 Finder-duplicate test files, since removed.)
 
