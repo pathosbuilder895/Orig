@@ -16,6 +16,9 @@
    Live.gate(el, o)  sign-in / "Original is off" panel, or the session; with
                      {audience:'student'} the same for the student pages
    Live.roster()     the teacher's students with the server's baseline verdicts
+   Live.VERDICT_WORDS  the server's baseline verdict in the one set of words every page
+                     uses: ready Ready, developing Building, insufficient Needs more
+   Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
    Live.signOut()    forget the session and the kept papers, go to the sign-in page */
 (function (window, document) {
@@ -412,6 +415,17 @@
 
   var VERDICTS = ['ready', 'developing', 'insufficient'];
 
+  // The server's baseline verdict (GET /students/{id}/readiness) in the one set of
+  // words the whole suite shows. A page never keeps a map of its own and never prints
+  // the raw verdict. A missing or unrecognised verdict is "Not available".
+  var VERDICT_WORDS = Object.freeze({ ready: 'Ready', developing: 'Building', insufficient: 'Needs more' });
+  var VERDICT_UNKNOWN = 'Not available';
+
+  function verdictWord(v) {
+    return (typeof v === 'string' && Object.prototype.hasOwnProperty.call(VERDICT_WORDS, v))
+      ? VERDICT_WORDS[v] : VERDICT_UNKNOWN;
+  }
+
   function count(v) {
     return (typeof v === 'number' && isFinite(v)) ? v : null;
   }
@@ -565,6 +579,8 @@
     empty: empty,
     gate: gate,
     roster: roster,
+    VERDICT_WORDS: VERDICT_WORDS,
+    verdictWord: verdictWord,
     sealed: sealed,
     signOut: signOut
   };

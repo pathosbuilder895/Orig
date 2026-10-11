@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Reports</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -221,7 +221,7 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.3"></script>
+<script src="live.js?v=2026-10-10.4"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -478,8 +478,8 @@
     if(!res.ok){ Live.empty(el,'Could not load your students'); note.textContent=lead.trim(); return; }
     if(!n){ Live.empty(el,'Appears once students have counted samples'); note.textContent=lead.trim(); return; }
     // Counts are the server's own baseline verdicts, as Live.roster returns them.
-    el.innerHTML=miniRow('Ready',ready,n,'var(--ok)')+miniRow('Building',building,n,'var(--watch)')+miniRow('None yet',none,n,'var(--slate)')+
-      (unknown?miniRow('Not available',unknown,n,'rgba(245,239,224,0.28)'):'');
+    el.innerHTML=miniRow(Live.verdictWord('ready'),ready,n,'var(--ok)')+miniRow(Live.verdictWord('developing'),building,n,'var(--watch)')+miniRow(Live.verdictWord('insufficient'),none,n,'var(--slate)')+
+      (unknown?miniRow(Live.verdictWord(null),unknown,n,'rgba(245,239,224,0.28)'):'');
     note.innerHTML=esc(lead)+(n>unknown
       ? '<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'is':'are')+' ready'+(ready<n-unknown?'; the rest still need more counted samples.':'.')
       : '');

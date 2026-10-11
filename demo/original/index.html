@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your classes</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -255,8 +255,8 @@
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.3"></script>
-<script src="js/fingerprint.js?v=2026-10-10.3"></script>
+<script src="live.js?v=2026-10-10.4"></script>
+<script src="js/fingerprint.js?v=2026-10-10.4"></script>
 <script>
   (function(){
     function init(){
@@ -445,7 +445,7 @@
     if(r.counted==null) return '<span style="color:var(--dim);">-</span>';
     // The dot is the server's readiness verdict; the tooltip names it.
     const col=r.verdict==='ready'?'var(--ok)':r.verdict==='developing'?'var(--gold)':r.verdict==='insufficient'?'var(--dim-2)':'var(--dim)';
-    const tip=r.verdict?'Baseline: '+r.verdict:'Baseline readiness not available';
+    const tip='Baseline: '+Live.verdictWord(r.verdict);
     return '<span class="st" title="'+esc(tip)+'"><span class="d" style="background:'+col+'"></span>'+r.counted+'</span>';
   }
 
@@ -471,7 +471,7 @@
   function summary(r){
     if(r.counted==null) return 'Sample counts are not available for this student here.';
     let h='<b>'+plural(r.counted,'counted sample')+'</b> in their baseline'+(r.total>r.counted?', out of '+r.total+' samples in all':'')+'.';
-    if(r.verdict) h+=' Baseline: '+r.verdict+'.';
+    h+=' Baseline: '+Live.verdictWord(r.verdict)+'.';
     if(bb==='ok') h+=r.last?' Last sealed exam: '+esc(fmtDate(r.last))+'.':' No sealed exam yet.';
     return h;
   }

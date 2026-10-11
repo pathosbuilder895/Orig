@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Students</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -151,16 +151,16 @@
     </div>
     <div class="strip">
       <div class="s"><div class="l">Enrolled</div><div class="v" id="v-all">-</div></div>
-      <div class="s"><div class="l">Baseline ready</div><div class="v green" id="v-ready">-</div></div>
-      <div class="s"><div class="l">Building baseline</div><div class="v amber" id="v-building">-</div></div>
-      <div class="s"><div class="l">No baseline yet</div><div class="v red" id="v-none">-</div></div>
+      <div class="s"><div class="l" data-verdict="ready">Baseline: Ready</div><div class="v green" id="v-ready">-</div></div>
+      <div class="s"><div class="l" data-verdict="developing">Baseline: Building</div><div class="v amber" id="v-building">-</div></div>
+      <div class="s"><div class="l" data-verdict="insufficient">Baseline: Needs more</div><div class="v red" id="v-none">-</div></div>
       <div class="s"><div class="l">Sealed exams to review</div><div class="v" id="v-review">-</div></div>
     </div>
     <div class="filters" role="group" aria-label="Filter students by baseline">
       <button type="button" class="chip on" data-f="all" aria-pressed="true">All</button>
       <button type="button" class="chip green" data-f="ready" aria-pressed="false">Ready</button>
       <button type="button" class="chip" data-f="developing" aria-pressed="false">Building</button>
-      <button type="button" class="chip red" data-f="insufficient" aria-pressed="false">No baseline yet</button>
+      <button type="button" class="chip red" data-f="insufficient" aria-pressed="false">Needs more</button>
       <div class="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="q" type="text" placeholder="Find a student" aria-label="Find a student by name, id or email" autocomplete="off" /></div>
     </div>
     <div class="roster">
@@ -173,7 +173,7 @@
     <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.3"></script>
+<script src="live.js?v=2026-10-10.4"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -210,12 +210,16 @@
   }
 
   // The pill is the server's own baseline verdict (see Live.roster), never a rule of this page.
+  // Its words come from the one map every page shares (Live.VERDICT_WORDS).
   const PILL={
-    ready:{cls:'strong',label:'Ready'},
-    developing:{cls:'building',label:'Building'},
-    insufficient:{cls:'none',label:'None yet'}
+    ready:{cls:'strong',label:Live.verdictWord('ready')},
+    developing:{cls:'building',label:Live.verdictWord('developing')},
+    insufficient:{cls:'none',label:Live.verdictWord('insufficient')}
   };
-  const UNKNOWN={cls:'unk',label:'Not available'};
+  const UNKNOWN={cls:'unk',label:Live.verdictWord(null)};
+  // The strip and the filter chips say the same words (the markup holds them for first paint).
+  document.querySelectorAll('[data-verdict]').forEach(el=>{ el.textContent='Baseline: '+Live.verdictWord(el.dataset.verdict); });
+  document.querySelectorAll('.chip[data-f]').forEach(el=>{ if(el.dataset.f!=='all') el.textContent=Live.verdictWord(el.dataset.f); });
   const rank=v=>v==='insufficient'?0:v==='developing'?1:v==='ready'?2:3;
 
   // Needs a baseline first, then building, then ready, then the unknowns; by name within each.

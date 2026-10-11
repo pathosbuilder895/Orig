@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -428,9 +428,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-10-10.3"></script>
-<script src="js/feature-data.js?v=2026-10-10.3"></script>
-<script src="live.js?v=2026-10-10.3"></script>
+<script src="js/fingerprint.js?v=2026-10-10.4"></script>
+<script src="js/feature-data.js?v=2026-10-10.4"></script>
+<script src="live.js?v=2026-10-10.4"></script>
 <script>
 (function(){
   'use strict';
@@ -516,10 +516,11 @@
   // The server's readiness rule, in full (original/routers/students.py).
   const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 2 counted samples.';
 
+  // The words are the suite's one map (Live.VERDICT_WORDS); this only adds a colour and a sentence.
   const VERDICT={
-    ready:{word:'Ready',cls:'ok',sub:'enough counted samples to compare against'},
-    developing:{word:'Building',cls:'warn',sub:'results are less reliable; false alarms are likely'},
-    insufficient:{word:'Needs more',cls:'bad',sub:'too few counted samples to rely on'}
+    ready:{cls:'ok',sub:'enough counted samples to compare against'},
+    developing:{cls:'warn',sub:'results are less reliable; false alarms are likely'},
+    insufficient:{cls:'bad',sub:'too few counted samples to rely on'}
   };
   const verdictOf=()=>{
     const v=S.ready&&S.ready.verdict;
@@ -574,7 +575,7 @@
     $('s-eff').textContent=eff===null?'-':eff.toFixed(1);
     const v=verdictOf(), vv=$('s-verdict');
     vv.className='val txt'+(v?' '+VERDICT[v].cls:'');
-    vv.textContent=v?VERDICT[v].word:'-';
+    vv.textContent=Live.verdictWord(v);
     $('s-verdict-sub').textContent=v?VERDICT[v].sub:'from the readiness check';
   }
 

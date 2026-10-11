@@ -51,6 +51,10 @@ Live.gate(el, opts)      // Promise<session|null>: renders the sign-in panel (li
                          // launch-link student with an id but no session token) gets the sign-in panel with a
                          // link to /bluebook/
 Live.signOut()           // removes TOKEN_KEYS, then location.replace('/index.html')
+Live.VERDICT_WORDS       // the server's baseline verdict in the one set of words every page shows (frozen):
+                         // ready -> 'Ready', developing -> 'Building', insufficient -> 'Needs more'
+Live.verdictWord(v)      // that word, or 'Not available' for null or any other value. A page never keeps a
+                         // map of its own and never prints the raw verdict
 ```
 
 Pages wire the account menu's Sign out to `Live.signOut()`, and use only `Live.api` for data.

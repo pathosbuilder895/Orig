@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -277,8 +277,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.3"></script>
-<script src="js/feature-data.js?v=2026-10-10.3"></script>
+<script src="live.js?v=2026-10-10.4"></script>
+<script src="js/feature-data.js?v=2026-10-10.4"></script>
 <script>
 (function(){
   'use strict';
@@ -305,7 +305,6 @@
   // baseline.html's approvedN(). The server's authenticated_count ("counted")
   // also includes a student's own upload, so it is never called approved.
   const APPROVED=['proctored','verified','canvas'];
-  const VERDICT_WORDS={developing:'still building',insufficient:'too thin to rely on yet'};
 
   // ── account menu ──
   (function(){
@@ -469,8 +468,9 @@
     if(onFile!=null&&nUsed!=null&&onFile!==nUsed){
       t+='This analysis compared the paper with '+plural(nUsed,'counted sample')+'; '+onFile+' '+(onFile===1?'is':'are')+' on file now. ';
     }
-    if(has(VERDICT_WORDS,verdict)){
-      t+='Original rates this baseline as '+VERDICT_WORDS[verdict]+'. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre, so treat this reading as inconclusive.';
+    if(verdict==='developing'||verdict==='insufficient'){
+      // The verdict is named in the suite's one set of words (Live.VERDICT_WORDS).
+      t+='Original rates this baseline \u201c'+Live.verdictWord(verdict)+'\u201d. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre, so treat this reading as inconclusive.';
     } else if(verdict==null){
       t+='Original could not read this baseline’s readiness, so treat this reading as inconclusive.';
     } else {

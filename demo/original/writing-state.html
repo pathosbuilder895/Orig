@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.4" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -483,9 +483,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-10.3"></script>
-<script src="js/feature-data.js?v=2026-10-10.3"></script>
-<script src="js/fingerprint.js?v=2026-10-10.3"></script>
+<script src="live.js?v=2026-10-10.4"></script>
+<script src="js/feature-data.js?v=2026-10-10.4"></script>
+<script src="js/fingerprint.js?v=2026-10-10.4"></script>
 <script>
 (function(){
   'use strict';
@@ -520,7 +520,8 @@
   };
   const OTHER_ACTION={words:'See the habits below',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
   const BASE_LOOK={line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',color:'#8ba8dd'};
-  const VERDICT_WORDS={ready:'baseline ready',developing:'baseline building',insufficient:'baseline too thin'};
+  // The server's baseline verdict is named only in the suite's one set of words (Live.VERDICT_WORDS).
+  const rated=v=>'\u201c'+Live.verdictWord(v)+'\u201d';
 
   // ── page state ──
   const S={
@@ -929,7 +930,7 @@
     const st=$('fpq-state');
     if(S.stErr){ st.textContent='not available'; st.style.color=OTHER_ACTION.color; }
     else if(!S.loaded){ st.textContent='loading'; st.style.color=OTHER_ACTION.color; }
-    else if(!hasBaseline()){ st.textContent='no baseline yet'; st.style.color=OTHER_ACTION.color; }
+    else if(!hasBaseline()){ st.textContent='baseline: '+Live.verdictWord('insufficient').toLowerCase(); st.style.color=OTHER_ACTION.color; }
     else if(S.view==='submission'&&S.result){ const lk=look(); st.textContent=lowerFirst(lk.words); st.style.color=lk.color; }
     else { st.textContent='baseline of '+plural(counted()||0,'counted sample'); st.style.color=BASE_LOOK.color; }
   }
@@ -967,8 +968,7 @@
   // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
     const v=verdictNow();
-    if(v==='developing') return ' Original rates this baseline as still building ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
-    if(v==='insufficient') return ' Original rates this baseline as too thin to rely on yet ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
+    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
     if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
@@ -985,8 +985,8 @@
     const n=counted()||0, a=teacherApproved();
     if(!S.result){
       let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
-      if(S.verdict==='developing') h+=' Original rates this baseline as still building ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
-      else if(S.verdict==='insufficient') h+=' Original rates this baseline as too thin to rely on yet ('+READY_NEEDS+'), so read any result with extra care.';
+      if(S.verdict==='developing') h+=' Original rates this baseline '+rated('developing')+' ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
+      else if(S.verdict==='insufficient') h+=' Original rates this baseline '+rated('insufficient')+' ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
       return;
     }
@@ -1032,8 +1032,7 @@
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing') return 'Original rates this baseline as still building ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
-    if(v==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
@@ -1058,7 +1057,7 @@
     }
     const list=ro.students.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||(a.id<b.id?-1:a.id>b.id?1:0));
     sel.innerHTML='<option value="">Choose a student</option>'+list.map(s=>
-      '<option value="'+esc(s.id)+'">'+esc(String(s.name)+(VERDICT_WORDS[s.verdict]?' · '+VERDICT_WORDS[s.verdict]:''))+'</option>').join('');
+      '<option value="'+esc(s.id)+'">'+esc(String(s.name)+' · Baseline: '+Live.verdictWord(s.verdict))+'</option>').join('');
     sel.disabled=false;
     sel.addEventListener('change',()=>{ if(sel.value) location.href='writing-state.html?student='+encodeURIComponent(sel.value); });
   }

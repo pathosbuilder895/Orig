@@ -2759,6 +2759,79 @@ def test_the_roster_hands_pages_a_counted_field_and_no_approved_one():
         assert "s.approved" not in page.read_text(encoding="utf-8"), page.name
 
 
+# The server's baseline verdict has one set of words, in live.js, and every page that names it
+# uses them: ready is "Ready", developing "Building", insufficient "Needs more", and a missing
+# or unknown verdict "Not available". No page keeps a map of its own or prints the raw verdict.
+VERDICT_WORDS = {"ready": "Ready", "developing": "Building", "insufficient": "Needs more"}
+
+WORDS_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const window = {};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(sc.live, 'utf8'))(window, document);
+const L = window.Live;
+process.stdout.write(JSON.stringify({
+  words: L.VERDICT_WORDS, frozen: Object.isFrozen(L.VERDICT_WORDS),
+  said: sc.values.map((v) => L.verdictWord(v)),
+}));
+"""
+
+PAGES_THAT_NAME_THE_VERDICT = ("index.html", "students.html", "reports.html", "writing-state.html", "packet.html", "baseline.html")
+RETIRED_VERDICT_LABELS = (
+    "No baseline yet",
+    "Building baseline",
+    "Baseline ready<",
+    "baseline too thin",
+    "baseline building",
+    "label:'None yet'",
+    "miniRow('None yet'",
+    "const VERDICT_WORDS",
+)
+
+
+@needs_node
+def test_live_js_has_the_one_set_of_baseline_readiness_words():
+    values = ["ready", "developing", "insufficient", None, "", "banana", "constructor", "__proto__", "toString", 3]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", WORDS_RUN],
+        input=json.dumps({"live": str(SUITE / "live.js"), "values": values}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    got = json.loads(run.stdout)
+    assert got["words"] == VERDICT_WORDS and got["frozen"] is True
+    # Only the server's three words are words; everything else, an inherited property name included, is not.
+    assert got["said"] == ["Ready", "Building", "Needs more"] + ["Not available"] * 7
+
+
+@pytest.mark.parametrize("name", PAGES_THAT_NAME_THE_VERDICT)
+def test_pages_that_name_the_baseline_verdict_use_the_shared_words(name):
+    page = (SUITE / name).read_text(encoding="utf-8")
+    assert "Live.verdictWord(" in page or "Live.VERDICT_WORDS" in page, f"{name} keeps its own words"
+    for retired in RETIRED_VERDICT_LABELS:
+        assert retired not in page, f"{name} still says {retired!r}"
+
+
+def test_students_page_markup_says_the_shared_words_before_the_script_runs():
+    page = (SUITE / "students.html").read_text(encoding="utf-8")
+    for verdict, word in VERDICT_WORDS.items():
+        assert f'data-verdict="{verdict}">Baseline: {word}</div>' in page, verdict
+        assert f'data-f="{verdict}" aria-pressed="false">{word}</button>' in page, verdict
+
+
+def test_pages_never_print_the_raw_verdict():
+    index = (SUITE / "index.html").read_text(encoding="utf-8")
+    assert "'Baseline: '+Live.verdictWord(r.verdict)" in index
+    assert "r.verdict+'.'" not in index and "'Baseline: '+r.verdict" not in index
+    # An unknown verdict is "Not available" in the places that used to print a dash or nothing.
+    baseline = (SUITE / "baseline.html").read_text(encoding="utf-8")
+    assert "vv.textContent=Live.verdictWord(v);" in baseline
+    assert "' · Baseline: '+Live.verdictWord(s.verdict)" in (SUITE / "writing-state.html").read_text(encoding="utf-8")
+
+
 def _extract(script: str, name: str) -> str:
     """The source of one top-level ``const name=...;`` line or ``function name(...)``
     of a page's inline script, so a test can run just the part that decides."""
@@ -2778,9 +2851,13 @@ def _extract(script: str, name: str) -> str:
 VERDICT_RUN = r"""
 const fs = require('fs');
 const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+// The real live.js, so the words under test are the shared map's, not a copy.
+const window = {};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(sc.live, 'utf8'))(window, document);
 const out = sc.cases.map((S) => {
   const esc = String;
-  const api = new Function('S', 'esc', sc.src + '\nreturn {resultVerdict, verdictNow, thinResultLine, thinNote};')(S, esc);
+  const api = new Function('S', 'esc', 'Live', sc.src + '\nreturn {resultVerdict, verdictNow, thinResultLine, thinNote};')(S, esc, window.Live);
   return {
     result: api.resultVerdict(), now: api.verdictNow(), line: api.thinResultLine(), note: api.thinNote(),
   };
@@ -2795,12 +2872,12 @@ def _verdicts(cases: list[dict]) -> list[dict]:
         _extract(script, name)
         for name in (
             "num", "plural", "baselineHref", "APPROVED", "counted", "teacherApproved", "countedPhrase",
-            "READY_NEEDS", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
+            "READY_NEEDS", "rated", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
         )
     )
     run = subprocess.run(
         [shutil.which("node"), "-e", VERDICT_RUN],
-        input=json.dumps({"src": src, "cases": cases}),
+        input=json.dumps({"src": src, "cases": cases, "live": str(SUITE / "live.js")}),
         capture_output=True,
         text=True,
         timeout=60,
@@ -2855,7 +2932,7 @@ def test_writing_state_prefers_the_rosters_verdict_over_the_one_it_derives():
         ]
     )
     assert ready["now"] == "ready" and ready["line"] == "" and ready["note"] == ""
-    assert building["now"] == "developing" and "still building" in building["line"]
+    assert building["now"] == "developing" and "\u201cBuilding\u201d" in building["line"]
 
 
 @needs_node
@@ -2865,11 +2942,11 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     assert ready["line"] == ""
     assert building["line"] == (
-        " Original rates this baseline as still building (3 counted samples; "
+        " Original rates this baseline \u201cBuilding\u201d (3 counted samples; "
         "ready needs 5 or more counted samples), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
-        " Original rates this baseline as too thin to rely on yet (1 counted sample; "
+        " Original rates this baseline \u201cNeeds more\u201d (1 counted sample; "
         "ready needs 5 or more counted samples), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
@@ -2878,8 +2955,8 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "still building (3 counted samples; ready needs 5 or more counted samples)" in building["note"]
-    assert "too thin to rely on yet (1 counted sample; ready needs 5 or more counted samples)" in thin["note"]
+    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples)" in building["note"]
+    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples)" in thin["note"]
 
 
 def _record(counted: int, *provenances: str) -> dict:
@@ -3009,11 +3086,11 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     "counts,said,not_said",
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
-        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "still building", None),
-        ({"authenticated_count": 2, "effective_sample_count": 0}, "still building", None),
-        ({"authenticated_count": 1, "effective_sample_count": 1}, "too thin to rely on yet", None),
-        ({"authenticated_count": 5}, "could not read this baseline", "still building"),
-        ({}, "could not read this baseline", "too thin"),
+        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 2, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
+        ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
+        ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
     ids=["ready", "five-barely-counting", "two-samples", "one-sample", "no-effective-count", "no-counts"],
 )
@@ -3030,8 +3107,8 @@ def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness
 @pytest.mark.parametrize(
     "readiness,said",
     [
-        ([200, {"verdict": "insufficient"}], "too thin to rely on yet"),  # a fresh answer beats the stored counts
-        ([200, {"verdict": "developing"}], "still building"),
+        ([200, {"verdict": "insufficient"}], "\u201cNeeds more\u201d"),  # a fresh answer beats the stored counts
+        ([200, {"verdict": "developing"}], "\u201cBuilding\u201d"),
         ([200, {"verdict": "banana"}], "A paper on a new topic or in a new genre"),  # not a word of the server's: stored counts
         ([200, {}], "A paper on a new topic or in a new genre"),
     ],
@@ -3054,7 +3131,7 @@ def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_serv
 def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(student, table_says):
     out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
     assert table_says in out["baseline"]
-    assert "too thin to rely on yet" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+    assert "\u201cNeeds more\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
 
 
 def _mixed_samples() -> list:
