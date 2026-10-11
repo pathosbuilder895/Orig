@@ -24,11 +24,11 @@ Commit built JS/CSS/maps and local fonts: the hosted Python service has no Node 
 3. Audit excluded security cases and unused Canvas/LTI/legacy API exposure; either fix exposed defects or disable the unused surface without claiming the whole suite is green.
 4. Choose hosting with the owner’s spending limit and region requirements. Inspect existing Render state before changing it. The inspected old Docker service is failed and free; do not assume the blueprint exists live.
 5. Prepare a dedicated pilot service, stable secrets, production auth, managed persistent database, migrations, backups and mail. Use a separate static origin for the fictional demo. Keep research flags and third-party tracing off.
-6. Resolve legal-page placeholders and support contact with the owner. Establish retention/deletion and institutional operating boundaries before accepting classroom data.
+6. Resolve legal-page placeholders and support contact with the owner. Establish retention/deletion and the operating terms invited teachers accept before accepting classroom data.
 7. Publish the reviewable branch/PR, verify CI and deploy the exact approved commit. Avoid automatic deployments during writing sessions. No direct main push is necessary.
 8. Run `python -m scripts.pilot_smoke_test --base-url https://<actual-host> --bluebook`, then teacher/student UI flows using fictional accounts, actual mail, submission/reload, grading and released results. Confirm deployed data survives restart and exercise backup restore separately.
 9. Provide professors a stable HTTPS link and short instructions only after these gates pass. Start with a small invited pilot; no outreach has been authorized by this handoff.
-10. Complete the Original baseline/report integration and research/institutional gates from the plan without narrowing the claim to a demo score.
+10. Complete the Original baseline/report integration and research gates (plus any school's own approval, later) from the plan without narrowing the claim to a demo score.
 
 ## Local rehearsal resources
 

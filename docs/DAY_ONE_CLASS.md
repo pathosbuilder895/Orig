@@ -1,8 +1,12 @@
 # Day-One Class — operator one-sheet
 
-*For an institution that has bought Original. A teacher who only wants Bluebook
-signs up at `/bluebook/` with no operator step — see
-[BLUEBOOK_LAUNCH_CHECKLIST.md](BLUEBOOK_LAUNCH_CHECKLIST.md).*
+> **Not for the current phase.** NORTH_STAR (2026-10-08) puts independent
+> teachers first, invited one at a time with `scripts/invite_professor.py`;
+> public signup is closed and Canvas/LTI is deferred. Use
+> [BLUEBOOK_LAUNCH_CHECKLIST.md](BLUEBOOK_LAUNCH_CHECKLIST.md) for that. This
+> sheet is kept for a later phase, when a school adopts Original.
+
+*For an institution that has bought Original.*
 
 *Work this top-to-bottom when a professor says yes. It fuses the four detailed
 runbooks; each step links to the full version. Goal: a professor signs into

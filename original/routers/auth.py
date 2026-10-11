@@ -133,8 +133,9 @@ def auth_signup(body: AuthSignupRequest, request: Request):
         raise HTTPException(
             status_code=403,
             detail=(
-                "Bluebook is invitation-only here. Ask the person who runs "
-                "Bluebook for your institution to invite you."
+                "Bluebook is invitation-only during the pilot, so new "
+                "workspaces can't be created here. If you have been invited, "
+                "use the link in your invitation email."
             ),
         )
     _throttle_login(request, "", scope="signup")
