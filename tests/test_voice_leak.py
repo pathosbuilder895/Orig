@@ -224,9 +224,15 @@ def test_projection_drops_feature_codes_and_scores():
     assert view["formation"]["current_step"] == 1
 
 
+# A baseline Original rates ready (5 counted samples, 3 effective): a result built on
+# anything thinner is the inconclusive answer, which the tests further down cover.
+READY = {"authenticated_count": 5, "effective_sample_count": 3.0}
+
+
 def test_submission_result_redaction():
     # A raw-ish Layer-7 dict with an action enum + constructive feature codes.
     layer7 = {
+        "baseline_confidence": READY,
         "recommendation": {"action": "monitor"},
         "authorship": {"deviation_score": 0.52},
         "interference": {
@@ -314,7 +320,7 @@ def test_project_headline_addresses_a_named_student_and_not_a_nameless_one():
 def test_project_submission_result_handles_missing_recommendation_and_interference():
     # No "recommendation"/"interference" keys at all: the internal `_get`
     # helper must resolve `obj=None` for those lookups rather than raising.
-    layer7 = {"authorship": {"deviation_score": 0.1}}
+    layer7 = {"baseline_confidence": READY, "authorship": {"deviation_score": 0.1}}
     res = voice_mod.project_submission_result(layer7, "Dana")
     assert res["headline"] == "This reads like you."
     assert res["steady"] == []
@@ -322,6 +328,7 @@ def test_project_submission_result_handles_missing_recommendation_and_interferen
 
 def test_project_submission_result_escalate_uses_the_else_branch():
     layer7 = {
+        "baseline_confidence": READY,
         "recommendation": {"action": "escalate"},
         "authorship": {"deviation_score": 0.9},
         "interference": {"constructive_features": []},
@@ -341,6 +348,7 @@ def test_project_submission_result_stops_after_three_steady_dimensions():
         {"code": "theological_register_score"},  # Register — must not be reached
     ]
     layer7 = {
+        "baseline_confidence": READY,
         "recommendation": {"action": "monitor"},
         "interference": {"constructive_features": constructive},
     }
@@ -711,10 +719,12 @@ def test_no_returned_string_says_formation_in_any_state():
     results = [voice_mod.project_no_baseline_result()]
     for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
         layer7 = {
+            "baseline_confidence": READY,
             "recommendation": {"action": action},
             "interference": {"constructive_features": [{"code": "burstiness"}]},
         }
         results.append(voice_mod.project_submission_result(layer7, "Dana"))
+    results.append(voice_mod.project_inconclusive_result())
 
     # Growth in the Arc changes the subhead; a note with no reviewer gets the default.
     for first, last in ((40, 60), (60, 40), (50, 51)):
@@ -760,10 +770,110 @@ def test_no_baseline_result_is_honest_and_says_nothing_was_added():
 
 def test_compared_results_never_claim_the_piece_was_kept():
     for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
-        res = voice_mod.project_submission_result({"recommendation": {"action": action}}, "Dana")
+        res = voice_mod.project_submission_result(
+            {"baseline_confidence": READY, "recommendation": {"action": action}}, "Dana"
+        )
         said = (res["headline"] + " " + res["summary"]).lower()
         for claim in ("saved", "body of work", "record", "added"):
             assert claim not in said, (action, claim)
+
+
+# ── A thin baseline: Original says it can't tell ─────────────────────────────
+# NORTH_STAR rule 3: with thin baselines the system should say it can't tell, not
+# guess. The line is the readiness check's "ready" (5 counted samples and 3 effective);
+# below it a comparison is inconclusive, whatever the action was, so a student is
+# neither told "this reads like you" nor warned on the strength of a handful of pieces.
+
+
+def _with_baseline(counted, effective, action="no_action"):
+    return {
+        "baseline_confidence": {"authenticated_count": counted, "effective_sample_count": effective},
+        "recommendation": {"action": action},
+        "interference": {"constructive_features": [{"code": "burstiness"}]},
+    }
+
+
+INCONCLUSIVE_HEADLINE = "Not enough writing on file to compare yet."
+
+
+@pytest.mark.parametrize(
+    "counted,effective",
+    [
+        (4, 3.0),  # one counted sample short
+        (5, 2.9),  # five samples that barely count
+        (0, 0.0),
+        (2, 1.2),
+        (4, 9.0),
+        (9, 2.99),
+    ],
+)
+@pytest.mark.parametrize("action", ["no_action", "monitor", "schedule_conversation", "escalate"])
+def test_a_result_on_a_thin_baseline_is_inconclusive_whatever_the_action(counted, effective, action):
+    res = voice_mod.project_submission_result(_with_baseline(counted, effective, action), "Dana")
+    _assert_submit_result_clean(res)
+    assert res == voice_mod.project_inconclusive_result()
+    assert res["headline"] == INCONCLUSIVE_HEADLINE
+    assert res["steady"] == [] and res["review_opportunity"] is False
+
+
+@pytest.mark.parametrize(
+    "counted,effective,action,headline",
+    [
+        (5, 3.0, "no_action", "This reads like you."),  # exactly on the line is ready
+        (5, 3, "monitor", "Mostly your voice, with a few new notes."),
+        (8, 7.5, "schedule_conversation", "Some passages here read differently from your voice."),
+        (5, 3.0, "escalate", "Some passages here read differently from your voice."),
+    ],
+)
+def test_a_result_on_a_ready_baseline_is_the_reading(counted, effective, action, headline):
+    res = voice_mod.project_submission_result(_with_baseline(counted, effective, action), "Dana")
+    _assert_submit_result_clean(res)
+    assert res["headline"] == headline
+    assert res["steady"], "a ready baseline still names what held steady"
+
+
+def test_a_result_that_does_not_say_how_thick_the_baseline_is_inconclusive():
+    for confidence in (None, {}, {"authenticated_count": 9}, {"effective_sample_count": 9.0},
+                       {"authenticated_count": None, "effective_sample_count": 4.0},
+                       {"authenticated_count": 5, "effective_sample_count": float("nan")},
+                       {"authenticated_count": "9", "effective_sample_count": "9"}):
+        layer7 = {"baseline_confidence": confidence, "recommendation": {"action": "no_action"}}
+        assert voice_mod.project_submission_result(layer7, "Dana")["headline"] == INCONCLUSIVE_HEADLINE, confidence
+    assert voice_mod.project_submission_result({"recommendation": {"action": "no_action"}}, "Dana")["headline"] == (
+        INCONCLUSIVE_HEADLINE
+    )
+
+
+def test_the_inconclusive_result_reads_a_typed_response_as_well_as_a_dict():
+    from original.schemas import BaselineConfidenceOut
+
+    class Result:
+        def __init__(self, counted, effective):
+            self.baseline_confidence = BaselineConfidenceOut(
+                purity=0.5, sample_count=counted, authenticated_count=counted,
+                effective_sample_count=effective, trajectory_confidence=0.5,
+            )
+            self.recommendation = {"action": "no_action"}
+            self.interference = None
+
+    assert voice_mod.project_submission_result(Result(4, 4.0), "Dana")["headline"] == INCONCLUSIVE_HEADLINE
+    assert voice_mod.project_submission_result(Result(5, 3.0), "Dana")["headline"] == "This reads like you."
+
+
+def test_the_inconclusive_result_says_it_cannot_tell_and_what_joins_a_profile():
+    res = voice_mod.project_inconclusive_result()
+    _assert_submit_result_clean(res)
+    assert res["headline"] == INCONCLUSIVE_HEADLINE
+    assert "can't tell much from this comparison yet" in res["summary"]
+    assert (
+        "Not added to your writing profile. Only writing your teacher approves, such as "
+        "sealed Bluebook work, joins your writing profile."
+    ) in res["summary"]
+    said = (res["headline"] + " " + res["summary"]).lower()
+    # No reading of the piece and no number of any kind: the threshold is never sent.
+    for claim in ("reads like you", "your voice", "differently", "5", "3"):
+        assert claim not in said, claim
+    assert not any(ch in said for ch in (chr(0x2014), chr(0x2015)))
 
 
 # ── Static-HTML: the first-paint render must not flash surveillance jargon ───

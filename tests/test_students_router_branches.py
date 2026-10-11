@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import io
 
+import pytest
+
 import original.student_auth as student_auth
 
 GOOD_TEXT = (
@@ -524,9 +526,10 @@ class TestMyWorkCompareOnly:
         """A wildly divergent /me/work submission is scored against the
         (already-established, stylistically-uniform) baseline and returns a real
         reading, not the "nothing to compare" fallback. It is never added to
-        the baseline, whatever the reading."""
+        the baseline, whatever the reading. (Five approved samples: the line
+        below which the answer is "not enough to compare yet".)"""
         token, sid, _ = _login(live_client, "MyWork Academy", "mw1@mywork.edu")
-        for text in (U1, U2, U3):
+        for text in (U1, U2, U3, U1 + " Faith seeks understanding.", U2 + " Grace precedes work."):
             _add_sample(live_client, sid, text=text)
         before = live_client.get(f"/students/{sid}").json()
 
@@ -539,10 +542,56 @@ class TestMyWorkCompareOnly:
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["headline"] != "Nothing to compare this with yet."
+        assert body["headline"] != "Not enough writing on file to compare yet."
         after = live_client.get(f"/students/{sid}").json()
-        assert after["sample_count"] == before["sample_count"] == 3
+        assert after["sample_count"] == before["sample_count"] == 5
         assert after["authenticated_count"] == before["authenticated_count"]
         assert len(after["samples"]) == len(before["samples"])
+
+    @pytest.mark.parametrize("on_file", [1, 3, 4])
+    def test_a_thin_baseline_says_it_cannot_tell_yet(self, live_client, store_reset, on_file):
+        """Below five counted samples the comparison is inconclusive: no reading of the
+        piece (no "reads like you", no warning), the same answer whatever the piece is,
+        and still nothing added to the profile."""
+        token, sid, _ = _login(live_client, f"MyWork Thin {on_file}", f"thin{on_file}@mywork.edu")
+        for text in (U1, U2, U3, U1 + " Again.")[:on_file]:
+            _add_sample(live_client, sid, text=text)
+
+        for piece in (U1, OUTLIER_TEXT):
+            r = live_client.post(
+                "/me/work",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": piece, "title": "A piece"},
+            )
+            assert r.status_code == 200, r.text
+            body = r.json()
+            assert body["headline"] == "Not enough writing on file to compare yet."
+            assert "can't tell much from this comparison yet" in body["summary"]
+            assert "Only writing your teacher approves" in body["summary"]
+            assert body["steady"] == [] and body["review_opportunity"] is False
+
+        assert live_client.get(f"/students/{sid}").json()["sample_count"] == on_file
+
+    def test_an_oversized_piece_is_refused_with_a_422_not_a_500(self, live_client, store_reset):
+        token, _sid, _ = _login(live_client, "MyWork Academy Big", "big@mywork.edu")
+        headers = {"Authorization": f"Bearer {token}"}
+
+        too_long = live_client.post("/me/work", headers=headers, json={"text": "x" * 200_001, "title": "Huge"})
+        assert too_long.status_code == 422, too_long.text
+        assert too_long.json()["detail"][0]["loc"][-1] == "text"
+
+    def test_the_piece_limit_is_the_scorers_limit(self):
+        """VoiceSubmitRequest.text stops at the length ScoreSubmissionRequest accepts, so a
+        piece the request model lets through can never fail inside the scorer. (Scoring a
+        full 200,000 characters takes minutes, so the boundary is checked on the models.)"""
+        from pydantic import ValidationError
+
+        from original.schemas import ScoreSubmissionRequest, VoiceSubmitRequest
+
+        for model in (VoiceSubmitRequest, ScoreSubmissionRequest):
+            assert len(model(text="x" * 200_000).text) == 200_000
+            with pytest.raises(ValidationError):
+                model(text="x" * 200_001)
 
     def test_a_student_with_no_approved_writing_gets_the_nothing_to_compare_result(
         self, live_client, store_reset

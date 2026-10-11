@@ -399,6 +399,33 @@ def project_no_baseline_result() -> dict[str, Any]:
     }
 
 
+# Below this much counted writing (the server's authenticated_count, which includes a
+# student's own uploads) or this much effective weight, Original's reading of a piece is
+# not one to hand a student: the same line the teacher's readiness check draws for
+# "ready" (routers/students.py, get_student_readiness). A comparison against a thinner
+# baseline is inconclusive, not "this reads like you" and not a warning either
+# (NORTH_STAR rule 3). The numbers are used here and never sent.
+MIN_COUNTED_SAMPLES = 5
+MIN_EFFECTIVE_SAMPLES = 3.0
+
+
+def project_inconclusive_result() -> dict[str, Any]:
+    """The result when the writing on file is too thin to say anything about a piece.
+
+    Honest, not an error and not a verdict: carries no reading of the piece, so no
+    "reads like you" and no warning, and no count of what is on file.
+    """
+    return {
+        "headline": "Not enough writing on file to compare yet.",
+        "summary": (
+            "Original can't tell much from this comparison yet, because there is not "
+            "much of your earlier writing on file to compare this piece with. " + NOT_ADDED_LINE
+        ),
+        "steady": [],
+        "review_opportunity": False,
+    }
+
+
 def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     """Project a raw Layer-7 scoring result into the student's supportive view.
 
@@ -408,6 +435,11 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     features so no feature name leaks), and whether a review opportunity opened.
     The raw deviation score, action enum, feature vectors, and the technical
     ``human_explanation`` never cross the wire.
+
+    When the baseline behind the result is thin (fewer than ``MIN_COUNTED_SAMPLES``
+    counted samples or less than ``MIN_EFFECTIVE_SAMPLES`` effective weight), or the
+    result does not say, the answer is ``project_inconclusive_result()`` and nothing
+    of the reading is used.
     """
 
     def _get(obj: Any, key: str, default: Any = None) -> Any:
@@ -416,6 +448,17 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         if isinstance(obj, dict):
             return obj.get(key, default)
         return getattr(obj, key, default)
+
+    confidence = _get(layer7, "baseline_confidence")
+    counted = _get(confidence, "authenticated_count")
+    effective = _get(confidence, "effective_sample_count")
+    if not (
+        isinstance(counted, int | float)
+        and isinstance(effective, int | float)
+        and counted >= MIN_COUNTED_SAMPLES
+        and effective >= MIN_EFFECTIVE_SAMPLES
+    ):
+        return project_inconclusive_result()
 
     recommendation = _get(layer7, "recommendation")
     action = _get(recommendation, "action", "no_action") or "no_action"

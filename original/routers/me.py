@@ -94,7 +94,10 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     affirmations + whether a review opportunity opened). This route never adds
     the piece to the student's baseline, so the student's sample count is the
     same before and after, and the piece itself is not stored. The raw Layer-7
-    payload never leaves the server.
+    payload never leaves the server. When the writing on file is too thin to
+    rate ready (fewer than five counted samples, or less than three effective),
+    the answer is "not enough writing on file to compare yet", with no reading
+    of the piece (``voice.project_inconclusive_result``).
     """
     session = _require_student_session(request)
     sid = str(session["sid"])
