@@ -361,7 +361,7 @@
                   <div class="d" id="traj-d"></div>
                 </div>
               </div>
-              <a class="bb-cta" id="bb-cta" href="/bluebook/" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Bluebook session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="bb-cta" id="bb-cta" href="/bluebook/#students" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Bluebook session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
             </div>
           </div>
 
@@ -829,9 +829,17 @@
   }
 
   // ── sealed Bluebook exams for this student ──
+  // Where "Add more samples" goes: the exam of this student's sealed booklet that is waiting for approval
+  // (else their newest sealed exam), in Bluebook's #exam/<id> link; with no exam known, the Students screen.
+  function bluebookHref(){
+    const list=S.sealed==='ok'?S.exams:[];
+    const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
+    return '/bluebook/#'+(pick?'exam/'+enc(pick.exam_id):'students');
+  }
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');
     $('bb-cta').hidden=(S.sealed==='off')||!ID||!canAdd();
+    $('bb-cta').href=bluebookHref();
     if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
     if(S.sealed==='loading'){ return; }
     if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Bluebook is off for this workspace, so there are no sealed exams to approve.'); return; }

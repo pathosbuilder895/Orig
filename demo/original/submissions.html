@@ -161,7 +161,7 @@
       <div id="rows"></div>
       <div class="empty" id="empty" style="display:block">Loading</div>
     </div>
-    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens Bluebook (Bluebook has no address for a single exam yet): under Examinations, open the exam and choose Read &amp; mark.</p>
+    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens that exam in Bluebook.</p>
   </main>
 </div>
 <script src="live.js?v=2026-10-10.5"></script>
@@ -213,7 +213,9 @@
       ? '<span class="badge clear"><span class="d"></span>Reviewed'+(r.mark?'<span class="mk2">'+esc(r.mark)+'</span>':'')+'</span>'
       : '<span class="badge watch"><span class="d"></span>Awaiting review</span>';
     const date=fmtDate(r.created_at);
-    return '<a class="q-row" href="/bluebook/" title="Opens Bluebook">'+
+    // The exam the booklet was sealed in (Bluebook's #exam/<id> link); a row with no exam id opens Bluebook.
+    const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/';
+    return '<a class="q-row" href="'+esc(href)+'" title="Opens this exam in Bluebook">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
       '<div class="when">'+esc(date||DASH)+(r.late?'<span class="late">Late</span>':'')+'</div>'+

@@ -346,7 +346,7 @@
     const row=$('course-row');
     if(coursesState==='loading'){ row.innerHTML='<span class="row-note">Loading your classes</span>'; return; }
     if(coursesState==='error'){ row.innerHTML='<span class="row-note">Your classes could not be loaded just now. Try reloading the page.</span>'; return; }
-    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/">Add a course in Bluebook first</a>, then come back here to open a session for it.</span>'; return; }
+    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Bluebook first</a>, then come back here to open a session for it.</span>'; return; }
     const sel=selected();
     row.innerHTML=courses.map(c=>{
       const on=c===sel;

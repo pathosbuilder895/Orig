@@ -19,9 +19,13 @@ from tests.test_original_suite_static import (  # noqa: F401
     PRELUDE,
     ROOT,
     SUITE,
+    TEACHER,
     _bb_scenario,
+    _bb_sealed,
     _extract,
     _inline_scripts,
+    _settings_run,
+    _teacher_me,
     needs_node,
 )
 
@@ -459,3 +463,115 @@ def test_bluebook_page_says_in_the_open_demo_that_sessions_open_for_a_signed_in_
     page = _bluebook_page()
     assert '<p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Bluebook.</p>' in page
     assert "if(sess.mode==='demo') $('demo-note').hidden=false;" in page
+
+
+# ── Every suite link opens the right Bluebook screen ──────────────────────────
+# /bluebook/#exam/<id>, #live/<id>, #students and #courses (demo/bluebook/deep-link.jsx).
+
+SUBMISSIONS_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  for (let i = 0; i < 500 && !el('rows').innerHTML; i++) await sleep(10);
+  process.stdout.write(JSON.stringify({ rows: el('rows').innerHTML, foot: el('foot').textContent }));
+})();
+"""
+
+
+def _submissions_run(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + SUBMISSIONS_TAIL],
+        input=json.dumps({"live": str(SUITE / "live.js"), "page": str(SUITE / "submissions.html"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_a_submissions_row_opens_its_own_exam_in_bluebook():
+    sealed = [_bb_sealed("s1", "e-new"), _bb_sealed("s2", "e/odd id", graded=True), _bb_sealed("s3", "")]
+    out = _submissions_run(
+        local=TEACHER, me=_teacher_me(), students=[200, {"students": [], "roster": []}],
+        bbSubmissions=[200, {"submissions": sealed}], bbExams=[200, {"exams": []}],
+    )
+    rows = out["rows"]
+    assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Bluebook"' in rows
+    assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Bluebook"' in rows  # an id is encoded, never spliced in
+    assert 'href="/bluebook/" title="Opens this exam in Bluebook"' in rows  # a booklet with no exam id opens Bluebook itself
+    assert 'title="Opens Bluebook"' not in rows
+
+
+def test_the_submissions_page_no_longer_says_bluebook_has_no_address_for_an_exam():
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8")
+    assert "no address" not in page and "Read &amp; mark" not in page
+    assert "Each row opens that exam in Bluebook." in page
+
+
+def test_add_student_and_the_empty_roster_line_open_the_students_screen_and_courses_open_courses():
+    students = (SUITE / "students.html").read_text(encoding="utf-8")
+    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in students
+    assert 'Add them in <a href="/bluebook/#students">Bluebook</a>.' in (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    assert '<a href="/bluebook/#courses">Add a course in Bluebook first</a>' in _bluebook_page()
+
+
+@needs_node
+def test_settings_links_its_courses_to_bluebooks_courses_screen():
+    course = {"code": "THEO 301", "name": "Theology", "students": 4, "exams": 1, "active": True}
+    one = _settings_run(local=TEACHER, me=_teacher_me(), routes={"/bluebook/courses": [200, {"courses": [course]}]})
+    assert '<div class="c-more"><a href="/bluebook/#courses">Manage your courses in Bluebook</a></div>' in one["courses"]
+    none = _settings_run(local=TEACHER, me=_teacher_me(), routes={"/bluebook/courses": [200, {"courses": []}]})
+    assert 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.' in none["courses"]
+    # A workspace without Bluebook has no courses screen to send anyone to.
+    off = _settings_run(local=TEACHER, me=_teacher_me(("original",)))
+    assert "/bluebook/" not in off["courses"]
+
+
+# The student's own page: "Add more samples" goes to the exam a booklet is waiting in, else the Students screen.
+BB_CTA_TAIL = r"""
+(async () => {
+  for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"') && !/No sealed exams for this student/.test(el('sealed-list').innerHTML); i++) await sleep(10);
+  process.stdout.write(JSON.stringify({ href: el('bb-cta').href, hidden: el('bb-cta').hidden, sealed: el('sealed-list').innerHTML }));
+  process.exit(0);
+})();
+"""
+
+
+def _cta_run(**scenario) -> dict:
+    head = BASELINE_HARNESS.split("(async () => {")[0]
+    anchor = "if (path === '/bluebook/submissions') return"
+    assert anchor in head, "the baseline harness changed"
+    head = head.replace(anchor, "if (path === '/bluebook/submissions' && sc.noSealed) return [200, { submissions: [] }];\n  " + anchor, 1)
+    run = subprocess.run(
+        [shutil.which("node"), "-e", head + BB_CTA_TAIL],
+        input=json.dumps(
+            {
+                "live": str(SUITE / "live.js"),
+                "page": str(SUITE / "baseline.html"),
+                "features": str(SUITE / "js" / "feature-data.js"),
+                **scenario,
+            }
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_voice_baseline_sends_add_more_samples_to_the_exam_waiting_for_approval_else_to_students():
+    assert 'id="bb-cta" href="/bluebook/#students"' in (SUITE / "baseline.html").read_text(encoding="utf-8")
+    waiting = _cta_run()
+    assert waiting["href"] == "/bluebook/#exam/e1" and waiting["hidden"] is False
+    none = _cta_run(noSealed=True)
+    assert none["href"] == "/bluebook/#students"

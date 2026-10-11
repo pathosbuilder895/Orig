@@ -37,6 +37,14 @@ test('#exam/<id> and #live/<id> are deep links', () => {
   assert.deepEqual(parseDeepLink('#live/demo-exam_1'), { kind: 'live', id: 'demo-exam_1' });
 });
 
+test('#students and #courses are links to a whole screen, with no id', () => {
+  assert.deepEqual(parseDeepLink('#students'), { kind: 'screen', screen: 'students' });
+  assert.deepEqual(parseDeepLink('#courses'), { kind: 'screen', screen: 'courses' });
+  for (const hash of ['#students/', '#students/abc', '#student', '#courses?x=1', '#Courses', '#STUDENTS', '#courses ', ' #courses', 'students']) {
+    assert.equal(parseDeepLink(hash), null, hash);
+  }
+});
+
 test('anything else is not a deep link', () => {
   for (const hash of [
     '', '#', '#exam', '#exam/', '#live/', '#results/abc', '#EXAM/abc', 'exam/abc',

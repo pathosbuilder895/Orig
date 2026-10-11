@@ -6,28 +6,40 @@
 //   /bluebook/#exam/<id>   Manage examination (submissions, Read & mark,
 //                          baseline approval)
 //   /bluebook/#live/<id>   the live (proctor) view of that exam
+//   /bluebook/#students    the teacher's Students screen (the roster)
+//   /bluebook/#courses     the teacher's Courses screen
 //
-// The Original suite's Bluebook Sessions page (demo/original/bluebook.html)
-// links here. Screens stay in memory (app.jsx); the hash only picks the first
+// The Original suite links here: its Bluebook Sessions page (demo/original/
+// bluebook.html), the Submissions rows (#exam), Add student and Voice Baseline
+// (#students, or the student's own exam), and the course links (#courses). Screens stay in memory (app.jsx); the hash only picks the first
 // one. app.jsx checks the exam with GET /bluebook/exams/{id} before opening
 // it, so an unknown id or another workspace's id lands on the normal
-// dashboard with no error page. Nothing here runs for a student: app.jsx
-// resolves a link only on a signed-in teacher's dashboard.
+// dashboard with no error page. #students and #courses name no exam, so
+// nothing is checked: they open that screen. Nothing here runs for a student:
+// app.jsx resolves a link only on a signed-in teacher's dashboard, and a
+// visitor who is not signed in gets the landing page and, after signing in,
+// the screen the link named.
 
 // Exam ids are short hex strings today (uuid4().hex[:16] in
 // original/routers/bluebook.py); seeded demo ids use letters, digits and
 // dashes. Anything else is not a deep link and is ignored.
 const DEEP_LINK = /^#(exam|live)\/([A-Za-z0-9_-]{1,64})$/;
+// A link to a whole screen: no id, nothing to check on the server.
+const SCREEN_LINK = /^#(students|courses)$/;
 
 // The screen each kind of link opens, and the global that screen reads its
 // exam id from (Teacher.jsx: ManageExamScreen, ProctorLiveScreen).
 export const DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' };
 const DEEP_LINK_GLOBAL = { exam: 'BB_MANAGE_EXAM', live: 'BB_PROCTOR_EXAM' };
 
-// '#exam/<id>' or '#live/<id>' -> {kind, id}; anything else -> null.
+// '#exam/<id>' or '#live/<id>' -> {kind, id}; '#students' or '#courses' ->
+// {kind: 'screen', screen}; anything else -> null.
 export function parseDeepLink(hash) {
-  const m = DEEP_LINK.exec(typeof hash === 'string' ? hash : '');
-  return m ? { kind: m[1], id: m[2] } : null;
+  const h = typeof hash === 'string' ? hash : '';
+  const m = DEEP_LINK.exec(h);
+  if (m) return { kind: m[1], id: m[2] };
+  const s = SCREEN_LINK.exec(h);
+  return s ? { kind: 'screen', screen: s[1] } : null;
 }
 
 // Points the target screen at the exam and returns the screen to show.

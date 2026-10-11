@@ -3450,8 +3450,8 @@ def test_settings_page_does_not_send_a_password_that_does_not_match_its_copy():
         (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "Your courses could not be loaded just now."),
         (dict(routes={"/bluebook/courses": [200, {"courses": "nope"}]}), "Your courses could not be loaded just now."),
         (dict(routes={"/bluebook/courses": [200, None]}), "Your courses could not be loaded just now."),
-        (dict(routes={"/bluebook/courses": [200, {"courses": []}]}), "No courses yet. Add one in Bluebook."),
-        (dict(routes={"/bluebook/courses": [200, {"courses": [None, "x"]}]}), "No courses yet. Add one in Bluebook."),
+        (dict(routes={"/bluebook/courses": [200, {"courses": []}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.'),
+        (dict(routes={"/bluebook/courses": [200, {"courses": [None, "x"]}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.'),
         (dict(breakCourses=True), "Your courses could not be loaded just now."),
         (
             dict(routes={"/bluebook/courses": [200, {"courses": [{"code": "THEO 301", "name": "Theology", "students": 4, "exams": 1, "active": True}]}]}),
@@ -3787,7 +3787,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
         bbSubmissions=[200, {"submissions": []}],
     ))
     s = out["before"]
-    assert '<a href="/bluebook/">Add a course in Bluebook first</a>' in s["courses"]
+    assert '<a href="/bluebook/#courses">Add a course in Bluebook first</a>' in s["courses"]
     assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
     assert "No sessions yet. Your first one will appear here." in s["sessions"]
 

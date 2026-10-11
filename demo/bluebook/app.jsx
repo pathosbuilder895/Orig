@@ -87,9 +87,15 @@ function App() {
   }, []);
   // Open the linked exam only once the server says this teacher may see it.
   // A 404 (unknown id) or 403 (another workspace's) leaves the dashboard as
-  // it is, with no error, and drops the hash.
+  // it is, with no error, and drops the hash. A link to a whole screen
+  // (#students, #courses) has nothing to check and opens it at once.
   React.useEffect(() => {
     if (!deepLink || !teacherHome) return undefined;
+    if (deepLink.kind === 'screen') {
+      setDeepLink(null);
+      setTweak('currentScreen', deepLink.screen);
+      return undefined;
+    }
     let live = true;
     BB_API.getExam(deepLink.id).then(exam => {
       if (!live) return;
@@ -123,9 +129,10 @@ function App() {
       // While a deep link is being checked, say so instead of flashing the
       // dashboard first.
       if (deepLink && teacherHome) {
+        const toScreen = deepLink.kind === 'screen';
         content = (
-          <DashboardLayout activeScreen={DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'exams'} onNavigate={navigate}>
-            <div className="bb-page"><p role="status" className="bb-meta">Opening the examination…</p></div>
+          <DashboardLayout activeScreen={toScreen ? deepLink.screen : (DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'exams')} onNavigate={navigate}>
+            <div className="bb-page"><p role="status" className="bb-meta">{toScreen ? 'Opening…' : 'Opening the examination…'}</p></div>
           </DashboardLayout>
         );
         break;

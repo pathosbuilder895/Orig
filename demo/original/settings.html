@@ -75,6 +75,7 @@
   .row .t{font-size:1rem;overflow-wrap:anywhere;}
   .row .m{font-size:.8rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
   .row .st{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;font-size:.82rem;padding:.24rem .7rem;border-radius:999px;white-space:nowrap;}
+  .c-more{margin-top:.8rem;font-size:.88rem;}
   .row .st .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
   .st.ok{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
   .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
@@ -219,8 +220,8 @@
       if(!list){ Live.empty(box,COURSES_FAILED); return; }
       // Active courses first; the server's own order (newest first) within each group.
       const shown=list.filter(c=>c&&typeof c==='object').sort((a,b)=>(b.active?1:0)-(a.active?1:0));
-      if(!shown.length){ Live.empty(box,'No courses yet. Add one in Bluebook.'); return; }
-      box.innerHTML=shown.map(courseRow).join('');
+      if(!shown.length){ box.innerHTML='<div class="live-empty">No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.</div>'; return; }
+      box.innerHTML=shown.map(courseRow).join('')+'<div class="c-more"><a href="/bluebook/#courses">Manage your courses in Bluebook</a></div>';
     }).catch(()=>{ Live.empty(box,COURSES_FAILED); });
   }
 
