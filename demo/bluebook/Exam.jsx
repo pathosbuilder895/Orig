@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, PARCHMENT_SHADES, STOCK_CANDIDATE, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -124,19 +124,12 @@ function buildConditions(cfg, withOriginal) {
     cfg.blockAI   && 'AI assistants and other writing tools are not permitted',
     cfg.blockWeb  && 'The examination runs full-screen; leaving it or switching tabs is recorded for your teacher',
     cfg.blockCopy && 'Copy and paste are disabled in the answer box',
-    withOriginal  && 'Session duration and coarse writing information are noted as context, not proof of authorship',
+    withOriginal  && 'Session duration and coarse writing information are noted as context for your teacher',
     cfg.phoneBlk  && 'Devices must be silenced for the duration',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work',
+    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile',
   ].filter(Boolean);
 }
-
-const TO_ROMAN = n => {
-  const vals  = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
-  const syms  = ['M','CM','D','CD','C','XC','L','XL','X','IX','V','IV','I'];
-  let result  = '';
-  vals.forEach((v, i) => { while (n >= v) { result += syms[i]; n -= v; } });
-  return result;
-};
 
 function fmt(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -358,130 +351,80 @@ export function BriefingScreen({ onNavigate }) {
   const cannotBegin = cfg.loaded && cfg.state && cfg.state !== 'open';
   if (loadState !== 'ready') {
     return (
-      <div className="bb-screen" style={{ minHeight: '100vh', background: BB.deep, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ maxWidth: 440, textAlign: 'center' }}>
-          <Logotype size={24} />
-          <GoldRule double style={{ margin: '16px 0 18px' }} />
-          <p role={loadState === 'error' ? 'alert' : 'status'} style={{ fontFamily: fontBody, fontSize: 17, color: BB.fade, lineHeight: 1.6 }}>
-            {loadState === 'error' ? loadError : 'Loading your examination…'}
-          </p>
+      <div className="bk-stage bb-screen">
+        <MockupFonts hand />
+        <div className="bk-booklet compact">
+          <div className="bk-cover">
+            <div className="bk-cover-inner">
+              <span className="bk-exam-lbl">Examination Booklet</span>
+              <h1>Blue Book</h1>
+              <p role={loadState === 'error' ? 'alert' : 'status'} className="bk-cover-note state">
+                {loadState === 'error' ? loadError : 'Loading your examination…'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
+  const questionCount = (cfg.questions || []).length || 1;
+  const limits = [
+    cfg.minWords ? `At least ${cfg.minWords.toLocaleString()} words.` : null,
+    cfg.maxWords ? `No more than ${cfg.maxWords.toLocaleString()} words.` : null,
+  ].filter(Boolean).join(' ');
+  const today = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
   return (
-    <div className="bb-screen bb-brief-screen" style={{
-      minHeight: '100vh', background: BB.deep,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, fontFamily: fontBody,
-    }}>
-      {/* A launch-link student has nowhere else to go; an account student
-          goes back to their exams; staff previewing go back to the list. */}
-      {(!BB_API.isStudentLaunch()) && (
-        <button className="bb-brief-back" onClick={() => onNavigate(studentAccount ? 'student-home' : 'exams')} style={{
-          position: 'fixed', top: 28, left: 48,
-          fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: BB.fade,
-          background: 'none', border: 'none', cursor: 'pointer',
-        }}>{studentAccount ? '← My exams' : '← Examinations'}</button>
-      )}
+    <div className="bk-stage bb-screen">
+      <MockupFonts hand />
+      <div className="bk-booklet">
+        <div className="bk-cover">
+          {/* A launch-link student has nowhere else to go; an account student
+              goes back to their exams; staff previewing go back to the list. */}
+          {(!BB_API.isStudentLaunch()) && (
+            <button type="button" className="bk-leave" onClick={() => onNavigate(studentAccount ? 'student-home' : 'exams')}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+              {studentAccount ? 'My exams' : 'Examinations'}
+            </button>
+          )}
 
-      <div style={{ width: '100%', maxWidth: 520 }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Logotype size={24} />
-          <GoldRule double style={{ margin: '16px 0 12px' }} />
-          <MetaLabel>Preliminary Instructions</MetaLabel>
-        </div>
+          <div className="bk-cover-inner">
+            <span className="bk-exam-lbl">Preliminary Instructions</span>
+            <h1>Blue Book</h1>
+            <div className="bk-rule" />
 
-        {/* Card */}
-        <div className="bb-brief-card" style={{
-          border: '1px solid rgba(201,169,97,0.35)',
-          background: BB.oxford,
-        }}>
-          {/* Title band */}
-          <div style={{ padding: '28px 36px 22px', borderBottom: '1px solid rgba(201,169,97,0.2)' }}>
-            <MetaLabel style={{ display: 'block', marginBottom: 10 }}>{cfg.courseTitle}</MetaLabel>
-            <h1 style={{
-              fontFamily: fontDisplay, fontSize: 26,
-              color: BB.cream, fontWeight: 500,
-              margin: '0 0 6px', letterSpacing: '0.01em',
-            }}>{cfg.title}</h1>
+            <div className="bk-fields">
+              <div className="bk-field"><b>Name</b><span className="fill hand">{bbCandidateLabel(cfg)}</span></div>
+              {cfg.courseTitle && <div className="bk-field"><b>Course</b><span className="fill">{cfg.courseTitle}</span></div>}
+              <div className="bk-field"><b>Exam</b><span className="fill">{cfg.title}</span></div>
+              <div className="bk-field"><b>Date</b><span className="fill">{today}</span></div>
+            </div>
+
+            <p className="bk-meta">
+              <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
+              {limits && ` ${limits}`} Your work saves itself as you write. When you open this booklet, the clock starts, and everything you write here is yours, in your own hand.
+            </p>
             {cfg.closesAt && (
-              <p style={{
-                fontFamily: fontBody, fontStyle: 'italic',
-                fontSize: 16, color: BB.fade, margin: 0,
-              }}>Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              <p className="bk-closes">Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             )}
-          </div>
 
-          {/* Meta rows */}
-          <div style={{ padding: '0 36px' }}>
-            {[
-              { label: 'Duration',      value: `${cfg.duration / 60} minutes` },
-              ...((cfg.questions || []).length > 1 ? [{ label: 'Questions', value: `${cfg.questions.length}, answered separately` }] : []),
-              { label: 'Minimum',       value: cfg.minWords ? `${cfg.minWords.toLocaleString()} words` : 'None' },
-              { label: 'Maximum',       value: cfg.maxWords ? `${cfg.maxWords.toLocaleString()} words` : 'None' },
-              { label: 'Candidate',     value: bbCandidateLabel(cfg) },
-            ].map(({ label, value }, i, rows) => (
-              <div key={label}>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'baseline', padding: '13px 0',
-                }}>
-                  <MetaLabel>{label}</MetaLabel>
-                  <span style={{
-                    fontFamily: fontBody, fontSize: 16,
-                    color: BB.cream, letterSpacing: '0.02em',
-                  }}>{value}</span>
-                </div>
-                {i < rows.length - 1 && <GoldRule faint />}
-              </div>
-            ))}
-          </div>
+            <div className="bk-conditions">
+              <h2>Enforced Conditions</h2>
+              <ul>
+                {conditions.map(rule => <li key={rule}>{rule}</li>)}
+              </ul>
+            </div>
 
-          {/* Security rules */}
-          <div style={{
-            margin: '4px 36px 28px',
-            border: '1px solid rgba(201,169,97,0.18)',
-            padding: '16px 20px',
-          }}>
-            <MetaLabel style={{ display: 'block', marginBottom: 12 }}>Enforced Conditions</MetaLabel>
-            {conditions.map(rule => (
-              <div key={rule} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                marginBottom: 8,
-              }}>
-                <div style={{
-                  width: 4, height: 4, borderRadius: '50%',
-                  background: BB.gold, flexShrink: 0, marginTop: 8,
-                }} />
-                <span style={{
-                  fontFamily: fontBody, fontSize: 15,
-                  color: BB.fade, lineHeight: 1.55,
-                }}>{rule}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA */}
-          <div style={{ padding: '0 36px 32px' }}>
-            <GoldRule style={{ marginBottom: 24 }} />
             {cannotBegin ? (
-              <p role="status" style={{ textAlign: 'center', fontFamily: fontBody, fontSize: 17, color: BB.fade, margin: 0 }}>
+              <p role="status" className="bk-cover-note state">
                 {cfg.state === 'upcoming' ? 'This examination has not opened yet.' : 'This examination is closed.'}
               </p>
             ) : (
-              <BtnPrimary full onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }} style={{ padding: '14px 0', fontSize: 17 }}>
-                {cfg.inProgress ? 'Resume Examination — Timer Is Running' : 'Begin Examination — Timer Commences'}
-              </BtnPrimary>
+              <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
+                {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
+              </button>
             )}
-            <p style={{
-              textAlign: 'center', marginTop: 12,
-              fontFamily: fontMono, fontSize: 13,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: BB.fadedCream,
-            }}>Once begun, this examination cannot be paused</p>
+            <p className="bk-cover-note">Once begun, this examination cannot be paused</p>
+            <p className="bk-cover-note">{withOriginal ? 'Original · Bluebook · quiet by design' : 'Bluebook · quiet by design'}</p>
           </div>
         </div>
       </div>
@@ -875,7 +818,6 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const isVeryLow = timeLeft <= 60;
   const overMax   = cfg.maxWords && words > cfg.maxWords;
   const atMin     = words >= cfg.minWords;
-  const lineH     = writingSize + 12;
 
   // Polite timer milestones — announced once per transition, not every tick.
   const lowAnnouncedRef = useExRef(false);
@@ -890,361 +832,180 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     }
   }, [isLow, isVeryLow]);
 
-  const lineStyle = {
-    background: parchmentColor,
-    backgroundImage: `repeating-linear-gradient(
-      ${parchmentColor} 0px,
-      ${parchmentColor} ${lineH - 1}px,
-      rgba(196,152,80,0.18) ${lineH - 1}px,
-      rgba(196,152,80,0.18) ${lineH}px
-    )`,
-  };
+  // The paper keeps the design's cream unless a shade other than the old
+  // default was picked in the dev-only Tweaks panel.
+  const paper = parchmentColor && parchmentColor !== PARCHMENT_SHADES.warm ? parchmentColor : undefined;
+  const crsLabel = [cfg.course, cfg.title].filter(Boolean).join(' · ');
+  const wantsMin = cfg.minWords > 0;
+  const fillPct = wantsMin ? Math.min(100, (words / cfg.minWords) * 100) : 0;
 
   return (
-    <div style={{
-      height: '100vh', background: BB.deep,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      overflow: 'hidden',
-    }}>
-      {/* Polite live region: autosave + timer milestones — never interrupts */}
-      <div role="status" aria-live="polite" style={{
-        position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
-        overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
-      }}>{liveMsg}</div>
-
-      {/* Offline banner (robustness spec §3) — persistent while disconnected;
-          the seal retry loop parks until the matching 'online' event. */}
-      {offline && (
-        <div role="status" style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-          background: BB.parchment, borderTop: '1px solid rgba(201,169,97,0.7)',
-          padding: '8px 48px', fontFamily: fontMono, fontSize: 12,
-          letterSpacing: '0.08em', color: BB.indigo,
-        }}>
-          Connection lost — your writing is safe on this device.
-          {submitting ? ' Your seal will submit when reconnected.' : ''}
-        </div>
-      )}
-
-      {/* Examiner's warning notices — recorded proctoring events. Assertive
-          and persistent: a candidate must hear every one, and it must not
-          vanish before they can review it. */}
-      {warnLog.length > 0 && (
-        <div role="alert" style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-          background: BB.parchment,
-          borderBottom: '1px solid rgba(201,169,97,0.7)',
-          borderTop: '1px solid rgba(201,169,97,0.7)',
-          animation: 'bbFadeIn 0.5s ease both',
-        }}>
-          <GoldRule style={{ marginBottom: 8 }} />
-          <div style={{ padding: '0 48px 10px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-            <MetaLabel style={{ color: BB.indigo }}>Recorded Notices ({warnLog.length})</MetaLabel>
-            <button
-              onClick={() => setWarnLogOpen(o => !o)}
-              style={{
-                fontFamily: fontMono, fontSize: 11, letterSpacing: '0.1em',
-                textTransform: 'uppercase', color: BB.indigo,
-                background: 'none', border: 'none', cursor: 'pointer',
-              }}
-            >{warnLogOpen ? 'Hide' : 'Show'}</button>
-          </div>
-          {warnLogOpen && (
-            <ul style={{
-              listStyle: 'none', margin: 0, padding: '0 48px 10px',
-              maxHeight: 140, overflowY: 'auto',
-            }}>
-              {warnLog.map(w => (
-                <li key={w.id} style={{
-                  fontFamily: fontBody, fontStyle: 'italic',
-                  fontSize: 16, color: BB.indigo,
-                  margin: '0 0 6px', textAlign: 'center',
-                  letterSpacing: '0.03em',
-                }}>{w.msg}</li>
-              ))}
-            </ul>
-          )}
-          <GoldRule style={{ marginTop: 8 }} />
-        </div>
-      )}
-
-      {/* Instructor-preview nav. Hidden for real student launches — one
-          stray click must never cost a student their essay. The draft +
-          remaining time are persisted, so re-entry restores both. */}
-      {!bbIsStudent() && (
-        <button onClick={() => {
-          writeDraftNow();
-          if (confirm('Leave the exam? Your draft and remaining time are saved on this device and will be restored when you re-enter.')) {
-            onNavigate('briefing');
-          }
-        }} style={{
-          position: 'fixed', top: 20, left: 20, zIndex: 200,
-          fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
-          textTransform: 'uppercase', color: 'rgba(139,155,180,0.55)',
-          background: 'none', border: 'none', cursor: 'pointer',
-          transition: 'color 0.3s',
-        }}
-          onMouseEnter={e => e.currentTarget.style.color = BB.gold}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(139,155,180,0.55)'}
-        >← Exit Exam</button>
-      )}
+    <div className="bk-stage">
+      <MockupFonts hand />
+      {/* Polite live region: autosave + timer milestones, never interrupts */}
+      <div role="status" aria-live="polite" className="bk-sr">{liveMsg}</div>
 
       {/* The Blue Book */}
-      <div className="bb-exam-book" style={{
-        width: '100%', maxWidth: 900,
-        height: 'calc(100vh - 40px)',
-        display: 'flex', flexDirection: 'column',
-        border: '1px solid rgba(201,169,97,0.55)',
-        margin: '20px',
-      }}>
+      <div className="bk-booklet">
+        <div className="bk-page" style={paper ? { '--bk-paper': paper } : undefined}>
 
-        {/* ── Masthead ── */}
-        <div className="bb-exam-mast" style={{
-          background: BB.oxford, flexShrink: 0,
-          padding: '14px 40px',
-          display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center', gap: 16,
-        }}>
-          <Logotype size={18} />
-          <div style={{ textAlign: 'center' }}>
-            <p style={{
-              fontFamily: fontBody, fontVariant: 'small-caps',
-              fontSize: 14, letterSpacing: '0.2em',
-              color: BB.cream, margin: 0,
-            }}>{cfg.courseTitle}: {cfg.title}</p>
-          </div>
-          <p style={{
-            fontFamily: fontMono, fontSize: 10,
-            letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: BB.fade, textAlign: 'right', margin: 0,
-          }}>{candidateLabel}</p>
-        </div>
-
-        <GoldRule double />
-
-        {/* ── Lockdown status strip ── */}
-        <div className="bb-exam-strip" style={{
-          background: BB.oxford, flexShrink: 0,
-          padding: '7px 40px',
-          display: 'flex', alignItems: 'center', gap: 18,
-          borderBottom: '1px solid rgba(201,169,97,0.15)',
-        }}>
-          <span style={{
-            fontFamily: fontMono, fontSize: 12, letterSpacing: '0.16em',
-            textTransform: 'uppercase', color: BB.gold, flexShrink: 0,
-          }}>● Exam mode</span>
-          {/* What this page actually does, not what it cannot do: it cannot
-              block other apps or AI tools, only record leaving the window. */}
-          {[
-            { on: cfg.blockAI,   label: 'No AI tools' },
-            { on: cfg.blockWeb,  label: 'Full-screen, leaving is recorded' },
-            { on: cfg.blockCopy, label: 'Copy & paste off' },
-          ].map(({ on, label }) => (
-            <span key={label} style={{
-              fontFamily: fontMono, fontSize: 12, letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: on ? BB.fadedCream : 'rgba(139,155,180,0.5)',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ color: on ? '#5EB87C' : 'rgba(139,155,180,0.45)' }}>
-                {on ? '✓' : '○'}
-              </span>
-              {label}
-            </span>
-          ))}
-          {cfg.blockWeb && fsLost && (
-            <button onClick={bbRequestFullscreen} style={{
-              marginLeft: 'auto', flexShrink: 0,
-              fontFamily: fontMono, fontSize: 13, letterSpacing: '0.12em',
-              textTransform: 'uppercase', color: BB.deep, background: BB.gold,
-              border: 'none', padding: '11px 20px', cursor: 'pointer',
-              minHeight: 40,
-            }}>↺ Restore full-screen</button>
-          )}
-        </div>
-
-        {/* ── Prompt zone: the current question, with navigation ── */}
-        <div className="bb-exam-prompt" style={{
-          background: BB.oxford, flexShrink: 0,
-          padding: '14px 40px',
-          borderBottom: '1px dashed rgba(201,169,97,0.3)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <MetaLabel>{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Examination prompt'}</MetaLabel>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {multi && questions.map((_, i) => (
-                <button key={i} type="button" onClick={() => goToQuestion(i)}
-                  aria-label={`Question ${i + 1}${answers[i].trim() ? ', answered' : ''}`}
-                  aria-current={i === qIndex ? 'step' : undefined}
-                  className="bb-qdot"
-                  style={{
-                    minWidth: 36, minHeight: 36, borderRadius: 18, cursor: 'pointer',
-                    fontFamily: fontMono, fontSize: 12,
-                    border: `1px solid ${i === qIndex ? BB.gold : 'rgba(201,169,97,0.35)'}`,
-                    background: i === qIndex ? 'rgba(201,169,97,0.18)' : 'transparent',
-                    color: answers[i].trim() ? BB.cream : BB.fade,
-                  }}>{answers[i].trim() ? '✓' : i + 1}</button>
-              ))}
-              <button type="button" onClick={() => setPromptOpen(o => !o)} aria-expanded={promptOpen}
-                style={{ fontFamily: fontMono, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
-                  color: BB.gold, background: 'none', border: 'none', cursor: 'pointer', minHeight: 36, padding: '0 6px' }}>
-                {promptOpen ? 'Hide question' : 'Show question'}
-              </button>
-            </div>
-          </div>
-          {promptOpen && (
-            <p style={{
-              fontFamily: fontBody, fontSize: 15.5,
-              color: BB.fadedCream, lineHeight: 1.65,
-              margin: '8px 0 0', letterSpacing: '0.01em',
-              maxWidth: '72ch', whiteSpace: 'pre-wrap',
-              maxHeight: '30vh', overflowY: 'auto',
-            }}>{questions[qIndex]}</p>
-          )}
-          {multi && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-              <button type="button" disabled={qIndex === 0} onClick={() => goToQuestion(qIndex - 1)}
-                style={{ fontFamily: fontMono, fontSize: 11, color: qIndex === 0 ? BB.fade : BB.gold, background: 'none', border: 'none', cursor: qIndex === 0 ? 'default' : 'pointer', minHeight: 36 }}>← Previous</button>
-              <button type="button" disabled={qIndex === questions.length - 1} onClick={() => goToQuestion(qIndex + 1)}
-                style={{ fontFamily: fontMono, fontSize: 11, color: qIndex === questions.length - 1 ? BB.fade : BB.gold, background: 'none', border: 'none', cursor: qIndex === questions.length - 1 ? 'default' : 'pointer', minHeight: 36 }}>Next →</button>
-            </div>
-          )}
-        </div>
-
-        {/* ── Writing area (parchment) ── */}
-        <div className="bb-exam-paper" style={{
-          flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden',
-          ...lineStyle,
-        }}>
-          {/* Red margin line */}
-          <div className="bb-exam-margin" style={{
-            position: 'absolute', left: 70, top: 0, bottom: 0,
-            width: 1, background: 'rgba(180,90,80,0.18)',
-          }} />
-
-          <textarea
-            key={qIndex}
-            className="bb-exam-textarea"
-            ref={textareaRef}
-            value={answers[qIndex]}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onPaste={e => {
-              revsRef.current.push({ type: 'paste' });   // record the attempt for Tier 17
-              if (cfg.blockCopy) {
-                e.preventDefault();
-                recordWarning('Pasting is disabled. Your work must be composed here.', 'paste_blocked');
-              }
-            }}
-            onCopy={e => { if (cfg.blockCopy) e.preventDefault(); }}
-            onCut={e => { if (cfg.blockCopy) e.preventDefault(); }}
-            spellCheck={!!cfg.spellChk}
-            autoComplete="off"
-            autoCorrect="off"
-            placeholder="Begin writing here…"
-            aria-label={multi ? `Your answer to question ${qIndex + 1}` : 'Your examination answer'}
-            aria-describedby="bbWordCount"
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              background: 'transparent',
-              border: 'none', outline: 'none', resize: 'none',
-              padding: `${lineH - writingSize + 1}px 60px 60px 88px`,
-              fontFamily: fontBody,
-              fontSize: writingSize,
-              lineHeight: `${lineH}px`,
-              color: BB.ink,
-              letterSpacing: '0.01em',
-              overflowY: 'auto',
-            }}
-          />
-
-          {/* Word limit badge */}
-          {overMax && (
-            <div style={{
-              position: 'absolute', bottom: 14, right: 20,
-              fontFamily: fontMono, fontSize: 10, letterSpacing: '0.15em',
-              textTransform: 'uppercase', color: '#C47A6B',
-              border: '1px solid rgba(196,122,107,0.3)',
-              padding: '3px 10px', background: BB.parchment,
-            }}>Word limit reached</div>
-          )}
-        </div>
-
-        {/* ── Footer ── */}
-        <div style={{ background: BB.oxford, flexShrink: 0 }}>
-          <GoldRule />
-          <div className="bb-exam-foot" style={{
-            padding: '10px 40px',
-            display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-            alignItems: 'center',
-          }}>
-            {/* Left — word count */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span id="bbWordCount" style={{
-                fontFamily: fontMono, fontSize: 12,
-                letterSpacing: '0.12em',
-                color: overMax ? '#C47A6B' : atMin ? BB.gold : BB.fade,
-                transition: 'color 0.5s',
+          {/* ── Bar: course, question tabs, saved, timer ── */}
+          <div className="bk-bar">
+            <span className="bk-crs">{crsLabel}</span>
+            {/* Instructor-preview exit. Hidden for real student launches: one
+                stray click must never cost a student their essay. The draft +
+                remaining time are persisted, so re-entry restores both. */}
+            {!bbIsStudent() && (
+              <button type="button" className="bk-exit" onClick={() => {
+                writeDraftNow();
+                if (confirm('Leave the exam? Your draft and remaining time are saved on this device and will be restored when you re-enter.')) {
+                  onNavigate('briefing');
+                }
               }}>
-                {words.toLocaleString()}
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+                Exit Exam
+              </button>
+            )}
+            {multi && (
+              <div className="bk-qtabs" role="group" aria-label="Questions">
+                {questions.map((_, i) => (
+                  <button key={i} type="button" onClick={() => goToQuestion(i)}
+                    aria-current={i === qIndex ? 'step' : undefined}
+                    className="bk-qtab">
+                    {`Q${i + 1}`}
+                    {answers[i].trim() && <><span aria-hidden="true"> ✓</span><span className="bk-sr">, answered</span></>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="bk-bar-right">
+              <span className="bk-cand">{candidateLabel}</span>
+              {cfg.blockWeb && fsLost && (
+                <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>↺ Restore full-screen</button>
+              )}
+              <span className={'bk-saved' + (saving ? ' show' : '')} aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>saved
               </span>
-              <MetaLabel>words</MetaLabel>
-              {/* Autosave dot */}
-              {saving && (
-                <div style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: BB.gold,
-                  animation: 'bbSaveDot 1.8s ease both',
-                }} />
-              )}
-            </div>
-
-            {/* Center — page */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <span style={{
-                fontFamily: fontDisplay, fontStyle: 'italic',
-                fontSize: 14, color: BB.fadedCream,
-                letterSpacing: '0.08em',
-              }}>{multi ? `Question ${TO_ROMAN(qIndex + 1)}` : `Page ${TO_ROMAN(1)}`}</span>
-            </div>
-
-            {/* Right — timer + seal + submit */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 16 }}>
-              <span role="timer" aria-label={'Time remaining ' + fmt(timeLeft)} style={{
-                fontFamily: fontMono, fontSize: 14,
-                letterSpacing: '0.1em',
-                color: isVeryLow ? '#C47A6B' : isLow ? BB.gold : BB.fade,
-                transition: 'color 0.5s',
-              }}>{fmt(timeLeft)}</span>
-              <Seal size={20} verified glow />
-              {cfg.minWords > 0 && !atMin && !submitting && (
-                <span style={{
-                  fontFamily: fontMono, fontSize: 12.5,
-                  letterSpacing: '0.06em', color: BB.fade,
-                }}>{words.toLocaleString()} of {cfg.minWords.toLocaleString()} minimum words</span>
-              )}
-              <BtnPrimary
-                onClick={() => {
-                  // A stray tap must not end the exam. Time expiry seals via
-                  // handleSubmit({ force: true }) and never reaches this.
-                  sealPromptRef.current = true;
-                  let ok = false;
-                  try { ok = window.confirm('Seal and submit now? You cannot change your answers after sealing.'); }
-                  finally {
-                    sealPromptRef.current = false;
-                    // A blur or visibility event can arrive just after the
-                    // dialog closes: let the 1.5s dedupe window absorb it.
-                    lastWarnRef.current = Date.now();
-                  }
-                  if (ok) handleSubmit();
-                }}
-                disabled={words < cfg.minWords || submitting}
-                style={{ padding: '7px 20px', fontSize: 14 }}
-              >{submitting ? 'Sealing…' : 'Seal & Submit'}</BtnPrimary>
+              <span role="timer" aria-label={'Time remaining ' + fmt(timeLeft)} className={'bk-timer' + (isVeryLow ? ' vlow' : isLow ? ' low' : '')}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>{fmt(timeLeft)}
+              </span>
             </div>
           </div>
+
+          {/* Offline banner (robustness spec §3): persistent while disconnected;
+              the seal retry loop parks until the matching 'online' event. In
+              flow, so it never covers the seal button. */}
+          {offline && (
+            <div role="status" className="bk-offline">
+              Connection lost. Your writing is safe on this device.
+              {submitting ? ' Your seal will submit when reconnected.' : ''}
+            </div>
+          )}
+
+          {/* Examiner's warning notices: recorded proctoring events. Assertive
+              and persistent: a candidate must hear every one, and it must not
+              vanish before they can review it. In flow under the bar, so the
+              timer, question tabs and full-screen button are never covered. */}
+          {warnLog.length > 0 && (
+            <div role="alert" className="bk-notices">
+              <div className="bk-notices-head">
+                <span>Recorded Notices ({warnLog.length})</span>
+                <button type="button" onClick={() => setWarnLogOpen(o => !o)}>{warnLogOpen ? 'Hide' : 'Show'}</button>
+              </div>
+              {warnLogOpen && (
+                <ul>
+                  {warnLog.map(w => <li key={w.id}>{w.msg}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* ── Sheet: the current question and the ruled writing area ── */}
+          <div className="bk-sheet">
+            <div className="bk-sheet-inner">
+              <div className="bk-qhead">
+                <div className="bk-qtop">
+                  <span className="bk-qn">{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Examination prompt'}</span>
+                  <button type="button" className="bk-qlink" onClick={() => setPromptOpen(o => !o)} aria-expanded={promptOpen}>
+                    {promptOpen ? 'Hide question' : 'Show question'}
+                  </button>
+                </div>
+                {promptOpen && <p className="bk-qtext">{questions[qIndex]}</p>}
+                {multi && (
+                  <div className="bk-qnav">
+                    <button type="button" className="bk-qlink" disabled={qIndex === 0} onClick={() => goToQuestion(qIndex - 1)}>← Previous</button>
+                    <button type="button" className="bk-qlink" disabled={qIndex === questions.length - 1} onClick={() => goToQuestion(qIndex + 1)}>Next →</button>
+                  </div>
+                )}
+              </div>
+
+              <div className="bk-writing" style={{ '--bk-fs': `${writingSize}px`, '--bk-lh': `${writingSize + 16}px` }}>
+                <textarea
+                  key={qIndex}
+                  ref={textareaRef}
+                  value={answers[qIndex]}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onPaste={e => {
+                    revsRef.current.push({ type: 'paste' });   // record the attempt as a session fact
+                    if (cfg.blockCopy) {
+                      e.preventDefault();
+                      recordWarning('Pasting is disabled. Your work must be composed here.', 'paste_blocked');
+                    }
+                  }}
+                  onCopy={e => { if (cfg.blockCopy) e.preventDefault(); }}
+                  onCut={e => { if (cfg.blockCopy) e.preventDefault(); }}
+                  spellCheck={!!cfg.spellChk}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  placeholder="Begin writing here…"
+                  aria-label={multi ? `Your answer to question ${qIndex + 1}` : 'Your examination answer'}
+                  aria-describedby="bbWordCount"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Foot: word count, what is kept, seal ── */}
+          <div className="bk-foot">
+            <div className="bk-wc">
+              {wantsMin && (
+                <div className="bk-wc-track"><div className={'bk-wc-fill' + (atMin ? ' met' : '')} style={{ width: `${fillPct}%` }} /></div>
+              )}
+              <span className={'bk-wc-n' + (overMax ? ' over' : '')}>
+                <b id="bbWordCount">{words.toLocaleString()}</b>
+                {wantsMin ? ` / ${cfg.minWords.toLocaleString()} words` : ' words'}
+                {overMax ? ' · Word limit reached' : ''}
+              </span>
+            </div>
+            <span className="bk-capture">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
+              Bluebook saves your words and a few session facts (time, word count, pastes, print or save attempts, leaving the window). Your screen is never watched.
+            </span>
+            <button
+              type="button"
+              className="bk-finish"
+              onClick={() => {
+                // A stray tap must not end the exam. Time expiry seals via
+                // handleSubmit({ force: true }) and never reaches this.
+                sealPromptRef.current = true;
+                let ok = false;
+                try { ok = window.confirm('Seal and submit now? You cannot change your answers after sealing.'); }
+                finally {
+                  sealPromptRef.current = false;
+                  // A blur or visibility event can arrive just after the
+                  // dialog closes: let the 1.5s dedupe window absorb it.
+                  lastWarnRef.current = Date.now();
+                }
+                if (ok) handleSubmit();
+              }}
+              disabled={words < cfg.minWords || submitting}
+            >{submitting ? 'Sealing…' : 'Seal & Submit'}</button>
+          </div>
         </div>
+
+        {/* The cover swings open over the page as the booklet is entered. */}
+        <div className="bk-cover bk-cover-open" aria-hidden="true" />
       </div>
     </div>
   );
@@ -1265,130 +1026,78 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const studentAccount = BB_API.isStudentAccount();
   const compared = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, fontFamily: fontBody,
-    }}>
-      <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
-
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <Seal size={72} verified={!transmitFailed} glow={!transmitFailed} />
-        </div>
-
-        <GoldRule double style={{ marginBottom: 28 }} />
-
-        {transmitFailed ? (
-          <React.Fragment>
-            <h1 style={{
-              fontFamily: fontDisplay, fontSize: 34,
-              fontWeight: 400, color: BB.cream,
-              letterSpacing: '0.02em', margin: '0 0 16px',
-            }}>We could not deliver your examination</h1>
-            <p style={{
-              fontFamily: fontBody, fontSize: 17,
-              color: BB.fade, lineHeight: 1.65,
-              margin: '0 0 10px', letterSpacing: '0.02em',
-            }}>
-              Your writing is saved on this device — nothing is lost.
-              Please try again, and if it still fails, tell your instructor
-              before closing this window.
-            </p>
-            <p style={{
-              fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.08em',
-              margin: '14px 0 0', color: BB.indigo,
-            }}>{sub.error || 'The server could not be reached.'}</p>
-          </React.Fragment>
-        ) : (
-          <React.Fragment>
-            <h1 style={{
-              fontFamily: fontDisplay, fontSize: 36,
-              fontWeight: 400, color: BB.cream,
-              letterSpacing: '0.02em', margin: '0 0 16px',
-            }}>Examination Sealed</h1>
-            <p style={{
-              fontFamily: fontBody, fontSize: 17,
-              color: BB.fade, lineHeight: 1.65,
-              margin: '0 0 10px', letterSpacing: '0.02em',
-            }}>
-              Your examination has been received, sealed, and submitted
-              for review.{compared && ' Your writing will be compared with your own past work to confirm it as yours.'}
-            </p>
-            {sub.expired && (
-              <p style={{
-                fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
-                color: BB.fadedCream, margin: '6px 0 0',
-              }}>Time expired — your work was sealed as written.</p>
-            )}
-            {transmitted && (
-              <p style={{
-                fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.08em',
-                margin: '14px 0 0', color: '#5EB87C',
-              }}>✓ Delivered to your teacher</p>
-            )}
-          </React.Fragment>
-        )}
-
-        <Ornament py={24} />
-
-        <div style={{
-          border: '1px solid rgba(201,169,97,0.22)',
-          padding: '20px 32px', marginBottom: 32,
-        }}>
-          {[
-            { label: 'Examination',  value: examTitle             },
-            { label: 'Course',       value: courseT               },
-            { label: 'Candidate',    value: candidate             },
-            { label: 'Word Count',   value: `${finalWords} words` },
-          ].filter(({ value }) => value).map(({ label, value }, i) => (
-            <div key={label}>
-              <div style={{
-                display: 'flex', justifyContent: 'space-between',
-                alignItems: 'baseline', padding: '11px 0',
-              }}>
-                <MetaLabel>{label}</MetaLabel>
-                <span style={{ fontFamily: fontBody, fontSize: 16, color: BB.cream }}>
-                  {value}
-                </span>
-              </div>
-              {i < 3 && <GoldRule faint />}
+    <div className="bk-stage bb-screen">
+      <div className="bk-booklet compact">
+        <div className="bk-page">
+          <div className="bk-done">
+            <div className={'big' + (transmitFailed ? ' failed' : '')}>
+              {transmitFailed
+                ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5"/><path d="M12 17h.01"/><path d="M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+                : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>}
             </div>
-          ))}
+
+            {transmitFailed ? (
+              <React.Fragment>
+                <h1>We could not deliver your examination</h1>
+                <p>
+                  Your writing is saved on this device, so nothing is lost.
+                  Please try again, and if it still fails, tell your instructor
+                  before closing this window.
+                </p>
+                <p className="state err">{sub.error || 'The server could not be reached.'}</p>
+              </React.Fragment>
+            ) : (
+              <React.Fragment>
+                <h1>Examination Sealed</h1>
+                <p>
+                  Your examination has been received, sealed, and submitted
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile.'}
+                </p>
+                {sub.expired && (
+                  <p>Time expired — your work was sealed as written.</p>
+                )}
+                {transmitted && (
+                  <p className="state ok">✓ Delivered to your teacher</p>
+                )}
+              </React.Fragment>
+            )}
+
+            <div className="gist">
+              {[
+                { label: 'Examination',  value: examTitle             },
+                { label: 'Course',       value: courseT               },
+                { label: 'Candidate',    value: candidate             },
+                { label: 'Word Count',   value: `${finalWords} words` },
+              ].filter(({ value }) => value).map(({ label, value }) => (
+                <div key={label}>
+                  <b>{label}</b>
+                  <span>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="acts">
+              {transmitFailed && (
+                <button type="button" className="go" onClick={() => onNavigate('exam')}>Try Again</button>
+              )}
+              {!isStudent && (
+                <button type="button" className="back" onClick={() => onNavigate('dashboard')}>Return to Dashboard</button>
+              )}
+              {studentAccount && !transmitFailed && (
+                <button type="button" className="back" onClick={() => onNavigate('student-home')}>Back to my exams</button>
+              )}
+            </div>
+
+            {isStudent && !transmitFailed && (
+              <p>
+                Your teacher can now read it and will follow up with you.
+                {!studentAccount && ' You may close this window.'}
+              </p>
+            )}
+
+            <p className="closed-on">Session closed · {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+          </div>
         </div>
-
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          {transmitFailed && (
-            <BtnPrimary onClick={() => onNavigate('exam')} style={{ padding: '11px 32px' }}>
-              Try Again
-            </BtnPrimary>
-          )}
-          {!isStudent && (
-            <BtnGhost onClick={() => onNavigate('dashboard')} style={{ padding: '11px 32px' }}>
-              Return to Dashboard
-            </BtnGhost>
-          )}
-          {studentAccount && !transmitFailed && (
-            <BtnGhost onClick={() => onNavigate('student-home')} style={{ padding: '11px 32px' }}>
-              Back to my exams
-            </BtnGhost>
-          )}
-        </div>
-
-        {isStudent && !transmitFailed && (
-          <p style={{
-            marginTop: 20, fontFamily: fontBody, fontSize: 15,
-            color: BB.fade, lineHeight: 1.6,
-          }}>
-            Your teacher reviews the results and will follow up with you.
-            {!studentAccount && ' You may close this window.'}
-          </p>
-        )}
-
-        <p style={{
-          marginTop: 28, fontFamily: fontMono, fontSize: 10,
-          letterSpacing: '0.18em', textTransform: 'uppercase',
-          color: 'rgba(139,155,180,0.4)',
-        }}>Session closed · {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
       </div>
     </div>
   );

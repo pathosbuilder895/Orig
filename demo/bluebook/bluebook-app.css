@@ -155,10 +155,6 @@ select.bb-input option{color:#111}
   .bb-grid.cols-2,.bb-grid.cols-3{grid-template-columns:1fr}
   .bb-grid.cols-4{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bb-stat strong{font-size:28px}
-  .bb-brief-back{position:static!important;display:block;margin:0 0 16px}
-  .bb-brief-screen{flex-direction:column;align-items:stretch!important;padding:16px!important}
-  .bb-brief-back{align-self:flex-start}
-  .bb-brief-card>div{padding-left:20px!important;padding-right:20px!important}
   .bb-card{padding:1rem 1.1rem;border-radius:14px}
   .bb-page h1{font-size:1.5rem}
   .bb-student-body{padding:1.2rem 1rem 2rem}
@@ -177,24 +173,6 @@ select.bb-input option{color:#111}
   .bb-linkrow{flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){.bb-page *{animation:none!important;transition:none!important}}
-
-/* Exam screen (Exam.jsx). Desktop layout is inline; these only take over on
-   smaller screens, where the 40px gutters and three-column bars do not fit. */
-.bb-qdot:focus-visible,.bb-exam-prompt button:focus-visible{outline:2px solid #e0be55;outline-offset:2px}
-@media(max-width:1000px){
-  .bb-exam-book{margin:0!important;height:100vh!important;max-width:none!important;border:0!important}
-}
-@media(max-width:600px){
-  .bb-exam-mast{grid-template-columns:1fr auto!important;padding:10px 14px!important;gap:8px!important}
-  .bb-exam-mast>div{display:none}
-  .bb-exam-strip{padding:6px 14px!important;flex-wrap:wrap;gap:6px 12px!important}
-  .bb-exam-strip>span{font-size:10px!important}
-  .bb-exam-prompt{padding:10px 14px!important}
-  .bb-exam-margin{left:30px!important}
-  .bb-exam-textarea{padding-left:42px!important;padding-right:14px!important;font-size:17px!important}
-  .bb-exam-foot{display:flex!important;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:8px 14px!important}
-  .bb-exam-foot>div:nth-child(2){display:none!important}
-}
 
 /* Public landing (Landing.jsx). Desktop layout is inline; on phones the 48px
    gutters, the folio label and the one-line contents rows do not fit. */
