@@ -26,21 +26,34 @@ reference to it and are not selected. This hook is a fast pre-push net —
 CI's full suite remains the real gate.
 
 In --run mode, if DATABASE_URL is unset and a local Postgres answers on
-localhost:5432 (see scripts/local_postgres.sh), it is exported automatically
-so postgres-marked tests in the selection run instead of self-skipping.
+localhost:5432 (see scripts/local_postgres.sh), postgres-marked tests in the
+selection run against it instead of self-skipping. Each run gets its own
+throwaway database (original_test_tmp_<pid>_<hex>), dropped when the run
+ends: parallel worktrees share that one container, and tests that drop the
+live schema (tests/test_migration.py's fresh_pg) used to wipe another run's
+tables mid-run. If the database cannot be created, the run falls back to the
+shared original_test database with a warning. A DATABASE_URL set by the
+caller is always used as-is.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
+import uuid
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LOCAL_PG_URL = "postgresql://original:original@localhost:5432/original_test"
+LOCAL_PG_SERVER = "postgresql://original:original@localhost:5432"
+LOCAL_PG_URL = f"{LOCAL_PG_SERVER}/original_test"
+# Distinct from hand-made databases (original_test_bb, ...). A database with
+# this prefix whose <pid> has exited is a killed run's leftover, safe to drop.
+SCRATCH_DB_PREFIX = "original_test_tmp_"
 
 _INFRA_FILES = {"pytest.ini", "setup.cfg", "pyproject.toml"}
 
@@ -186,6 +199,72 @@ def _local_postgres_reachable() -> bool:
         return False
 
 
+def _admin_execute(sql: str) -> None:
+    """Run one statement on the local server's maintenance database."""
+    import psycopg2  # in requirements.txt; imported late so mapping-only use needs no driver
+
+    conn = psycopg2.connect(f"{LOCAL_PG_SERVER}/postgres", connect_timeout=5)
+    try:
+        # CREATE/DROP DATABASE refuse to run inside a transaction block.
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(sql)
+    finally:
+        conn.close()
+
+
+def _create_scratch_db(name: str) -> None:
+    _admin_execute(f'CREATE DATABASE "{name}"')
+
+
+def _drop_scratch_db(name: str) -> None:
+    # FORCE (Postgres 13+) ends connections a killed pytest left open.
+    _admin_execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+
+
+def _exit_on_signal(signum, frame):
+    raise SystemExit(128 + signum)
+
+
+@contextmanager
+def scratch_database():
+    """Yield the URL of a throwaway database on the local server, dropped on
+    exit. Falls back to the shared LOCAL_PG_URL if it cannot be created."""
+    name = f"{SCRATCH_DB_PREFIX}{os.getpid()}_{uuid.uuid4().hex[:8]}"
+    try:
+        _create_scratch_db(name)
+    except Exception as exc:
+        print(
+            f"changed-tests: warning: could not create a throwaway database "
+            f"({exc}); using the shared {LOCAL_PG_URL}, where a parallel run "
+            "can drop tables under this one",
+            file=sys.stderr,
+        )
+        name = None
+    if name is None:
+        yield LOCAL_PG_URL
+        return
+
+    # Turn SIGTERM/SIGHUP (a killed push, a closed terminal) into SystemExit
+    # so the drop below still runs.
+    previous = {
+        sig: signal.signal(sig, _exit_on_signal) for sig in (signal.SIGTERM, signal.SIGHUP)
+    }
+    try:
+        yield f"{LOCAL_PG_SERVER}/{name}"
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler if handler is not None else signal.SIG_DFL)
+        try:
+            _drop_scratch_db(name)
+        except Exception as exc:
+            print(
+                f"changed-tests: warning: could not drop throwaway database "
+                f"{name} ({exc}); drop it by hand",
+                file=sys.stderr,
+            )
+
+
 def main(argv: list[str]) -> int:
     run = "--run" in argv
     from_git = "--from-git" in argv
@@ -204,20 +283,27 @@ def main(argv: list[str]) -> int:
     codes = []
     if tests:
         env = os.environ.copy()
+        database = nullcontext(None)
         if not env.get("DATABASE_URL") and _local_postgres_reachable():
-            env["DATABASE_URL"] = LOCAL_PG_URL
-            print("changed-tests: local Postgres detected — postgres-marked tests will run")
-        print(f"changed-tests: running {len(tests)} mapped test file(s)")
-        codes.append(
-            subprocess.run(
-                # Same selection as the blocking CI lane: known-red tests
-                # (docs/testing/09 §3, scripts/known_red.py) are red by design
-                # and must not veto a push.
-                [sys.executable, "-m", "pytest", "-q",
-                 "-m", "not blocker and not certification", *tests],
-                cwd=REPO_ROOT, env=env,
-            ).returncode
-        )
+            database = scratch_database()
+        with database as db_url:
+            if db_url:
+                env["DATABASE_URL"] = db_url
+                print(
+                    "changed-tests: local Postgres detected, postgres-marked tests will run "
+                    f"against {db_url.rsplit('/', 1)[1]}"
+                )
+            print(f"changed-tests: running {len(tests)} mapped test file(s)")
+            codes.append(
+                subprocess.run(
+                    # Same selection as the blocking CI lane: known-red tests
+                    # (docs/testing/09 §3, scripts/known_red.py) are red by design
+                    # and must not veto a push.
+                    [sys.executable, "-m", "pytest", "-q",
+                     "-m", "not blocker and not certification", *tests],
+                    cwd=REPO_ROOT, env=env,
+                ).returncode
+            )
     else:
         print("changed-tests: no Python tests mapped to the pushed changes")
 
