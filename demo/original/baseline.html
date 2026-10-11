@@ -48,6 +48,7 @@
   .left::-webkit-scrollbar{display:none;width:0;height:0;}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
   .greet{font-family:var(--display);font-size:1.75rem;font-weight:500;line-height:1.06;color:var(--cream);margin-top:.1rem;overflow-wrap:anywhere;}
+  .greet-id{font-family:var(--mono);font-size:.58rem;letter-spacing:.05em;color:var(--dim-2);opacity:.75;margin-top:.35rem;overflow-wrap:anywhere;}
   .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;line-height:1.55;overflow-wrap:anywhere;}
   .side-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
   .side-link{display:inline-block;font-size:.9rem;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;transition:all .15s;}
@@ -275,6 +276,7 @@
         <div class="greet-eyebrow">Voice Baseline</div>
         <div class="greet" id="greet">Loading</div>
         <div class="greet-meta" id="meta"></div>
+        <div class="greet-id" id="greet-id" hidden></div>
         <div class="side-links">
           <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
           <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
@@ -548,11 +550,15 @@
     if(!ID){
       $('greet').textContent='Choose a student';
       $('meta').textContent='';
+      $('greet-id').hidden=true;
       $('analyse-link').hidden=true; $('add-link').hidden=true;
       return;
     }
     $('greet').textContent=nm();
-    const parts=[ID];
+    // The raw id is small, secondary text, and only when the heading is a name (else it would say the same thing twice).
+    $('greet-id').textContent='ID '+ID;
+    $('greet-id').hidden=nm()===ID;
+    const parts=[];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
     if(S.status==='ok'){

@@ -41,6 +41,12 @@ async function expectDashboard(page) {
   expect(new URL(page.url()).hash).toBe('')
 }
 
+// The overview, whatever the address says.
+async function expectDashboardOnly(page) {
+  await expect(page.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('heading', { name: 'Reset your password' })).toHaveCount(0)
+}
+
 test.describe('Deep links into one exam', () => {
   test('#exam/<id> opens Manage examination for a signed-in teacher', async ({ staffPage, workerTenant, request }) => {
     const title = `Deep link exam ${workerTenant.tenant.tenant_id}`
@@ -122,6 +128,15 @@ test.describe('Deep links into one exam', () => {
     await page.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
     await page.getByRole('button', { name: 'Enter' }).click()
     await expect(page.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('#forgot opens the reset form for a visitor, and a signed-in teacher still gets the dashboard', async ({ page, staffPage }) => {
+    // The sign-in page's "Forgot your password?" link (demo/index.html).
+    await page.goto('/bluebook/#forgot')
+    await expect(page.getByRole('heading', { name: 'Reset your password' })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('button', { name: 'Email me a reset link' })).toBeVisible()
+    await staffPage.goto('/bluebook/#forgot')
+    await expectDashboardOnly(staffPage)
   })
 
   test('an unknown id falls back to the dashboard with no error', async ({ staffPage }) => {

@@ -667,3 +667,160 @@ def test_the_fade_is_drawn_for_each_edge_and_both_in_suite_css_and_the_teacher_n
         assert "mask-image" in css
     jsx = (DEMO / "bluebook" / "TeacherWorkspace.jsx").read_text(encoding="utf-8")
     assert "usePillFade(pills, [active, demo]);" in jsx and 'ref={pills} className={\'teacher-pills\'' in jsx
+
+
+# ── Small things from the audit ───────────────────────────────────────────────
+
+SIGN_IN = DEMO / "index.html"
+
+SIGN_IN_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+const els = new Map();
+const el = (id) => { if (!els.has(id)) els.set(id, { id, style: {}, textContent: '', innerHTML: '', disabled: false, value: '', classList: { add() { this.on = true; }, remove() { this.on = false; } } }); return els.get(id); };
+const document = { getElementById: el };
+const localStorage = { setItem() {}, getItem() { return null; } };
+const window = { location: {} };
+const fetch = (url) => {
+  if (String(url).endsWith('/health')) return Promise.resolve({ json: () => Promise.resolve({ environment: sc.environment }) });
+  return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) });
+};
+const run = new Function('document', 'localStorage', 'window', 'fetch', scripts[scripts.length - 1] + '\nreturn handleLogin;');
+const handleLogin = run(document, localStorage, window, fetch);
+(async () => {
+  await new Promise((r) => setTimeout(r, 20));   // the health check has answered
+  await handleLogin({ preventDefault() {} });
+  process.stdout.write(JSON.stringify({ msg: el('errorMsg').textContent, shown: !!el('errorMsg').classList.on, pills: el('demoRolePills').style.display || '' }));
+})();
+"""
+
+
+def _sign_in_failure(environment: str) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", SIGN_IN_RUN],
+        input=json.dumps({"page": str(SIGN_IN), "environment": environment}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_the_sign_in_error_names_the_demo_buttons_only_where_they_are_shown():
+    demo = _sign_in_failure("demo")
+    assert demo["pills"] == "" and demo["msg"] == "Invalid email or password. Try the demo buttons below."
+    for real in ("pilot", "staging", "production"):
+        out = _sign_in_failure(real)
+        assert out["pills"] == "none"  # a real deploy hides them ...
+        assert out["msg"] == "Invalid email or password." and out["shown"] is True  # ... and the message does not point at them
+    # Markup default: no sentence about buttons before the script has decided.
+    assert '<div class="error-msg" id="errorMsg">Invalid email or password.</div>' in SIGN_IN.read_text(encoding="utf-8")
+
+
+def test_the_sign_in_page_links_to_the_existing_password_reset():
+    page = SIGN_IN.read_text(encoding="utf-8")
+    assert '<a href="bluebook/#forgot" id="forgotLink">Forgot your password?</a>' in page
+    # It opens Bluebook's existing reset form (POST /auth/password-reset/request); no new backend.
+    deep = (DEMO / "bluebook" / "deep-link.jsx").read_text(encoding="utf-8")
+    app = (DEMO / "bluebook" / "app.jsx").read_text(encoding="utf-8")
+    assert "export const FORGOT_HASH = '#forgot';" in deep
+    assert "if (window.location.hash === FORGOT_HASH) return 'forgot';" in app
+    assert "<ForgotPasswordScreen onNavigate={navigate} />" in app
+
+
+# Voice Baseline: the name is the heading and the raw id is small secondary text.
+GREET_TAIL = r"""
+(async () => {
+  for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"'); i++) await sleep(10);
+  process.stdout.write(JSON.stringify({ greet: el('greet').textContent, id: el('greet-id').textContent, idHidden: el('greet-id').hidden, meta: el('meta').textContent }));
+  process.exit(0);
+})();
+"""
+
+
+def _greet_run(roster) -> dict:
+    head = BASELINE_HARNESS.split("(async () => {")[0]
+    anchor = "if (path === '/students') return [200, { students: ['s1'], roster: null }];"
+    assert anchor in head, "the baseline harness changed"
+    head = head.replace(anchor, "if (path === '/students') return [200, { students: ['s1'], roster: sc.roster || null }];", 1)
+    run = subprocess.run(
+        [shutil.which("node"), "-e", head + GREET_TAIL],
+        input=json.dumps(
+            {
+                "live": str(SUITE / "live.js"),
+                "page": str(SUITE / "baseline.html"),
+                "features": str(SUITE / "js" / "feature-data.js"),
+                "roster": roster,
+            }
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_voice_baseline_shows_the_roster_name_and_the_raw_id_only_as_small_secondary_text():
+    named = _greet_run([{"id": "s1", "name": "Ada Student", "sample_count": 5, "authenticated_count": 5}])
+    assert named["greet"] == "Ada Student"
+    assert named["id"] == "ID s1" and named["idHidden"] is False
+    assert "s1" not in named["meta"]  # the counts line no longer opens with the id
+    # With no name to show, the heading is the id already: it is not said twice.
+    nameless = _greet_run(None)
+    assert nameless["greet"] == "s1" and nameless["idHidden"] is True
+    assert "s1" not in nameless["meta"]
+
+
+def test_writing_state_opens_a_habits_evidence_from_the_keyboard():
+    script = _inline_scripts(SUITE / "writing-state.html")
+    # The bars (one tab stop, arrow keys along them), the tier band labels and the Feature Detail
+    # rows are buttons; the evidence says when it is open (aria-expanded) and where focus goes.
+    for needle in (
+        "col.tabIndex=-1; col.setAttribute('role','button'); col.setAttribute('aria-expanded','false');",
+        "onPress(col,()=>{ if(S.base) EVI.open(f.code,col); else CHIPS.toggle(f.tier); });",
+        "b.tabIndex=0; b.setAttribute('role','button');",
+        "r.tabIndex=0; r.setAttribute('role','button'); r.setAttribute('aria-expanded','false');",
+        "onPress(r,()=>EVI.open(r.dataset.code,r));",
+        "markExpanded(code);",
+        "if(from) $('evi-close').focus();",
+        "e.key==='Escape'&&box.classList.contains('show')",
+    ):
+        assert needle in script, needle
+
+
+@needs_node
+def test_enter_and_space_press_a_clickable_habit_bar_and_nothing_else_does():
+    script = _inline_scripts(SUITE / "writing-state.html")
+    run = subprocess.run(
+        [
+            shutil.which("node"),
+            "-e",
+            r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const onPress = new Function(sc.src + '\nreturn onPress;')();
+const out = [];
+for (const key of ['Enter', ' ', 'Spacebar', 'a', 'Tab', 'Escape', 'ArrowRight']) {
+  let handler = null, pressed = 0, prevented = 0;
+  onPress({ addEventListener(t, fn) { if (t === 'keydown') handler = fn; } }, () => { pressed++; });
+  handler({ key, preventDefault() { prevented++; } });
+  out.push([key, pressed, prevented]);
+}
+process.stdout.write(JSON.stringify(out));
+""",
+        ],
+        input=json.dumps({"src": _extract(script, "onPress")}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [
+        ["Enter", 1, 1], [" ", 1, 1], ["Spacebar", 1, 1], ["a", 0, 0], ["Tab", 0, 0], ["Escape", 0, 0], ["ArrowRight", 0, 0],
+    ]

@@ -596,6 +596,18 @@
   const CROSS={pinned:null};
   let HM, RADAR, CHIPS, DETAIL, EVI, FP;
 
+  // A clickable div answers Enter and Space as a button does.
+  function onPress(el,fn){
+    el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){ e.preventDefault(); fn(); } });
+  }
+  // Which habit's evidence is open, for the screen reader: aria-expanded on the habit's bar and on
+  // its Feature Detail row (the one habit named, or none).
+  function markExpanded(code){
+    document.querySelectorAll('#heatmap [data-code], #fd-body .fd-row').forEach(el=>{
+      if(el.getAttribute('role')==='button') el.setAttribute('aria-expanded',code&&el.dataset.code===code?'true':'false');
+    });
+  }
+
   // State vector heatmap (all 97 measured habits, grouped by tier):
   // bar = baseline value, tick = this paper's value.
   function makeHeatmap(){
@@ -604,7 +616,12 @@
     let cols=[], labs=[];
     // Tier band strip (x-axis in full view)
     band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+esc(t.key)+'" style="grid-column:span '+t.features.length+';--tc:'+esc(t.c)+'" title="'+esc(tierTitle(t))+'"><span>'+esc(t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:''))+'</span></div>').join('');
-    band.querySelectorAll('.hbnd').forEach(b=>{ b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier)); });
+    band.querySelectorAll('.hbnd').forEach(b=>{
+      b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier));
+      const t=TIER_BY_KEY.get(b.dataset.tier);
+      b.tabIndex=0; b.setAttribute('role','button'); b.setAttribute('aria-label',(t?t.pill+', '+plainTier(t):b.dataset.tier)+'. Pins this tier.');
+      onPress(b,()=>CHIPS.toggle(b.dataset.tier));
+    });
     const TIER_GRP={}; TIERS.forEach(t=>{TIER_GRP[t.key]=t.group;});
 
     function build(){
@@ -634,6 +651,10 @@
         }
         col.title=f.name+(v!=null?': baseline '+v.toFixed(3):': no baseline yet')+(sub!=null?' · this paper '+sub.toFixed(3):'')+(out?' · outside their usual range':'');
         col.style.cursor='pointer';
+        // A keyboard reaches the bars as one group: Tab enters it, the arrow keys move along it.
+        col.tabIndex=-1; col.setAttribute('role','button'); col.setAttribute('aria-expanded','false');
+        col.setAttribute('aria-label',f.name+(v!=null?', baseline '+v.toFixed(2):', no baseline yet')+(sub!=null?', this paper '+sub.toFixed(2):'')+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
+        onPress(col,()=>{ if(S.base) EVI.open(f.code,col); else CHIPS.toggle(f.tier); });
         col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
         col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
         col.addEventListener('click',()=>{ if(S.base) EVI.open(f.code); else CHIPS.toggle(f.tier); });
@@ -643,6 +664,22 @@
       });
       reset();
     }
+    const shown=()=>cols.filter(c=>c.style.display!=='none');
+    // One bar is the tab stop (the one last focused, else the first shown); the rest are reached with the arrow keys.
+    function syncTab(){
+      const list=shown(); const keep=list.find(c=>c.tabIndex===0)||list[0];
+      cols.forEach(c=>{ c.tabIndex=c===keep?0:-1; });
+    }
+    heatmap.addEventListener('focusin',e=>{ const c=e.target; if(c&&c.parentNode===heatmap){ cols.forEach(x=>{ x.tabIndex=x===c?0:-1; }); } });
+    heatmap.addEventListener('keydown',e=>{
+      const list=shown(), i=list.indexOf(document.activeElement);
+      if(i<0) return;
+      const to=e.key==='ArrowRight'||e.key==='ArrowDown'?i+1:e.key==='ArrowLeft'||e.key==='ArrowUp'?i-1:e.key==='Home'?0:e.key==='End'?list.length-1:null;
+      if(to===null) return;
+      e.preventDefault();
+      const next=list[Math.max(0,Math.min(list.length-1,to))];
+      if(next) next.focus();
+    });
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
@@ -651,6 +688,7 @@
       band.style.gridTemplateColumns='repeat('+count+',12px)';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
+      syncTab();
     }
     function filter(key){
       const t=TIER_BY_KEY.get(key); if(!t) return;
@@ -662,6 +700,7 @@
       labels.style.display=''; band.style.display='none';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
       cols.forEach((c,i)=>{const m=c.dataset.tier===key;c.style.display=m?'':'none';labs[i].style.display=m?'':'none';c._bar.style.width=m?'26px':'9px';});
+      syncTab();
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
@@ -672,6 +711,7 @@
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
       cols.forEach((c,i)=>{c.style.display='';labs[i].style.display='';c._bar.style.width='9px';});
+      syncTab();
     }
     return {build,filterGroup,filter,reset};
   }
@@ -805,7 +845,13 @@
       titleEl.textContent=title; subEl.textContent=sub;
       countEl.textContent=count!=null?plural(count,'habit'):'';
       body.innerHTML=rowsHTML;
-      body.querySelectorAll('.fd-row').forEach(r=>r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); }));
+      body.querySelectorAll('.fd-row').forEach(r=>{
+        r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); });
+        if(!S.base||!r.dataset.code) return;
+        r.tabIndex=0; r.setAttribute('role','button'); r.setAttribute('aria-expanded','false');
+        onPress(r,()=>EVI.open(r.dataset.code,r));
+      });
+      markExpanded(EVI?EVI.code():null);
     }
     return {
       show(key){ const t=TIER_BY_KEY.get(key); if(!t) return;
@@ -844,7 +890,9 @@
   function makeEvidence(){
     const box=$('hero-evi');
     const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
-    function open(code){
+    let openCode='', opener=null;
+    // `from` is the bar or row a keyboard opened it from: focus moves into the panel, and back when it closes.
+    function open(code,from){
       if(!has(OF.byCode,code)) return;
       const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
@@ -874,11 +922,20 @@
         $('evi-base-src').textContent='';
       }
       box.classList.add('show');
+      openCode=code; opener=from||null;
+      markExpanded(code);
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      if(from) $('evi-close').focus();
     }
-    function close(){ box.classList.remove('show'); }
-    $('evi-close').addEventListener('click',close);
-    return {open,close};
+    function close(back){
+      box.classList.remove('show');
+      openCode=''; markExpanded(null);
+      if(back===true&&opener&&opener.isConnected) opener.focus();
+      opener=null;
+    }
+    $('evi-close').addEventListener('click',()=>close(true));
+    box.addEventListener('keydown',e=>{ if(e.key==='Escape'&&box.classList.contains('show')){ e.preventDefault(); close(true); } });
+    return {open,close,code:()=>openCode};
   }
 
   // Fingerprint (decorative): colours follow the toggle and the result.

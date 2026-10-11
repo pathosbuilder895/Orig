@@ -2635,7 +2635,7 @@ def test_baseline_page_takes_one_write_at_a_time_and_says_it_is_saving():
 def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_servers_count_counted():
     out = _baseline_run()["before"]
     # 5 samples: one student upload (never "approved") and 4 supervised sittings.
-    assert out["meta"] == "s1 · 4 teacher-approved samples · 1 student upload"
+    assert out["meta"] == "4 teacher-approved samples · 1 student upload"
     assert "5 counted samples (4 teacher-approved, 1 student upload)" in out["short"]
     assert "approved sample" not in out["short"].replace("teacher-approved", "")
     # The server's sentence is shown with its "authenticated" read as "counted", and no dash.
@@ -3267,7 +3267,7 @@ def test_baseline_page_draws_the_student_before_the_sealed_list_has_loaded():
     # student's own baseline needs only two, so it is drawn without waiting for it.
     out = _baseline_run(early=300, delay={"/bluebook/submissions": 900})
     early = out["early"]
-    assert early["meta"] == "s1 \u00b7 4 teacher-approved samples \u00b7 1 student upload"
+    assert early["meta"] == "4 teacher-approved samples \u00b7 1 student upload"
     assert "5 counted samples" in early["short"]
     assert 'data-act="approve"' not in early["sealed"]
     # ...and the sealed exams are there once they arrive.

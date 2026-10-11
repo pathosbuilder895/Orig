@@ -189,6 +189,11 @@ body::after {
   box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
 }
 
+/* The way to a password reset, under the password field. */
+.forgot { margin: -6px 0 4px; text-align: right; font-size: 0.78rem; }
+.forgot a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.forgot a:hover, .forgot a:focus-visible { color: var(--blue); }
+
 /* ── Button ── */
 .btn-primary {
   width: 100%;
@@ -722,7 +727,8 @@ body::after {
           <label for="password">Password</label>
           <input type="password" id="password" placeholder="••••••••••" autocomplete="current-password" required>
         </div>
-        <div class="error-msg" id="errorMsg">Invalid email or password. Try the demo buttons below.</div>
+        <div class="forgot"><a href="bluebook/#forgot" id="forgotLink">Forgot your password?</a></div>
+        <div class="error-msg" id="errorMsg">Invalid email or password.</div>
         <button type="submit" class="btn-primary" id="loginBtn">Sign in</button>
       </form>
 
@@ -940,6 +946,10 @@ async function handleLogin(e) {
       : products && products.indexOf('original') < 0 ? 'bluebook/'
       : 'original/';
   } catch {
+    // The demo buttons are named only while they are on the page (a real deploy hides them).
+    const pills = document.getElementById('demoRolePills');
+    const demoShown = !!pills && pills.style.display !== 'none';
+    err.textContent = 'Invalid email or password.' + (demoShown ? ' Try the demo buttons below.' : '');
     err.classList.add('show');
     btn.innerHTML = 'Sign in';
     btn.disabled = false;

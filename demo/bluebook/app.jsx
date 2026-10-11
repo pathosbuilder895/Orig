@@ -16,7 +16,7 @@ import {
 } from './Teacher.jsx';
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
-import { DEEP_LINK_SCREEN, clearDeepLink, deepLinkScreen, parseDeepLink } from './deep-link.jsx';
+import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink } from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -67,6 +67,8 @@ function App() {
     if (BB_API.isStudentLaunch()) return 'briefing';
     if (BB_API.isStudentAccount()) return 'student-home';
     if (BB_API.isAuthed()) return 'dashboard';
+    // The sign-in page's "Forgot your password?" link opens the reset form.
+    if (window.location.hash === FORGOT_HASH) return 'forgot';
     return 'landing';
   });
   const screen = t.currentScreen || autoScreen;

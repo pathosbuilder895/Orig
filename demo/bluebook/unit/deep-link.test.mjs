@@ -29,7 +29,7 @@ function fakeWindow(href) {
 }
 
 globalThis.window = fakeWindow('https://example.test/bluebook/');
-const { parseDeepLink, deepLinkScreen, clearDeepLink, DEEP_LINK_SCREEN } = await import(
+const { parseDeepLink, deepLinkScreen, clearDeepLink, DEEP_LINK_SCREEN, FORGOT_HASH } = await import(
   'data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
 test('#exam/<id> and #live/<id> are deep links', () => {
@@ -71,6 +71,14 @@ test('clearing drops only a deep-link hash and keeps the path and query', () => 
   globalThis.window = fakeWindow('https://example.test/bluebook/#somewhere-else');
   clearDeepLink();
   assert.deepEqual(globalThis.window.calls, []);
+});
+
+test('#forgot is not a deep link, and moving on drops it like one', () => {
+  assert.equal(FORGOT_HASH, '#forgot');
+  assert.equal(parseDeepLink('#forgot'), null);
+  globalThis.window = fakeWindow('https://example.test/bluebook/?x=1#forgot');
+  clearDeepLink();
+  assert.deepEqual(globalThis.window.calls, [{ state: { kept: true }, next: '/bluebook/?x=1' }]);
 });
 
 test('clearing never throws when history is unavailable', () => {

@@ -48,12 +48,17 @@ export function deepLinkScreen(link, exam) {
   return DEEP_LINK_SCREEN[link.kind];
 }
 
+// '#forgot' opens the existing "Reset your password" screen for a visitor who is not signed in
+// (the sign-in page's "Forgot your password?" link). It is not a deep link into a signed-in
+// workspace: app.jsx reads it only to pick the first screen.
+export const FORGOT_HASH = '#forgot';
+
 // Drops a deep-link hash from the address bar, keeping the path and query,
 // so a reload after the teacher has moved on opens the dashboard rather
 // than the exam the link named. Does not fire hashchange.
 export function clearDeepLink() {
   try {
-    if (!parseDeepLink(window.location.hash)) return;
+    if (!parseDeepLink(window.location.hash) && window.location.hash !== FORGOT_HASH) return;
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   } catch (e) { /* history unavailable: the hash stays, which is harmless */ }
 }
