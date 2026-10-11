@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, WorthALookNote, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Students Screen
@@ -77,13 +77,13 @@ export function StudentsScreen({ onNavigate }) {
           <MetaLabel>
             {students.length} enrolled ·{' '}
             <span style={{ color:students.filter(s=>s.flagged).length > 0 ? '#C47A6B' : BB.fade }}>
-              {students.filter(s=>s.flagged).length} flagged
+              {students.filter(s=>s.flagged).length} worth a look
             </span>
           </MetaLabel>
         </div>
         {/* Filter pills */}
         <div style={{ display:'flex', gap:2, border:'1px solid rgba(201,169,97,0.22)' }}>
-          {[['all','All Students'],['flagged','Flagged Only']].map(([val, label]) => (
+          {[['all','All Students'],['flagged','Worth a look']].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)} style={{
               fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
               textTransform:'uppercase', padding:'8px 18px',
@@ -95,7 +95,9 @@ export function StudentsScreen({ onNavigate }) {
           ))}
         </div>
       </div>
-      <GoldRule double style={{ margin:'20px 0 36px' }} />
+      <GoldRule double style={{ margin:'20px 0 20px' }} />
+      {/* The "worth a look" count, filter and badge are Original's mark: say what it is, once. */}
+      <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:14, lineHeight:1.5 }} />
 
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 120px 80px 120px 80px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>
@@ -141,7 +143,7 @@ export function StudentsScreen({ onNavigate }) {
         ))}
         {filtered.length === 0 && (
           <div style={{ padding:'40px 20px', textAlign:'center' }}>
-            <MetaLabel>No flagged submissions</MetaLabel>
+            <MetaLabel>Nothing worth a look</MetaLabel>
           </div>
         )}
       </div>

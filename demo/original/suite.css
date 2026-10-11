@@ -1,0 +1,67 @@
+/* Shared by every page in the live suite (demo/original/). It styles only
+   what live.js renders (the testing-phase label, empty states and the
+   sign-in / off panels), so each page links it in <head> next to fonts.css.
+
+   .live-testing   the testing-phase label (Live.notices fills it in)
+   .live-empty     an honest empty state inside a card (Live.empty)
+   .live-panel     the sign-in and "Original is off" panels (Live.gate)
+
+   The colour variables come from each page's own :root and fall back to
+   the navy suite palette. */
+
+.live-testing {
+  display: block; margin-top: .8rem; max-width: 62ch;
+  padding: .6rem .85rem;
+  border: 1px solid rgba(201,160,40,0.38); border-radius: 10px;
+  background: rgba(201,160,40,0.08);
+  font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
+  color: rgba(245,239,224,0.84);
+  pointer-events: auto;
+}
+/* Doubled class: pages style bare <b> inside their cards (e.g. `.why b`), and
+   the notice must read the same everywhere. */
+.live-testing.live-testing b {
+  display: inline; margin: 0;
+  font-family: 'EB Garamond', Georgia, serif; font-size: 1em; font-style: normal; font-weight: 600;
+  color: #e0be55;
+}
+
+/* Light variant for the cream paper pages. */
+.live-testing.on-paper { color: #5c564a; border-color: #d9c48a; background: #f4ecd6; }
+.live-testing.live-testing.on-paper b { color: #7a5a10; }
+
+.live-empty {
+  margin: auto 0;
+  font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.55));
+}
+
+.live-panel {
+  grid-column: 1 / -1;
+  align-self: center; justify-self: center;
+  width: min(520px, calc(100% - 3rem));
+  margin: 2rem 0;
+  padding: 2rem 2rem 1.9rem;
+  text-align: center;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid var(--line-soft, rgba(255,255,255,0.07));
+  border-radius: 18px;
+}
+.live-panel h2 {
+  font: 500 1.6rem/1.15 var(--display, 'Playfair Display', Georgia, serif);
+  color: var(--cream, #f5efe0);
+}
+.live-panel p {
+  margin-top: .7rem;
+  font: italic 1rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.55));
+}
+.live-panel a {
+  display: inline-block; margin-top: 1.2rem;
+  padding: .5rem 1.15rem;
+  border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 999px;
+  font: 1rem var(--body, 'EB Garamond', Georgia, serif);
+  color: var(--gold-2, #e0be55); text-decoration: none;
+  transition: all .15s;
+}
+.live-panel a:hover { border-color: rgba(201,160,40,0.5); background: rgba(201,160,40,0.08); }

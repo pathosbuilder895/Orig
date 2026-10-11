@@ -13,6 +13,20 @@ export function rowKeyDown(fn) {
   };
 }
 
+// Faces the navy-design screens use beyond fonts.css: IBM Plex Mono 700 and the
+// Caveat hand. The Original suite self-hosts both (OFL licences sit beside the
+// files in demo/original/fonts). A face whose file is missing just falls back
+// to the next family, so it can never block a screen, and nothing is requested
+// from a third party. Rendered only by the live screens that use them.
+const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+const LATIN_EXT = 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF';
+const face = (family, weight, file, range) => `@font-face{font-family:'${family}';font-style:normal;font-display:swap;font-weight:${weight};src:url(/original/fonts/${file}.woff2) format('woff2');unicode-range:${range}}`;
+const MOCKUP_MONO_CSS = face('IBM Plex Mono', 700, 'ibm-plex-mono-latin-ext-700-normal', LATIN_EXT) + face('IBM Plex Mono', 700, 'ibm-plex-mono-latin-700-normal', LATIN);
+const MOCKUP_HAND_CSS = face('Caveat', 500, 'caveat-latin-ext-500-normal', LATIN_EXT) + face('Caveat', 500, 'caveat-latin-500-normal', LATIN);
+export function MockupFonts({ hand = false }) {
+  return <style>{MOCKUP_MONO_CSS + (hand ? MOCKUP_HAND_CSS : '')}</style>;
+}
+
 export const BB = {
   oxford:      '#002147',
   deep:        '#001020',
@@ -245,10 +259,28 @@ const STATUS_MAP = {
   LINK:        { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
 };
 
+// ─── The "worth a look" mark and Original's testing-phase label ─────────────
+// "Worth a look" is an Original result (a sealed exam compared with the writing
+// in the student's baseline), so wherever a teacher can see it the screen must
+// say plainly that Original is in its testing phase (NORTH_STAR rule 10). The
+// sentence is the one the Original suite shows (demo/original/live.js, NOTICE);
+// a test pins the two together. A tooltip is not enough: a screen that shows the
+// mark (this badge, a count, a filter, a row) renders <WorthALookNote /> once.
+export const ORIGINAL_TESTING_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.';
+export const WORTH_A_LOOK_SOURCE = "Worth a look: marked by Original's comparison with the writing in each student's baseline.";
+// Styled by `.bb-hint` (inside a .bb-page screen); a screen laid out in inline
+// styles passes `style`.
+export function WorthALookNote({ style }) {
+  return (
+    <p className="bb-hint" style={{ margin: '0 0 .8rem', ...style }}>{WORTH_A_LOOK_SOURCE} {ORIGINAL_TESTING_NOTICE}</p>
+  );
+}
+
 export function StatusBadge({ status, pulse = false }) {
   const s = STATUS_MAP[(status || '').toUpperCase()] || STATUS_MAP.DRAFT;
+  const flagged = (status || '').toUpperCase() === 'FLAGGED';
   return (
-    <span style={{
+    <span title={flagged ? `${WORTH_A_LOOK_SOURCE} ${ORIGINAL_TESTING_NOTICE}` : undefined} style={{
       fontFamily: fontMono,
       fontSize: 9,
       letterSpacing: '0.18em',
@@ -269,7 +301,7 @@ export function StatusBadge({ status, pulse = false }) {
           flexShrink: 0,
         }} />
       )}
-      {(status || '').toLowerCase().replace(/_/g, ' ')}
+      {flagged ? 'worth a look' : (status || '').toLowerCase().replace(/_/g, ' ')}
     </span>
   );
 }
@@ -277,6 +309,23 @@ export function StatusBadge({ status, pulse = false }) {
 // ─── Original API client (exam persistence) ──────────────────────────────────
 // Same-origin by default (Bluebook is served by the Original demo server).
 // Attaches whatever session token is present so writes are tenant-scoped.
+
+// Kept by the Original pages (demo/original/writing-state.html, demo/professor.html).
+const BB_PORTFOLIO_PREFIX = 'original_portfolio_';
+const BB_LAST_RESULT_KEY = 'original_last_result';
+function bbClearKeptPapers() {
+  try {
+    // Collect first, remove after: removing while counting skips entries.
+    const found = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(BB_PORTFOLIO_PREFIX) === 0) found.push(k);
+    }
+    found.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  } catch (e) {}
+  try { sessionStorage.removeItem(BB_LAST_RESULT_KEY); } catch (e) {}
+}
+
 // Every localStorage key a sign-in (or a launch) can leave behind. Signing
 // in as one kind of account clears the others, so a shared machine never
 // carries a stale student binding into a teacher session or vice versa.
@@ -506,7 +555,7 @@ export const BB_API = {
   // Store whatever a sign-in returned. Staff get a principal token; students
   // get a session token and their student id. Everything else is cleared.
   _storeSession(data) {
-    this.logout();
+    this._clearSession();
     const student = data.role === 'student';
     localStorage.setItem(student ? 'original_session_token' : 'original_principal_token', data.token);
     if (student) localStorage.setItem('original_student_id', data.student_id || '');
@@ -586,8 +635,18 @@ export const BB_API = {
     const h = await this._health();
     return !!h && h.signup_open !== false;
   },
-  logout() {
+  // The keys a sign-in leaves behind. Signing in clears these (so one kind of
+  // account never inherits another's binding) but not the papers kept below.
+  _clearSession() {
     BB_SESSION_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  },
+  // Signing out also forgets the papers the Original Writing State page keeps on
+  // this computer (the full text and the results, one key per student) and its last
+  // result, so a shared computer does not hold the last teacher's students' writing.
+  // The same keys Live.signOut and professor.html's signOut clear.
+  logout() {
+    this._clearSession();
+    bbClearKeptPapers();
   },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },

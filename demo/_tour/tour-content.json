@@ -59,13 +59,13 @@
         "target": "#fsMilestones, .milestones",
         "eye": "Stop 4 of 5 · Milestones",
         "title": "Voice Sampled · Established · Affirmed",
-        "body": "Three named milestones. Not deadlines, not grades — they describe what is already true about your record. The third is reached when a verified piece (proctored or instructor-confirmed) is on file."
+        "body": "Three named milestones. Not deadlines, not grades: they describe what is already true about your record. The third is reached when a piece your teacher approved (a supervised sitting, or a paper they verified) is on file."
       },
       {
         "target": ".btn-primary[onclick*='submit'], #sb-submit",
         "eye": "Stop 5 of 5 · Submit",
-        "title": "Add to your record",
-        "body": "Submit Work adds a piece to your profile. Each submission appears on the arc and contributes to the fingerprint. Nothing here is graded — this is your formation record."
+        "title": "Compare a piece",
+        "body": "Submit Work compares a piece with the writing on your profile. The piece is not added to your profile: only writing your teacher approves, such as sealed Bluebook work, joins it. Nothing here is graded."
       }
     ]
   },

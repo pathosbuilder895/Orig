@@ -194,7 +194,7 @@ def project_voice_notes(corrections: list[dict[str, Any]]) -> list[dict[str, Any
         out.append(
             {
                 "note": note,
-                "reviewer": (c.get("reviewer") or "Your tutor").strip() or "Your tutor",
+                "reviewer": (c.get("reviewer") or "Your teacher").strip() or "Your teacher",
                 "date": _short_period(c.get("created_at")),
             }
         )
@@ -217,8 +217,8 @@ def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[s
             {
                 "invitation_prose": (
                     "A passage in your recent work reads a little differently from your "
-                    "established voice. This happens to every writer — it is worth a brief "
-                    "conversation with your tutor, not a cause for worry."
+                    "established voice. This happens to every writer, and it is worth a brief "
+                    "conversation with your teacher, not a cause for worry."
                 ),
                 "locator": locator,
             }
@@ -228,17 +228,24 @@ def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[s
 
 def project_milestones(
     sample_count: int,
-    authenticated_count: int,
-    formation_completed: bool,
+    approved_count: int,
 ) -> list[dict[str, Any]]:
     """Sample counts → a positive credential as named milestones.
 
     Never sends the raw counts or "3 of 5 samples" — only whether each named
     milestone has been *reached* or is *upcoming*, with affirming copy.
+
+    ``approved_count`` is the number of samples a teacher has approved or a
+    supervised sitting has attested: provenance ``proctored``, ``verified`` or
+    ``canvas`` (``routers/_shared._TRUSTED_PROVENANCE``). It is not the
+    baseline's ``authenticated_count``, which also counts a student's own
+    unverified upload at half weight: a student cannot affirm their own voice.
     """
     reached_established = sample_count >= 3
     reached_sampled = sample_count >= 1
-    reached_affirmed = authenticated_count >= 1 or formation_completed
+    # Reached by one route only: a piece a teacher approved is on file. Finishing
+    # a pathway does not affirm a voice, so it is not a second route.
+    reached_affirmed = approved_count >= 1
 
     def state(reached: bool) -> str:
         return "reached" if reached else "upcoming"
@@ -247,7 +254,7 @@ def project_milestones(
         {
             "label": "Voice Sampled",
             "state": state(reached_sampled),
-            "blurb": "Your writing has entered your formation record.",
+            "blurb": "Some of your writing is on file as reference.",
         },
         {
             "label": "Voice Established",
@@ -257,7 +264,7 @@ def project_milestones(
         {
             "label": "Voice Affirmed",
             "state": state(reached_affirmed),
-            "blurb": "A verified piece confirms this voice is genuinely yours.",
+            "blurb": "A piece your teacher approved is on file.",
         },
     ]
 
@@ -265,7 +272,7 @@ def project_milestones(
 _FORMATION_STEP_LABELS = {
     0: "Ready to begin",
     1: "Baseline Session",
-    2: "Formation Session",
+    2: "Development Session",
     3: "Verification Session",
 }
 
@@ -292,9 +299,9 @@ def project_formation(pathway: dict[str, Any] | None) -> dict[str, Any] | None:
         if not completed
         else "Complete",
         "supportive_copy": (
-            "Formation complete. Your record reflects the work you put in."
+            "Pathway complete. Your record reflects the work you put in."
             if completed
-            else "A structured, developmental path — three short sessions, each one to "
+            else "A structured, developmental path: three short sessions, each one to "
             "strengthen your writing, not to assess it."
         ),
     }
@@ -306,23 +313,26 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     Derived from the resolved fidelity trend only. No raw numbers other than the
     resolved fidelity already present in the Arc.
     """
-    first = (name or "Your").split(" ")[0] or "Your"
+    # A student with no name on file (a launch-link sitting is name-free by
+    # default) is not addressed by one: "Your voice is...", never "Your, your voice".
+    first = (name or "").strip().split(" ")[0]
+    lead = f"{first}, your voice" if first else "Your voice"
     if not arc:
         return {
-            "headline": f"{first}, your voice is finding its shape.",
-            "subhead": "Submit your first piece of work to reveal your voice profile.",
+            "headline": f"{lead} is finding its shape.",
+            "subhead": "Your voice profile builds as your teacher approves more of your writing.",
         }
     latest = arc[-1]["fidelity"]
     grew_by = (arc[-1]["fidelity"] - arc[0]["fidelity"]) if len(arc) >= 2 else 0
     if grew_by >= 8:
-        headline = f"{first}, your voice strengthened across this term."
+        headline = f"{lead} strengthened across this term."
     elif grew_by <= -8:
-        headline = f"{first}, your voice is finding its footing."
+        headline = f"{lead} is finding its footing."
     else:
-        headline = f"{first}, your voice is settling into itself."
+        headline = f"{lead} is settling into itself."
     sub = f"Voice fidelity {latest} on your latest piece"
     if grew_by > 0:
-        sub += f" — up {grew_by} since the start of term"
+        sub += f", up {grew_by} since the start of term"
     return {"headline": headline, "subhead": sub + "."}
 
 
@@ -331,7 +341,7 @@ def project_voice_view(
     name: str,
     baseline_vector: dict[str, float] | None,
     sample_count: int,
-    authenticated_count: int,
+    approved_count: int,
     manifests: list[dict[str, Any]],
     corrections: list[dict[str, Any]],
     pathway: dict[str, Any] | None,
@@ -344,7 +354,6 @@ def project_voice_view(
     """
     arc = project_arc(manifests)
     formation = project_formation(pathway)
-    formation_completed = bool(formation and formation["status"] == "completed")
     head = project_headline(name, arc)
     return {
         "name": name,
@@ -354,16 +363,71 @@ def project_voice_view(
         "arc": arc,
         "voice_notes": project_voice_notes(corrections),
         "review_opportunities": project_review_opportunities(manifests),
-        "milestones": project_milestones(sample_count, authenticated_count, formation_completed),
+        "milestones": project_milestones(sample_count, approved_count),
         "formation": formation,
     }
 
 
 # ── POST /me/work : redacted scoring result ──────────────────────────────────
 
+# /me/work compares a piece with the student's baseline and keeps nothing of the
+# piece itself: it is never stored, so a teacher cannot add it either. The one
+# sentence about that, for the result that has to say so (the page that shows
+# results carries the second half for every piece).
+JOINS_PROFILE_LINE = (
+    "Only writing your teacher approves, such as sealed Bluebook work, joins your "
+    "writing profile."
+)
+NOT_ADDED_LINE = "Not added to your writing profile. " + JOINS_PROFILE_LINE
+
+
+def project_no_baseline_result() -> dict[str, Any]:
+    """The result when there is no approved writing to compare a piece with.
+
+    Honest, not an error: Original cannot say anything about a piece until a
+    teacher has approved some of the student's earlier writing. Carries no
+    reading of the piece at all.
+    """
+    return {
+        "headline": "Nothing to compare this with yet.",
+        "summary": (
+            "Original has no approved writing from you to compare this piece with yet, "
+            "so it cannot say anything about it. " + NOT_ADDED_LINE
+        ),
+        "steady": [],
+        "review_opportunity": False,
+    }
+
+
+# Below this much counted writing (the server's authenticated_count, which includes a
+# student's own uploads) or this much effective weight, Original's reading of a piece is
+# not one to hand a student: the same line the teacher's readiness check draws for
+# "ready" (routers/students.py, get_student_readiness). A comparison against a thinner
+# baseline is inconclusive, not "this reads like you" and not a warning either
+# (NORTH_STAR rule 3). The numbers are used here and never sent.
+MIN_COUNTED_SAMPLES = 5
+MIN_EFFECTIVE_SAMPLES = 3.0
+
+
+def project_inconclusive_result() -> dict[str, Any]:
+    """The result when the writing on file is too thin to say anything about a piece.
+
+    Honest, not an error and not a verdict: carries no reading of the piece, so no
+    "reads like you" and no warning, and no count of what is on file.
+    """
+    return {
+        "headline": "Not enough writing on file to compare yet.",
+        "summary": (
+            "Original can't tell much from this comparison yet, because there is not "
+            "much of your earlier writing on file to compare this piece with. " + NOT_ADDED_LINE
+        ),
+        "steady": [],
+        "review_opportunity": False,
+    }
+
 
 def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
-    """Project a raw Layer-7 scoring result into the student's formation view.
+    """Project a raw Layer-7 scoring result into the student's supportive view.
 
     Accepts either the Pydantic ``Layer7OutputResponse`` or a plain dict with
     the same shape. Returns only: a headline, supportive summary prose, a few
@@ -371,6 +435,11 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     features so no feature name leaks), and whether a review opportunity opened.
     The raw deviation score, action enum, feature vectors, and the technical
     ``human_explanation`` never cross the wire.
+
+    When the baseline behind the result is thin (fewer than ``MIN_COUNTED_SAMPLES``
+    counted samples or less than ``MIN_EFFECTIVE_SAMPLES`` effective weight), or the
+    result does not say, the answer is ``project_inconclusive_result()`` and nothing
+    of the reading is used.
     """
 
     def _get(obj: Any, key: str, default: Any = None) -> Any:
@@ -380,6 +449,17 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
             return obj.get(key, default)
         return getattr(obj, key, default)
 
+    confidence = _get(layer7, "baseline_confidence")
+    counted = _get(confidence, "authenticated_count")
+    effective = _get(confidence, "effective_sample_count")
+    if not (
+        isinstance(counted, int | float)
+        and isinstance(effective, int | float)
+        and counted >= MIN_COUNTED_SAMPLES
+        and effective >= MIN_EFFECTIVE_SAMPLES
+    ):
+        return project_inconclusive_result()
+
     recommendation = _get(layer7, "recommendation")
     action = _get(recommendation, "action", "no_action") or "no_action"
     diverges = action != "no_action"
@@ -387,22 +467,22 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     if not diverges:
         headline = "This reads like you."
         summary = (
-            "Your established voice comes through clearly here — in your sentence "
+            "Your established voice comes through clearly here: in your sentence "
             "rhythm, your vocabulary, the way you build an argument. This piece sits "
-            "comfortably within your body of work."
+            "comfortably alongside the writing on file in your profile."
         )
     elif action == "monitor":
         headline = "Mostly your voice, with a few new notes."
         summary = (
             "Most of this reads like your established writing. A few passages stretch "
-            "in new directions — often a sign of growth, sometimes just a different "
+            "in new directions, often a sign of growth and sometimes just a different "
             "day at the desk."
         )
     else:
         headline = "Some passages here read differently from your voice."
         summary = (
             "Parts of this piece diverge from your established voice. That is worth "
-            "revisiting — not a verdict, an invitation to look again. A formation "
+            "revisiting: not a verdict, an invitation to look again. A guided "
             "pathway is available if you would like a structured way through it."
         )
 
