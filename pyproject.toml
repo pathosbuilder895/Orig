@@ -38,7 +38,11 @@ select = [
 # E741: ambiguous 1-letter names (l/O/I) -- common in math/quantum code, low value here.
 # N806/N803: ρ/matrix math locals and params (P, ref_X etc.) are domain-idiomatic.
 # B008: FastAPI's Depends()/File()/Form() call-as-default is the framework's own idiom.
-ignore = ["E741", "N806", "N803", "B008"]
+# UP042 (ruff >= 0.10): would turn `class X(str, Enum)` into `StrEnum`. That is not a
+# no-op: str(member) changes from "X.member" to its value, which reaches stored
+# rows and API output through the v1 models (original/db/models). Not worth the risk
+# for a lint rule; revisit only with tests that pin every serialisation.
+ignore = ["E741", "N806", "N803", "B008", "UP042"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

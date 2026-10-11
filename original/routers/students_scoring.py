@@ -248,8 +248,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             if _genre_stats is None and os.environ.get("COHORT_PRIOR_FALLBACK") == "1":
                 _genre_stats = _repo().get_cohort_stats(_prior_tenant, student_id)
                 logging.getLogger(__name__).info(
-                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s "
-                    "n_prior=%d n_students=%d",
+                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s n_prior=%d n_students=%d",
                     "hit" if _genre_stats is not None else "miss",
                     _prior_tenant,
                     _genre_stats["n_samples"] if _genre_stats is not None else 0,
@@ -285,8 +284,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # student id in the line, only the aggregate numbers.
     if _scoring_config_env.topic_variance_inflation != "off":
         logging.getLogger(__name__).info(
-            "topic_inflation mode=%s d=%s mean_inflation=%s deviation=%.4f "
-            "deviation_inflated=%s",
+            "topic_inflation mode=%s d=%s mean_inflation=%s deviation=%.4f deviation_inflated=%s",
             _scoring_config_env.topic_variance_inflation,
             result.topic_distance,
             result.topic_mean_inflation,
