@@ -5,12 +5,25 @@ the changed-file → test-file mapper behind the pre-push hook.
 The mapper is a heuristic (naming convention + import scan), not a proof of
 coverage — these tests pin down exactly which heuristics it promises, so the
 hook's behavior stays predictable as the repo grows.
+
+TestScratchDatabase covers `--run`'s per-run throwaway Postgres database
+(parallel worktrees share one local container, and tests/test_migration.py's
+drop_all used to wipe another run's tables mid-run). Its server calls are
+faked, so it needs no Docker; the one real round trip is postgres-marked.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import os
+import re
+import signal
+import sys
 from pathlib import Path
+from types import SimpleNamespace
+from urllib.parse import urlparse
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -153,3 +166,296 @@ class TestMapping:
             ["docs/notes.md", "demo/bluebook/App.jsx"], tmp_path
         )
         assert tests == []
+
+
+# ── --run: per-run scratch database ──────────────────────────────────────────
+
+# Hand-written, not read from the module: the URL the tests must see.
+_SERVER = "postgresql://original:original@localhost:5432"
+_SHARED_URL = f"{_SERVER}/original_test"
+
+
+class _FakeRun:
+    """Stands in for subprocess.run. Records the DATABASE_URL pytest would
+    have been given, and which scratch databases were already dropped at that
+    moment (so a drop-before-run bug cannot pass)."""
+
+    def __init__(self, server):
+        self.server = server
+        self.returncode = 0
+        self.during = None  # optional callable, run mid-"pytest"
+        self.calls = []
+
+    def __call__(self, cmd, cwd=None, env=None):
+        self.calls.append(
+            SimpleNamespace(
+                cmd=cmd,
+                db_url=(env or {}).get("DATABASE_URL"),
+                dropped_so_far=list(self.server.dropped),
+            )
+        )
+        if self.during:
+            self.during()
+        return SimpleNamespace(returncode=self.returncode)
+
+
+@pytest.fixture
+def hook(monkeypatch):
+    """main() with one mapped test, a reachable local Postgres, no caller
+    DATABASE_URL, a fake pytest subprocess and a fake database server."""
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(changed_tests, "changed_from_git", lambda: ["original/x.py"])
+    monkeypatch.setattr(
+        changed_tests, "map_changed_to_tests", lambda changed, root: (["tests/test_x.py"], [])
+    )
+    monkeypatch.setattr(changed_tests, "_local_postgres_reachable", lambda: True)
+
+    server = SimpleNamespace(created=[], dropped=[], create_error=None, drop_error=None)
+
+    def create(name):
+        if server.create_error:
+            raise server.create_error
+        server.created.append(name)
+
+    def drop(name):
+        if server.drop_error:
+            raise server.drop_error
+        server.dropped.append(name)
+
+    monkeypatch.setattr(changed_tests, "_create_scratch_db", create)
+    monkeypatch.setattr(changed_tests, "_drop_scratch_db", drop)
+    run = _FakeRun(server)
+    monkeypatch.setattr(changed_tests, "subprocess", SimpleNamespace(run=run))
+    return SimpleNamespace(server=server, run=run)
+
+
+def _run_hook():
+    return changed_tests.main(["--from-git", "--run"])
+
+
+class TestScratchDatabase:
+    def test_pytest_runs_against_its_own_database_dropped_afterwards(self, hook):
+        assert _run_hook() == 0
+        (name,) = hook.server.created
+        (call,) = hook.run.calls
+        assert call.db_url == f"{_SERVER}/{name}"
+        assert call.db_url != _SHARED_URL
+        assert call.dropped_so_far == []
+        assert hook.server.dropped == [name]
+
+    def test_scratch_names_are_unique_and_recognisable(self, hook):
+        _run_hook()
+        _run_hook()
+        first, second = hook.server.created
+        assert first != second
+        for name in (first, second):
+            # Safe unquoted identifier, under Postgres's 63-byte limit, and a
+            # prefix no hand-made database (original_test_bb, ...) carries.
+            assert re.fullmatch(r"original_test_tmp_\d+_[0-9a-f]{8}", name)
+            assert len(name) <= 63
+
+    def test_failing_run_still_drops_and_keeps_exit_code(self, hook):
+        hook.run.returncode = 1
+        assert _run_hook() == 1
+        assert len(hook.server.created) == 1
+        assert hook.server.dropped == hook.server.created
+
+    def test_interrupted_run_still_drops(self, hook):
+        def interrupt():
+            raise KeyboardInterrupt
+
+        hook.run.during = interrupt
+        with pytest.raises(KeyboardInterrupt):
+            _run_hook()
+        assert len(hook.server.created) == 1
+        assert hook.server.dropped == hook.server.created
+
+    def test_sigterm_during_run_still_drops(self, hook):
+        # A harmless handler stands in for the default, so a regression that
+        # stops main() installing its own fails this test instead of
+        # terminating the whole pytest process.
+        caught = []
+
+        def outer(signum, frame):
+            caught.append(signum)
+
+        before = signal.signal(signal.SIGTERM, outer)
+        try:
+            hook.run.during = lambda: os.kill(os.getpid(), signal.SIGTERM)
+            with pytest.raises(SystemExit) as exc:
+                _run_hook()
+            assert exc.value.code == 128 + signal.SIGTERM
+            assert caught == []
+            assert len(hook.server.created) == 1
+            assert hook.server.dropped == hook.server.created
+            assert signal.getsignal(signal.SIGTERM) is outer
+        finally:
+            signal.signal(signal.SIGTERM, before)
+
+    def test_caller_database_url_is_left_alone(self, hook, monkeypatch):
+        monkeypatch.setenv("DATABASE_URL", "postgresql://me:pw@db.example:6543/mine")
+        assert _run_hook() == 0
+        assert hook.run.calls[0].db_url == "postgresql://me:pw@db.example:6543/mine"
+        assert hook.server.created == []
+        assert hook.server.dropped == []
+
+    def test_no_local_postgres_sets_no_database_url(self, hook, monkeypatch):
+        monkeypatch.setattr(changed_tests, "_local_postgres_reachable", lambda: False)
+        assert _run_hook() == 0
+        assert hook.run.calls[0].db_url is None
+        assert hook.server.created == []
+
+    def test_no_mapped_tests_creates_no_database(self, hook, monkeypatch):
+        monkeypatch.setattr(changed_tests, "map_changed_to_tests", lambda changed, root: ([], []))
+        assert _run_hook() == 0
+        assert hook.run.calls == []
+        assert hook.server.created == []
+
+    def test_create_failure_falls_back_to_shared_database_with_warning(self, hook, capsys):
+        hook.server.create_error = RuntimeError("permission denied to create database")
+        assert _run_hook() == 0
+        assert hook.run.calls[0].db_url == _SHARED_URL
+        assert hook.server.dropped == []
+        err = capsys.readouterr().err
+        assert "warning" in err
+        assert "permission denied to create database" in err
+
+    def test_drop_failure_warns_with_the_name_and_keeps_exit_code(self, hook, capsys):
+        hook.server.drop_error = RuntimeError("database is being accessed")
+        assert _run_hook() == 0
+        (name,) = hook.server.created
+        err = capsys.readouterr().err
+        assert "warning" in err
+        assert name in err
+
+
+# ── --run: the deleted app/ frontend ─────────────────────────────────────────
+
+# Captured at import, before the hook fixture stubs it out.
+_REAL_MAP = changed_tests.map_changed_to_tests
+
+
+class TestDeletedAppFrontend:
+    """#243 deleted app/ (ADR-008 Option C). A branch that merges main pushes
+    those deletions; the hook used to warn about app/node_modules for them,
+    or run `npm --prefix app test` against a directory with no package.json."""
+
+    # node_modules/ is gitignored, so pulling #243 can leave it behind.
+    @pytest.mark.parametrize("leftover_node_modules", [False, True])
+    def test_only_deleted_app_paths_run_nothing_and_print_nothing_about_app(
+        self, hook, monkeypatch, tmp_path, capsys, leftover_node_modules
+    ):
+        if leftover_node_modules:
+            (tmp_path / "app" / "node_modules").mkdir(parents=True)
+        monkeypatch.setattr(changed_tests, "REPO_ROOT", tmp_path)
+        monkeypatch.setattr(changed_tests, "map_changed_to_tests", _REAL_MAP)
+        monkeypatch.setattr(
+            changed_tests,
+            "changed_from_git",
+            lambda: [
+                "app/package.json",
+                "app/src/App.test.tsx",
+                "app/src/App.tsx",
+                "app/src/components/Modal.tsx",
+                "app/vite.config.ts",
+            ],
+        )
+        assert _run_hook() == 0
+        assert hook.run.calls == []
+        assert hook.server.created == []
+        out, err = capsys.readouterr()
+        assert "app/" not in out + err
+
+
+class _FakeCursor:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, sql):
+        self.conn.executed.append((sql, self.conn.autocommit))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeConnection:
+    def __init__(self, dsn, kwargs):
+        self.dsn = dsn
+        self.kwargs = kwargs
+        self.autocommit = False
+        self.executed = []
+        self.closed = False
+
+    def cursor(self):
+        return _FakeCursor(self)
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def fake_psycopg2(monkeypatch):
+    connections = []
+
+    def connect(dsn, **kwargs):
+        conn = _FakeConnection(dsn, kwargs)
+        connections.append(conn)
+        return conn
+
+    monkeypatch.setitem(sys.modules, "psycopg2", SimpleNamespace(connect=connect))
+    return connections
+
+
+class TestScratchDatabaseSql:
+    def test_create_runs_outside_a_transaction_on_the_maintenance_db(self, fake_psycopg2):
+        changed_tests._create_scratch_db("original_test_tmp_42_0123abcd")
+        (conn,) = fake_psycopg2
+        assert conn.dsn == f"{_SERVER}/postgres"
+        assert conn.kwargs.get("connect_timeout")  # never hang a push
+        # CREATE DATABASE refuses to run inside a transaction block.
+        assert conn.executed == [('CREATE DATABASE "original_test_tmp_42_0123abcd"', True)]
+        assert conn.closed
+
+    def test_drop_forces_out_connections_a_killed_run_left_behind(self, fake_psycopg2):
+        changed_tests._drop_scratch_db("original_test_tmp_42_0123abcd")
+        (conn,) = fake_psycopg2
+        assert conn.dsn == f"{_SERVER}/postgres"
+        assert conn.executed == [
+            ('DROP DATABASE IF EXISTS "original_test_tmp_42_0123abcd" WITH (FORCE)', True)
+        ]
+        assert conn.closed
+
+
+@pytest.mark.postgres
+def test_scratch_database_round_trip_on_real_postgres(postgres_available):
+    """Real CREATE/DROP against the server the hook targets (CI's service
+    container, or the local one): proves WITH (FORCE) drops a database that
+    still has an open connection, which a killed pytest run leaves behind."""
+    url = urlparse(os.environ.get("DATABASE_URL", ""))
+    if not postgres_available or (url.hostname, url.port, url.username) not in {
+        ("localhost", 5432, "original"),
+        ("127.0.0.1", 5432, "original"),
+    }:
+        pytest.skip(
+            "uninformative: needs the original/original Postgres on "
+            "localhost:5432 that the hook targets"
+        )
+    import psycopg2
+
+    with changed_tests.scratch_database() as scratch_url:
+        name = scratch_url.rsplit("/", 1)[1]
+        assert name.startswith("original_test_tmp_")
+        lingering = psycopg2.connect(scratch_url)
+    try:
+        admin = psycopg2.connect(f"{_SERVER}/postgres", connect_timeout=5)
+        try:
+            with admin.cursor() as cur:
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,))
+                assert cur.fetchone() is None
+        finally:
+            admin.close()
+    finally:
+        lingering.close()

@@ -12,11 +12,23 @@
 #   bash scripts/local_postgres.sh down     # stop container (data volume kept)
 #   bash scripts/local_postgres.sh destroy  # remove container AND data volume
 #   bash scripts/local_postgres.sh status   # container + reachability report
-#   bash scripts/local_postgres.sh url      # print the DATABASE_URL to export
+#   bash scripts/local_postgres.sh url      # print the shared DATABASE_URL
+#   bash scripts/local_postgres.sh run -- <command> [args...]
+#                                           # run <command> against its own
+#                                           # throwaway database (see below)
 #
 # Typical test run (or just `make test-postgres`):
-#   DATABASE_URL=$(bash scripts/local_postgres.sh url) \
-#     .venv/bin/python -m pytest tests/ -m postgres -q
+#   bash scripts/local_postgres.sh run -- .venv/bin/python -m pytest tests/ -m postgres -q
+#
+# Parallel worktrees share this one container, and tests that drop the live
+# schema (tests/test_migration.py's fresh_pg) wipe the tables of any other run
+# using the same database. `run` creates original_test_tmp_<pid>_<hex>, sets
+# DATABASE_URL to it for <command>, and drops it when <command> exits (also on
+# Ctrl-C or SIGTERM; only SIGKILL leaves one behind, safe to drop once the
+# <pid> in its name has exited). If it cannot be created, <command> runs
+# against the shared original_test with a warning. `url` still prints the
+# shared database: a $(...) substitution ends before the tests start, so it
+# cannot own a throwaway database's cleanup.
 
 set -euo pipefail
 
@@ -86,8 +98,25 @@ case "${1:-}" in
     url)
         echo "$DB_URL"
         ;;
+    run)
+        shift
+        [ "${1:-}" = "--" ] && shift
+        [ $# -gt 0 ] || { echo "usage: $0 run -- <command> [args...]" >&2; exit 2; }
+        scratch="original_test_tmp_$$_$(printf '%04x%04x' "$RANDOM" "$RANDOM")"
+        if docker exec "$CONTAINER" createdb -U original "$scratch" >/dev/null; then
+            # --force (Postgres 13+) ends connections a killed run left open.
+            trap 'docker exec "$CONTAINER" dropdb -U original --force --if-exists "$scratch" >/dev/null \
+                || echo "warning: could not drop throwaway database $scratch; drop it by hand" >&2' EXIT
+            url="postgresql://original:original@localhost:${PORT}/${scratch}"
+        else
+            echo "warning: could not create a throwaway database; using the shared $DB_URL," \
+                "where a parallel run can drop tables under this one" >&2
+            url="$DB_URL"
+        fi
+        DATABASE_URL="$url" "$@"
+        ;;
     *)
-        echo "usage: $0 {up|down|destroy|status|url}" >&2
+        echo "usage: $0 {up|down|destroy|status|url|run -- <command>}" >&2
         exit 2
         ;;
 esac

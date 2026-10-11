@@ -222,7 +222,6 @@ lint ─┬─ pytest-core ────┐
       ├─ pytest-rest ────┘
       ├─ certification (fast; fails on `fail`, reports `uninformative`)
       ├─ boot-matrix
-      ├─ app (vite)
       ├─ bundle-e2e (bluebook + demo/app if live)
       ├─ container-smoke
       └─ security (pip-audit, gitleaks, npm audit)
