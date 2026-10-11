@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -292,6 +292,7 @@
   .an-done{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
   .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
   .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .an-done .d .an-restored{display:block;font-style:italic;font-size:.78rem;color:var(--dim);margin-top:.15rem;}
   .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
   .an-again:hover{color:var(--cream);border-color:var(--line);}
   /* Purity, inside a details block with its caveat */
@@ -335,7 +336,7 @@
       <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
       <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
       <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
       <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
     </div>
     <div class="nav-right">
@@ -381,7 +382,7 @@
           </div>
         </form>
         <div class="an-done" id="an-done" hidden>
-          <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span></div>
+          <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span><span class="an-restored" id="an-restored" hidden>Showing your last analysis of this paper.</span></div>
           <button class="an-again" id="an-again" type="button">Analyse another</button>
         </div>
       </div>
@@ -483,9 +484,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-10.5"></script>
-<script src="js/feature-data.js?v=2026-10-10.5"></script>
-<script src="js/fingerprint.js?v=2026-10-10.5"></script>
+<script src="live.js?v=2026-10-11.1"></script>
+<script src="js/feature-data.js?v=2026-10-11.1"></script>
+<script src="js/fingerprint.js?v=2026-10-11.1"></script>
 <script>
 (function(){
   'use strict';
@@ -595,6 +596,18 @@
   const CROSS={pinned:null};
   let HM, RADAR, CHIPS, DETAIL, EVI, FP;
 
+  // A clickable div answers Enter and Space as a button does.
+  function onPress(el,fn){
+    el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){ e.preventDefault(); fn(); } });
+  }
+  // Which habit's evidence is open, for the screen reader: aria-expanded on the habit's bar and on
+  // its Feature Detail row (the one habit named, or none).
+  function markExpanded(code){
+    document.querySelectorAll('#heatmap [data-code], #fd-body .fd-row').forEach(el=>{
+      if(el.getAttribute('role')==='button') el.setAttribute('aria-expanded',code&&el.dataset.code===code?'true':'false');
+    });
+  }
+
   // State vector heatmap (all 97 measured habits, grouped by tier):
   // bar = baseline value, tick = this paper's value.
   function makeHeatmap(){
@@ -603,7 +616,12 @@
     let cols=[], labs=[];
     // Tier band strip (x-axis in full view)
     band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+esc(t.key)+'" style="grid-column:span '+t.features.length+';--tc:'+esc(t.c)+'" title="'+esc(tierTitle(t))+'"><span>'+esc(t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:''))+'</span></div>').join('');
-    band.querySelectorAll('.hbnd').forEach(b=>{ b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier)); });
+    band.querySelectorAll('.hbnd').forEach(b=>{
+      b.style.cursor='pointer'; b.addEventListener('click',()=>CHIPS.toggle(b.dataset.tier));
+      const t=TIER_BY_KEY.get(b.dataset.tier);
+      b.tabIndex=0; b.setAttribute('role','button'); b.setAttribute('aria-label',(t?t.pill+', '+plainTier(t):b.dataset.tier)+'. Pins this tier.');
+      onPress(b,()=>CHIPS.toggle(b.dataset.tier));
+    });
     const TIER_GRP={}; TIERS.forEach(t=>{TIER_GRP[t.key]=t.group;});
 
     function build(){
@@ -633,6 +651,10 @@
         }
         col.title=f.name+(v!=null?': baseline '+v.toFixed(3):': no baseline yet')+(sub!=null?' · this paper '+sub.toFixed(3):'')+(out?' · outside their usual range':'');
         col.style.cursor='pointer';
+        // A keyboard reaches the bars as one group: Tab enters it, the arrow keys move along it.
+        col.tabIndex=-1; col.setAttribute('role','button'); col.setAttribute('aria-expanded','false');
+        col.setAttribute('aria-label',f.name+(v!=null?', baseline '+v.toFixed(2):', no baseline yet')+(sub!=null?', this paper '+sub.toFixed(2):'')+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
+        onPress(col,()=>{ if(S.base) EVI.open(f.code,col); else CHIPS.toggle(f.tier); });
         col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
         col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
         col.addEventListener('click',()=>{ if(S.base) EVI.open(f.code); else CHIPS.toggle(f.tier); });
@@ -642,6 +664,22 @@
       });
       reset();
     }
+    const shown=()=>cols.filter(c=>c.style.display!=='none');
+    // One bar is the tab stop (the one last focused, else the first shown); the rest are reached with the arrow keys.
+    function syncTab(){
+      const list=shown(); const keep=list.find(c=>c.tabIndex===0)||list[0];
+      cols.forEach(c=>{ c.tabIndex=c===keep?0:-1; });
+    }
+    heatmap.addEventListener('focusin',e=>{ const c=e.target; if(c&&c.parentNode===heatmap){ cols.forEach(x=>{ x.tabIndex=x===c?0:-1; }); } });
+    heatmap.addEventListener('keydown',e=>{
+      const list=shown(), i=list.indexOf(document.activeElement);
+      if(i<0) return;
+      const to=e.key==='ArrowRight'||e.key==='ArrowDown'?i+1:e.key==='ArrowLeft'||e.key==='ArrowUp'?i-1:e.key==='Home'?0:e.key==='End'?list.length-1:null;
+      if(to===null) return;
+      e.preventDefault();
+      const next=list[Math.max(0,Math.min(list.length-1,to))];
+      if(next) next.focus();
+    });
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
@@ -650,6 +688,7 @@
       band.style.gridTemplateColumns='repeat('+count+',12px)';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
+      syncTab();
     }
     function filter(key){
       const t=TIER_BY_KEY.get(key); if(!t) return;
@@ -661,6 +700,7 @@
       labels.style.display=''; band.style.display='none';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
       cols.forEach((c,i)=>{const m=c.dataset.tier===key;c.style.display=m?'':'none';labs[i].style.display=m?'':'none';c._bar.style.width=m?'26px':'9px';});
+      syncTab();
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
@@ -671,6 +711,7 @@
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
       cols.forEach((c,i)=>{c.style.display='';labs[i].style.display='';c._bar.style.width='9px';});
+      syncTab();
     }
     return {build,filterGroup,filter,reset};
   }
@@ -804,7 +845,13 @@
       titleEl.textContent=title; subEl.textContent=sub;
       countEl.textContent=count!=null?plural(count,'habit'):'';
       body.innerHTML=rowsHTML;
-      body.querySelectorAll('.fd-row').forEach(r=>r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); }));
+      body.querySelectorAll('.fd-row').forEach(r=>{
+        r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); });
+        if(!S.base||!r.dataset.code) return;
+        r.tabIndex=0; r.setAttribute('role','button'); r.setAttribute('aria-expanded','false');
+        onPress(r,()=>EVI.open(r.dataset.code,r));
+      });
+      markExpanded(EVI?EVI.code():null);
     }
     return {
       show(key){ const t=TIER_BY_KEY.get(key); if(!t) return;
@@ -843,7 +890,9 @@
   function makeEvidence(){
     const box=$('hero-evi');
     const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
-    function open(code){
+    let openCode='', opener=null;
+    // `from` is the bar or row a keyboard opened it from: focus moves into the panel, and back when it closes.
+    function open(code,from){
       if(!has(OF.byCode,code)) return;
       const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
@@ -873,11 +922,20 @@
         $('evi-base-src').textContent='';
       }
       box.classList.add('show');
+      openCode=code; opener=from||null;
+      markExpanded(code);
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      if(from) $('evi-close').focus();
     }
-    function close(){ box.classList.remove('show'); }
-    $('evi-close').addEventListener('click',close);
-    return {open,close};
+    function close(back){
+      box.classList.remove('show');
+      openCode=''; markExpanded(null);
+      if(back===true&&opener&&opener.isConnected) opener.focus();
+      opener=null;
+    }
+    $('evi-close').addEventListener('click',()=>close(true));
+    box.addEventListener('keydown',e=>{ if(e.key==='Escape'&&box.classList.contains('show')){ e.preventDefault(); close(true); } });
+    return {open,close,code:()=>openCode};
   }
 
   // Fingerprint (decorative): colours follow the toggle and the result.
@@ -1051,7 +1109,7 @@
     }
     if(!ro.students.length){
       sel.innerHTML='<option value="">No students yet</option>';
-      note(ro.bluebookOff?'No students on your roster yet.':'No students on your roster yet. Add them in <a href="/bluebook/">Bluebook</a>.');
+      note(ro.bluebookOff?'No students on your roster yet.':'No students on your roster yet. Add them in <a href="/bluebook/#students">Bluebook</a>.');
       $('plain-read').textContent='No students on your roster yet. A student appears here once a writing sample of theirs is on file.';
       return;
     }
@@ -1077,7 +1135,7 @@
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
-    else { note(thinNote()); setCard('form'); }
+    else if(!restoreLast()){ note(thinNote()); setCard('form'); }
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
@@ -1088,11 +1146,14 @@
         if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
         if(!S.stErr&&hasBaseline()) note(thinNote());
         if(!hasBaseline()&&!S.stErr) notEnough();
+        // A note already chosen names the student: say it with the roster's name.
+        const chosen=document.querySelector('.triage button.tri-btn.sel');
+        if(S.result&&chosen) showTriage(chosen.dataset.act,chosen);
       }
     }catch(e){ /* the id stays as the name */ }
   }
 
-  function setResult(d,assignment,words){
+  function setResult(d,assignment,words,analysedAt){
     S.result=d;
     S.sub=(d.feature_vector&&typeof d.feature_vector==='object')?d.feature_vector:null;
     if(d.baseline_vector&&typeof d.baseline_vector==='object') S.base=d.baseline_vector;
@@ -1102,7 +1163,7 @@
     S.D=new Map(); S.C=new Map();
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
-    S.assignment=assignment; S.words=words; S.analysedAt=new Date().toISOString();
+    S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
   }
 
   async function analyse(e){
@@ -1126,9 +1187,13 @@
       renderAll();
       $('an-done-t').textContent=assignment||'Untitled paper';
       $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+      $('an-restored').hidden=true;
       note(thinNote()); setCard('done');
       $('tri-done').textContent=''; $('tri-done').classList.remove('err');
       document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+      // Kept for this tab as soon as it exists, so the packet, the Voice
+      // baseline link and the browser's Back button all find it again.
+      storeForPacket();
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
       return;
     }
@@ -1192,6 +1257,12 @@
       done.textContent='This note could not be kept: this browser is not storing data for the page.';
       return;
     }
+    showTriage(act,btn);
+  }
+  // The note's wording and the marked button, for a choice just made or one
+  // already kept with the analysis being shown again.
+  function showTriage(act,btn){
+    const done=$('tri-done');
     done.classList.remove('err');
     document.querySelectorAll('.triage button.tri-btn').forEach(x=>x.classList.toggle('sel',x===btn));
     done.textContent=act==='fine'?'Recorded: looks fine.':'Recorded: you plan to talk with '+who()+'.';
@@ -1206,7 +1277,7 @@
     const bc=r.baseline_confidence||{};
     const keep={
       kind:'original_writing_state', version:1,
-      student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words,
+      student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
       habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
       summary:$('plain-read').textContent,
       result:{
@@ -1218,6 +1289,53 @@
       }
     };
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
+  }
+
+  // ── coming back to an analysis ──
+  // The record above is also how this page shows the last analysis again: Back
+  // from the packet or from the Voice baseline, or a reload, finds the reading,
+  // the note already chosen and the pasted paper where they were. It is data
+  // from storage, so it is shape-checked, and it is used only for the student
+  // in the address, never for another.
+  function lastRecord(raw,id){
+    if(!raw||!id) return null;
+    let d; try{ d=JSON.parse(raw); }catch(e){ return null; }
+    if(!d||typeof d!=='object'||d.kind!=='original_writing_state'||d.version!==1||d.student_id!==id) return null;
+    const r=d.result;
+    if(!r||typeof r!=='object'||!r.feature_vector||typeof r.feature_vector!=='object'||!r.baseline_vector||typeof r.baseline_vector!=='object') return null;
+    return d;
+  }
+  // The kept paper (text and note) the record points at, or null.
+  function keptEntry(entries,rec){
+    const id=(typeof rec.entry_id==='string'&&rec.entry_id)||(typeof rec.result.submission_id==='string'?rec.result.submission_id:'');
+    return id?(entries.find(h=>h&&typeof h==='object'&&h.id===id)||null):null;
+  }
+  function restoreLast(){
+    let raw=null;
+    try{ raw=window.sessionStorage.getItem('original_last_result'); }catch(e){ return false; }
+    const rec=lastRecord(raw,S.id);
+    if(!rec) return false;
+    const entry=keptEntry(readPortfolio(),rec);
+    const assignment=typeof rec.assignment==='string'?rec.assignment.slice(0,200):'';
+    const at=typeof rec.analysed_at==='string'&&!isNaN(Date.parse(rec.analysed_at))?rec.analysed_at:'';
+    if(typeof rec.student_name==='string'&&rec.student_name.trim()) S.name=rec.student_name.trim();
+    setResult(rec.result,assignment,num(rec.word_count)||0,at);
+    S.entryId=entry?entry.id:'';
+    $('an-assign').value=assignment;
+    $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
+    updateWords();
+    setView('submission',true);
+    renderAll();
+    $('an-done-t').textContent=assignment||'Untitled paper';
+    $('an-done-s').textContent=plural(S.words,'word')+(at?' · analysed '+new Date(at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'');
+    $('an-restored').hidden=false;
+    note(thinNote()); setCard('done');
+    $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+    document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+    const kept=entry&&entry.professorAction&&typeof entry.professorAction==='object'?entry.professorAction.action:'';
+    const act=kept==='no_action'?'fine':(kept==='schedule_conversation'?'talk':'');
+    if(act) showTriage(act,document.querySelector('.triage button.tri-btn[data-act="'+act+'"]'));
+    return true;
   }
 
   function start(){

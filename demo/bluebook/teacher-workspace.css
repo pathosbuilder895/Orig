@@ -60,6 +60,12 @@
 .teacher-pills button:hover{color:var(--cream)}
 .teacher-pills button.on{background:rgba(255,255,255,.05);border-color:var(--line);color:var(--cream)}
 .teacher-pills.dense{gap:.1rem;margin-left:.5rem}
+/* On a phone the strip scrolls inside itself. TeacherFrame adds .fade-end while there are more
+   pills past the right edge and .fade-start while there are more past the left, so the edge with
+   more pills fades out. It draws only where the strip overflows. */
+.teacher-pills.fade-end{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 2.4rem),transparent)}
+.teacher-pills.fade-start{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 2.4rem),transparent)}
+.teacher-pills.fade-start.fade-end{-webkit-mask-image:linear-gradient(to right,transparent,#000 2.4rem,#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(to right,transparent,#000 2.4rem,#000 calc(100% - 2.4rem),transparent)}
 .teacher-pills.dense button{padding:.45rem .65rem;gap:.4rem;font-size:.92rem}
 .teacher-nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0}
 .teacher-nav-right .quiet-link{border:0;background:none;color:var(--dim);font-size:.9rem;padding:.4rem .6rem;border-radius:999px}

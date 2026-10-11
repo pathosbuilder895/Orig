@@ -104,6 +104,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .logo-school { font-size: 0.68rem; color: var(--text-cream-dim);
   font-family: 'EB Garamond', serif; font-style: italic; }
 .sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 1px; }
+[data-demo-only][hidden] { display: none !important; }
 .nav-section-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-cream-dim); padding: 8px 10px 4px; }
 .nav-item { display: flex; align-items: center; gap: 10px;
@@ -1015,11 +1016,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         Integrations
       </a>
-      <a class="nav-item" href="admin.html" title="Admin console" data-operator-only>
+      <a class="nav-item" href="admin.html" title="Admin console" data-operator-only data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12,2 2,7 22,7"/></svg>
         Admin console
       </a>
-      <a class="nav-item" href="operator.html" title="Operator: all schools view" data-operator-only>
+      <a class="nav-item" href="operator.html" title="Operator: all schools view" data-operator-only data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="2" y="15" width="6" height="6" rx="1"/><rect x="16" y="15" width="6" height="6" rx="1"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="5" y1="9" x2="5" y2="15"/><line x1="19" y1="9" x2="19" y2="15"/></svg>
         Operator
       </a>
@@ -1031,32 +1032,32 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         Bluebook ↗
       </a>
-      <div class="nav-section-label" style="margin-top:8px">Research</div>
-      <a class="nav-item" href="#" title="Registered Institutions" onclick="showTenants();return false" data-operator-only>
+      <div class="nav-section-label" style="margin-top:8px" data-demo-only hidden>Research</div>
+      <a class="nav-item" href="#" title="Registered Institutions" onclick="showTenants();return false" data-operator-only data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         Institutions
       </a>
-      <a class="nav-item" href="#" title="Validation Study" onclick="showValidation();return false">
+      <a class="nav-item" href="#" title="Validation Study" onclick="showValidation();return false" data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
         Validation
       </a>
-      <a class="nav-item" href="lab.html" title="Calibration Lab">
+      <a class="nav-item" href="lab.html" title="Calibration Lab" data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6L4 18a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L15 8V2"/><path d="M8 2h8"/></svg>
         Lab
       </a>
-      <a class="nav-item" href="admin-context.html" title="Context Audit Log">
+      <a class="nav-item" href="admin-context.html" title="Context Audit Log" data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         Context Audit
       </a>
-      <a class="nav-item" href="playground.html" title="Pipeline Playground">
+      <a class="nav-item" href="playground.html" title="Pipeline Playground" data-demo-only hidden>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Playground
       </a>
     </nav>
     <div class="sidebar-user">
-      <div class="user-avatar" id="sidebarAvatar">JA</div>
+      <div class="user-avatar" id="sidebarAvatar">··</div>
       <div class="user-info">
-        <div class="user-name" id="sidebarName">Prof. Adeyemi</div>
+        <div class="user-name" id="sidebarName"></div>
         <div class="user-role">Instructor</div>
       </div>
     </div>
@@ -1093,12 +1094,13 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             <div id="pendingBaselinesList"></div>
           </div>
         </div>
+        <a href="/original/" id="backToOriginal" style="text-decoration:none;padding:7px 12px;background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500">← Back to Original</a>
         <div class="semester-badge" id="hdrCourseSub">TH501 · Spring 2026</div>
-        <button onclick="resetDemoState()" title="Clear demo history and localStorage — does not delete server-side baseline profiles"
+        <button onclick="resetDemoState()" title="Clear demo history and localStorage — does not delete server-side baseline profiles" data-demo-only hidden
                 style="padding:7px 12px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
           ↺ Reset Demo
         </button>
-        <a href="admin.html" style="text-decoration:none">
+        <a href="admin.html" style="text-decoration:none" data-demo-only hidden>
           <button style="padding:7px 12px;background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
             Admin
           </button>
@@ -1112,7 +1114,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <!-- Page title row -->
     <div style="padding:16px 24px 0;flex-shrink:0">
       <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.8rem;color:var(--text-muted);margin-bottom:2px">Good afternoon</div>
-      <div class="header-name" id="hdrProfName" style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em">Prof. Adeyemi</div>
+      <div class="header-name" id="hdrProfName" style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:600;color:var(--text-primary);letter-spacing:-0.02em"></div>
     </div>
 
     <!-- ── HeroAnswer: "Is anything wrong with any student's work right now?" ── -->
@@ -1893,14 +1895,24 @@ function applyAuthedChrome() {
   const tenant = localStorage.getItem('original_tenant') || '';
   const roleEl = document.querySelector('.sidebar-user .user-role');
   if (roleEl) roleEl.textContent = tenant ? `${role} · ${tenant}` : role;
+  // The name the account was created with (sign-in stores it as original_name); none is shown when
+  // there is none, never a stand-in person.
+  const who = (localStorage.getItem('original_name') || '').trim();
   const nameEl = document.getElementById('sidebarName');
-  if (nameEl) nameEl.textContent = 'Signed in';
+  if (nameEl) nameEl.textContent = who || 'Signed in';
+  const greetEl = document.getElementById('hdrProfName');
+  if (greetEl) greetEl.textContent = who;
+  const avatarEl = document.getElementById('sidebarAvatar');
+  if (avatarEl) {
+    const w = who.split(/[\s_.-]+/).filter(Boolean);
+    avatarEl.textContent = w.length ? (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase() : '··';
+  }
   const su = document.querySelector('.sidebar-user');
   if (su && !document.getElementById('signOutBtn')) {
     const btn = document.createElement('button');
     btn.id = 'signOutBtn';
     btn.textContent = 'Sign out';
-    btn.title = 'Return to the demo';
+    btn.title = 'Sign out';
     btn.style.cssText = 'margin-left:auto;background:none;border:1px solid var(--green-border);color:var(--text-cream-dim);font:500 0.7rem Inter,sans-serif;padding:4px 9px;border-radius:4px;cursor:pointer';
     btn.onclick = signOut;
     su.appendChild(btn);
@@ -1921,7 +1933,7 @@ function signOut() {
     kept.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
   } catch(e) {}
   try { sessionStorage.removeItem('original_last_result'); } catch(e) {}
-  location.replace('professor.html');
+  location.replace('/index.html');
 }
 
 /* ── Transform API response → renderResults() format ── */
@@ -2802,6 +2814,22 @@ async function runAnalysis() {
 }
 function delay(ms){return new Promise(r=>setTimeout(r,ms))}
 
+/* ── Demo-only controls ──
+   Reset Demo, the Admin / Operator links and the whole Research group are for the demo. They are
+   hidden in the markup and shown only when /health says this is the demo; a failed or unclear
+   /health leaves them hidden, so a real teacher never sees them. */
+let IS_DEMO_ENV = false;
+function isDemoEnvironment(h) { return !!h && typeof h === 'object' && h.environment === 'demo'; }
+function revealDemoOnly(root) {
+  (root || document).querySelectorAll('[data-demo-only]').forEach(e => { e.hidden = !IS_DEMO_ENV; });
+}
+function loadEnvironmentChrome() {
+  return fetch(`${API_BASE}/health`)
+    .then(r => (r.ok ? r.json() : null))
+    .catch(() => null)
+    .then(h => { IS_DEMO_ENV = isDemoEnvironment(h); revealDemoOnly(); });
+}
+
 /* ── Demo reset ── */
 function resetDemoState() {
   if (!confirm('Clear demo history and scored submission results?\n\nThis removes locally-stored history only — server-side student profiles and baselines are not affected.')) return;
@@ -3284,6 +3312,7 @@ function createStudentFromName(n) {
 
 /* ── Init ── */
 window.addEventListener('DOMContentLoaded', () => {
+  loadEnvironmentChrome();
   renderStudents();
   if (isAuthed()) {
     // Authenticated (login or LTI): real, tenant-scoped roster from the server.
@@ -3909,7 +3938,7 @@ function showSettings() {
   sec.innerHTML = `
     <div style="max-width:680px">
       <h2 style="font-family:var(--font-d, 'Cormorant Garamond'),serif;font-size:1.7rem;color:var(--text-primary);margin-bottom:4px">Settings</h2>
-      <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);margin-bottom:22px">Demo configuration and workspace controls.</div>
+      <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);margin-bottom:22px">${IS_DEMO_ENV ? 'Demo configuration and workspace controls.' : 'Workspace controls.'}</div>
 
       <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px">
         <div style="font-weight:600;color:var(--text-primary);margin-bottom:12px">Connection</div>
@@ -3920,13 +3949,13 @@ function showSettings() {
         </div>
       </div>
 
-      <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px">
+      <div class="card" data-demo-only hidden style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px">
         <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px">Demo data</div>
         <div style="font-size:0.86rem;color:var(--text-muted);margin-bottom:14px">Clears local submission history and cached UI state. Does not delete server-side baseline profiles.</div>
         <button onclick="resetDemoState()" style="padding:8px 16px;background:var(--surface);border:1px solid var(--cream-border);border-radius:6px;cursor:pointer;color:var(--text-primary);font:500 0.85rem Inter,sans-serif">↺ Reset demo state</button>
       </div>
 
-      <div class="card" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px">
+      <div class="card" data-demo-only hidden style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px">
         <div style="font-weight:600;color:var(--text-primary);margin-bottom:12px">System surfaces</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           <a href="admin.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Threshold Admin →</a>
@@ -3938,6 +3967,7 @@ function showSettings() {
       <button onclick="hideSettings()" style="padding:8px 16px;background:var(--green-deep);color:var(--cream);border:1px solid var(--green-deep);border-radius:6px;cursor:pointer;font:500 0.85rem Inter,sans-serif">← Back to Dashboard</button>
     </div>`;
   sec.style.display = 'flex';
+  revealDemoOnly(sec);
   // live health check
   fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + '/health').then(r => r.ok ? 'online ✓' : ('error ' + r.status))
     .catch(() => 'unreachable')

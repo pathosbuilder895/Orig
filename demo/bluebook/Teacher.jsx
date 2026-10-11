@@ -767,7 +767,9 @@ export function ProctorLiveScreen() {
 
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => {
-      const list = (d.exams || []).filter(e => examState(e) !== 'draft');
+      // Drafts are left out, except the exam this screen was opened for (a
+      // deep link, deep-link.jsx), so the picker never shows another title.
+      const list = (d.exams || []).filter(e => examState(e) !== 'draft' || e.id === examId);
       setExams(list);
       if (!examId && list.length) setExamId((list.find(e => examState(e) === 'open') || list[0]).id);
     }).catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
