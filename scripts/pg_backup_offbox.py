@@ -25,6 +25,11 @@ independent copy somewhere else:
    that already holds rows, and then re-reads every table and compares
    checksums against the dump, so a restore reports parity the same way a
    cutover does.
+4. **Download** (``--download-latest DEST_DIR``) lists the bucket under
+   ``BACKUP_OFFBOX_PREFIX``, picks the newest ``original-pg-*.jsonl.gz.fernet``
+   by the timestamp in its name, saves it in DEST_DIR and prints its path, for
+   ``--restore`` to take. It needs the bucket settings but not DATABASE_URL or
+   BACKUP_OFFBOX_ENABLED.
 
 Values the canonical rows carry that JSON cannot (bytes, datetimes) are tagged
 so a restore gets back exactly the type it dumped.
@@ -33,6 +38,7 @@ Usage:
     DATABASE_URL=... scripts/pg_backup_offbox.py                  # dump + upload
     DATABASE_URL=... scripts/pg_backup_offbox.py --out FILE       # dump only
     DATABASE_URL=... scripts/pg_backup_offbox.py --restore FILE   # restore drill
+    BACKUP_OFFBOX_*=... scripts/pg_backup_offbox.py --download-latest DIR  # fetch for the drill
 
 Exit codes: 0 on success or a clean no-op (upload disabled/unconfigured — the
 dump is still written when ``--out`` is given), 1 on any failure. The scheduled
@@ -51,6 +57,7 @@ import gzip
 import json
 import logging
 import os
+import re
 import sys
 import tempfile
 import urllib.error
@@ -61,7 +68,12 @@ from pathlib import Path
 if __package__ in (None, ""):  # run as a file: make `scripts` and `original` importable
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.backup_offbox import OffboxConfig, upload  # noqa: E402
+from scripts.backup_offbox import (  # noqa: E402
+    OffboxConfig,
+    download_latest,
+    list_keys,
+    upload,
+)
 from scripts.migrate_sqlite_to_pg import MIGRATORS, _checksum  # noqa: E402
 
 log = logging.getLogger("pg_backup_offbox")
@@ -196,6 +208,61 @@ def decrypt_file(src: Path, key: str, dst: Path) -> Path:
     return dst
 
 
+# ── Download (restore drill) ──────────────────────────────────────────────────
+# Fetches the newest encrypted dump back out of the bucket with the same SigV4
+# client the upload uses (scripts/backup_offbox.py list_keys/download_latest).
+
+BACKUP_NAME = re.compile(
+    re.escape(FILE_PREFIX) + r"(\d{8}T\d{6}Z)\.jsonl\.gz" + re.escape(ENC_SUFFIX)
+)
+# One ListObjectsV2 call returns at most this many keys, oldest name first, and
+# list_keys() does not page. The checklist's 35-day lifecycle rule keeps the
+# bucket far below it; a listing this long may be missing the newest dumps.
+LIST_PAGE_LIMIT = 1000
+
+
+def newest_backup_key(keys: list[str], prefix: str) -> str | None:
+    """The newest encrypted dump directly under ``prefix``, judged by the
+    timestamp in its file name, or None when no key matches."""
+    newest, newest_at = None, None
+    for key in keys:
+        if not key.startswith(prefix):
+            continue
+        match = BACKUP_NAME.fullmatch(key[len(prefix) :])
+        if match is None:
+            continue
+        try:
+            at = datetime.strptime(match.group(1), "%Y%m%dT%H%M%SZ")
+        except ValueError:  # shaped like a timestamp but not one (month 13)
+            continue
+        if newest_at is None or at > newest_at:
+            newest, newest_at = key, at
+    return newest
+
+
+def download_newest(cfg: OffboxConfig, dest_dir: Path) -> Path:
+    """Download the newest encrypted dump under ``cfg.prefix`` into
+    ``dest_dir`` (created if needed) and return the local path. Raises
+    LookupError when nothing under the prefix matches."""
+    keys = list_keys(cfg)
+    if len(keys) >= LIST_PAGE_LIMIT:
+        log.warning(
+            "pg download: the listing returned %d keys, the most one request returns; "
+            "newer backups may be missing from it. Check the bucket's lifecycle rule.",
+            len(keys),
+        )
+    key = newest_backup_key(keys, cfg.prefix)
+    if key is None:
+        raise LookupError(
+            f"no {FILE_PREFIX}*.jsonl.gz{ENC_SUFFIX} object under {cfg.bucket}/{cfg.prefix} "
+            "(the original-pg-backup job uses BACKUP_OFFBOX_PREFIX=original-pg-backups/)"
+        )
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / key[len(cfg.prefix) :]
+    download_latest(cfg, dest, key)
+    return dest
+
+
 # ── Restore ───────────────────────────────────────────────────────────────────
 
 
@@ -234,14 +301,38 @@ def restore(session_scope, path: Path) -> dict:
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 
+def _download_latest_cli(dest_dir: Path) -> int:
+    """--download-latest: needs the bucket settings only. BACKUP_OFFBOX_ENABLED
+    gates the scheduled upload, so a download does not require it."""
+    cfg = OffboxConfig(os.environ)
+    missing = cfg.missing()
+    if missing:
+        log.error("pg download: bucket not configured (missing %s).", ", ".join(missing))
+        return 1
+    try:
+        path = download_newest(cfg, dest_dir)
+    except (LookupError, urllib.error.URLError, OSError, RuntimeError) as exc:
+        log.error("pg download: %s", exc)
+        return 1
+    print(path)  # stdout carries only the path, so a shell can capture it
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--out", help="write the dump here (kept); default is a temp file, uploaded then removed"
     )
-    parser.add_argument(
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument(
         "--restore", metavar="FILE", help="restore FILE into an empty database and verify it"
+    )
+    action.add_argument(
+        "--download-latest",
+        metavar="DEST_DIR",
+        help="download the newest encrypted backup from the bucket into DEST_DIR and print "
+        "its path (restore drill; needs the BACKUP_OFFBOX_* bucket settings, not DATABASE_URL)",
     )
     parser.add_argument(
         "--require-upload",
@@ -249,6 +340,9 @@ def main(argv: list[str] | None = None) -> int:
         help="fail (exit 1) instead of no-op when upload is not configured — for the scheduled job",
     )
     args = parser.parse_args(argv)
+
+    if args.download_latest:
+        return _download_latest_cli(Path(args.download_latest))
 
     if not os.environ.get("DATABASE_URL", "").strip():
         log.error("pg backup: DATABASE_URL is not set.")
