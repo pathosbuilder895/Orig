@@ -143,8 +143,8 @@ const ALL_SCREENS = [
  *    Vite workspace" for these screens to wait on, so measured-green on the
  *    shipped markup is the criterion, full stop. The original concern ("don't
  *    red-wall CI on legacy markup WS-4 only hot-fixed") still governs the
- *    NON-Bluebook statics, which stay out of scope here until WS-8 R3 rebuilds
- *    them in app/.
+ *    NON-Bluebook statics, which stay out of scope here (the planned WS-8 R3
+ *    rebuild in app/ was dropped and app/ deleted, ADR-008 Option C).
  *
  * 3. What a green run does and does not certify. It certifies the states this
  *    file actually puts each screen into. Results is scanned as a collapsed

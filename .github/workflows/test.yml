@@ -398,34 +398,6 @@ jobs:
       - name: Run known-red policy check
         run: python scripts/known_red.py
 
-  app:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install app dependencies
-        run: cd app && npm ci
-
-      - name: Lint
-        run: cd app && npm run lint
-
-      - name: Typecheck
-        run: cd app && npm run typecheck
-
-      - name: Unit + axe tests (with coverage thresholds)
-        run: cd app && npm run test:coverage
-
-      - name: Build
-        run: cd app && npm run build
-
   bundle-e2e:
     runs-on: ubuntu-latest
     # 25, not 15: on PR #227's run 37331743397 all 99 specs passed, but
