@@ -209,14 +209,19 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     test.setTimeout(90_000)
     const { candidateName } = names(workerTenant)
 
-    // Seed one verified baseline sample first: POST /students/{id}/score
-    // 422s with zero authenticated samples, so without this the exam-seal
+    // Seed three verified baseline samples first. POST /students/{id}/score
+    // 422s with zero authenticated samples, so without any the exam-seal
     // flow's scoring call would silently no-op (aiScore=null) and never
-    // write the audit entry the correction step below needs — exactly the
-    // "cold start" case a real returning student wouldn't hit.
-    await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, {
-      text: 'An earlier verified writing sample establishing this student’s baseline voice profile for comparison.',
-    })
+    // write the audit entry the correction step below needs. With one or two
+    // the seal records INCONCLUSIVE and no score (NORTH_STAR rule 3; see
+    // thin-baseline.spec.mjs); three is the fewest that is read normally.
+    for (const text of [
+      'An earlier verified writing sample establishing this student’s baseline voice profile for comparison.',
+      'A second approved piece in which the student reflects on duty, consequence and the shape of a good argument.',
+      'A third approved essay where the student weighs inclination against obligation in ordinary moral choices.',
+    ]) {
+      await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
+    }
 
     // Mirrors exam-flow.spec.mjs's bootInExam(): inject BB_EXAM_CONFIG so
     // the briefing→exam transition is immediate, using the real exam id
@@ -358,7 +363,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   test('grading a sealed exam counts it as reviewed, by graded_at and not by a stored status', async ({
     staffPage, workerTenant, request,
   }) => {
-    // The server only ever stores SUBMITTED or FLAGGED; "reviewed" is a teacher
+    // The server stores SUBMITTED, FLAGGED or INCONCLUSIVE; "reviewed" is a teacher
     // having graded the exam (graded_at), the rule the Original suite uses too.
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')

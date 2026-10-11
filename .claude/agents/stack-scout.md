@@ -30,8 +30,8 @@ generations; grep alone routinely lands people in dead code.
   `/canvas/lti/*` routes.
 
 **Gone** (ADR-006, 2026-07-07): `frontend/` and `web/` — git history only.
-**Separate:** `app/` is a Node app with its own CI job (lint, typecheck,
-test, build); it is not one of the deleted trees.
+**Gone** (ADR-008 Option C, 2026-10-11): `app/`, the unused Vite/React
+scaffold, and its CI job. `demo/app/` is a different tree and still exists.
 
 ## Operating rules
 

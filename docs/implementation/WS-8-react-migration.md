@@ -1,5 +1,9 @@
 # WS-8 — Frontend → React migration
 
+> **Closed 2026-10-11: `app/` deleted.** ADR-008 moved from Option B to
+> Option C because R3 was never funded. Nothing below is planned work; it is
+> kept as the historical record.
+
 > **⚖️ AMENDED by [ADR-008](../adr/008-ws8-frontend-convergence.md) (Accepted 2026-08-02) — read this first.**
 > The direction below is re-scoped: **Bluebook (`demo/bluebook/` + esbuild) is
 > the permanent exam-app frontend and does NOT migrate into `app/`.** `app/` +

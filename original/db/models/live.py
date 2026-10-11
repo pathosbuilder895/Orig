@@ -516,7 +516,19 @@ class BluebookSubmission(LiveBase):
     """
 
     __tablename__ = "bluebook_submissions"
-    __table_args__ = (Index("idx_bluebook_subs_tenant", "tenant_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_bluebook_subs_tenant", "tenant_id", "created_at"),
+        # Partial unique index, exactly as migration 7c4d1e88a3b5 builds it
+        # (and original/store.py on SQLite): many NULLs, one row per non-null
+        # seal id. tests/test_alembic.py holds the model to the migrations.
+        Index(
+            "idx_bluebook_subs_uuid",
+            "submission_uuid",
+            unique=True,
+            postgresql_where=text("submission_uuid IS NOT NULL"),
+            sqlite_where=text("submission_uuid IS NOT NULL"),
+        ),
+    )
 
     submission_id: Mapped[str] = mapped_column(Text, primary_key=True)
     exam_id: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -534,7 +546,7 @@ class BluebookSubmission(LiveBase):
     # Idempotent sealing (Bluebook exam-day robustness): client seal id --
     # replays with the same uuid return the prior row instead of writing a
     # second one.
-    submission_uuid: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    submission_uuid: Mapped[str | None] = mapped_column(Text, nullable=True)
     late: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     # Self-serve (2026-09): the sealed prose itself, so a Bluebook-only
     # tenant's history never depends on Original's profile store, and the
