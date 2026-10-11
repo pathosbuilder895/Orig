@@ -1618,6 +1618,25 @@ class TestBluebook:
         assert got["id"] == "bbsub-uu" and got["late"] == 1
         assert repo.get_bluebook_submission_by_uuid("uu-none") is None
 
+    def test_submission_uuid_is_unique_but_nulls_are_not(self, repo):
+        """The seal-replay guard in original/routers/bluebook.py relies on a
+        second row with the same non-null submission_uuid being refused with
+        an IntegrityError, on both backends. NULL uuids (seals from before the
+        column existed, or clients that send none) must never collide."""
+        import sqlite3
+
+        from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+        base = {"tenant_id": "sem", "exam_id": "ex-u", "student_id": "sem:al"}
+        repo.put_bluebook_submission({**base, "id": "bbsub-n1", "submission_uuid": None})
+        repo.put_bluebook_submission({**base, "id": "bbsub-n2", "submission_uuid": None})
+        repo.put_bluebook_submission({**base, "id": "bbsub-u1", "submission_uuid": "uu-dup"})
+        with pytest.raises((sqlite3.IntegrityError, SAIntegrityError)):
+            repo.put_bluebook_submission({**base, "id": "bbsub-u2", "submission_uuid": "uu-dup"})
+        ids = {s["id"] for s in repo.list_bluebook_submissions("sem")}
+        assert {"bbsub-n1", "bbsub-n2", "bbsub-u1"} <= ids
+        assert "bbsub-u2" not in ids
+
     def test_course_put_get_list(self, repo):
         repo.put_bluebook_course(
             {"id": "course-A", "tenant_id": "sem", "name": "Theology 101", "code": "THEO101"}

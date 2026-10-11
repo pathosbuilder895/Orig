@@ -84,7 +84,7 @@ SHARDS: dict[str, list[str] | str] = {
         "tests/test_shadow*.py",
         "tests/test_migration*.py",
         "tests/test_persistence*.py",
-        # No matches today; the alembic suite is expected here when it lands.
+        # The alembic migration suite (T-10).
         "tests/test_alembic*.py",
         "tests/security",
         "tests/config",

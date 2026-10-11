@@ -127,7 +127,7 @@ function buildConditions(cfg, withOriginal) {
     withOriginal  && 'Session duration and coarse writing information are noted as context for your teacher',
     cfg.phoneBlk  && 'Devices must be silenced for the duration',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work',
-    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile',
+    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile, and can undo that',
   ].filter(Boolean);
 }
 
@@ -282,13 +282,19 @@ async function bbStartSession(cfg, studentId) {
 // Returned by bbScoreWithOriginal when Original refused the call (403): the
 // workspace no longer holds it, so the seal proceeds as a Bluebook-only one.
 const BB_ORIGINAL_OFF = 'original-off';
+// Returned by bbScoreWithOriginal when the student has fewer than 3 approved
+// reference samples (baseline_integrity.readiness is not "ready"), or the
+// response does not say. NORTH_STAR rule 3: with a thin baseline Original
+// cannot tell, so the exam is recorded as INCONCLUSIVE, never marked.
+export const BB_NOT_ENOUGH_REFERENCE = 'not-enough-reference';
 
 // Score the submission against the student's EXISTING baseline → returns an
 // AI/authorship score (0–100, higher = more authentically theirs), or null when
 // there is no baseline yet to compare against (a first proctored sitting), or
+// BB_NOT_ENOUGH_REFERENCE when there is one but it is too thin to read, or
 // BB_ORIGINAL_OFF when the workspace no longer holds Original. The seal only
 // compares; it never writes a baseline (a professor approves those).
-async function bbScoreWithOriginal(studentId, text, assignment, submissionId, compositionSummary) {
+export async function bbScoreWithOriginal(studentId, text, assignment, submissionId, compositionSummary) {
   try {
     const r = await fetch(`${BB_API_BASE}/students/${encodeURIComponent(studentId)}/score`, {
       method: 'POST', headers: bbAuthHeaders(),
@@ -302,6 +308,8 @@ async function bbScoreWithOriginal(studentId, text, assignment, submissionId, co
     const data = await r.json();
     const a = data && data.authorship;
     if (!a) return null;
+    const bi = data.baseline_integrity;
+    if (!bi || bi.readiness !== 'ready') return BB_NOT_ENOUGH_REFERENCE;
     // Prefer Born-rule authorship probability; fall back to (1 − deviation).
     const prob = a.authorship_probability != null
       ? a.authorship_probability
@@ -309,6 +317,16 @@ async function bbScoreWithOriginal(studentId, text, assignment, submissionId, co
     if (prob == null) return null;
     return Math.max(0, Math.min(100, Math.round(prob * 100)));
   } catch (e) { return null; }
+}
+
+// The status a sealed exam is recorded with. Only an Original reading on a
+// ready baseline can mark an exam FLAGGED; a thin one is
+// INCONCLUSIVE; everything else, including every Bluebook-only exam, is
+// SUBMITTED.
+export function bbSealStatus(withOriginal, seal) {
+  if (!withOriginal) return 'SUBMITTED';
+  if (seal.inconclusive) return 'INCONCLUSIVE';
+  return seal.aiScore != null && seal.aiScore < 70 ? 'FLAGGED' : 'SUBMITTED';
 }
 
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
@@ -621,6 +639,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             seal.withOriginal = false;
             seal.aiScore = null;
             BB_API.dropOriginal();
+          } else if (scored === BB_NOT_ENOUGH_REFERENCE) {
+            seal.aiScore = null;
+            seal.inconclusive = true;
           } else {
             seal.aiScore = scored;
           }
@@ -633,8 +654,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         // answers the score call with 403 (handled in step 1), so the exam is
         // recorded exactly like a Bluebook-only one.
         const stylometric = null;
-        const status = withOriginal && seal.aiScore != null && seal.aiScore < 70
-          ? 'FLAGGED' : 'SUBMITTED';
+        const status = bbSealStatus(withOriginal, seal);
         const timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
         // Throws on failure, so a lost submission row retries like any other
         // step instead of reporting "sealed" and deleting the draft.
@@ -1051,7 +1071,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                 <h1>Examination Sealed</h1>
                 <p>
                   Your examination has been received, sealed, and submitted
-                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile.'}
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile, and can undo that.'}
                 </p>
                 {sub.expired && (
                   <p>Time expired — your work was sealed as written.</p>

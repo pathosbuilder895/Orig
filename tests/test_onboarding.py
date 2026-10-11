@@ -22,9 +22,10 @@ PW = "chosen-passw0rd"
 TERMS_MSG = "Please accept the terms of service and privacy policy."
 INVALID_MSG = "This invite link is invalid, expired, or already used."
 T01_MSG = (
-    "Original's comparisons are not validated for real student work yet (gap T-01: "
-    "frequent false alarms with few baseline samples). Use it only with the owner's "
-    "agreement and the institution's consent."
+    "Testing phase: Original is not yet validated on real student writing, and its "
+    "results are least reliable with fewer than 3 approved samples. Switch it on only "
+    "with the owner's agreement and the teacher's informed consent, and make sure the "
+    "teacher's students are told their sealed work may be used as reference writing."
 )
 APPLIES_MSG = (
     "The server applies this within 30 seconds. Open pages pick it up when the "
@@ -276,7 +277,9 @@ def test_a_relative_link_is_never_emailed(monkeypatch):
     sent = []
     monkeypatch.setattr(mailer, "configured", lambda: True)
     monkeypatch.setattr(
-        mailer, "send_professor_invite", lambda to, link: sent.append((to, link)) or True
+        mailer,
+        "send_professor_invite",
+        lambda to, link, **kw: sent.append((to, link, kw)) or True,
     )
     out = invite_professor("relative@seminary.edu")
     assert out["invite_link"].startswith("/bluebook/?invite=")
@@ -288,11 +291,25 @@ def test_invite_emails_the_link_when_mail_is_configured(monkeypatch):
     sent = []
     monkeypatch.setattr(mailer, "configured", lambda: True)
     monkeypatch.setattr(
-        mailer, "send_professor_invite", lambda to, link: sent.append((to, link)) or True
+        mailer,
+        "send_professor_invite",
+        lambda to, link, **kw: sent.append((to, link, kw)) or True,
     )
     out = invite_professor("mail@seminary.edu", base_url="https://x.test")
     assert out["emailed"] is True
-    assert sent == [("mail@seminary.edu", out["invite_link"])]
+    assert sent == [("mail@seminary.edu", out["invite_link"], {"with_original": False})]
+
+
+def test_invite_tells_the_mailer_when_the_workspace_has_original(monkeypatch):
+    sent = []
+    monkeypatch.setattr(mailer, "configured", lambda: True)
+    monkeypatch.setattr(
+        mailer,
+        "send_professor_invite",
+        lambda to, link, **kw: sent.append(kw) or True,
+    )
+    invite_professor("orig@seminary.edu", base_url="https://x.test", with_original=True)
+    assert sent == [{"with_original": True}]
 
 
 def test_cli_prints_the_backend_and_the_link(capsys, monkeypatch):
@@ -341,6 +358,19 @@ def test_professor_invite_email_text(monkeypatch):
     assert mailer.send_professor_invite("p@x.edu", "https://x.test/bluebook/?invite=abc") is True
     assert captured["subject"] == "Your Bluebook workspace is ready"
     assert "https://x.test/bluebook/?invite=abc" in captured["text"]
+    assert "Original" not in captured["text"]
+
+
+def test_professor_invite_email_labels_original_as_testing(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        mailer,
+        "send",
+        lambda to, subject, text: captured.update(text=text) or True,
+    )
+    assert mailer.send_professor_invite("p@x.edu", "https://x.test/i", with_original=True)
+    assert "testing phase" in captured["text"]
+    assert "not yet validated on real student writing" in captured["text"]
 
 
 # ── Original on/off per professor (operator) ───────────────────────────────
