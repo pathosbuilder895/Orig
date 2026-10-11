@@ -368,6 +368,38 @@ def test_the_classic_page_has_a_visible_way_back_to_original_and_signs_out_to_th
     assert "location.replace('professor.html')" not in page
 
 
+def test_the_classic_page_marks_every_admin_and_operator_link_for_operators_only():
+    page = _classic()
+    # The sidebar's two, the topbar's Admin button, and the Settings panel's two (drawn by script).
+    links = re.findall(r'<a [^>]*href="(?:admin|operator)\.html"[^>]*>', page)
+    assert len(links) == 5
+    assert all("data-operator-only" in a for a in links), links
+    # One CSS rule hides them, so it reaches the Settings panel drawn after the page loads.
+    assert "html[data-hide-operator] [data-operator-only] { display: none !important; }" in page
+    assert "querySelectorAll('[data-operator-only]')" not in page
+
+
+@needs_node
+def test_the_classic_page_hides_operator_links_for_a_signed_in_teacher_only():
+    page = _classic()
+    start = page.index("(function () {\n  var role = '';")
+    src = page[start : page.index("})();", start) + len("})();")]
+    cases = ["professor", "", "admin", "operator", "student", None]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", "const fs=require('fs');const sc=JSON.parse(fs.readFileSync(0,'utf8'));"
+         "process.stdout.write(JSON.stringify(sc.cases.map((role)=>{const attrs={};"
+         "const document={documentElement:{setAttribute:(k,v)=>{attrs[k]=v;}}};"
+         "const localStorage={getItem:()=>{if(role===null)throw new Error('blocked');return role;}};"
+         "new Function('document','localStorage',sc.src)(document,localStorage);"
+         "return 'data-hide-operator' in attrs;})));"],
+        input=json.dumps({"src": src, "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    # Only a teacher's sign-in hides them; blocked storage leaves the page as it was.
+    assert json.loads(run.stdout) == [True, False, False, False, False, False]
+
+
 # ── The Bluebook Sessions page after review (demo/original/bluebook.html) ─────
 
 
@@ -450,6 +482,20 @@ def test_bluebook_page_patches_one_row_when_a_baseline_answer_comes_instead_of_r
     assert out["writesAfter"] == out["writesAtRows"]
     # The rows that had no answer show no baseline count and no title.
     assert out["html"].count("in a baseline") == 1 and out["html"].count("Matched by text") == 1
+
+
+@needs_node
+def test_bluebook_page_leaves_the_baseline_count_blank_when_none_are_in_a_baseline():
+    out = _patch_run(**_bb_scenario(routes={
+        "/bluebook/exams/e-mid/baseline": [200, {"submissions": [
+            {"submission_id": "s2", "student": "x", "in_baseline": False, "has_text": True},
+            {"submission_id": "s3", "student": "y", "in_baseline": False, "has_text": True},
+        ]}],
+    }))
+    assert "/bluebook/exams/e-mid/baseline" in out["calls"]
+    # The answer says none, so the row reads "2 sealed" with no "0 in a baseline" and no title.
+    assert '<div class="s-sub">2 sealed</div>' in out["html"]
+    assert "in a baseline" not in out["html"] and "Matched by text" not in out["html"]
 
 
 @needs_node
