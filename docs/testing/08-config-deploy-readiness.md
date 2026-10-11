@@ -99,7 +99,7 @@ strategy:
       - {reqs: requirements-demo.lock.txt,  env: "",                                          expect: up}
       - {reqs: requirements-pilot.lock.txt, env: "ORIGINAL_ENV=pilot ALLOWED_ORIGINS=*",      expect: refuse}
       - {reqs: requirements-pilot.lock.txt, env: "ORIGINAL_ENV=pilot GUARD_DESTRUCTIVE=1",    expect: up}
-      - {reqs: requirements-pilot.lock.txt, env: "ORIGINAL_ENV=demo  GUARD_DESTRUCTIVE=1",    expect: refuse}  # REAUDIT #5, red
+      - {reqs: requirements-pilot.lock.txt, env: "ORIGINAL_ENV=demo  GUARD_DESTRUCTIVE=1",    expect: refuse}  # REAUDIT #5 (T-23), refuses since 2026-10-11
 ```
 
 Each cell: fresh venv from *that* lockset only, `python run.py --demo
