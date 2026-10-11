@@ -246,6 +246,17 @@ def test_main_restore_fails_cleanly_on_a_bad_file(cli_env, tmp_path):
     assert pgb.main(["--restore", str(tmp_path / "missing.jsonl.gz")]) == 1
 
 
+def test_main_restore_with_an_empty_path_fails_instead_of_backing_up(cli_env, caplog):
+    """`--restore "$FILE"` after a failed download passes an empty string. It
+    must fail, never fall through to dumping (and uploading) the database."""
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    cli_env.setattr(pgb, "read_all", lambda session: pytest.fail("must not read the database"))
+    cli_env.setattr(pgb, "upload", lambda cfg, path: pytest.fail("must not upload"))
+    assert pgb.main(["--restore", ""]) == 1
+    assert "empty --restore argument" in caplog.text
+
+
 def test_encrypt_then_decrypt_round_trips(tmp_path):
     key = Fernet.generate_key().decode()
     plain = tmp_path / "dump.jsonl.gz"

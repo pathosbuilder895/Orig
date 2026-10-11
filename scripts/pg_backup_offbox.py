@@ -341,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.download_latest:
+    if args.download_latest is not None:
         return _download_latest_cli(Path(args.download_latest))
 
     if not os.environ.get("DATABASE_URL", "").strip():
@@ -351,7 +351,12 @@ def main(argv: list[str] | None = None) -> int:
 
     from original.db.postgres_session import session_scope
 
-    if args.restore:
+    if args.restore is not None:
+        # `--restore "$FILE"` with an empty $FILE (a failed download) must not
+        # fall through to the dump-and-upload path below.
+        if not args.restore.strip():
+            log.error("pg restore: no backup file given (empty --restore argument).")
+            return 1
         src = Path(args.restore)
         decrypted: Path | None = None
         try:
