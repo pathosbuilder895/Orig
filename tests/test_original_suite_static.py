@@ -2070,7 +2070,7 @@ def _voice_view(**extra) -> list:
         "milestones": [
             {"label": "Voice Sampled", "state": "reached", "blurb": "Some of your writing is on file."},
             {"label": "Voice Established", "state": "reached", "blurb": "Enough is on file."},
-            {"label": "Voice Affirmed", "state": "upcoming", "blurb": "At least one piece on file counts as reference writing."},
+            {"label": "Voice Affirmed", "state": "upcoming", "blurb": "A piece your teacher approved is on file."},
         ],
         "formation": {"active": True, "status": "open", "step_label": "Development Session"},
     }

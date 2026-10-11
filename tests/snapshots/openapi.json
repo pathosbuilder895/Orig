@@ -7181,7 +7181,7 @@
     },
     "/me/work": {
       "post": {
-        "description": "Compare a piece of writing with the signed-in student's approved writing.\n\nScores the text server-side against the baseline the student's teacher has\napproved, then returns ONLY the redacted result (headline + supportive\nsummary + steady-dimension affirmations + whether a review opportunity\nopened). This route never adds the piece to the student's baseline, so the\nstudent's sample count is the same before and after, and the piece itself\nis not stored. The raw Layer-7 payload never leaves the server.",
+        "description": "Compare a piece of writing with the writing on file in the signed-in\nstudent's profile (their baseline).\n\nScores the text server-side against that baseline, then returns ONLY the\nredacted result (headline + supportive summary + steady-dimension\naffirmations + whether a review opportunity opened). This route never adds\nthe piece to the student's baseline, so the student's sample count is the\nsame before and after, and the piece itself is not stored. The raw Layer-7\npayload never leaves the server.",
         "operationId": "my_work_me_work_post",
         "requestBody": {
           "content": {

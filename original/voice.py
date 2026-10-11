@@ -228,18 +228,24 @@ def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[s
 
 def project_milestones(
     sample_count: int,
-    authenticated_count: int,
+    approved_count: int,
 ) -> list[dict[str, Any]]:
     """Sample counts → a positive credential as named milestones.
 
     Never sends the raw counts or "3 of 5 samples" — only whether each named
     milestone has been *reached* or is *upcoming*, with affirming copy.
+
+    ``approved_count`` is the number of samples a teacher has approved or a
+    supervised sitting has attested: provenance ``proctored``, ``verified`` or
+    ``canvas`` (``routers/_shared._TRUSTED_PROVENANCE``). It is not the
+    baseline's ``authenticated_count``, which also counts a student's own
+    unverified upload at half weight: a student cannot affirm their own voice.
     """
     reached_established = sample_count >= 3
     reached_sampled = sample_count >= 1
-    # Reached by one route only: a piece that counts toward the baseline is on
-    # file. Finishing a pathway does not affirm a voice, so it is not a second route.
-    reached_affirmed = authenticated_count >= 1
+    # Reached by one route only: a piece a teacher approved is on file. Finishing
+    # a pathway does not affirm a voice, so it is not a second route.
+    reached_affirmed = approved_count >= 1
 
     def state(reached: bool) -> str:
         return "reached" if reached else "upcoming"
@@ -258,7 +264,7 @@ def project_milestones(
         {
             "label": "Voice Affirmed",
             "state": state(reached_affirmed),
-            "blurb": "At least one piece on file counts as reference writing.",
+            "blurb": "A piece your teacher approved is on file.",
         },
     ]
 
@@ -335,7 +341,7 @@ def project_voice_view(
     name: str,
     baseline_vector: dict[str, float] | None,
     sample_count: int,
-    authenticated_count: int,
+    approved_count: int,
     manifests: list[dict[str, Any]],
     corrections: list[dict[str, Any]],
     pathway: dict[str, Any] | None,
@@ -357,7 +363,7 @@ def project_voice_view(
         "arc": arc,
         "voice_notes": project_voice_notes(corrections),
         "review_opportunities": project_review_opportunities(manifests),
-        "milestones": project_milestones(sample_count, authenticated_count),
+        "milestones": project_milestones(sample_count, approved_count),
         "formation": formation,
     }
 

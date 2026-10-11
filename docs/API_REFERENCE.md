@@ -151,7 +151,7 @@ their sensitivity (noted inline).
 | POST | `/student-auth/login` | Student sign-in by email + institution; auto-provisions the student record and a demo tenant if new. Returns a session token. | None |
 | GET | `/student-auth/me` | Return the signed-in student's basic identity, or 401. | Student session |
 | GET | `/me/voice` | The complete, redacted `VoiceView` for the signed-in student (ADR-005: no feature codes, raw scores, or thresholds ever cross the wire). | Student session, self-only |
-| POST | `/me/work` | Compare a piece of writing with the student's approved writing; returns only the redacted result. This route never adds the piece to the student's baseline, and the piece itself is not stored. | Student session, self-only |
+| POST | `/me/work` | Compare a piece of writing with the writing on file in the student's profile (their baseline); returns only the redacted result. This route never adds the piece to the student's baseline, and the piece itself is not stored. | Student session, self-only |
 | POST | `/me/formation/advance` | Advance the student's own formation pathway. | Student session, self-only |
 
 ## Bluebook (proctored exam surface)

@@ -18,6 +18,7 @@ import ast
 import json
 import pathlib
 import re
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -207,7 +208,7 @@ def test_projection_drops_feature_codes_and_scores():
         name="Thomas Merton",
         baseline_vector=baseline,
         sample_count=5,
-        authenticated_count=2,
+        approved_count=2,
         manifests=manifests,
         corrections=corrections,
         pathway=pathway,
@@ -462,15 +463,19 @@ def test_student_can_still_read_self(student_token):
     assert r.status_code == 200, r.text
 
 
-# ── Voice Affirmed has one route: a piece that counts toward the baseline ────
+# ── Voice Affirmed: a piece a teacher approved is on file ────────────────────
+# A student's own upload counts toward the baseline (authenticated_count, at half
+# weight) but a student cannot approve their own writing, so it does not affirm a
+# voice. Only the trusted provenances do: a supervised sitting (proctored), a
+# teacher-verified paper (verified) or a course-site import (canvas).
 
 
-def _milestone_states(sample_count, authenticated_count, pathway=None):
+def _milestone_states(sample_count, approved_count, pathway=None):
     view = voice_mod.project_voice_view(
         name="Dana",
         baseline_vector={},
         sample_count=sample_count,
-        authenticated_count=authenticated_count,
+        approved_count=approved_count,
         manifests=[],
         corrections=[],
         pathway=pathway,
@@ -478,27 +483,115 @@ def _milestone_states(sample_count, authenticated_count, pathway=None):
     return {m["label"]: m["state"] for m in view["milestones"]}
 
 
-def test_voice_affirmed_follows_a_piece_on_file_and_never_a_finished_pathway():
+def test_voice_affirmed_follows_an_approved_piece_and_never_a_finished_pathway():
     done = {"current_step": 3, "total_steps": 3, "status": "completed"}
     upcoming = {"Voice Sampled": "upcoming", "Voice Established": "upcoming", "Voice Affirmed": "upcoming"}
     assert _milestone_states(0, 0) == upcoming
     # A completed pathway used to affirm a voice with nothing on file.
     assert _milestone_states(0, 0, done) == upcoming
+    # One approved piece: sampled and affirmed, not yet established.
     assert _milestone_states(1, 1) == {
         "Voice Sampled": "reached",
         "Voice Established": "upcoming",
         "Voice Affirmed": "reached",
     }
-    assert _milestone_states(3, 3)["Voice Established"] == "reached"
-    # Samples that carry no weight do not affirm.
-    assert _milestone_states(2, 0)["Voice Affirmed"] == "upcoming"
+    assert _milestone_states(3, 3) == {
+        "Voice Sampled": "reached",
+        "Voice Established": "reached",
+        "Voice Affirmed": "reached",
+    }
+    # Writing a student uploaded themselves is on file but not approved: it can
+    # sample and establish a voice, never affirm it.
+    assert _milestone_states(1, 0) == {
+        "Voice Sampled": "reached",
+        "Voice Established": "upcoming",
+        "Voice Affirmed": "upcoming",
+    }
+    assert _milestone_states(4, 0)["Voice Established"] == "reached"
+    assert _milestone_states(4, 0)["Voice Affirmed"] == "upcoming"
+    # One approved piece among the student's own uploads is enough.
+    assert _milestone_states(4, 1)["Voice Affirmed"] == "reached"
 
 
-def test_voice_affirmed_blurb_makes_no_authenticity_or_approval_claim():
+def test_voice_affirmed_blurb_says_a_teacher_approved_the_piece_and_claims_nothing_more():
     blurbs = {m["label"]: m["blurb"] for m in voice_mod.project_milestones(1, 1)}
+    assert blurbs["Voice Affirmed"] == "A piece your teacher approved is on file."
     said = blurbs["Voice Affirmed"].lower()
-    for claim in ("genuine", "verified", "approved", "authentic"):
+    for claim in ("genuine", "verified", "authentic", "reference writing"):
         assert claim not in said, claim
+
+
+def test_me_route_counts_approved_pieces_from_the_trusted_provenances_it_imports():
+    # One definition of "trusted": the router imports it, so a provenance added to
+    # the set later is approved here too, and a copy cannot drift.
+    from original.routers import _shared, me
+
+    assert me._TRUSTED_PROVENANCE is _shared._TRUSTED_PROVENANCE
+    assert _shared._TRUSTED_PROVENANCE == {"proctored", "verified", "canvas"}
+
+
+def _affirmed_state(token):
+    r = client.get("/me/voice", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200, r.text
+    return {m["label"]: m["state"] for m in r.json()["milestones"]}
+
+
+@pytest.fixture
+def fresh_student():
+    """A student who has signed in and written nothing yet (a new one every test)."""
+    r = client.post(
+        "/student-auth/login",
+        json={
+            "email": f"dana-{uuid.uuid4().hex[:10]}@gethsemani.edu",
+            "institution": "Gethsemani Demo",
+            "name": "Dana Test",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    return body["token"], body["student_id"]
+
+
+def test_me_voice_does_not_affirm_a_voice_from_the_students_own_upload(fresh_student):
+    """The reachable state: a student POSTs their own piece (asking for 'verified',
+    which the server downgrades to 'unverified'). It counts toward the baseline, and
+    Voice Affirmed stays upcoming."""
+    tok, sid = fresh_student
+    hdr = {"Authorization": f"Bearer {tok}"}
+    r = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT, "assignment": "my own upload", "provenance": "verified"},
+        headers=hdr,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["provenance"] == "unverified"
+    record = client.get(f"/students/{sid}", headers=hdr).json()
+    assert record["authenticated_count"] == 1  # it counts toward the baseline...
+    assert [s["provenance"] for s in record["samples"]] == ["unverified"]
+    states = _affirmed_state(tok)
+    assert states["Voice Sampled"] == "reached"
+    assert states["Voice Affirmed"] == "upcoming"  # ...and does not affirm the voice
+
+
+@pytest.mark.parametrize("provenance", ["proctored", "verified", "canvas"])
+def test_me_voice_affirms_a_voice_once_a_teacher_approved_piece_is_on_file(fresh_student, provenance):
+    tok, sid = fresh_student
+    hdr = {"Authorization": f"Bearer {tok}"}
+    client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT, "assignment": "my own upload", "provenance": "unverified"},
+        headers=hdr,
+    )
+    assert _affirmed_state(tok)["Voice Affirmed"] == "upcoming"
+    # The demo's anonymous principal stands in for the teacher or the supervised
+    # sitting: off a real deploy it keeps the provenance it asks for.
+    r = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT + " It ends here.", "assignment": "approved", "provenance": provenance},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["provenance"] == provenance
+    assert _affirmed_state(tok)["Voice Affirmed"] == "reached"
 
 
 # ── Student-facing copy never says "formation" ───────────────────────────────
@@ -567,7 +660,7 @@ def test_no_returned_string_says_formation_in_any_state():
                         name="Dana Whitfield",
                         baseline_vector={code: 0.5 for code in ALL_FEATURE_CODES},
                         sample_count=samples,
-                        authenticated_count=auth,
+                        approved_count=auth,
                         manifests=manifests,
                         corrections=[],
                         pathway=pathway,
@@ -592,7 +685,7 @@ def test_no_returned_string_says_formation_in_any_state():
                 name="Dana",
                 baseline_vector={},
                 sample_count=3,
-                authenticated_count=3,
+                approved_count=3,
                 manifests=manifests,
                 corrections=[{"notes": "Well argued.", "created_at": "2026-02-02T00:00:00"}],
                 pathway=None,

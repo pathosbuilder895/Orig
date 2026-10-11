@@ -19,7 +19,7 @@ from ..schemas import (
     VoiceSubmitResult,
     VoiceView,
 )
-from ._shared import _repo, _require_student_session
+from ._shared import _TRUSTED_PROVENANCE, _repo, _require_student_session
 from .students_scoring import score_submission
 
 router = APIRouter()
@@ -57,11 +57,15 @@ def my_voice(request: Request):
             code: float(state.baseline_mean[i]) for i, code in enumerate(ALL_FEATURE_CODES)
         }
         sample_count = state.sample_count
-        authenticated_count = state.authenticated_count
+        # Voice Affirmed means a piece a teacher approved is on file. That is the
+        # trusted provenances (a supervised sitting, a teacher-verified paper, a
+        # course-site import), not authenticated_count, which also counts a
+        # student's own upload at half weight.
+        approved_count = sum(1 for s in state.samples if s.provenance in _TRUSTED_PROVENANCE)
     else:
         baseline_vector = {}
         sample_count = 0
-        authenticated_count = 0
+        approved_count = 0
 
     manifests = _repo().list_manifests(student_id=sid, limit=50).get("items", [])
     corrections = _repo().list_corrections(student_id=sid, limit=20).get("items", [])
@@ -71,7 +75,7 @@ def my_voice(request: Request):
         name=name,
         baseline_vector=baseline_vector,
         sample_count=sample_count,
-        authenticated_count=authenticated_count,
+        approved_count=approved_count,
         manifests=manifests,
         corrections=corrections,
         pathway=pathway,
@@ -82,14 +86,15 @@ def my_voice(request: Request):
 @router.post("/me/work", response_model=VoiceSubmitResult)
 def my_work(request: Request, body: VoiceSubmitRequest):
     """
-    Compare a piece of writing with the signed-in student's approved writing.
+    Compare a piece of writing with the writing on file in the signed-in
+    student's profile (their baseline).
 
-    Scores the text server-side against the baseline the student's teacher has
-    approved, then returns ONLY the redacted result (headline + supportive
-    summary + steady-dimension affirmations + whether a review opportunity
-    opened). This route never adds the piece to the student's baseline, so the
-    student's sample count is the same before and after, and the piece itself
-    is not stored. The raw Layer-7 payload never leaves the server.
+    Scores the text server-side against that baseline, then returns ONLY the
+    redacted result (headline + supportive summary + steady-dimension
+    affirmations + whether a review opportunity opened). This route never adds
+    the piece to the student's baseline, so the student's sample count is the
+    same before and after, and the piece itself is not stored. The raw Layer-7
+    payload never leaves the server.
     """
     session = _require_student_session(request)
     sid = str(session["sid"])
@@ -109,7 +114,7 @@ def my_work(request: Request, body: VoiceSubmitRequest):
             ),
         )
     except HTTPException:
-        # No student record, or no approved baseline yet: nothing to compare with.
+        # No student record, or no writing on file yet: nothing to compare with.
         return VoiceSubmitResult(**voice_mod.project_no_baseline_result())
 
     result = voice_mod.project_submission_result(layer7, name)
