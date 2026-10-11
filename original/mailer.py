@@ -110,13 +110,25 @@ def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool
     return send(to, f"You've been added to Bluebook{where}", text)
 
 
-def send_professor_invite(to: str, link: str) -> bool:
+def send_professor_invite(to: str, link: str, with_original: bool = False) -> bool:
+    # NORTH_STAR rule 10: wherever a teacher meets Original it is labelled as
+    # in its testing phase, the invitation included.
+    original = (
+        "Your workspace also has Original, which compares a new piece of "
+        "writing with a student's earlier, teacher-approved work. Original is "
+        "in its testing phase: it is not yet validated on real student "
+        "writing, so treat any result as a reason for a conversation, never "
+        "as evidence.\n\n"
+        if with_original
+        else ""
+    )
     text = (
         "You have been invited to Bluebook, the online written-examination "
         "service, with a private workspace of your own.\n\n"
         f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
         "Then sign in with this email address to create a course, invite your "
         "students and set an examination.\n\n"
+        f"{original}"
         "If you were not expecting this, you can ignore this email."
     )
     return send(to, "Your Bluebook workspace is ready", text)
