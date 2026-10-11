@@ -2284,8 +2284,10 @@ def test_baseline_page_adds_writing_through_the_professor_pages_endpoints_and_pa
         assert field in page, field
     # Provenance values are the ones professor.html offers.
     assert 'value="verified"' in page and 'value="proctored"' in page
-    # Pasting, uploading and approving or undoing an exam each refresh what the page shows.
-    assert page.count("await refreshStudent()") >= 3
+    # Pasting, uploading and approving or undoing an exam each read the student again
+    # (refreshAfterWrite wraps refreshStudent so a failed read cannot lose the lock).
+    assert page.count("await refreshAfterWrite()") + page.count("(await refreshAfterWrite())") >= 3
+    assert page.count("await refreshStudent()") == 1
     # The Turnitin CSV import is not here: it creates empty profiles (never writing)
     # and ignores its course id. The classic page keeps it.
     for gone in ("turnitin", "/import/courses/", "tt-file"):
@@ -2364,7 +2366,10 @@ def test_baseline_page_has_one_write_in_flight_for_every_write():
     # Nothing writes without taking the flag first.
     assert page.count("Live.api('/students/'+enc(ID)+'/baseline'") == 1
     assert page.count("/baseline/upload-batch") == 1
-    assert page.count("endSave()") >= 6
+    # ...and gives it back however it ends: each writer releases it in a finally
+    # block, so a thrown error while drawing the result cannot leave the page locked.
+    assert page.count("}finally{ endSave(); }") == 3
+    assert "endSave(); return;" not in page
     assert "Saving..." in page
 
 
@@ -2400,13 +2405,26 @@ const document = {
   createElement() { return makeEl(); },
   querySelector() { return makeEl(); }, querySelectorAll() { return []; }, addEventListener() {},
 };
+// The lines of the message under the add forms. With sc.throwOnAddedMsg, drawing the
+// "Added as sample" line throws, as a render bug would.
+const addMsg = document.getElementById('add-msg');
+addMsg.lines = [];
+Object.defineProperty(addMsg, 'innerHTML', { get() { return ''; }, set() { addMsg.lines = []; } });
+addMsg.appendChild = (c) => {
+  if (sc.throwOnAddedMsg && /Added as sample/.test(c.textContent)) throw new Error('render boom');
+  addMsg.lines.push(c.textContent);
+};
+process.on('unhandledRejection', () => {});
 const calls = [];
 const WORDS = Array.from({ length: 80 }, (_, i) => 'word' + i).join(' ');
 let sample = 5;
+let wrote = false;
 function route(method, path) {
   if (path === '/health') return [200, { environment: 'demo' }];
   if (path === '/auth/me') return [401, {}];
   if (path === '/students') return [200, { students: ['s1'], roster: null }];
+  // After a write the student cannot be read again (the write itself went through).
+  if (sc.failStudentAfterWrite && wrote && path.startsWith('/students/s1')) return [500, { detail: 'boom' }];
   if (path === '/students/s1') {
     const samples = Array.from({ length: sample }, (_, i) => ({ index: i, assignment: 'A' + i, provenance: i === 0 ? 'unverified' : 'proctored', submitted_at: '2026-01-0' + (i + 1), auth_weight: 1 }));
     return [200, { student_id: 's1', sample_count: sample, authenticated_count: sample, purity: 0.5, effective_sample_count: 4, baseline_vector: {}, samples }];
@@ -2416,7 +2434,7 @@ function route(method, path) {
   if (path === '/bluebook/exams') return [200, { exams: [] }];
   if (path === '/bluebook/submissions') return [200, { submissions: [{ id: 'x1', exam_id: 'e1', student_id: 's1', exam: 'Midterm', course: 'THEO', created_at: '2026-10-01T10:00:00Z', late: false, warnings: ['a', 'b'], ai_score: 0.9 }] }];
   if (path === '/bluebook/exams/e1/baseline') return [200, { submissions: [{ submission_id: 'x1', in_baseline: false, has_text: true }] }];
-  if (method === 'POST' && path === '/students/s1/baseline') { sample += 1; return [200, { sample_index: sample - 1, provenance: 'verified' }]; }
+  if (method === 'POST' && path === '/students/s1/baseline') { sample += 1; wrote = true; return [200, { sample_index: sample - 1, provenance: 'verified' }]; }
   if (method === 'POST' && path === '/bluebook/submissions/x1/baseline') { sample += 1; return [200, { status: 'added' }]; }
   return [404, {}];
 }
@@ -2425,7 +2443,7 @@ function fakeFetch(href, init) {
   const path = new URL(href).pathname;
   calls.push(method + ' ' + path);
   const [status, body] = route(method, path);
-  const slow = method !== 'GET' ? 60 : 3;
+  const slow = (sc.delay && sc.delay[path]) || (method !== 'GET' ? 60 : 3);
   return new Promise((resolve) => setTimeout(() => resolve({ ok: status >= 200 && status < 300, status, text: () => Promise.resolve(JSON.stringify(body)) }), slow));
 }
 new Function('window', 'document', 'fetch', fs.readFileSync(sc.features, 'utf8'))(window, document, fakeFetch);
@@ -2437,8 +2455,13 @@ new Function('window', 'document', 'Live', 'location', scripts[0])(window, docum
 const el = (id) => document.getElementById(id);
 const click = (id) => (el(id).handlers.click || []).forEach((fn) => fn({ target: el(id), preventDefault() {} }));
 (async () => {
+  const out = {};
+  if (sc.early) {
+    await sleep(sc.early);
+    out.early = { sealed: el('sealed-list').innerHTML, short: el('short').innerHTML, meta: el('meta').textContent };
+  }
   for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"'); i++) await sleep(10);
-  const out = { before: { sealed: el('sealed-list').innerHTML, short: el('short').innerHTML, meta: el('meta').textContent, traj: el('traj-d').innerHTML } };
+  out.before = { sealed: el('sealed-list').innerHTML, short: el('short').innerHTML, meta: el('meta').textContent, traj: el('traj-d').innerHTML };
   el('paste-text').value = WORDS;
   click('paste-go'); click('paste-go');
   await sleep(10);
@@ -2447,7 +2470,7 @@ const click = (id) => (el(id).handlers.click || []).forEach((fn) => fn({ target:
   const btn = { disabled: false, getAttribute: (k) => ({ 'data-act': 'approve', 'data-id': 'x1' })[k] };
   (el('sealed-list').handlers.click || []).forEach((fn) => fn({ target: { closest: () => btn } }));
   await sleep(250);
-  out.after = { paste: el('paste-go').disabled, pasteLabel: el('paste-go').textContent, msg: el('add-msg').innerHTML, meta: el('meta').textContent };
+  out.after = { paste: el('paste-go').disabled, pasteLabel: el('paste-go').textContent, lines: addMsg.lines, meta: el('meta').textContent };
   out.calls = calls.filter((c) => c.startsWith('POST'));
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
@@ -2455,7 +2478,7 @@ const click = (id) => (el(id).handlers.click || []).forEach((fn) => fn({ target:
 """
 
 
-def _baseline_run() -> dict:
+def _baseline_run(**scenario) -> dict:
     run = subprocess.run(
         [shutil.which("node"), "-e", BASELINE_HARNESS],
         input=json.dumps(
@@ -2463,6 +2486,7 @@ def _baseline_run() -> dict:
                 "live": str(SUITE / "live.js"),
                 "page": str(SUITE / "baseline.html"),
                 "features": str(SUITE / "js" / "feature-data.js"),
+                **scenario,
             }
         ),
         capture_output=True,
@@ -2915,3 +2939,50 @@ def test_packet_with_no_listed_habits_says_so_and_with_unkept_figures_says_that_
     unkept = _packet_run(counts, student=[200, {"samples": _samples(5)}], habit="no-figures")
     assert "The figures for these habits were not kept with this analysis" in unkept["habits"]
     assert "None of the habits" not in unkept["habits"]
+
+
+# ── Voice Baseline: the follow-up reads, the save lock and the opening load ──
+
+
+def test_baseline_page_words_the_purity_note_and_the_upload_note_as_it_counts():
+    page = _baseline_page()
+    # Purity describes the papers the server counts, which are not all "approved".
+    assert "how alike the counted papers are to one another" in page
+    assert "how alike the approved papers" not in page
+    # Student uploads still count for now; the page says that will stop, not that
+    # anyone's uploads are being taken away.
+    assert "new student uploads will stop counting" in page
+    assert "are being retired" not in page
+
+
+@needs_node
+def test_baseline_page_draws_the_student_before_the_sealed_list_has_loaded():
+    # The sealed list is three requests and then a readiness call per student; the
+    # student's own baseline needs only two, so it is drawn without waiting for it.
+    out = _baseline_run(early=300, delay={"/bluebook/submissions": 900})
+    early = out["early"]
+    assert early["meta"] == "s1 \u00b7 4 teacher-approved samples \u00b7 1 student upload"
+    assert "5 counted samples" in early["short"]
+    assert 'data-act="approve"' not in early["sealed"]
+    # ...and the sealed exams are there once they arrive.
+    assert 'data-act="approve"' in out["before"]["sealed"]
+
+
+@needs_node
+def test_baseline_page_does_not_say_how_many_samples_a_student_has_when_it_could_not_read_them_again():
+    out = _baseline_run(failStudentAfterWrite=True)
+    lines = out["after"]["lines"]
+    assert lines[0] == "Added as sample 6. The count could not be refreshed just now. Reload the page to see it."
+    assert not [line for line in lines if "now has" in line or "teacher-approved sample" in line]
+
+
+@needs_node
+def test_baseline_page_still_says_how_many_when_the_follow_up_read_works():
+    out = _baseline_run()
+    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 teacher-approved samples."
+
+
+@needs_node
+def test_baseline_page_gives_back_the_save_lock_even_when_drawing_the_result_throws():
+    out = _baseline_run(throwOnAddedMsg=True)
+    assert out["after"]["paste"] is False and out["after"]["pasteLabel"] == "Add to baseline"

@@ -312,7 +312,7 @@
             <div class="lr"><span>All papers identical</span><b>1.000</b></div>
           </div>
         </div>
-        <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the approved papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict.</div>
+        <div class="pur-note"><b>What it is.</b> Purity describes the baseline, not a paper: how alike the counted papers are to one another. A lower number means they differ more from one another. That is variety, not a verdict.</div>
         <div class="pur-note"><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</div>
       </details>
     </aside>
@@ -353,7 +353,7 @@
             <div class="sec-h"><b>Where the baseline came from</b><span id="from-sub"></span></div>
             <div class="card tl-card">
               <div class="timeline" id="timeline"><div class="live-empty">Loading</div></div>
-              <div class="wt-note" id="wt-note" hidden>Each paper's verification weight is set by how it was verified. Papers added more recently count more (by the order they were added, not the date written); that part is applied inside the baseline and is not shown per paper. Original currently counts student uploads toward a baseline too, at the lowest weight; students' own uploads are being retired from baselines.</div>
+              <div class="wt-note" id="wt-note" hidden>Each paper's verification weight is set by how it was verified. Papers added more recently count more (by the order they were added, not the date written); that part is applied inside the baseline and is not shown per paper. Original currently counts student uploads toward a baseline too, at the lowest weight; new student uploads will stop counting.</div>
               <div class="traj" id="traj" hidden>
                 <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="1.5"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/></svg>
                 <div>
@@ -869,6 +869,7 @@
     const m=S.exams.find(x=>x.id===id);
     if(!m) return;
     if(!startSave(kind,id)) return;
+    try{
     m.confirm=false; m.msg='Saving...'; m.kind=''; renderSealed();
     const res=await Live.api('/bluebook/submissions/'+enc(id)+'/baseline',{method:kind==='undo'?'DELETE':'POST'});
     const d=res.data, word=d&&typeof d.status==='string'?d.status:'', detail=detailText(d);
@@ -889,8 +890,8 @@
       m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err';
     }
     else { m.msg='That did not go through, so nothing changed.'; m.kind='err'; }
-    if(changed) await refreshStudent();
-    endSave();
+    if(changed&&!(await refreshAfterWrite())) m.msg+=' '+NOT_REFRESHED;
+    }finally{ endSave(); }
   }
   $('sealed-list').addEventListener('click',e=>{
     const b=e.target.closest('button[data-act]'); if(!b||b.disabled) return;
@@ -957,7 +958,16 @@
     }
     return ['That did not go through, so nothing was added.'];
   }
-  const nowHas=()=>nm()+' now has '+plural(approvedN(),'teacher-approved sample')+'.';
+  // The count after a write comes from reading the student again. When that read
+  // failed there is no count to give: an empty profile would say "now has 0".
+  const NOT_REFRESHED='The count could not be refreshed just now. Reload the page to see it.';
+  const nowHas=()=>(S.status==='ok'&&S.student)?nm()+' now has '+plural(approvedN(),'teacher-approved sample')+'.':NOT_REFRESHED;
+  // Reads the student again after a write that went through. Resolves true when it
+  // could be read, false when it could not (the write is not undone by that).
+  async function refreshAfterWrite(){
+    try{ await refreshStudent(); return S.status==='ok'&&!!S.student; }
+    catch(e){ return false; }
+  }
 
   async function addPasted(){
     if(S.saving||!canAdd()) return;
@@ -967,27 +977,28 @@
     const prov=$('prov').value;
     const body={ text:text, provenance:prov, assignment:$('paste-assign').value.trim(), submitted_at:$('paste-date').value||today() };
     if(!startSave('paste')) return;
-    addMsg('Saving... This takes a few seconds.','');
-    const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
-    if(res.status===202||res.status===409){
-      const again=S.heldPaste.has(text);
-      S.heldPaste.add(text);
-      addMsg(heldLines(res,again),'err');
-      endSave(); return;
-    }
-    if(res.ok&&res.data&&typeof res.data==='object'){
-      const d=res.data;
-      if(d.skipped){ addMsg('That paper is already in the baseline, so nothing was added.',''); endSave(); return; }
-      const idx=num(d.sample_index)!==null?d.sample_index:0;
-      $('paste-text').value=''; $('paste-assign').value=''; updatePasteWords();
-      await refreshStudent();
-      const lines=['Added as sample '+(idx+1)+'. '+nowHas()];
-      const pn=provNote(d,prov); if(pn) lines.push(pn);
-      addMsg(lines,'ok');
-      endSave(); return;
-    }
-    addMsg(failLines(res,'text'),'err');
-    endSave();
+    try{
+      addMsg('Saving... This takes a few seconds.','');
+      const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
+      if(res.status===202||res.status===409){
+        const again=S.heldPaste.has(text);
+        S.heldPaste.add(text);
+        addMsg(heldLines(res,again),'err');
+        return;
+      }
+      if(res.ok&&res.data&&typeof res.data==='object'){
+        const d=res.data;
+        if(d.skipped){ addMsg('That paper is already in the baseline, so nothing was added.',''); return; }
+        const idx=num(d.sample_index)!==null?d.sample_index:0;
+        $('paste-text').value=''; $('paste-assign').value=''; updatePasteWords();
+        await refreshAfterWrite();
+        const lines=['Added as sample '+(idx+1)+'. '+nowHas()];
+        const pn=provNote(d,prov); if(pn) lines.push(pn);
+        addMsg(lines,'ok');
+        return;
+      }
+      addMsg(failLines(res,'text'),'err');
+    }finally{ endSave(); }
   }
   function updatePasteWords(){
     const n=countWords($('paste-text').value);
@@ -1042,6 +1053,7 @@
     fd.append('provenance',prov);
     if(assign) fd.append('assignment',assign);
     if(!startSave('files')) return;
+    try{
     pend.forEach(q=>{ q.status='sending'; }); renderQueue();
     addMsg('Saving '+plural(pend.length,'file')+'... This can take a while.','');
     const res=await Live.api('/students/'+enc(ID)+'/baseline/upload-batch',{method:'POST',body:fd});
@@ -1061,17 +1073,17 @@
       if(holds.length) head+=', held back '+holds.length+' that differ strongly from the baseline (nothing stored for those)';
       if(errors.length) head+=', '+plural(errors.length,'file')+' could not be read';
       queue=queue.filter(q=>q.status!=='done');
-      if(imported) await refreshStudent();
+      if(imported) await refreshAfterWrite();
       const lines=[head+'.'];
       errors.slice(0,5).forEach(e=>lines.push(e));
       if(imported) lines.push(nowHas());
       const pn=provNote(d,prov); if(pn) lines.push(pn);
       addMsg(lines,(errors.length||holds.length)&&!imported?'err':'ok');
-      endSave(); return;
+      return;
     }
     pend.forEach(q=>{ q.status='pending'; });
     addMsg(failLines(res,'files'),'err');
-    endSave();
+    }finally{ endSave(); }
   }
   $('files-go').addEventListener('click',addFiles);
 
@@ -1174,16 +1186,21 @@
     setTab('paste');
     if(!ID){ await pickStudent(); return; }
     renderAll();
-    try{
-      await Promise.all([
-        loadStudent(),
-        loadRoster(),
-        loadSealed().catch(()=>{ S.sealed='error'; })
-      ]);
-    }catch(e){
-      if(S.status==='loading') S.status='error';
-      if(S.sealed==='loading') S.sealed='error';
-    }
+    // The roster and the sealed exams are slower (the sealed list is three requests,
+    // then a readiness call per student), so they start at once but are not waited
+    // for before the student's own baseline is drawn.
+    const rest=Promise.all([
+      loadRoster(),
+      loadSealed().catch(()=>{ S.sealed='error'; })
+    ]);
+    try{ await loadStudent(); }
+    catch(e){ if(S.status==='loading') S.status='error'; }
+    // A student with no profile (404) is only known to this workspace through the
+    // roster or a sealed exam, so that case waits for them rather than say something
+    // wrong in the meantime.
+    if(S.status!=='none') renderAll();
+    try{ await rest; }
+    catch(e){ if(S.sealed==='loading') S.sealed='error'; }
     renderAll();
   });
 })();
