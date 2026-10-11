@@ -59,6 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if out["reissued"]:
         print("Existing unactivated professor: issued a new link (earlier links no longer work).")
+        if args.name:
+            print("--name was not applied: an existing account keeps the name it was invited with.")
         if args.with_original:
             print("Existing workspace products were not changed; use scripts/set_products.py.")
     else:
@@ -67,10 +69,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.with_original and not out["reissued"]:
         print(ORIGINAL_NOT_VALIDATED)
     if not link_is_absolute(out["invite_link"]):
+        if out["invite_link"].startswith("/"):
+            reason = "the link is relative because neither PUBLIC_BASE_URL nor --base-url is set"
+        else:
+            # A base was applied but has no scheme (e.g. PUBLIC_BASE_URL=host.example):
+            # the link looks complete but no email client will open it.
+            reason = "PUBLIC_BASE_URL (or --base-url) has no https:// scheme"
         print(
-            "WARNING: the link is relative because neither PUBLIC_BASE_URL nor --base-url "
-            "is set, so it was NOT emailed and will not work as printed. Set PUBLIC_BASE_URL "
-            "or pass --base-url https://<host> and run this again (it issues a fresh link).",
+            f"WARNING: {reason}, so the link was NOT emailed and will not work as printed. "
+            "Set PUBLIC_BASE_URL or pass --base-url https://<host> and run this again "
+            "(it issues a fresh link).",
             file=sys.stderr,
         )
     elif out["emailed"]:
