@@ -1,3 +1,6 @@
+import os
+import uuid
+
 import pytest
 
 from validation.termsim.gate import evaluate_t1, evaluate_t2, evaluate_t3, evaluate_t4
@@ -257,29 +260,51 @@ def test_gate_evidence_pools_seeds_without_merging_students(tmp_path):
     assert honest["rate"] == 0.5
 
 
+@pytest.fixture
+def termsim_smoke_db(postgres_available):
+    """A termsim database owned by this run, dropped when the test ends.
+
+    Parallel worktrees share one Postgres server, and isolated_postgres_url
+    DROPs and re-CREATEs its database, so a fixed name let one run drop or
+    collide with another's. The name follows the original_test_tmp_<pid>_<hex>
+    style (termsim_pytest_smoke_<pid>_<hex>, under Postgres's 63-byte limit).
+    Only the reachability check skips: a failed CREATE is a real error.
+    """
+    if not postgres_available:
+        pytest.skip(
+            "uninformative: no reachable Postgres; set DATABASE_URL to a "
+            "postgresql:// instance to run this test"
+        )
+    import sqlalchemy
+
+    from validation.termsim.runner import isolated_postgres_url
+
+    base_url = os.environ["DATABASE_URL"]
+    cell_url = isolated_postgres_url(
+        base_url, f"pytest_smoke_{os.getpid()}_{uuid.uuid4().hex[:8]}")
+    yield cell_url
+    dbname = cell_url.rsplit("/", 1)[1]
+    engine = sqlalchemy.create_engine(base_url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            # FORCE ends connections the app's pool may still hold open.
+            conn.execute(sqlalchemy.text(f'DROP DATABASE IF EXISTS "{dbname}" WITH (FORCE)'))
+    finally:
+        engine.dispose()
+
+
 @pytest.mark.postgres
-def test_runner_postgres_smoke(monkeypatch, store_reset):
+def test_runner_postgres_smoke(monkeypatch, store_reset, termsim_smoke_db):
     """The TermSim runner exercises the real Postgres persistence path.
 
     Skips (like every postgres-marked test) unless DATABASE_URL points at a
-    reachable postgresql:// instance — `bash scripts/local_postgres.sh up`.
+    reachable postgresql:// instance: `bash scripts/local_postgres.sh up`.
     """
-    base_url = None
-    import os
-    db_url = os.environ.get("DATABASE_URL", "")
-    if db_url.startswith("postgresql"):
-        base_url = db_url
-    if base_url is None:
-        pytest.skip("no reachable Postgres — set DATABASE_URL to run this")
     from original.db import postgres_session
     from original.repository import reset_repository
-    from validation.termsim.runner import create_postgres_schema, isolated_postgres_url
+    from validation.termsim.runner import create_postgres_schema
 
-    try:
-        cell_url = isolated_postgres_url(base_url, "pytest_smoke")
-    except Exception as error:  # server present in env but unreachable
-        pytest.skip(f"Postgres not reachable: {error}")
-    monkeypatch.setenv("DATABASE_URL", cell_url)
+    monkeypatch.setenv("DATABASE_URL", termsim_smoke_db)
     monkeypatch.setenv("REPO_BACKEND", "postgres")
     create_postgres_schema()
     reset_repository()
