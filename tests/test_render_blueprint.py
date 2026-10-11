@@ -39,9 +39,27 @@ def test_pilot_runs_on_managed_postgres_and_migrates_before_each_deploy():
     assert pilot["preDeployCommand"] == "alembic upgrade head"
     assert "disk" not in pilot
     assert "requirements-pilot.lock.txt" in pilot["buildCommand"]
+    # The build installs only that lockset, so it must carry the migrator.
+    lockset = (Path(__file__).resolve().parents[1] / "requirements-pilot.lock.txt").read_text()
+    assert re.search(r"^alembic==", lockset, flags=re.MULTILINE)
     assert env["ORIGINAL_ENV"]["value"] == "pilot"
     assert [d["name"] for d in BLUEPRINT["databases"]] == ["original-db"]
     assert BLUEPRINT["databases"][0]["plan"] != "free"  # free Postgres expires
+
+
+def test_pilot_runs_one_worker_on_one_instance():
+    """T-18: the login throttle (original/routers/_shared.py), the tenant
+    environment cache (principal._ENV_CACHE) and the genre-stats caches
+    (store._GENRE_STATS_CACHE, PostgresRepository._genre_stats_cache) all
+    live in process memory and assume one uvicorn worker. If this fails, a
+    second worker or instance would give each its own copy of all three, so
+    fix those first (docs/testing/07-performance-reliability.md §4)."""
+    command = SERVICES["original-pilot"]["startCommand"].split()
+    assert not [a for a in command if a in ("-w", "--workers") or a.startswith("--workers=")]
+    for name, service in SERVICES.items():
+        assert "numInstances" not in service, name
+        assert "scaling" not in service, name
+        assert "WEB_CONCURRENCY" not in _env(name), name
 
 
 def test_launch_settings_are_declared_for_the_dashboard():
@@ -58,6 +76,13 @@ def test_classroom_release_does_not_enable_research_scoring():
         "FUSED_SCORE_SHADOW", "LONGITUDINAL_DRIFT_ENABLED",
     ):
         assert env[key]["value"] == "0", key
+
+
+def test_pilot_pins_the_null_model_off():
+    # run.py --demo setdefaults NULL_MODEL=impostor; only an explicit value
+    # here keeps the impostor pool (and LLR_ACTION_MODE=gate's action change)
+    # off the pilot.
+    assert _env("original-pilot")["NULL_MODEL"]["value"] == "none"
 
 
 @pytest.mark.parametrize("service", sorted(SERVICES))

@@ -1,5 +1,9 @@
 # Pilot Provisioning Checklist (operator)
 
+> **Not for the current phase.** This pilot is for independent teachers, each
+> invited with `scripts/invite_professor.py` (NORTH_STAR, 2026-10-08). This
+> checklist is kept for a later phase, when a school adopts Original.
+
 Manual steps to onboard one institution that has bought **Original** + its
 professors. ~30 minutes total. Teachers who only want Bluebook need none of
 this: the pilot is invitation-only, so the operator invites each one with

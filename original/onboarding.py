@@ -30,9 +30,11 @@ PROFESSOR_LINK_SUFFIX = "&terms=1"
 _PRIVATE_WORKSPACE_ORIGINS = frozenset({"operator_invite", "signup"})
 
 ORIGINAL_NOT_VALIDATED = (
-    "Original's comparisons are not validated for real student work yet "
-    "(gap T-01: frequent false alarms with few baseline samples). Use it only "
-    "with the owner's agreement and the institution's consent."
+    "Testing phase: Original is not yet validated on real student writing, and "
+    "its results are least reliable with fewer than 3 approved samples. Switch "
+    "it on only with the owner's agreement and the teacher's informed consent, "
+    "and make sure the teacher's students are told their sealed work may be "
+    "used as reference writing."
 )
 
 
@@ -61,7 +63,11 @@ def _send_invite(user: dict, base_url: str, action: str) -> dict:
     emailed = bool(
         link_is_absolute(link)
         and mailer.configured()
-        and mailer.send_professor_invite(user["email"], link)
+        and mailer.send_professor_invite(
+            user["email"],
+            link,
+            with_original="original" in _stored_products(user["tenant_id"]),
+        )
     )
     get_repository().log_audit(
         action=action,
