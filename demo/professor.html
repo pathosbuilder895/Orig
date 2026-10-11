@@ -105,6 +105,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
   font-family: 'EB Garamond', serif; font-style: italic; }
 .sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 1px; }
 [data-demo-only][hidden] { display: none !important; }
+html[data-hide-operator] [data-operator-only] { display: none !important; }
 .nav-section-label { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--text-cream-dim); padding: 8px 10px 4px; }
 .nav-item { display: flex; align-items: center; gap: 10px;
@@ -1100,7 +1101,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                 style="padding:7px 12px;background:var(--cream-warm);color:var(--text-muted);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
           ↺ Reset Demo
         </button>
-        <a href="admin.html" style="text-decoration:none" data-demo-only hidden>
+        <a href="admin.html" style="text-decoration:none" data-operator-only data-demo-only hidden>
           <button style="padding:7px 12px;background:var(--cream-warm);color:var(--text-secondary);border:1px solid var(--cream-border);border-radius:var(--radius);font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer">
             Admin
           </button>
@@ -3958,8 +3959,8 @@ function showSettings() {
       <div class="card" data-demo-only hidden style="background:var(--surface);border:1px solid var(--cream-border);border-radius:var(--radius);padding:20px 22px;margin-bottom:20px">
         <div style="font-weight:600;color:var(--text-primary);margin-bottom:12px">System surfaces</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
-          <a href="admin.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Threshold Admin →</a>
-          <a href="operator.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Operator (all schools) →</a>
+          <a href="admin.html" data-operator-only style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Threshold Admin →</a>
+          <a href="operator.html" data-operator-only style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Operator (all schools) →</a>
           <a href="lab.html" style="padding:7px 14px;border:1px solid var(--cream-border);border-radius:6px;text-decoration:none;color:var(--text-primary);font-size:0.85rem">Calibration Lab →</a>
         </div>
       </div>
@@ -5114,15 +5115,15 @@ startBaselineRequestPolling();
 <script>
 /* A teacher signed in through Bluebook (original_role = professor) has no use
    for operator and admin tools, and an independent teacher has no
-   institution to register; hide those links. The server still enforces
-   every one of these routes, so this is presentation only. */
+   institution to register; hide those links. The flag on <html> drives a
+   CSS rule, so it also reaches the Settings panel, which is drawn later.
+   The server still enforces every one of these routes, so this is
+   presentation only. */
 (function () {
   var role = '';
   try { role = localStorage.getItem('original_role') || ''; } catch (e) {}
   if (role !== 'professor') return;
-  document.querySelectorAll('[data-operator-only]').forEach(function (el) {
-    el.style.display = 'none';
-  });
+  document.documentElement.setAttribute('data-hide-operator', '');
 })();
 </script>
 
