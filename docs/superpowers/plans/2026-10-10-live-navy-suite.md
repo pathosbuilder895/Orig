@@ -50,7 +50,8 @@ Live.gate(el, opts)      // Promise<session|null>: renders the sign-in panel (li
                          // is allowed; staff are sent to index.html; anyone else (signed out, the open demo, a
                          // launch-link student with an id but no session token) gets the sign-in panel with a
                          // link to /bluebook/
-Live.signOut()           // removes TOKEN_KEYS, then location.replace('/index.html')
+Live.signOut()           // removes TOKEN_KEYS and every kept paper, then location.replace('/index.html')
+                         // ('/bluebook/' for a student, decided before the keys that say so are removed)
 Live.VERDICT_WORDS       // the server's baseline verdict in the one set of words every page shows (frozen):
                          // ready -> 'Ready', developing -> 'Building', insufficient -> 'Needs more'
 Live.verdictWord(v)      // that word, or 'Not available' for null or any other value. A page never keeps a
