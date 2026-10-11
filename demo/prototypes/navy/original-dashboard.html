@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Overview</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
+    --flag:#e0725a; --ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{
+    font-family:var(--body);color:var(--cream);
+    background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
+    display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;
+  }
+  .frame{
+    width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;
+    background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);
+    border:1px solid var(--line);border-radius:26px;overflow:hidden;
+    box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
+    display:flex;flex-direction:column;
+  }
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.4rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;letter-spacing:.02em;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .nav-right .avatar{cursor:pointer;border:1px solid var(--line);font-family:var(--display);}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .mm-n{margin-left:auto;font-family:var(--mono);font-size:.66rem;background:rgba(224,114,90,0.16);color:#f0a690;border:1px solid rgba(224,114,90,0.35);border-radius:999px;padding:.06rem .45rem;}
+  .pills{min-width:0;overflow-x:auto;}
+  .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
+  .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;gap:0;min-height:0;}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;min-height:0;}
+  .right{position:relative;overflow:hidden;}
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;letter-spacing:.02em;}
+  .greet{font-family:var(--display);font-size:2rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  .card-t{font-size:1rem;color:var(--cream);font-weight:500;}
+  .card-s{font-size:.8rem;color:var(--dim-2);margin-top:.15rem;letter-spacing:.02em;}
+  .gauge-card{padding:1.2rem 1.3rem 1.3rem;}
+  .sens{display:flex;flex-direction:column;gap:.5rem;margin-top:.9rem;}
+  .sens-opt{display:flex;align-items:flex-start;gap:.7rem;padding:.7rem .85rem;border-radius:12px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.02);cursor:pointer;transition:all .15s;text-align:left;font-family:var(--body);color:var(--cream);}
+  .sens-opt:hover{border-color:var(--line);background:rgba(255,255,255,0.04);}
+  .sens-opt.on{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);}
+  .sens-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--dim-2);flex-shrink:0;margin-top:.15rem;position:relative;transition:all .15s;}
+  .sens-opt.on .sens-dot{border-color:var(--gold);}
+  .sens-opt.on .sens-dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--gold);}
+  .sens-txt b{display:block;font-weight:500;font-size:.95rem;}
+  .sens-txt span{display:block;font-size:.8rem;color:var(--dim);font-style:italic;margin-top:.1rem;line-height:1.4;}
+  .sens-foot{font-size:.74rem;color:var(--dim-2);font-style:italic;line-height:1.45;margin-top:.85rem;padding-top:.8rem;border-top:1px solid var(--line-soft);}
+  .gauge-wrap{position:relative;width:100%;aspect-ratio:1/0.62;margin-top:.3rem;}
+  .gauge-wrap svg{width:100%;height:100%;display:block;overflow:visible;cursor:ew-resize;}
+  .gauge-center{position:absolute;left:0;right:0;top:52%;transform:translateY(-50%);text-align:center;pointer-events:none;}
+  .gauge-cap{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);}
+  .gpulse{transform-box:fill-box;transform-origin:center;animation:gpulse 2.6s ease-in-out infinite;}
+  @keyframes gpulse{0%,100%{transform:scale(1);opacity:.28;}50%{transform:scale(1.7);opacity:0;}}
+  .led-num{font-family:var(--mono);font-weight:700;line-height:.9;color:transparent;-webkit-text-fill-color:transparent;background:radial-gradient(var(--gold) 1.05px, transparent 1.35px) 0 0/4.5px 4.5px;-webkit-background-clip:text;background-clip:text;}
+  .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .stat{padding:1.05rem 1.1rem;}
+  .stat .led-num{font-size:2.9rem;margin:.5rem 0 .2rem;}
+  .stat .u{font-size:.72rem;color:var(--dim);letter-spacing:.06em;}
+  .trend{padding:1.1rem 1.2rem 1rem;flex:1;min-height:0;display:flex;flex-direction:column;}
+  .trend-top{display:flex;align-items:baseline;justify-content:space-between;}
+  .trend .led-num{font-size:1.9rem;}
+  .bars{flex:1;display:flex;align-items:stretch;gap:.55rem;margin-top:.7rem;min-height:76px;}
+  .bars.tiers{gap:.22rem;}
+  .bars.tiers .bar{gap:.25rem;min-width:0;}
+  .bars.tiers .bar .stem{max-width:none;border-radius:3px 3px 2px 2px;}
+  .bars.tiers .bar .tick{font-size:.5rem;letter-spacing:0;min-height:.7rem;}
+  .bar{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:.4rem;justify-content:flex-end;}
+  .bar .stem{width:100%;max-width:30px;border-radius:6px 6px 3px 3px;background:rgba(245,239,224,0.14);}
+  .bar.hot .stem{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
+  .bar .tick{font-family:var(--mono);font-size:.58rem;color:var(--dim-2);}
+  .bar .tag{position:absolute;top:-1.4rem;background:var(--gold);color:#0d1530;font-family:var(--mono);font-weight:700;font-size:.62rem;padding:.1rem .35rem;border-radius:4px;}
+  .back-term{display:none;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.4rem .95rem;font-family:var(--body);font-size:.85rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .back-term:hover{color:var(--cream);border-color:var(--line);}
+  .back-term.show{display:inline-flex;}
+  #sum-stu .card-t{font-size:1.05rem;}
+  #sum-stu p{font-size:.88rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:.35rem;}
+  #sum-stu p b{color:var(--gold-2);font-weight:500;font-style:normal;}
+  .bars .bar .stem.tf{background:linear-gradient(180deg,#e05252,#a8462f);}
+  .bars .bar .stem.tw{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
+  .bars .bar .stem.tk{background:rgba(245,239,224,0.22);}
+  .stats-btn{display:inline-flex;align-items:center;gap:.4rem;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.3rem .8rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+  .stats-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;}
+  .stats-btn:hover{color:var(--gold-2);border-color:rgba(201,160,40,0.4);}
+  .stats-btn.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.55);color:var(--gold-2);}
+  .hero{position:absolute;inset:0;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .hero-photo{position:absolute;inset:0;background:radial-gradient(90% 80% at 58% 34%,#26346a 0%,#121d45 46%,#070b1c 100%);filter:saturate(.7) brightness(.5) contrast(1.12) hue-rotate(-6deg);}
+  .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.96) 0%, rgba(10,16,36,0.4) 22%, transparent 46%),linear-gradient(0deg, rgba(7,11,28,0.96) 8%, transparent 42%),radial-gradient(80% 60% at 70% 30%, rgba(201,160,40,0.10), transparent 70%);}
+  .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
+  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;}
+  .plain-read{margin-top:.5rem;max-width:60ch;font-size:.92rem;line-height:1.5;color:rgba(245,239,224,0.86);text-shadow:0 1px 12px rgba(7,11,28,0.9);}
+  .hero-title{text-shadow:0 2px 18px rgba(7,11,28,0.85);}
+  .plain-read b{color:#fff;font-weight:600;}
+  .plain-read .fR{color:#f0a690;font-weight:600;}.plain-read .fW{color:var(--gold-2);font-weight:600;}.plain-read .fG{color:var(--ok, #6bbf8a);font-weight:600;}
+  .hero-title{font-family:var(--display);font-size:1.9rem;font-weight:500;line-height:1.04;color:var(--cream);}
+  .hero-title span{color:var(--dim);}
+  .status-row{position:absolute;right:1.9rem;top:1.5rem;display:flex;gap:.6rem;}
+  .status{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:999px;border:1px solid var(--line-soft);background:rgba(10,16,36,0.5);backdrop-filter:blur(8px);font-family:var(--mono);font-size:.76rem;color:var(--cream);}
+  .status .d{width:7px;height:7px;border-radius:50%;}
+  .status.flag{border-color:rgba(224,114,90,0.5);color:#f0a690;}
+  .ops{margin-top:1.1rem;border-top:1px solid var(--line-soft);padding-top:.9rem;}
+  .ops-h{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.9rem;}
+  .ops-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .ops-h span{color:var(--dim);font-size:.9rem;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);font-weight:500;padding-bottom:.6rem;white-space:nowrap;}
+  thead th:not(:first-child),tbody td:not(:first-child){padding-left:.7rem;}
+  thead th:last-child,tbody td:last-child{padding-right:.2rem;}
+  thead th.r,tbody td.r{text-align:right;}
+  tbody td{padding:.7rem 0;border-top:1px solid rgba(255,255,255,0.05);font-size:.9rem;color:var(--cream);vertical-align:middle;white-space:nowrap;}
+  tbody td:first-child{max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+  .flag-row{cursor:pointer;transition:background .14s;}
+  .flag-row:hover td{background:rgba(201,160,40,0.06);}
+  .flag-row:hover td:first-child{box-shadow:inset 2px 0 0 var(--gold);}
+  .doc{display:flex;align-items:center;gap:.55rem;min-width:0;}
+  .doc .nm-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doc .ic{width:30px;height:30px;border-radius:8px;background:rgba(201,160,40,0.12);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0;}
+  .doc .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .st{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;white-space:nowrap;}
+  .st .d{width:7px;height:7px;border-radius:50%;}
+  .dev{font-family:var(--mono);font-size:.82rem;}
+  .toggle{display:inline-flex;align-items:center;gap:.5rem;padding:.28rem .3rem .28rem .7rem;border-radius:999px;border:1px solid var(--line-soft);font-family:var(--mono);font-size:.72rem;color:var(--dim);cursor:pointer;user-select:none;background:none;}
+  .toggle .knb{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+  .toggle .knb svg{width:12px;height:12px;stroke:var(--dim);fill:none;stroke-width:2;}
+  .toggle.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.4);color:var(--gold-2);flex-direction:row-reverse;padding:.28rem .7rem .28rem .3rem;}
+  .toggle.on .knb{background:linear-gradient(160deg,var(--gold-2),var(--gold));}
+  .toggle.on .knb svg{stroke:#0d1530;}
+  @media (max-width:1150px){
+    .ops th:nth-child(2),.ops td:nth-child(2),.ops th:nth-child(4),.ops td:nth-child(4){display:none;}
+  }
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .right{min-height:520px;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <button class="pill on" onclick="location.href='original-dashboard.html'"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</button>
+      <button class="pill" onclick="location.href='original-students.html'"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</button>
+      <button class="pill" onclick="location.href='original-review.html'"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</button>
+      <button class="pill" onclick="location.href='original-bluebook-teacher.html'"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</button>
+      <button class="pill" onclick="location.href='original-reports.html'"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</button>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account">RH</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b>Dr. R. Hendricks</b><span>Theology · 3 courses</span></div>
+        <a href="original-settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="#" onclick="return false;"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>Notifications <span class="mm-n">2</span></a>
+      </div>
+    </div>
+  </nav>
+  <div class="grid">
+    <aside class="left">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
+        <div>
+          <div class="greet-eyebrow">Dr. Hendricks</div>
+          <div class="greet">Good morning,</div>
+        </div>
+        <button class="back-term" id="back-term" onclick="window.__inspect&&__inspect.close()">← Back to term view</button>
+      </div>
+      <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
+        <div id="sum-term" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+          <div><div class="card-t">Flag Sensitivity</div><div class="card-s">Set to <b style="color:var(--gold-2);font-weight:500;">Balanced</b>, the default</div></div>
+          <a href="original-settings.html" style="font-size:.85rem;white-space:nowrap;color:var(--gold-2);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .95rem;">Adjust in Settings</a>
+        </div>
+        <div id="sum-stu" style="display:none;"></div>
+      </div>
+      <div class="stat-row">
+        <div class="card stat">
+          <div class="card-s" id="stat1-l" style="color:var(--dim);">Students monitored</div>
+          <div class="led-num" id="features-num">128</div>
+          <div class="u" id="stat1-u">across 3 courses</div>
+        </div>
+        <div class="card stat">
+          <div class="card-s" id="stat2-l" style="color:var(--dim);">Active flags</div>
+          <div class="led-num" id="flag-count">7</div>
+          <div class="u" id="stat2-u" style="color:#f0a690;">awaiting review</div>
+        </div>
+      </div>
+      <div class="card trend">
+        <div class="trend-top">
+          <div><div class="card-t" id="trend-t">Flag Rate</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
+          <div class="led-num" id="trend-num">5%</div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </div>
+    </aside>
+    <section class="right">
+      <div class="hero">
+        <div class="hero-photo"></div>
+        <canvas id="fp"></canvas>
+        <div class="hero-grad"></div>
+        <div class="hero-mask"></div>
+      </div>
+      <div class="hero-inner">
+        <div class="hero-title">This Term<br><span>Writing at a glance</span></div>
+        <div class="plain-read" id="plain-read"></div>
+        <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+        <div class="ops">
+          <div class="ops-h"><b>Recent Flags</b><span>/ 7 awaiting review</span></div>
+          <table>
+            <thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Flagged</th><th class="r">Deviation</th><th class="r"></th></tr></thead>
+            <tbody id="ops-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="js/fingerprint.js"></script>
+<script>
+  (function(){
+    function init(){
+      const c=document.getElementById('fp'); if(!c) return;
+      if(!window.Fingerprint){ return void setTimeout(init,50); }
+      window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
+    }
+    (document.readyState==='loading')?document.addEventListener('DOMContentLoaded',init):init();
+  })();
+  (function(){
+    const b=document.getElementById('me-btn'), m=document.getElementById('me-menu');
+    if(!b||!m) return;
+    b.addEventListener('click',e=>{e.stopPropagation();m.classList.toggle('open');});
+    document.addEventListener('click',()=>m.classList.remove('open'));
+  })();
+  (function(){
+    function countUp(el, target, dec, dur, delay){
+      if(!el) return; const t0=performance.now()+(delay||0), ease=x=>1-Math.pow(1-x,3);
+      el.textContent=(0).toFixed(dec);
+      (function step(now){ if(now<t0){requestAnimationFrame(step);return;}
+        const p=Math.min(1,(now-t0)/dur); el.textContent=(target*ease(p)).toFixed(dec);
+        if(p<1) requestAnimationFrame(step); else el.textContent=target.toFixed(dec); })(performance.now());
+    }
+    function countUpPct(el,target,dur,delay){ if(!el) return; const t0=performance.now()+(delay||0), ease=x=>1-Math.pow(1-x,3); el.textContent='0%';(function step(now){ if(now<t0){requestAnimationFrame(step);return;} const p=Math.min(1,(now-t0)/dur); el.textContent=Math.round(target*ease(p))+'%'; if(p<1) requestAnimationFrame(step); else el.textContent=target+'%'; })(performance.now()); }
+    countUp(document.getElementById('features-num'),128,0,1100,120);
+    countUpPct(document.getElementById('trend-num'),5,1100,260);
+  })();
+  // ══════════════════════════════════════════════════════════════════════════
+  //  DASHBOARD DATA: the single source of truth for this page.
+  //  FICTIONAL demo data. This page never calls an API. The comment below
+  //  records the JSON shape a live Overview endpoint would need to supply.
+  //
+  //  Expected backend JSON (GET /api/v1/overview):
+  //  {
+  //    "professor": "Dr. Hendricks",
+  //    "term": {
+  //      "studentsMonitored": 128, "courses": 3, "activeFlags": 7,
+  //      "flagRatePct": 5, "flagRateDelta": "+1 pt",
+  //      "writingInVoice": 121,
+  //      "flagRateWeeks": [0.04,0.06,0.03,0.05,0.04,0.05]   // 0..1, oldest→newest
+  //    },
+  //    "flags": [   // Recent Flags table, in display order
+  //      { "student":"James Whitfield","course":"THEO 301",
+  //        "status":"flag",              // flag | warn | ok
+  //        "flagged":"24 Mar","deviationPct":59,
+  //        "href":"original-quantum.html?student=James%20Whitfield" }
+  //    ],
+  //    "students": {   // keyed by student name: powers the inspector rail
+  //      "James Whitfield": {
+  //        "course":"THEO 301","dev":59,"tiersFlagged":6,"habits":19,
+  //        "summary":"…may contain <b>bold</b>…",
+  //        "tiers":[62,58,55,20,28,24,66,30,42,18,26,52,58,22,30,24] // 16 vals (T1-T16), 0..100
+  //      }
+  //    }
+  //  }
+  //  status→label/colour and the T1–T16 thresholds are presentation-only (below).
+  // ══════════════════════════════════════════════════════════════════════════
+  window.DASHBOARD_DATA = {
+    professor: 'Dr. Hendricks',
+    term: {
+      studentsMonitored: 128, courses: 3, activeFlags: 7,
+      flagRatePct: 5, flagRateDelta: '+1 pt', writingInVoice: 121,
+      flagRateWeeks: [0.04, 0.06, 0.03, 0.05, 0.04, 0.05]
+    },
+    flags: [
+      { student:'James Whitfield', course:'THEO 301', status:'flag', flagged:'24 Mar', deviationPct:59, href:'original-quantum.html?student=James%20Whitfield&dev=0.59&course=THEO%20301&flag=high&base=strong' },
+      { student:'Eleanor Webb',    course:'THEO 301', status:'warn', flagged:'23 Mar', deviationPct:34, href:'original-quantum.html?student=Eleanor%20Webb&dev=0.34&course=THEO%20301&flag=mid&base=strong' },
+      { student:'Marcus Bell',     course:'HIST 210', status:'flag', flagged:'22 Mar', deviationPct:52, href:'original-quantum.html?student=Marcus%20Bell&dev=0.52&course=HIST%20210&flag=high&base=strong' },
+      { student:'Priya Nair',      course:'PHIL 140', status:'warn', flagged:'21 Mar', deviationPct:29, href:'original-quantum.html?student=Priya%20Nair&dev=0.29&course=PHIL%20140&flag=mid&base=weak' }
+    ],
+    students: {
+      'James Whitfield':{course:'THEO 301',dev:59,tiersFlagged:6,habits:19,
+        summary:'His latest paper is smoother and more even than he writes: the differences cluster in <b>how his sentences look</b> and <b>how he connects ideas</b>.',
+        tiers:[62,58,55,20,28,24,66,30,42,18,26,52,58,22,30,24]},
+      'Marcus Bell':{course:'HIST 210',dev:52,tiersFlagged:4,habits:14,
+        summary:'The drift is concentrated in <b>how he makes his case</b>: hedging and formulaic transitions well above his usual rate. Sentence-level habits still read like him.',
+        tiers:[30,26,58,22,24,20,54,26,50,16,24,48,30,20,26,22]},
+      'Eleanor Webb':{course:'THEO 301',dev:34,tiersFlagged:2,habits:8,
+        summary:'A mild drift, mostly in <b>connecting phrases</b>. Worth a glance, not a meeting.',
+        tiers:[24,44,28,18,22,20,40,24,30,14,20,26,24,18,22,18]},
+      'Priya Nair':{course:'PHIL 140',dev:29,tiersFlagged:2,habits:6,
+        summary:'Slightly outside her range in <b>rhythm</b> and <b>vocabulary</b>, but her baseline rests on only 2 samples, so confidence is low. A Bluebook session, approved as reference writing, would give Original more to go on.',
+        tiers:[38,22,24,16,20,18,42,22,26,12,18,24,22,16,20,16]}
+    }
+  };
+
+  const $=id=>document.getElementById(id);
+
+  // ── term aggregates → the greeting, LED stats, summary line, flag chart ──
+  function renderTerm(){
+    const t=DASHBOARD_DATA.term;
+    const ge=document.querySelector('.greet-eyebrow'); if(ge) ge.textContent=DASHBOARD_DATA.professor;
+    $('features-num').textContent=t.studentsMonitored;
+    $('stat1-u').textContent='across '+t.courses+' course'+(t.courses===1?'':'s');
+    $('flag-count').textContent=t.activeFlags;
+    $('trend-num').textContent=t.flagRatePct+'%';
+    const oh=document.querySelector('.ops-h span'); if(oh) oh.textContent='/ '+t.activeFlags+' awaiting review';
+    const pr=$('plain-read');
+    if(pr){
+      const inVoice=t.writingInVoice, hi=DASHBOARD_DATA.flags.filter(f=>f.status==='flag').length, mid=DASHBOARD_DATA.flags.filter(f=>f.status==='warn').length;
+      const nWord=n=>['zero','one','Two','Three','Four','Five','Six','Seven'][n]||n;
+      pr.innerHTML='Most of this term reads as it should: <b>'+inVoice+' of '+t.studentsMonitored+'</b> students are writing in their own voice. <span class="fR">'+nWord(hi)+' paper'+(hi===1?'':'s')+'</span> read differently enough from their writers’ usual habits to be worth a conversation, and <span class="fW">'+(mid>0?nWord(mid).toLowerCase()+' more':'none more')+'</span> drifted just enough to glance at. Nothing here is a verdict: each flag is a starting point, with the evidence laid out for you.';
+    }
+    renderTermBars();
+  }
+
+  const HOT_DELTA=DASHBOARD_DATA.term.flagRateDelta;
+  window.__renderTermBars=function renderTermBars(){
+    const data=DASHBOARD_DATA.term.flagRateWeeks, hot=data.length-1, max=Math.max(...data,0.01);
+    $('bars').classList.remove('tiers');
+    $('bars').innerHTML=data.map((v,i)=>{
+      const h=(v/max*100).toFixed(0);
+      return '<div class="bar'+(i===hot?' hot':'')+'">'+(i===hot&&DASHBOARD_DATA.term.flagRateDelta?'<span class="tag">'+DASHBOARD_DATA.term.flagRateDelta+'</span>':'')+
+        '<span class="stem" style="height:'+h+'%"></span><span class="tick">'+String(i+1).padStart(2,'0')+'</span></div>';
+    }).join('');
+  };
+  const renderTermBars=window.__renderTermBars;
+
+  // ── Recent Flags table ──
+  const STCOL={flag:'var(--flag)',ok:'var(--ok)',warn:'var(--gold)'};
+  const STLBL={flag:'Flagged',ok:'Within baseline',warn:'Needs review'};
+  function renderFlags(){
+    const docIco='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+    $('ops-body').innerHTML=DASHBOARD_DATA.flags.map(r=>
+      '<tr class="flag-row" data-href="'+r.href+'" data-stu="'+r.student+'" title="Open '+r.student+'’s flagged paper">'+
+        '<td><div class="doc"><span class="ic">'+docIco+'</span><span class="nm-t">'+r.student+'</span></div></td>'+
+        '<td style="color:var(--dim);">'+r.course+'</td>'+
+        '<td><span class="st"><span class="d" style="background:'+(STCOL[r.status]||'var(--dim)')+'"></span>'+(STLBL[r.status]||r.status)+'</span></td>'+
+        '<td style="color:var(--dim);">'+r.flagged+'</td>'+
+        '<td class="r dev" style="color:'+(r.status==='flag'?'#f0a690':'var(--cream)')+'">'+(r.deviationPct/100).toFixed(2)+'</td>'+
+        '<td class="r"><button class="stats-btn" data-stu="'+r.student+'"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>stats</button></td>'+
+      '</tr>').join('');
+    document.querySelectorAll('.stats-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();window.__inspect&&__inspect.open(b.dataset.stu);}));
+    document.querySelectorAll('.flag-row').forEach(tr=>tr.addEventListener('click',()=>{const h=tr.getAttribute('data-href');if(h)location.href=h;}));
+  }
+
+  // ── Student inspector: left rail swaps to one student's broad stats ──
+  window.__inspect={
+    open(name){
+      const s=DASHBOARD_DATA.students[name]; if(!s) return;
+      $('back-term').classList.add('show');
+      $('sum-term').style.display='none';
+      $('sum-stu').style.display='block';
+      $('sum-stu').innerHTML='<div class="card-t">'+name+' <span style="font-family:var(--mono);font-size:.62rem;color:var(--dim-2);letter-spacing:.08em;">'+s.course+'</span></div><p>'+s.summary+'</p>';
+      $('stat1-l').textContent='Tiers flagged'; $('features-num').textContent=s.tiersFlagged; $('stat1-u').textContent='of 16 analysed';
+      $('stat2-l').textContent='Habits outside range'; $('flag-count').textContent=s.habits; $('stat2-u').textContent='of 97 measured';
+      $('trend-t').textContent='Tier States'; $('trend-s').textContent='deviation by tier · T1–T16'; $('trend-num').textContent=(s.dev/100).toFixed(2);
+      $('bars').classList.add('tiers');
+      $('bars').innerHTML=s.tiers.map((v,i)=>{
+        const cls=v>=48?'tf':(v>=34?'tw':'tk'); const h=v===0?4:Math.max(8,v);
+        return '<div class="bar" title="Tier '+(i+1)+' · '+(v===0?'off':v+'%')+'"><span class="stem '+cls+'" style="height:'+h+'%"></span>'+((i===0||(i+1)%4===0)?'<span class="tick">T'+(i+1)+'</span>':'<span class="tick"></span>')+'</div>';
+      }).join('');
+      document.querySelectorAll('.stats-btn').forEach(b=>b.classList.toggle('on',b.dataset.stu===name));
+    },
+    close(){
+      $('back-term').classList.remove('show');
+      $('sum-term').style.display='flex';
+      $('sum-stu').style.display='none';
+      $('stat1-l').textContent='Students monitored'; $('stat2-l').textContent='Active flags'; $('stat2-u').textContent='awaiting review';
+      $('trend-t').textContent='Flag Rate'; $('trend-s').textContent='last 6 weeks';
+      renderTerm();
+      document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
+    }
+  };
+
+  function renderDashboard(){ renderTerm(); renderFlags(); }
+  renderDashboard();
+
+</script>
+</body>
+</html>

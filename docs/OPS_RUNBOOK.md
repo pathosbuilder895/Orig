@@ -1,15 +1,24 @@
 # Original Pilot — Operations Runbook
 
 Written for a stranger: if the regular operator is unavailable, this is enough
-to keep the pilot alive. The pilot is one Render web service (`original-pilot`)
-running the dashboard app (`python run.py --demo`) hardened by `ORIGINAL_ENV=pilot`,
-with SQLite on a persistent disk at `/data/profiles.db`.
+to keep the pilot alive. The pilot is the `render.yaml` blueprint on Render: one
+web service (`original-pilot`) running the dashboard app
+(`python run.py --demo --port $PORT --skip-seed`) hardened by `ORIGINAL_ENV=pilot`,
+backed by a managed Postgres 16 database (`original-db`, `REPO_BACKEND=postgres`).
+The web service has no disk. Every deploy runs `alembic upgrade head` before the
+new code takes traffic. `docs/BLUEBOOK_LAUNCH_CHECKLIST.md` is the setup, step by
+step; `docs/STATUS.md` records what is deployed right now.
 
 ## The pilot service
 
-| Service | Plan | Purpose | Data |
+| Resource | Plan | Purpose | Data |
 |---|---|---|---|
-| `original-pilot` | starter + 1 GB disk | the real institution | persistent SQLite at `/data/profiles.db` |
+| `original-pilot` | web, starter, no disk | the invitation-only Bluebook pilot: each invited independent teacher gets a private workspace | none on the instance; everything is in `original-db` |
+| `original-db` | Postgres 16, basic-256mb | the pilot's database; internal-only (`ipAllowList: []`), so only Render services and the Render Shell reach it | every account, class, writing session and submission |
+| `original-pg-backup` | cron, starter, 08:30 UTC daily | encrypted off-box backup (`scripts/pg_backup_offbox.py --require-upload`), see [Backups](#backups) | writes one encrypted dump a day to a bucket outside Render |
+| `bluebook-teacher-demo` | static site | the fictional teacher walkthrough, on its own address | none: no API, no accounts, no student data |
+
+**One worker, one instance:** the pilot runs a single uvicorn worker (`run.py`) on one instance, and the login throttle (`original/routers/_shared.py`), the tenant environment and product caches (`original/principal.py`) and the genre-stats cache (`original/store.py`) live in that process's memory and assume it, so do not add instances or workers.
 
 The `original-demo` sales-demo service has been removed from the blueprint. If one
 still exists in the Render dashboard, the owner suspends it. Never run sales demos on
@@ -84,109 +93,141 @@ retired one was 43 chars. The superseded 2026-07-18 values are in
 they leaked into an assistant session transcript, which is what prompted the
 rotation.
 
+**Rotated 2026-08-11: LTI RSA key only, third occurrence of the same failure
+class.** The 2026-08-07 LTI private key leaked into another assistant session
+transcript (a secrets-file parsing attempt echoed line content; see
+`~/.claude/projects/-Users-andrew-Desktop-Original/memory/feedback_never_print_secrets_files.md`
+for the hardened handling rule going forward). Regenerated before any deploy
+exists, so this rotation is zero-risk: the tool key signs nothing today, and
+Canvas's developer key uses the `Public JWK URL` method
+(`docs/canvas_developer_key.md`), so no re-registration is needed regardless.
+New kid `aae43f60dabc7388` (was `7939c6c8a6f9a736`). `SECRET_KEY` and
+`MAINTENANCE_TOKEN` were **not** affected this time and were not rotated. The
+2026-08-07 LTI key is superseded in
+`~/Desktop/Original-secrets/rotated-out-2026-08-11/` and must not be reused.
+
 ## Backups
 
-The pilot's backup story changes at the WS-6 P5 cutover (SQLite → Postgres).
-Both procedures are documented here; **follow the one matching where the
-pilot currently runs** (check `GET /health` → `environment`, and whether
-`DATABASE_URL` is set in the Render dashboard — a live `DATABASE_URL` with
-`get_repository()` flipped to Postgres means you are post-cutover).
+The pilot's data lives only in `original-db`. There are two independent copies
+of it:
 
-### While on SQLite (current — pre-P5)
+- **Render's own (automatic).** `original-db` is on a paid plan, so it does not
+  expire and Render takes daily snapshots of it (`render.yaml`). Retention and
+  any point-in-time recovery depend on the plan: **confirm them in the Render
+  dashboard** and record them here once known. These copies live with the same
+  provider as the database.
+- **Off-box (automatic, daily).** The `original-pg-backup` cron job runs
+  `python scripts/pg_backup_offbox.py --require-upload` at 08:30 UTC. It reads
+  every live table into one gzipped JSON-lines dump, encrypts it with
+  `BACKUP_ENCRYPTION_KEY` (Fernet) and uploads only the encrypted file, as
+  `original-pg-backups/original-pg-YYYYmmddTHHMMSSZ.jsonl.gz.fernet`, to the
+  S3-compatible bucket set by the job's `BACKUP_OFFBOX_*` variables. Because of
+  `--require-upload`, a missing bucket setting is a failed run in the
+  dashboard rather than a silent no-op; a missing or malformed key fails the
+  run before the database is read, so the job never uploads a readable dump.
+  Check it: Render → `original-pg-backup` → the last run succeeded, and the
+  bucket gains one object a day. The bucket's lifecycle rule (the launch
+  checklist suggests deleting objects after 35 days) decides how far back you
+  can go.
+- **The key.** `BACKUP_ENCRYPTION_KEY` is set only on `original-pg-backup`, with
+  a copy in the owner's password manager. Without it no backup can be restored.
 
-- **On-disk (automatic, in-app):** the web process itself runs a backup
-  scheduler (`original/backup.py`, started by the API lifespan) — a
-  **consistent online** SQLite `.backup` to `BACKUP_DIR` (render.yaml pins
-  `/data/backups`) every `BACKUP_INTERVAL_MINUTES` (30), pruned to
-  `BACKUP_KEEP` (48). No cron required — Render web services have no crontab,
-  and a Render cron job cannot mount this service's disk, which is why this
-  runs in-process. Verify anytime: `GET /admin/health` (staff login) →
-  `last_backup_age_seconds` should stay under ~3600.
-- `scripts/backup_db.sh [dest] [keep]` is the same backup for manual/local
-  use (safe while serving; uses `.backup`, never `cp` a WAL database).
-- **Off-box (manual, daily):** the disk and its on-disk backups die together —
-  pull a copy daily from the operator's machine:
-  `render ssh original-pilot -- cat /data/backups/$(date +profiles-%Y%m%d)*.db > ~/orig-backups/...`
-  (or scp). The off-box copy is the real backup.
-- **Weekly restore drill:** copy the newest backup locally,
-  `sqlite3 backup.db "SELECT COUNT(*) FROM student_profiles;"` and compare with
-  `/students` on the live service. A backup that's never been restored is a wish.
+The in-app SQLite backup scheduler (`original/backup.py`, `BACKUP_DIR`,
+`BACKUP_INTERVAL_MINUTES`, `BACKUP_KEEP`) does not run on the pilot: with the
+Postgres backend the boot log says
+`Backups: in-app SQLite scheduler off (Postgres backend; backups managed externally).`
 
-### After the Postgres cutover (P5+)
+### Restore drill (once before the first teacher is invited, then each term)
 
-Once the pilot runs on Render managed Postgres, the in-app SQLite scheduler
-(`original/backup.py`) no longer backs up the authoritative store — Postgres
-does. `BACKUP_DIR`/`BACKUP_INTERVAL_MINUTES`/`BACKUP_KEEP` become no-ops for
-the live data (the SQLite file, kept read-only for ≥4 weeks as the P5
-rollback, still exists but is frozen).
+A backup that has never been restored is a wish. Restore into a scratch
+database, never the live one, from a checkout of the deployed commit with the
+pilot requirements installed (`pip install -r requirements-pilot.lock.txt`),
+on a machine you trust with student writing:
 
-- **Managed (automatic):** Render's managed Postgres takes automatic daily
-  backups; retention and point-in-time-recovery depth depend on the instance
-  plan tier — **confirm the pilot tier's retention window in the Render
-  dashboard** and record it here once known. This is the primary backup.
-- **Off-box (nightly `pg_dump`):** the managed backups live inside Render, so
-  keep an independent off-box copy the same way the SQLite off-box copy
-  worked. From the operator's machine (or a scheduled job with the Render
-  external connection string):
-  `pg_dump "$DATABASE_URL" --format=custom --file ~/orig-backups/orig-$(date +%Y%m%d).dump`
-  The custom format restores with `pg_restore` and is compressed. FERPA: run
-  over the Render-provided TLS connection string; never leave the dump on a
-  shared machine.
-- **Restore drill (rehearse BEFORE cutover, then monthly):** restore the
-  newest dump into a **scratch** database (never the live one) and compare row
-  counts against the live service:
-  `createdb orig_restore_drill && pg_restore --dbname orig_restore_drill --clean --if-exists ~/orig-backups/orig-YYYYMMDD.dump`
-  then `psql orig_restore_drill -c "SELECT count(*) FROM student_profiles;"`
-  and compare with `/students` on the live service. The P4 acceptance bar
-  requires one successful restore drill on staging before the P5 window opens.
+```bash
+# In this shell only, export original-pg-backup's bucket settings from the
+# password manager: BACKUP_OFFBOX_BUCKET, _ENDPOINT, _REGION, _ACCESS_KEY_ID
+# and _SECRET_ACCESS_KEY. Not BACKUP_OFFBOX_ENABLED: a drill never uploads.
+export BACKUP_OFFBOX_PREFIX=original-pg-backups/
 
-## Disk-loss / corruption recovery
+createdb restore_drill   # any empty Postgres you control
+export DATABASE_URL=postgresql://localhost/restore_drill
+alembic upgrade head
+FILE=$(python scripts/pg_backup_offbox.py --download-latest ~/restore-drill) &&
+  BACKUP_ENCRYPTION_KEY=<from the password manager> \
+  python scripts/pg_backup_offbox.py --restore "$FILE"
+```
 
-**On SQLite (pre-P5):**
+`--download-latest` lists the bucket under the prefix, picks the newest
+`original-pg-*.jsonl.gz.fernet` by the timestamp in its name, saves it in the
+folder and prints its path. It exits 1 with the reason when a bucket setting
+is missing or nothing matches; it needs neither `DATABASE_URL` nor the key.
+The restore must end `restore parity: OK` (every table's row count and
+checksum match the dump), and it refuses a database that already has rows.
+It decrypts to a private temp file and deletes it; the downloaded file stays
+encrypted. Afterwards delete `~/restore-drill`, drop the scratch database and
+add a line to `docs/PILOT_LOG.md`.
 
-1. Create a fresh disk (Render dashboard) or redeploy the service.
-2. Upload the newest off-box backup to `/data/profiles.db`
-   (`render ssh` + scp, service suspended while copying).
-3. Resume, hit `/health`, then spot-check one professor login and one student profile.
-4. Anything written after the last backup is gone — tell the professors which
-   window was lost (audit log in the backup shows the last captured action).
+## Database loss or corruption
 
-**On Postgres (post-P5):**
-
-1. Prefer Render's point-in-time recovery (dashboard) if the corruption window
-   is inside the retention tier — it loses the least data.
-2. Otherwise provision a fresh managed Postgres, `pg_restore` the newest
-   off-box dump into it, and point `DATABASE_URL` at it (redeploy).
-3. Hit `/health`, spot-check a professor login and a student profile.
-4. Data written after the restored dump/PITR point is gone — same disclosure
-   to professors as the SQLite case (the audit log in the restore shows the
-   last captured action).
-5. The frozen read-only SQLite file from the P5 cutover is the last-resort
-   floor if Postgres backups are also lost within the ≥4-week rollback window.
+1. If the service is still up, freeze writes: `MAINTENANCE_MODE=1` → deploy.
+2. Prefer Render's own recovery for `original-db` (dashboard) when the damage
+   falls inside what the plan retains: it loses the least data.
+3. Otherwise restore the newest off-box dump into a fresh, empty Render
+   Postgres in the same region, created like `original-db` with no outside
+   access (`ipAllowList: []`). It accepts connections only from inside
+   Render, so run the restore from Render →
+   `original-pilot` → Shell. In that shell session only, export `DATABASE_URL`
+   as the new database's internal URL, plus the bucket settings (as in the
+   drill) and `BACKUP_ENCRYPTION_KEY`:
+   ```bash
+   alembic upgrade head
+   FILE=$(python scripts/pg_backup_offbox.py --download-latest /tmp/restore) &&
+     python scripts/pg_backup_offbox.py --restore "$FILE"
+   rm -r /tmp/restore
+   ```
+   It must end `restore parity: OK`. Then point `DATABASE_URL` on
+   `original-pilot` and `original-pg-backup` at the new database, and make
+   `render.yaml` match before the next Blueprint sync.
+4. Unset `MAINTENANCE_MODE` → deploy. Hit `/health`, sign in as a teacher and
+   open one sealed submission.
+5. Anything written after the restored backup is gone. Tell each affected
+   teacher which window was lost (the restored audit log shows the last
+   captured action).
 
 ## Deploys
 
 - Flow: branch → PR → CI green → merge to `main` → **manual deploy from the
-  Render dashboard** (`autoDeploy: false` on original-pilot; disk-backed
-  services deploy stop-then-start, so a merge must never take the service
-  down on its own). The demo service may keep auto-deploy.
-- **Never deploy during a scheduled exam** (shared exam calendar with professors).
-- **After every deploy, verify it.** Pre-cutover that is
-  `python -m scripts.o1_golive_check --base-url https://original-pilot.onrender.com
-  --expect-kid <kid from the env sheet> --expect-commit <sha you deployed>`;
-  it exits non-zero on failure and covers `/health`, the JWKS kid, the
-  `docs/PROVISIONING_CHECKLIST.md` §4 anonymous lockdown, HSTS and CORS.
-  Once O4 has flipped the backend to Postgres, use
-  `scripts/pilot_smoke_test.py` instead — it asserts `backend == "postgres"`
-  and so fails by design before the cutover.
-- Rollback = Render dashboard → previous deploy → "Rollback". SQLite schema is
-  additive (`CREATE TABLE IF NOT EXISTS`), so rolling back code is safe.
+  Render dashboard** (`autoDeploy: false` on `original-pilot`). Confirm in the
+  dashboard that the services deploy from `main`; `docs/STATUS.md` records
+  what is live. Each deploy first runs `alembic upgrade head` (the pre-deploy
+  step): a failed migration fails the deploy and the old version keeps
+  serving. With no disk attached, deploys are zero-downtime.
+- **Never deploy during a writing session a teacher has told you about.**
+- **After every deploy, verify it:**
+  `python -m scripts.pilot_smoke_test --base-url https://original-pilot.onrender.com --bluebook`
+  must end `smoke test: PASS` (backend `postgres`, environment `pilot`, site and
+  legal pages up, API docs hidden, anonymous calls refused).
+  `scripts/o1_golive_check.py` targets the deferred LTI/SQLite configuration
+  (it asserts `backend == "sqlite"`) and does not apply to this pilot.
+- **Rollback (code):** Render dashboard → `original-pilot` → previous deploy →
+  "Rollback". The schema changes are additive, so older code runs against the
+  newer schema; a code rollback alone is the normal case.
+- **Rollback (schema), only when a migration itself must be undone:** the
+  database is internal-only, so run it from Render → `original-pilot` → Shell,
+  where `DATABASE_URL` is already set: `alembic downgrade -1`. Do it **before**
+  the code rollback, while the newer build is still deployed: the older build
+  does not contain the newer migration file, and alembic cannot step down
+  from a revision it cannot find (a deploy of the older commit would fail its
+  pre-deploy `alembic upgrade head` for the same reason). A downgrade drops
+  the tables and columns its upgrade added, with their data, so first trigger
+  an `original-pg-backup` run and confirm it succeeded.
 - After editing any `demo/bluebook/*.jsx`: `cd demo/bluebook && npm run build`
-  and commit the regenerated `bluebook.bundle.js` — Render does not run Node.
-- **Tag every production deploy** — `pilot-YYYY-MM-DD`, on the sha you deployed:
+  and commit the regenerated `bluebook.bundle.js`: Render does not run Node.
+- **Tag every production deploy** as `pilot-YYYY-MM-DD`, on the sha you deployed:
   `git tag pilot-2026-07-24 <sha> && git push origin --tags`. If more than one
   deploy lands on the same date, suffix `-2`, `-3`, ... The tag is what
-  "roll back to last Friday" resolves to — find the tag nearest that date
+  "roll back to last Friday" resolves to: find the tag nearest that date
   (`git log --tags --simplify-by-decoration --oneline`) and use its sha with
   the Render rollback in the section above.
 
@@ -253,7 +294,8 @@ default).
   1–5 min interval, alert → operator email. `/health` returns student count —
   a sudden drop to 0 with a 200 status also means trouble.
 - Weekly: Render → Logs → filter `5xx`, `denied`, `429`; Render → Metrics →
-  memory (Starter has ~512 MB; spacy loads ~150 MB at boot) and `/data` usage.
+  memory (Starter has ~512 MB; spacy loads ~150 MB at boot), and the storage
+  use of `original-db`.
 
 ## Routine maintenance
 
@@ -272,8 +314,9 @@ retrain/self-test discipline to `style_authorship_v1.joblib`.
 
 | Cadence | Action |
 |---|---|
-| daily | off-box backup pull (manual); uptime monitor + in-app backups run themselves |
-| weekly (~1 h) | restore drill; log scan; disk usage; professor office hour; update `PILOT_LOG.md` |
+| daily | `original-pg-backup` and the uptime monitor run themselves; glance that the backup's last run succeeded |
+| weekly (~1 h) | log scan; database storage use; teacher office hour; update `PILOT_LOG.md` |
+| each term | restore drill (see [Backups](#backups)) |
 | after sales demos | `python scripts/reset_demo_data.py --apply` **on the demo service** (touches only the `demo` tenant — verified safe, but never run against the pilot DB casually) |
 | per release | suite green locally (`.venv/bin/python -m pytest tests/ -q`), bundle rebuilt if JSX changed |
 

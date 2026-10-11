@@ -329,6 +329,44 @@ class TestScratchDatabase:
         assert name in err
 
 
+# ── --run: the deleted app/ frontend ─────────────────────────────────────────
+
+# Captured at import, before the hook fixture stubs it out.
+_REAL_MAP = changed_tests.map_changed_to_tests
+
+
+class TestDeletedAppFrontend:
+    """#243 deleted app/ (ADR-008 Option C). A branch that merges main pushes
+    those deletions; the hook used to warn about app/node_modules for them,
+    or run `npm --prefix app test` against a directory with no package.json."""
+
+    # node_modules/ is gitignored, so pulling #243 can leave it behind.
+    @pytest.mark.parametrize("leftover_node_modules", [False, True])
+    def test_only_deleted_app_paths_run_nothing_and_print_nothing_about_app(
+        self, hook, monkeypatch, tmp_path, capsys, leftover_node_modules
+    ):
+        if leftover_node_modules:
+            (tmp_path / "app" / "node_modules").mkdir(parents=True)
+        monkeypatch.setattr(changed_tests, "REPO_ROOT", tmp_path)
+        monkeypatch.setattr(changed_tests, "map_changed_to_tests", _REAL_MAP)
+        monkeypatch.setattr(
+            changed_tests,
+            "changed_from_git",
+            lambda: [
+                "app/package.json",
+                "app/src/App.test.tsx",
+                "app/src/App.tsx",
+                "app/src/components/Modal.tsx",
+                "app/vite.config.ts",
+            ],
+        )
+        assert _run_hook() == 0
+        assert hook.run.calls == []
+        assert hook.server.created == []
+        out, err = capsys.readouterr()
+        assert "app/" not in out + err
+
+
 class _FakeCursor:
     def __init__(self, conn):
         self.conn = conn

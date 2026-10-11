@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Fictional demonstration</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.08);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.62); --dim-2:rgba(245,239,224,0.42);
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{min-height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:4.5rem 1.6rem 3rem;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  h1{font-family:var(--display);font-weight:500;font-size:clamp(2rem,4vw,2.8rem);line-height:1.1;margin-top:2.2rem;text-wrap:balance;}
+  h1 em{font-style:italic;color:var(--gold-2);}
+  .lede{max-width:60ch;margin-top:1rem;font-size:1.08rem;line-height:1.6;color:var(--dim);text-wrap:pretty;}
+  .doors{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:2.4rem;}
+  .door{display:flex;flex-direction:column;gap:.55rem;padding:1.6rem 1.7rem;border-radius:20px;border:1px solid var(--line-soft);background:linear-gradient(160deg,rgba(16,28,64,0.9),rgba(10,16,36,0.9));color:inherit;text-decoration:none;transition:border-color .18s,transform .18s;}
+  .door:hover,.door:focus-visible{border-color:rgba(201,160,40,0.55);transform:translateY(-3px);outline:none;}
+  .door .k{font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .door b{font-family:var(--display);font-weight:500;font-size:1.5rem;}
+  .door p{font-size:1rem;line-height:1.55;color:var(--dim);}
+  .door .go{margin-top:auto;padding-top:.6rem;color:var(--gold-2);font-size:.95rem;}
+  .more{margin-top:1.6rem;padding:1.1rem 1.3rem;border:1px solid var(--line-soft);border-radius:14px;font-size:.98rem;line-height:1.55;color:var(--dim);}
+  .more a{color:var(--gold-2);}
+  .rules{margin-top:2.4rem;font-size:.92rem;line-height:1.6;color:var(--dim-2);font-style:italic;max-width:70ch;}
+  @media (max-width:760px){.doors{grid-template-columns:1fr;}.wrap{padding-top:3.2rem;}}
+</style>
+</head>
+<body class="demo-scroll">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<main class="wrap">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <h1>A teacher's view and a student's view, <em>side by side</em>.</h1>
+  <p class="lede">Bluebook is a quiet place for students to write. Original, when a teacher switches it on, compares a new paper with the writing that teacher has approved as the student's own. It is a reason for a conversation, never a verdict. Everyone and everything on these pages is made up.</p>
+  <div class="doors">
+    <a class="door" href="original-dashboard.html">
+      <span class="k">Teacher view</span>
+      <b>Overview</b>
+      <p>A term at a glance, the students list, papers worth a second look, a writing-state report, a printable conversation packet and Bluebook session setup.</p>
+      <span class="go">Open the teacher view →</span>
+    </a>
+    <a class="door" href="original-voice.html">
+      <span class="k">Student view</span>
+      <b>My Voice</b>
+      <p>How a student sees their own writing habits, their papers with those habits marked, a reading list, and the Bluebook exam booklet.</p>
+      <span class="go">Open the student view →</span>
+    </a>
+  </div>
+  <p class="more">Prefer to click through a working session? The <a href="../../bluebook/teacher-demo.html">interactive Bluebook walkthrough</a> lets you set up a session, write as a student and read the result.</p>
+  <p class="rules">Original is in its testing phase and is not yet validated on real student writing. Nothing on these pages collects keyboard timing, screens or cameras, and no student data is used.</p>
+</main>
+</body>
+</html>
