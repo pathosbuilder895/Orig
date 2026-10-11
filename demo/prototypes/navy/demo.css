@@ -1,0 +1,67 @@
+/* Shared by every page in the navy demo suite.
+   .demo-ribbon      the fictional-demonstration banner (NORTH_STAR rule 2)
+   .demo-testing     the testing-phase notice on Original results (rule 10)
+   The body classes make room for the fixed ribbon in each page layout:
+   demo-frame (framed dashboard pages), demo-scroll (long pages with a
+   sticky nav), demo-booklet (the student exam) and demo-paper (the
+   printable conversation packet). */
+
+:root { --demo-ribbon-h: 26px; }
+
+.demo-ribbon {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--demo-ribbon-h);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 1rem;
+  background: #c9a028; color: #0d1530;
+  font: 500 .8rem/1 'EB Garamond', Georgia, serif; letter-spacing: .02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.demo-ribbon b { font-weight: 600; }
+@media (max-width: 560px) { .demo-ribbon .demo-ribbon-more { display: none; } }
+
+/* Framed pages: the ribbon sits in the body's top padding on desktop. */
+@media (max-width: 900px) { body.demo-frame { padding-top: var(--demo-ribbon-h); } }
+
+body.demo-scroll { padding-top: var(--demo-ribbon-h); }
+body.demo-scroll nav.top { top: var(--demo-ribbon-h); }
+
+/* overflow: the opened cover's 3D swing extends the scrollable area, so the
+   page could scroll into empty space and slide the booklet up. The booklet
+   is sized to the viewport and scrolls inside itself, so the page never
+   needs to. */
+body.demo-booklet { padding-top: calc(1.6rem + var(--demo-ribbon-h)); overflow: hidden; }
+body.demo-booklet .booklet { height: min(920px, calc(100vh - 3.2rem - var(--demo-ribbon-h))); }
+@media (max-width: 700px) {
+  body.demo-booklet { padding-top: var(--demo-ribbon-h); }
+  body.demo-booklet .booklet { height: calc(100vh - var(--demo-ribbon-h)); }
+}
+
+body.demo-paper { padding-top: calc(2.2rem + var(--demo-ribbon-h)); }
+@media print {
+  .demo-ribbon { position: static; height: auto; padding: 0 0 .15in; background: none; color: #000; justify-content: flex-start; }
+  body.demo-paper { padding-top: 0; }
+}
+
+.demo-testing {
+  display: block; margin-top: .8rem; max-width: 62ch;
+  padding: .6rem .85rem;
+  border: 1px solid rgba(201,160,40,0.38); border-radius: 10px;
+  background: rgba(201,160,40,0.08);
+  font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
+  color: rgba(245,239,224,0.84);
+  pointer-events: auto;
+}
+/* Doubled class: pages style bare <b> inside their cards (e.g. `.why b`), and
+   the notice must read the same everywhere. */
+.demo-testing.demo-testing b {
+  display: inline; margin: 0;
+  font-family: 'EB Garamond', Georgia, serif; font-size: 1em; font-style: normal; font-weight: 600;
+  color: #e0be55;
+}
+
+/* Light variant for the cream paper and the blue booklet cover. */
+.demo-testing.on-paper { color: #5c564a; border-color: #d9c48a; background: #f4ecd6; }
+.demo-testing.demo-testing.on-paper b { color: #7a5a10; }
+.demo-testing.on-cover { margin: 1.2rem auto 0; color: rgba(233,238,251,0.85); border-color: rgba(233,238,251,0.35); background: rgba(255,255,255,0.07); text-align: center; }
+.demo-testing.demo-testing.on-cover b { color: #fff; }

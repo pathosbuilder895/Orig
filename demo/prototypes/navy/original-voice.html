@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Writing Voice · Original</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --ok:#6bbf8a;--base:#8ba8dd;--warm:#e0a06a;
+    --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--body);color:var(--cream);background:var(--navy-0);-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .page{max-width:1180px;margin:0 auto;padding:0 1.6rem 4rem;}
+  /* ── top bar ── */
+  nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.8rem;font-size:.9rem;color:var(--dim);flex-shrink:0;}
+  .nav-right span{white-space:nowrap;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.9rem;}
+  /* ── hero ── */
+  .hero{position:relative;min-height:min(700px,90vh);display:flex;align-items:flex-end;overflow:hidden;border-bottom:1px solid var(--line);}
+  .hero-bg{position:absolute;inset:0;z-index:0;}
+  .hero-bg img{width:100%;height:100%;object-fit:cover;object-position:66% 42%;filter:saturate(.72) brightness(.9) contrast(1.02);}
+  .hero-tint{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(7,12,28,0.55) 0%,rgba(9,14,32,0.1) 30%,rgba(7,12,28,0.5) 68%,rgba(7,12,28,0.93) 93%,var(--navy-0) 100%),linear-gradient(90deg,rgba(7,12,28,0.86) 0%,rgba(7,12,28,0.4) 40%,transparent 66%),radial-gradient(70% 60% at 78% 42%,rgba(201,160,40,0.12),transparent 70%);}
+  .hero-inner{position:relative;z-index:2;width:100%;max-width:1180px;margin:0 auto;padding:6rem 1.6rem 3.2rem;display:grid;grid-template-columns:1.05fr .95fr;gap:2.6rem;align-items:end;}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);}
+  .hero h1{font-family:var(--display);font-weight:500;font-size:clamp(2.4rem,4.6vw,3.5rem);line-height:1.04;margin:.7rem 0 .1rem;text-wrap:balance;}
+  .hero h1 em{font-style:italic;color:var(--gold-2);}
+  .hero .who{font-size:1.05rem;color:var(--dim);font-style:italic;margin-top:.6rem;}
+  .hero .who b{font-style:normal;font-weight:500;color:var(--cream);}
+  .hero .lede{max-width:52ch;margin-top:1.1rem;font-size:1.06rem;line-height:1.62;color:rgba(245,239,224,0.8);text-wrap:pretty;}
+  .hero-cta{display:flex;gap:.7rem;margin-top:1.5rem;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;white-space:nowrap;border-radius:999px;padding:.68rem 1.35rem;font-family:var(--body);font-size:.98rem;text-decoration:none;cursor:pointer;border:1px solid var(--line);color:var(--cream);background:rgba(255,255,255,0.05);transition:all .16s;}
+  .btn:hover{border-color:rgba(201,160,40,0.5);color:var(--cream);}
+  .btn.pri{background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border-color:transparent;font-weight:600;box-shadow:0 8px 22px rgba(201,160,40,0.22);}
+  .btn.pri:hover{filter:brightness(1.06);color:#0d1530;}
+  .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;}
+  /* portrait */
+  .portrait{position:relative;aspect-ratio:1;width:100%;max-width:400px;max-height:400px;justify-self:end;margin-bottom:1.6rem;}
+  .portrait::before{content:'';position:absolute;inset:-8%;border-radius:50%;background:radial-gradient(circle,rgba(7,12,28,0.9) 0%,rgba(7,12,28,0.72) 46%,rgba(7,12,28,0.34) 72%,transparent 88%);pointer-events:none;}
+  .portrait canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  .p-cap{position:absolute;left:50%;bottom:-.4rem;transform:translateX(-50%);width:100%;text-align:center;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;line-height:1.5;text-transform:uppercase;color:rgba(245,239,224,0.6);text-shadow:0 1px 8px rgba(7,12,28,0.9);}
+  .p-mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+  .p-mid::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(7,12,28,0.92) 0%,rgba(7,12,28,0.7) 55%,transparent 100%);z-index:-1;}
+  .p-mid .n{font-family:var(--display);font-size:2.5rem;line-height:1;color:var(--cream);text-shadow:0 2px 14px rgba(7,12,28,0.9);}
+  .p-mid .l{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,239,224,0.82);margin-top:.4rem;text-shadow:0 1px 10px rgba(7,12,28,0.95);}
+  /* ── section shell ── */
+  section.blk{padding:3.4rem 0 0;}
+  .sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem;border-bottom:1px solid var(--line-soft);padding-bottom:.8rem;margin-bottom:1.5rem;}
+  .sec-h .t{font-family:var(--display);font-weight:500;font-size:1.6rem;}
+  .sec-h .s{font-size:.95rem;color:var(--dim);font-style:italic;max-width:46ch;text-align:right;}
+  /* growth strip */
+  .growth{display:grid;grid-template-columns:1.15fr 1fr;gap:1.4rem;align-items:stretch;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.4rem 1.5rem;}
+  .rich-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem;}
+  .rich-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .rich-h span{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+  .dots{display:flex;gap:.55rem;margin-bottom:1rem;}
+  .dot{flex:1;height:44px;border-radius:9px;border:1px dashed rgba(245,239,224,0.16);position:relative;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.68rem;color:var(--dim-2);}
+  .dot.on{border-style:solid;border-color:rgba(201,160,40,0.45);background:linear-gradient(160deg,rgba(224,190,85,0.16),rgba(201,160,40,0.06));color:var(--gold-2);}
+  .rich-bar{height:7px;border-radius:5px;background:rgba(245,239,224,0.1);overflow:hidden;}
+  .rich-fill{height:100%;width:60%;border-radius:5px;background:linear-gradient(90deg,var(--gold),var(--gold-2));transition:width .8s cubic-bezier(.2,.8,.2,1);}
+  .rich-note{font-size:.95rem;color:var(--dim);line-height:1.55;margin-top:.9rem;font-style:italic;}
+  .rich-note b{font-style:normal;color:var(--gold-2);font-weight:500;}
+  .traits{display:flex;flex-direction:column;gap:.75rem;}
+  .traits b.h{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .trait{display:flex;gap:.8rem;align-items:flex-start;}
+  .trait .q{font-family:var(--hand);font-size:1.5rem;color:var(--gold);line-height:1;flex-shrink:0;margin-top:.1rem;}
+  .trait p{font-size:.98rem;line-height:1.5;color:rgba(245,239,224,0.82);}
+  .trait p b{color:var(--cream);font-weight:600;}
+  /* families + markers */
+  .fam-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+  .fam{display:inline-flex;align-items:center;gap:.55rem;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.5rem 1.05rem;font-family:var(--body);font-size:.96rem;cursor:pointer;transition:all .16s;}
+  .fam .sw{width:9px;height:9px;border-radius:50%;background:var(--fc);}
+  .fam:hover{color:var(--cream);}
+  .fam.on{color:var(--cream);border-color:var(--fc);background:rgba(255,255,255,0.07);}
+  .fam .n{font-family:var(--mono);font-size:.7rem;color:var(--dim-2);}
+  .mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:.8rem;}
+  .hab{background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-left:2px solid var(--mc);border-radius:12px;padding:.9rem 1rem;cursor:default;transition:background .16s,transform .16s;}
+  .hab:hover{background:rgba(255,255,255,0.07);transform:translateY(-2px);}
+  .hab-t{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;}
+  .hab-t b{font-size:1rem;font-weight:500;color:var(--cream);}
+  .hab-t .v{font-family:var(--mono);font-size:.72rem;color:var(--mc);white-space:nowrap;}
+  .hab-d{font-size:.9rem;line-height:1.5;color:var(--dim);margin-top:.35rem;text-wrap:pretty;}
+  .hab-scale{position:relative;height:5px;border-radius:4px;background:rgba(245,239,224,0.1);margin-top:.7rem;}
+  .hab-scale .band{position:absolute;top:0;bottom:0;border-radius:4px;background:rgba(255,255,255,0.14);}
+  .hab-scale .you{position:absolute;top:-3px;width:3px;height:11px;border-radius:2px;background:var(--mc);box-shadow:0 0 8px var(--mc);}
+  .hab-f{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);margin-top:.4rem;}
+  .hab.rare{border-left-color:var(--warm);}
+  .hab .tag{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--warm);border:1px solid rgba(224,160,106,0.35);background:rgba(224,160,106,0.1);border-radius:999px;padding:.1rem .45rem;margin-left:.4rem;vertical-align:middle;}
+  /* work list */
+  .work{display:flex;flex-direction:column;}
+  .w-row{cursor:pointer;text-decoration:none;color:inherit;display:grid;grid-template-columns:1.6fr .8fr auto auto;gap:1rem;align-items:center;padding:.95rem .2rem;border-top:1px solid rgba(255,255,255,0.055);}
+  .w-row:first-child{border-top:none;}
+  .w-row:hover{background:rgba(255,255,255,0.04);}
+  .w-row:hover .w-t{color:var(--gold-2);}
+  .w-t{transition:color .14s;}
+  .w-t{font-size:1rem;color:var(--cream);}
+  .w-m{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);margin-top:.15rem;}
+  .w-c{font-size:.9rem;color:var(--dim);}
+  .w-b{display:inline-flex;align-items:center;gap:.42rem;font-size:.82rem;padding:.24rem .7rem;border-radius:999px;white-space:nowrap;}
+  .w-b .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .w-b.you{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
+  .w-b.bank{color:var(--base);background:rgba(139,168,221,0.1);border:1px solid rgba(139,168,221,0.28);}
+  .w-b.pend{color:var(--dim);background:rgba(255,255,255,0.05);border:1px solid var(--line-soft);}
+  .w-add{font-family:var(--mono);font-size:.68rem;color:var(--dim-2);text-align:right;}
+  /* privacy */
+  .priv{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;}
+  .priv .card{padding:1.2rem 1.3rem;}
+  .priv b.h{font-family:var(--display);font-weight:500;font-size:1.05rem;display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;}
+  .priv b.h svg{width:16px;height:16px;stroke-width:1.8;fill:none;}
+  .priv ul{list-style:none;display:flex;flex-direction:column;gap:.45rem;}
+  .priv li{font-size:.94rem;line-height:1.5;color:rgba(245,239,224,0.8);padding-left:1.1rem;position:relative;}
+  .priv li::before{content:'';position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--pc);}
+  .priv .yes{--pc:var(--ok);}.priv .yes b.h{color:var(--ok);}.priv .yes b.h svg{stroke:var(--ok);}
+  .priv .no{--pc:var(--dim-2);}.priv .no b.h{color:var(--dim);}.priv .no b.h svg{stroke:var(--dim);}
+  .closing{margin-top:2.6rem;padding:2rem;text-align:center;border-top:1px solid var(--line-soft);}
+  .closing p{font-family:var(--display);font-style:italic;font-size:1.28rem;line-height:1.5;color:rgba(245,239,224,0.82);max-width:44ch;margin:0 auto;text-wrap:balance;}
+  .closing .att{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim-2);margin-top:1rem;}
+  @media (max-width:900px){
+    nav.top{flex-wrap:wrap;gap:.6rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;padding-bottom:.2rem;}
+    .hero-inner{grid-template-columns:1fr;padding:3.4rem 1.2rem 2.2rem;gap:2rem;}
+    .portrait{justify-self:center;max-width:340px;}
+    .growth,.priv{grid-template-columns:1fr;}
+    .sec-h{flex-direction:column;align-items:flex-start;}.sec-h .s{text-align:left;}
+    .w-row{grid-template-columns:1fr auto;row-gap:.35rem;}.w-c,.w-add{display:none;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-scroll">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<nav class="top">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <div class="pills">
+    <a class="pill on" href="original-voice.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
+    <a class="pill" href="original-my-work.html"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
+    <a class="pill" href="original-library.html"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 016.5 3H11v18H6.5A2.5 2.5 0 004 18.5z"/><path d="M13 3h4.5A2.5 2.5 0 0120 5.5v13a2.5 2.5 0 00-2.5-2.5H13z"/></svg>Library</a>
+    <a class="pill" href="original-bluebook-student.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+  </div>
+  <div class="nav-right"><span>THEO 301 · Spring 2026</span><div class="avatar">JW</div></div>
+</nav>
+
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-tint"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">Your Voice Portrait</div>
+      <h1>No one else writes<br />quite <em>like you</em>.</h1>
+      <div class="who"><b>James Whitfield</b> · portrait drawn from <b>3 teacher-approved pieces</b> of your own writing</div>
+      <p class="lede">Original reads the small habits that make your prose yours: sentence rhythm, the way you connect ideas, how firmly you make a claim. Thirty-four of them are already recognisable. This page is your side of that record: not a score, a likeness.</p>
+      <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.</div>
+      <div class="hero-cta">
+        <a class="btn pri" href="#markers"><svg viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg>See what makes it yours</a>
+        <a class="btn" href="original-bluebook-student.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/></svg>Add a supervised piece</a>
+      </div>
+    </div>
+    <div class="portrait">
+      <canvas id="vp"></canvas>
+      <div class="p-mid"><div class="n">34</div><div class="l">habits recognised</div></div>
+      <div class="p-cap">each thread is one habit · brightness = how distinctly yours</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <section class="blk">
+    <div class="sec-h"><div class="t">Your portrait is still filling in</div><div class="s">Every piece your teacher approves as reference writing gives Original more to compare with.</div></div>
+    <div class="growth">
+      <div class="card">
+        <div class="rich-h"><b>Portrait richness</b><span id="rich-pct">60% drawn</span></div>
+        <div class="dots" id="dots"></div>
+        <div class="rich-bar"><div class="rich-fill" id="rich-fill"></div></div>
+        <div class="rich-note" id="rich-note">With only a few approved pieces, Original may say it <b>can't tell</b>, and that is a fair answer. Each approved piece gives it more to go on.</div>
+      </div>
+      <div class="card traits">
+        <b class="h">What already stands out</b>
+        <div class="trait"><span class="q">“</span><p>You <b>follow a long, winding sentence with a very short one</b>. It happens in every piece you've written: it's the single most recognisable thing about your prose.</p></div>
+        <div class="trait"><span class="q">“</span><p>You <b>almost never hedge</b>. Where most writers reach for <i>perhaps</i> or <i>it seems</i>, you state the position and then defend it.</p></div>
+        <div class="trait"><span class="q">“</span><p>You <b>open paragraphs with the argument itself</b>, not with a transition word. Only 1 in 9 of your paragraphs begins with <i>however</i> or <i>furthermore</i>.</p></div>
+        <div class="trait"><span class="q">“</span><p>You use the <b>em dash</b> often, usually to interrupt yourself mid-thought.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="markers">
+    <div class="sec-h"><div class="t">The habits in your voice</div><div class="s">Grouped three ways: how your sentences look, how your ideas connect, how you make your case. Hover a card to find it in the portrait.</div></div>
+    <div class="fam-tabs" id="fam-tabs"></div>
+    <div class="mk-grid" id="mk-grid"></div>
+  </section>
+
+  <section class="blk" id="work">
+    <div class="sec-h"><div class="t">Your work this term</div><div class="s">Pieces written under supervision become part of your portrait. Click any piece to read it with your habits marked.</div></div>
+    <div class="card work">
+      <a class="w-row" href="original-my-work.html?paper=chris"><div><div class="w-t">In-Class Essay: Christology</div><div class="w-m">15 JAN · THEO 301 · 217 WORDS</div></div><div class="w-c">Written in class</div><span class="w-b bank"><span class="d"></span>Part of your portrait</span><div class="w-add">+11 habits</div></a>
+      <a class="w-row" href="original-my-work.html?paper=rom"><div><div class="w-t">Midterm Exam: Romans 8–11</div><div class="w-m">14 FEB · THEO 301 · 239 WORDS</div></div><div class="w-c">Proctored exam</div><span class="w-b bank"><span class="d"></span>Part of your portrait</span><div class="w-add">+14 habits</div></a>
+      <a class="w-row" href="original-my-work.html?paper=herm"><div><div class="w-t">Response Paper: Hermeneutics</div><div class="w-m">16 MAR · THEO 301 · 206 WORDS</div></div><div class="w-c">Instructor verified</div><span class="w-b bank"><span class="d"></span>Part of your portrait</span><div class="w-add">+9 habits</div></a>
+      <a class="w-row" href="original-my-work.html?paper=aug"><div><div class="w-t">Augustine Response</div><div class="w-m">18 MAR · THEO 301 · 940 WORDS</div></div><div class="w-c">Take-home</div><span class="w-b you"><span class="d"></span>Reads as your voice</span><div class="w-add">–</div></a>
+      <a class="w-row" href="original-my-work.html?paper=hypo"><div><div class="w-t">The Hypostatic Union</div><div class="w-m">24 MAR · THEO 301 · 2,140 WORDS</div></div><div class="w-c">Take-home</div><span class="w-b pend"><span class="d"></span>With your instructor</span><div class="w-add">–</div></a>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="sec-h"><div class="t">What Original keeps</div><div class="s">Your portrait is a set of numbers about how you write, nothing more.</div></div>
+    <div class="priv">
+      <div class="card yes">
+        <b class="h"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>Kept</b>
+        <ul>
+          <li>Measurements of the 34 habits above, and how much they vary across your pieces.</li>
+          <li>The pieces your teacher approved as reference writing, so a measurement can always be traced back to its source.</li>
+          <li>A few Bluebook session facts: time spent, word count, paste attempts and times the window lost focus. They are context, not evidence.</li>
+        </ul>
+      </div>
+      <div class="card no">
+        <b class="h"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M6 18L18 6"/></svg>Never kept</b>
+        <ul>
+          <li>Anything from your screen, camera, microphone, or other applications.</li>
+          <li>How you type: no key-by-key timing is ever recorded.</li>
+          <li>Your drafts from outside a session, or what you searched while writing.</li>
+          <li>Any judgement of quality: Original measures likeness to <i>you</i>, never how good the writing is.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="closing">
+      <p>“If you tell the truth, you will become original without ever having noticed it.”</p>
+      <div class="att">After C. S. Lewis, Mere Christianity</div>
+    </div>
+  </section>
+</div>
+
+<script>
+  // ── 34 habits, in plain English, three families ─────────────────────────────
+  const FAMS=[
+    {key:'A',name:'How your sentences look',c:'#e0be55',blurb:'Word and sentence choices so automatic you never notice making them.'},
+    {key:'B',name:'How your ideas connect',c:'#8ba8dd',blurb:'The way one thought is joined to the next, sentence to sentence.'},
+    {key:'C',name:'How you make your case',c:'#c58fd0',blurb:'The voice you take with a reader: how certain, formal, or forceful.'}
+  ];
+  // v = where you sit 0..1 · lo/hi = your usual range · rare = unusually distinctive
+  const M=[
+    ['A','Sentence length','Your sentences run long, about 24 words.',.62,.52,.72],
+    ['A','Rhythm of long and short','After a long sentence you almost always write a very short one.',.88,.82,.94,1],
+    ['A','Vocabulary range','How many different words you use across a piece.',.71,.63,.79],
+    ['A','One-off words','Words you use exactly once: a sign of a wide vocabulary.',.66,.58,.74],
+    ['A','Word length','You favour plain, short words over long Latin ones.',.34,.28,.41],
+    ['A','Glue words','The rate of the, of, and, but: the words you never think about.',.48,.44,.53],
+    ['A','Active voice','You write “she threw the ball”, rarely “the ball was thrown”.',.79,.72,.86],
+    ['A','Em dashes','You often interrupt yourself with a dash.',.91,.85,.96,1],
+    ['A','Semicolons','You use them sparingly, and almost always before a contrast.',.28,.2,.36],
+    ['A','Commas','Your comma rate is steady and unusually consistent piece to piece.',.55,.51,.59],
+    ['A','Parentheses','Side notes in brackets are rare in your writing.',.19,.13,.26],
+    ['A','Contractions','You write “do not” rather than “don’t” in formal work.',.22,.16,.29],
+    ['B','Linking phrases','You use however and therefore sparingly.',.31,.24,.38],
+    ['B','Paragraph openings','You open with the argument itself, not with a transition.',.86,.79,.92,1],
+    ['B','Contrast','You reach for but and yet more often than for and or also.',.68,.61,.75],
+    ['B','Cause and effect','How often you explain why with because or as a result.',.57,.5,.64],
+    ['B','Referring back','Your use of it and this to point back at an earlier idea.',.44,.38,.51],
+    ['B','Word chains','Related words (church → congregation → pastor) holding a paragraph together.',.63,.56,.7],
+    ['B','Where your point sits','You usually plant the main point at the end of a paragraph.',.73,.66,.8],
+    ['B','Paragraph length','About five sentences before you start a new one.',.52,.46,.59],
+    ['B','Varied openings','Your sentences begin in noticeably different ways.',.69,.62,.76],
+    ['B','Sequencing in time','then, meanwhile, afterward: uncommon in your prose.',.26,.19,.33],
+    ['C','Certainty','You state positions firmly rather than tentatively.',.84,.77,.9,1],
+    ['C','Softening words','perhaps, it seems, somewhat: you almost never use them.',.14,.09,.2,1],
+    ['C','Flat statements of fact','You make direct claims and then defend them.',.81,.74,.87],
+    ['C','Handling objections','You raise the opposing view before answering it.',.66,.59,.73],
+    ['C','Quoting sources','You build a quote into your own sentence rather than dropping it in.',.72,.65,.79],
+    ['C','Signal verbs','argues, claims, insists: you vary them widely.',.7,.62,.77],
+    ['C','Appeals to authority','How often a claim rests on a named authority.',.49,.42,.56],
+    ['C','Rhetorical questions','You rarely ask a question you intend to answer yourself.',.21,.15,.28],
+    ['C','First person','I and we appear only where the argument needs them.',.36,.3,.43],
+    ['C','Formal register','Specialist theological vocabulary, used precisely.',.75,.68,.82],
+    ['C','How you close','You end on the argument’s consequence, not a summary.',.64,.57,.71],
+    ['C','Ibid. and shorthand','Your citation shorthand is consistent throughout.',.58,.5,.65]
+  ].map((r,i)=>({fam:r[0],name:r[1],desc:r[2],v:r[3],lo:r[4],hi:r[5],rare:!!r[6],i}));
+
+  // ── family tabs + marker cards ─────────────────────────────────────────────
+  let active=null; // null = all
+  const tabs=document.getElementById('fam-tabs'), grid=document.getElementById('mk-grid');
+  function renderTabs(){
+    tabs.innerHTML='<button class="fam'+(active===null?' on':'')+'" style="--fc:var(--gold)" data-f="">All habits <span class="n">'+M.length+'</span></button>'+
+      FAMS.map(f=>'<button class="fam'+(active===f.key?' on':'')+'" style="--fc:'+f.c+'" data-f="'+f.key+'"><span class="sw"></span>'+f.name+' <span class="n">'+M.filter(m=>m.fam===f.key).length+'</span></button>').join('');
+    tabs.querySelectorAll('.fam').forEach(b=>b.onclick=()=>{active=b.dataset.f||null;renderTabs();renderGrid();});
+  }
+  function renderGrid(){
+    const list=active?M.filter(m=>m.fam===active):M;
+    grid.innerHTML=list.map(m=>{
+      const f=FAMS.find(x=>x.key===m.fam);
+      return '<div class="hab'+(m.rare?' rare':'')+'" data-i="'+m.i+'" style="--mc:'+(m.rare?'var(--warm)':f.c)+'">'+
+        '<div class="hab-t"><b>'+m.name+(m.rare?'<span class="tag">distinctly you</span>':'')+'</b><span class="v">'+Math.round(m.v*100)+'%</span></div>'+
+        '<div class="hab-d">'+m.desc+'</div>'+
+        '<div class="hab-scale"><div class="band" style="left:'+(m.lo*100)+'%;width:'+((m.hi-m.lo)*100)+'%"></div><div class="you" style="left:'+(m.v*100)+'%"></div></div>'+
+        '<div class="hab-f"><span>rarely</span><span>your usual range</span><span>often</span></div></div>';
+    }).join('');
+    grid.querySelectorAll('.hab').forEach(el=>{
+      el.onmouseenter=()=>{hi=+el.dataset.i;};
+      el.onmouseleave=()=>{hi=-1;};
+    });
+  }
+  renderTabs();renderGrid();
+
+  // ── richness strip ─────────────────────────────────────────────────────────
+  const SAMPLES=3, NEED=5;
+  document.getElementById('dots').innerHTML=Array.from({length:NEED},(_,i)=>
+    '<div class="dot'+(i<SAMPLES?' on':'')+'">'+(i<SAMPLES?'✓ piece '+(i+1):'piece '+(i+1))+'</div>').join('');
+  const pct=Math.round(SAMPLES/NEED*100);
+  document.getElementById('rich-pct').textContent=pct+'% drawn';
+  requestAnimationFrame(()=>{document.getElementById('rich-fill').style.width=pct+'%';});
+
+  // ── voice portrait canvas ──────────────────────────────────────────────────
+  const cv=document.getElementById('vp'), ctx=cv.getContext('2d');
+  let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1),hi=-1,t0=performance.now();
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){
+    const r=cv.getBoundingClientRect();
+    W=Math.max(240,r.width);H=Math.max(240,r.height);
+    cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  size();addEventListener('resize',size);
+  const famC={A:[224,190,85],B:[139,168,221],C:[197,143,208]};
+  function draw(now){
+    const t=(now-t0)/1000;
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H/2, R=Math.min(W,H)/2-14;
+    // faint concentric guides
+    ctx.strokeStyle='rgba(245,239,224,0.08)';ctx.lineWidth=1;
+    [0.35,0.6,0.85].forEach(k=>{ctx.beginPath();ctx.arc(cx,cy,R*k,0,Math.PI*2);ctx.stroke();});
+    const rot=reduce?0:t*0.05;
+    M.forEach((m,i)=>{
+      const a=(i/M.length)*Math.PI*2 - Math.PI/2 + rot;
+      const [r,g,b]=famC[m.fam];
+      const isHi = hi===i;
+      const inner=R*0.3, outer=inner + (R*0.66)*m.v;
+      // thread
+      const grad=ctx.createLinearGradient(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner,cx+Math.cos(a)*outer,cy+Math.sin(a)*outer);
+      const base=isHi?1:(m.rare?0.92:0.7);
+      grad.addColorStop(0,'rgba('+r+','+g+','+b+',0.05)');
+      grad.addColorStop(1,'rgba('+r+','+g+','+b+','+base+')');
+      ctx.strokeStyle=grad;ctx.lineWidth=isHi?3.4:(m.rare?2.6:1.8);ctx.lineCap='round';
+      ctx.shadowColor='rgba(7,12,28,0.85)';ctx.shadowBlur=6;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*inner,cy+Math.sin(a)*inner);ctx.lineTo(cx+Math.cos(a)*outer,cy+Math.sin(a)*outer);ctx.stroke();
+      // beads along the thread: density = consistency (narrow band = steadier)
+      const steady=1-Math.min(1,(m.hi-m.lo)/0.22);
+      const n=3+Math.round(steady*5);
+      for(let k=0;k<n;k++){
+        const rr=inner+(outer-inner)*((k+1)/(n+0.6));
+        const pulse=reduce?0:Math.sin(t*1.5+i*0.7+k)*0.4+0.6;
+        const rad=(isHi?2.1:1.3)*(0.7+0.4*pulse);
+        ctx.fillStyle='rgba('+r+','+g+','+b+','+(isHi?1:0.78)*(0.6+0.4*pulse)+')';
+        ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,rad,0,Math.PI*2);ctx.fill();
+      }
+      // outer tip glow for the distinctive ones
+      if(m.rare||isHi){
+        ctx.fillStyle='rgba('+r+','+g+','+b+','+(isHi?1:0.8)+')';
+        ctx.beginPath();ctx.arc(cx+Math.cos(a)*outer,cy+Math.sin(a)*outer,isHi?3.4:2.4,0,Math.PI*2);ctx.fill();
+      }
+    });
+    // unfinished arc: the part of the likeness still to be drawn
+    ctx.shadowBlur=0;
+    const drawn=SAMPLES/NEED;
+    ctx.strokeStyle='rgba(245,239,224,0.16)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,R*0.97,-Math.PI/2,-Math.PI/2+Math.PI*2,false);ctx.stroke();
+    ctx.strokeStyle='rgba(201,160,40,0.55)';ctx.lineWidth=2;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(cx,cy,R*0.97,-Math.PI/2,-Math.PI/2+Math.PI*2*drawn,false);ctx.stroke();
+    // inner ring
+    ctx.strokeStyle='rgba(201,160,40,0.22)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(cx,cy,R*0.28,0,Math.PI*2);ctx.stroke();
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+</script>
+</body>
+</html>
