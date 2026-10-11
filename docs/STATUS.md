@@ -132,7 +132,14 @@ Work in this order. Each task owns its files; nobody touches another task's file
 
 Track what was done, when, by which tool. One line per session.
 
-**Format:** `YYYY-MM-DD | Tool | Branch/PR | Summary`
+**Format:** append one list item per session as the last line of the file,
+with no blank line before it: `- *YYYY-MM-DD | Tool | Branch/PR | Summary*`
+
+`.gitattributes` merges this file with `merge=union`, so two branches that
+both append an entry merge without a conflict. List items stay separate when
+they land next to each other; plain lines would run together into one
+paragraph. Don't reformat older entries: an open branch that still has the old
+text would get both copies kept, with no conflict to flag it.
 
 ### Log Entries
 
