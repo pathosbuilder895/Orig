@@ -2,8 +2,8 @@
 
 /me/work calls the /students/{id}/score handler in-process, so this module
 imports it from its router exactly as api.py used to call it as a local
-function. /me/work never writes a baseline: only writing a teacher approves
-becomes part of a student's profile (NORTH_STAR rule 8).
+function. /me/work never writes a baseline (NORTH_STAR rule 8: only teacher-approved
+writing becomes baseline); the piece is compared and not stored.
 """
 
 from __future__ import annotations
@@ -87,10 +87,9 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     Scores the text server-side against the baseline the student's teacher has
     approved, then returns ONLY the redacted result (headline + supportive
     summary + steady-dimension affirmations + whether a review opportunity
-    opened). The piece is never added to the student's baseline: only
-    teacher-approved writing becomes baseline, so the student's sample count
-    is the same before and after. The raw Layer-7 payload never leaves the
-    server.
+    opened). This route never adds the piece to the student's baseline, so the
+    student's sample count is the same before and after, and the piece itself
+    is not stored. The raw Layer-7 payload never leaves the server.
     """
     session = _require_student_session(request)
     sid = str(session["sid"])

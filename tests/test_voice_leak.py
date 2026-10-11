@@ -462,6 +462,45 @@ def test_student_can_still_read_self(student_token):
     assert r.status_code == 200, r.text
 
 
+# ── Voice Affirmed has one route: a piece that counts toward the baseline ────
+
+
+def _milestone_states(sample_count, authenticated_count, pathway=None):
+    view = voice_mod.project_voice_view(
+        name="Dana",
+        baseline_vector={},
+        sample_count=sample_count,
+        authenticated_count=authenticated_count,
+        manifests=[],
+        corrections=[],
+        pathway=pathway,
+    )
+    return {m["label"]: m["state"] for m in view["milestones"]}
+
+
+def test_voice_affirmed_follows_a_piece_on_file_and_never_a_finished_pathway():
+    done = {"current_step": 3, "total_steps": 3, "status": "completed"}
+    upcoming = {"Voice Sampled": "upcoming", "Voice Established": "upcoming", "Voice Affirmed": "upcoming"}
+    assert _milestone_states(0, 0) == upcoming
+    # A completed pathway used to affirm a voice with nothing on file.
+    assert _milestone_states(0, 0, done) == upcoming
+    assert _milestone_states(1, 1) == {
+        "Voice Sampled": "reached",
+        "Voice Established": "upcoming",
+        "Voice Affirmed": "reached",
+    }
+    assert _milestone_states(3, 3)["Voice Established"] == "reached"
+    # Samples that carry no weight do not affirm.
+    assert _milestone_states(2, 0)["Voice Affirmed"] == "upcoming"
+
+
+def test_voice_affirmed_blurb_makes_no_authenticity_or_approval_claim():
+    blurbs = {m["label"]: m["blurb"] for m in voice_mod.project_milestones(1, 1)}
+    said = blurbs["Voice Affirmed"].lower()
+    for claim in ("genuine", "verified", "approved", "authentic"):
+        assert claim not in said, claim
+
+
 # ── Student-facing copy never says "formation" ───────────────────────────────
 # Owner decision 2026-10-09: the student pages do not use "formation" wording
 # (the pathway is still a feature; the word is not copy). Two nets, so neither a
@@ -500,6 +539,10 @@ def test_no_string_literal_in_the_student_modules_says_formation(module):
     path = REPO_ROOT_FOR_COPY / "original" / module
     found = [t for t in _copy_literals(path) if "formation" in t.lower()]
     assert not found, f"original/{module} has student-facing copy with 'formation': {found}"
+    # Nor with "tutor" (the student's word is "teacher") or an em dash.
+    dashes = chr(0x2014) + chr(0x2015)
+    found = [t for t in _copy_literals(path) if "tutor" in t.lower() or any(d in t for d in dashes)]
+    assert not found, f"original/{module} has student-facing copy with 'tutor' or an em dash: {found}"
 
 
 REPO_ROOT_FOR_COPY = pathlib.Path(__file__).resolve().parent.parent
@@ -538,9 +581,31 @@ def test_no_returned_string_says_formation_in_any_state():
         }
         results.append(voice_mod.project_submission_result(layer7, "Dana"))
 
+    # Growth in the Arc changes the subhead; a note with no reviewer gets the default.
+    for first, last in ((40, 60), (60, 40), (50, 51)):
+        manifests = [
+            {"created_at": "2026-02-01T00:00:00", "action": "no_action", "divergence_score": 1 - last / 100},
+            {"created_at": "2026-01-01T00:00:00", "action": "no_action", "divergence_score": 1 - first / 100},
+        ]
+        views.append(
+            voice_mod.project_voice_view(
+                name="Dana",
+                baseline_vector={},
+                sample_count=3,
+                authenticated_count=3,
+                manifests=manifests,
+                corrections=[{"notes": "Well argued.", "created_at": "2026-02-02T00:00:00"}],
+                pathway=None,
+            )
+        )
+    assert views[-1]["voice_notes"][0]["reviewer"] == "Your teacher"
+
+    dashes = chr(0x2014) + chr(0x2015)
     for blob in views + results:
         for value in _walk_values(blob):
             assert "formation" not in value.lower(), f"'formation' in returned copy: {value!r}"
+            assert "tutor" not in value.lower(), f"'tutor' in returned copy: {value!r}"
+            assert not any(d in value for d in dashes), f"an em dash in returned copy: {value!r}"
 
 
 def test_no_baseline_result_is_honest_and_says_nothing_was_added():
@@ -548,10 +613,13 @@ def test_no_baseline_result_is_honest_and_says_nothing_was_added():
     _assert_submit_result_clean(res)
     assert res["headline"] == "Nothing to compare this with yet."
     assert "no approved writing" in res["summary"]
+    # A piece compared in My Work is never stored, so no teacher can add it; the
+    # sentence says what does join a profile instead.
     assert (
-        "Not added to your writing profile. Your teacher may choose to add this to "
-        "your writing profile."
+        "Not added to your writing profile. Only writing your teacher approves, such as "
+        "sealed Bluebook work, joins your writing profile."
     ) in res["summary"]
+    assert "may choose" not in res["summary"]
     assert res["steady"] == [] and res["review_opportunity"] is False
 
 

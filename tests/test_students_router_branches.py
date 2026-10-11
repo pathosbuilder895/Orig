@@ -563,10 +563,13 @@ class TestMyWorkCompareOnly:
             body = r.json()
             assert body["headline"] == "Nothing to compare this with yet."
             assert "no approved writing" in body["summary"]
+            # The piece is never stored, so a teacher cannot add it: the sentence says
+            # what does join a profile.
             assert (
-                "Not added to your writing profile. Your teacher may choose to add this "
-                "to your writing profile."
+                "Not added to your writing profile. Only writing your teacher approves, "
+                "such as sealed Bluebook work, joins your writing profile."
             ) in body["summary"]
+            assert "may choose" not in body["summary"]
             assert body["steady"] == []
             assert body["review_opportunity"] is False
             # Nothing the old "saved" copy claimed.
@@ -577,6 +580,71 @@ class TestMyWorkCompareOnly:
         state = live_client.get(f"/students/{sid}").json()
         assert state["sample_count"] == 0
         assert state["authenticated_count"] == 0
+
+    def test_a_record_with_no_baseline_samples_is_the_422_branch(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """The student has a record (signing in creates one) but nothing on file:
+        scoring refuses with 422 and the student gets nothing-to-compare."""
+        import original.routers.me as me_router
+        from fastapi import HTTPException
+
+        token, sid, _ = _login(live_client, "MyWork Academy Four", "mw4@mywork.edu")
+        assert live_client.get(f"/students/{sid}").json()["sample_count"] == 0
+        refused = []
+        real = me_router.score_submission
+
+        def spy(student_id, req, *a, **kw):
+            try:
+                return real(student_id, req, *a, **kw)
+            except HTTPException as exc:
+                refused.append(exc.status_code)
+                raise
+
+        monkeypatch.setattr(me_router, "score_submission", spy)
+        r = live_client.post(
+            "/me/work",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"text": U1, "title": "No baseline yet"},
+        )
+
+        assert r.status_code == 200, r.text
+        assert refused == [422]
+        assert r.json()["headline"] == "Nothing to compare this with yet."
+
+    def test_a_session_with_no_record_is_the_404_branch(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """A signed session for an id the store has never seen (an erased
+        student, or a launch that never wrote a record): scoring says 404 and
+        the student gets the same nothing-to-compare result. No record is made."""
+        import original.routers.me as me_router
+        from fastapi import HTTPException
+
+        token = student_auth.mint_session("ghost-tenant:never-persisted", "Ghost Student")
+        refused = []
+        real = me_router.score_submission
+
+        def spy(student_id, req, *a, **kw):
+            try:
+                return real(student_id, req, *a, **kw)
+            except HTTPException as exc:
+                refused.append(exc.status_code)
+                raise
+
+        monkeypatch.setattr(me_router, "score_submission", spy)
+        r = live_client.post(
+            "/me/work",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"text": U1, "title": "Never seen"},
+        )
+
+        assert r.status_code == 200, r.text
+        assert refused == [404]
+        assert r.json()["headline"] == "Nothing to compare this with yet."
+        from original.routers._shared import _repo
+
+        assert _repo().get("ghost-tenant:never-persisted") is None
 
     def test_never_calls_add_baseline(self, live_client, store_reset, monkeypatch):
         """The router no longer imports the baseline writer at all."""

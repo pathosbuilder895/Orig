@@ -29,18 +29,27 @@ Loaded with `<script src="live.js"></script>` before each page's own script. Exp
 ```js
 Live.TOKEN_KEYS          // ['original_principal_token','original_session_token','original_role','original_tenant','original_name']
 Live.NOTICE              // the testing-label string, verbatim (the ONLY copy in the suite)
+Live.STUDENT_NOTICE      // the testing-label string the student pages show (voice.html, my-work.html): the same
+                         // warning, plus that a teacher may approve sealed Bluebook work as reference writing
+                         // (NORTH_STAR rule 10). The only copy; a student never sees NOTICE
 Live.esc(s)              // HTML-escape any value before it goes into innerHTML
-Live.api(path, opts)     // same-origin fetch; adds `Authorization: Bearer <original_principal_token>` when present;
+Live.api(path, opts)     // same-origin fetch; adds `Authorization: Bearer <original_principal_token>` when present,
+                         // else `<original_session_token>` (a student's, which the /me/* routes need);
                          // resolves {ok, status, data} (data = parsed JSON or null); never throws
 Live.session()           // Promise<{mode:'demo'|'signed-in'|'signed-out', role, products:[], tenant, name}>
                          // demo  = GET /health -> environment === 'demo' (products ['original','bluebook'])
                          // signed-in = GET /auth/me 200 (role, products, tenant_id)
                          // signed-out = otherwise
-Live.notices()           // replaces every [data-testing-notice] with the label markup (also runs on DOMContentLoaded)
+Live.notices()           // replaces every [data-testing-notice] with the label markup and every
+                         // [data-student-notice] with the student label (also runs on DOMContentLoaded)
 Live.empty(el, text)     // renders an honest empty state inside el, styled like the card's body text
-Live.gate(el)            // Promise<session|null>: renders the sign-in panel (link to /index.html) or the
+Live.gate(el, opts)      // Promise<session|null>: renders the sign-in panel (link to /index.html) or the
                          // "Original is off for this workspace" panel into el and resolves null when the page
                          // cannot load data; otherwise resolves the session
+                         // opts.audience 'student' (voice.html, my-work.html): a student holding a session token
+                         // is allowed; staff are sent to index.html; anyone else (signed out, the open demo, a
+                         // launch-link student with an id but no session token) gets the sign-in panel with a
+                         // link to /bluebook/
 Live.signOut()           // removes TOKEN_KEYS, then location.replace('/index.html')
 ```
 

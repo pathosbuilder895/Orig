@@ -201,7 +201,7 @@
     </div>
     <div class="portrait">
       <canvas id="vp" role="img" aria-label="Your voice portrait: one thread for each part of your voice"></canvas>
-      <div class="p-mid"><div class="n" id="p-n">–</div><div class="l" id="p-l">nothing drawn yet</div></div>
+      <div class="p-mid"><div class="n" id="p-n">–</div><div class="l" id="p-l"></div></div>
       <div class="p-cap" id="p-cap"></div>
     </div>
   </div>
@@ -215,7 +215,7 @@
         <div class="rich-h"><b>Portrait richness</b><span id="rich-pct"></span></div>
         <div class="dots" id="dots"></div>
         <div class="rich-bar"><div class="rich-fill" id="rich-fill"></div></div>
-        <div class="rich-note" id="rich-note">With only a few approved pieces, Original may say it <b>can't tell</b>, and that is a fair answer. Each approved piece gives it more to go on.</div>
+        <div class="rich-note" id="rich-note">With only a few pieces on file, Original may say it <b>can't tell</b>, and that is a fair answer. Each piece your teacher approves gives it more to go on.</div>
       </div>
       <div class="card traits">
         <b class="h">From your teacher</b>
@@ -231,10 +231,10 @@
   </section>
 
   <section class="blk" id="work">
-    <div class="sec-h"><div class="t">Your work</div><div class="s">A piece becomes part of your portrait only when your teacher approves it as reference writing.</div></div>
+    <div class="sec-h"><div class="t">Your work</div><div class="s">Writing your teacher approves, such as sealed Bluebook work, joins your portrait.</div></div>
     <div class="card work">
       <a class="w-row" href="/bluebook/"><div><div class="w-t">Your sealed exams and written pieces</div><div class="w-m">IN BLUEBOOK</div></div><div class="w-c">Read what you have written there.</div><span></span><div class="w-add">Open →</div></a>
-      <a class="w-row" href="my-work.html"><div><div class="w-t">Compare a piece with your voice</div><div class="w-m">MY WORK</div></div><div class="w-c">Paste a piece and see how it sits beside your approved writing.</div><span></span><div class="w-add">Open →</div></a>
+      <a class="w-row" href="my-work.html"><div><div class="w-t">Compare a piece with your voice</div><div class="w-m">MY WORK</div></div><div class="w-c">Paste a piece and see how it sits beside the writing in your profile.</div><span></span><div class="w-add">Open →</div></a>
     </div>
   </section>
 
@@ -245,9 +245,9 @@
         <b class="h"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>Kept</b>
         <ul>
           <li>Measurements of the habits above, and how much they vary across your pieces.</li>
-          <li>The pieces your teacher approved as reference writing, so a measurement can always be traced back to its source.</li>
+          <li>The writing on file in your profile, so a measurement can always be traced back to its source.</li>
           <li>A few Bluebook session facts: time spent, word count, paste attempts and times the window lost focus. They are context, not evidence.</li>
-          <li>A record that a comparison was made when you use My Work. The piece itself is not added to your writing profile.</li>
+          <li>When you use My Work, the result of the comparison is kept and your teacher can see it. The piece itself is not kept.</li>
         </ul>
       </div>
       <div class="card no">
@@ -324,7 +324,7 @@
   const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
 
   let DIMS=[];        // [{name, v 0..1, fam, desc, i}]
-  let HAS=false;      // Original has approved writing to draw the portrait from
+  let HAS=false;      // the profile has writing on file to draw the portrait from
   let drawn=0;        // fraction of the milestones reached
   let active=null;    // family filter, null = all
   let hi=-1;          // dimension highlighted by hovering its card
@@ -382,7 +382,7 @@
   }
   function renderGrid(){
     if(!HAS){
-      Live.empty(grid,'Your habits appear here once your teacher has approved some of your writing.');
+      Live.empty(grid,'Your habits appear here once there is writing on file in your profile.');
       return;
     }
     const list=active?DIMS.filter(m=>m.fam===active):DIMS;
@@ -468,7 +468,7 @@
     const list=a=>Array.isArray(a)?a.filter(x=>x&&typeof x==='object'):[];
     const ms=list(V.milestones).map(m=>({label:String(m.label||''),state:String(m.state||''),blurb:String(m.blurb||'')})).filter(m=>m.label);
     const notes=list(V.voice_notes).map(n=>({note:String(n.note||''),reviewer:String(n.reviewer||''),date:String(n.date||'')})).filter(n=>n.note);
-    // Original draws a portrait only from approved writing: the server's own
+    // Original draws a portrait only from writing on file: the server's own
     // "Voice Sampled" milestone says whether any is on file. Without it the
     // fingerprint is neutral filler and is not drawn.
     HAS=ms.some(m=>m.label==='Voice Sampled'&&m.state==='reached');
@@ -480,14 +480,31 @@
 
     setHeadline(V.headline);
     const nm=String(V.name||sess.name||'').trim();
-    $('who').innerHTML=(nm?'<b>'+esc(nm)+'</b> · ':'')+(HAS?'portrait drawn from the writing your teacher has approved':'no approved writing on file yet');
+    $('who').innerHTML=(nm?'<b>'+esc(nm)+'</b> · ':'')+(HAS?'portrait drawn from the writing on file in your profile':'no writing on file in your profile yet');
     $('p-n').textContent=HAS?String(DIMS.length):'–';
     $('p-l').textContent=HAS?'parts of your voice':'nothing drawn yet';
-    $('p-cap').textContent=HAS?'each thread is one part of your voice · its length is where you sit on it':'your portrait is drawn from the writing your teacher approves';
+    $('p-cap').textContent=HAS?'each thread is one part of your voice · its length is where you sit on it':'your portrait is drawn from the writing on file in your profile';
 
     renderMilestones(ms);
     renderNotes(notes);
     renderTabs();renderGrid();
+    startPortrait();
+  }
+
+  // The view could not be read: say so, and claim nothing about this student
+  // (not "no note yet", not "nothing approved yet").
+  function renderFailed(){
+    status('Your voice page could not be loaded just now. Try reloading.');
+    HAS=false;DIMS=[];drawn=0;
+    $('who').textContent='';
+    $('p-n').textContent='–';$('p-l').textContent='not loaded';$('p-cap').textContent='';
+    $('grow-t').textContent='Your portrait';
+    $('rich-pct').textContent='';
+    $('rich-fill').style.width='0%';
+    Live.empty($('dots'),'Not available just now.');
+    Live.empty($('notes'),'Not available just now.');
+    tabs.innerHTML='';
+    Live.empty(grid,'Not available just now.');
     startPortrait();
   }
 
@@ -505,9 +522,7 @@
         return;
       }
       if(!res.ok||!res.data||typeof res.data!=='object'||Array.isArray(res.data)){
-        status('Your voice could not be loaded just now. Try reloading the page.');
-        renderMilestones([]);renderNotes([]);renderTabs();renderGrid();
-        startPortrait();
+        renderFailed();
         return;
       }
       render(sess,res.data);

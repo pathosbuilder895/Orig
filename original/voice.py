@@ -194,7 +194,7 @@ def project_voice_notes(corrections: list[dict[str, Any]]) -> list[dict[str, Any
         out.append(
             {
                 "note": note,
-                "reviewer": (c.get("reviewer") or "Your tutor").strip() or "Your tutor",
+                "reviewer": (c.get("reviewer") or "Your teacher").strip() or "Your teacher",
                 "date": _short_period(c.get("created_at")),
             }
         )
@@ -217,8 +217,8 @@ def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[s
             {
                 "invitation_prose": (
                     "A passage in your recent work reads a little differently from your "
-                    "established voice. This happens to every writer — it is worth a brief "
-                    "conversation with your tutor, not a cause for worry."
+                    "established voice. This happens to every writer, and it is worth a brief "
+                    "conversation with your teacher, not a cause for worry."
                 ),
                 "locator": locator,
             }
@@ -229,7 +229,6 @@ def project_review_opportunities(manifests: list[dict[str, Any]]) -> list[dict[s
 def project_milestones(
     sample_count: int,
     authenticated_count: int,
-    formation_completed: bool,
 ) -> list[dict[str, Any]]:
     """Sample counts → a positive credential as named milestones.
 
@@ -238,7 +237,9 @@ def project_milestones(
     """
     reached_established = sample_count >= 3
     reached_sampled = sample_count >= 1
-    reached_affirmed = authenticated_count >= 1 or formation_completed
+    # Reached by one route only: a piece that counts toward the baseline is on
+    # file. Finishing a pathway does not affirm a voice, so it is not a second route.
+    reached_affirmed = authenticated_count >= 1
 
     def state(reached: bool) -> str:
         return "reached" if reached else "upcoming"
@@ -257,7 +258,7 @@ def project_milestones(
         {
             "label": "Voice Affirmed",
             "state": state(reached_affirmed),
-            "blurb": "A piece your teacher approved is on file.",
+            "blurb": "At least one piece on file counts as reference writing.",
         },
     ]
 
@@ -294,7 +295,7 @@ def project_formation(pathway: dict[str, Any] | None) -> dict[str, Any] | None:
         "supportive_copy": (
             "Pathway complete. Your record reflects the work you put in."
             if completed
-            else "A structured, developmental path — three short sessions, each one to "
+            else "A structured, developmental path: three short sessions, each one to "
             "strengthen your writing, not to assess it."
         ),
     }
@@ -313,7 +314,7 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     if not arc:
         return {
             "headline": f"{lead} is finding its shape.",
-            "subhead": "Your voice profile builds from the writing your teacher approves.",
+            "subhead": "Your voice profile builds as your teacher approves more of your writing.",
         }
     latest = arc[-1]["fidelity"]
     grew_by = (arc[-1]["fidelity"] - arc[0]["fidelity"]) if len(arc) >= 2 else 0
@@ -325,7 +326,7 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
         headline = f"{lead} is settling into itself."
     sub = f"Voice fidelity {latest} on your latest piece"
     if grew_by > 0:
-        sub += f" — up {grew_by} since the start of term"
+        sub += f", up {grew_by} since the start of term"
     return {"headline": headline, "subhead": sub + "."}
 
 
@@ -347,7 +348,6 @@ def project_voice_view(
     """
     arc = project_arc(manifests)
     formation = project_formation(pathway)
-    formation_completed = bool(formation and formation["status"] == "completed")
     head = project_headline(name, arc)
     return {
         "name": name,
@@ -357,20 +357,22 @@ def project_voice_view(
         "arc": arc,
         "voice_notes": project_voice_notes(corrections),
         "review_opportunities": project_review_opportunities(manifests),
-        "milestones": project_milestones(sample_count, authenticated_count, formation_completed),
+        "milestones": project_milestones(sample_count, authenticated_count),
         "formation": formation,
     }
 
 
 # ── POST /me/work : redacted scoring result ──────────────────────────────────
 
-# /me/work compares a piece with the student's approved writing and keeps
-# nothing of it in their profile. The one sentence about that, for the result
-# that has to say so (the page that shows results carries it for every piece).
-NOT_ADDED_LINE = (
-    "Not added to your writing profile. Your teacher may choose to add this to your "
+# /me/work compares a piece with the student's baseline and keeps nothing of the
+# piece itself: it is never stored, so a teacher cannot add it either. The one
+# sentence about that, for the result that has to say so (the page that shows
+# results carries the second half for every piece).
+JOINS_PROFILE_LINE = (
+    "Only writing your teacher approves, such as sealed Bluebook work, joins your "
     "writing profile."
 )
+NOT_ADDED_LINE = "Not added to your writing profile. " + JOINS_PROFILE_LINE
 
 
 def project_no_baseline_result() -> dict[str, Any]:
@@ -418,13 +420,13 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         summary = (
             "Your established voice comes through clearly here: in your sentence "
             "rhythm, your vocabulary, the way you build an argument. This piece sits "
-            "comfortably alongside the writing your teacher has approved."
+            "comfortably alongside the writing on file in your profile."
         )
     elif action == "monitor":
         headline = "Mostly your voice, with a few new notes."
         summary = (
             "Most of this reads like your established writing. A few passages stretch "
-            "in new directions — often a sign of growth, sometimes just a different "
+            "in new directions, often a sign of growth and sometimes just a different "
             "day at the desk."
         )
     else:

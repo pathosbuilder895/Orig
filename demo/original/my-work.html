@@ -136,7 +136,7 @@
     <div>
       <div class="eyebrow">My Work</div>
       <h1>Compare a piece with your own voice.</h1>
-      <div class="s">Paste something you have written. Original compares it with the writing your teacher has approved as yours and tells you plainly what it sees. It never grades or corrects your prose.</div>
+      <div class="s">Paste something you have written. Original compares it with the writing on file in your profile and tells you plainly what it sees. It never grades or corrects your prose.</div>
       <div data-student-notice></div>
     </div>
   </div>
@@ -156,12 +156,12 @@
         <div class="hint" id="hint" role="status"></div>
       </div>
       <div class="card det" id="result" aria-live="polite">
-        <div class="empty">Paste a piece, then choose Compare. What Original sees appears here: how the piece sits beside your approved writing, and the parts of your voice that held steady.</div>
+        <div class="empty">Paste a piece, then choose Compare. What Original sees appears here: how the piece sits beside the writing in your profile, and the parts of your voice that held steady.</div>
       </div>
       <div class="card">
         <div class="ch"><b>This piece at a glance</b></div>
         <div id="glance"></div>
-        <div class="sum-note" id="glance-note">Your teacher may choose to add this to your writing profile.</div>
+        <div class="sum-note" id="glance-note">Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.</div>
       </div>
     </div>
   </div>
@@ -178,7 +178,7 @@
   const content=$('content'), gateEl=$('gate');
   // What the page says about the piece after a comparison (the same sentence
   // the server uses when it has nothing to compare with).
-  const NOT_ADDED='Your teacher may choose to add this to your writing profile.';
+  const JOINS='Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.';
   const SHORT_WORDS=100;     // below this the page says a short piece tells Original little
 
   // ── account menu ──
@@ -236,7 +236,7 @@
       (steady.length?'<div class="dfam"><i></i>Held steady</div><ul>'+steady.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>':'');
     // The server's "nothing to compare with" result already says the piece was
     // not added; say it once.
-    $('glance-note').hidden=summary.indexOf(NOT_ADDED)>=0;
+    $('glance-note').hidden=summary.indexOf(JOINS)>=0;
   }
   function compare(){
     if(busy||words()===0) return;

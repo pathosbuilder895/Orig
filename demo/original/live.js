@@ -189,15 +189,16 @@
   // opts.audience 'student' is for the student pages: a student session is
   // allowed (its products are not known here, so a workspace without Original
   // answers 403 to the page's first /me/ call, which the page words itself), a
-  // teacher or other staff member is sent to the teacher pages, and anyone not
-  // signed in as a student, the open demo included (it has no student account),
-  // gets the sign-in panel pointing at Bluebook's sign-in.
+  // teacher or other staff member is sent to the teacher pages, and anyone else
+  // gets the sign-in panel pointing at Bluebook's sign-in: nobody signed in, the
+  // open demo (it has no student account), and a launch-link student who holds
+  // a student id but no session token (the /me/ routes cannot know who they are).
   function gate(el, opts) {
     var student = !!(opts && opts.audience === 'student');
     return session().then(function (s) {
       if (student) {
-        if (s.role === 'student') return s;
-        if (s.mode === 'signed-in') {
+        if (s.role === 'student' && read('original_session_token')) return s;
+        if (s.mode === 'signed-in' && s.role !== 'student') {
           window.location.replace('index.html');
           return null;
         }

@@ -1565,14 +1565,37 @@ def test_voice_page_reads_the_four_things_the_brief_names():
         assert field in code, field
 
 
-def test_my_work_page_says_a_teacher_may_add_the_piece_and_reads_only_the_redacted_result():
+def test_my_work_page_says_what_joins_a_profile_and_reads_only_the_redacted_result():
     page = (SUITE / "my-work.html").read_text(encoding="utf-8")
-    assert "Your teacher may choose to add this to your writing profile." in page
+    # A piece compared in My Work is never stored, so a teacher cannot add it:
+    # the page says what does join a writing profile, and never offers to add it.
+    assert "Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile." in page
+    assert "may choose to add" not in page
     code = _inline_scripts(SUITE / "my-work.html")
     for field in ("r.headline", "r.summary", "r.steady"):
         assert field in code, field
     # The page makes no highlight of phrases: nothing in the response says where.
     assert "<mark" not in page
+
+
+def test_voice_page_is_accurate_about_what_is_kept_and_where_the_portrait_comes_from():
+    page = (SUITE / "voice.html").read_text(encoding="utf-8")
+    # My Work leaves audit, fidelity and manifest rows that staff can read.
+    assert (
+        "When you use My Work, the result of the comparison is kept and your teacher can see it. "
+        "The piece itself is not kept."
+    ) in page
+    # Writing a student uploaded themselves still counts toward a profile, so the
+    # page may not claim the portrait is drawn only from approved writing.
+    assert "portrait drawn from the writing on file in your profile" in page
+    for claim in (
+        "portrait drawn from the writing your teacher",
+        "drawn from the writing your teacher approves",
+        "once your teacher has approved",
+        "only when your teacher approves",
+        "A record that a comparison was made",
+    ):
+        assert claim not in page, claim
 
 
 def test_voice_page_never_calls_its_picture_an_engraving():
@@ -1626,8 +1649,7 @@ STAFF_ME = [200, {"role": "professor", "products": ["original", "bluebook"], "te
     "local",
     [
         {"original_session_token": "a-student-session"},
-        # A Bluebook launch link stores the student id (and a session token).
-        {"bluebook_student_id": "northfield:ab12cd34"},
+        # A Bluebook launch link stores the student id and a session token.
         {"original_session_token": "s", "bluebook_student_id": "northfield:ab12cd34"},
     ],
 )
@@ -1635,6 +1657,16 @@ def test_student_gate_lets_a_student_session_in_without_asking_the_server_who_th
     out = _student(local=local, **STUDENT_GATE)
     assert out["session"] == {"role": "student", "mode": "signed-in"}
     assert out["replaced"] == [] and out["html"] == ""
+    assert out["calls"] == []
+
+
+@needs_node
+def test_student_gate_asks_a_student_id_with_no_session_token_to_sign_in():
+    # ?sid= in a Bluebook URL stores only the id. The /me/ routes cannot tell who
+    # that is, so the page must not run its calls and report an expired sign-in.
+    out = _student(local={"bluebook_student_id": "northfield:ab12cd34"}, **STUDENT_GATE)
+    assert out["session"] is None and out["replaced"] == []
+    assert "Sign in to continue" in out["html"] and 'href="/bluebook/"' in out["html"]
     assert out["calls"] == []
 
 
@@ -1779,7 +1811,7 @@ def _voice_view(**extra) -> list:
         "milestones": [
             {"label": "Voice Sampled", "state": "reached", "blurb": "Some of your writing is on file."},
             {"label": "Voice Established", "state": "reached", "blurb": "Enough is on file."},
-            {"label": "Voice Affirmed", "state": "upcoming", "blurb": "A piece your teacher approved is on file."},
+            {"label": "Voice Affirmed", "state": "upcoming", "blurb": "At least one piece on file counts as reference writing."},
         ],
         "formation": {"active": True, "status": "open", "step_label": "Development Session"},
     }
@@ -1798,7 +1830,7 @@ def test_voice_page_draws_the_headline_the_fingerprint_the_milestones_and_the_no
     v = out["view"]
     assert out["calls"] == ["/me/voice"]
     assert v["headline"]["html"] == "Sam, <em>your voice is settling into itself.</em>"
-    assert "portrait drawn from the writing your teacher has approved" in v["who"]["html"]
+    assert "portrait drawn from the writing on file in your profile" in v["who"]["html"]
     assert v["p-n"]["text"] == "7" and v["p-l"]["text"] == "parts of your voice"
     # The seven parts, each with what it is about and a marker, and no number.
     for d in DIMENSIONS:
@@ -1845,10 +1877,10 @@ def test_voice_page_draws_no_portrait_from_a_neutral_fingerprint():
     )
     v = out["view"]
     assert v["headline"]["html"] == "Your voice is finding its shape."
-    assert "no approved writing on file yet" in v["who"]["html"]
+    assert "no writing on file in your profile yet" in v["who"]["html"]
     assert v["p-n"]["text"] == "\u2013" and v["p-l"]["text"] == "nothing drawn yet"
     assert 'class="hab"' not in v["mk-grid"]["html"]
-    assert "once your teacher has approved some of your writing" in v["mk-grid"]["html"]
+    assert "once there is writing on file in your profile" in v["mk-grid"]["html"]
     assert v["fam-tabs"]["html"] == ""
     assert "has not left a note" in v["notes"]["html"]
     assert v["rich-pct"]["text"] == "0 of 1 reached"
@@ -1889,9 +1921,26 @@ def test_voice_page_says_why_when_the_server_refuses(reply, said):
 @pytest.mark.parametrize("reply", [[500, {}], [200, None], [200, ["not", "a", "view"]]])
 def test_voice_page_says_so_when_the_view_cannot_be_read(reply):
     out = _student_page("voice.html", local=STUDENT_SESSION, meVoice=reply)
-    assert "could not be loaded just now" in out["view"]["status"]["text"]
-    assert out["view"]["status"]["hidden"] is False
-    assert out["view"]["content"]["hidden"] is False
+    v = out["view"]
+    assert v["status"]["text"] == "Your voice page could not be loaded just now. Try reloading."
+    assert v["status"]["hidden"] is False and v["content"]["hidden"] is False
+    # Nothing is claimed about this student: not "no note yet", not "nothing
+    # approved yet", not a portrait state.
+    assert v["notes"]["html"].count("Not available just now.") == 1
+    assert v["mk-grid"]["html"].count("Not available just now.") == 1
+    assert v["dots"]["html"].count("Not available just now.") == 1
+    shown = _everything({k: v[k] for k in ("who", "p-n", "p-l", "p-cap", "grow-t", "dots", "notes", "mk-grid")})
+    for claim in ("has not left a note", "approved", "nothing drawn", "still filling in", "no writing on file"):
+        assert claim not in shown, claim
+    assert v["fam-tabs"]["html"] == "" and v["who"]["html"] == ""
+
+
+@needs_node
+def test_voice_page_with_a_student_id_and_no_session_token_asks_for_sign_in_and_calls_nothing():
+    out = _student_page("voice.html", local={"bluebook_student_id": "northfield:ab12cd34"}, meVoice=_voice_view())
+    assert "Sign in to continue" in out["view"]["gate"]["html"]
+    assert "Your sign-in has ended" not in out["view"]["gate"]["html"]
+    assert out["calls"] == []
 
 
 PIECE = "Faithful work in an ordinary calling honors the same God who ordained the extraordinary. " * 4
@@ -1933,8 +1982,7 @@ def test_my_work_says_the_piece_was_not_added_once_when_the_server_already_has()
             "headline": "Nothing to compare this with yet.",
             "summary": (
                 "Original has no approved writing from you to compare this piece with yet, so it "
-                "cannot say anything about it. Not added to your writing profile. Your teacher may "
-                "choose to add this to your writing profile."
+                "cannot say anything about it. Not added to your writing profile. Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile."
             ),
             "steady": [],
             "review_opportunity": False,
