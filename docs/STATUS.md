@@ -73,13 +73,15 @@ From `docs/release/VERIFICATION_AND_BLOCKERS.md` "Still open":
 
 ### Technical Open Items
 
-From `docs/testing/10-gap-register.md`:
-- **T-10**: No Alembic migration tests
-- **T-11**: Who provisions pilot Postgres schema
-- **T-13**: G7 (cross-topic false-positive gate) never returned verdict
-- **T-14**: Weekly calibration battery can't finish (deferred)
-- **T-16, T-17**: (deferred or informational)
-- **T-18**: Single-worker assumption not enforced in deployment config
+From `docs/testing/10-gap-register.md` (rows re-checked 2026-10-11):
+- **T-10** (red): Alembic tests now exist (`tests/test_alembic.py`) and found one real model/migration drift: the migration makes `bluebook_submissions.submission_uuid` unique with a partial unique index, the model with a UNIQUE constraint. Same enforcement today; the fix is a model change.
+- **T-13**: G7 (cross-topic false-positive gate) has never returned a verdict.
+- **T-14** (partial): the weekly calibration battery now finishes every leg, but `continue-on-error` still hides failing gates.
+- **T-17** (partial): the per-score `all_states()` scan is tenant-scoped and runs once per request; no scan-count or scaling test.
+- **T-18** (partial): one worker on one instance is now asserted against `render.yaml`; no cross-instance cache test.
+- **T-23** (red): `GUARD_DESTRUCTIVE=1` outside a real deploy still boots; a boot-matrix cell tracks it.
+- **T-24** (partial): calibration-lab Apply reaches scoring; no test drives the Apply route or a browser.
+- Verified closed: T-11 (schema provisioned by `alembic upgrade head` before each deploy), T-12 (committed G5/G6 report: G5 pass, G6 uninformative), T-16, T-20, T-74.
 
 ### Known Conflicts
 
@@ -156,3 +158,4 @@ text would get both copies kept, with no conflict to flag it.
 *2026-10-08 | Claude Code (Claude Opus 5.5) | claude/original-bluebook-status-80e1e1 | On Andrew's instruction: closed #160 and #225 (no-keystroke rule; branches kept, #225's LTI key rotation 62f2152e noted for later), squash-merged #234 (7f3f4962), and corrected NORTH_STAR (v0.3), STATUS, README and AGENTS.md from "nothing deployed" to the live state checked via `/health`. Held deletion of `codex/bluebook-pilot-c962a917`: Render probably deploys from it (unconfirmed, CLI not logged in). Docs only; no deploys, flag changes or purchases.*
 
 *2026-10-09 | Claude Code (Claude Opus 5.5) | claude/bluebook-disk-write-audit-cffe7e (#238) | Read-only audit of every Bluebook route (bluebook.py, bluebook_accounts.py, bluebook_baselines.py, proctor.py) and their callees for student text stored outside Postgres in pilot mode: no temp files, upload dirs, file log handlers or SQLite writes on those paths, and drafts never leave the student's browser. Two log leaks found and fixed: (1) SQLAlchemy put bound parameters (essay text, answers, baseline samples) into DB exception messages, which PostgresRepository logs, so a failed write copied student text into stdout logs; the live engine now sets hide_parameters=True (original/db/postgres_session.py; tests/test_db_errors_hide_student_text.py, red before and green after on SQLite and Postgres 16). (2) uvicorn's access log printed launch, invite, reset and phone-park tokens from query strings; run.py now passes access_log=False, since RequestLoggingMiddleware already logs every request by path (tests/test_access_log_no_tokens.py). Full CI command with local Postgres after both fixes: 4335 passed, 1 failed, 25 skipped, 4 deselected; the failure was the timing test tests/perf/test_event_loop_not_blocked.py[turnitin-csv] while another session's full suite ran in the same worktree, and that file passed 5/5 on three quiet reruns; `-m postgres`: 303 passed, 0 skipped. Reported, not fixed: Original-only upload routes spool files over 1 MB to a local temp file (Starlette). No flags, render.yaml or backup scripts touched.*
+- *2026-10-11 | Claude Code (Claude Opus 5.5) | claude/housekeeping-gap-register | Re-checked stale gap-register rows by re-running their tests (local Postgres 16) and updated them and Technical Open Items: T-11, T-12, T-16, T-20, T-74 green; T-23 red (boot-matrix cell); T-14, T-17, T-24 partial. Added `tests/test_alembic.py` (T-10: single head, compare_metadata, downgrade/upgrade round trip; 3 passed against Postgres). It found real drift on `bluebook_submissions.submission_uuid` (partial unique index in migration 7c4d1e88a3b5, UNIQUE constraint in the model), pinned in the test and not fixed, so T-10 is red. Added a one-worker/one-instance `render.yaml` assertion (T-18 partial) and an alembic lockset check (T-11). No product code, migrations, flags or render.yaml changed.*
