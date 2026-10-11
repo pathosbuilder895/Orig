@@ -101,24 +101,12 @@ def _schema(engine) -> dict[str, dict[str, str]]:
     }
 
 
-# Real drift, found by the test below when it landed (2026-10-11), recorded
-# rather than accepted. Migration 7c4d1e88a3b5 makes ``submission_uuid``
-# unique with a PARTIAL unique index, ``idx_bluebook_subs_uuid ... WHERE
-# submission_uuid IS NOT NULL`` (the same index original/store.py builds on
-# SQLite). The model declares ``unique=True`` on the column instead
-# (original/db/models/live.py, BluebookSubmission), so ``create_all``, which
-# builds the schema for every other Postgres test, makes a UNIQUE constraint
-# where the pilot has the index. Both reject a second non-null uuid and allow
-# any number of NULLs, and the seal-replay path in original/routers/bluebook.py
-# catches the IntegrityError either one raises, so behaviour matches today.
-# But the tests do not run on the pilot's schema here, and the next
-# ``alembic revision --autogenerate`` would propose swapping the two. The fix
-# is a model change (declare the partial index, drop ``unique=True``); then
-# this set becomes empty.
-KNOWN_DRIFT_T10 = {
-    ("remove_index", "bluebook_submissions", "idx_bluebook_subs_uuid"),
-    ("add_constraint", "bluebook_submissions", ("submission_uuid",)),
-}
+# Drift the test is allowed to find. Empty: when it landed (2026-10-11) the
+# test found one real case (bluebook_submissions.submission_uuid was a UNIQUE
+# constraint in the model but a partial unique index in migration
+# 7c4d1e88a3b5), fixed in the model the same day. Add an entry only with a
+# comment saying why the difference is deliberate.
+KNOWN_DRIFT_T10: set = set()
 
 
 def _describe(entry) -> tuple | str:
@@ -135,8 +123,8 @@ def _describe(entry) -> tuple | str:
 @pytest.mark.postgres
 def test_upgrade_head_builds_exactly_the_live_metadata(scratch_db):
     """T-10: what ``alembic upgrade head`` builds is what ``LiveBase.metadata``
-    declares, apart from the one recorded drift above. Fails on any new drift,
-    and also once the recorded drift is fixed, so the set gets emptied."""
+    declares, apart from any deliberate difference recorded in
+    KNOWN_DRIFT_T10 (none today)."""
     engine, cfg = scratch_db
     command.upgrade(cfg, "head")
     with engine.connect() as conn:
