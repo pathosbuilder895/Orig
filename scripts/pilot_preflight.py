@@ -5,6 +5,10 @@ Run this before pointing a seminary at the deployment. Every check prints a
 [PASS]/[WARN]/[FAIL] row; the script exits 1 iff any check FAILs. WARNs are
 judgment calls documented in docs/PILOT_RUNBOOK.md.
 
+SQLite deployments only. With REPO_BACKEND=postgres (the current Bluebook
+pilot) it runs no checks and exits 2: use scripts/pilot_smoke_test.py and
+docs/BLUEBOOK_LAUNCH_CHECKLIST.md there instead.
+
 Checks:
   1. Environment — ORIGINAL_ENV, SECRET_KEY, GUARD_DESTRUCTIVE,
      MAINTENANCE_TOKEN, ALLOWED_ORIGINS (non-empty, no '*', https-only).
@@ -51,6 +55,12 @@ EXPECTED_TABLES = {
 }
 
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
+
+POSTGRES_NOT_SUPPORTED = (
+    "Preflight: NOT RUN. REPO_BACKEND=postgres, and this checklist is SQLite-only "
+    "(database path, WAL mode, profiles-*.db backups). For the Postgres pilot use "
+    "scripts/pilot_smoke_test.py and docs/BLUEBOOK_LAUNCH_CHECKLIST.md."
+)
 
 
 class Checklist:
@@ -236,6 +246,10 @@ def main(argv=None) -> int:
     ap.add_argument("--max-backup-age-hours", type=float, default=26.0)
     ap.add_argument("--skip-detector", action="store_true")
     args = ap.parse_args(argv)
+
+    if os.environ.get("REPO_BACKEND") == "postgres":  # the same test original/repository.py makes
+        print(POSTGRES_NOT_SUPPORTED)
+        return 2
 
     cl = Checklist()
     check_env(cl, args.env)
