@@ -473,13 +473,15 @@
     else if(c&&c.n>0) badge=['done','All reviewed'];
     else badge=['quiet',STATE_WORD[st]];
     const sub=[];
+    // None in a baseline says nothing, so the row is left blank rather than reading "0 in a baseline".
+    const nb=c?(inBaselines.get(e.id)||0):0;
     if(c){
       sub.push(c.n+' sealed');
       if(st==='open'&&c.pending>0) sub.push(c.pending+' to review');
-      if(inBaselines.has(e.id)) sub.push(inBaselines.get(e.id)+' in a baseline');
+      if(nb>0) sub.push(nb+' in a baseline');
     }
     // The count is a match by text against each student's baseline samples, so the title says so.
-    const title=inBaselines.has(e.id)?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook."':'';
+    const title=nb>0?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook."':'';
     return '<span class="s-badge '+badge[0]+'"><span class="d"></span>'+esc(badge[1])+'</span>'+
       (sub.length?'<div class="s-sub"'+title+'>'+esc(sub.join(' · '))+'</div>':'');
   }
