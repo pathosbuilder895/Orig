@@ -11,6 +11,7 @@ import json
 import re
 import shutil
 import subprocess
+from html.parser import HTMLParser
 
 from tests.test_original_suite_static import (  # noqa: F401
     BASELINE_HARNESS,
@@ -273,3 +274,89 @@ def test_the_batch_upload_needs_no_id_because_the_server_already_skips_a_repeate
     # POST /students/{id}/baseline/upload-batch skips a duplicate on its own ("skipped N duplicates").
     page = (SUITE / "baseline.html").read_text(encoding="utf-8")
     assert "skipped_duplicates" in page and "body.submission_uuid=await pasteKey(ID,text);" in page
+
+
+# ── The classic page (demo/professor.html) is safe for a real teacher ─────────
+
+CLASSIC = DEMO / "professor.html"
+
+
+def _classic() -> str:
+    return CLASSIC.read_text(encoding="utf-8")
+
+
+class _DemoOnly(HTMLParser):
+    """Every start tag that carries data-demo-only: (tag, href or onclick, has the hidden attribute)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.found: list[tuple[str, str, bool]] = []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if "data-demo-only" in a:
+            what = a.get("href") or (a.get("onclick") or "").split("(")[0] or ""
+            self.found.append((tag, what, "hidden" in a))
+
+
+def test_the_classic_page_hides_its_demo_controls_until_health_says_demo():
+    page = _classic()
+    parser = _DemoOnly()
+    parser.feed(page)
+    marked = [(tag, what) for tag, what, _ in parser.found]
+    # Hidden in the markup, so they are hidden before /health answers and when it fails.
+    assert parser.found and all(hidden for _, _, hidden in parser.found)
+    # Reset Demo; the Admin link (the topbar's and the sidebar's); Operator; the Research group:
+    # its label, Institutions and Validation (both "#"), Lab, Context Audit and Playground.
+    assert marked.count(("button", "resetDemoState")) == 1
+    assert marked.count(("a", "admin.html")) == 2
+    assert marked.count(("a", "#")) == 2
+    assert marked.count(("div", "")) == 1
+    for href in ("operator.html", "lab.html", "admin-context.html", "playground.html"):
+        assert marked.count(("a", href)) == 1, href
+    assert len(marked) == 1 + 2 + 2 + 1 + 4
+    # The Settings panel (built by script) marks its own Reset and system-link cards the same way.
+    assert page.count('<div class="card" data-demo-only hidden') == 2
+    assert "Demo data</div>" in page and "System surfaces</div>" in page
+    # A class's display cannot override the hidden attribute, and the cards are revealed with the rest.
+    assert "[data-demo-only][hidden] { display: none !important; }" in page
+    assert "revealDemoOnly(sec);" in page and "loadEnvironmentChrome();" in page
+
+
+@needs_node
+def test_the_classic_page_shows_demo_controls_only_for_a_health_reply_that_says_demo():
+    script = _inline_scripts(CLASSIC)
+    src = "\n".join([_extract(script, "isDemoEnvironment")])
+    cases = [
+        {"environment": "demo"}, {"environment": "pilot"}, {"environment": "staging"}, {"environment": "Demo"},
+        {"environment": None}, {}, None, "demo", ["demo"], 0,
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", "const fs=require('fs');const sc=JSON.parse(fs.readFileSync(0,'utf8'));"
+         "const f=new Function(sc.src+'\\nreturn isDemoEnvironment;')();process.stdout.write(JSON.stringify(sc.cases.map(f)));"],
+        input=json.dumps({"src": src, "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [True, False, False, False, False, False, False, False, False, False]
+    # Health is asked once, and a failure falls to "not the demo".
+    assert ".catch(() => null)" in script[script.index("function loadEnvironmentChrome") :][:300]
+
+
+def test_the_classic_page_names_no_stand_in_person_and_shows_the_signed_in_name():
+    page = _classic()
+    assert "Adeyemi" not in page
+    assert "localStorage.getItem('original_name')" in page
+    assert 'id="hdrProfName"' in page and 'id="sidebarName"' in page
+    assert "greetEl.textContent = who;" in page  # no name, no greeting name
+
+
+def test_the_classic_page_has_a_visible_way_back_to_original_and_signs_out_to_the_sign_in_page():
+    page = _classic()
+    assert '<a href="/original/" id="backToOriginal"' in page
+    assert "← Back to Original</a>" in page
+    # The way back is not one of the demo-only controls.
+    line = next(l for l in page.splitlines() if 'id="backToOriginal"' in l)
+    assert "data-demo-only" not in line
+    assert "location.replace('/index.html');" in page
+    assert "location.replace('professor.html')" not in page
