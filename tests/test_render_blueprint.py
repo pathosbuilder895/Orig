@@ -78,6 +78,13 @@ def test_classroom_release_does_not_enable_research_scoring():
         assert env[key]["value"] == "0", key
 
 
+def test_pilot_pins_the_null_model_off():
+    # run.py --demo setdefaults NULL_MODEL=impostor; only an explicit value
+    # here keeps the impostor pool (and LLR_ACTION_MODE=gate's action change)
+    # off the pilot.
+    assert _env("original-pilot")["NULL_MODEL"]["value"] == "none"
+
+
 @pytest.mark.parametrize("service", sorted(SERVICES))
 def test_no_secret_value_is_committed(service):
     for key, entry in _env(service).items():
