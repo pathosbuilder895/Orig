@@ -16,8 +16,10 @@ from html.parser import HTMLParser
 from tests.test_original_suite_static import (  # noqa: F401
     BASELINE_HARNESS,
     DEMO,
+    PRELUDE,
     ROOT,
     SUITE,
+    _bb_scenario,
     _extract,
     _inline_scripts,
     needs_node,
@@ -360,3 +362,100 @@ def test_the_classic_page_has_a_visible_way_back_to_original_and_signs_out_to_th
     assert "data-demo-only" not in line
     assert "location.replace('/index.html');" in page
     assert "location.replace('professor.html')" not in page
+
+
+# ── The Bluebook Sessions page after review (demo/original/bluebook.html) ─────
+
+
+def _bluebook_page() -> str:
+    return (SUITE / "bluebook.html").read_text(encoding="utf-8")
+
+
+def test_bluebook_page_carries_no_testing_label_because_it_shows_no_original_result():
+    # The label belongs on a view that shows an Original score, action or deviation; this page
+    # shows none (a booklet joins a baseline only when the teacher approves it).
+    assert "data-testing-notice" not in _bluebook_page()
+
+
+def test_bluebook_page_words_the_baseline_count_as_a_match_by_text_never_banked_or_approved():
+    page = _bluebook_page()
+    assert "' in a baseline'" in page and "in baselines" not in page
+    assert "Matched by text against each student\\u2019s baseline samples. Approve or undo in Bluebook." in page
+    for gone in ("banked", "approved"):
+        label = page[page.index("function rightHTML") : page.index("function rowHTML")]
+        assert gone not in label.lower().replace("approve or undo", ""), gone
+
+
+# A page script run under node with the sessions list modelled well enough to patch one row:
+# the rows come back out of what was written, and a row's right-hand side can be rewritten.
+PATCH_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sess = el('sessions');
+let writes = 0, html = '';
+Object.defineProperty(sess, 'innerHTML', { get() { return html; }, set(v) { writes++; html = v; } });
+const tail = '<div class="s-right">';
+sess.querySelectorAll = (sel) => {
+  if (sel !== 'a.sess') return [];
+  return Array.from(html.matchAll(/<a class="sess"[^>]*data-exam="([^"]*)"/g)).map((m) => ({
+    getAttribute: (k) => (k === 'data-exam' ? m[1] : null),
+    querySelector: (q) => (q !== '.s-right' ? null : {
+      set innerHTML(v) {
+        const re = new RegExp('(<a class="sess"[^>]*data-exam="' + m[1] + '"[\\s\\S]*?' + tail + ')([\\s\\S]*?)(</div></a>)');
+        html = html.replace(re, (all, a, b, c) => a + v + c);
+      },
+    }),
+  }));
+};
+// What the HTML says before the script runs: the demo note starts hidden.
+el('demo-note').hidden = true;
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
+(async () => {
+  for (let i = 0; i < 500 && !/class="sess"/.test(html); i++) await sleep(10);
+  const first = writes;
+  await sleep(300);
+  process.stdout.write(JSON.stringify({ html, writesAtRows: first, writesAfter: writes, demoHidden: el('demo-note').hidden, calls }));
+})();
+"""
+
+
+def _patch_run(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + PATCH_TAIL],
+        input=json.dumps({"live": str(SUITE / "live.js"), "page": str(SUITE / "bluebook.html"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_bluebook_page_patches_one_row_when_a_baseline_answer_comes_instead_of_redrawing_the_list():
+    out = _patch_run(**_bb_scenario())
+    # The baseline answer arrived (e-mid has one booklet in a baseline) ...
+    assert "2 sealed · 1 in a baseline" in out["html"]
+    assert "Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook." in out["html"]
+    assert [c for c in out["calls"] if c.endswith("/baseline")]
+    # ... and drew nothing but that row: the list was written once, so a focused row keeps its focus.
+    assert out["writesAfter"] == out["writesAtRows"]
+    # The rows that had no answer show no baseline count and no title.
+    assert out["html"].count("in a baseline") == 1 and out["html"].count("Matched by text") == 1
+
+
+@needs_node
+def test_bluebook_page_says_in_the_open_demo_that_sessions_open_for_a_signed_in_teacher_only():
+    demo = _patch_run(**_bb_scenario(local={}, me=None, health=[200, {"environment": "demo"}], routes={
+        "/bluebook/courses": [200, {"courses": []}],
+    }))
+    assert demo["demoHidden"] is False
+    teacher = _patch_run(**_bb_scenario())
+    assert teacher["demoHidden"] is True
+    page = _bluebook_page()
+    assert '<p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Bluebook.</p>' in page
+    assert "if(sess.mode==='demo') $('demo-note').hidden=false;" in page

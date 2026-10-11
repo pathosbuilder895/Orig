@@ -32,11 +32,23 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "parchmentColor": "#F4EFE6"
 }/*EDITMODE-END*/;
 
+// The screens a visitor sees before they have signed in (or while they are signing in or up).
+const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot'];
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   // Moving to another screen drops a deep-link hash (deep-link.jsx), so the
   // address bar never names an exam the teacher has left.
-  const navigate = (screen) => { clearDeepLink(); setTweak('currentScreen', screen); };
+  // A signed-in teacher who moves on also drops a link still being checked, or it would open
+  // that exam the next time they land on the dashboard. A visitor who is not signed in yet keeps
+  // it: the sign-in flow carries it to the exam. That includes the navigation right after sign-in
+  // or sign-up, which happens with the session already stored, so it is the screen the move starts
+  // from that tells the two apart, not the session alone.
+  const navigate = (next) => {
+    clearDeepLink();
+    if (BB_API.isAuthed() && !PRE_AUTH_SCREENS.includes(screen)) setDeepLink(null);
+    setTweak('currentScreen', next);
+  };
   // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
   // on a signed-in teacher's dashboard: straight away for a teacher who is
   // already signed in, after sign-in for one who is not, and never for a

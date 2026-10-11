@@ -74,6 +74,26 @@ test.describe('Deep links into one exam', () => {
     await expect(staffPage.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
   })
 
+  test('a link still being checked is dropped when the teacher moves on', async ({ staffPage, workerTenant, request }) => {
+    const title = `Deep link pending ${workerTenant.tenant.tenant_id}`
+    const exam = await examFor(request, workerTenant, title)
+    // Hold the exam check so the link is still pending while the teacher uses the navigation.
+    let release
+    const held = new Promise(resolve => { release = resolve })
+    await staffPage.route(`**/bluebook/exams/${exam.id}`, async route => { await held; await route.continue() })
+    await staffPage.goto(`/bluebook/#exam/${exam.id}`)
+    await expect(staffPage.getByText('Opening the examination…')).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: 'Courses' }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Courses' })).toBeVisible({ timeout: 10_000 })
+    // Back on the overview: the dropped link does not come back.
+    await staffPage.getByRole('button', { name: 'Overview' }).click()
+    await expectDashboard(staffPage)
+    release()
+    await staffPage.waitForTimeout(800)
+    await expectDashboard(staffPage)
+    await expect(staffPage.getByRole('heading', { name: title })).toHaveCount(0)
+  })
+
   test('an unknown id falls back to the dashboard with no error', async ({ staffPage }) => {
     await staffPage.goto('/bluebook/#exam/0000000000000000')
     await expectDashboard(staffPage)

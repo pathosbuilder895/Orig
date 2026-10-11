@@ -229,6 +229,7 @@
       <div>
         <div class="card rev">
           <div class="rev-h"><b>Past sessions</b><span id="rev-count">newest first</span></div>
+          <p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Bluebook.</p>
           <div id="sessions"><div class="live-empty">Loading</div></div>
           <button type="button" class="more" id="more" hidden></button>
           <p class="rev-note" id="rev-note" hidden></p>
@@ -236,7 +237,6 @@
         <div class="card why">
           <b>Why Bluebook matters</b>
           <p>Bluebook gives students a quiet, trustworthy place to write. A sealed booklet is supervised writing, kept exactly as the student wrote it. It joins that student's baseline only when you <b>approve</b> it, and you can undo that choice. Original compares later papers with a student's baseline only when Original is on for your workspace, and with only a few samples it may say it can't tell.</p>
-          <div data-testing-notice></div>
         </div>
       </div>
     </div>
@@ -463,7 +463,8 @@
     return c?(c.code||c.name):'';
   }
 
-  function rowHTML(e){
+  // The right-hand side of a row: the badge and the small counts line.
+  function rightHTML(e){
     const st=examState(e);
     const c=sealedState==='ok'?(sealedBy.get(e.id)||{n:0,pending:0}):null;
     let badge;
@@ -475,15 +476,37 @@
     if(c){
       sub.push(c.n+' sealed');
       if(st==='open'&&c.pending>0) sub.push(c.pending+' to review');
-      if(inBaselines.has(e.id)) sub.push(inBaselines.get(e.id)+' in baselines');
+      if(inBaselines.has(e.id)) sub.push(inBaselines.get(e.id)+' in a baseline');
     }
+    // The count is a match by text against each student's baseline samples, so the title says so.
+    const title=inBaselines.has(e.id)?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook."':'';
+    return '<span class="s-badge '+badge[0]+'"><span class="d"></span>'+esc(badge[1])+'</span>'+
+      (sub.length?'<div class="s-sub"'+title+'>'+esc(sub.join(' · '))+'</div>':'');
+  }
+
+  function rowHTML(e){
+    const st=examState(e);
     const meta=[courseOf(e),fmtDate(e.created_at),e.duration!=null?e.duration+' min':''].filter(Boolean).join(' · ');
-    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" title="Opens this session in Bluebook">'+
+    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this session in Bluebook">'+
       '<div class="s-ic'+(st==='closed'?' done':'')+'"></div>'+
       '<div class="s-main"><div class="s-t">'+esc(e.title||'Untitled session')+'</div><div class="s-m">'+esc(meta)+'</div></div>'+
-      '<div class="s-right"><span class="s-badge '+badge[0]+'"><span class="d"></span>'+esc(badge[1])+'</span>'+
-      (sub.length?'<div class="s-sub">'+esc(sub.join(' · '))+'</div>':'')+'</div>'+
+      '<div class="s-right">'+rightHTML(e)+'</div>'+
     '</a>';
+  }
+
+  // A baseline answer changes one row's counts line. Only that row's right-hand side is redrawn,
+  // so a row the teacher has focused keeps its focus; false when the row is not on screen.
+  function patchRow(id){
+    const e=exams.find(x=>x.id===id);
+    const rows=$('sessions').querySelectorAll('a.sess');
+    for(let i=0;e&&i<rows.length;i++){
+      if(rows[i].getAttribute('data-exam')!==id) continue;
+      const right=rows[i].querySelector('.s-right');
+      if(!right) return false;
+      right.innerHTML=rightHTML(e);
+      return true;
+    }
+    return false;
   }
 
   function renderSessions(){
@@ -511,8 +534,10 @@
       ask(()=>Live.api('/bluebook/exams/'+encodeURIComponent(e.id)+'/baseline')).then(res=>{
         const subs=res&&res.ok&&res.data&&Array.isArray(res.data.submissions)?res.data.submissions:null;
         if(!subs) return;
-        inBaselines.set(e.id,subs.filter(s=>s&&s.in_baseline===true).length);
-        renderSessions();
+        const n=subs.filter(s=>s&&s.in_baseline===true).length;
+        if(inBaselines.get(e.id)===n) return;
+        inBaselines.set(e.id,n);
+        if(!patchRow(e.id)) renderSessions();
       });
     });
   }
@@ -570,6 +595,8 @@
   const main=document.querySelector('main');
   Live.gate(main).then(async sess=>{
     if(!sess){ main.classList.add('gated'); return; }
+    // The open demo has no teacher signed in, and Bluebook's pages open its public landing for a visitor.
+    if(sess.mode==='demo') $('demo-note').hidden=false;
     if(sess.products.indexOf('bluebook')<0){ bluebookOff(); return; }
     try { await load(); }
     catch(e){

@@ -3685,7 +3685,7 @@ def test_bluebook_page_lists_past_sessions_newest_first_with_counts_from_the_sea
     assert s["count"] == "3 sessions · newest first"
     # e-new is open with one ungraded booklet; e-mid has two, both graded, one in a baseline.
     assert "Open now" in s["sessions"] and "1 sealed · 1 to review" in s["sessions"]
-    assert "All reviewed" in s["sessions"] and "2 sealed · 1 in baselines" in s["sessions"]
+    assert "All reviewed" in s["sessions"] and "2 sealed · 1 in a baseline" in s["sessions"]
     assert "0 sealed" in s["sessions"] and "Closed" in s["sessions"]
     # Baselines are asked only for a row with a sealed booklet; only live.js reads the list route.
     asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
