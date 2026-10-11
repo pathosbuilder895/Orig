@@ -1,5 +1,6 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Ornament, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, MetaLabel, fontBody, fontMono, rowKeyDown } from './components.jsx';
+import { Btn } from './forms.jsx';
 import { qrEncode, qrPath } from './vendor/qr.js';
 
 // ════════════════════════════════════════════════════════════════
@@ -62,7 +63,7 @@ function Tile({ tile, expanded, onToggle }) {
   const transitions = tile.transitions || [];
 
   return (
-    <div style={{ border: `1px solid ${tone.border}`, background: BB.oxford }}>
+    <div style={{ border: `1px solid ${tone.border}`, background: 'rgba(255,255,255,0.035)', borderRadius: 14, overflow: 'hidden' }}>
       <div
         style={{
           padding: '14px 16px',
@@ -182,8 +183,8 @@ export function ProctorTiles({ examSessionId }) {
     <section aria-label="Parked phones">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <h3 style={{
-          fontFamily: fontDisplay, fontSize: 20, color: BB.cream,
-          fontWeight: 500, margin: 0, letterSpacing: '0.02em',
+          fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, color: BB.cream,
+          fontWeight: 500, margin: 0,
         }}>Parked Phones</h3>
         <MetaLabel>
           {idle ? 'Not started'
@@ -191,11 +192,11 @@ export function ProctorTiles({ examSessionId }) {
               : `${list.length} phone${list.length === 1 ? '' : 's'}`}
         </MetaLabel>
       </div>
-      <GoldRule faint style={{ marginBottom: 16 }} />
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 16 }} />
 
       {(idle || (tiles !== null && list.length === 0)) && (
         <div style={{
-          border: '1px dashed rgba(201,169,97,0.28)',
+          border: '1px dashed rgba(201,169,97,0.28)', borderRadius: 14,
           padding: '26px 20px', textAlign: 'center',
         }}>
           <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: 0 }}>
@@ -315,15 +316,15 @@ export function ProctorScreen() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '44px 48px', background: BB.deep }}>
+    <div>
       <div>
         <h1 style={{
-          fontFamily: fontDisplay, fontSize: 34, color: BB.cream,
-          fontWeight: 400, letterSpacing: '0.01em', margin: '0 0 6px',
+          fontFamily: "'Playfair Display', Georgia, serif", fontSize: 28, color: BB.cream,
+          fontWeight: 500, margin: '0 0 6px',
         }}>Phone Park</h1>
         <MetaLabel>Deterrence and signal — never proof</MetaLabel>
       </div>
-      <GoldRule double style={{ margin: '20px 0 32px' }} />
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '20px 0 28px' }} />
 
       <p style={{
         fontFamily: fontBody, fontSize: 16, color: BB.fade,
@@ -337,7 +338,7 @@ export function ProctorScreen() {
 
       {/* ── Session id + start ── */}
       <div style={{
-        border: '1px solid rgba(201,169,97,0.2)', background: BB.oxford,
+        border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.035)', borderRadius: 18,
         padding: '20px 24px', maxWidth: 620, marginBottom: 28,
       }}>
         <MetaLabel htmlFor="park-session">Examination session</MetaLabel>
@@ -353,17 +354,17 @@ export function ProctorScreen() {
             style={{
               flex: '1 1 240px', minWidth: 0, padding: '11px 13px',
               fontFamily: fontBody, fontSize: 16, color: BB.cream,
-              background: BB.deep, border: '1px solid rgba(201,169,97,0.32)',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
             }}
           />
           {open ? (
-            <BtnGhost onClick={close} disabled={busy} style={{ padding: '11px 26px', fontSize: 16 }}>
+            <Btn onClick={close} disabled={busy}>
               Close Phone Park
-            </BtnGhost>
+            </Btn>
           ) : (
-            <BtnPrimary onClick={start} disabled={busy || !trimmed} style={{ padding: '11px 26px', fontSize: 16 }}>
+            <Btn primary onClick={start} disabled={busy || !trimmed}>
               Start Phone Park
-            </BtnPrimary>
+            </Btn>
           )}
         </div>
         <p style={{ fontFamily: fontBody, fontSize: 13.5, color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
@@ -385,11 +386,11 @@ export function ProctorScreen() {
       {/* ── The code itself ── */}
       {open && (
         <div style={{
-          border: '1px solid rgba(201,169,97,0.28)', background: BB.oxford,
+          border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.035)', borderRadius: 18,
           padding: '28px 24px', maxWidth: 620, marginBottom: 36, textAlign: 'center',
         }}>
           <MetaLabel style={{ display: 'block', marginBottom: 18 }}>Scan to park a phone</MetaLabel>
-          <div style={{ display: 'inline-block', padding: 14, background: '#FFFFFF' }}>
+          <div style={{ display: 'inline-block', padding: 14, background: '#FFFFFF', borderRadius: 10 }}>
             <QrCode value={open.qr_url} px={300} />
           </div>
           <p style={{
@@ -402,9 +403,7 @@ export function ProctorScreen() {
         </div>
       )}
 
-      <Ornament py={0} />
-
-      <div style={{ marginTop: 28 }}>
+      <div style={{ marginTop: 4 }}>
         <ProctorTiles examSessionId={openedFor} />
       </div>
     </div>

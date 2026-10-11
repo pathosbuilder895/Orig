@@ -454,16 +454,21 @@ jobs:
       - name: Bluebook unit tests
         run: cd demo/bluebook && node --test unit/
 
-      - name: Rebuild bundle and check it's byte-identical to the committed one
+      - name: Rebuild bundles and check they're byte-identical to the committed ones
         # Catches the "edited a .jsx but forgot to rebuild" failure mode --
-        # Render has no Node, so the committed bluebook.bundle.js IS what
-        # production serves.
+        # Render has no Node, so the committed bundles ARE what production
+        # serves. Every demo/bluebook/*.bundle.* file is checked: the app
+        # bundle (js, css and their source maps) and the isolated teacher
+        # demo's. `git status` rather than `git diff`, so a bundle the build
+        # newly writes but nobody committed fails too.
         run: |
           cd demo/bluebook && npm run build
-          git diff --exit-code -- bluebook.bundle.js || {
-            echo "::error::bluebook.bundle.js is stale -- run 'cd demo/bluebook && npm run build' and commit the result."
+          stale=$(git status --porcelain -- *.bundle.*)
+          if [ -n "$stale" ]; then
+            echo "$stale"
+            echo "::error::A demo/bluebook bundle is stale -- run 'cd demo/bluebook && npm run build' and commit the results."
             exit 1
-          }
+          fi
 
       - name: Install Python dependencies (pilot superset -- exercises /lti/*)
         run: pip install -r requirements-pilot.txt

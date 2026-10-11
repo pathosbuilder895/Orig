@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · My Work</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --ok:#6bbf8a;--base:#8ba8dd;--warm:#e0a06a;
+    --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e6dfcc;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
+  }
+  html{scroll-behavior:smooth;}
+  body{font-family:var(--body);color:var(--cream);background:var(--navy-0);-webkit-font-smoothing:antialiased;font-size:16px;position:relative;}
+  body::before{content:'';position:fixed;inset:0;z-index:-2;background:url('assets/white-stag.jpg') center 30%/cover no-repeat;filter:saturate(.5) brightness(.5) contrast(1.02);}
+  body::after{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(7,12,28,0.74) 0%,rgba(7,12,28,0.86) 38%,rgba(7,12,28,0.95) 100%);}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.8rem;font-size:.9rem;color:var(--dim);flex-shrink:0;position:relative;}
+  .nav-right span{white-space:nowrap;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.9rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .page{max-width:1240px;margin:0 auto;padding:1.8rem 1.6rem 4rem;}
+  /* sign-in and "Original is off" panels (live.js puts them in #gate) */
+  .gate{display:grid;min-height:min(560px,70vh);}
+  .gate[hidden],#content[hidden]{display:none;}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:2rem;padding-bottom:1.2rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .head h1,.head .s{text-shadow:0 2px 18px rgba(7,12,28,0.85);}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2.1rem;line-height:1.1;margin-top:.4rem;}
+  .head .s{font-size:1rem;color:var(--dim);font-style:italic;margin-top:.4rem;max-width:58ch;text-wrap:pretty;}
+  /* layout */
+  .cols{display:grid;grid-template-columns:1fr 366px;gap:1.5rem;align-items:start;}
+  .doc{background:var(--paper);color:var(--ink);border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,0.45);overflow:hidden;}
+  .doc-h{padding:1.5rem 2.2rem 1.1rem;border-bottom:1px solid var(--rule);background:#f4eddb;}
+  .doc-h input{display:block;width:100%;border:0;border-bottom:1px dashed transparent;outline:0;background:transparent;color:var(--ink);font-family:var(--display);font-weight:500;font-size:1.5rem;padding:0 0 .1rem;}
+  .doc-h input::placeholder{color:rgba(92,86,74,0.55);}
+  .doc-h input:focus-visible{border-bottom-color:var(--gold);}
+  .doc-h .m{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-top:.4rem;}
+  .doc-body{padding:1.8rem 2.2rem 2.4rem;}
+  .doc-body textarea{display:block;width:100%;min-height:420px;resize:vertical;border:0;outline:0;background:transparent;color:var(--ink);font-family:var(--body);font-size:1.1rem;line-height:1.85;}
+  .doc-body textarea::placeholder{color:rgba(92,86,74,0.6);font-style:italic;}
+  .doc-body:focus-within{box-shadow:inset 0 0 0 2px rgba(201,160,40,0.35);}
+  /* inspector */
+  .side{display:flex;flex-direction:column;gap:1rem;position:sticky;top:5.2rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:16px;padding:1.2rem 1.3rem;}
+  .card .ch{display:flex;align-items:baseline;justify-content:space-between;gap:.8rem;margin-bottom:.9rem;}
+  .card .ch b{font-family:var(--display);font-weight:500;font-size:1.1rem;}
+  .card .ch span{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);}
+  .go{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;width:100%;border-radius:999px;padding:.72rem 1.35rem;font-family:var(--body);font-size:1rem;font-weight:600;cursor:pointer;border:1px solid transparent;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;box-shadow:0 8px 22px rgba(201,160,40,0.22);transition:filter .16s,opacity .16s;}
+  .go:hover:not(:disabled){filter:brightness(1.06);}
+  .go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+  .go:focus-visible{outline:2px solid var(--gold-2);outline-offset:3px;}
+  .hint{font-size:.9rem;color:var(--dim);font-style:italic;line-height:1.55;margin-top:.8rem;}
+  .hint.err{color:var(--warm);}
+  /* result */
+  .det{min-height:186px;}
+  .det .empty{font-size:.95rem;color:var(--dim);font-style:italic;line-height:1.6;}
+  .det .dt{font-family:var(--display);font-weight:500;font-size:1.18rem;color:var(--cream);}
+  .det .dd{font-size:.97rem;line-height:1.6;color:rgba(245,239,224,0.84);margin-top:.7rem;text-wrap:pretty;overflow-wrap:anywhere;}
+  .det .dfam{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dc);margin-top:.9rem;}
+  .det .dfam i{width:7px;height:7px;border-radius:50%;background:var(--dc);}
+  .det ul{list-style:none;display:flex;flex-direction:column;gap:.45rem;margin-top:.5rem;}
+  .det li{font-size:.95rem;line-height:1.5;color:rgba(245,239,224,0.84);padding-left:1.1rem;position:relative;}
+  .det li::before{content:'';position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--dc);}
+  /* summary card */
+  .sum-row{display:flex;align-items:baseline;justify-content:space-between;padding:.5rem 0;border-top:1px solid rgba(255,255,255,0.05);font-size:.94rem;}
+  .sum-row:first-of-type{border-top:none;}
+  .sum-row span{color:var(--dim);}
+  .sum-row b{font-family:var(--mono);font-size:.86rem;font-weight:500;color:var(--cream);}
+  .sum-note{font-size:.9rem;color:var(--dim);font-style:italic;line-height:1.55;margin-top:.8rem;}
+  .sum-note b{font-style:normal;color:var(--gold-2);font-weight:500;}
+  .footer-note{margin-top:1.6rem;font-size:.9rem;color:var(--dim-2);font-style:italic;text-align:center;}
+  @media (max-width:960px){
+    .cols{grid-template-columns:1fr;}
+    .side{position:static;}
+    .doc-body{padding:1.4rem 1.3rem 1.8rem;}
+    .doc-body textarea{font-size:1.05rem;min-height:320px;}
+    .doc-h{padding:1.2rem 1.3rem 1rem;}
+    nav.top{flex-wrap:wrap;gap:.6rem;}.pills{order:3;width:100%;margin-left:0;}
+    .head{flex-direction:column;align-items:flex-start;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<nav class="top">
+  <div class="brand"><span class="mk"></span>Original</div>
+  <div class="pills">
+    <a class="pill" href="voice.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
+    <a class="pill on" href="my-work.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
+    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+  </div>
+  <div class="nav-right">
+    <button class="avatar" id="me-btn" type="button" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+    <div class="me-menu" id="me-menu">
+      <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub">Student</span></div>
+      <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+    </div>
+  </div>
+</nav>
+
+<main class="page" id="live-main">
+<div class="gate" id="gate" hidden></div>
+<div id="content">
+  <div class="head">
+    <div>
+      <div class="eyebrow">My Work</div>
+      <h1>Compare a piece with your own voice.</h1>
+      <div class="s">Paste something you have written. Original compares it with the writing on file in your profile and tells you plainly what it sees. It never grades or corrects your prose.</div>
+      <div data-student-notice></div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="doc">
+      <div class="doc-h">
+        <input id="title" type="text" maxlength="200" placeholder="Title (optional)" aria-label="Title of the piece (optional)" autocomplete="off" />
+        <div class="m" id="doc-m">PASTE A PIECE BELOW · 0 WORDS</div>
+      </div>
+      <div class="doc-body"><textarea id="piece" maxlength="200000" placeholder="Paste or type a piece of your writing here." aria-label="The piece of writing to compare"></textarea></div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <div class="ch"><b>Compare</b><span id="count">0 words</span></div>
+        <button class="go" id="go" type="button" disabled>Compare with my voice</button>
+        <div class="hint" id="hint" role="status"></div>
+      </div>
+      <div class="card det" id="result" aria-live="polite">
+        <div class="empty">Paste a piece, then choose Compare. What Original sees appears here: how the piece sits beside the writing in your profile, and the parts of your voice that held steady.</div>
+      </div>
+      <div class="card">
+        <div class="ch"><b>This piece at a glance</b></div>
+        <div id="glance"></div>
+        <div class="sum-note" id="glance-note">Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-note">Original never grades your prose. It only notices what is consistently, recognisably yours.</div>
+</div>
+</main>
+
+<script src="live.js?v=2026-10-10.5"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const content=$('content'), gateEl=$('gate');
+  // What the page says about the piece after a comparison (the same sentence
+  // the server uses when it has nothing to compare with).
+  const JOINS='Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.';
+  const SHORT_WORDS=100;     // below this the page says a short piece tells Original little
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+  }
+
+  function panel(title,text,href,label){
+    content.hidden=true; gateEl.hidden=false;
+    gateEl.innerHTML='<div class="live-panel" role="status"><h2>'+esc(title)+'</h2><p>'+esc(text)+'</p><a href="'+esc(href)+'">'+esc(label)+'</a></div>';
+  }
+
+  // ── the piece, as typed ──
+  const piece=$('piece'), title=$('title'), go=$('go'), hint=$('hint');
+  let busy=false;
+  function words(){
+    const t=piece.value.trim();
+    return t?t.split(/\s+/).length:0;
+  }
+  const plural=(n,one)=>n+' '+(n===1?one:one+'s');
+  function renderGlance(){
+    const n=words();
+    $('count').textContent=plural(n,'word');
+    $('doc-m').textContent=(n?'YOUR PIECE':'PASTE A PIECE BELOW')+' · '+plural(n,'WORD');
+    $('glance').innerHTML=
+      '<div class="sum-row"><span>Words in this piece</span><b>'+n+'</b></div>'+
+      '<div class="sum-row"><span>In your writing profile</span><b>Not added</b></div>';
+    go.disabled=busy||n===0;
+    if(!hint.classList.contains('err')){
+      hint.textContent=(n>0&&n<SHORT_WORDS)?'A short piece tells Original little. A few paragraphs gives a fairer comparison.':'';
+    }
+  }
+  piece.addEventListener('input',()=>{hint.classList.remove('err');renderGlance();});
+  renderGlance();
+
+  // ── the result (POST /me/work → headline, summary, steady[]) ──
+  function showResult(r){
+    const steady=Array.isArray(r.steady)?r.steady.filter(s=>typeof s==='string'&&s):[];
+    const summary=String(r.summary||'');
+    $('result').style.setProperty('--dc','var(--gold-2)');
+    $('result').innerHTML='<div class="dt">'+esc(r.headline)+'</div>'+
+      '<div class="dd">'+esc(summary)+'</div>'+
+      (steady.length?'<div class="dfam"><i></i>Held steady</div><ul>'+steady.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>':'');
+    // The server's "nothing to compare with" result already says the piece was
+    // not added; say it once.
+    $('glance-note').hidden=summary.indexOf(JOINS)>=0;
+  }
+  function compare(){
+    if(busy||words()===0) return;
+    busy=true; go.disabled=true; go.textContent='Comparing…';
+    hint.classList.remove('err'); hint.textContent='';
+    Live.api('/me/work',{method:'POST',body:{text:piece.value,title:title.value.trim()}}).then(res=>{
+      if(res.status===401){
+        panel('Your sign-in has ended','Sign in again to compare a piece.','/bluebook/','Sign in');
+        return;
+      }
+      if(res.status===403){
+        panel('Original is off for your class','Your class uses Bluebook only, so there is nothing to compare a piece with here.','/bluebook/','Open Bluebook');
+        return;
+      }
+      const d=res.data;
+      if(!res.ok||!d||typeof d!=='object'||typeof d.headline!=='string'||typeof d.summary!=='string'){
+        hint.classList.add('err');
+        hint.textContent='Original could not compare this piece just now. Your text is still here: try again in a moment.';
+        return;
+      }
+      showResult(d);
+      const r=$('result');
+      if(r.scrollIntoView&&window.innerWidth<=960) r.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }).then(()=>{
+      busy=false; go.textContent='Compare with my voice'; renderGlance();
+    });
+  }
+  go.addEventListener('click',compare);
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate(gateEl,{audience:'student'}).then(sess=>{
+    if(!sess){ content.hidden=true; gateEl.hidden=false; }
+  });
+})();
+</script>
+</body>
+</html>

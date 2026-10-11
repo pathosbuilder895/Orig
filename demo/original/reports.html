@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Reports</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.08);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.62);--dim-2:rgba(245,239,224,0.42);
+    --ok:#6bbf8a;--watch:#d8b04a;--flag:#e0725a;--slate:#7d8aa8;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:0.4rem 2rem 2rem;min-height:0;position:relative;z-index:1;}
+  .body.gated{display:grid;}
+  nav{position:relative;z-index:2;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.52),rgba(22,36,79,0.52)),url('assets/gonville-caius-facade.jpg') center 46%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.6) brightness(.52) contrast(1.14) hue-rotate(184deg);opacity:.78;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.34) 0%,rgba(8,12,30,0.72) 44%,rgba(7,11,26,0.94) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.1),transparent 72%);}
+  /* report header */
+  .verdict{display:flex;align-items:flex-start;justify-content:space-between;gap:1.5rem;padding:.6rem 0 1.4rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .verdict .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .verdict h1{font-family:var(--display);font-weight:500;font-size:2.15rem;line-height:1.18;color:var(--cream);margin-top:.5rem;max-width:30rem;text-wrap:pretty;}
+  .verdict h1 b{font-weight:600;color:var(--gold-2);font-style:normal;}
+  .verdict .term{text-align:right;flex-shrink:0;}
+  .verdict .term .t{font-family:var(--display);font-size:1.15rem;color:var(--cream);}
+  .verdict .term .d{font-size:.9rem;color:var(--dim);font-style:italic;margin-top:.15rem;}
+  .export-btn{margin-top:.9rem;display:inline-flex;align-items:center;gap:.5rem;font-family:var(--body);font-size:.92rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.55rem 1.1rem;cursor:pointer;font-weight:600;}
+  .export-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;}
+  .export-btn:focus-visible,.ctab:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.6rem;}
+  .kpi{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:16px;padding:1.15rem 1.3rem;position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--gold));}
+  .kpi .l{font-size:.92rem;color:var(--dim);}
+  .kpi .v{font-family:var(--mono);font-weight:700;font-size:2.2rem;color:var(--cream);margin-top:.5rem;line-height:1;}
+  .kpi .v.none{color:var(--dim-2);}
+  .kpi .m{font-size:.85rem;color:var(--dim-2);margin-top:.5rem;font-style:italic;}
+  /* course tabs: one for every course that has students */
+  .course-tabs{display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:1.2rem;}
+  .course-tabs:empty{display:none;}
+  .tab-note{font-size:.92rem;color:var(--dim);font-style:italic;margin:-.5rem 0 1.2rem;text-wrap:pretty;}
+  .ctab{display:inline-flex;align-items:baseline;gap:.5rem;white-space:nowrap;background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.5rem 1.05rem;font-family:var(--body);font-size:.96rem;cursor:pointer;transition:all .16s;}
+  .ctab:hover{color:var(--cream);border-color:var(--line);}
+  .ctab.on{background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.5);color:var(--gold-2);}
+  .ctab .n{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);}
+  .ctab.on .n{color:var(--gold-2);}
+  /* chart card */
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.5rem 1.6rem;margin-bottom:1.5rem;}
+  .card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.3rem;}
+  .card-h .t{font-family:var(--display);font-weight:500;font-size:1.4rem;color:var(--cream);}
+  .card-h .s{font-size:.95rem;color:var(--dim);font-style:italic;margin-top:.2rem;text-wrap:pretty;}
+  .legend{display:flex;flex-wrap:wrap;gap:1.1rem;margin:1.1rem 0 .3rem;}
+  .legend .k{display:flex;align-items:center;gap:.5rem;font-size:.92rem;color:var(--dim);}
+  .legend .k i{width:14px;height:14px;border-radius:4px;display:inline-block;}
+  .chart-note{font-size:.88rem;color:var(--dim-2);font-style:italic;margin-top:.5rem;text-wrap:pretty;}
+  #chart-empty{padding:2.4rem 0 1.2rem;}
+  /* stacked bar chart */
+  .chart{position:relative;margin-top:1.3rem;}
+  .chart-grid{position:absolute;inset:0 0 34px 44px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;}
+  .chart-grid .gl{border-top:1px dashed rgba(245,239,224,0.09);position:relative;}
+  .chart-grid .gl span{position:absolute;left:-42px;top:-.6em;font-family:var(--mono);font-size:.72rem;color:var(--dim-2);width:36px;text-align:right;}
+  .bars{position:relative;display:flex;align-items:flex-end;gap:.5rem;height:280px;padding-left:44px;padding-bottom:34px;}
+  .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative;border-radius:5px;transition:background .13s;}
+  .col:hover,.col:focus-visible{background:rgba(201,160,40,0.06);}
+  .col:focus-visible{outline:2px solid var(--gold-2);outline-offset:1px;}
+  .stack{display:flex;flex-direction:column-reverse;height:100%;border-radius:4px 4px 0 0;overflow:hidden;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform-origin:bottom;}
+  .seg{width:100%;transition:filter .13s;}
+  .seg.ok{background:var(--ok);}.seg.watch{background:var(--watch);}.seg.flag{background:var(--flag);}.seg.slate{background:var(--slate);}
+  .col:hover .seg{filter:brightness(1.12);}
+  .col .xl{position:absolute;bottom:-26px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:.72rem;color:var(--dim-2);white-space:nowrap;}
+  .col:hover .xl,.col:focus-visible .xl{color:var(--cream);}
+  .tip{position:absolute;z-index:10;pointer-events:none;background:rgba(9,15,34,0.97);border:1px solid var(--line);border-radius:12px;padding:.8rem .9rem;width:190px;box-shadow:0 18px 50px rgba(0,0,0,0.6);opacity:0;transform:translateY(4px);transition:opacity .12s;}
+  .tip.on{opacity:1;transform:translateY(0);}
+  .tip .th{font-size:.92rem;color:var(--cream);font-weight:500;border-bottom:1px solid var(--line-soft);padding-bottom:.45rem;margin-bottom:.45rem;}
+  .tip .tr{display:flex;align-items:center;gap:.5rem;font-size:.85rem;padding:.16rem 0;}
+  .tip .tr i{width:9px;height:9px;border-radius:2px;}
+  .tip .tr span{color:var(--dim);}.tip .tr b{margin-left:auto;font-family:var(--mono);color:var(--cream);}
+  /* two supporting reports */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+  .mini-row{display:flex;align-items:center;gap:.9rem;padding:.7rem 0;border-top:1px solid rgba(255,255,255,0.05);}
+  .mini-row:first-child{border-top:none;}
+  .mini-row .nm{font-size:.98rem;color:var(--cream);width:120px;flex-shrink:0;}
+  .mini-row .bar{flex:1;height:22px;border-radius:5px;background:rgba(245,239,224,0.06);overflow:hidden;display:flex;}
+  .mini-row .bar i{height:100%;}
+  .mini-row .val{font-family:var(--mono);font-size:.85rem;color:var(--dim);width:52px;text-align:right;flex-shrink:0;}
+  .two .live-empty{padding:.7rem 0;}
+  .bh-note{font-size:.9rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:1rem;text-wrap:pretty;}
+  .bh-note b{color:var(--gold-2);font-style:normal;font-weight:400;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .verdict{flex-direction:column;}.verdict .term{text-align:left;}
+    .two{grid-template-columns:1fr;}
+  }
+  @media (max-width:700px){
+    .col .xl.skip{display:none;}
+    .col:last-child .xl{left:auto;right:0;text-align:right;}
+  }
+  /* Print: the page is navy on a photograph, which prints as pale text on white. */
+  @media print{
+    :root{--cream:#14182b;--dim:rgba(20,24,43,0.72);--dim-2:rgba(20,24,43,0.56);--gold:#7a5a10;--gold-2:#7a5a10;--line:rgba(20,24,43,0.22);--line-soft:rgba(20,24,43,0.16);}
+    html,body{height:auto;}
+    body{display:block;padding:0;min-height:0;background:#fff;}
+    .frame{height:auto;min-height:0;max-width:none;border:none;border-radius:0;box-shadow:none;background:#fff;overflow:visible;display:block;}
+    .frame::before,.frame::after,nav,.export-btn,.course-tabs,.tip{display:none;}
+    .body{overflow:visible;padding:0;}
+    .stack{transform:none !important;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill on" href="reports.html" aria-current="page"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="verdict">
+      <div>
+        <div class="eyebrow">Class report</div>
+        <h1 id="headline">Loading</h1>
+      </div>
+      <div class="term">
+        <div class="t">Your classes</div>
+        <div class="d" id="term-d"></div>
+        <button type="button" class="export-btn" id="print-btn"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print report</button>
+      </div>
+    </div>
+
+    <div class="course-tabs" id="course-tabs" role="group" aria-label="Show one course, or all courses"></div>
+    <p class="tab-note" id="tab-note" hidden></p>
+
+    <div class="kpis">
+      <div class="kpi" style="--accent:var(--gold)"><div class="l">Papers analyzed</div><div class="v none" id="k1-v">–</div><div class="m" id="k1-m">Appears once Original keeps analysis results</div></div>
+      <div class="kpi" style="--accent:var(--ok)"><div class="l">Within their usual range</div><div class="v none" id="k2-v">–</div><div class="m" id="k2-m">Appears once Original keeps analysis results</div></div>
+      <div class="kpi" style="--accent:var(--watch)"><div class="l">Reviewed by you</div><div class="v" id="k3-v">-</div><div class="m" id="k3-m">Loading</div></div>
+      <div class="kpi" style="--accent:var(--slate)"><div class="l">Students with a ready baseline</div><div class="v" id="k4-v">-</div><div class="m" id="k4-m">Loading</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="t">Sealed exams each week</div>
+          <div class="s" id="chart-s">Each sealed exam is counted once: reviewed by you, or still waiting for review.</div>
+        </div>
+      </div>
+      <div class="legend" id="legend">
+        <div class="k"><i style="background:var(--ok)"></i>Reviewed by you</div>
+        <div class="k"><i style="background:var(--watch)"></i>Waiting for review</div>
+      </div>
+      <div class="chart-note" id="chart-note">Papers that read differently from a student's usual range will join this chart once Original keeps analysis results.</div>
+      <div class="chart" id="chart">
+        <div class="chart-grid" id="grid"></div>
+        <div class="bars" id="bars"></div>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div id="chart-empty" hidden></div>
+    </div>
+
+    <div class="two">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-h"><div><div class="t">Baseline health</div><div class="s">Is there enough writing on file yet?</div></div></div>
+        <div id="baseline"></div>
+        <div class="bh-note" id="bh-note"></div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-h"><div><div class="t">By assignment type</div><div class="s">Average deviation: context, not a verdict</div></div></div>
+        <div id="assign"></div>
+        <div class="bh-note">Writing done under different conditions from a student's baseline, such as at home rather than in class, can read differently for ordinary reasons. A difference is context for a conversation, not evidence.</div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="live.js?v=2026-10-10.5"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const DAY=86400000, WEEKS=18;
+  const reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const plural=(n,one,many)=>n+' '+(n===1?one:many||one+'s');
+  const DASH='–';
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+    $('print-btn').addEventListener('click',()=>window.print());
+  })();
+
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  function fmtShort(ms){
+    return new Date(ms).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+  }
+
+  // ── data ──
+  // Live.roster() and Live.sealed() do all the loading (see live.js; both share
+  // one load of the sealed exams). Everything on this page is a count of what
+  // they return: the server's baseline verdicts, the roster, and each sealed
+  // exam's created_at / graded_at / course. Nothing here scores or judges.
+  let res=null, sealed=[], courses=[], cur='all';
+
+  function courseKey(c){ return (c.id!=null&&c.id!=='')?String(c.id):(c.code||c.name); }
+
+  function buildCourses(students){
+    const map=new Map();
+    students.forEach(s=>s.courses.forEach(c=>{
+      const k=courseKey(c); if(!k) return;
+      let e=map.get(k);
+      if(!e){ e={key:k,label:c.code||c.name,ids:new Set()}; map.set(k,e); }
+      e.ids.add(s.id);
+    }));
+    return Array.from(map.values()).sort((a,b)=>a.label.localeCompare(b.label,undefined,{sensitivity:'base'}));
+  }
+
+  // The students and sealed exams the selected tab covers. A sealed exam belongs
+  // to the course of its exam (course_id, from Live.sealed). Only an exam with no
+  // known course falls back to its student's course list, so a student in two
+  // courses is counted in both for those; byStudent says how many of those the
+  // selected tab holds.
+  function scope(){
+    const c=cur==='all'?null:courses.find(x=>x.key===cur);
+    if(!c){ cur='all'; return {label:'',students:res.students,subs:sealed,byStudent:0}; }
+    const subs=[]; let byStudent=0;
+    sealed.forEach(s=>{
+      if(s.course_id!=null){ if(String(s.course_id)===c.key) subs.push(s); }
+      else if(c.ids.has(s.student_id)){ subs.push(s); byStudent++; }
+    });
+    return {label:c.label,students:res.students.filter(s=>c.ids.has(s.id)),subs:subs,byStudent:byStudent};
+  }
+
+  // Live.roster asks for the first students only; the last res.beyondCap were
+  // never asked. Any other student without a verdict was asked, and the answer
+  // could not be read.
+  function skipped(students){
+    const k=Math.min(res.beyondCap||0,res.students.length);
+    const beyond=new Set(res.students.slice(res.students.length-k).map(s=>s.id));
+    const none=students.filter(s=>!s.verdict);
+    const notChecked=none.filter(s=>beyond.has(s.id)).length;
+    return {notChecked:notChecked,unread:none.length-notChecked};
+  }
+
+  // Same week buckets as the Overview chart (index.html), over a longer window:
+  // week k counts back from now; a sealed exam is reviewed when graded_at is set.
+  function weekly(list){
+    const now=Date.now(), out=[];
+    for(let i=0;i<WEEKS;i++) out.push({rev:0,wait:0});
+    let drawn=0, older=0, undated=0;
+    list.forEach(s=>{
+      const t=Date.parse(s.created_at);
+      if(isNaN(t)){ undated++; return; }
+      const k=Math.max(0,Math.floor((now-t)/(7*DAY)));
+      if(k>=WEEKS){ older++; return; }
+      const b=out[WEEKS-1-k];
+      if(s.graded_at) b.rev++; else b.wait++;
+      drawn++;
+    });
+    return {weeks:out,drawn:drawn,older:older,undated:undated};
+  }
+
+  function bbNote(){ return res.bluebook==='off'?'Bluebook is off':'Could not load sealed exams'; }
+
+  // ── pieces ──
+  function renderTabs(){
+    const el=$('course-tabs');
+    if(!res.ok||res.bluebook!=='ok'||!courses.length){ el.innerHTML=''; return; }
+    el.innerHTML=
+      '<button type="button" class="ctab'+(cur==='all'?' on':'')+'" data-c="all" aria-pressed="'+(cur==='all')+'">All courses</button>'+
+      courses.map(c=>'<button type="button" class="ctab'+(cur===c.key?' on':'')+'" data-c="'+esc(c.key)+'" aria-pressed="'+(cur===c.key)+'">'+esc(c.label)+' <span class="n">'+c.ids.size+'</span></button>').join('');
+    // Switching tabs changes classes in place, so keyboard focus stays on the tab pressed.
+    el.querySelectorAll('.ctab').forEach(b=>b.addEventListener('click',()=>{
+      cur=b.getAttribute('data-c');
+      el.querySelectorAll('.ctab').forEach(x=>{
+        const on=x===b;
+        x.classList.toggle('on',on);
+        x.setAttribute('aria-pressed',on?'true':'false');
+      });
+      renderAll();
+    }));
+  }
+
+  function renderHeader(sc,t){
+    const n=sc.students.length, bbOk=res.bluebook==='ok';
+    const checked=sc.students.filter(s=>s.verdict).length, ready=sc.students.filter(s=>s.verdict==='ready').length;
+    const pending=t.total-t.reviewed;
+    let h;
+    if(!res.ok) h='Your students could not be loaded just now. Try reloading the page.';
+    else {
+      if(!n) h='No students yet.';
+      else if(checked){
+        // Students whose verdict is missing are not "not ready": say how many there are.
+        const sk=skipped(sc.students);
+        h='<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'has':'have')+' a ready baseline.'+
+          (sk.unread?' Readiness could not be read for '+sk.unread+'.':'')+
+          (sk.notChecked?' Readiness was not checked for '+sk.notChecked+'.':'');
+      }
+      else h='<b>'+plural(n,'student')+'</b> on your roster.';
+      if(bbOk) h+=pending>0
+        ? ' <b>'+plural(pending,'sealed exam')+'</b> '+(pending===1?'is':'are')+' waiting for your review.'
+        : (t.total?' No sealed exams are waiting for your review.':' No exams have been sealed yet.');
+      if(sc.label) h=esc(sc.label)+': '+h;
+    }
+    $('headline').innerHTML=h;
+
+    const parts=[], sealedFailed=res.bluebook==='error';
+    if(!res.ok&&sealedFailed) parts.push('Could not load your students or sealed exams');
+    else {
+      if(!res.ok) parts.push('Could not load your students');
+      if(sealedFailed) parts.push('Could not load sealed exams');
+    }
+    if(res.ok&&bbOk&&cur==='all'&&res.courseCount>0) parts.push(plural(res.courseCount,'course'));
+    if(res.ok) parts.push(plural(n,'student'));
+    if(bbOk) parts.push(plural(t.total,'sealed exam'));
+    $('term-d').textContent=(sc.label?sc.label+' · ':'')+parts.join(' · ');
+
+    const note=$('tab-note');
+    note.textContent='Counted by student for exams without a course: a student in two courses appears in both.';
+    note.hidden=!(bbOk&&sc.byStudent>0);
+  }
+
+  function setKpi(i,v,m,none){
+    const el=$('k'+i+'-v');
+    el.textContent=v; el.className='v'+(none?' none':'');
+    $('k'+i+'-m').textContent=m;
+  }
+
+  function renderKpis(sc,t){
+    const n=sc.students.length, bbOk=res.bluebook==='ok';
+    const pending=t.total-t.reviewed;
+    if(bbOk){
+      setKpi(3,String(t.reviewed),t.total?('of '+t.total+' sealed · '+(pending>0?pending+' waiting':'none waiting')):'No sealed exams yet',false);
+    } else setKpi(3,DASH,bbNote(),true);
+
+    const checked=sc.students.filter(s=>s.verdict).length, ready=sc.students.filter(s=>s.verdict==='ready').length;
+    if(!res.ok) setKpi(4,DASH,'Could not load your students',true);
+    else if(!n) setKpi(4,'0','No students yet',false);
+    else if(!checked) setKpi(4,DASH,'Readiness could not be loaded',true);
+    else {
+      const unchecked=n-checked;
+      setKpi(4,String(ready),'of '+plural(n,'student')+(unchecked?' · readiness unavailable for '+unchecked:''),false);
+    }
+  }
+
+  function renderChart(sc){
+    const empty=$('chart-empty'), chart=$('chart');
+    const show=on=>{
+      chart.hidden=!on; $('legend').hidden=!on; $('chart-note').hidden=!on; empty.hidden=on;
+    };
+    const bars=$('bars'), tip=$('tip');
+    bars.innerHTML=''; tip.classList.remove('on');
+    $('chart-s').textContent='Each sealed exam is counted once: reviewed by you, or still waiting for review.';
+    if(res.bluebook!=='ok'){ show(false); Live.empty(empty,bbNote()); return; }
+    const w=weekly(sc.subs);
+    if(!w.drawn){
+      show(false);
+      Live.empty(empty,sc.subs.length?'No sealed exams in the last '+WEEKS+' weeks':'No sealed exams yet');
+      return;
+    }
+    show(true);
+    $('chart-s').textContent='The last '+WEEKS+' weeks. Each sealed exam is counted once: reviewed by you, or still waiting for review.'+
+      (w.older>0?' '+plural(w.older,'older exam')+(w.older===1?' is':' are')+' not drawn.':'')+
+      (w.undated>0?' '+plural(w.undated,'exam')+' without a readable date '+(w.undated===1?'is':'are')+' not drawn.':'');
+
+    // Whole-number gridlines: four steps up to a ceiling at or above the tallest week.
+    const max=Math.max.apply(null,w.weeks.map(x=>x.rev+x.wait));
+    const step=Math.max(1,Math.ceil(max/4)), top=step*4;
+    $('grid').innerHTML=[4,3,2,1,0].map(i=>'<div class="gl"><span>'+(i*step)+'</span></div>').join('');
+
+    const now=Date.now();
+    w.weeks.forEach((x,i)=>{
+      const label=fmtShort(now-(WEEKS-i)*7*DAY);
+      const total=x.rev+x.wait;
+      const col=document.createElement('div'); col.className='col';
+      col.tabIndex=0; col.setAttribute('role','img');
+      col.setAttribute('aria-label','Week of '+label+': '+plural(x.rev,'sealed exam')+' reviewed, '+x.wait+' waiting for review');
+      const fromEnd=WEEKS-1-i;
+      col.innerHTML='<div class="stack">'+
+        (x.rev?'<div class="seg ok" style="height:'+(x.rev/top*100)+'%"></div>':'')+
+        (x.wait?'<div class="seg watch" style="height:'+(x.wait/top*100)+'%"></div>':'')+
+        '</div><div class="xl'+(fromEnd%4===0?'':' skip')+'">'+(fromEnd%2===0?esc(label):'')+'</div>';
+      const stack=col.querySelector('.stack');
+      if(!reduceMotion){
+        stack.style.transform='scaleY(0)';
+        setTimeout(()=>{ stack.style.transform='scaleY(1)'; },60+i*24);
+      }
+      const showTip=()=>{
+        tip.innerHTML='<div class="th">Week of '+esc(label)+(sc.label?' · '+esc(sc.label):'')+'</div>'+
+          '<div class="tr"><i style="background:var(--ok)"></i><span>Reviewed by you</span><b>'+x.rev+'</b></div>'+
+          '<div class="tr"><i style="background:var(--watch)"></i><span>Waiting for review</span><b>'+x.wait+'</b></div>';
+        tip.classList.add('on');
+        let left=col.offsetLeft+col.offsetWidth/2-95;
+        left=Math.max(44,Math.min(left,bars.offsetWidth-190));
+        tip.style.left=left+'px'; tip.style.top='0px';
+      };
+      col.addEventListener('pointerenter',showTip);
+      col.addEventListener('focus',showTip);
+      col.addEventListener('pointerleave',()=>tip.classList.remove('on'));
+      col.addEventListener('blur',()=>tip.classList.remove('on'));
+      bars.appendChild(col);
+    });
+  }
+
+  function miniRow(name,count,of,color){
+    return '<div class="mini-row"><div class="nm">'+esc(name)+'</div><div class="bar"><i style="width:'+(of?count/of*100:0)+'%;background:'+color+'"></i></div><div class="val">'+count+'</div></div>';
+  }
+
+  function renderBaseline(sc){
+    const el=$('baseline'), note=$('bh-note'), n=sc.students.length;
+    const ready=sc.students.filter(s=>s.verdict==='ready').length;
+    const building=sc.students.filter(s=>s.verdict==='developing').length;
+    const none=sc.students.filter(s=>s.verdict==='insufficient').length;
+    const unknown=n-ready-building-none;
+    const lead='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more. ';
+    if(!res.ok){ Live.empty(el,'Could not load your students'); note.textContent=lead.trim(); return; }
+    if(!n){ Live.empty(el,'Appears once students have counted samples'); note.textContent=lead.trim(); return; }
+    // Counts are the server's own baseline verdicts, as Live.roster returns them.
+    el.innerHTML=miniRow(Live.verdictWord('ready'),ready,n,'var(--ok)')+miniRow(Live.verdictWord('developing'),building,n,'var(--watch)')+miniRow(Live.verdictWord('insufficient'),none,n,'var(--slate)')+
+      (unknown?miniRow(Live.verdictWord(null),unknown,n,'rgba(245,239,224,0.28)'):'');
+    note.innerHTML=esc(lead)+(n>unknown
+      ? '<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'is':'are')+' ready'+(ready<n-unknown?'; the rest still need more counted samples.':'.')
+      : '');
+  }
+
+  function renderAll(){
+    const sc=scope();
+    const bbOk=res.bluebook==='ok';
+    const t={total:bbOk?sc.subs.length:0,reviewed:bbOk?sc.subs.filter(s=>s.graded_at).length:0};
+    renderHeader(sc,t);
+    renderKpis(sc,t);
+    renderChart(sc);
+    renderBaseline(sc);
+  }
+
+  // The two cards with no source keep their place and say so.
+  Live.empty($('assign'),'Appears once Original keeps analysis results');
+
+  // ── go ──
+  // Any answer of an unexpected shape ends in the "could not be loaded" states,
+  // never in a page stuck on "Loading".
+  function failState(){
+    res={ok:false,bluebook:'error',bluebookOff:false,students:[],submissions:[],courseCount:0,beyondCap:0,sealedToReview:null};
+    sealed=[]; courses=[]; cur='all';
+  }
+  Live.session().then(renderChrome);
+  const main=document.querySelector('main');
+  Live.gate(main).then(async sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    try {
+      const got=await Promise.all([Live.roster(),Live.sealed()]);
+      res=got[0]; sealed=res.bluebook==='ok'?got[1].submissions:[];
+      courses=res.ok&&res.bluebook==='ok'?buildCourses(res.students):[];
+    }
+    catch(e){ failState(); }
+    try { renderTabs(); renderAll(); }
+    catch(e){ failState(); try { renderTabs(); renderAll(); } catch(e2){} }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1264,7 +1264,9 @@ class VoiceView(BaseModel):
 class VoiceSubmitRequest(BaseModel):
     """Body of ``POST /me/work`` — the student submits a piece of writing."""
 
-    text: str = Field(..., description="Raw essay text")
+    # The same ceiling the teacher-side scoring request has (ScoreSubmissionRequest.text);
+    # without it an oversized body reached the scorer and failed there as a 500.
+    text: str = Field(..., max_length=200000, description="Raw essay text")
     title: str = Field("", description="Assignment title/label")
 
 
