@@ -2788,7 +2788,7 @@ _APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baselin
 
 COUNTED_LABELS = {
     "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
-    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples'", "' teacher-approved'"),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "' teacher-approved'"),
     "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "' teacher-approved)'"),
     "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
 }
@@ -3005,11 +3005,11 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     assert ready["line"] == ""
     assert building["line"] == (
         " Original rates this baseline \u201cBuilding\u201d (3 counted samples; "
-        "ready needs 5 or more counted samples), so treat this reading as inconclusive."
+        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
         " Original rates this baseline \u201cNeeds more\u201d (1 counted sample; "
-        "ready needs 5 or more counted samples), so treat this reading as inconclusive."
+        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
     assert unreadable["line"] == (
@@ -3017,8 +3017,8 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples)" in building["note"]
-    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples)" in thin["note"]
+    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples and an effective count of 3 or more)" in building["note"]
+    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples and an effective count of 3 or more)" in thin["note"]
 
 
 def _record(counted: int, *provenances: str) -> dict:
@@ -3037,8 +3037,8 @@ def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones()
             _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
         ]
     )
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples)" in split["line"]
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples)" in split["note"]
+    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["line"]
+    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["note"]
     assert "teacher-approved" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
     # The analysis counted 3 and the record now says 5: splitting 5 by provenance beside a 3 would mislead.
     assert "teacher-approved" not in stale["line"] and "(3 counted samples;" in stale["line"]

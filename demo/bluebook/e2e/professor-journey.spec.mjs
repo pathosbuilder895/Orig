@@ -351,7 +351,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // show, so it is not rendered; one quiet line says where corrections are made
     // (step 10 below asserts the whole form is absent).
     await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
-    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible()
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible()
   })
 
   // ── 8a ───────────────────────────────────────────────────────────────
@@ -464,7 +464,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByLabel('Corrected action')).toHaveCount(0)
     await expect(staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')).toHaveCount(0)
     await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
-    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible()
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible()
 
     // The endpoint the classic Analysis page files through is unchanged: a
     // correction against this sealed submission lands in corrections and in the
@@ -546,7 +546,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const row = staffPage.locator('div', { hasText: 'Cold Start Candidate' }).last()
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.click()
-    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
     await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
   })

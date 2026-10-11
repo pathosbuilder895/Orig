@@ -554,7 +554,7 @@
     const a=teacherApproved();
     return plural(counted()||0,'counted sample')+(a!=null?', '+a+' teacher-approved':'');
   }
-  const READY_NEEDS='ready needs 5 or more counted samples';
+  const READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more';
   const hasBaseline=()=>!!S.student&&(counted()||0)>0;
   const actionOf=()=>(S.result&&S.result.recommendation)?S.result.recommendation.action:'';
   const look=()=>has(ACTION,actionOf())?ACTION[actionOf()]:OTHER_ACTION;

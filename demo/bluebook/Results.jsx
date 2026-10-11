@@ -56,7 +56,7 @@ const FILTERS = {
 // (docs/adr/012-ui-design-port.md, open item 4); BB_API.fileCorrection and
 // BB_API.listCorrections are kept for it.
 function CorrectionNote() {
-  return <p className="bb-hint">Corrections are made in Original Analysis (classic) for now.</p>;
+  return <p className="bb-hint">Corrections to Original's reading are not available on this screen for now.</p>;
 }
 
 // ─── Expanded row detail ──────────────────────────────────────────────────────
