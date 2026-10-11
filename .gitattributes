@@ -1,0 +1,6 @@
+# docs/STATUS.md: every session appends a line to the end of the Session Log,
+# so two open branches always conflict there. union keeps both sides' lines
+# instead of writing conflict markers. It applies to the whole file: if two
+# branches edit the same table row, both versions are kept silently, so check
+# the tables after a merge.
+docs/STATUS.md merge=union

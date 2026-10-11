@@ -33,6 +33,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.formparsers import MultiPartParser
 from starlette.routing import Route
 
 from . import backup as backup_mod
@@ -46,7 +47,7 @@ from . import (
     store,  # noqa: F401
 )
 from . import principal as principal_mod
-from .body_limit import BodySizeLimitMiddleware
+from .body_limit import MAX_REQUEST_BYTES, BodySizeLimitMiddleware
 from .core.logging import RequestLoggingMiddleware, configure_logging
 from .routers import (
     admin,
@@ -548,6 +549,14 @@ async def maintenance_write_freeze(request: Request, call_next):
 # refused before any other middleware or handler buffers it, and still logged.
 app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+
+# Starlette parses multipart uploads into a SpooledTemporaryFile per file and
+# rolls it over to a real temp file on local disk once it passes
+# spool_max_size (1 MB by default), before the route handler runs. Student
+# papers must not touch the container's disk (NORTH_STAR rule 7), so the spool
+# ceiling is raised to the body cap: every upload the cap admits stays in
+# memory, and the cap is what bounds that memory on the ~512 MB instance.
+MultiPartParser.spool_max_size = MAX_REQUEST_BYTES
 
 
 # ── Startup: SECRET_KEY stability check ───────────────────────────────────────

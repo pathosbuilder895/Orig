@@ -6,9 +6,9 @@
  * of focused tests sharing one worker-scoped tenant (fixtures/tenancy.mjs):
  * create course → publish exam (ToggleRow lockdown states) → save a second
  * exam as DRAFT → preview the briefing → a student seals a submission that
- * Original scores live → Dashboard → Results (score matches the API
- * payload) → drill into the integrity narrative → Students roster → file a
- * correction → correction visible in corrections + audit.
+ * Original scores live → Dashboard → Results (rows only, no score shown)
+ * → drill into the session details (no correction form) → Students roster
+ * → a correction filed through the API is visible in corrections + audit.
  *
  * Serial-mode notes:
  *  - `journey` below carries state forward (created exam, recorded
@@ -25,13 +25,14 @@
  *    create our course under one of those hardcoded codes so the journey
  *    stays coherent; this is a known frontend gap, not a test bug.
  *
- * Results.jsx's ExpandedRow now has a real CorrectionPanel (Correct/
- * Incorrect, verdict/action selects, notes, "File Correction") that calls
- * POST /submissions/{id}/correct and lists history via GET
- * /admin/corrections — the correction test below drives that UI directly
- * rather than hitting the API standalone. The old "Mark Reviewed" button
- * (local component state only, never persisted) is gone; step 8 now
- * asserts on the CorrectionPanel heading instead.
+ * Results.jsx's ExpandedRow no longer carries the Examiner's Correction form
+ * (Correct/Incorrect, verdict/action selects, notes, "File Correction"): it asks
+ * about a verdict this screen does not show, so while the score is hidden the
+ * form is not rendered and one quiet line says where corrections are made
+ * (Original Analysis (classic), which files them through POST
+ * /submissions/{id}/correct). Steps 8, 10 and 11 assert the form is absent, and
+ * step 10 still proves the endpoint itself files into corrections and the audit
+ * trail. The old "Mark Reviewed" button (local state only) is long gone.
  *
  * The two non-serial describes at the bottom are Stage-2 breadth on the
  * same surface: NewExam form gating, and the fresh-tenant empty states
@@ -298,25 +299,35 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 7 ────────────────────────────────────────────────────────────────
-  test('Results lists the sealed submission with the scores the API reported', async ({
+  test('Results lists the sealed submission and shows no score', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
     await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(candidateName)).toBeVisible()
-    // This is the tenant's only submission, so the rendered percentages are
-    // unambiguous — they must match the API payload captured at seal time.
-    await expect(staffPage.getByText(`${journey.submission.aiScore}%`).first()).toBeVisible()
+    // The teacher's Results screen no longer shows Original's score: the
+    // percentage the API reported at seal time must not be rendered anywhere.
+    await expect(staffPage.getByText(`${journey.submission.aiScore}%`)).toHaveCount(0)
+    await expect(staffPage.getByText('Authenticity')).toHaveCount(0)
     // The compare-only seal no longer produces a stylometric score (that came
     // from the baseline write's drift): the record carries none and the
     // table shows a dash for it, never a literal "null%".
     expect(journey.submission.stylometric ?? null).toBeNull()
     await expect(staffPage.getByText('null%')).toHaveCount(0)
+    // The "worth a look" count and filter are Original's mark, so the screen says
+    // what the mark is and that Original is in testing (NORTH_STAR rule 10), once.
+    await expect(staffPage.getByText(
+      "Worth a look: marked by Original's comparison with the writing in each student's baseline.",
+    )).toHaveCount(1)
+    await expect(staffPage.getByText(
+      'Testing phase: Original is not yet validated on real student writing. '
+      + 'Treat any result as a reason for a conversation, never as evidence.',
+    )).toHaveCount(1)
   })
 
   // ── 8 ────────────────────────────────────────────────────────────────
-  test('drilling into the row reveals the integrity analysis narrative', async ({
+  test('drilling into the row reveals the session details', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
@@ -324,7 +335,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const resultsRow = staffPage.locator('div', { hasText: candidateName }).last()
     await expect(resultsRow).toBeVisible({ timeout: 10_000 })
     await resultsRow.click()
-    await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 5_000 })
     // A seal no longer produces a stylometric figure, and the release makes
     // no typing claim: the average tile is gone, no "Typing" label appears
     // anywhere on the Results screen, and with no row carrying a stylometric
@@ -332,14 +343,40 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByText('Avg Typing Consistency')).toHaveCount(0)
     await expect(staffPage.getByText(/Typing/)).toHaveCount(0)
     await expect(staffPage.getByText('Writing Consistency')).toHaveCount(0)
-    await expect(staffPage.getByText('Authenticity').first()).toBeVisible()
-    // The plain-English explanation line under the Authenticity score.
-    await expect(staffPage.getByText(/scored via Original/)).toBeVisible()
-    // The right-hand panel is the real CorrectionPanel (see step 10 below for
-    // the full filing flow) — "Mark Reviewed"/"Examiner's Notes" were the
-    // pre-CorrectionPanel local-state placeholder this test used to assert
-    // on; both were removed when the real panel replaced them.
-    await expect(staffPage.getByText("Examiner's Correction")).toBeVisible()
+    // No authenticity score and no scoring explanation: Original's analysis
+    // is read in Original, not in a Bluebook results row.
+    await expect(staffPage.getByText('Authenticity')).toHaveCount(0)
+    await expect(staffPage.getByText(/scored via Original/)).toHaveCount(0)
+    // The Examiner's Correction form asks about a verdict this screen does not
+    // show, so it is not rendered; one quiet line says where corrections are made
+    // (step 10 below asserts the whole form is absent).
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible()
+  })
+
+  // ── 8a ───────────────────────────────────────────────────────────────
+  test('grading a sealed exam counts it as reviewed, by graded_at and not by a stored status', async ({
+    staffPage, workerTenant, request,
+  }) => {
+    // The server only ever stores SUBMITTED or FLAGGED; "reviewed" is a teacher
+    // having graded the exam (graded_at), the rule the Original suite uses too.
+    const { candidateName } = names(workerTenant)
+    await openScreen(staffPage, 'Results')
+    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
+
+    const graded = await request.patch(`/bluebook/submissions/${encodeURIComponent(journey.submission.id)}/feedback`, {
+      headers: staffAuth(workerTenant),
+      data: { mark: 'B+', feedback: 'E2E reviewed' },
+    })
+    expect(graded.ok()).toBe(true)
+
+    await openScreen(staffPage, 'Results')
+    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await staffPage.getByRole('button', { name: 'Reviewed', exact: true }).click()
+    await expect(staffPage.getByText(candidateName)).toBeVisible()
+    await staffPage.getByRole('button', { name: 'Submitted', exact: true }).click()
+    // Graded, so no longer "Submitted" (waiting for review), whatever Original marked.
+    await expect(staffPage.getByText(candidateName)).toHaveCount(0)
   })
 
   // ── 9 ────────────────────────────────────────────────────────────────
@@ -375,7 +412,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 9b ───────────────────────────────────────────────────────────────
-  test('the Results row is keyboard-operable and expands the integrity analysis', async ({
+  test('the Results row is keyboard-operable and expands the session details', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
@@ -385,7 +422,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(row).toHaveAttribute('aria-expanded', 'false')
     await row.focus()
     await staffPage.keyboard.press(' ')
-    await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 5_000 })
     await expect(row).toHaveAttribute('aria-expanded', 'true')
   })
 
@@ -403,7 +440,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 10 ───────────────────────────────────────────────────────────────
-  test('a correction filed against the scored submission lands in corrections and the audit trail', async ({
+  test('the Results screen offers no correction form while the score is hidden, and the endpoint still files one', async ({
     workerTenant, request, staffPage,
   }) => {
     await openScreen(staffPage, 'Results')
@@ -415,32 +452,41 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const row = staffPage.locator('div', { hasText: candidateName }).last()
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.click()
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 10_000 })
 
-    // exact:true matters here — Playwright's role-name matching is a
-    // substring match by default, and "Correct" is a substring of both
-    // "Incorrect" and "File Correction".
-    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toBeVisible({ timeout: 10_000 })
-    await staffPage.getByRole('button', { name: 'Incorrect' }).click()
-    await staffPage.locator('select').first().selectOption('authentic')
-    await staffPage.locator('select').nth(1).selectOption('no_action')
-    await staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')
-      .fill('E2E professor-journey correction')
+    // No form: no toggle, no verdict or action selects, no notes box, no file
+    // button, no heading, no history. exact:true because "Correct" is a
+    // substring of "Incorrect" and "File Correction".
+    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
+    await expect(staffPage.getByRole('button', { name: 'Incorrect' })).toHaveCount(0)
+    await expect(staffPage.getByRole('button', { name: 'File Correction' })).toHaveCount(0)
+    await expect(staffPage.getByLabel('Corrected verdict')).toHaveCount(0)
+    await expect(staffPage.getByLabel('Corrected action')).toHaveCount(0)
+    await expect(staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')).toHaveCount(0)
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible()
 
-    const [correctionResponse] = await Promise.all([
-      staffPage.waitForResponse(r => r.url().includes('/submissions/') && r.url().includes('/correct') && r.request().method() === 'POST'),
-      staffPage.getByRole('button', { name: 'File Correction' }).click(),
-    ])
-    expect(correctionResponse.ok()).toBe(true)
-    const correction = await correctionResponse.json()
-    const submissionId = correction.submission_id
-
-    // The filed correction appears in the panel's history immediately.
-    await expect(staffPage.getByText('✗ Verdict overridden')).toBeVisible({ timeout: 5_000 })
-    await expect(staffPage.getByText('E2E professor-journey correction')).toBeVisible()
-
-    // API-level verification alongside the UI-level one: the pipeline is
-    // proven end to end (click → write → audit), not just the click.
+    // The endpoint the classic Analysis page files through is unchanged: a
+    // correction against this sealed submission lands in corrections and in the
+    // audit trail. The submission id is the sealed exam's own uuid.
     const headers = staffAuth(workerTenant)
+    const listRes = await request.get('/bluebook/submissions', { headers })
+    expect(listRes.ok()).toBe(true)
+    const sealed = (await listRes.json()).submissions.find(x => x.candidate === candidateName)
+    expect(sealed && sealed.submission_uuid).toBeTruthy()
+    const fileRes = await request.post(`/submissions/${encodeURIComponent(sealed.submission_uuid)}/correct`, {
+      headers,
+      data: {
+        is_correct: false,
+        corrected_verdict: 'authentic',
+        corrected_action: 'no_action',
+        reviewer: 'E2E reviewer',
+        notes: 'E2E professor-journey correction',
+      },
+    })
+    expect(fileRes.ok()).toBe(true)
+    const submissionId = (await fileRes.json()).submission_id
+
     const correctionsListRes = await request.get(
       `/admin/corrections?submission_id=${encodeURIComponent(submissionId)}`,
       { headers },
@@ -460,7 +506,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 11 ───────────────────────────────────────────────────────────────
-  test('a cold-start sitting with no AI score shows the disabled correction state', async ({
+  test('a cold-start sitting with no AI score shows no correction form either', async ({
     staffPage, request, workerTenant,
   }) => {
     // Record a Bluebook submission the way a real cold-start sitting looks:
@@ -500,8 +546,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const row = staffPage.locator('div', { hasText: 'Cold Start Candidate' }).last()
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.click()
-    await expect(staffPage.getByText("This submission wasn't scored — no verdict to correct.")).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText("Corrections to Original's reading are not available on this screen for now.")).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
   })
 })
 
