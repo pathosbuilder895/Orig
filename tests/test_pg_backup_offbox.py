@@ -11,6 +11,8 @@ from __future__ import annotations
 import gzip
 import json
 import tempfile
+import urllib.error
+import urllib.parse
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -244,6 +246,17 @@ def test_main_restore_fails_cleanly_on_a_bad_file(cli_env, tmp_path):
     assert pgb.main(["--restore", str(tmp_path / "missing.jsonl.gz")]) == 1
 
 
+def test_main_restore_with_an_empty_path_fails_instead_of_backing_up(cli_env, caplog):
+    """`--restore "$FILE"` after a failed download passes an empty string. It
+    must fail, never fall through to dumping (and uploading) the database."""
+    for k, v in _OFFBOX.items():
+        cli_env.setenv(k, v)
+    cli_env.setattr(pgb, "read_all", lambda session: pytest.fail("must not read the database"))
+    cli_env.setattr(pgb, "upload", lambda cfg, path: pytest.fail("must not upload"))
+    assert pgb.main(["--restore", ""]) == 1
+    assert "empty --restore argument" in caplog.text
+
+
 def test_encrypt_then_decrypt_round_trips(tmp_path):
     key = Fernet.generate_key().decode()
     plain = tmp_path / "dump.jsonl.gz"
@@ -354,6 +367,151 @@ def test_restore_of_a_fernet_file_without_the_key_fails_cleanly(cli_env, tmp_pat
     enc = pgb.encrypt_file(plain, Fernet.generate_key().decode())
     cli_env.delenv("BACKUP_ENCRYPTION_KEY", raising=False)
     assert pgb.main(["--restore", str(enc)]) == 1
+
+
+# ── Download for the restore drill ────────────────────────────────────────────
+# The bucket is faked at urllib's level, so list_keys() and download_latest()
+# from scripts/backup_offbox.py run for real against it.
+
+_PFX = "original-pg-backups/"
+
+
+def _dump_key(stamp: str) -> str:
+    return f"{_PFX}original-pg-{stamp}.jsonl.gz.fernet"
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes, status: int = 200):
+        self.status, self._body = status, body
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.fixture
+def bucket(monkeypatch):
+    """An in-memory bucket behind urllib.request.urlopen: ListObjectsV2 (with
+    its prefix filter) and GetObject. Returns the {key: bytes} store."""
+    import scripts.backup_offbox as offbox
+
+    for k in list(_OFFBOX) + ["DATABASE_URL", "BACKUP_OFFBOX_PREFIX"]:
+        monkeypatch.delenv(k, raising=False)
+    for k, v in _OFFBOX.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("BACKUP_OFFBOX_ENABLED")  # a download needs neither this
+    monkeypatch.delenv("BACKUP_ENCRYPTION_KEY")  # nor the key, nor DATABASE_URL
+    monkeypatch.setenv("BACKUP_OFFBOX_PREFIX", _PFX)
+    objects: dict[str, bytes] = {}
+
+    def fake_urlopen(req, timeout=60):
+        assert req.get_method() == "GET"
+        url = urllib.parse.urlsplit(req.full_url)
+        query = urllib.parse.parse_qs(url.query)
+        if query.get("list-type") == ["2"]:
+            listed = [k for k in objects if k.startswith(query["prefix"][0])]
+            body = "".join(f"<Contents><Key>{k}</Key></Contents>" for k in listed)
+            return _FakeResponse(f"<ListBucketResult>{body}</ListBucketResult>".encode())
+        key = urllib.parse.unquote(url.path).split("/bucket/", 1)[1]
+        return _FakeResponse(objects[key])
+
+    monkeypatch.setattr(offbox.urllib.request, "urlopen", fake_urlopen)
+    return objects
+
+
+def test_newest_backup_key_goes_by_the_name_timestamp_not_listing_order():
+    keys = [_dump_key("20261003T083000Z"), _dump_key("20261010T083000Z")]
+    keys.append(_dump_key("20261007T083000Z"))
+    assert pgb.newest_backup_key(keys, _PFX) == _dump_key("20261010T083000Z")
+
+
+def test_newest_backup_key_skips_everything_that_is_not_an_encrypted_dump():
+    oldest = _dump_key("20261001T083000Z")
+    keys = [
+        "elsewhere/original-pg-20261011T083000Z.jsonl.gz.fernet",  # another prefix
+        f"{_PFX}original-pg-20261011T083000Z.jsonl.gz",  # a plaintext dump
+        f"{_PFX}old/original-pg-20261011T083000Z.jsonl.gz.fernet",  # nested deeper
+        _dump_key("20261311T083000Z"),  # month 13: shaped like a time, is not one
+        f"{_PFX}profiles-20261011-083000.db",  # the SQLite-era backup name
+        oldest,
+    ]
+    assert pgb.newest_backup_key(keys, _PFX) == oldest
+    assert pgb.newest_backup_key(keys[:-1], _PFX) is None
+
+
+def test_download_latest_saves_the_newest_dump_and_prints_its_path(bucket, tmp_path, capsys):
+    bucket[_dump_key("20261009T083000Z")] = b"older"
+    bucket[_dump_key("20261010T083000Z")] = b"newest"
+    bucket[f"{_PFX}notes.txt"] = b"not a backup"
+    bucket[_dump_key("20261011T083000Z").replace(_PFX, "original-backups/")] = b"wrong prefix"
+    dest = tmp_path / "drill"  # created on demand
+
+    assert pgb.main(["--download-latest", str(dest)]) == 0
+
+    got = dest / "original-pg-20261010T083000Z.jsonl.gz.fernet"
+    assert capsys.readouterr().out == f"{got}\n"  # only the path, for a shell to capture
+    assert got.read_bytes() == b"newest"
+    assert [p.name for p in dest.iterdir()] == [got.name]
+
+
+def test_download_latest_fails_clearly_when_nothing_matches(bucket, tmp_path, caplog):
+    bucket[f"{_PFX}original-pg-20261010T083000Z.jsonl.gz"] = b"plaintext, never uploaded"
+    bucket["original-backups/profiles-20261010-083000.db"] = b"sqlite era"
+    dest = tmp_path / "drill"
+
+    assert pgb.main(["--download-latest", str(dest)]) == 1
+
+    message = "no original-pg-*.jsonl.gz.fernet object under bucket/original-pg-backups/"
+    assert message in caplog.text
+    assert not dest.exists()
+
+
+def test_download_latest_fails_clearly_without_bucket_settings(monkeypatch, tmp_path, caplog):
+    for k in _OFFBOX:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("BACKUP_OFFBOX_BUCKET", "bucket")
+    monkeypatch.setattr(pgb, "list_keys", lambda cfg: pytest.fail("must not call the bucket"))
+
+    assert pgb.main(["--download-latest", str(tmp_path)]) == 1
+
+    assert (
+        "bucket not configured (missing BACKUP_OFFBOX_ENDPOINT, BACKUP_OFFBOX_ACCESS_KEY_ID, "
+        "BACKUP_OFFBOX_SECRET_ACCESS_KEY)" in caplog.text
+    )
+
+
+def test_download_latest_reports_a_bucket_error(bucket, monkeypatch, tmp_path, caplog):
+    import scripts.backup_offbox as offbox
+
+    def denied(req, timeout=60):
+        raise urllib.error.HTTPError(req.full_url, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(offbox.urllib.request, "urlopen", denied)
+    assert pgb.main(["--download-latest", str(tmp_path)]) == 1
+    assert "403" in caplog.text
+
+
+def test_download_warns_when_the_listing_may_be_truncated(monkeypatch, tmp_path, caplog):
+    keys = [f"{_PFX}junk-{i:04d}" for i in range(pgb.LIST_PAGE_LIMIT - 1)]
+    keys.append(_dump_key("20261010T083000Z"))
+    monkeypatch.setattr(pgb, "list_keys", lambda cfg: keys)
+    monkeypatch.setattr(pgb, "download_latest", lambda cfg, dest, key: dest.write_bytes(b"x"))
+    cfg = pgb.OffboxConfig({**_OFFBOX, "BACKUP_OFFBOX_PREFIX": _PFX})
+
+    path = pgb.download_newest(cfg, tmp_path)
+
+    assert path == tmp_path / "original-pg-20261010T083000Z.jsonl.gz.fernet"
+    assert "newer backups may be missing" in caplog.text
+
+
+def test_download_latest_and_restore_are_exclusive(tmp_path):
+    with pytest.raises(SystemExit):
+        pgb.main(["--download-latest", str(tmp_path), "--restore", "x.jsonl.gz.fernet"])
 
 
 # ── Round trip through a real Postgres ────────────────────────────────────────
