@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Settings</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.62);--dim-2:rgba(245,239,224,0.42);
+    --flag:#e0725a;--ok:#6bbf8a;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;white-space:nowrap;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover,.me-menu a[aria-current]{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;}
+  .body.gated{display:grid;}
+  .head{padding:.6rem 0 1.3rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.5rem;}
+  .head .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2rem;margin-top:.4rem;}
+  .head .s{font-size:.98rem;color:var(--dim);font-style:italic;margin-top:.3rem;max-width:58ch;}
+  .cols{display:grid;grid-template-columns:1.2fr 1fr;gap:1.5rem;align-items:start;}
+  .stack{display:flex;flex-direction:column;gap:1.5rem;min-width:0;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;padding:1.4rem 1.5rem;}
+  .card-t{font-family:var(--display);font-weight:500;font-size:1.2rem;}
+  .card-s{font-size:.88rem;color:var(--dim);font-style:italic;margin-top:.2rem;}
+  /* change password: the form takes the big card's place; its fields follow the old option rows */
+  .pw{display:flex;flex-direction:column;gap:.85rem;margin-top:1rem;max-width:26rem;border:0;min-width:0;}
+  .pw label{display:block;font-size:.84rem;color:var(--dim);font-style:italic;margin-bottom:.3rem;}
+  .pw input{display:block;width:100%;font-family:var(--body);font-size:1rem;color:var(--cream);background:rgba(255,255,255,0.02);border:1px solid var(--line-soft);border-radius:12px;padding:.7rem .9rem;transition:all .15s;}
+  .pw input:hover:not(:disabled){border-color:var(--line);background:rgba(255,255,255,0.04);}
+  .pw input:focus{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);}
+  .pw input:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .pw input:disabled{opacity:.5;cursor:not-allowed;}
+  .pw-btn{align-self:flex-start;font-family:var(--body);font-size:.95rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.62rem 1.3rem;cursor:pointer;font-weight:600;}
+  .pw-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .pw-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .pw legend{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+  .pw-msgs{margin-top:.9rem;min-height:1.4em;}
+  .pw-msg{font-size:.92rem;line-height:1.45;color:var(--dim);font-style:italic;}
+  .pw-msg.err{color:var(--flag);font-style:normal;}
+  .pw-msg.ok{color:var(--ok);font-style:normal;}
+  .card-foot{font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--line-soft);}
+  .row{display:flex;align-items:center;gap:.9rem;padding:.85rem 0;border-top:1px solid rgba(255,255,255,0.05);}
+  .row>div:first-child{min-width:0;}
+  .row .t{font-size:1rem;overflow-wrap:anywhere;}
+  .row .m{font-size:.8rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
+  .row .st{margin-left:auto;display:inline-flex;align-items:center;gap:.45rem;font-size:.82rem;padding:.24rem .7rem;border-radius:999px;white-space:nowrap;}
+  .row .st .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .st.ok{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
+  .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
+  .mini-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.4rem;}
+  .card .live-empty{margin:.6rem 0 .1rem;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
+    .cols{grid-template-columns:1fr;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="head">
+      <div class="eyebrow">Settings</div>
+      <h1>How Original works for you.</h1>
+      <div class="s">Everything here is about your account. Nothing here changes how a student is measured, or a student's record.</div>
+    </div>
+    <div class="cols">
+      <div class="card">
+        <div class="card-t">Change password</div>
+        <div class="card-s">Choose a new password for your account.</div>
+        <form id="pw-form" method="post" action="#" autocomplete="off" novalidate>
+          <fieldset class="pw" id="pw-fields" disabled>
+            <legend>Change your password</legend>
+            <div><label for="pw-current">Current password</label><input id="pw-current" type="password" autocomplete="current-password" /></div>
+            <div><label for="pw-new">New password</label><input id="pw-new" type="password" autocomplete="new-password" /></div>
+            <div><label for="pw-again">New password, again</label><input id="pw-again" type="password" autocomplete="new-password" /></div>
+            <button class="pw-btn" id="pw-btn" type="submit">Change password</button>
+          </fieldset>
+        </form>
+        <div class="pw-msgs">
+          <div class="pw-msg" id="pw-msg" role="status" aria-live="polite"></div>
+          <div class="pw-msg err" id="pw-err" role="alert"></div>
+        </div>
+        <div class="card-foot">A new password needs at least 8 characters. Your current password is needed to change it.</div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="mini-t">Your account</div>
+          <div id="account"><div class="live-empty">Loading</div></div>
+        </div>
+        <div class="card">
+          <div class="mini-t">Your courses</div>
+          <div id="courses"><div class="live-empty">Loading</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="live.js?v=2026-10-10.5"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const plural=(n,one,many)=>n+' '+(n===1?one:many||one+'s');
+  const main=document.querySelector('main');
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator',super_admin:'Platform admin'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  const pill=on=>'<span class="st '+(on?'ok':'off')+'"><span class="d"></span>'+(on?'On':'Off')+'</span>';
+  const row=(t,m,right)=>'<div class="row"><div><div class="t">'+esc(t)+'</div><div class="m">'+esc(m)+'</div></div>'+(right||'')+'</div>';
+
+  // ── account: who is signed in, and which products this workspace has ──
+  // The role and products are GET /auth/me's, read through Live.session().
+  // The workspace id is left out: it means nothing to a teacher.
+  function renderAccount(sess){
+    const demo=sess.mode==='demo';
+    const has=p=>sess.products.indexOf(p)>=0;
+    $('account').innerHTML=
+      row(demo?'Demo workspace':(sess.name||'Your account'),
+          demo?'The demo has no account':(ROLE[sess.role]||'Signed in'))+
+      row('Original',has('original')?'Original is on for this workspace':'Original is off for this workspace',pill(has('original')))+
+      row('Bluebook',has('bluebook')?'Bluebook is on for this workspace':'Bluebook is off for this workspace',pill(has('bluebook')));
+  }
+
+  // ── courses: from Bluebook, the only place a course exists ──
+  function courseRow(c){
+    const title=c.code?c.code+': '+c.name:c.name;
+    const parts=[];
+    if(c.term) parts.push(c.term);
+    parts.push(plural(Number(c.students)||0,'student'));
+    parts.push(plural(Number(c.exams)||0,'exam'));
+    const status=String(c.status||'').toLowerCase();
+    const right=c.active
+      ? '<span class="st ok"><span class="d"></span>Active</span>'
+      : '<span class="st off"><span class="d"></span>'+esc(status?status.charAt(0).toUpperCase()+status.slice(1):'Inactive')+'</span>';
+    return row(title,parts.join(' · '),right);
+  }
+  const NO_BLUEBOOK='Courses are kept in Bluebook, which is off for this workspace.';
+  const COURSES_FAILED='Your courses could not be loaded just now. Try reloading the page.';
+  // Never leaves the card on "Loading": every way this can end draws something.
+  function renderCourses(sess){
+    const box=$('courses');
+    if(sess.products.indexOf('bluebook')<0){ Live.empty(box,NO_BLUEBOOK); return Promise.resolve(); }
+    return Promise.resolve().then(()=>Live.api('/bluebook/courses')).then(res=>{
+      if(res.status===403){ Live.empty(box,NO_BLUEBOOK); return; }
+      const list=res.ok&&res.data&&Array.isArray(res.data.courses)?res.data.courses:null;
+      if(!list){ Live.empty(box,COURSES_FAILED); return; }
+      // Active courses first; the server's own order (newest first) within each group.
+      const shown=list.filter(c=>c&&typeof c==='object').sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+      if(!shown.length){ Live.empty(box,'No courses yet. Add one in Bluebook.'); return; }
+      box.innerHTML=shown.map(courseRow).join('');
+    }).catch(()=>{ Live.empty(box,COURSES_FAILED); });
+  }
+
+  // ── change password: POST /auth/password {current_password, new_password} ──
+  // The three values live only in the form fields and in the one request body.
+  // They are never logged, stored or put in a URL, and the fields are cleared
+  // once the server accepts the change.
+  // Progress and success go to #pw-msg (a polite status); a problem goes to #pw-err
+  // (an alert), so a screen reader announces it at once. Both are set with
+  // textContent only: what the server said is shown as text, never as markup.
+  const msg=$('pw-msg'), errLine=$('pw-err'), fields=$('pw-fields'), btn=$('pw-btn');
+  function say(kind,text){
+    const isErr=kind==='err';
+    msg.className='pw-msg'+(kind&&!isErr?' '+kind:'');
+    msg.textContent=isErr?'':(text||'');
+    errLine.textContent=isErr?(text||''):'';
+  }
+  // What to tell the teacher about a refusal. The server's own sentence is shown only
+  // when it is one a person can act on (a wrong current password, a too-short new
+  // one, too many tries); a missing session, an outage and a reply that is not JSON
+  // each get a plain sentence of ours.
+  function serverText(res){
+    const d=res.data&&res.data.detail;
+    const said=typeof d==='string'?d.trim():'';
+    if(res.status===0) return 'Could not reach the server. Try again in a moment.';
+    // 401 is also "Current password is incorrect." (a sentence to show). Without a
+    // sentence, or with the generic "Not authenticated", the session is what ended.
+    if(res.status===401&&(!said||/^not authenticated\.?$/i.test(said))) return 'Your sign-in has expired. Sign in again.';
+    if(res.status>=500||res.data===null) return 'The server had a problem. Try again.';
+    if(said) return said;
+    return 'Your password could not be changed. Check the three fields and try again.';
+  }
+  let busy=false;
+  $('pw-form').addEventListener('submit',e=>{
+    e.preventDefault();
+    if(busy||fields.disabled) return;
+    const cur=$('pw-current'), nw=$('pw-new'), again=$('pw-again');
+    if(!cur.value){ say('err','Enter your current password.'); cur.focus(); return; }
+    if(!nw.value){ say('err','Enter a new password.'); nw.focus(); return; }
+    if(nw.value!==again.value){ say('err','The two new passwords do not match.'); again.focus(); return; }
+    busy=true; btn.disabled=true; say('','Changing your password');
+    Live.api('/auth/password',{method:'POST',body:{current_password:cur.value,new_password:nw.value}}).then(res=>{
+      busy=false; btn.disabled=false;
+      if(res.ok){
+        cur.value=''; nw.value=''; again.value='';
+        say('ok','Your password was changed.');
+      } else {
+        say('err',serverText(res));
+      }
+    });
+  });
+
+  // ── go ──
+  Live.session().then(sess=>{
+    renderChrome(sess);
+    if(sess.mode==='signed-out'||sess.role==='student'){
+      // The sign-in panel, or the redirect that sends a student to Bluebook.
+      main.classList.add('gated');
+      return Live.gate(main);
+    }
+    // Settings is deliberately not gated on the Original product (no Live.gate here):
+    // a workspace with Original off still has an account, products and courses to look
+    // at, and a password to change. The page says Original is off in the account card.
+    renderAccount(sess);
+    if(sess.mode==='demo'){
+      say('','The demo has no account; sign in on a real workspace to change your password.');
+    } else {
+      fields.disabled=false;
+    }
+    return renderCourses(sess);
+  });
+})();
+</script>
+</body>
+</html>

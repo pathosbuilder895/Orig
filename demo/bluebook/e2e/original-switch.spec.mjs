@@ -28,7 +28,7 @@ import { createCourse, provisionStaff, provisionTenantWithStaff } from './fixtur
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 const COMPARED_LINE = 'After you submit, your writing is compared with your own past work'
-const CONTEXT_LINE = 'Session duration and coarse writing information are noted as context, not proof of authorship'
+const CONTEXT_LINE = 'Session duration and coarse writing information are noted as context for your teacher'
 
 // A workspace (the fixture creates it with both products), its operator, and
 // an open exam with one invited student.
