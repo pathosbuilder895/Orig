@@ -575,3 +575,95 @@ def test_voice_baseline_sends_add_more_samples_to_the_exam_waiting_for_approval_
     assert waiting["href"] == "/bluebook/#exam/e1" and waiting["hidden"] is False
     none = _cta_run(noSealed=True)
     assert none["href"] == "/bluebook/#students"
+
+
+# ── The pill strip says it scrolls at phone width ─────────────────────────────
+
+SUITE_CSS = (SUITE / "suite.css").read_text(encoding="utf-8")
+
+# live.js run with a strip that overflows: the classes follow the scroll position.
+FADE_PRELUDE_ANCHOR = "  querySelectorAll() { return []; },\n  addEventListener() {},\n};\nlet active = 0"
+FADE_TAIL = r"""
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  await sleep(10);
+  const out = [];
+  for (const s of strips) {
+    const seen = [s.classes()];
+    for (const left of sc.scrolls || []) { s.scrollLeft = left; s.handlers.scroll.forEach((fn) => fn()); seen.push(s.classes()); }
+    out.push({ start: seen[0], scrolled: seen.slice(1), opened: s.scrollLeft0 });
+  }
+  process.stdout.write(JSON.stringify(out));
+})();
+"""
+
+
+def _fade_run(strips: list[dict], scrolls: list[int] | None = None) -> list[dict]:
+    prelude = PRELUDE.replace(
+        FADE_PRELUDE_ANCHOR,
+        """  querySelectorAll(sel) { return sel === '.pills' ? strips : []; },
+  addEventListener() {},
+};
+let active = 0""",
+        1,
+    )
+    assert prelude != PRELUDE, "the harness prelude changed"
+    # The strips exist before live.js runs, so its page-ready code finds them.
+    strips_js = r"""
+const strips = (sc.strips || []).map((d) => {
+  const set = new Set();
+  const here = d.here ? { offsetLeft: d.here.left, offsetWidth: d.here.width } : null;
+  const s = {
+    scrollWidth: d.scrollWidth, clientWidth: d.clientWidth, offsetLeft: d.offsetLeft || 0, scrollLeft: 0, handlers: {},
+    classList: { toggle(c, on) { if (on) set.add(c); else set.delete(c); } },
+    classes() { return Array.from(set).sort(); },
+    querySelector() { return here; },
+    addEventListener(t, fn) { (this.handlers[t] = this.handlers[t] || []).push(fn); },
+  };
+  return s;
+});
+"""
+    marker = "const document = {"
+    assert marker in prelude
+    prelude = prelude.replace(marker, strips_js + marker, 1)
+    # Remember where the strip was opened, before any scroll the test makes.
+    tail = FADE_TAIL.replace("const seen = [s.classes()];", "s.scrollLeft0 = s.scrollLeft; const seen = [s.classes()];")
+    run = subprocess.run(
+        [shutil.which("node"), "-e", prelude + tail],
+        input=json.dumps({"live": str(SUITE / "live.js"), "strips": strips, "scrolls": scrolls or []}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
+
+
+@needs_node
+def test_the_suite_pill_strip_fades_on_the_edge_that_has_more_pills():
+    (out,) = _fade_run([{"scrollWidth": 580, "clientWidth": 305}], scrolls=[100, 275, 0])
+    assert out["start"] == ["fade-end"]
+    assert out["scrolled"] == [["fade-end", "fade-start"], ["fade-start"], ["fade-end"]]
+
+
+@needs_node
+def test_a_strip_that_fits_gets_no_fade_and_one_that_overflows_opens_on_the_current_page():
+    fits, wide = _fade_run(
+        [
+            {"scrollWidth": 305, "clientWidth": 305},
+            {"scrollWidth": 580, "clientWidth": 305, "offsetLeft": 26, "here": {"left": 300, "width": 100}},
+        ]
+    )
+    assert fits["start"] == [] and fits["opened"] == 0
+    # The current pill (left 300, 100 wide) is centred in the 305px strip that starts at 26.
+    assert wide["opened"] == 300 - 26 - (305 - 100) / 2
+    assert wide["start"] == ["fade-end", "fade-start"]
+
+
+def test_the_fade_is_drawn_for_each_edge_and_both_in_suite_css_and_the_teacher_nav_css():
+    for css in (SUITE_CSS, (DEMO / "bluebook" / "teacher-workspace.css").read_text(encoding="utf-8")):
+        for cls in (".fade-end", ".fade-start", ".fade-start.fade-end"):
+            assert cls in css, cls
+        assert "mask-image" in css
+    jsx = (DEMO / "bluebook" / "TeacherWorkspace.jsx").read_text(encoding="utf-8")
+    assert "usePillFade(pills, [active, demo]);" in jsx and 'ref={pills} className={\'teacher-pills\'' in jsx
