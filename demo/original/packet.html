@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -277,8 +277,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-10"></script>
-<script src="js/feature-data.js?v=2026-10-10"></script>
+<script src="live.js?v=2026-10-10.2"></script>
+<script src="js/feature-data.js?v=2026-10-10.2"></script>
 <script>
 (function(){
   'use strict';
@@ -406,7 +406,7 @@
           '<div class="ex-col"><div class="ex-lbl base">'+esc(poss+' usual writing')+'</div><span class="ex-big base">'+esc(b.toFixed(2))+'</span>'+
             '<div class="ex-q">'+esc(avgLine)+'</div>'+
             (basedOn?'<div class="ex-src">'+esc(basedOn)+'</div>':'')+'</div>'+
-          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>In general terms:</b> '+esc(f.desc):'')+'</div>'+
+          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>What this habit measures:</b> '+esc(f.desc):'')+'</div>'+
         '</div>');
     });
     if(!cards.length){

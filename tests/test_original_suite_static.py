@@ -936,6 +936,7 @@ const auths = [];
 const bodies = [];
 function route(path) {
   let m;
+  if (sc.routes && Object.prototype.hasOwnProperty.call(sc.routes, path)) return sc.routes[path];
   if (path === '/health') return sc.health || [200, { environment: 'demo' }];
   if (path === '/me/voice') return sc.meVoice || [404, {}];
   if (path === '/me/work') return sc.meWork || [404, {}];
@@ -2501,3 +2502,416 @@ def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_serve
     # This exam's warning count (a number) is shown; Bluebook's own readings never arrive.
     assert "2 lockdown warnings" in out["sealed"]
     assert "ai_score" not in out["sealed"] and "0.9" not in out["sealed"]
+
+
+# ── Writing State and the Conversation Packet: wording and the verdict rule ───
+# Both pages describe the same result to a teacher, so they say the same thing in
+# the same words: a habit the server lists is "one of the habits furthest from
+# <name>'s usual range in this paper, by Original's measure" (about a third of
+# habits sit that far out by chance even in a student's own writing, so neither
+# page counts them or calls them differences), and a baseline that is not rated
+# ready makes the reading inconclusive. The pages' inline scripts are run under
+# node for the parts that decide what is said.
+
+
+def _writing_state() -> str:
+    return (SUITE / "writing-state.html").read_text(encoding="utf-8")
+
+
+def test_writing_state_has_one_testing_label_and_it_comes_first_in_the_result_column():
+    page = _writing_state()
+    assert page.count("data-testing-notice") == 1
+    column = page.index('id="right-scroll"')
+    assert column < page.index("data-testing-notice") < page.index('class="hero-inner"')
+
+
+def test_writing_state_says_a_listed_habit_is_among_the_furthest_not_that_it_is_outside_the_range():
+    page = _writing_state()
+    # The detail panel's per-habit sentence, for a habit the server lists as furthest ...
+    assert (
+        "'This is one of the habits furthest from '+poss()+' usual range in this paper, "
+        "by Original\\u2019s measure.'"
+    ) in page
+    # ... and for one it lists as closest.
+    assert (
+        "'This is one of the habits closest to '+poss()+' usual range in this paper, "
+        "by Original\\u2019s measure.'"
+    ) in page
+    for gone in ("sits outside the range", "sits well within the range", "usually shows on this habit"):
+        assert gone not in page, f"writing-state.html still says {gone!r}"
+
+
+def test_writing_state_counts_no_habits_and_reads_no_explanation_text():
+    page = _writing_state()
+    # The server lists at most five habits, so any count would be a cap, not a finding.
+    assert "of 97" not in page
+    assert not re.search(r"at least '?\s*\+|at least \d", page)
+    # Only the headline and the action are used: the response's explanation block
+    # carries verdict and authorship wording.
+    for field in ("confidence_note", "human_explanation"):
+        assert field not in page, f"writing-state.html reads {field}"
+
+
+def test_writing_state_cleans_the_label_it_keeps_on_this_computer():
+    # professor.html's History puts a kept label into innerHTML unescaped.
+    page = _writing_state()
+    assert "original_portfolio_" in page
+    assert """.replace(/[<>&"']/g,'')""" in page
+
+
+def test_writing_state_calls_its_picture_decorative_and_names_no_symbol_that_is_not_drawn():
+    page = _writing_state()
+    assert "Writing fingerprint \u00b7 decorative" in page
+    assert "The fingerprint above is decorative, not drawn from \u03c1: it is the same print for every student." in page
+    for symbol in ("|\u03c8\u1d62|", "|\u03be\u1d62|"):
+        assert symbol not in page, f"the legend names {symbol}, which nothing draws"
+
+
+def test_packet_says_the_same_thing_as_writing_state_about_a_listed_habit():
+    page = _packet()
+    for said in (
+        "Furthest from their usual range",
+        "This is one of the habits furthest from '+poss+' usual range in this paper, by Original\u2019s measure.",
+        "(Original lists up to five.)",
+        "treat this reading as inconclusive",
+        "Offer a way to add reference writing",
+        "What this habit measures:",
+    ):
+        assert said in page, said
+    for gone in (
+        "differs most",
+        "sits outside the range",
+        "Weigh the numbers",
+        "path back",
+        "en-GB",
+        "In general terms:",
+    ):
+        assert gone not in page, f"packet.html still says {gone!r}"
+    # The habit cards never call a listed habit "outside" anything.
+    cards = page[page.index("function habitCards") : page.index("// ── where the baseline comes from")]
+    assert "outside" not in cards.replace("sits outside '+poss+' usual range by Original", "")
+
+
+def test_feature_descriptions_are_written_about_the_writer_not_to_them():
+    # A teacher reads these about a student. Only the data (below the header
+    # comment) is checked; the header may say "you".
+    src = (SUITE / "js" / "feature-data.js").read_text(encoding="utf-8")
+    data = src[src.index("(function () {") :]
+    found = re.findall(r"\b(?:you|your|yours|yourself|you're|you've)\b", data, re.IGNORECASE)
+    assert not found, f"second person in feature-data.js: {found}"
+
+
+# "authentic" is a verdict word and the suite shows none: not "% authentic", not a
+# tier called "Authenticity". The server's field name authenticated_count is a
+# count of the samples that join a baseline, read by the pages but never printed,
+# and baseline.html rewrites the server's own "authenticated" into "counted".
+_AUTHENTIC_ALLOWED = ("authenticated_count", "replace(/authenticated/gi,'counted')")
+
+
+def _displayed_authentic(text: str) -> list[str]:
+    found = []
+    for line in text.splitlines():
+        if line.lstrip().startswith("//"):
+            continue
+        for allowed in _AUTHENTIC_ALLOWED:
+            line = line.replace(allowed, "")
+        found.extend(re.findall(r"\w*authentic\w*", line, re.IGNORECASE))
+    return found
+
+
+def test_the_authentic_check_allows_the_api_field_name_and_nothing_else():
+    assert _displayed_authentic("const a = bc.authenticated_count;") == []
+    assert _displayed_authentic("// its authenticated is a sample it counts") == []
+    assert _displayed_authentic("String(t).replace(/authenticated/gi,'counted')") == []
+    for shown in ("75% authentic", "Voice Authenticity", "<b>Authentic</b>", "an authenticated sample", "authentically"):
+        assert _displayed_authentic(shown), shown
+
+
+@pytest.mark.parametrize("path", _code_files(), ids=lambda p: p.relative_to(SUITE).as_posix())
+def test_no_suite_file_shows_the_word_authentic(path):
+    assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
+
+
+def _extract(script: str, name: str) -> str:
+    """The source of one top-level ``const name=...;`` line or ``function name(...)``
+    of a page's inline script, so a test can run just the part that decides."""
+    line = re.search(rf"^\s*const {name}=[^\n]*;$", script, re.M)
+    if line:
+        return line.group(0)
+    head = re.search(rf"^\s*function {name}\(", script, re.M)
+    assert head, f"no {name} in the page's script"
+    depth = 0
+    for i in range(script.index("{", head.end()), len(script)):
+        depth += (script[i] == "{") - (script[i] == "}")
+        if depth == 0:
+            return script[head.start() : i + 1]
+    raise AssertionError(f"{name} is not closed")
+
+
+VERDICT_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const out = sc.cases.map((S) => {
+  const esc = String;
+  const api = new Function('S', 'esc', sc.src + '\nreturn {resultVerdict, verdictNow, thinResultLine, thinNote};')(S, esc);
+  return {
+    result: api.resultVerdict(), now: api.verdictNow(), line: api.thinResultLine(), note: api.thinNote(),
+  };
+});
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _verdicts(cases: list[dict]) -> list[dict]:
+    script = _inline_scripts(SUITE / "writing-state.html")
+    src = "\n".join(
+        _extract(script, name)
+        for name in ("num", "plural", "baselineHref", "approved", "resultVerdict", "verdictNow", "thinResultLine", "thinNote")
+    )
+    run = subprocess.run(
+        [shutil.which("node"), "-e", VERDICT_RUN],
+        input=json.dumps({"src": src, "cases": cases}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    return json.loads(run.stdout)
+
+
+def _scored(authenticated, effective, **state) -> dict:
+    bc = {}
+    if authenticated is not None:
+        bc["authenticated_count"] = authenticated
+    if effective is not None:
+        bc["effective_sample_count"] = effective
+    return {"id": "s1", "student": None, "verdict": None, "result": {"baseline_confidence": bc}, **state}
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "authenticated,effective,verdict",
+    [
+        (5, 3.0, "ready"),
+        (5, 2.9, "developing"),  # five samples that barely count are still building
+        (9, 2.0, "developing"),
+        (4, 10, "developing"),
+        (2, 0, "developing"),
+        (1, 1, "insufficient"),
+        (0, 0, "insufficient"),
+        (None, 3, None),  # a missing field is no verdict, never "fine"
+        (5, None, None),
+        (None, None, None),
+    ],
+)
+def test_writing_state_applies_the_servers_readiness_rule_to_the_score_response(authenticated, effective, verdict):
+    (got,) = _verdicts([_scored(authenticated, effective)])
+    assert got["result"] == verdict
+    assert got["now"] == verdict  # no roster verdict: the derived one stands in
+
+
+@needs_node
+def test_writing_state_has_no_derived_verdict_before_a_result():
+    (got,) = _verdicts([{"id": "s1", "student": None, "verdict": None, "result": None}])
+    assert got["result"] is None and got["now"] is None
+
+
+@needs_node
+def test_writing_state_prefers_the_rosters_verdict_over_the_one_it_derives():
+    ready, building = _verdicts(
+        [
+            _scored(2, 0, verdict="ready"),  # the roster says ready: nothing is added
+            _scored(5, 5, verdict="developing"),
+        ]
+    )
+    assert ready["now"] == "ready" and ready["line"] == "" and ready["note"] == ""
+    assert building["now"] == "developing" and "still building" in building["line"]
+
+
+@needs_node
+def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready():
+    ready, building, thin, unreadable = _verdicts(
+        [_scored(5, 3), _scored(3, 2), _scored(1, 1), _scored(None, None)]
+    )
+    assert ready["line"] == ""
+    assert building["line"] == (
+        " Original rates this baseline as still building (3 approved samples), "
+        "so treat this reading as inconclusive."
+    )
+    assert thin["line"] == (
+        " Original rates this baseline as having too little approved writing (1 approved sample), "
+        "so treat this reading as inconclusive."
+    )
+    # Nothing could be read: the page says so rather than leave the reading unqualified.
+    assert unreadable["line"] == (
+        " Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive."
+    )
+    # The card's own note speaks only for a rated-thin baseline.
+    assert ready["note"] == "" and unreadable["note"] == ""
+    assert "still building (3 approved samples)" in building["note"]
+    assert "too thin to rely on yet (1 approved sample)" in thin["note"]
+
+
+# The packet's inline script, run for real under node: the stored analysis is in
+# sessionStorage, the student record and readiness are stubbed endpoints.
+PACKET_TAIL = r"""
+new Function('window', fs.readFileSync(sc.features, 'utf8'))(window);
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+const getById = document.getElementById.bind(document);
+document.getElementById = (id) => {
+  const e = getById(id);
+  if (!e.insertAdjacentElement) e.insertAdjacentElement = function () {};
+  return e;
+};
+window.sessionStorage.setItem('original_last_result', JSON.stringify(sc.stored));
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  for (let i = 0; i < 500 && !el('p-baseline').innerHTML && !el('paper').innerHTML; i++) await sleep(10);
+  await sleep(30);
+  process.stdout.write(JSON.stringify({
+    habits: el('p-habits').innerHTML, baseline: el('p-baseline').innerHTML, sub: el('p-sub').innerHTML,
+    status: el('status').textContent, calls,
+  }));
+})();
+"""
+
+
+def _packet_run(stored_counts=None, student=None, readiness=None, habit=True, **scenario) -> dict:
+    listed = {
+        True: [{"code": "dash_rate", "name": "Dash Rate", "tier": 4, "baseline_value": 0.5, "submission_value": 0.1}],
+        False: [],
+        # The server named a habit but no figures were kept with the analysis.
+        "no-figures": [{"code": "dash_rate"}],
+    }[habit]
+    result = {
+        "interference": {"destructive_features": listed},
+        "feature_vector": {},
+        "baseline_vector": {},
+        "baseline_confidence": stored_counts or {},
+    }
+    stored = {
+        "kind": "original_writing_state", "version": 1, "student_id": "s1", "student_name": "Ada",
+        "assignment": "Essay", "analysed_at": "2026-10-09T12:00:00Z", "word_count": 500,
+        "summary": "Overall: worth a conversation, not a conclusion.", "result": result,
+    }
+    routes = {"/students/s1": student or [500, {"detail": "boom"}]}
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + PACKET_TAIL],
+        input=json.dumps(
+            {
+                "live": str(SUITE / "live.js"),
+                "page": str(SUITE / "packet.html"),
+                "features": str(SUITE / "js" / "feature-data.js"),
+                "stored": stored,
+                "routes": routes,
+                "readinessDefault": readiness or [500, {"detail": "boom"}],
+                **scenario,
+            }
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the packet never finished loading"
+    return json.loads(run.stdout)
+
+
+def _samples(n: int) -> list:
+    return [
+        {"index": i, "assignment": f"Paper {i}", "provenance": "proctored", "submitted_at": "2025-01-2%d" % (i % 10)}
+        for i in range(n)
+    ]
+
+
+@needs_node
+def test_packet_card_describes_a_listed_habit_in_the_neutral_words_of_writing_state():
+    out = _packet_run({"authenticated_count": 5, "effective_sample_count": 4}, student=[200, {"samples": _samples(5)}])
+    habits = out["habits"]
+    assert "This is one of the habits furthest from Ada\u2019s usual range in this paper, by Original\u2019s measure." in habits
+    assert "outside" not in habits
+    assert "<b>What this habit measures:</b> How often dashes (like this) interrupt or extend a sentence." in habits
+    # 0.1 against 0.5: lower by 0.40, on the scale the page names.
+    assert "Here the paper is lower than Ada\u2019s usual by 0.40, on a scale from 0 to 1." in habits
+    assert "5 approved samples" in habits
+
+
+@needs_node
+def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
+    # Neither the analysis nor the student record has a count: not "0 approved".
+    out = _packet_run({}, student=[500, {"detail": "boom"}])
+    assert not re.search(r"\d+ approved sample", out["habits"])
+    assert "A weighted average of Ada\u2019s approved samples" in out["habits"]
+    assert "compared against" not in out["sub"]
+    assert "Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive." in out["baseline"]
+    assert "could not be loaded just now" in out["baseline"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "counts,said,not_said",
+    [
+        ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
+        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "still building", None),
+        ({"authenticated_count": 2, "effective_sample_count": 0}, "still building", None),
+        ({"authenticated_count": 1, "effective_sample_count": 1}, "too thin to rely on yet", None),
+        ({"authenticated_count": 5}, "could not read this baseline", "still building"),
+        ({}, "could not read this baseline", "too thin"),
+    ],
+    ids=["ready", "five-barely-counting", "two-samples", "one-sample", "no-effective-count", "no-counts"],
+)
+def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
+    out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500
+    assert said in out["baseline"]
+    if not_said:
+        assert not_said not in out["baseline"]
+    if said != "A paper on a new topic or in a new genre":
+        assert "treat this reading as inconclusive" in out["baseline"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "readiness,said",
+    [
+        ([200, {"verdict": "insufficient"}], "too thin to rely on yet"),  # a fresh answer beats the stored counts
+        ([200, {"verdict": "developing"}], "still building"),
+        ([200, {"verdict": "banana"}], "A paper on a new topic or in a new genre"),  # not a word of the server's: stored counts
+        ([200, {}], "A paper on a new topic or in a new genre"),
+    ],
+)
+def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_servers_three(readiness, said):
+    counts = {"authenticated_count": 5, "effective_sample_count": 4}
+    out = _packet_run(counts, student=[200, {"samples": _samples(5)}], readiness=readiness)
+    assert said in out["baseline"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "student,table_says",
+    [
+        ([500, {"detail": "boom"}], "could not be loaded just now"),
+        ([200, {"samples": []}], "No approved samples are on file"),
+    ],
+    ids=["list-fails", "list-empty"],
+)
+def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(student, table_says):
+    out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
+    assert table_says in out["baseline"]
+    assert "too thin to rely on yet" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+
+
+@needs_node
+def test_packet_with_no_listed_habits_says_so_and_with_unkept_figures_says_that_instead():
+    counts = {"authenticated_count": 5, "effective_sample_count": 4}
+    none = _packet_run(counts, student=[200, {"samples": _samples(5)}], habit=False)
+    assert (
+        "None of the habits measured in this paper sits outside Ada\u2019s usual range by Original\u2019s measure"
+        in none["habits"]
+    )
+    unkept = _packet_run(counts, student=[200, {"samples": _samples(5)}], habit="no-figures")
+    assert "The figures for these habits were not kept with this analysis" in unkept["habits"]
+    assert "None of the habits" not in unkept["habits"]

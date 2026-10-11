@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -483,9 +483,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-10"></script>
-<script src="js/feature-data.js?v=2026-10-10"></script>
-<script src="js/fingerprint.js?v=2026-10-10"></script>
+<script src="live.js?v=2026-10-10.2"></script>
+<script src="js/feature-data.js?v=2026-10-10.2"></script>
+<script src="js/fingerprint.js?v=2026-10-10.2"></script>
 <script>
 (function(){
   'use strict';
@@ -838,8 +838,8 @@
       $('evi-desc').textContent=f.desc||'';
       const n=approved()||0;
       if(s!=null){
-        const line=out?'This paper sits outside the range '+who()+' usually shows on this habit.'
-          :within?'This paper sits well within the range '+who()+' usually shows on this habit.'
+        const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
+          :within?'This is one of the habits closest to '+poss()+' usual range in this paper, by Original\u2019s measure.'
           :'This paper’s value for this habit, on a scale from 0 to 1.';
         $('evi-sub').innerHTML='<span class="evi-big">'+s.toFixed(2)+'</span><p>'+esc(line)+'</p>';
         $('evi-sub-src').textContent=(S.assignment||'This paper')+' · '+plural(S.words,'word');
