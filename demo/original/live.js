@@ -238,18 +238,26 @@
   // Resolves, and never rejects:
   //   bluebook       'ok' | 'off' | 'error'. 'off' is no Bluebook product in
   //                  this workspace, or a 403; 'error' is any other answer
-  //                  that is not a list of sealed exams
+  //                  that is not a list of sealed exams, including a list with
+  //                  a row that is not an object (a half-read list would
+  //                  undercount "to review", so none of it is used)
   //   submissions[]  one object per sealed exam, holding exactly SEALED_FIELDS
   //                  plus two derived values: course_id (the exam record's,
   //                  else null) and warning_count (a number: how many warnings
-  //                  the sitting recorded). Nothing else Bluebook sent about a
-  //                  submission (its integrity readings, a status label, the
-  //                  warnings themselves, the grader, the feedback, the paper
-  //                  text) is ever copied out
+  //                  the sitting recorded). Every copied value is a string, a
+  //                  number or a boolean, else null, so a field that arrives as
+  //                  an object cannot carry nested keys through the allowlist.
+  //                  Nothing else Bluebook sent about a submission (its
+  //                  integrity readings, a status label, the warnings
+  //                  themselves, the grader, the feedback, the paper text) is
+  //                  ever copied out
   //   names          Map(student_id -> name) from Bluebook's rosters
   //   exams          Map(exam_id -> {title, course, course_id})
   //
-  // Memoised: the three requests are made once per page load, whoever asks.
+  // Memoised: the three requests are made once per page load, whoever asks, so
+  // every caller gets the same object. It is frozen (the result, the array and
+  // each row) and a page copies before it sorts or adds a field. The two Maps
+  // cannot be frozen; read them with get() and has() only.
   // An exam is awaiting review when it has no graded_at (see pendingReview).
 
   var ROSTER_CAP = 60;        // readiness is asked for the first 60 students
@@ -285,9 +293,28 @@
     return !s.graded_at;
   }
 
+  // A value that may leave a Bluebook response: a string, a number or a
+  // boolean. Anything else (an object, an array, null) becomes null.
+  function scalar(v) {
+    var t = typeof v;
+    if (t === 'string' || t === 'boolean') return v;
+    return (t === 'number' && isFinite(v)) ? v : null;
+  }
+
+  // Freezes a list and every object in it. Shared results are read by every
+  // page script, so none of them may change what another reads.
+  function freezeList(list) {
+    list.forEach(function (x) { if (x && typeof x === 'object') Object.freeze(x); });
+    return Object.freeze(list);
+  }
+
+  function isRow(r) {
+    return !!r && typeof r === 'object' && !Array.isArray(r);
+  }
+
   function sealedRow(raw, exams) {
     var out = {};
-    SEALED_FIELDS.forEach(function (k) { out[k] = raw[k] != null ? raw[k] : null; });
+    SEALED_FIELDS.forEach(function (k) { out[k] = scalar(raw[k]); });
     var e = exams.get(out.exam_id);
     out.course_id = e ? e.course_id : null;
     // Derived, never copied: how many warnings the sitting recorded, as a
@@ -296,8 +323,12 @@
     return out;
   }
 
+  function sealedView(state, submissions, names, exams) {
+    return Object.freeze({ bluebook: state, submissions: freezeList(submissions), names: names, exams: exams });
+  }
+
   function sealedState(state) {
-    return { view: { bluebook: state, submissions: [], names: new Map(), exams: new Map() }, students: null };
+    return { view: sealedView(state, [], new Map(), new Map()), students: null };
   }
 
   function loadSealed(sess) {
@@ -309,6 +340,9 @@
       var sb = all[0], bs = all[1], ex = all[2];
       if (sb.status === 403 || bs.status === 403) return sealedState('off');
       if (!sb.ok || !sb.data || !Array.isArray(sb.data.submissions)) return sealedState('error');
+      // A row that is not an object means the list cannot be trusted: say so
+      // rather than count the rows around it as if the list were whole.
+      if (!sb.data.submissions.every(isRow)) return sealedState('error');
 
       // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
       var names = new Map(), exams = new Map(), students = null;
@@ -319,17 +353,15 @@
       if (ex.ok && ex.data && Array.isArray(ex.data.exams)) {
         ex.data.exams.forEach(function (e) {
           if (!e || typeof e !== 'object') return;
-          exams.set(e.id, {
+          exams.set(e.id, Object.freeze({
             title: e.title ? String(e.title) : '',
             course: e.course ? String(e.course) : '',
             course_id: (e.course_id != null && e.course_id !== '') ? String(e.course_id) : null
-          });
+          }));
         });
       }
-      var submissions = sb.data.submissions
-        .filter(function (r) { return r && typeof r === 'object'; })
-        .map(function (r) { return sealedRow(r, exams); });
-      return { view: { bluebook: 'ok', submissions: submissions, names: names, exams: exams }, students: students };
+      var submissions = sb.data.submissions.map(function (r) { return sealedRow(r, exams); });
+      return { view: sealedView('ok', submissions, names, exams), students: students };
     }).then(null, function () { return sealedState('error'); });
   }
 
@@ -353,7 +385,9 @@
   //                                   courses and email (same single load)
   //
   // Memoised per page load (one in-flight promise): a second call makes no
-  // request. Resolves, and never rejects:
+  // request. The result is frozen (the result, students, each student's
+  // courses, submissions): every page shares the one object, so a page copies
+  // before it sorts or adds a field. Resolves, and never rejects:
   //   ok, error      ok is false when the student list itself could not be read
   //   scoped         true when /students carried a roster (names and counts)
   //   students[]     {id, name, email, courses:[{id,code,name}], approved,
@@ -379,11 +413,11 @@
   }
 
   function rosterFailure() {
-    return {
-      ok: false, error: 'Could not load your students', scoped: false, students: [],
+    return Object.freeze({
+      ok: false, error: 'Could not load your students', scoped: false, students: freezeList([]),
       sealedToReview: null, bluebook: 'error', bluebookOff: false,
-      courseCount: 0, beyondCap: 0, submissions: []
-    };
+      courseCount: 0, beyondCap: 0, submissions: freezeList([])
+    });
   }
 
   function loadRoster(sess) {
@@ -456,7 +490,7 @@
             id: r.id,
             name: String(r.name || r.id),
             email: b && b.email ? String(b.email) : null,
-            courses: courses,
+            courses: freezeList(courses),
             approved: r.ac,
             samples: r.sc,
             verdict: r.verdict,
@@ -466,25 +500,25 @@
           };
         });
 
-        return {
+        return Object.freeze({
           ok: ok,
           error: ok ? null : 'Could not load your students',
           scoped: rows !== null,
-          students: students,
+          students: freezeList(students),
           sealedToReview: bluebook === 'ok' ? subs.filter(pendingReview).length : null,
           bluebook: bluebook,
           bluebookOff: bluebook === 'off',
           courseCount: courseIds.size,
           beyondCap: base.length - asked.length,
-          submissions: subs
-        };
+          submissions: freezeList(subs)
+        });
       });
     });
   }
 
   // Memoised like Live.sealed: the first call starts the load, every later call
-  // in the same page load gets the same answer without a request. Treat the
-  // result as read-only; it is shared by every caller.
+  // in the same page load gets the same answer without a request. The result is
+  // frozen because it is shared by every caller.
   var rosterPromise = null;
   function roster() {
     if (!rosterPromise) rosterPromise = session().then(loadRoster).then(null, rosterFailure);

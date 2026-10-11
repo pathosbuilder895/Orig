@@ -272,6 +272,48 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
         assert target.is_file(), f"{path.name}: {url} does not resolve to a file"
 
 
+# The suite's own scripts and stylesheets. A browser keeps a script it has seen,
+# so a page loaded from cache next to a newer live.js would run the old code
+# against new markup. Every page therefore asks for these files with one shared
+# ?v= query; change the version (on every page at once) when any of them changes.
+VERSIONED = ("live.js", "js/feature-data.js", "js/fingerprint.js", "suite.css", "fonts.css")
+
+
+def _versioned_refs(path: Path) -> list[tuple[str, str, str]]:
+    """(file, query, tag) for each href / src of a page that names one of the suite's
+    own VERSIONED files. ../bluebook/fonts.css is Bluebook's file, not the suite's."""
+    parser = _Refs()
+    parser.feed(path.read_text(encoding="utf-8"))
+    found = []
+    for tag, raw in parser.refs:
+        split = urlsplit(_normalise(raw))
+        if split.scheme or split.netloc:
+            continue
+        target = (path.parent / split.path).resolve()
+        for name in VERSIONED:
+            if target == (SUITE / name).resolve():
+                found.append((name, split.query, tag))
+    return found
+
+
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(path):
+    found = _versioned_refs(path)
+    queries = {query for _, query, _ in found}
+    assert len(queries) == 1, f"{path.name}: {sorted(queries)}"
+    (query,) = queries
+    assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
+    # Every page carries the suite's stylesheet, font file and shared script; the
+    # others (feature-data.js, fingerprint.js) appear where the page uses them.
+    assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
+    assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
+
+
+def test_all_pages_use_the_same_version_string():
+    versions = {query for page in PAGES for _, query, _ in _versioned_refs(page)}
+    assert len(versions) == 1, f"pages disagree on the version: {sorted(versions)}"
+
+
 def test_planned_pages_are_still_missing():
     built = sorted(name for name in PLANNED_PAGES if (SUITE / name).exists())
     assert not built, f"{built} now exist: delete them from PLANNED_PAGES in this test file"
@@ -667,8 +709,6 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "writing-state.html" in page
 
 
-needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
-
 # ── Teachers land on these pages; the old page stays one click away ───────────
 # Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
 # professor.html stays reachable as "Analysis (classic)" until these pages cover
@@ -901,6 +941,8 @@ new Function('window', 'document', 'fetch', src)(window, document, fakeFetch);
 LIVE_TAIL = r"""
 // A Map does not survive JSON, so it is written as its list of entries.
 const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: Array.from(r.exams) });
+// Adding to a frozen array throws, in sloppy mode too.
+const pushThrows = (list) => { try { list.push({}); return false; } catch (e) { return e instanceof TypeError; } };
 (async () => {
   const out = {};
   if (sc.call === 'signOut') {
@@ -910,7 +952,14 @@ const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: A
       out.session = window.sessionStorage.keys();
     }
   } else if (sc.call === 'sealed') {
-    out.result = plain(await window.Live.sealed());
+    const sealed = await window.Live.sealed();
+    out.result = plain(sealed);
+    out.frozen = {
+      result: Object.isFrozen(sealed),
+      submissions: Object.isFrozen(sealed.submissions),
+      rows: sealed.submissions.every((r) => Object.isFrozen(r)),
+      pushThrows: pushThrows(sealed.submissions),
+    };
   } else if (sc.call === 'rosterTwice') {
     // Two callers at once, then a third after the load has finished.
     const [a, b] = await Promise.all([window.Live.roster(), window.Live.roster()]);
@@ -923,7 +972,17 @@ const plain = (r) => Object.assign({}, r, { names: Array.from(r.names), exams: A
     out.sealed = plain(sealed);
     out.sameObject = sealed === again;
   } else {
-    out.result = await window.Live.roster();
+    const roster = await window.Live.roster();
+    out.result = roster;
+    out.frozen = {
+      result: Object.isFrozen(roster),
+      students: Object.isFrozen(roster.students),
+      rows: roster.students.every((s) => Object.isFrozen(s)),
+      courses: roster.students.every((s) => Object.isFrozen(s.courses) && s.courses.every((c) => Object.isFrozen(c))),
+      submissions: Object.isFrozen(roster.submissions),
+      submissionRows: roster.submissions.every((r) => Object.isFrozen(r)),
+      pushThrows: pushThrows(roster.students),
+    };
   }
   process.stdout.write(JSON.stringify(Object.assign(out, { max, calls, replaced })));
 })();
@@ -934,7 +993,9 @@ const page = fs.readFileSync(sc.page, 'utf8');
 const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
 if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
 window.matchMedia = () => ({ matches: true });  // no animation timers
-new Function('window', 'document', 'Live', scripts[0])(window, document, window.Live);
+// Strict mode: a page that writes into a frozen shared result throws here
+// instead of being ignored.
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
 const el = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const snap = () => ({
@@ -1183,8 +1244,6 @@ def test_sealed_copies_only_the_allowlisted_fields_and_adds_the_exams_course():
                         "warnings": ["pasted"], "graded_by": "teacher-1", "feedback": "see me",
                         "text": "the whole paper", "tenant_id": "demo",
                     },
-                    None,
-                    "junk",
                     {"id": "x2", "exam_id": "unknown-exam", "student_id": "constructor"},
                 ]
             },
@@ -1223,6 +1282,121 @@ def test_sealed_copies_only_the_allowlisted_fields_and_adds_the_exams_course():
     assert res["names"] == [["s1", "Ada Lovelace"]]
     # An exam keeps only its title, course and course id.
     assert res["exams"] == [["e1", {"title": "Midterm", "course": "THEO 301", "course_id": "c1"}]]
+
+
+@needs_node
+def test_sealed_copies_only_scalars_so_an_object_valued_field_carries_no_nested_keys():
+    # The allowlist names the keys that leave; a value is copied only when it is a
+    # string, a number or a boolean. A field that arrives as an object (or a list)
+    # becomes null, or its own nested keys would ride through under an allowed name.
+    out = _roster(
+        call="sealed",
+        bbSubmissions=[
+            200,
+            {
+                "submissions": [
+                    {
+                        "id": "x1", "exam_id": "e1", "student_id": "s1",
+                        "mark": {"value": "B+", "ai_score": 0.91, "status": "FLAGGED"},
+                        "late": {"yes": True},
+                        "candidate": ["Ada", "Lovelace"],
+                        "exam": {"text": "the whole paper"},
+                        "course": 7,
+                        "created_at": "2026-10-01T10:00:00Z",
+                        "graded_at": {"at": "2026-10-02T10:00:00Z"},
+                    }
+                ]
+            },
+        ],
+    )
+    (row,) = out["result"]["submissions"]
+    assert set(row) == SEALED_RESULT_KEYS
+    for field in ("mark", "late", "candidate", "exam", "graded_at"):
+        assert row[field] is None, field
+    # Strings, numbers and booleans pass as they are.
+    assert (row["id"], row["exam_id"], row["course"], row["created_at"]) == ("x1", "e1", 7, "2026-10-01T10:00:00Z")
+    blob = json.dumps(out["result"])
+    for value in ("ai_score", "FLAGGED", "the whole paper", "Lovelace", "0.91"):
+        assert value not in blob, value
+    scalars = _roster(
+        call="sealed",
+        bbSubmissions=[200, {"submissions": [{"id": "x2", "late": False, "mark": "", "created_at": 5}]}],
+    )["result"]["submissions"][0]
+    assert (scalars["late"], scalars["mark"], scalars["created_at"]) == (False, "", 5)
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "rows",
+    [[None], ["junk"], [5], [[1, 2]], [{"id": "ok", "student_id": "s1"}, None]],
+    ids=["null", "string", "number", "list", "good-row-then-null"],
+)
+def test_a_sealed_list_with_a_row_that_is_not_an_object_is_an_error_not_a_smaller_list(rows):
+    # Dropping the bad row would count the rest as if the list were whole: an
+    # undercounted "to review" with no sign anything went wrong.
+    out = _roster(
+        call="both",
+        students=[200, {"students": ["s1"], "roster": None}],
+        readinessDefault=_ready("ready"),
+        bbSubmissions=[200, {"submissions": rows}],
+    )
+    sealed, res = out["sealed"], out["result"]
+    assert sealed["bluebook"] == "error"
+    assert sealed["submissions"] == [] and sealed["names"] == [] and sealed["exams"] == []
+    # The roster reads the same load: the students are still listed, Bluebook is
+    # reported as unreadable, and nothing is counted from the half-read list.
+    assert res["ok"] and [s["id"] for s in res["students"]] == ["s1"]
+    assert res["bluebook"] == "error" and res["bluebookOff"] is False
+    assert res["sealedToReview"] is None and res["submissions"] == []
+    assert res["students"][0]["sealed"] is None and res["students"][0]["pending"] is None
+
+
+@needs_node
+def test_the_roster_has_the_same_shape_whether_bluebook_answered_or_not():
+    answered = _roster(students=[200, {"students": ["a"], "roster": None}], readinessDefault=_ready("ready"))
+    failed = _roster(
+        students=[200, {"students": ["a"], "roster": None}],
+        readinessDefault=_ready("ready"),
+        bbSubmissions=[200, {"submissions": [None]}],
+    )
+    unreadable = _roster(students=[500, {"detail": "boom"}])
+    keys = set(answered["result"])
+    assert keys == {
+        "ok", "error", "scoped", "students", "sealedToReview", "bluebook", "bluebookOff",
+        "courseCount", "beyondCap", "submissions",
+    }
+    assert set(failed["result"]) == keys and set(unreadable["result"]) == keys
+    assert set(answered["result"]["students"][0]) == set(failed["result"]["students"][0])
+
+
+@needs_node
+@pytest.mark.parametrize("call", ["roster", "sealed"])
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        {},
+        {"bbSubmissions": [500, {"detail": "boom"}]},
+        {"bbSubmissions": [403, {"detail": "no"}]},
+        {"bbSubmissions": [200, {"submissions": [None]}]},
+        {"students": [500, {"detail": "boom"}]},
+    ],
+    ids=["answered", "bluebook-500", "bluebook-off", "bad-row", "students-500"],
+)
+def test_the_shared_roster_and_sealed_results_are_frozen(call, scenario):
+    # Every page shares one object per load. A page that sorted it in place or
+    # added a field would change what the next page script reads.
+    base = dict(
+        students=[200, {"students": ["a", "b"], "roster": None}],
+        readinessDefault=_ready("ready"),
+        bbStudents=[200, {"students": [{"student_id": "a", "courses": [_course("c1", "THEO 301")]}]}],
+        bbSubmissions=[
+            200,
+            {"submissions": [{"id": "x1", "student_id": "a", "created_at": "2026-10-01T10:00:00Z", "graded_at": None}]},
+        ],
+    )
+    base.update(scenario)
+    frozen = _roster(call=call, **base)["frozen"]
+    assert frozen and all(v is True for v in frozen.values()), frozen
 
 
 @needs_node
