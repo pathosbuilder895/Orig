@@ -970,6 +970,26 @@
     catch(e){ return false; }
   }
 
+  // An id for one pasted paper: the same student and the same words (whitespace aside) always give the same
+  // 64 hex characters, so pasting a paper twice is the same paper twice. SHA-256 where the browser has it
+  // (secure pages); otherwise a plain mixing hash of the same shape, since the server compares the text itself.
+  function mixKey(s){
+    const h=[]; for(let k=0;k<8;k++) h.push((0x811c9dc5^Math.imul(k,0x9e3779b1))>>>0);
+    for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); for(let k=0;k<8;k++) h[k]=Math.imul(h[k]^c,16777619+2*k)>>>0; }
+    return h.map(n=>('00000000'+n.toString(16)).slice(-8)).join('');
+  }
+  async function pasteKey(id,text){
+    const norm=String(id)+'\n'+String(text).replace(/\s+/g,' ').trim();
+    try{
+      const sub=window.crypto&&window.crypto.subtle;
+      if(sub&&typeof TextEncoder==='function'){
+        const buf=await sub.digest('SHA-256',new TextEncoder().encode(norm));
+        return Array.from(new Uint8Array(buf),b=>(b<16?'0':'')+b.toString(16)).join('');
+      }
+    }catch(e){ /* not a secure page: the mixing hash below */ }
+    return mixKey(norm);
+  }
+
   async function addPasted(){
     if(S.saving||!canAdd()) return;
     const text=$('paste-text').value.trim();
@@ -980,6 +1000,8 @@
     if(!startSave('paste')) return;
     try{
       addMsg('Saving... This takes a few seconds.','');
+      // The server leaves out a paper already in the baseline only when the request carries a submission_uuid.
+      body.submission_uuid=await pasteKey(ID,text);
       const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
       if(res.status===202||res.status===409){
         const again=S.heldPaste.has(text);
