@@ -109,3 +109,17 @@ def test_writing_state_keeps_the_analysis_for_this_tab_as_soon_as_it_exists():
     assert 'id="an-again"' in page and "Analyse another" in page
     # One key, cleared by sign-out like the packet's reading of it.
     assert "sessionStorage.getItem('original_last_result')" in script
+
+
+# ── A student can reach My voice and My work ──────────────────────────────────
+
+
+def test_the_student_navigation_links_to_the_original_student_pages_when_original_is_on():
+    account = (DEMO / "bluebook" / "Account.jsx").read_text(encoding="utf-8")
+    assert "[['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']]" in account
+    assert "BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : []" in account
+    # The pages exist, and the committed bundle production serves carries the links.
+    for page in ("voice.html", "my-work.html"):
+        assert (SUITE / page).is_file()
+    bundle = (DEMO / "bluebook" / "bluebook.bundle.js").read_text(encoding="utf-8")
+    assert "../original/voice.html" in bundle and "../original/my-work.html" in bundle

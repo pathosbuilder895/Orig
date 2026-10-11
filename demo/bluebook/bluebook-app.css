@@ -143,6 +143,8 @@ select.bb-input option{color:#111}
 .bb-student-nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.6rem;border-bottom:1px solid rgba(255,255,255,.13)}
 .bb-student-nav .tabs{display:flex;gap:.3rem;flex-wrap:wrap}
 .bb-student-nav button{border:1px solid transparent;border-radius:999px;background:none;color:#c5c2be;padding:.5rem .9rem;font:17px 'EB Garamond',Georgia,serif;cursor:pointer;min-height:44px}
+.bb-student-nav .tabs a{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:999px;color:#c5c2be;padding:.5rem .9rem;font:17px 'EB Garamond',Georgia,serif;text-decoration:none;min-height:44px}
+.bb-student-nav .tabs a:hover,.bb-student-nav .tabs a:focus-visible{color:#f5efe0;border-color:#c9a02840}
 .bb-student-nav button[aria-current=page]{color:#f5efe0;background:#ffffff0d;border-color:#c9a02840}
 .bb-student-nav .brand{font:600 1.3rem 'Playfair Display',Georgia,serif;color:#f5efe0;background:none;border:0}
 .bb-student-body{max-width:980px;margin:0 auto;padding:2rem 1.6rem 3rem}
