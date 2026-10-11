@@ -109,6 +109,12 @@ services:
         value: "0"
       - key: LONGITUDINAL_DRIFT_ENABLED
         value: "0"
+      # run.py --demo would otherwise setdefault NULL_MODEL=impostor, and with
+      # the default LLR_ACTION_MODE=gate that can move a recommended action
+      # once Original is on. Not validated on real student writing, so the
+      # pilot says "none" explicitly (NORTH_STAR rule 4).
+      - key: NULL_MODEL
+        value: "none"
       # ── Bbook external exam app (original/bbook_client.py) ──
       # Outbound client for POST /students/{id}/request-baseline. Both unset
       # means that endpoint returns 503 with manual-upload guidance — the
