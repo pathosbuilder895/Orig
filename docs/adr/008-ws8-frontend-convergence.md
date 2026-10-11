@@ -1,6 +1,6 @@
 # ADR-008: WS-8 frontend convergence — what to do about `app/` and the R2 library
 
-**Status:** Accepted
+**Status:** Accepted, then superseded by Option C on 2026-10-11 (see below)
 **Date:** 2026-08-02 (proposed and accepted same day)
 **Deciders:** repo owner
 **Relates to:** `docs/implementation/WS-8-react-migration.md` (the plan this
@@ -9,6 +9,13 @@ reconciles against — deliberately not edited by this ADR), `docs/AUDIT_2026-07
 constraint), `docs/implementation/WS-9-e2e-release-hygiene.md` (owner of the
 `@a11y` gate), `app/`, `demo/bluebook/`
 
+> **Update (2026-10-11, repo owner): Option C taken.** R3 was never funded,
+> which is the trigger this ADR names under "What would change this
+> recommendation". `app/`, its CI job and its Dependabot entry were deleted
+> (recoverable from git history). Bluebook (`demo/bluebook/` + esbuild) is the
+> frontend; R2 primitives are ported into it only when a screen needs one.
+> This matches NORTH_STAR rule 9 (consolidate, don't rewrite).
+>
 > **Decision (2026-08-02, repo owner): Option B accepted, as recommended —
 > including the promotion-path amendment.** Bluebook's esbuild pipeline is the
 > permanent home of the exam app; `app/` + the R2 library are re-scoped to the
