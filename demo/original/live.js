@@ -20,7 +20,8 @@
                      uses: ready Ready, developing Building, insufficient Needs more
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
-   Live.signOut()    forget the session and the kept papers, go to the sign-in page */
+   Live.signOut()    forget the session and the kept papers, go to the sign-in page
+                     (a student's is Bluebook's, a teacher's the main one) */
 (function (window, document) {
   'use strict';
 
@@ -557,12 +558,22 @@
     return found;
   }
 
+  // A student holds a session token (an account sign-in) or a launch binding (a
+  // Bluebook link), never a principal token: the same test loadSession() makes.
+  function leavingStudent() {
+    if (read('original_principal_token')) return false;
+    return read('original_role') === 'student' || !!read('original_session_token') || !!read('bluebook_student_id');
+  }
+
   function signOut() {
+    // Ask who is leaving before the keys that say so are removed. A student's
+    // way back in is Bluebook's sign-in, not the teachers' page.
+    var next = leavingStudent() ? '/bluebook/' : '/index.html';
     TOKEN_KEYS.concat(EXTRA_KEYS, keptPaperKeys()).forEach(function (k) {
       try { window.localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
     });
     try { window.sessionStorage.removeItem(LAST_RESULT_KEY); } catch (e) { /* storage blocked */ }
-    window.location.replace('/index.html');
+    window.location.replace(next);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', notices);

@@ -309,6 +309,23 @@ export function StatusBadge({ status, pulse = false }) {
 // ─── Original API client (exam persistence) ──────────────────────────────────
 // Same-origin by default (Bluebook is served by the Original demo server).
 // Attaches whatever session token is present so writes are tenant-scoped.
+
+// Kept by the Original pages (demo/original/writing-state.html, demo/professor.html).
+const BB_PORTFOLIO_PREFIX = 'original_portfolio_';
+const BB_LAST_RESULT_KEY = 'original_last_result';
+function bbClearKeptPapers() {
+  try {
+    // Collect first, remove after: removing while counting skips entries.
+    const found = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(BB_PORTFOLIO_PREFIX) === 0) found.push(k);
+    }
+    found.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  } catch (e) {}
+  try { sessionStorage.removeItem(BB_LAST_RESULT_KEY); } catch (e) {}
+}
+
 // Every localStorage key a sign-in (or a launch) can leave behind. Signing
 // in as one kind of account clears the others, so a shared machine never
 // carries a stale student binding into a teacher session or vice versa.
@@ -538,7 +555,7 @@ export const BB_API = {
   // Store whatever a sign-in returned. Staff get a principal token; students
   // get a session token and their student id. Everything else is cleared.
   _storeSession(data) {
-    this.logout();
+    this._clearSession();
     const student = data.role === 'student';
     localStorage.setItem(student ? 'original_session_token' : 'original_principal_token', data.token);
     if (student) localStorage.setItem('original_student_id', data.student_id || '');
@@ -618,8 +635,18 @@ export const BB_API = {
     const h = await this._health();
     return !!h && h.signup_open !== false;
   },
-  logout() {
+  // The keys a sign-in leaves behind. Signing in clears these (so one kind of
+  // account never inherits another's binding) but not the papers kept below.
+  _clearSession() {
     BB_SESSION_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  },
+  // Signing out also forgets the papers the Original Writing State page keeps on
+  // this computer (the full text and the results, one key per student) and its last
+  // result, so a shared computer does not hold the last teacher's students' writing.
+  // The same keys Live.signOut and professor.html's signOut clear.
+  logout() {
+    this._clearSession();
+    bbClearKeptPapers();
   },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },

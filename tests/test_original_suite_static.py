@@ -1592,6 +1592,29 @@ def test_sign_out_still_leaves_when_the_browser_blocks_storage():
     assert out["replaced"] == ["/index.html"]
 
 
+@needs_node
+@pytest.mark.parametrize(
+    "local,goes_to",
+    [
+        # An account student, a launch-link student, and a student who carries both.
+        ({"original_role": "student", "original_session_token": "s"}, "/bluebook/"),
+        ({"original_session_token": "s"}, "/bluebook/"),
+        ({"bluebook_student_id": "t:s1"}, "/bluebook/"),
+        ({"original_role": "student"}, "/bluebook/"),
+        # Teachers and everyone else: the main sign-in page.
+        ({"original_principal_token": "p", "original_role": "professor"}, "/index.html"),
+        ({"original_principal_token": "p", "original_session_token": "left over", "bluebook_student_id": "x"}, "/index.html"),
+        ({}, "/index.html"),
+    ],
+    ids=["account-student", "session-only", "launch-link", "role-only", "teacher", "teacher-with-stale-student-keys", "nobody"],
+)
+def test_sign_out_sends_a_student_back_to_bluebooks_sign_in_and_a_teacher_to_the_main_one(local, goes_to):
+    out = _roster(call="signOut", local=dict(local))
+    assert out["replaced"] == [goes_to]
+    # Either way the student's or teacher's keys are gone before the page moves.
+    assert out["local"] == []
+
+
 # ── Reports page: the numbers the headline and the course tabs stand on ──────
 # reports.html is run for real (its inline script, under node) against stubbed
 # endpoints; the page's text is read back from the stubbed elements.

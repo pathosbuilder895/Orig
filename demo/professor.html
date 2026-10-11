@@ -1906,6 +1906,17 @@ function applyAuthedChrome() {
 function signOut() {
   ['original_principal_token', 'original_session_token', 'original_role', 'original_tenant', 'original_name']
     .forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
+  // The papers kept on this computer for the portfolio (original_portfolio_<id>) and the last
+  // result must not outlive the session, as in the new pages' sign-out (demo/original/live.js).
+  try {
+    const kept = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('original_portfolio_') === 0) kept.push(k);
+    }
+    kept.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
+  } catch(e) {}
+  try { sessionStorage.removeItem('original_last_result'); } catch(e) {}
   location.replace('professor.html');
 }
 
