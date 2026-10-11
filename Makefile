@@ -28,9 +28,9 @@ test-fast:
 test-shard-core:
 	.venv/bin/python scripts/shard_paths.py --run core -m "not blocker and not certification" -q --durations=25
 
-# CI gives this shard a Postgres service; locally run `make db-up` and export
-# DATABASE_URL=$$(bash scripts/local_postgres.sh url) first, or the
-# postgres-marked tests in it self-skip.
+# CI gives this shard a Postgres service; locally run `make db-up` and wrap the
+# target in `bash scripts/local_postgres.sh run -- make test-shard-api` (a
+# throwaway database of its own), or the postgres-marked tests in it self-skip.
 test-shard-api:
 	.venv/bin/python scripts/shard_paths.py --run api -m "not blocker and not certification" -q --durations=25
 
@@ -54,8 +54,11 @@ test-quantum:
 openapi-snapshot:
 	.venv/bin/python scripts/update_openapi_snapshot.py
 
-# Local Postgres 16 (Docker) mirroring CI's service container, so the 166
+# Local Postgres 16 (Docker) mirroring CI's service container, so the
 # postgres-marked tests run for real locally instead of self-skipping.
+# test-postgres runs them in a throwaway database of their own (dropped
+# afterwards): parallel worktrees share the container, and a shared database
+# let one run's drop_all wipe another run's tables.
 db-up:
 	bash scripts/local_postgres.sh up
 
@@ -63,8 +66,7 @@ db-down:
 	bash scripts/local_postgres.sh down
 
 test-postgres: db-up
-	DATABASE_URL=$$(bash scripts/local_postgres.sh url) \
-		.venv/bin/python -m pytest tests/ -m postgres -q
+	bash scripts/local_postgres.sh run -- .venv/bin/python -m pytest tests/ -m postgres -q
 
 run:
 	.venv/bin/python run.py --demo --frontend-dir demo/ --port 8001

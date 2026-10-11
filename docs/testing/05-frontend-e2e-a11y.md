@@ -2,14 +2,14 @@
 
 Scope: `demo/bluebook/` (the live Bluebook React app, esbuild, committed
 bundle), `demo/app/` (a second React frontend, 13 entry points, committed
-bundles), `demo/*.html` (professor, operator, student, admin, lab, onboard,
-playground, prototypes), and `app/` (the Vite/TS rebuild target with vitest).
+bundles), and `demo/*.html` (professor, operator, student, admin, lab, onboard,
+playground, prototypes). `app/` (the Vite/TS rebuild target with vitest) was
+deleted on 2026-10-11 (ADR-008 Option C, #243).
 
 Strong today: ~72 Playwright tests on chromium against a *real* pilot-mode
 server booted with `--skip-seed`; per-worker tenant provisioning over REST with
 `storageState`; a bundle byte-identity check; axe scans on 13 Bluebook screens,
-all blocking; a two-server login-lockout run. `app/` has jest-axe unit tests and
-a 100 % branch threshold.
+all blocking; a two-server login-lockout run.
 
 Weak today: five of twelve routers have no browser flow; `demo/app/` has no
 tests and no staleness check; five `demo/*.html` pages have zero coverage;
@@ -24,9 +24,9 @@ viewport despite `parked.html` being a phone page.
 `demo/bluebook/` has no vitest. Its JSX is tested only through the browser,
 which is slow and coarse for component logic (form gating, toggle states, the
 timer, the seal retry state machine). Add vitest + testing-library +
-`jest-axe` mirroring `app/`'s setup (same versions, same
-`vite.config.ts` thresholds pattern, thresholds starting at the measured
-number and ratcheting). Targets, in order of logic density:
+`jest-axe`, using the deleted `app/` scaffold's setup as the template (in git
+history before #243: its versions and its `vite.config.ts` thresholds pattern,
+thresholds starting at the measured number and ratcheting). Targets, in order of logic density:
 
 1. `Exam.jsx` — timer expiry auto-seal, draft restore from storage, seal retry
    on transient failure, total failure preserves draft (these have e2e specs;

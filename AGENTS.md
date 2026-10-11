@@ -94,8 +94,8 @@ ORIGINAL_ENV=pilot SELF_SERVE_SIGNUP=0 .venv/bin/python run.py --demo --skip-see
 # Full suite (budget ~11-12 minutes)
 .venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 
-# With Postgres (after starting local container)
-DATABASE_URL=$(bash scripts/local_postgres.sh url) .venv/bin/python -m pytest tests/ -m postgres -q
+# With Postgres, in a throwaway database of its own (after `make db-up`)
+bash scripts/local_postgres.sh run -- .venv/bin/python -m pytest tests/ -m postgres -q
 
 # Specific module
 .venv/bin/python -m pytest tests/quantum/ -v

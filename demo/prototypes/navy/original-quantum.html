@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Writing State</title>
+<link rel="stylesheet" href="fonts.css" />
+<link rel="stylesheet" href="demo.css" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
+    --flag:#e0725a; --ok:#6bbf8a; --t1:#4d90c8; --t2:#9a7ad0; --t3:#5aab7a;
+    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);
+    background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
+    display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;
+    background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);
+    border:1px solid var(--line);border-radius:26px;overflow:hidden;
+    box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
+    display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.4rem;margin-left:1rem;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
+  .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
+  .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+
+  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
+  nav{position:relative;z-index:1;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+  .right{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;}
+  .left::-webkit-scrollbar,.right-scroll::-webkit-scrollbar{width:7px;}
+  .left::-webkit-scrollbar-thumb,.right-scroll::-webkit-scrollbar-thumb{background:rgba(201,160,40,0.25);border-radius:4px;}
+
+  .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
+  .greet{font-family:var(--display);font-size:1.7rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+  .card-t{font-size:1rem;color:var(--cream);font-weight:500;}
+  .card-s{font-size:.8rem;color:var(--dim-2);margin-top:.15rem;}
+  .led-num{font-family:var(--mono);font-weight:700;line-height:.9;color:transparent;-webkit-text-fill-color:transparent;background:radial-gradient(var(--gold) 1.05px, transparent 1.35px) 0 0/4.5px 4.5px;-webkit-background-clip:text;background-clip:text;}
+
+  /* Stat trio */
+  .stat3{display:flex;flex-direction:column;gap:.7rem;}
+  .stat3 .row{display:flex;align-items:center;justify-content:space-between;padding:.95rem 1.1rem;}
+  .stat3 .row .lab{font-size:.82rem;color:var(--dim);}
+  .stat3 .row .lab b{display:block;color:var(--cream);font-weight:500;font-size:.92rem;font-family:var(--body);}
+  .stat3 .row .val{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--gold-2);}
+  .stat3 .row .val.txt{font-size:1rem;color:var(--flag);letter-spacing:.02em;}
+
+  /* Purity card */
+  .pur{padding:1.2rem 1.3rem 1.1rem;display:flex;gap:1.2rem;align-items:center;}
+  .pur-ring{position:relative;width:118px;height:118px;flex-shrink:0;}
+  .pur-ring .val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .pur-ring .val .n{font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--cream);}
+  .pur-ring .val .c{font-size:.64rem;color:var(--dim);letter-spacing:.1em;}
+  .pur-leg{flex:1;display:flex;flex-direction:column;gap:.5rem;font-size:.76rem;}
+  .pur-leg .lr{display:flex;justify-content:space-between;color:var(--dim);}
+  .pur-leg .lr b{color:var(--cream);font-family:var(--mono);font-weight:500;}
+  .pur-note{font-size:.74rem;color:var(--dim-2);line-height:1.5;margin-top:.6rem;font-style:italic;}
+
+  /* Radar */
+  .radar-card{padding:1.1rem 1.2rem 1.2rem;}
+  .radar-wrap{position:relative;width:100%;max-width:280px;margin:.4rem auto 0;aspect-ratio:1;}
+  #radar-canvas{width:100%;height:100%;display:block;cursor:crosshair;}
+  .radar-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-130%);background:var(--navy-0);color:var(--cream);font-size:.7rem;padding:.28rem .5rem;border-radius:5px;white-space:nowrap;transition:opacity .15s;z-index:5;border:1px solid var(--line);}
+  .radar-tip.on{opacity:1;}
+  .radar-tip b{color:var(--gold-2);}
+  .tl-row.on{border-color:var(--tc);background:rgba(255,255,255,0.07);box-shadow:inset 3px 0 0 var(--tc);}
+  .tl-row .lk{margin-left:auto;font-size:.62rem;color:var(--dim-2);opacity:0;transition:opacity .15s;}
+  .tl-row.on .lk{opacity:1;color:var(--tc);}
+  .tier-legend{display:flex;flex-direction:column;gap:.5rem;margin-top:.9rem;}
+  /* Tier chip grid (16 tiers + comparison) */
+  .tier-chips{display:flex;flex-direction:column;gap:.8rem;margin-top:.9rem;}
+  .tgrp-h{display:flex;flex-direction:column;gap:.05rem;padding:.3rem .6rem;border-left:3px solid var(--gc);margin-bottom:.45rem;cursor:pointer;border-radius:0 8px 8px 0;transition:background .15s;}
+  .tgrp-h:hover{background:rgba(255,255,255,0.04);}
+  .tgrp-h.on{background:rgba(255,255,255,0.07);box-shadow:inset 0 0 0 1px var(--gc);}
+  .tgrp-h b{font-family:var(--display);font-weight:500;font-size:.98rem;color:var(--cream);}
+  .tgrp-h span{font-size:.72rem;font-style:italic;color:var(--dim-2);}
+  .tgrp-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
+  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;}
+  .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.3rem;}
+  .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;display:inline-block;}
+  .tchip .cw{font-size:.72rem;color:var(--cream);letter-spacing:.01em;}
+  .tchip:hover{color:var(--cream);border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .tchip.on{color:var(--cream);border-color:var(--tc);background:rgba(255,255,255,0.08);box-shadow:inset 2px 0 0 var(--tc);}
+  .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;}
+  .tchip.flag .cl{color:var(--flag);}
+  .feat-link{display:inline-block;margin-top:.9rem;font-size:.82rem;color:var(--gold-2);text-decoration:none;font-style:italic;transition:color .15s;}
+  .feat-link:hover{color:var(--gold);}
+  .tl-row{display:flex;align-items:center;gap:.7rem;width:100%;text-align:left;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:10px;padding:.55rem .75rem;cursor:pointer;font-family:inherit;transition:all .18s;}
+  .tl-row:hover{border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .tl-row.dim{opacity:.4;}
+  .tl-dot{width:10px;height:10px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .tl-name{font-size:.88rem;font-weight:500;color:var(--cream);min-width:78px;}
+  .tl-bar{flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+  .tl-fill{display:block;height:100%;background:var(--tc);border-radius:4px;}
+  .tl-val{font-family:var(--mono);font-size:.82rem;font-weight:700;color:var(--cream);min-width:38px;text-align:right;}
+
+  /* Right: full-bleed fingerprint backdrop + content floating over it */
+  .hero{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
+  .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
+  .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
+  .hero-inner{position:relative;min-height:600px;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
+  .hero-inner .fpq-toggle,.hero-inner .fpq-btn,.hero-inner .triage,.hero-inner .tri-btn,.hero-inner a{pointer-events:auto;}
+  .hero-title{font-family:var(--display);font-size:2.3rem;font-weight:500;line-height:1.04;color:var(--cream);}
+  .hero-title span{color:var(--dim);}
+  .fpq-readout{position:absolute;right:0;top:1.4rem;text-align:right;font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;color:var(--gold);pointer-events:none;z-index:3;}
+  .fpq-readout .nm{display:block;font-family:var(--display);font-style:italic;font-size:.9rem;color:var(--cream);margin-bottom:.3rem;letter-spacing:.02em;}
+  .fpq-readout .rw{display:block;opacity:.78;margin-top:.15rem;}
+  .fpq-toggle{position:absolute;left:0;top:1.4rem;display:flex;gap:2px;background:rgba(8,14,32,0.55);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid rgba(201,160,40,0.25);border-radius:20px;padding:3px;z-index:3;}
+  .fpq-btn{border:none;background:none;color:var(--dim);font-family:var(--body);font-size:.8rem;font-weight:600;padding:.32rem .8rem;border-radius:16px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+  .fpq-btn:hover{color:var(--cream);}
+  .fpq-btn.active{background:var(--gold);color:var(--navy);}
+  .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
+  .hero-inner:hover .fpq-hint{opacity:0;}
+  /* Feature evidence: hero transforms to show the text itself */
+  .hero-evi{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;gap:.8rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
+  .hero-evi.show{display:flex;}
+  .hero-evi::before{content:'';position:absolute;inset:-.6rem -1.2rem;background:rgba(8,12,28,0.9);backdrop-filter:blur(7px);border:1px solid var(--line-soft);border-radius:16px;z-index:-1;}
+  .evi-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
+  .evi-sw{width:11px;height:11px;border-radius:3px;background:var(--evc,#c9a028);flex-shrink:0;}
+  .evi-head b{font-family:var(--display);font-weight:500;font-size:1.3rem;color:var(--cream);}
+  .evi-flag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;color:#e05252;border:1px solid rgba(224,82,82,.4);background:rgba(224,82,82,.1);border-radius:4px;padding:.12rem .4rem;}
+  .evi-nums{margin-left:auto;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--dim);}
+  .evi-nums b{font-family:var(--mono);font-size:.66rem;color:var(--evc,#c9a028);}
+  .evi-close{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;}
+  .evi-close:hover{color:var(--cream);border-color:var(--line);}
+  .evi-desc{width:100%;font-size:.9rem;font-style:italic;color:var(--dim);margin-top:-.3rem;}
+  .evi-tabs{display:flex;gap:.4rem;align-items:center;}
+  .evi-tabs .tl{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-right:.3rem;}
+  .evi-tab{background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.28rem .8rem;font-family:var(--mono);font-size:.7rem;cursor:pointer;transition:all .14s;}
+  .evi-tab:hover{color:var(--cream);}
+  .evi-tab.on{background:var(--evc,#c9a028);border-color:transparent;color:#0d1530;font-weight:700;}
+  .evi-cols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:.9rem;min-height:0;}
+  .evi-col{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:12px;padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;min-height:0;}
+  .evi-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--evc,#c9a028);}
+  .evi-col.base .evi-lbl{color:#8ba8dd;}
+  .evi-txt{font-family:var(--body);font-size:1.04rem;line-height:1.75;color:rgba(245,239,224,.88);}
+  .evi-txt mark{background:var(--evc-bg,rgba(201,160,40,.24));color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px var(--evc-line,rgba(201,160,40,.35));}
+  .evi-col.base .evi-txt mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  .evi-src{margin-top:auto;padding-top:.5rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
+  @media (max-width:900px){.evi-cols{grid-template-columns:1fr;}}
+  /* Plain-English read + triage */
+  .plain-read{margin-top:.6rem;max-width:62ch;font-size:.95rem;line-height:1.55;color:var(--dim);}
+  .plain-read .gS{color:#7ab2e0;font-weight:600;}.plain-read .gD{color:#b49ae6;font-weight:600;}.plain-read .gR{color:#7cc9a0;font-weight:600;}
+  .plain-read b{color:var(--cream);font-weight:600;}
+  .triage{display:flex;gap:.5rem;margin-top:.85rem;align-items:center;flex-wrap:wrap;}
+  .tri-btn{border-radius:999px;padding:.42rem .95rem;font-family:var(--body);font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--line-soft);background:rgba(10,16,36,0.55);backdrop-filter:blur(8px);color:var(--cream);transition:all .18s;white-space:nowrap;}
+  .tri-btn.ok:hover{border-color:var(--ok);color:var(--ok);}
+  .tri-btn.packet{background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border-color:transparent;display:inline-flex;align-items:center;}
+  .tri-btn.packet:hover{filter:brightness(1.07);color:#0d1530;}
+  .tri-btn.talk:hover{border-color:var(--gold);color:var(--gold-2);}
+  .tri-btn.sel{background:var(--gold);border-color:var(--gold);color:var(--navy);}
+  .tri-done{font-size:.8rem;font-style:italic;color:var(--ok);}
+
+  .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
+  .sec-h{display:flex;align-items:baseline;gap:.55rem;margin-bottom:.2rem;}
+  .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
+  .sec-h span{color:var(--dim);font-size:.86rem;}
+
+  /* State vector heatmap */
+  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
+  .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
+  .hm-band{display:grid;gap:5px;margin-top:8px;}
+  .hm-band .hbnd{display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 3px;border-radius:7px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);min-width:0;transition:all .15s;}
+  .hm-band .hbnd::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--tc);flex-shrink:0;}
+  .hm-band .hbnd span{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--dim);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hm-band .hbnd:hover{border-color:var(--tc);background:rgba(255,255,255,0.06);}
+  .hm-band .hbnd:hover span{color:var(--cream);}
+  .hm-label{font-size:10px;color:var(--dim);text-align:center;writing-mode:vertical-lr;transform:rotate(180deg);height:66px;overflow:hidden;letter-spacing:.01em;}
+  .hm-grid.filtered ~ .hm-labels .hm-label,.hm-labels.horiz .hm-label{writing-mode:horizontal-tb;transform:none;height:auto;font-size:12px;color:var(--cream);white-space:normal;line-height:1.25;}
+  .hm-legend{display:flex;gap:1.3rem;margin-top:1rem;font-size:.74rem;color:var(--dim);flex-wrap:wrap;}
+  .hm-legend .k{display:inline-flex;align-items:center;gap:.4rem;}
+  .hm-legend .k i{width:14px;height:3px;border-radius:2px;display:inline-block;}
+
+  /* Timeline */
+  .tl-card{padding:1.3rem 1.4rem;}
+  .timeline{display:flex;flex-direction:column;gap:.9rem;}
+  .ti{display:flex;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
+  .ti-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--navy);flex-shrink:0;}
+  .ti-body{flex:1;min-width:0;}
+  .ti-title{font-size:.94rem;font-weight:500;color:var(--cream);}
+  .ti-meta{font-size:.76rem;color:var(--dim);margin:.15rem 0 .5rem;}
+  .ti-tags{display:flex;gap:.4rem;flex-wrap:wrap;}
+  .ti-tags .tg{font-family:var(--mono);font-size:.66rem;padding:.16rem .5rem;border-radius:5px;background:rgba(201,160,40,0.12);color:var(--gold-2);}
+  .ti-w{text-align:right;flex-shrink:0;}
+  .ti-w .l{font-size:.68rem;color:var(--dim-2);}
+  .ti-w .n{font-family:var(--mono);font-weight:700;font-size:1.05rem;color:var(--cream);margin:.1rem 0;}
+  .traj{margin-top:1rem;padding:.85rem 1rem;background:rgba(201,160,40,0.06);border:1px solid var(--line);border-radius:12px;display:flex;gap:.75rem;align-items:flex-start;}
+  .traj svg{flex-shrink:0;margin-top:1px;stroke:var(--gold);}
+  .traj .t{font-size:.82rem;font-weight:500;color:var(--cream);margin-bottom:.15rem;}
+  .traj .d{font-size:.78rem;color:var(--dim);line-height:1.5;}
+  /* Feature detail window (driven by shared cross-highlight bus) */
+  .fd-card{padding:0;overflow:hidden;}
+  .fd-head{display:flex;align-items:center;gap:.7rem;padding:1rem 1.2rem;border-bottom:1px solid var(--line-soft);}
+  .fd-swatch{width:10px;height:10px;border-radius:3px;background:var(--fdc,var(--gold));flex-shrink:0;box-shadow:0 0 0 3px rgba(255,255,255,.04);}
+  .fd-title{font-family:var(--mono);font-weight:600;font-size:.9rem;color:var(--cream);letter-spacing:.02em;}
+  .fd-sub{font-size:.78rem;color:var(--dim);margin-top:.1rem;}
+  .fd-count{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
+  .fd-empty{padding:1.6rem 1.4rem;font-size:.86rem;color:var(--dim);line-height:1.55;font-style:italic;}
+  .fd-empty b{color:var(--gold-2);font-style:normal;}
+  .fd-list{max-height:340px;overflow-y:auto;}
+  .fd-grp-h{padding:.55rem 1.2rem .4rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fdg,var(--dim));position:sticky;top:0;background:rgba(13,21,48,.92);backdrop-filter:blur(6px);z-index:1;}
+  .fd-row{display:grid;grid-template-columns:1fr 128px 58px;gap:.8rem;align-items:center;padding:.7rem 1.2rem;border-top:1px solid rgba(245,239,224,.05);cursor:pointer;transition:background .13s;}
+  .fd-row:hover,.fd-row.on{background:rgba(255,255,255,.045);}
+  .fd-nm{font-size:.86rem;color:var(--cream);font-weight:500;}
+  .fd-ds{font-size:.74rem;color:var(--dim);line-height:1.4;margin-top:.15rem;}
+  .fd-bar{position:relative;height:22px;}
+  .fd-track{position:absolute;inset:0;border-radius:4px;background:rgba(245,239,224,.06);}
+  .fd-base{position:absolute;top:0;bottom:0;left:0;border-radius:4px 2px 2px 4px;background:linear-gradient(90deg,var(--fdc,#c9a028)cc,var(--fdc,#c9a028)66);}
+  .fd-sub-mark{position:absolute;top:-2px;bottom:-2px;width:2.5px;border-radius:2px;background:var(--sm,#c9a028);box-shadow:0 0 0 2px #0d1530;}
+  .fd-delta{text-align:right;font-family:var(--mono);font-size:.8rem;font-weight:600;}
+  .fd-flag{display:inline-block;margin-top:.2rem;font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;padding:.08rem .3rem;border-radius:3px;background:rgba(192,57,43,.14);color:#e0725a;border:1px solid rgba(192,57,43,.28);}
+  .mnote{font-size:.8rem;color:var(--dim);line-height:1.65;padding:1.2rem 1.4rem;}
+  .mnote p{margin-bottom:.7rem;}
+  .mnote strong{color:var(--gold-2);font-family:var(--mono);font-weight:500;}
+  .mnote em{color:var(--cream);font-style:italic;}
+
+  @media (max-width:900px){
+    body{padding:0;}
+    .frame{max-width:none;height:100vh;min-height:100vh;border-radius:0;border:none;}
+    .grid{grid-template-columns:1fr;}
+    .hero{height:auto;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body class="demo-frame">
+<div class="demo-ribbon" role="note"><b>Fictional demonstration</b><span class="demo-ribbon-more">&nbsp;· every person, class, paper and number here is invented</span></div>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <button class="pill" onclick="location.href='original-dashboard.html'"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</button>
+      <button class="pill on" onclick="location.href='original-students.html'"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</button>
+      <button class="pill" onclick="location.href='original-review.html'"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</button>
+      <button class="pill" onclick="location.href='original-bluebook-teacher.html'"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</button>
+      <button class="pill" onclick="location.href='original-reports.html'"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</button>
+    </div>
+    <div class="nav-right">
+      <div class="icirc"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <div class="avatar">RH</div>
+    </div>
+  </nav>
+
+  <div class="grid">
+    <!-- LEFT RAIL -->
+    <aside class="left">
+      <div>
+        <div class="greet-eyebrow">Original analysis</div>
+        <div class="greet">Writing State</div>
+      </div>
+
+      <!-- Tier Profile radar -->
+      <div class="card radar-card">
+        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · click to pin</span></div>
+        <div class="radar-wrap">
+          <canvas id="radar-canvas"></canvas>
+          <div class="radar-tip" id="radar-tip"></div>
+        </div>
+        <div class="tier-chips" id="tier-chips"></div>
+        <a class="feat-link" href="original-baseline-voice.html" style="margin-top:.3rem;">Voice baseline: how James writes →</a>
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <section class="right">
+      <div class="hero">
+        <canvas id="fpq-canvas"></canvas>
+        <div class="hero-grad"></div>
+        <div class="hero-mask"></div>
+      </div>
+
+      <div class="right-scroll">
+        <div class="hero-inner">
+          <div class="fpq-toggle">
+            <button class="fpq-btn" data-state="baseline">Baseline ρ</button>
+            <button class="fpq-btn active" data-state="submission">This submission</button>
+          </div>
+          <div class="fpq-readout">
+            <span class="nm">J. Whitfield · 0x4A7</span>
+            <span class="rw">HABITS MEASURED · 97</span>
+            <span class="rw">PURITY Tr(ρ²) · 0.297</span>
+            <span class="rw">STATE · <em id="fpq-state" style="color:#e05252;font-style:normal;">differs from baseline</em></span>
+          </div>
+          <div class="fpq-hint">Drag across the print to disturb it</div>
+          <div class="hero-title">James Whitfield<br><span>Writing fingerprint · illustration</span></div>
+          <div class="plain-read" id="plain-read">This paper reads differently from James's usual voice in <b>19 of 97</b> writing habits. That's a signal worth a conversation, not a conclusion.</div>
+          <div class="demo-testing" role="note"><b>Testing phase:</b> Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.</div>
+          <div class="triage">
+            <a class="tri-btn packet" href="original-flagged.html" style="text-decoration:none;">Prepare conversation packet</a>
+            <button class="tri-btn ok" data-act="fine">Looks fine</button>
+            <button class="tri-btn talk" data-act="talk">Have a conversation</button>
+            <span class="tri-done" id="tri-done"></span>
+          </div>
+          <div class="hero-evi" id="hero-evi">
+            <div class="evi-head">
+              <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" style="display:none;">FLAG</span>
+              <span class="evi-nums" id="evi-nums"></span>
+              <button class="evi-close" id="evi-close">✕ Back to fingerprint</button>
+            </div>
+            <div class="evi-desc" id="evi-desc"></div>
+            <div class="evi-tabs" id="evi-tabs"></div>
+            <div class="evi-cols">
+              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+              <div class="evi-col base"><div class="evi-lbl">His own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- State vector -->
+        <div>
+          <div class="sec-h"><b>State Vector |ψ⟩</b><span>97 measured writing habits</span></div>
+          <div class="card hm-wrap">
+            <div class="hm-grid" id="heatmap"></div>
+            <div class="hm-band" id="heatmap-band"></div>
+            <div class="hm-labels" id="heatmap-labels"></div>
+            <div class="hm-legend">
+              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline |ψᵢ|</span>
+              <span class="k"><i style="background:#c9a028"></i>Tick = submission |ξᵢ|</span>
+              <span class="k"><i style="background:#c0392b"></i>below ↓</span>
+              <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
+            </div>
+          </div>
+          <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
+            <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
+            <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
+          </div>
+        </div>
+
+        <!-- Math note -->
+        <div>
+          <div class="sec-h"><b>How the number is made</b></div>
+          <div class="card mnote">
+            <p>Each of the 97 measured habits is compared with the range this student shows across their teacher-approved samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
+            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same approved samples, and the fingerprint above is an illustration of it. It does not produce the deviation number.</p>
+            <p>With few approved samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the side-by-side evidence before the number.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="js/feature-data.js"></script>
+<script>
+// Opening summary: one paragraph, built from the shared data: what's off, per family, and why.
+(function(){
+  const el=document.getElementById('plain-read'); const TIERS=window.OriginalFeatures&&window.OriginalFeatures.tiers; if(!el||!TIERS) return;
+  const fam={Surface:[],Discourse:[],Rhetorical:[]};
+  // plain-English phrases for flagged habits, keyed by feature code
+  const PLAIN={char_trigram_entropy:'his letter patterns are unusually predictable',dash_rate:'he uses dashes far more (or less) than usual',punctuation_diversity:'his punctuation mix has changed',semicolon_colon_rate:'semicolons and colons appear at an unusual rate',burstiness:'his sentence lengths are unusually even',perplexity_proxy:'his word choices are smoother than usual',repetition_gap_entropy:'his repeated words are spaced too evenly',transition_predictability:'his transitions follow a formula',metric_flatness_score:'his rhythm barely changes paragraph to paragraph',breath_group_regularity:'his phrasing pauses are unusually regular',discourse_marker_density:'linking phrases (however, therefore) appear more often than usual',sentence_opener_variety:'his sentences start in unusually varied ways',thematic_progression_score:'ideas build more smoothly than he usually writes',transition_density:'transition words appear at an unusual rate',cohesion_device_ratio:'the writing is more tightly stitched together than usual',pronoun_reference_density:'he refers back with it/this at an unusual rate',lexical_chain_density:'related words chain together more than usual',hedging_density:'he softens claims (perhaps, it seems) more than usual',question_ratio:'he asks more rhetorical questions than usual',epistemic_certainty_ratio:'he sounds more (or less) certain than usual',assertion_density:'he makes more flat statements of fact than usual',first_person_ratio:'he uses I/we at an unusual rate',claim_density:'he packs in more arguable points than usual',counter_argument_ratio:'he raises opposing views more than usual'};
+  const plain=f=>PLAIN[f.code]||('his '+f.name.toLowerCase().replace(/ (ratio|rate|density|score|entropy)$/,'')+' habits have shifted');
+  let total=0, all=0;
+  TIERS.forEach(t=>t.features.forEach(f=>{ all++; if(f.flagged){ total++; (fam[t.group]||fam.Surface).push(f); } }));
+  const phrase=(list)=>list.slice(0,2).map(plain).join(', and ');
+  const part=(g,cls,label)=>{ const l=fam[g]; if(!l.length) return 'In '+label+', <span class="'+cls+'">nothing is out of range</span>';
+    return 'In '+label+', <span class="'+cls+'">'+l.length+' habit'+(l.length>1?'s':'')+'</span> look'+(l.length>1?'':'s')+' different: for example, '+phrase(l); };
+  el.innerHTML='This paper reads differently from James\u2019s usual voice in <b>'+total+' of '+all+'</b> writing habits. '
+    +part('Surface','gS','how his sentences look')+'. '
+    +part('Discourse','gD','how his ideas connect')+'. '
+    +part('Rhetorical','gR','how he makes his case')+'. '
+    +'Together they point to the same thing: prose that is smoother and more uniform than James writes. A signal worth a conversation, not a conclusion.';
+})();
+
+// Per-student parameterization: ?student=Name&dev=0.59&course=THEO%20301&flag=high&base=strong
+(function(){
+  const q=new URLSearchParams(location.search);
+  const name=q.get('student'); if(!name||name==='James Whitfield') return;
+  const first=name.split(' ')[0];
+  const dev=q.get('dev')?parseFloat(q.get('dev')):null;
+  const flag=q.get('flag')||'clear', base=q.get('base')||'strong';
+  const poss=first+'\u2019s';
+  const ht=document.querySelector('.hero-title'); if(ht) ht.innerHTML=name+'<br><span>Writing fingerprint \u00b7 illustration</span>';
+  const nm=document.querySelector('.fpq-readout .nm'); if(nm) nm.textContent=name[0]+'. '+name.split(' ').slice(1).join(' ')+' \u00b7 0x'+name.split('').reduce((a,c)=>a+c.charCodeAt(0),0).toString(16).toUpperCase().slice(0,3);
+  const st=document.getElementById('fpq-state');
+  if(st){ if(flag==='high'){st.textContent='differs from baseline';st.style.color='#e05252';}
+    else if(flag==='mid'){st.textContent='drifting: worth a glance';st.style.color='#d8b04a';}
+    else if(flag==='none'||base==='none'){st.textContent='no baseline yet';st.style.color='#8ba8dd';}
+    else{st.textContent='writing like themselves';st.style.color='#6bbf8a';} }
+  const flags=dev==null?0:Math.max(1,Math.round(dev*32));
+  const pr=document.getElementById('plain-read');
+  if(pr){
+    if(base==='none'||dev==null){ pr.innerHTML='No approved reference writing yet for <b>'+name+'</b>. Run a Bluebook session and approve the booklet as reference writing; until then Original has nothing to compare with.'; }
+    else if(flag==='high'){ pr.innerHTML='This paper reads differently from '+poss+' usual voice in <b>'+flags+' of 97</b> writing habits. That\u2019s a signal worth a conversation, not a conclusion.'; }
+    else if(flag==='mid'){ pr.innerHTML='This paper drifts from '+poss+' usual voice in <b>'+flags+' of 97</b> writing habits: enough to glance at, not enough to worry about.'; }
+    else{ pr.innerHTML='This paper reads like '+first+': <b>'+flags+' of 97</b> habits outside the usual range, well within natural variation.'; }
+  }
+  document.querySelectorAll('a.feat-link').forEach(a=>{ if(a.textContent.includes('James')) a.textContent='Voice baseline: how '+first+' writes \u2192'; });
+  document.title='Original \u00b7 '+name+' \u00b7 Writing State';
+  window.__student={name,first,poss,dev,flag,base,flags};
+})();
+</script>
+<script src="js/fingerprint.js"></script>
+<script>
+const OF=window.OriginalFeatures;
+const FLAT=OF.flat;
+const TIERS=OF.tiers;
+// Plain-English tier labels (shared with Feature Profile)
+const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
+const plainTier=t=>PLAIN_TIER[t.key]||t.name;
+const PSI=FLAT.map(f=>f.base);
+const XI=FLAT.map(f=>f.sub);
+const FEATURE_NAMES=FLAT.map(f=>f.name);
+const TIER_COLORS=FLAT.map(f=>f.c);
+const FEATURE_TIERKEY=FLAT.map(f=>f.tier);
+const TIER_KEYS=TIERS.map(t=>t.key);
+
+
+// ── Shared cross-highlight state ─────────────────────────────────────────────
+const CROSS={ pinned:null };
+
+// State vector heatmap (all 97 measured habits, grouped by tier)
+(function(){
+  const heatmap=document.getElementById('heatmap'), labels=document.getElementById('heatmap-labels'), band=document.getElementById('heatmap-band');
+  const N=FLAT.length, cols=[], labs=[];
+  FLAT.forEach((f,i)=>{
+    const v=f.base, sub=f.sub, diff=sub-v, isDev=Math.abs(diff)>0.12;
+    const col=document.createElement('div');
+    col.dataset.tier=f.tier; col.dataset.code=f.code;
+    col.style.cssText='display:flex;flex-direction:column;align-items:center;position:relative;height:130px;justify-content:flex-end;';
+    const track=document.createElement('div');
+    track.style.cssText='position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:9px;height:100%;border-radius:3px;background:linear-gradient(180deg,'+f.c+'08,'+f.c+'18);';
+    col.appendChild(track);
+    if(i>0&&FLAT[i-1].tier!==f.tier){col.style.borderLeft='1px dashed rgba(245,239,224,0.10)';}
+    const baseH=Math.round(20+v*106), baseAlpha=(0.4+v*0.55).toFixed(2);
+    const baseBar=document.createElement('div');
+    baseBar.style.cssText='width:9px;height:'+baseH+'px;border-radius:3px 3px 2px 2px;background:linear-gradient(180deg,'+f.c+','+f.c+'bb);opacity:'+baseAlpha+';align-self:flex-end;position:relative;z-index:1;transition:opacity .15s,transform .15s,width .2s;';
+    const subH=Math.round(20+sub*106);
+    const subColor=isDev?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
+    const marker=document.createElement('div');
+    marker.style.cssText='position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(-'+subH+'px);width:16px;height:2.5px;border-radius:2px;background:'+subColor+';z-index:2;';
+    const dot=document.createElement('div');
+    dot.style.cssText='position:absolute;bottom:0;left:50%;transform:translate(-50%,-50%) translateY(-'+subH+'px);width:5px;height:5px;border-radius:50%;background:'+subColor+';z-index:3;box-shadow:0 0 0 2px #0d1530;';
+    col.appendChild(baseBar);col.appendChild(marker);col.appendChild(dot);
+    col.title=f.name+': baseline '+v.toFixed(3)+' · submission '+sub.toFixed(3)+(f.flagged?' · FLAGGED':'');
+    col.style.cursor='pointer';
+    col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
+    col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
+    col.addEventListener('click',()=>{ if(window.__evi&&f.code){__evi.open(f.code);} else if(window.__tier){__tier.toggle(f.tier);} });
+    col._bar=baseBar; col._alpha=baseAlpha;
+    heatmap.appendChild(col); cols.push(col);
+    const lbl=document.createElement('div');lbl.className='hm-label';lbl.textContent=f.name;labels.appendChild(lbl);labs.push(lbl);
+  });
+  heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
+  labels.style.gridTemplateColumns='repeat('+N+',12px)';
+  heatmap.style.minWidth=labels.style.minWidth='';
+  labels.style.display='none';
+  // Tier band strip (x-axis in full view)
+  band.innerHTML=TIERS.map(t=>'<div class="hbnd" data-tier="'+t.key+'" style="grid-column:span '+t.features.length+';--tc:'+t.c+'" title="'+plainTier(t)+' ('+t.name+')"><span>'+t.pill.replace('Tier ','T')+(t.features.length>2?' · '+t.word:'')+'</span></div>').join('');
+  band.style.gridTemplateColumns='repeat('+N+',12px)';
+  band.style.minWidth='';
+  band.querySelectorAll('.hbnd').forEach(b=>{ b.style.cursor='pointer'; b.addEventListener('click',()=>window.__tier&&window.__tier.toggle(b.dataset.tier)); });
+
+  const TIER_GRP={}; TIERS.forEach(t=>TIER_GRP[t.key]=t.group);
+  window.__hm={
+    filterGroup(g){
+      const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
+      heatmap.classList.add('filtered');
+      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      labels.style.display='none'; band.style.display='';
+      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
+      cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
+    },
+    filter(key){
+      const t=TIERS.find(x=>x.key===key); if(!t)return;
+      heatmap.classList.add('filtered'); labels.classList.add('horiz');
+      const n=t.features.length;
+      heatmap.style.gridTemplateColumns='repeat('+n+',44px)';
+      labels.style.gridTemplateColumns='repeat('+n+',44px)';
+      heatmap.style.minWidth=labels.style.minWidth='';
+      labels.style.display=''; band.style.display='none';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
+      cols.forEach((c,i)=>{const m=c.dataset.tier===key;c.style.display=m?'':'none';labs[i].style.display=m?'':'none';c._bar.style.width=m?'26px':'9px';});
+    },
+    reset(){
+      heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
+      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.minWidth='';
+      labels.style.display='none'; band.style.display='';
+      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
+      cols.forEach((c,i)=>{c.style.display='';labs[i].style.display='';c._bar.style.width='9px';});
+    }
+  };
+})();
+
+// Radar over all tiers (baseline vs submission averages)
+(function(){
+  const canvas=document.getElementById('radar-canvas'), ctx=canvas.getContext('2d'), radarTip=document.getElementById('radar-tip');
+  const GORDER=['Surface','Discourse','Rhetorical'];
+  const GCOLOR={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
+  const PTS=GORDER.flatMap(g=>TIERS.filter(t=>t.group===g).map(t=>{
+    const b=t.features.reduce((a,f)=>a+f.base,0)/t.features.length;
+    const s=t.features.reduce((a,f)=>a+f.sub,0)/t.features.length;
+    return {key:t.key,label:t.pill.replace('Tier ','T'),name:t.name,c:t.c,g,b,s};
+  }));
+  const M=PTS.length;
+  let hi=null, hg=null, cx=0,cy=0,R=0,DPR=1;
+  function poly(sel){return PTS.map((p,k)=>{const a=(k/M)*Math.PI*2-Math.PI/2;const v=sel(p);return{x:cx+v*R*Math.cos(a),y:cy+v*R*Math.sin(a),v,p,a};});}
+  function size(){const r=canvas.getBoundingClientRect();DPR=Math.min(devicePixelRatio||1,2);canvas.width=r.width*DPR;canvas.height=r.height*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);cx=r.width/2;cy=r.height/2;R=Math.min(cx,cy)-18;draw();}
+  function draw(){const w=cx*2,h=cy*2;ctx.clearRect(0,0,w,h);
+    // group sector wedges + labels
+    GORDER.forEach(g=>{
+      const idx=PTS.map((p,k)=>p.g===g?k:-1).filter(k=>k>=0);
+      if(!idx.length)return;
+      const a0=(idx[0]/M)*Math.PI*2-Math.PI/2-(Math.PI/M);
+      const a1=(idx[idx.length-1]/M)*Math.PI*2-Math.PI/2+(Math.PI/M);
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,a0,a1);ctx.closePath();
+      ctx.fillStyle=GCOLOR[g]+(hg===g?'26':(hg?'06':'0d'));ctx.fill();
+      ctx.beginPath();ctx.arc(cx,cy,R+3,a0+0.02,a1-0.02);ctx.strokeStyle=GCOLOR[g]+(hg===g?'ff':(hg?'33':'88'));ctx.lineWidth=hg===g?3:2;ctx.stroke();
+      const am=(a0+a1)/2;
+      ctx.font='600 9px Inter,sans-serif';ctx.fillStyle=GCOLOR[g];ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(g.toUpperCase(),cx+(R*0.5)*Math.cos(am),cy+(R*0.5)*Math.sin(am));
+    });
+    [0.25,0.5,0.75,1].forEach(rr=>{ctx.beginPath();ctx.arc(cx,cy,R*rr,0,Math.PI*2);ctx.strokeStyle='rgba(245,239,224,0.09)';ctx.lineWidth=1;ctx.stroke();});
+    ctx.font='8px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    for(let k=0;k<M;k++){const a=(k/M)*Math.PI*2-Math.PI/2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));ctx.strokeStyle=hi===k?PTS[k].c:'rgba(245,239,224,0.06)';ctx.lineWidth=hi===k?1.5:1;ctx.stroke();
+      ctx.fillStyle=hi===k?'#f5efe0':'rgba(245,239,224,0.42)';ctx.fillText(PTS[k].label,cx+(R+10)*Math.cos(a),cy+(R+10)*Math.sin(a));}
+    // baseline polygon
+    const bp=poly(p=>p.b);ctx.beginPath();bp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+    ctx.fillStyle='rgba(201,160,40,0.14)';ctx.fill();ctx.strokeStyle='rgba(201,160,40,0.8)';ctx.lineWidth=1.75;ctx.stroke();
+    // submission polygon
+    const sp=poly(p=>p.s);ctx.beginPath();sp.forEach((p,k)=>k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
+    ctx.fillStyle='rgba(224,82,82,0.10)';ctx.fill();ctx.strokeStyle='rgba(224,114,90,0.7)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.stroke();ctx.setLineDash([]);
+    bp.forEach((p,k)=>{ctx.beginPath();ctx.arc(p.x,p.y,hi===k?4:2.6,0,Math.PI*2);ctx.fillStyle=PTS[k].c;ctx.fill();ctx.strokeStyle='#0d1530';ctx.lineWidth=1.2;ctx.stroke();});
+  }
+  canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=15;
+    poly(p=>p.b).forEach((p,k)=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bd){bd=d;best={p,k};}});
+    if(best){const p=PTS[best.k];radarTip.classList.add('on');radarTip.style.left=best.p.x+'px';radarTip.style.top=best.p.y+'px';radarTip.innerHTML=p.name+' <b>'+p.b.toFixed(3)+'</b> / '+p.s.toFixed(3);hi=best.k;draw();}
+    else if(hi!==null&&CROSS.pinned===null){radarTip.classList.remove('on');hi=null;draw();}});
+  canvas.addEventListener('pointerleave',()=>{radarTip.classList.remove('on');if(CROSS.pinned===null){hi=null;draw();}});
+  window.__radar={ highlight(key){hg=null;hi=PTS.findIndex(p=>p.key===key);draw();}, highlightGroup(g){hi=null;hg=g;draw();}, clear(){hi=null;hg=null;draw();} };
+  window.addEventListener('resize',size);size();
+})();
+
+// Tier chips + cross-highlight controller
+(function(){
+  const wrap=document.getElementById('tier-chips');
+  const GROUP_META={Surface:{c:'#4d90c8',sub:'what\u2019s on the page: words, punctuation, grammar, slips'},Discourse:{c:'#9a7ad0',sub:'how ideas move: flow, rhythm, structure, suspense'},Rhetorical:{c:'#5aab7a',sub:'the voice: tone, focus, sourcing, drift'}};
+  wrap.innerHTML=['Surface','Discourse','Rhetorical'].map(g=>{
+    const chips=TIERS.filter(t=>t.group===g).map(t=>{
+      const fl=t.features.some(f=>f.flagged);
+      return '<button class="tchip'+(fl?' flag':'')+'" data-tier="'+t.key+'" style="--tc:'+t.c+'" title="'+plainTier(t)+' ('+t.name+')"><span class="cl"><span class="cd"></span>'+t.pill.replace('Tier ','T')+'</span><span class="cw">'+t.word+'</span></button>';
+    }).join('');
+    return '<div class="tgrp"><div class="tgrp-h" style="--gc:'+GROUP_META[g].c+'"><b>'+g+'</b><span>'+GROUP_META[g].sub+'</span></div><div class="tgrp-chips">'+chips+'</div></div>';
+  }).join('');
+  const chips=[...wrap.querySelectorAll('.tchip')];
+  function apply(key){ if(window.__hm)__hm.filter(key); if(window.__radar)__radar.highlight(key); if(window.__detail)__detail.show(key); if(window.__fp)__fp.tint((TIERS.find(t=>t.key===key)||{}).c); }
+  function clear(){ if(window.__hm)__hm.reset(); if(window.__radar)__radar.clear(); if(window.__detail)__detail.clear(); if(window.__fp)__fp.restore(); }
+  function applyGroup(g){ if(window.__hm)__hm.filterGroup(g); if(window.__radar)__radar.highlightGroup(g); if(window.__detail)__detail.showGroup(g); if(window.__fp)__fp.tint(GROUP_META[g].c); }
+  window.__tier={ toggle(key){
+    if(CROSS.pinned===key){CROSS.pinned=null;chips.forEach(c=>c.classList.remove('on'));wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.remove('on'));clear();}
+    else{CROSS.pinned=key;wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.remove('on'));chips.forEach(c=>c.classList.toggle('on',c.dataset.tier===key));apply(key);}
+  }};
+  chips.forEach(ch=>{
+    const key=ch.dataset.tier;
+    ch.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)apply(key);});
+    ch.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
+    ch.addEventListener('click',()=>{
+      const evi=document.getElementById('hero-evi');
+      if(evi&&evi.classList.contains('show')&&window.__evi){
+        // already in a text comparison → switch to this tier's most-deviant habit
+        const t=TIERS.find(x=>x.key===key); if(!t||!t.features.length) return;
+        const f=t.features.find(x=>x.flagged)||t.features.slice().sort((a,b)=>Math.abs(b.sub-b.base)-Math.abs(a.sub-a.base))[0];
+        if(CROSS.pinned!==key) window.__tier.toggle(key);
+        __evi.open(f.code);
+        return;
+      }
+      window.__tier.toggle(key);
+    });
+  });
+  // Group headers: hover previews, click pins the whole section
+  wrap.querySelectorAll('.tgrp').forEach(grp=>{
+    const head=grp.querySelector('.tgrp-h');
+    const g=head.querySelector('b').textContent;
+    head.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)applyGroup(g);});
+    head.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
+    head.addEventListener('click',()=>{
+      const pk='g:'+g;
+      if(CROSS.pinned===pk){CROSS.pinned=null;head.classList.remove('on');clear();}
+      else{CROSS.pinned=pk;chips.forEach(c=>c.classList.remove('on'));wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.toggle('on',h===head));applyGroup(g);}
+    });
+  });
+})();
+
+// Feature Detail window: same cross-highlight bus fills it (tier hover/pin, heatmap bar, band label)
+(function(){
+  const swatch=document.getElementById('fd-swatch'), titleEl=document.getElementById('fd-title'),
+        subEl=document.getElementById('fd-sub'), countEl=document.getElementById('fd-count'),
+        body=document.getElementById('fd-body'), card=document.getElementById('feat-detail');
+  const GCOL={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
+  function rowHTML(f){
+    const diff=f.sub-f.base, dev=Math.abs(diff)>0.12;
+    const sc=dev?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
+    const dpct=(diff>=0?'+':'')+Math.round(diff/(f.base+0.001)*100)+'%';
+    return '<div class="fd-row" data-tier="'+f.tier+'" data-code="'+f.code+'">'+
+      '<div><div class="fd-nm">'+f.name+(f.flagged?' <span class="fd-flag">FLAG</span>':'')+'</div><div class="fd-ds">'+(f.desc||'')+'</div></div>'+
+      '<div class="fd-bar"><div class="fd-track"></div><div class="fd-base" style="width:'+Math.round(f.base*100)+'%"></div><div class="fd-sub-mark" style="left:'+Math.round(f.sub*100)+'%;--sm:'+sc+'"></div></div>'+
+      '<div class="fd-delta" style="color:'+sc+'">'+dpct+'</div></div>';
+  }
+  function paint(color,title,sub,rowsHTML,count){
+    card.style.setProperty('--fdc',color); swatch.style.background=color;
+    titleEl.textContent=title; subEl.textContent=sub;
+    countEl.textContent=count!=null?count+' habits':'';
+    body.innerHTML=rowsHTML;
+    body.querySelectorAll('.fd-row').forEach(r=>r.addEventListener('click',()=>{ if(window.__evi&&r.dataset.code){__evi.open(r.dataset.code);} }));
+  }
+  window.__detail={
+    show(key){ const t=TIERS.find(x=>x.key===key); if(!t)return;
+      paint(t.c,t.pill+' · '+plainTier(t),(t.name!==plainTier(t)?t.name+': ':'')+(t.blurb||''),
+        '<div class="fd-list">'+t.features.map(rowHTML).join('')+'</div>',t.features.length);
+    },
+    showGroup(g){ const ts=TIERS.filter(t=>t.group===g); if(!ts.length)return;
+      let n=0,html='<div class="fd-list">';
+      ts.forEach(t=>{ n+=t.features.length;
+        html+='<div class="fd-grp-h" style="--fdg:'+t.c+'">'+t.pill.replace('Tier ','T')+' · '+plainTier(t)+'</div>'+t.features.map(rowHTML).join(''); });
+      html+='</div>';
+      paint(GCOL[g]||'#c9a028',g,{Surface:'what\u2019s on the page: words, punctuation, grammar, slips',Discourse:'how ideas move: flow, rhythm, structure, suspense',Rhetorical:'the voice: tone, focus, sourcing, drift'}[g]||'',html,n);
+    },
+    clear(){ card.style.setProperty('--fdc','#c9a028'); swatch.style.background='#c9a028';
+      titleEl.textContent='Feature Detail'; subEl.textContent='Hover or pin a tier: its writing habits open here'; countEl.textContent='';
+      body.innerHTML='<div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier\u2019s writing habits appears here, baseline vs. this submission.</div>';
+    }
+  };
+})();
+
+// Feature evidence: clicking a habit shows the text itself, submission vs baseline
+(function(){
+  const box=document.getElementById('hero-evi'); if(!box) return;
+  const $=id=>document.getElementById(id);
+  const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
+  const EVI={
+    Surface:[
+      {tab:'¶2',subSrc:'¶2 · The Hypostatic Union',baseSrc:'15 Jan · in-class essay',
+       sub:'The hypostatic union represents a profound theological synthesis <mark>&mdash;</mark> one that resolves <mark>&mdash;</mark> or at least contains <mark>&mdash;</mark> the tension between the divine and the human<mark>,</mark> preserving the integrity of both natures without confusion or change.',
+       base:'Chalcedon didn’t solve the problem. What it did <mark>&mdash; and this matters &mdash;</mark> was fence it: two natures, one person, and four adverbs telling us what we must not say.'},
+      {tab:'¶9',subSrc:'¶9 · The Hypostatic Union',baseSrc:'14 Feb · midterm exam',
+       sub:'It is<mark>,</mark> in the final analysis<mark>,</mark> a doctrine of balance <mark>&mdash;</mark> a careful equilibrium <mark>&mdash;</mark> maintained<mark>,</mark> with remarkable consistency<mark>,</mark> across centuries of dispute.',
+       base:'Cyril overreaches here. One sentence. Then he spends a paragraph walking it back <mark>&mdash;</mark> which is the most human thing in the whole letter.'}
+    ],
+    Discourse:[
+      {tab:'¶4',subSrc:'¶4 · The Hypostatic Union',baseSrc:'15 Jan · in-class essay',
+       sub:'<mark>Furthermore,</mark> the Antiochene school maintained a careful distinction between the natures. <mark>Moreover,</mark> this distinction preserved the fullness of Christ’s humanity. <mark>Additionally,</mark> the Cappadocian legacy shaped the vocabulary of the entire debate.',
+       base:'<mark>Nestorius’s real mistake</mark> wasn’t the two-sons charge &mdash; it was letting the debate happen in Greek metaphysics instead of the nursery at Bethlehem.'},
+      {tab:'¶12',subSrc:'¶12 · The Hypostatic Union',baseSrc:'14 Feb · midterm exam',
+       sub:'<mark>In addition,</mark> the communication of attributes follows logically from the union. <mark>Consequently,</mark> what is said of one nature may be said of the person. <mark>In conclusion,</mark> the doctrine stands as a lasting synthesis.',
+       base:'<mark>But the analogy breaks.</mark> Soul and body make one nature; Christ’s natures stay two. Push the picture too hard and you’re Eutyches.'}
+    ],
+    Rhetorical:[
+      {tab:'¶5',subSrc:'¶5 · The Hypostatic Union',baseSrc:'15 Jan · in-class essay',
+       sub:'It <mark>seems plausible</mark> that Cyril <mark>may have</mark> intended <mark>something like</mark> a communication of attributes, which <mark>could perhaps</mark> be read as an early form of the later doctrine.',
+       base:'Cyril meant what he said. The Word suffered &mdash; impassibly, yes, but <mark>really</mark> &mdash; and no reading of the twelfth anathema softens that.'},
+      {tab:'¶13',subSrc:'¶13 · The Hypostatic Union',baseSrc:'14 Feb · midterm exam',
+       sub:'One <mark>might suggest</mark> that the definition <mark>appears to</mark> leave room for development, and it <mark>would seem</mark> that later councils <mark>tend to</mark> confirm this reading.',
+       base:'The definition isn’t a ceiling; it’s a floor. Constantinople III proves the point: one person, two wills, and the argument was over the verb.'}
+    ]
+  };
+  let cur=null,place=0;
+  function render(){
+    if(!cur)return;
+    const {f,t}=cur, places=EVI[t.group]||EVI.Surface;
+    const p=places[Math.min(place,places.length-1)];
+    $('evi-name').textContent=f.name;
+    $('evi-flag').style.display=f.flagged?'':'none';
+    const diff=f.sub-f.base, dpct=(diff>=0?'+':'')+Math.round(diff/(f.base+0.001)*100)+'%';
+    $('evi-nums').innerHTML='baseline '+f.base.toFixed(2)+' · this paper <b>'+f.sub.toFixed(2)+'</b> ('+dpct+')';
+    $('evi-desc').textContent=(f.desc||'')+': highlighted below where it shows in the text.';
+    $('evi-tabs').innerHTML='<span class="tl">Where it appears</span>'+places.map((x,i)=>'<button class="evi-tab'+(i===place?' on':'')+'" data-i="'+i+'">'+x.tab+'</button>').join('');
+    $('evi-tabs').querySelectorAll('.evi-tab').forEach(b=>b.addEventListener('click',()=>{place=+b.dataset.i;render();}));
+    $('evi-sub').innerHTML=p.sub; $('evi-base').innerHTML=p.base;
+    $('evi-sub-src').textContent=p.subSrc; $('evi-base-src').textContent=p.baseSrc;
+  }
+  window.__evi={
+    open(code){
+      const f=FLAT.find(x=>x.code===code); if(!f)return;
+      const t=TIERS.find(x=>x.key===f.tier)||{c:'#c9a028',group:'Surface'};
+      cur={f,t}; place=0;
+      box.style.setProperty('--evc',t.c);
+      box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
+      box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
+      render(); box.classList.add('show');
+      const rs=document.querySelector('.right-scroll'); if(rs) rs.scrollTop=0;
+    },
+    close(){ box.classList.remove('show'); cur=null; }
+  };
+  $('evi-close').addEventListener('click',()=>__evi.close());
+})();
+
+// Triage actions: one-click judgment, tool does the rest
+(function(){
+  const msgs={fine:'Marked as reviewed: no action needed. Removed from your flag queue.',
+    talk:'Draft conversation email prepared: a gentle, no-accusation check-in you can edit before sending.'};
+  const done=document.getElementById('tri-done');
+  document.querySelectorAll('.tri-btn').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.tri-btn').forEach(x=>x.classList.toggle('sel',x===b));
+    done.textContent=msgs[b.dataset.act];
+  }));
+})();
+
+// Fingerprint ρ (interactive)
+(function(){
+    const STATES={baseline:{line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',state:'matches baseline',color:'#6bbf8a'},submission:{line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)',state:'differs from baseline',color:'#e05252'}};
+  let tries=0;
+  function init(){const c=document.getElementById('fpq-canvas');if(!c)return;if(!window.Fingerprint){if(tries++<40)return void setTimeout(init,50);return;}
+    const fp=window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(224,82,82,0.42)',goldColor:'rgba(224,82,82,0.9)',mouseRepel:70});
+    const stateEl=document.getElementById('fpq-state');let cur=STATES.submission;
+    window.__fp={tint(color){if(color&&fp.setColors)fp.setColors(color+'55',color);},restore(){if(fp.setColors)fp.setColors(cur.line,cur.gold);}};
+    document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{const s=STATES[btn.dataset.state];cur=s;document.querySelectorAll('.fpq-btn').forEach(b=>b.classList.toggle('active',b===btn));if(fp.setColors)fp.setColors(s.line,s.gold);if(fp.reseed)fp.reseed();if(stateEl){stateEl.textContent=s.state;stateEl.style.color=s.color;}}));}
+  (document.readyState==='loading')?document.addEventListener('DOMContentLoaded',init):init();
+})();
+</script>
+</body>
+</html>
