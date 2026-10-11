@@ -30,6 +30,7 @@ def pilot_env(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://original-pilot.onrender.com")
     monkeypatch.delenv("AI_LIKELIHOOD_ENABLED", raising=False)
     monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
+    monkeypatch.delenv("REPO_BACKEND", raising=False)
     return tmp_path / "preflight.db"
 
 
@@ -68,6 +69,7 @@ def test_demo_profile_downgrades_env_failures_to_warn(tmp_path, monkeypatch):
         "ALLOWED_ORIGINS",
         "AI_LIKELIHOOD_ENABLED",
         "AI_LIKELIHOOD_SHADOW",
+        "REPO_BACKEND",
     ):
         monkeypatch.delenv(var, raising=False)
     assert _run(tmp_path / "demo.db", "--env", "demo") == 0
@@ -93,3 +95,19 @@ def test_detector_flag_on_with_missing_artifact_fails(pilot_env, monkeypatch, tm
     from original.ai_likelihood import reset_for_tests
 
     reset_for_tests()
+
+
+def test_postgres_backend_is_refused_with_pointers_not_checked(pilot_env, monkeypatch, capsys):
+    """The checks are SQLite-only. On the Postgres pilot a READY verdict would
+    be a false claim, so the script runs nothing, exits 2, and says what to use."""
+    monkeypatch.setenv("REPO_BACKEND", "postgres")
+    monkeypatch.setattr(
+        pilot_preflight, "check_db", lambda *a: pytest.fail("must not touch a database")
+    )
+    assert _run(pilot_env) == 2
+    out = capsys.readouterr().out
+    assert "NOT RUN" in out and "SQLite-only" in out
+    assert "scripts/pilot_smoke_test.py" in out
+    assert "docs/BLUEBOOK_LAUNCH_CHECKLIST.md" in out
+    assert "READY" not in out
+    assert not pilot_env.exists()
