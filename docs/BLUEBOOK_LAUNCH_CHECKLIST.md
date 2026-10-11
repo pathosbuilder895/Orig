@@ -23,8 +23,9 @@ The pilot is invitation-only (`SELF_SERVE_SIGNUP=0`): there is no signup on
 the website. The operator invites each professor with
 `scripts/invite_professor.py` (see *Operating it*), which creates a private,
 Bluebook-only workspace (never profiled by Original) and emails a one-time
-link to set a password. Use `docs/PROVISIONING_CHECKLIST.md` only for
-institutions buying Original.
+link to set a password. This pilot is for independent teachers, with no
+school account behind them; `docs/PROVISIONING_CHECKLIST.md` belongs to a
+later phase (schools and colleges that adopt Original) and is not needed here.
 
 ---
 
@@ -36,7 +37,10 @@ institutions buying Original.
 
 - [ ] **Domain** (optional but recommended), e.g. `bluebook.example.org`. Without
   one, the site is `https://original-pilot.onrender.com/bluebook/`.
-- [ ] **SendGrid** account (free tier covers 100 emails/day).
+- [ ] **SendGrid** account. This is a paid item: SendGrid has retired its free
+  plan, and Essentials is about $19.95/month (prices read 2026-10-07, see
+  `docs/research/2026-10-07-hosting-and-storage.md` §2). It needs the owner's
+  budget sign-off first (`docs/NORTH_STAR.md`).
   - Settings → Sender Authentication → **Authenticate your domain**, add the
     CNAME records it gives you, wait until it shows *Verified*.
   - Settings → API Keys → create a key with **Restricted Access → Mail Send** only.
@@ -60,6 +64,10 @@ institutions buying Original.
   `original-pg-backup` and `bluebook-teacher-demo`. Approve. (An existing
   `original-demo` service is not part of the blueprint: suspend it yourself in
   the dashboard.)
+- [ ] If the services already exist, confirm in each one's settings that it
+  deploys from `main`. As of 2026-10-08 they probably deploy from
+  `codex/bluebook-pilot-c962a917` (`docs/STATUS.md`, Deployed); switch them to
+  `main` before that branch is deleted, or later deploys lose their source.
 - [ ] On creation, fill in the required `sync: false` values below. Render
   generates `SECRET_KEY` and `MAINTENANCE_TOKEN` independently via
   `generateValue: true`; do not paste or regenerate these during routine setup.
@@ -76,7 +84,7 @@ institutions buying Original.
 | `MAINTENANCE_TOKEN` | Independently Render-generated 256-bit value; retain across deploys and syncs. |
 | `SENDGRID_API_KEY` | the `SG.…` key |
 | `MAIL_FROM` | `Bluebook <no-reply@your-domain>` — the address must be on the authenticated domain |
-| `PUBLIC_BASE_URL` | `https://bluebook.example.org` (or `https://original-pilot.onrender.com`), no trailing slash |
+| `PUBLIC_BASE_URL` | `https://bluebook.example.org` (or `https://original-pilot.onrender.com`), no trailing slash. Required for `scripts/invite_professor.py` invitations to be emailed: without it (or `--base-url`) the script has no request to take a host from, so the link is relative and is not sent |
 | `SENTRY_DSN` | the DSN, or leave empty |
 | `MAINTENANCE_MODE` | leave empty |
 | `BBOOK_API_URL`, `BBOOK_EXTERNAL_SECRET`, `AI_LIKELIHOOD_SHADOW` | leave empty (Canvas and Original-only features; not needed for Bluebook) |
@@ -144,14 +152,23 @@ actually does, with a DRAFT banner and bracketed blanks.
   `original-pg-backups/original-pg-….jsonl.gz.fernet` object is in the bucket. A run
   that fails with "upload required but not configured" means a bucket setting
   is missing.
-- [ ] Restore drill (once now, then each term): download that object, then
-  against a scratch database (never the live one):
+- [ ] Restore drill (once now, then each term), from a checkout on your own
+  machine, against a scratch database (never the live one). Export the five
+  `BACKUP_OFFBOX_*` bucket settings of `original-pg-backup` (bucket, endpoint,
+  region, access key id, secret key) in that shell only, but not
+  `BACKUP_OFFBOX_ENABLED`, then:
   ```bash
+  export BACKUP_OFFBOX_PREFIX=original-pg-backups/
   createdb restore_drill   # or any empty Postgres
-  DATABASE_URL=postgresql://…/restore_drill alembic upgrade head
-  BACKUP_ENCRYPTION_KEY=<the key> DATABASE_URL=postgresql://…/restore_drill python scripts/pg_backup_offbox.py --restore original-pg-….jsonl.gz.fernet
+  export DATABASE_URL=postgresql://…/restore_drill
+  alembic upgrade head
+  FILE=$(python scripts/pg_backup_offbox.py --download-latest ~/restore-drill) &&
+    BACKUP_ENCRYPTION_KEY=<the key> python scripts/pg_backup_offbox.py --restore "$FILE"
   ```
-  Must end `restore parity: OK`. It refuses a database that already has rows.
+  `--download-latest` saves the newest `original-pg-….jsonl.gz.fernet` from the
+  bucket in that folder and prints its path; it stops with the reason if a
+  bucket setting is missing or nothing matches. The restore must end
+  `restore parity: OK`. It refuses a database that already has rows.
   The backup job refuses to upload when `BACKUP_ENCRYPTION_KEY` is unset. A file
   written with `--out` is an unencrypted local copy: keep it off shared disks and
   delete it when you are done.
@@ -162,7 +179,9 @@ actually does, with a DRAFT banner and bracketed blanks.
 ## 7. Launch
 
 - [ ] Invite each professor (*Operating it* → Inviting a professor). They set a
-  password from the link, then sign in at `https://<host>/bluebook/`.
+  password from the link, then sign in at `https://<host>/bluebook/`. Send
+  each one `docs/release/PROFESSOR_QUICKSTART.md`, with its support contact
+  filled in first.
 - [ ] Tell Claude the URL: it will re-run the smoke test and walk the professor
   invite → student invite → exam → mark → release journey against the live
   site.
@@ -173,7 +192,7 @@ actually does, with a DRAFT banner and bracketed blanks.
 
 - **Inviting a professor** (the pilot is invitation-only, `SELF_SERVE_SIGNUP=0`):
   Render → `original-pilot` → Shell →
-  `python scripts/invite_professor.py prof@school.edu --name "Dr Name"`.
+  `python scripts/invite_professor.py teacher@example.org --name "Teacher Name"`.
   It prints the database backend it wrote to (`postgres` on the pilot),
   whether the email was sent, and always prints the single-use link (14 days).
   If the link expires or is lost before the professor has set a password, run
@@ -185,20 +204,25 @@ actually does, with a DRAFT banner and bracketed blanks.
   emailed and the command prints a warning.
 - **Switching Original for a professor** (off by default; Bluebook stays on):
   invite with Original from the start with
-  `python scripts/invite_professor.py prof@school.edu --with-original`, or
+  `python scripts/invite_professor.py teacher@example.org --with-original`, or
   switch an existing professor's workspace with
-  `python scripts/set_products.py prof@school.edu --original on` (or `off`).
+  `python scripts/set_products.py teacher@example.org --original on` (or `off`).
   The server applies the change within 30 seconds, with no restart; open pages
   pick it up the next time the professor or student loads their home page or
   signs in. A student mid-exam when Original is switched off still seals
-  normally; that submission simply has no Original reading. If the script
-  warns that this is an institution workspace, the switch applies to every
-  professor and student in it. Original's comparisons are not validated for
-  real student work yet (gap T-01), so turn it on only with the owner's
-  agreement and the institution's consent. Switching Original on makes every
-  past sealed exam in that workspace approvable as baseline writing, so do it
-  only after the revised student notice (B2) is live and the institution has
-  agreed.
+  normally; that submission simply has no Original reading. A workspace made
+  by `invite_professor.py` belongs to one teacher. (If the script warns that
+  this is an institution workspace, one set up outside this pilot, the switch
+  applies to every teacher and student in it.) Original's comparisons are not
+  validated on real student writing yet (gap T-01), so turn it on only with
+  the owner's agreement and the teacher's informed consent, and tell the
+  teacher plainly that it is in its testing phase (NORTH_STAR rule 10; the
+  screens that show Original results carry the same notice,
+  `ORIGINAL_TESTING_NOTICE` in `demo/bluebook/components.jsx` and
+  `demo/original/live.js`). Switching Original on makes
+  every past sealed exam in that workspace approvable as baseline writing, so
+  do it only after the revised student notice (B2) is live and the teacher
+  has agreed.
 - **Approving exams as writing baselines** (workspaces with Original only):
   sealing an exam never adds it to a student's baseline. In the submission
   reader, **Add to baseline** / **Remove from baseline** handles one exam; on an
@@ -215,8 +239,13 @@ actually does, with a DRAFT banner and bracketed blanks.
   exam window teachers have told you about.
 - **Rollback:** Render → Deploys → previous deploy → Rollback. The schema
   changes are additive, so older code runs against the newer schema. If a
-  rollback must also undo a migration, run
-  `DATABASE_URL=… alembic downgrade -1` from a checkout first.
+  rollback must also undo a migration, run `alembic downgrade -1` from
+  Render → `original-pilot` → **Shell** (the database accepts no connections
+  from outside Render, and `DATABASE_URL` is already set there), before the
+  code rollback, while the newer build that has the migration file is still
+  deployed. A downgrade drops the columns and tables its upgrade added, with
+  their data, so trigger an `original-pg-backup` run first. Details:
+  `docs/OPS_RUNBOOK.md`, Deploys.
 - **Freeze writes** for maintenance: `MAINTENANCE_MODE=1` → deploy. Writes return
   503; reads keep working. Unset → deploy to unfreeze.
 - **Erasure requests:** a teacher deletes a student from the roster or the

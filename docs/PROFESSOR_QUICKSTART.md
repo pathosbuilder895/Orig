@@ -1,5 +1,7 @@
 # Original + Bluebook — Professor Quickstart
 
+> Invited to use Bluebook only? Read [`release/PROFESSOR_QUICKSTART.md`](release/PROFESSOR_QUICKSTART.md) instead; this page covers Original and Canvas.
+
 *Three pages. Everything you need for the semester.*
 
 ## What this is — and what it is not

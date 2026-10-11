@@ -15,7 +15,7 @@ GOOD_HEALTH = {
     "commit": "c2ba17676f344b629e5b00d6fe891c67e11d97ae",
     "feature_dim": 109,
 }
-KID = "7939c6c8a6f9a736"
+KID = "aae43f60dabc7388"
 
 
 def make_get(health=None, kid=KID, key_count=1, lockdown=None, hsts=True, echo_origin=False):

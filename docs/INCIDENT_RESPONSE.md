@@ -120,7 +120,7 @@ Detection ──► Triage ──► Containment ──► Notification decision
      edit (`store.py`'s `users` table) — there is no self-service
      "force password reset" endpoint today.
    - Restore from the most recent verified backup (`docs/OPS_RUNBOOK.md`
-     "Disk-loss / corruption recovery") if data was corrupted or deleted.
+     "Database loss or corruption") if data was corrupted or deleted.
    - Take the affected Render service down if containment requires it (this
      is the one case where the "never restart the dev server without
      permission" policy in `CLAUDE.md` is explicitly overridden by an active
