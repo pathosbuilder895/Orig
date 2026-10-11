@@ -42,7 +42,7 @@ The first version of this ADR reconciled the design with the code. NORTH_STAR th
 3. Reconcile every claim on the page with the shipped system and NORTH_STAR (tables below).
 4. Show a testing-phase notice directly after the cold open, using the shared label text from STATUS.md, and label every illustrative number, name and drawing as fictional or illustrative.
 5. Self-host the fonts from `demo/assets/fonts` (the files Bluebook already serves), so the page makes no third-party request.
-6. Ship no image whose licence or provenance is in doubt (see Imagery).
+6. Images: as revised on 2026-10-11, three images from the live suite at Andrew's direction, none with a licence on record (see Imagery).
 
 ## Options considered (for the dashboard preview)
 
@@ -88,13 +88,17 @@ The first version of this ADR reconciled the design with the code. NORTH_STAR th
 
 ### Imagery
 
-All three photographic or engraved images are removed from the branch:
+**2026-10-11, at Andrew's direction:** the page uses three images from the live suite's folder, referenced in place (`demo/original/assets/`, added by #240) rather than copied, so `demo/original/assets/CREDITS.md` stays the single register. That file lists none of them with a licence; each was shipped "at the owner's direction", and the landing is recorded there under the same terms.
 
-- `st-andrews-ruins.webp`: a modern photograph with an identifiable passer-by and no licence on file. The ruin section now stands on a plain night gradient.
-- `radcliffe-engraving-navy.webp` and `all-souls-engraving.webp`: byte-identical to "ChatGPT Image Jul 6, 2026" uploads in the Jul 11 export, **and each prints a historical credit inside the image**: "Drawn & Eng.d by J. & H. S. Storer... London: Pub.d June 1. 1822 by Sherwood, Neely, & Jones", and "F. Mackenzie / J. Le Keux... Published Nov.r 1st 1834 by J. H. Parker". A corrected caption cannot fix a credit drawn into the picture. The cold open falls back to the design's dark hero (the `engraved` class is off; its CSS is kept), and the photo break before the demo is removed.
-- The design's original dashboard hero was a watermarked third-party photograph and was already replaced on 2026-10-05; it left with the dashboard.
+| Slot | Image | Treatment |
+|---|---|---|
+| Cold open (hero) | `radcliffe-interior.avif` (Radcliffe Camera interior) | Dimmed behind the epigraph; empty `alt`; the dark hero, not the design's light "engraved" one |
+| "Do we walk into ruin?" | `all-souls-engraving-wide.jpg` | AI-generated in an engraving style, so decoration only: empty `alt`, no caption, never called historical. Checked: no credit text is printed in it |
+| Photo break before the demo | `st-andrews-quad.jpg` (aerial, a graduation procession) | Descriptive `alt`; caption "St Andrews, Scotland" |
 
-To bring the plates back, use genuine public-domain scans of the same plates (both were published in 1822 and 1834), credit them as what they are, re-add the `engraved` class and an `.hero-bg` image to the cold open, and restore the photo-break section from this PR's history.
+Left out on purpose: `radcliffe-night-stars.jpeg` prints "Sarah Savić Kallesøe | Oxford by Night" inside the photograph and her permission is pending. It is the natural hero for the dark cold open: swap the hero `src` once permission is granted, and credit her on the page if she asks. The other three suite images (`gonville-caius-facade.jpg`, `radcliffe-observatory-watercolour.jpg`, `white-stag.jpg`) were not needed.
+
+**Removed on 2026-10-07 and not coming back:** `st-andrews-ruins.webp` (a modern photo with an identifiable passer-by and no licence), and `radcliffe-engraving-navy.webp` and `all-souls-engraving.webp`, which were byte-identical to "ChatGPT Image Jul 6, 2026" uploads and printed historical credits inside the image ("Drawn & Eng.d by J. & H. S. Storer... London: Pub.d June 1. 1822 by Sherwood, Neely, & Jones"; "F. Mackenzie / J. Le Keux... Published Nov.r 1st 1834 by J. H. Parker"). The design's light "engraved" hero stays off with them; its CSS is kept in case genuine public-domain scans of those plates are ever sourced.
 
 ### Design-tool scaffolding dropped
 
@@ -104,13 +108,14 @@ React, ReactDOM and Babel standalone (about 4.3 MB, used only by the Tweaks pane
 
 - **Easier:** one URL to send a prospective teacher (`/landing.html`) that says plainly what Original is, what it is not, and that it is in testing. The page makes no third-party requests.
 - **Harder:** marketing copy now has an owner in the repo. Any change to `FEATURE_DIM`, `DISABLED_FEATURE_GROUPS`, `ACTION_THRESHOLDS` or the baseline-approval flow should be checked against the page.
-- **Visual cost:** without the plates, the cold open and the ruin section are typographic only, and there is no product screenshot on the page.
+- **Licence exposure:** the page is public, and all three images it shows have no licence on record. That is Andrew's decision (2026-10-11); `demo/original/assets/CREDITS.md` is where licences go as they arrive.
+- **No product screenshot** on the page.
 - **Revisit:** problems 2, 3 and 4 above still stand. The page no longer promises otherwise, but they decide when Original can leave its testing phase.
 
 ## Action items
 
 1. [ ] Andrew: review both reconciliation tables; revert any line that reflects a deliberate product direction.
-2. [ ] Andrew: choose final images. Genuine public-domain scans of the two plates, licensed photographs, or none (today's state).
+2. [x] Andrew: choose images. Done 2026-10-11: three images from the live suite (see Imagery). Still open: licences for all three, and the night photograph once Sarah Savić Kallesøe's permission arrives.
 3. [ ] Andrew: decide where the landing lives. With `original-demo` gone it is reachable only at `original-pilot/landing.html`, whose root opens Bluebook; it is unlinked there. The pilot has been live since 6 Oct 2026, so **merging this PR publishes the page at a public URL** on the next deploy, even though nothing links to it.
 4. [ ] If it should live on the static `bluebook-teacher-demo` origin instead, add `landing.html`, `styles/original-landing.css`, `js/{cursor,fingerprint,tension-arc,live-demo,scenes}.js` and the `assets/fonts/` files the page uses to `scripts/build_teacher_demo_site.sh` (owned outside task B).
 5. [ ] Give Original its own privacy and terms pages and link them from the footer. `demo/legal/` (from #227) is Bluebook's draft policy, awaits counsel, and does not yet describe Original.
