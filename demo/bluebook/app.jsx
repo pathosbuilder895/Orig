@@ -4,6 +4,7 @@ import { BB_API, devToolsEnabled } from './components.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
+import './booklet.css';
 import { ResultsScreen } from './Results.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {

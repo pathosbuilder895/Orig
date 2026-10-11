@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Conversation packet</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
+    --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+
+  /* ── The suite shell (same as the other pages; hidden when printing) ── */
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;white-space:nowrap;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover,.me-menu a[aria-current]{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;}
+  .body.gated{display:grid;}
+
+  /* ── The packet page: a bar above the paper, then the paper ── */
+  .wrap{width:100%;max-width:940px;margin:0 auto;}
+  .chrome{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem;color:var(--cream);}
+  .back{display:inline-flex;align-items:center;gap:.5rem;color:var(--dim);text-decoration:none;font-size:.95rem;border:1px solid var(--line-soft);border-radius:999px;padding:.5rem 1rem;transition:all .15s;white-space:nowrap;}
+  .back:hover{color:var(--cream);border-color:var(--line);}
+  .back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+  .chrome .t{font-family:var(--display);font-size:1.15rem;font-weight:500;}
+  .chrome .s{font-size:.85rem;color:var(--dim-2);font-style:italic;}
+  .print-btn{margin-left:auto;display:inline-flex;align-items:center;gap:.55rem;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border:none;border-radius:999px;padding:.65rem 1.4rem;font-family:var(--body);font-weight:600;font-size:.98rem;cursor:pointer;box-shadow:0 6px 18px rgba(201,160,40,0.25);white-space:nowrap;}
+  .print-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
+  .print-btn:focus-visible,.back:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .print-btn[hidden]{display:none;}
+  .wrap .live-panel{margin:2rem auto;}
+  .status{margin:3rem 0;text-align:center;font:italic 1rem/1.5 var(--body);color:var(--dim);}
+
+  /* ── The packet (paper) ── */
+  .paper{background:var(--paper);color:var(--ink);border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,0.55);padding:3rem 3.4rem 2.6rem;position:relative;}
+  .paper[hidden]{display:none;}
+  .paper::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--gold),#8a6d1a);border-radius:8px 8px 0 0;}
+  .p-head{display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;padding-bottom:1.4rem;border-bottom:2px solid var(--ink);}
+  .p-head .mk{display:flex;align-items:center;gap:.5rem;font-family:var(--display);font-weight:600;font-size:1.2rem;}
+  .p-head .mk i{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .p-head .kind{font-family:var(--mono);font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-2);margin-top:.35rem;}
+  .p-meta{text-align:right;font-size:.88rem;color:var(--ink-2);line-height:1.6;}
+  .p-meta b{color:var(--ink);font-weight:600;}
+  h1{font-family:var(--display);font-weight:500;font-size:1.9rem;margin:1.6rem 0 .3rem;overflow-wrap:anywhere;}
+  .h-sub{font-size:1rem;color:var(--ink-2);font-style:italic;}
+  .h-sub b{font-style:normal;color:var(--ink);font-weight:500;}
+  .notice{margin:1.4rem 0 0;padding:.9rem 1.1rem;background:#f1ead7;border:1px solid var(--rule);border-radius:8px;font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
+  .notice b{font-style:normal;color:var(--ink);font-weight:600;}
+  .paper .live-testing{max-width:none;}
+  section{margin-top:2rem;}
+  .sec-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);border-bottom:1px solid var(--rule);padding-bottom:.45rem;margin-bottom:1rem;display:flex;justify-content:space-between;gap:1rem;}
+  .sec-t span{color:var(--ink-2);letter-spacing:.06em;text-transform:none;font-style:italic;font-family:var(--body);font-size:.82rem;text-align:right;}
+  .summary{font-size:1.08rem;line-height:1.7;}
+  .summary b{font-weight:600;}
+  .none-line{font-size:1rem;font-style:italic;color:var(--ink-2);line-height:1.6;}
+  .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
+  /* habits, this paper beside their own writing (numbers, never quoted text) */
+  .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
+  .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
+  .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
+  .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
+  .ex-col{padding:1rem 1.2rem;}
+  .ex-col+.ex-col{border-left:1px solid var(--rule);}
+  .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;}
+  .ex-lbl.this{color:var(--flag);}
+  .ex-lbl.base{color:var(--base);}
+  .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.8rem;line-height:1.1;color:var(--flag);margin-bottom:.45rem;}
+  .ex-big.base{color:var(--base);}
+  .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);}
+  .ex-src{font-family:var(--mono);font-size:.62rem;color:var(--ink-2);margin-top:.55rem;overflow-wrap:anywhere;}
+  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.9rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .more-note{font-size:.88rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
+  /* where the baseline comes from */
+  .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
+  .prov th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--rule);font-weight:500;}
+  .prov td{padding:.6rem;border-bottom:1px solid #efe8d5;vertical-align:top;overflow-wrap:anywhere;}
+  .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
+  .prov .len{white-space:nowrap;}
+  .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
+  /* conversation guide */
+  .guide{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .g-card{border:1px solid var(--rule);border-radius:10px;padding:1rem 1.2rem;}
+  .g-card b{font-family:var(--display);font-weight:500;font-size:1rem;display:block;margin-bottom:.5rem;}
+  .g-card ul{list-style:none;}
+  .g-card li{font-size:.94rem;line-height:1.55;padding-left:1rem;position:relative;margin-bottom:.45rem;color:var(--ink);}
+  .g-card li::before{content:'-';position:absolute;left:0;color:var(--gold);}
+  .g-card.do b{color:var(--ok);}
+  .g-card.dont b{color:var(--flag);}
+  /* sign-off: blank form lines for the teacher to fill in by hand */
+  .sign{margin-top:2.2rem;padding-top:1.3rem;border-top:2px solid var(--ink);display:flex;justify-content:space-between;gap:3rem;align-items:flex-end;}
+  .sig-slot{flex:1;}
+  .sig-slot .line{border-bottom:1px solid var(--ink-2);height:2.2rem;}
+  .sig-slot .lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-top:.35rem;}
+  .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;gap:1rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
+  /* The packet sits in a one-cell layout table so that, when printed, its
+     <tfoot> (the second testing-label slot) repeats at the foot of every page
+     and keeps the text above it clear. A real table footer is the one thing
+     that does both in every browser; position:fixed repeats but overlaps the
+     text. On screen the table is plain blocks and the footer is not shown.
+     Live.notices() fills both label slots. */
+  .paper-table,.paper-table>tbody,.paper-table>tbody>tr,.paper-table>tbody>tr>td{display:block;width:100%;padding:0;border:0;}
+  .paper-table{border-collapse:collapse;}
+  .print-notice{display:none;}
+
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
+  }
+  @media (max-width:760px){
+    .body{padding:.4rem 1rem 1.5rem;}
+    .paper{padding:1.6rem 1.3rem;}
+    .ex{grid-template-columns:1fr;}
+    .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
+    .guide{grid-template-columns:1fr;}
+    .prov{display:block;overflow-x:auto;}
+    .chrome{flex-wrap:wrap;}
+    .p-head{flex-direction:column;gap:1rem;}
+    .p-meta{text-align:left;}
+    .sign{flex-direction:column;align-items:stretch;gap:1.5rem;}
+  }
+  @media print{
+    @page{margin:.55in;}
+    html,body{height:auto;background:#fff;color:var(--ink);}
+    body{display:block;padding:0;min-height:0;font-size:12pt;}
+    .frame{display:block;width:auto;max-width:none;height:auto;min-height:0;border:0;border-radius:0;box-shadow:none;background:none;overflow:visible;}
+    nav,.chrome{display:none !important;}
+    .body{display:block;overflow:visible;padding:0;}
+    .wrap{max-width:none;}
+    .paper{box-shadow:none;border-radius:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .paper::before{display:none;}
+    .paper-table{display:table;}
+    .paper-table>tbody{display:table-row-group;}
+    .paper-table>tbody>tr{display:table-row;}
+    .paper-table>tbody>tr>td{display:table-cell;}
+    .print-notice{display:table-footer-group;}
+    .print-notice>tr{display:table-row;}
+    .print-notice>tr>td{display:table-cell;padding:0;}
+    .print-notice .live-testing{margin:.5rem 0 0;max-width:none;padding:.35rem .7rem;border-radius:6px;font-size:.78rem;line-height:1.35;}
+    .ex,.g-card,.sign,.prov tr{break-inside:avoid;}
+    .sec-t,.sec-lede{break-after:avoid;}
+    /* a little tighter than the screen so the packet stays short on paper */
+    body{font-size:11pt;}
+    h1{font-size:1.6rem;margin:1rem 0 .2rem;}
+    .notice{margin-top:1rem;padding:.7rem .95rem;}
+    section{margin-top:1.3rem;}
+    .summary{font-size:1rem;line-height:1.6;}
+    .ex{margin-bottom:.8rem;}
+    .ex-h{padding:.5rem .95rem;}
+    .ex-col{padding:.65rem .95rem;}
+    .ex-big{font-size:1.4rem;margin-bottom:.25rem;}
+    .ex-q{font-size:.92rem;line-height:1.5;}
+    .ex-note{padding:.5rem .95rem;font-size:.86rem;}
+    .prov td{padding:.4rem .6rem;}
+    .g-card{padding:.8rem 1rem;}
+    .g-card li{font-size:.9rem;line-height:1.45;}
+    .sign{margin-top:1.4rem;padding-top:1rem;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="wrap">
+      <div class="chrome">
+        <a class="back" id="back" href="writing-state.html"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Back to analysis</a>
+        <div><div class="t">Conversation Packet</div><div class="s">Print it, read it once, and talk to the student: the packet does the remembering.</div></div>
+        <button class="print-btn" id="print-btn" type="button" hidden><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M6 15h12v6H6z"/></svg>Print packet</button>
+      </div>
+      <div class="status" id="status" role="status">Preparing the packet</div>
+      <article class="paper" id="paper" hidden>
+        <table class="paper-table" role="presentation"><tbody role="presentation"><tr role="presentation"><td role="presentation">
+        <div class="p-head">
+          <div><div class="mk"><i></i>Original</div><div class="kind">Conversation Packet · Confidential</div></div>
+          <div class="p-meta" id="p-meta"></div>
+        </div>
+        <h1 id="p-title"></h1>
+        <div class="h-sub" id="p-sub"></div>
+        <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how a paper compares with a student&rsquo;s own earlier writing. A difference here is a reason to talk with the student; on its own it is never evidence.</div>
+        <div data-testing-notice="on-paper"></div>
+
+        <section>
+          <div class="sec-t">What the analysis found <span>in plain English</span></div>
+          <p class="summary" id="p-summary"></p>
+        </section>
+
+        <section>
+          <div class="sec-t">Furthest from their usual range <span>this paper&rsquo;s numbers beside their own earlier writing</span></div>
+          <div id="p-habits"></div>
+        </section>
+
+        <section>
+          <div class="sec-t">Where their baseline comes from <span>the counted writing this paper was compared with</span></div>
+          <div id="p-baseline"></div>
+        </section>
+
+        <section>
+          <div class="sec-t">Having the conversation <span>a suggested approach</span></div>
+          <div class="guide">
+            <div class="g-card do"><b>Worth doing</b><ul>
+              <li>Open with the work, not the numbers: ask the student to walk you through the paper&rsquo;s argument in their own words.</li>
+              <li>Show one of the habits above and ask what they notice about it.</li>
+              <li>Ask about their process: drafts, tools, timeline, where they wrote it.</li>
+              <li>Offer a way to add reference writing: a supervised piece in Bluebook, which you can approve as part of their baseline if it helps.</li>
+            </ul></div>
+            <div class="g-card dont"><b>Worth avoiding</b><ul>
+              <li>Don&rsquo;t present the numbers as proof: they describe distance from the student&rsquo;s own habits, nothing more.</li>
+              <li>Don&rsquo;t open with an accusation; it forecloses the conversation the numbers are meant to open.</li>
+              <li>Don&rsquo;t rely on memory: write down what was said and what you agreed, on the outcome line below.</li>
+            </ul></div>
+          </div>
+        </section>
+
+        <div class="sign">
+          <div class="sig-slot"><div class="line"></div><div class="lbl">Teacher signature · date</div></div>
+          <div class="sig-slot"><div class="line"></div><div class="lbl">Outcome of the conversation</div></div>
+        </div>
+        <div class="p-foot"><span>Original · writing-consistency report</span><span id="p-foot-date"></span></div>
+        </td></tr></tbody>
+        <tfoot class="print-notice" role="presentation"><tr role="presentation"><td role="presentation"><div data-testing-notice="on-paper"></div></td></tr></tfoot></table>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="live.js?v=2026-10-10.5"></script>
+<script src="js/feature-data.js?v=2026-10-10.5"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const OF=window.OriginalFeatures;
+  const TIER_BY_KEY=new Map(OF.tiers.map(t=>[t.key,t]));
+  const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
+  const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
+  const plural=(n,one,many)=>n+' '+(n===1?one:(many||one+'s'));
+  const DASH='–';
+  const main=document.querySelector('main');
+  const STORE_KEY='original_last_result';   // written by writing-state.html
+  const SHOW_HABITS=5;                      // the server lists at most five per direction
+  const MAX_LENGTHS=24;                     // word counts are asked for the first 24 samples
+
+  // Plain-English tier labels, the same wording writing-state.html uses (that
+  // page keeps them inline, so they are repeated here rather than shared).
+  const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
+  const FAMILY={Surface:'how the sentences look',Discourse:'how the ideas connect',Rhetorical:'how the case is made'};
+  // GET /students/{id}: samples[].provenance, in the words baseline.html uses
+  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
+  // Teacher-approved means proctored, verified or imported: the same rule as
+  // baseline.html's approvedN(). The server's authenticated_count ("counted")
+  // also includes a student's own upload, so it is never called approved.
+  const APPROVED=['proctored','verified','canvas'];
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{
+      e.preventDefault();
+      // The last analysis names a student: it must not outlive the sign-in.
+      try{ window.sessionStorage.removeItem(STORE_KEY); }catch(err){ /* storage blocked */ }
+      Live.signOut();
+    });
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  // ── dates ──
+  const longDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+  const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+  function parseTime(iso){
+    const d=new Date(String(iso||''));
+    return isNaN(d.getTime())?null:d;
+  }
+  // A sample's submitted_at is a day ("2025-01-24") or a full time; show the day.
+  function sampleDay(s){
+    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
+    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
+    return 'Not recorded';
+  }
+
+  // ── what Writing State left for us ──
+  // sessionStorage 'original_last_result' (writing-state.html storeForPacket()).
+  // Anything in it is treated as data: shape-checked, then shown as text only.
+  function readStored(){
+    let raw;
+    try{ raw=window.sessionStorage.getItem(STORE_KEY); }
+    catch(e){ return {blocked:true}; }
+    if(!raw) return null;
+    let d;
+    try{ d=JSON.parse(raw); }catch(e){ return null; }
+    if(!d||typeof d!=='object'||d.kind!=='original_writing_state'||d.version!==1) return null;
+    if(typeof d.student_id!=='string'||!d.student_id.trim()) return null;
+    if(!d.result||typeof d.result!=='object') return null;
+    return {data:d};
+  }
+
+  function panel(title,text,href,label){
+    $('status').hidden=true;
+    const box=document.createElement('div');
+    box.className='live-panel'; box.setAttribute('role','status');
+    box.innerHTML='<h2>'+esc(title)+'</h2><p>'+esc(text)+'</p><a href="'+esc(href)+'">'+esc(label)+'</a>';
+    $('paper').insertAdjacentElement('beforebegin',box);
+  }
+  const NEED_ANALYSIS='Run an analysis on the Writing State page first';
+  function showEmpty(kind){
+    if(kind==='blocked') panel('This browser is not keeping the analysis','The packet is built from the analysis you just ran, and this browser is not storing data for the page. Allow site storage, then run the analysis again on the Writing State page.','writing-state.html','Open Writing State');
+    else if(kind==='access') panel('That student’s writing is not open to you here','The last analysis in this tab is for a student whose writing you cannot open, so no packet is shown. Run an analysis on the Writing State page.','writing-state.html','Open Writing State');
+    else panel(NEED_ANALYSIS,'The packet is built from the last analysis you ran in this tab. Open a student on the Writing State page, analyse a paper, then press “Prepare conversation packet”.','writing-state.html','Open Writing State');
+  }
+
+  // ── the habits furthest from the usual range (FeatureContributionOut) ──
+  // The server's "destructive" features are simply |z| > 1, ranked by weighted
+  // contribution, at most five. About a third of habits sit that far out by
+  // chance even in a student's own writing, so nothing here counts them or
+  // calls them differences: it names the ones Original puts furthest out.
+  // nUsed is the counted-sample count (authenticated_count), or null when it is not known.
+  function habitCards(d,poss,nUsed){
+    const res=d.result, inter=res.interference&&typeof res.interference==='object'?res.interference:{};
+    const list=Array.isArray(inter.destructive_features)?inter.destructive_features:[];
+    const vecB=res.baseline_vector, vecS=res.feature_vector;
+    const cards=[];
+    list.forEach(c=>{
+      if(cards.length>=SHOW_HABITS||!c||typeof c.code!=='string'||!has(OF.byCode,c.code)) return;
+      const f=OF.byCode[c.code];
+      const b=num(c.baseline_value)!=null?c.baseline_value:(has(vecB,c.code)?num(vecB[c.code]):null);
+      const s=num(c.submission_value)!=null?c.submission_value:(has(vecS,c.code)?num(vecS[c.code]):null);
+      if(b==null||s==null) return;
+      const t=TIER_BY_KEY.get(f.tier);
+      const family=t&&has(FAMILY,t.group)?FAMILY[t.group]:'';
+      const diff=s-b;
+      const sub=[PLAIN_TIER[f.tier]||(t&&t.name)||'',family].filter(Boolean).join(' · ');
+      const paper=(d.assignment&&typeof d.assignment==='string'?d.assignment:'This paper');
+      // baseline_mean is weighted by provenance (AUTH_WEIGHTS) and recency (RECENCY_DECAY)
+      const basedOn=nUsed!=null?plural(nUsed,'counted sample'):null;
+      const avgLine='A weighted average of '+(basedOn||poss+' counted samples')+' (newer and supervised writing counts for more), on the same scale as this paper.';
+      cards.push(
+        '<div class="ex">'+
+          '<div class="ex-h"><b>'+esc(f.name)+'</b><span>'+esc(sub)+'</span></div>'+
+          '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-big">'+esc(s.toFixed(2))+'</span>'+
+            '<div class="ex-q">'+esc('This is one of the habits furthest from '+poss+' usual range in this paper, by Original’s measure.')+'</div>'+
+            '<div class="ex-src">'+esc(paper)+'</div></div>'+
+          '<div class="ex-col"><div class="ex-lbl base">'+esc(poss+' usual writing')+'</div><span class="ex-big base">'+esc(b.toFixed(2))+'</span>'+
+            '<div class="ex-q">'+esc(avgLine)+'</div>'+
+            (basedOn?'<div class="ex-src">'+esc(basedOn)+'</div>':'')+'</div>'+
+          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>What this habit measures:</b> '+esc(f.desc):'')+'</div>'+
+        '</div>');
+    });
+    if(!cards.length){
+      // The server named habits but their figures were not kept: say so rather than claim there are none.
+      if(list.length) return '<p class="none-line">The figures for these habits were not kept with this analysis, so there is nothing to put side by side. Run it again on the Writing State page.</p>';
+      return '<p class="none-line">'+esc('None of the habits measured in this paper sits outside '+poss+' usual range by Original’s measure, so there is nothing to put side by side.')+'</p>';
+    }
+    let html='<p class="sec-lede">Some habits sit this far from the usual range in a student’s own writing too; this is where to start looking, not a finding.</p>'+cards.join('');
+    if(list.length>=SHOW_HABITS) html+='<p class="more-note">(Original lists up to five.)</p>';
+    return html;
+  }
+
+  // ── where the baseline comes from (GET /students/{id}) ──
+  const approvedIn=samples=>samples.filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
+  const uploadsIn=samples=>samples.filter(s=>s.provenance==='unverified').length;
+  function baselineTable(samples){
+    const rows=samples.map((s,i)=>{
+      const idx=num(s.index)!=null?s.index:i;
+      const name=typeof s.assignment==='string'&&s.assignment.trim()?s.assignment:'Untitled sample';
+      const prov=typeof s.provenance==='string'?s.provenance:'';
+      const how=has(HOW,prov)?HOW[prov]:(prov||'Not stated');
+      return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
+        '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
+    }).join('');
+    return '<table class="prov"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  // Word counts are not in the sample list: each comes from its own
+  // GET /students/{id}/samples/{i}/text (word_count), four at a time.
+  function fillLengths(id,box){
+    const cells=[].slice.call(box.querySelectorAll('td.len')).slice(0,MAX_LENGTHS);
+    let next=0;
+    function one(){
+      if(next>=cells.length) return Promise.resolve();
+      const cell=cells[next++];
+      return Live.api('/students/'+encodeURIComponent(id)+'/samples/'+encodeURIComponent(cell.getAttribute('data-idx'))+'/text').then(r=>{
+        const n=r.ok&&r.data?num(r.data.word_count):null;
+        if(n!=null) cell.textContent=plural(n,'word');
+      }).then(one);
+    }
+    return Promise.all([one(),one(),one(),one()]);
+  }
+  // The server's own readiness rule (original/routers/students.py,
+  // get_student_readiness), as writing-state.html's resultVerdict() applies it
+  // to the score response: ready at 5 counted samples and 3 effective,
+  // building from 2, else too little. Null when a field is missing.
+  function storedVerdict(bc){
+    const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
+    if(a==null||e==null) return null;
+    if(a>=5&&e>=3) return 'ready';
+    if(a>=2) return 'developing';
+    return 'insufficient';
+  }
+  // verdict: 'ready' | 'developing' | 'insufficient', or null when it cannot be read.
+  function baselineNote(nUsed,onFile,verdict,poss){
+    let t='';
+    if(onFile!=null&&nUsed!=null&&onFile!==nUsed){
+      t+='This analysis compared the paper with '+plural(nUsed,'counted sample')+'; '+onFile+' '+(onFile===1?'is':'are')+' on file now. ';
+    }
+    if(verdict==='developing'||verdict==='insufficient'){
+      // The verdict is named in the suite's one set of words (Live.VERDICT_WORDS).
+      t+='Original rates this baseline \u201c'+Live.verdictWord(verdict)+'\u201d. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre, so treat this reading as inconclusive.';
+    } else if(verdict==null){
+      t+='Original could not read this baseline’s readiness, so treat this reading as inconclusive.';
+    } else {
+      t+='A paper on a new topic or in a new genre can look different from '+poss+' usual writing even when the student wrote it. The numbers above describe distance from their own habits, nothing more.';
+    }
+    return t;
+  }
+
+  async function render(sess,d){
+    const id=d.student_id.trim();
+    const who=(typeof d.student_name==='string'&&d.student_name.trim())||id;
+    const poss=who+'’s';
+    const [st,rd]=await Promise.all([
+      Live.api('/students/'+encodeURIComponent(id)),
+      Live.api('/students/'+encodeURIComponent(id)+'/readiness')
+    ]);
+    // The stored analysis is only for a student this sign-in can open. A 404
+    // or 403 means it is not (another workspace's student, or one since removed).
+    if(st.status===403||st.status===404){ showEmpty('access'); return; }
+
+    const bc=d.result.baseline_confidence&&typeof d.result.baseline_confidence==='object'?d.result.baseline_confidence:{};
+    const samples=(st.ok&&st.data&&Array.isArray(st.data.samples))?st.data.samples.filter(s=>s&&typeof s==='object'):null;
+    const onFile=samples?samples.length:null;
+    const nUsed=num(bc.authenticated_count)!=null?bc.authenticated_count:(st.ok&&st.data?num(st.data.authenticated_count):null);
+    // Fresh readiness call first; if it failed, the server rule on the counts
+    // stored with the analysis; else null (never silently "fine").
+    const fresh=rd.ok&&rd.data&&typeof rd.data.verdict==='string'?rd.data.verdict:'';
+    const verdict=(fresh==='ready'||fresh==='developing'||fresh==='insufficient')?fresh:storedVerdict(bc);
+
+    // head
+    const today=longDay(new Date());
+    $('p-meta').innerHTML=(sess.name?'Prepared for <b>'+esc(sess.name)+'</b><br>':'')+'<b>'+esc(today)+'</b>';
+    $('p-foot-date').textContent='Prepared '+today;
+    const assignment=typeof d.assignment==='string'?d.assignment.trim():'';
+    $('p-title').textContent=assignment?who+': “'+assignment+'”':who;
+    const analysed=parseTime(d.analysed_at), words=num(d.word_count);
+    const bits=[];
+    if(!assignment) bits.push('paper without a title');
+    if(analysed) bits.push('analysed '+shortDay(analysed));
+    if(words!=null) bits.push(plural(words,'word'));
+    const sub=esc(bits.join(' · ')).replace(/^[a-z]/,c=>c.toUpperCase());
+    // The teacher-approved split comes from the sample list, and only when that list is
+    // the one the analysis counted (a changed list would split a different count).
+    const sameCount=!!(samples&&st.data&&nUsed!=null&&num(st.data.authenticated_count)===nUsed);
+    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount?esc(' ('+approvedIn(samples)+' teacher-approved)'):''):'');
+    $('back').href='writing-state.html?student='+encodeURIComponent(id);
+
+    // summary: the sentence Writing State showed, as plain text
+    const summary=typeof d.summary==='string'&&d.summary.trim()?d.summary.trim().slice(0,2000)
+      :(typeof d.action_words==='string'&&d.action_words?'Overall: '+d.action_words.slice(0,200)+'.':'');
+    if(summary) $('p-summary').textContent=summary;
+    else $('p-summary').innerHTML='<span class="none-line">The plain-English summary was not kept with this analysis. Run it again on the Writing State page.</span>';
+
+    // habits
+    $('p-habits').innerHTML=habitCards(d,poss,nUsed);
+
+    // baseline
+    // The thin-baseline caution is shown whether or not the sample list loaded.
+    const box=$('p-baseline');
+    const note='<p class="prov-note">'+esc(baselineNote(nUsed,onFile,verdict,poss))+'</p>';
+    if(!samples){
+      box.innerHTML='<p class="none-line">The list of samples could not be loaded just now. Reload the page to try again.</p>'+note;
+    } else if(!samples.length){
+      box.innerHTML='<p class="none-line">No samples are on file for '+esc(who)+' now.</p>'+note;
+    } else {
+      const up=uploadsIn(samples);
+      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+', '+approvedIn(samples)+' teacher-approved'+(up?' and '+plural(up,'student upload'):'')+'.')+'</p>';
+      box.innerHTML=split+baselineTable(samples)+note;
+      fillLengths(id,box);
+    }
+
+    $('status').hidden=true;
+    $('paper').hidden=false;
+    $('print-btn').hidden=false;
+  }
+
+  $('print-btn').addEventListener('click',()=>{ window.print(); });
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate(main).then(sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    const stored=readStored();
+    if(stored&&stored.blocked){ showEmpty('blocked'); return; }
+    if(!stored){ showEmpty('none'); return; }
+    render(sess,stored.data).catch(()=>{
+      $('status').hidden=false;
+      $('status').textContent='This packet could not be prepared just now. Try reloading the page.';
+    });
+  });
+})();
+</script>
+</body>
+</html>
