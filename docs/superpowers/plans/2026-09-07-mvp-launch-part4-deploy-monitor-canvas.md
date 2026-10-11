@@ -25,7 +25,7 @@
 **Files:** none; produces the go/no-go and the deploy sha.
 
 - [ ] **Step 1:** Pick the sha: `git fetch origin && git rev-parse origin/main`. Record it — the go-live check and release tag both take it.
-- [ ] **Step 2 (⛔ HUMAN):** Confirm the env sheet exists and the LTI key is the post-rotation one: compute `python3 -c "import hashlib;print(hashlib.sha256(open('<pem-path>','rb').read()).hexdigest()[:16])"` → must print `7939c6c8a6f9a736`. Mismatch = wrong/stale key — STOP; a new key means re-issuing any Canvas developer key later, so never "just generate a fresh one."
+- [ ] **Step 2 (⛔ HUMAN):** Confirm the env sheet exists and the LTI key is the post-rotation one: compute `python3 -c "import hashlib;print(hashlib.sha256(open('<pem-path>','rb').read()).hexdigest()[:16])"` → must print `aae43f60dabc7388` (the key rotated 2026-08-11, see `docs/OPS_RUNBOOK.md`). If it prints `7939c6c8a6f9a736`, the sheet still holds the LEAKED 2026-08-07 key: STOP and never deploy it. Any other mismatch = wrong or stale key: STOP. Canvas's developer key uses the Public JWK URL method (`docs/canvas_developer_key.md`), so a rotation needs no re-registration, but never generate a fresh key without recording the rotation in `docs/OPS_RUNBOOK.md`.
 - [ ] **Step 3 (⛔ HUMAN):** Disposition the 2026-09-02 architecture-review finding ("genuine authors score `escalate` at the pilot's modal three baselines", per PR #193/#195): confirm the fix is in the deploy sha (Part 2 Task 2's PILOT_LOG line says), or record explicit acceptance that the zero-student window may run without it — **it must be resolved before any real student is scored (Part 6 Task 5 re-checks).** One PILOT_LOG line either way; commit it.
 
 ### Task 2: Blueprint deploy (⛔ HUMAN, Render dashboard)
@@ -35,7 +35,7 @@
 
 ### Task 3: O1 acceptance
 
-- [ ] **Step 1:** `python -m scripts.o1_golive_check --base-url https://original-pilot.onrender.com --expect-kid 7939c6c8a6f9a736 --expect-commit <sha-from-Task-1>` → per-check `[PASS]` lines then exactly `O1 go-live check: PASS`. Failure decode: kid mismatch = the PEM paste gained/lost a trailing newline (kid is `sha256(pem)[:16]`); any lockdown endpoint reachable anonymously = the deploy is not running this build — STOP.
+- [ ] **Step 1:** `python -m scripts.o1_golive_check --base-url https://original-pilot.onrender.com --expect-kid aae43f60dabc7388 --expect-commit <sha-from-Task-1>` → per-check `[PASS]` lines then exactly `O1 go-live check: PASS`. Failure decode: kid mismatch = the PEM paste gained/lost a trailing newline (kid is `sha256(pem)[:16]`); a kid of `7939c6c8a6f9a736` = the leaked key was deployed, STOP and replace it; any lockdown endpoint reachable anonymously = the deploy is not running this build, STOP.
 
 ### Task 4: The Canvas ask — same calendar day (⛔ HUMAN)
 

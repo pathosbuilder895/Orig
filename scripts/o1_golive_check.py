@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
-o1_golive_check.py — O1 deploy verification (pre-cutover).
+o1_golive_check.py: O1 deploy verification (pre-cutover).
+
+Targets the deferred LTI/SQLite configuration; it does not apply to the current
+Postgres Bluebook pilot (it asserts backend == "sqlite").
 
 Run this against the pilot service immediately after the blueprint deploy
 lands, and again within 48h of any later deploy that precedes an exam. It is
