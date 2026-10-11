@@ -41,10 +41,10 @@ Six commits on top of handoff `e75a911c`; not yet pushed (local git/gh credentia
 3. Production configuration and security exposure review, including excluded blocker/certification cases. Selected green tests do not clear those cases.
 4. Real mail provider setup, verified sender, actual invitation/reset delivery, and professor support ownership.
 5. Independent backup destination, credentials, retention and scheduled upload/restore verification.
-6. Draft legal pages still contain entity/contact/provider placeholders. Do not invent these or remove the draft warning without owner/institution review.
+6. Draft legal pages still contain entity/contact/provider placeholders. Do not invent these or remove the draft warning without owner and counsel review.
 7. End-to-end no-raw-keystroke verification across every remaining legacy endpoint, persisted rows, exports and backups.
 8. Original baseline-policy/API reconciliation, real report-screen integration, licensed-model/IP review and student-population validity evidence. These remain separately gated; do not turn them on for first Bluebook use.
-9. External professor pilot and institutional operating approval. No professors were contacted and no real student records were used.
+9. External teacher pilot and counsel-approved terms that fit a teacher with no school agreement. No professors were contacted and no real student records were used.
 
 ## Hosting actually inspected, 4 October
 
@@ -101,14 +101,14 @@ Closed 2026-10-05: public signup (now invitation-only), seal confirmation, backu
 
 ### Still open (owner/operator, Part B)
 
-Plan: `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, Part B. None of these is done, and none can be done from this checkout.
+Plan: `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, Part B. B3 and B5 are done (both services live on Render since 2026-10-06, see `docs/STATUS.md`); the rest are open, and none can be done from this checkout.
 
 - **B1 Owner decisions and accounts:** hosting budget and region, fate of the old services (`Originall`, `original-demo`), SendGrid and its DPA, off-box backup bucket and `BACKUP_ENCRYPTION_KEY`, support contact and operator.
-- **B2 Legal pages and institutional terms:** counsel fills the entity, region, storage-provider, retention, warranty and governing-law blanks; the institution's operating note; then the draft banner and version string are finalised (the guard from Task 10 enforces that).
+- **B2 Legal pages and teacher terms:** counsel fills the entity, region, storage-provider, retention, warranty and governing-law blanks, and confirms the terms fit an independent teacher with no school agreement (the questions are in `docs/release/COUNSEL_PACKET.md`); then the draft banner and version string are finalised (the guard from Task 10 enforces that).
 - **B2 (counsel):** the student notice should say that sealed exams may be used as reference writing if the instructor's workspace uses Original (professor-approved baselines, 2026-10-05). The sentence to change is in `demo/legal/student-notice.html` (line 25, under "What Bluebook does not do"): "It does not analyse your writing style or compare it with your earlier work." That sentence becomes untrue for any workspace where Original is switched on, because its sealed exams, including ones sat before Original was switched on, can then be approved as reference writing and compared with later work. Counsel must make that passage conditional on Original; the code does not edit the legal page.
-- **B3 Create the hosted pilot** from the merged commit, with fresh `SECRET_KEY` and `MAINTENANCE_TOKEN`, and confirm `/health` shows `signup_open:false` and the merged commit.
+- **B3 (done 2026-10-06, but from a pre-merge build; redeploy from `main`, see STATUS) Create the hosted pilot** from the merged commit, with fresh `SECRET_KEY` and `MAINTENANCE_TOKEN`, and confirm `/health` shows `signup_open:false` and the merged commit.
 - **B4 Deployed acceptance** with fictional accounts: smoke test, full journey on phone and laptop, restart persistence, backup and encrypted restore drill, rollback rehearsal, uptime monitor. Includes the native confirm dialog and fullscreen check in real Chrome.
-- **B5 Publish the fictional demo** (`bluebook-teacher-demo`): first blueprint sync also proves the static-site blueprint shape, which was written from knowledge only.
+- **B5 (done 2026-10-06) Publish the fictional demo** (`bluebook-teacher-demo`): first blueprint sync also proves the static-site blueprint shape, which was written from knowledge only.
 - **B6 Admit the first invited professors:** quickstart page, 1 to 3 invitations, watched first sessions.
 - **Step 5 of this task:** push the branch and open the draft PR once the owner has run `gh auth login -h github.com`. Merge is the owner's action.
 

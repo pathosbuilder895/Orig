@@ -23,12 +23,12 @@ const MOCK_RESULTS = [
 ];
 
 // The stored status words, said the way the Bluebook Sessions page says them.
-const STATUS_LABEL = { SUBMITTED: 'submitted', FLAGGED: 'worth a look', REVIEWED: 'reviewed' };
-const STATUS_TONE  = { SUBMITTED: 'ok', FLAGGED: 'warn', REVIEWED: 'ok' };
+const STATUS_LABEL = { SUBMITTED: 'submitted', FLAGGED: 'worth a look', INCONCLUSIVE: 'inconclusive', REVIEWED: 'reviewed' };
+const STATUS_TONE  = { SUBMITTED: 'ok', FLAGGED: 'warn', INCONCLUSIVE: '', REVIEWED: 'ok' };
 
 // "Reviewed" means the teacher has graded the exam (graded_at is set), the same
 // rule the Original suite uses for "awaiting review". The stored status never
-// becomes REVIEWED (the server only ever stores SUBMITTED or FLAGGED), so it is
+// becomes REVIEWED (the server stores SUBMITTED, FLAGGED or INCONCLUSIVE), so it is
 // not what the count, the filter or the pill reads. Stored values are unchanged.
 const isReviewed = r => !!r.graded_at;
 const stored = r => String(r.status || '').toUpperCase();
@@ -43,7 +43,8 @@ function StatusPill({ result }) {
 // The rows each filter shows, and the counts above it, by one rule.
 const FILTERS = {
   all:       () => true,
-  SUBMITTED: r => stored(r) === 'SUBMITTED' && !isReviewed(r),
+  // An INCONCLUSIVE exam is a submitted one Original could not read.
+  SUBMITTED: r => (stored(r) === 'SUBMITTED' || stored(r) === 'INCONCLUSIVE') && !isReviewed(r),
   FLAGGED:   r => stored(r) === 'FLAGGED',
   REVIEWED:  isReviewed,
 };
@@ -69,6 +70,9 @@ function ExpandedRow({ result, onClose }) {
           <span className="bb-label">Session details</span>
           {result.status === 'FLAGGED' && (
             <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with the writing in this student's baseline. {ORIGINAL_TESTING_NOTICE}</p>
+          )}
+          {result.status === 'INCONCLUSIVE' && (
+            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Not enough reference writing yet: Original needs at least 3 approved samples from this student before it can compare a new piece, so it makes no observation about this exam. {ORIGINAL_TESTING_NOTICE}</p>
           )}
           <div className="bb-facts">
             {[

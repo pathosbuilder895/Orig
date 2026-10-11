@@ -33,8 +33,10 @@ original/routers/*.py  ←── the actual route handlers, one module per domai
   • hardening: ORIGINAL_ENV=pilot (see .env.example, render.yaml)
 ```
 
-Deployed per `render.yaml` (`original-demo` free sandbox, `original-pilot`
-paid + disk). Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
+Deployed per `render.yaml`: `original-pilot` (web, Starter, managed Postgres
+`original-db`), the `original-pg-backup` cron job, and the static
+`bluebook-teacher-demo` site. `original-demo` was removed from the blueprint
+on 2026-10-05. Ops: `docs/OPS_RUNBOOK.md`. Canvas: `docs/CANVAS_RUNBOOK.md`.
 
 ### Bluebook as a standalone product (2026-09)
 
