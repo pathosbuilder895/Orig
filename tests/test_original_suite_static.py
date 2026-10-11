@@ -402,7 +402,7 @@ def test_students_page_loads_through_live_roster():
     page = (SUITE / "students.html").read_text(encoding="utf-8")
     assert "Live.roster()" in page
     # The loader is shared: the page keeps no copy of its requests.
-    for endpoint in ("/readiness", "/bluebook/students", "/bluebook/submissions"):
+    for endpoint in ("/readiness", "/bluebook/students"):
         assert endpoint not in page, f"students.html calls {endpoint} itself"
 
 
@@ -589,6 +589,37 @@ def test_live_js_has_one_sealed_exam_allowlist(live_js):
             assert "const FIELDS" not in text, f"{path.name} keeps its own field list"
 
 
+# The sealed-exam LIST route, GET /bluebook/submissions. The routes under it
+# (/bluebook/submissions/{id}/baseline, approve and undo) are other endpoints.
+SEALED_LIST_ROUTE = re.compile(r"/bluebook/submissions(?![\w/])")
+
+
+def test_the_sealed_exam_list_route_pattern_tells_the_list_from_the_routes_under_it():
+    for named in (
+        "api('/bluebook/submissions')", 'fetch("/bluebook/submissions")', "`/bluebook/submissions`",
+        "'/bluebook/submissions?limit=5'", "GET /bluebook/submissions response",
+    ):
+        assert SEALED_LIST_ROUTE.search(named), named
+    for other in (
+        "'/bluebook/submissions/'+enc(id)+'/baseline'", "/bluebook/submissions/x1/baseline",
+        "/bluebook/students", "/bluebook/exams/e1/baseline",
+    ):
+        assert not SEALED_LIST_ROUTE.search(other), other
+
+
+def test_no_file_but_live_js_names_the_sealed_exam_list_route(live_js):
+    # Every field of a sealed exam reaches a page through Live.sealed()'s one
+    # allowlist, so only live.js may ask for the list. A page that fetched it
+    # itself would hold Bluebook's integrity readings, status and paper text.
+    assert live_js.count("api('/bluebook/submissions')") == 1
+    named = [
+        path.relative_to(SUITE).as_posix()
+        for path in _code_files()
+        if path != SUITE / "live.js" and SEALED_LIST_ROUTE.search(path.read_text(encoding="utf-8"))
+    ]
+    assert not named, f"{named} name the sealed exam list route; call Live.sealed() instead"
+
+
 def test_reports_page_counts_only_what_live_roster_returns():
     page = (SUITE / "reports.html").read_text(encoding="utf-8")
     assert "Live.roster()" in page
@@ -596,7 +627,7 @@ def test_reports_page_counts_only_what_live_roster_returns():
     # The loader is shared, and this page reads no other endpoint: its numbers are
     # counts of the roster, the server's verdicts and the sealed exams' dates.
     assert "Live.api(" not in page
-    for endpoint in ("/readiness", "/bluebook/students", "/bluebook/submissions", "/score"):
+    for endpoint in ("/readiness", "/bluebook/students", "/score"):
         assert endpoint not in page, f"reports.html calls {endpoint} itself"
     # Cards with no stored source say so instead of showing a number.
     assert page.count("Appears once Original keeps analysis results") >= 3
@@ -1678,7 +1709,6 @@ def test_student_pages_gate_as_students_and_call_only_their_own_endpoint(name):
         "/students",
         "/auth/",
         "/bluebook/exams",
-        "/bluebook/submissions",
         "/bluebook/students",
         "sessionStorage",
         "localStorage",
@@ -2277,7 +2307,6 @@ def test_baseline_page_approves_and_undoes_only_through_the_bluebook_baseline_ro
 def test_baseline_page_gets_its_sealed_exams_from_live_sealed_and_never_names_the_list_route():
     page = _baseline_page()
     assert "Live.sealed()" in page
-    assert "Live.api('/bluebook/submissions')" not in page
     # The number of warnings is derived in live.js; the warnings themselves never arrive.
     assert "warning_count" in page
     assert ".warnings" not in page
