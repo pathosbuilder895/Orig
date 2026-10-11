@@ -6,8 +6,8 @@
  * of focused tests sharing one worker-scoped tenant (fixtures/tenancy.mjs):
  * create course → publish exam (ToggleRow lockdown states) → save a second
  * exam as DRAFT → preview the briefing → a student seals a submission that
- * Original scores live → Dashboard → Results (score matches the API
- * payload) → drill into the integrity narrative → Students roster → file a
+ * Original scores live → Dashboard → Results (rows only, no score shown)
+ * → drill into the session details → Students roster → file a
  * correction → correction visible in corrections + audit.
  *
  * Serial-mode notes:
@@ -298,16 +298,17 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 7 ────────────────────────────────────────────────────────────────
-  test('Results lists the sealed submission with the scores the API reported', async ({
+  test('Results lists the sealed submission and shows no score', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
     await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(candidateName)).toBeVisible()
-    // This is the tenant's only submission, so the rendered percentages are
-    // unambiguous — they must match the API payload captured at seal time.
-    await expect(staffPage.getByText(`${journey.submission.aiScore}%`).first()).toBeVisible()
+    // The teacher's Results screen no longer shows Original's score: the
+    // percentage the API reported at seal time must not be rendered anywhere.
+    await expect(staffPage.getByText(`${journey.submission.aiScore}%`)).toHaveCount(0)
+    await expect(staffPage.getByText('Authenticity')).toHaveCount(0)
     // The compare-only seal no longer produces a stylometric score (that came
     // from the baseline write's drift): the record carries none and the
     // table shows a dash for it, never a literal "null%".
@@ -316,7 +317,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 8 ────────────────────────────────────────────────────────────────
-  test('drilling into the row reveals the integrity analysis narrative', async ({
+  test('drilling into the row reveals the session details', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
@@ -324,7 +325,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const resultsRow = staffPage.locator('div', { hasText: candidateName }).last()
     await expect(resultsRow).toBeVisible({ timeout: 10_000 })
     await resultsRow.click()
-    await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 5_000 })
     // A seal no longer produces a stylometric figure, and the release makes
     // no typing claim: the average tile is gone, no "Typing" label appears
     // anywhere on the Results screen, and with no row carrying a stylometric
@@ -332,9 +333,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByText('Avg Typing Consistency')).toHaveCount(0)
     await expect(staffPage.getByText(/Typing/)).toHaveCount(0)
     await expect(staffPage.getByText('Writing Consistency')).toHaveCount(0)
-    await expect(staffPage.getByText('Authenticity').first()).toBeVisible()
-    // The plain-English explanation line under the Authenticity score.
-    await expect(staffPage.getByText(/scored via Original/)).toBeVisible()
+    // No authenticity score and no scoring explanation: Original's analysis
+    // is read in Original, not in a Bluebook results row.
+    await expect(staffPage.getByText('Authenticity')).toHaveCount(0)
+    await expect(staffPage.getByText(/scored via Original/)).toHaveCount(0)
     // The right-hand panel is the real CorrectionPanel (see step 10 below for
     // the full filing flow) — "Mark Reviewed"/"Examiner's Notes" were the
     // pre-CorrectionPanel local-state placeholder this test used to assert
@@ -375,7 +377,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 9b ───────────────────────────────────────────────────────────────
-  test('the Results row is keyboard-operable and expands the integrity analysis', async ({
+  test('the Results row is keyboard-operable and expands the session details', async ({
     staffPage, workerTenant,
   }) => {
     const { candidateName } = names(workerTenant)
@@ -385,7 +387,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(row).toHaveAttribute('aria-expanded', 'false')
     await row.focus()
     await staffPage.keyboard.press(' ')
-    await expect(staffPage.getByText('Integrity Analysis')).toBeVisible({ timeout: 5_000 })
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 5_000 })
     await expect(row).toHaveAttribute('aria-expanded', 'true')
   })
 

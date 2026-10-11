@@ -1,10 +1,13 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB_API, rowKeyDown } from './components.jsx';
+import { Badge, Btn, Page, Stat } from './forms.jsx';
 import { AllSubmissionsScreen } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
-//  BLUEBOOK — Results Screen
-//  Submission review with stylometric & AI integrity scores
+//  BLUEBOOK: Results screen (a workspace that holds Original)
+//  Sealed submissions, their session facts, and the examiner's
+//  correction form. No score is shown here: Original's analysis
+//  belongs in Original, where it carries its testing-phase label.
 // ════════════════════════════════════════════════════════════════
 const { useState: useResState } = React;
 
@@ -19,22 +22,11 @@ const MOCK_RESULTS = [
   { id:'r8', student:'Sofia Lindqvist',  candidateId:'00049', exam:'Ethics in the Modern World',           course:'PHIL 301A', words:941,  timeMin:68,  stylometric:92, aiScore:95, status:'SUBMITTED'  },
 ];
 
-// ─── Score display ────────────────────────────────────────────────────────────
-function ScoreBar({ score }) {
-  if (score == null) return (
-    <span style={{ fontFamily:fontMono, fontSize:11, color:'rgba(139,155,180,0.5)', letterSpacing:'0.06em' }}>—</span>
-  );
-  const color = score >= 85 ? '#5EB87C' : score >= 70 ? BB.gold : '#C47A6B';
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div style={{ width:44, height:3, background:'rgba(139,155,180,0.18)', position:'relative', flexShrink:0 }}>
-        <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${score}%`, background:color }} />
-      </div>
-      <span style={{ fontFamily:fontMono, fontSize:11, color, letterSpacing:'0.06em', minWidth:32 }}>
-        {score}%
-      </span>
-    </div>
-  );
+// The stored status words, said the way the Bluebook Sessions page says them.
+const STATUS_LABEL = { SUBMITTED: 'submitted', FLAGGED: 'worth a look', REVIEWED: 'reviewed' };
+const STATUS_TONE  = { SUBMITTED: 'ok', FLAGGED: 'warn', REVIEWED: 'ok' };
+function StatusPill({ status }) {
+  return <Badge tone={STATUS_TONE[status] || ''}>{STATUS_LABEL[status] || String(status || '').toLowerCase()}</Badge>;
 }
 
 const { useState: useCPState, useEffect: useCPEffect } = React;
@@ -55,26 +47,23 @@ function relativeTime(iso) {
 
 function CorrectionHistoryItem({ c }) {
   return (
-    <div style={{
-      padding:'10px 0', borderBottom:'1px solid rgba(201,169,97,0.12)',
-      fontFamily:fontBody, fontSize:13, color:BB.fade,
-    }}>
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-        <span style={{ color: c.is_correct ? '#5EB87C' : '#C47A6B', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em' }}>
+    <div className="bb-corr-item">
+      <div className="bb-corr-line">
+        <span className={c.is_correct ? 'ok' : 'bad'}>
           {c.is_correct ? '✓ Verdict correct' : '✗ Verdict overridden'}
         </span>
-        <span style={{ fontFamily:fontMono, fontSize:10, color:'rgba(139,155,180,0.6)' }}>
+        <span className="who">
           {c.reviewer || 'Unknown reviewer'} · {relativeTime(c.created_at)}
         </span>
       </div>
       {!c.is_correct && (c.corrected_verdict || c.corrected_action) && (
-        <p style={{ margin:'0 0 4px', fontStyle:'italic' }}>
+        <p className="moved">
           {c.corrected_verdict && `→ ${c.corrected_verdict}`}
           {c.corrected_verdict && c.corrected_action && ' · '}
           {c.corrected_action && `→ ${c.corrected_action}`}
         </p>
       )}
-      {c.notes && <p style={{ margin:0 }}>{c.notes}</p>}
+      {c.notes && <p>{c.notes}</p>}
     </div>
   );
 }
@@ -89,11 +78,13 @@ function CorrectionPanel({ result }) {
   const [error,          setError]         = useCPState(null);
 
   const submissionId = result.submission_uuid;
-  // Disabled ("cold-start") state is keyed on whether an AI score was ever
-  // computed, not on uuid presence — a real sealed exam always carries a
+  // Disabled ("cold-start") state is keyed on whether a score was ever
+  // computed, not on uuid presence: a real sealed exam always carries a
   // submission_uuid (threaded into the score call too), so uuid presence
   // alone can't distinguish a cold-start 422 from a genuinely scored
-  // submission. aiScore is null exactly when no score was recorded.
+  // submission. aiScore is null exactly when no score was recorded. The
+  // score itself is not displayed; it only decides whether there is a
+  // verdict to correct.
   const hasScore = result.aiScore != null;
 
   useCPEffect(() => {
@@ -135,11 +126,8 @@ function CorrectionPanel({ result }) {
   if (!hasScore) {
     return (
       <div>
-        <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Correction</MetaLabel>
-        <p style={{
-          fontFamily:fontBody, fontStyle:'italic', fontSize:14, color:BB.fade,
-          padding:'12px 14px', border:'1px solid rgba(201,169,97,0.15)', margin:0,
-        }}>
+        <span className="bb-label">Examiner's Correction</span>
+        <p className="bb-corr-empty">
           This submission wasn't scored — no verdict to correct.
         </p>
       </div>
@@ -148,62 +136,28 @@ function CorrectionPanel({ result }) {
 
   return (
     <div>
-      <MetaLabel style={{ display:'block', marginBottom:14 }}>Examiner's Correction</MetaLabel>
+      <span className="bb-label">Examiner's Correction</span>
 
       {history === null ? (
-        <p style={{ fontFamily:fontBody, fontStyle:'italic', fontSize:13, color:BB.fade }}>Loading history…</p>
+        <p className="bb-hint">Loading history…</p>
       ) : history.length > 0 ? (
-        <div style={{ marginBottom:16, maxHeight:180, overflowY:'auto' }}>
+        <div className="bb-corr-history">
           {history.map(c => <CorrectionHistoryItem key={c.id} c={c} />)}
         </div>
       ) : null}
 
-      <div style={{ display:'flex', gap:10, marginBottom:10 }}>
-        <button
-          onClick={() => setIsCorrect(true)}
-          style={{
-            flex:1, padding:'8px 14px', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em',
-            textTransform:'uppercase', cursor:'pointer',
-            background: isCorrect === true ? '#5EB87C' : 'transparent',
-            color: isCorrect === true ? BB.deep : '#5EB87C',
-            border:'1px solid #5EB87C',
-          }}
-        >Correct</button>
-        <button
-          onClick={() => setIsCorrect(false)}
-          style={{
-            flex:1, padding:'8px 14px', fontFamily:fontMono, fontSize:11, letterSpacing:'0.08em',
-            textTransform:'uppercase', cursor:'pointer',
-            background: isCorrect === false ? '#C47A6B' : 'transparent',
-            color: isCorrect === false ? BB.deep : '#C47A6B',
-            border:'1px solid #C47A6B',
-          }}
-        >Incorrect</button>
+      <div className="bb-toggle-row">
+        <button type="button" className="bb-toggle ok" aria-pressed={isCorrect === true} onClick={() => setIsCorrect(true)}>Correct</button>
+        <button type="button" className="bb-toggle bad" aria-pressed={isCorrect === false} onClick={() => setIsCorrect(false)}>Incorrect</button>
       </div>
 
       {isCorrect === false && (
-        <div style={{ display:'flex', gap:10, marginBottom:10 }}>
-          <select
-            value={correctedVerdict}
-            onChange={e => setCorrectedVerdict(e.target.value)}
-            style={{
-              flex:1, padding:'8px 10px', background:'rgba(0,0,0,0.25)',
-              border:'1px solid rgba(201,169,97,0.22)', color:BB.cream,
-              fontFamily:fontMono, fontSize:12,
-            }}
-          >
+        <div className="bb-toggle-row">
+          <select className="bb-input" aria-label="Corrected verdict" value={correctedVerdict} onChange={e => setCorrectedVerdict(e.target.value)}>
             <option value="">No verdict change</option>
             {VERDICT_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
-          <select
-            value={correctedAction}
-            onChange={e => setCorrectedAction(e.target.value)}
-            style={{
-              flex:1, padding:'8px 10px', background:'rgba(0,0,0,0.25)',
-              border:'1px solid rgba(201,169,97,0.22)', color:BB.cream,
-              fontFamily:fontMono, fontSize:12,
-            }}
-          >
+          <select className="bb-input" aria-label="Corrected action" value={correctedAction} onChange={e => setCorrectedAction(e.target.value)}>
             <option value="">No action change</option>
             {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
@@ -211,89 +165,53 @@ function CorrectionPanel({ result }) {
       )}
 
       <textarea
+        className="bb-input"
         value={notes}
         onChange={e => setNotes(e.target.value)}
         placeholder="Record observations, decision rationale, or marginal notes…"
         rows={4}
-        style={{
-          width:'100%', boxSizing:'border-box',
-          background:'rgba(0,0,0,0.25)',
-          border:'1px solid rgba(201,169,97,0.22)',
-          padding:'12px 14px',
-          fontFamily:fontBody, fontStyle:'italic', fontSize:15,
-          color:BB.cream, outline:'none', resize:'vertical',
-          lineHeight:1.65, letterSpacing:'0.01em', marginBottom:10,
-        }}
+        aria-label="Notes for this correction"
       />
 
-      {error && (
-        <p style={{ color:'#C47A6B', fontFamily:fontMono, fontSize:12, margin:'0 0 10px' }}>{error}</p>
-      )}
+      {error && <p className="bb-error" role="alert" style={{ marginTop: '.6rem' }}>{error}</p>}
 
-      <BtnPrimary
-        onClick={handleFile}
-        disabled={isCorrect === null || submitting}
-        style={{ padding:'8px 20px', fontSize:14, width:'100%', opacity: (isCorrect === null || submitting) ? 0.5 : 1 }}
-      >
+      <Btn primary onClick={handleFile} disabled={isCorrect === null || submitting} style={{ marginTop: '.8rem', width: '100%', justifyContent: 'center' }}>
         {submitting ? 'Filing…' : 'File Correction'}
-      </BtnPrimary>
+      </Btn>
     </div>
   );
 }
 
 // ─── Expanded row detail ──────────────────────────────────────────────────────
-function ExpandedRow({ result, showStylo, onClose }) {
+function ExpandedRow({ result, onClose }) {
   return (
-    <div style={{
-      padding:'20px 20px 20px 48px',
-      background:'rgba(0,10,28,0.55)',
-      borderTop:'1px solid rgba(201,169,97,0.15)',
-      animation:'bbFadeIn 0.35s ease both',
-    }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:32 }}>
-        {/* Left: analysis detail */}
+    <div className="bb-rdetail">
+      <div className="bb-rdetail-grid">
+        {/* Left: the session's own facts */}
         <div>
-          <MetaLabel style={{ display:'block', marginBottom:14 }}>Integrity Analysis</MetaLabel>
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <span className="bb-label">Session details</span>
+          {result.status === 'FLAGGED' && (
+            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with this student's approved writing.</p>
+          )}
+          <div className="bb-facts">
             {[
-              // Older rows carry a stylometric figure; new seals do not
-              // produce one, so the line appears only when the table has any.
-              ...(showStylo ? [{ label:'Writing Consistency', score:result.stylometric, note:'Text-based comparison with the available baseline — not proof of authorship' }] : []),
-              { label:'Authenticity',       score:result.aiScore,     note:'Higher = more consistent with this student’s own writing (scored via Original)' },
-            ].map(({ label, score, note }) => (
+              { label:'Word count',  value:`${result.words.toLocaleString()} words` },
+              { label:'Time spent',  value:`${result.timeMin} minutes` },
+              { label:'Candidate',   value:`No. ${result.candidateId}` },
+            ].map(({ label, value }) => (
               <div key={label}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ fontFamily:fontBody, fontSize:15, color:BB.cream }}>{label}</span>
-                </div>
-                <ScoreBar score={score} />
-                <p style={{ fontFamily:fontBody, fontStyle:'italic', fontSize:13, color:BB.fade, margin:'4px 0 0' }}>{note}</p>
+                <span className="bb-label">{label}</span>
+                <span className="bb-fact">{value}</span>
               </div>
             ))}
-            <div style={{ marginTop:4 }}>
-              <GoldRule faint />
-              <div style={{ paddingTop:12, display:'flex', gap:24 }}>
-                {[
-                  { label:'Word Count',  value:`${result.words.toLocaleString()} words` },
-                  { label:'Time Spent',  value:`${result.timeMin} minutes` },
-                  { label:'Candidate',   value:`No. ${result.candidateId}` },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <MetaLabel style={{ display:'block', marginBottom:4 }}>{label}</MetaLabel>
-                    <span style={{ fontFamily:fontBody, fontSize:16, color:BB.cream }}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Right: correction form + history */}
         <div>
           <CorrectionPanel result={result} />
-          <div style={{ marginTop:12 }}>
-            <BtnGhost onClick={onClose} style={{ padding:'8px 20px', fontSize:14, width:'100%' }}>
-              Close
-            </BtnGhost>
+          <div style={{ marginTop: '.8rem' }}>
+            <Btn onClick={onClose} style={{ width: '100%', justifyContent: 'center' }}>Close</Btn>
           </div>
         </div>
       </div>
@@ -328,121 +246,69 @@ function ScoredResultsScreen({ onNavigate }) {
     ? results
     : results.filter(r => r.status === statusFilter);
 
-  // A seal no longer produces a stylometric figure; show that column only
-  // when some (older) row still carries one.
-  const showStylo = results.some(r => r.stylometric != null);
-  const gridCols = showStylo
-    ? '1fr 160px 80px 55px 100px 100px 90px'
-    : '1fr 160px 80px 55px 100px 90px';
   const counts = {
     total:    results.length,
     flagged:  results.filter(r => r.status === 'FLAGGED').length,
     reviewed: results.filter(r => r.status === 'REVIEWED').length,
   };
 
-  if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
+  if (loadError) return <div role="alert" className="bb-error">{loadError}</div>;
   return (
-    <div style={{ flex:1, overflowY:'auto', padding:'44px 48px', background:BB.deep }}>
-      <div style={{ marginBottom:10 }}>
-        <h1 style={{ fontFamily:fontDisplay, fontSize:34, color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
-          Results
-        </h1>
-        <MetaLabel>
-          {counts.total} submissions ·{' '}
-          <span style={{ color:'#C47A6B' }}>{counts.flagged} flagged</span>
-          {' '}·{' '}
-          <span style={{ color:'#5EB87C' }}>{counts.reviewed} reviewed</span>
-        </MetaLabel>
+    <Page
+      eyebrow="Your workspace"
+      title="Results"
+      meta={`${counts.total} submissions · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`}
+    >
+      <div className="bb-grid cols-3" style={{ marginBottom: '1.5rem' }}>
+        <Stat value={results.filter(r => r.status === 'SUBMITTED').length} label="Submitted" />
+        <Stat value={counts.flagged} label="Worth a look" />
+        <Stat value={counts.reviewed} label="Reviewed" />
       </div>
-      <GoldRule double style={{ margin:'20px 0 36px' }} />
 
-      {/* Summary stat row */}
-      <div style={{ display:'flex', gap:16, marginBottom:36 }}>
-        {[
-          { label:'Submitted',  value:results.filter(r=>r.status==='SUBMITTED').length,  color:BB.fade  },
-          { label:'Flagged',    value:counts.flagged,                                    color:'#C47A6B'},
-          { label:'Reviewed',   value:counts.reviewed,                                   color:'#5EB87C'},
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{
-            flex:1, border:'1px solid rgba(201,169,97,0.18)',
-            background:BB.oxford, padding:'18px 22px',
-          }}>
-            <GoldRule style={{ marginBottom:14 }} />
-            <p style={{ fontFamily:fontDisplay, fontSize:40, color, margin:'0 0 4px', fontWeight:400, lineHeight:1 }}>
-              {value}
-            </p>
-            <MetaLabel>{label}</MetaLabel>
-          </div>
+      {counts.flagged > 0 && (
+        <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Worth a look: marked by Original's comparison with this student's approved writing.</p>
+      )}
+
+      <div className="bb-filter" role="group" aria-label="Show submissions">
+        {[['all','All'],['SUBMITTED','Submitted'],['FLAGGED','Worth a look'],['REVIEWED','Reviewed']].map(([val,label]) => (
+          <button key={val} type="button" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
         ))}
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display:'flex', gap:2, marginBottom:16, border:'1px solid rgba(201,169,97,0.2)', alignSelf:'flex-start', width:'fit-content' }}>
-        {[['all','All'],['SUBMITTED','Submitted'],['FLAGGED','Flagged'],['REVIEWED','Reviewed']].map(([val,label]) => (
-          <button key={val} onClick={() => setFilter(val)} style={{
-            fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
-            textTransform:'uppercase', padding:'8px 18px',
-            background: statusFilter === val ? BB.gold : 'transparent',
-            color: statusFilter === val ? BB.deep : BB.fade,
-            border:'none', cursor:'pointer', transition:'all 0.25s',
-          }}>{label}</button>
-        ))}
-      </div>
-
-      {/* Results table */}
-      <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
-        <div style={{
-          display:'grid',
-          gridTemplateColumns:gridCols,
-          padding:'10px 20px',
-          borderBottom:'1px solid rgba(201,169,97,0.35)',
-        }}>
-          {['Candidate', 'Examination', 'Words', 'Time', ...(showStylo ? ['Writing Consistency'] : []), 'Authenticity', 'Status'].map(h => (
-            <MetaLabel key={h}>{h}</MetaLabel>
+      <div className="bb-results">
+        <div className="bb-rgrid bb-rhead">
+          {['Candidate', 'Examination', 'Words', 'Time', 'Status'].map(h => (
+            <span key={h}>{h}</span>
           ))}
         </div>
 
-        {filtered.map((result, i) => (
+        {filtered.map(result => (
           <div key={result.id}>
             <div
-              style={{
-                display:'grid',
-                gridTemplateColumns:gridCols,
-                padding:'13px 20px', alignItems:'center',
-                cursor:'pointer', transition:'background 0.2s',
-                background: expanded === result.id ? 'rgba(201,169,97,0.04)' : 'transparent',
-                borderLeft: expanded === result.id ? `2px solid ${BB.gold}` : '2px solid transparent',
-              }}
+              className="bb-rgrid bb-rrow"
               role="button" tabIndex={0}
               aria-expanded={expanded === result.id}
-              aria-label={`${result.student} — ${expanded === result.id ? 'hide' : 'view'} integrity analysis`}
-              onMouseEnter={e => { if(expanded !== result.id) e.currentTarget.style.background='rgba(201,169,97,0.03)'; }}
-              onMouseLeave={e => { if(expanded !== result.id) e.currentTarget.style.background='transparent'; }}
+              aria-label={`${result.student}, ${expanded === result.id ? 'hide' : 'show'} session details`}
               onClick={() => setExpanded(expanded === result.id ? null : result.id)}
               onKeyDown={rowKeyDown(() => setExpanded(expanded === result.id ? null : result.id))}
             >
               <div>
-                <p style={{ fontFamily:fontBody, fontSize:16, color:BB.cream, margin:'0 0 2px' }}>
-                  {result.student}
-                </p>
-                <MetaLabel>No. {result.candidateId} · {result.course}</MetaLabel>
+                <p className="bb-rname">{result.student}</p>
+                <span className="bb-rsub">No. {result.candidateId} · {result.course}</span>
               </div>
-              <p style={{ fontFamily:fontBody, fontSize:14, color:BB.fade, margin:0, lineHeight:1.4 }}>
+              <p className="bb-rexam">
                 {result.exam.length > 28 ? result.exam.slice(0,26)+'…' : result.exam}
               </p>
-              <MetaLabel>{result.words.toLocaleString()}</MetaLabel>
-              <MetaLabel>{result.timeMin}m</MetaLabel>
-              {showStylo && <ScoreBar score={result.stylometric} />}
-              <ScoreBar score={result.aiScore} />
-              <StatusBadge status={result.status} />
+              <span className="bb-rnum">{result.words.toLocaleString()}</span>
+              <span className="bb-rnum">{result.timeMin}m</span>
+              <span><StatusPill status={result.status} /></span>
             </div>
             {expanded === result.id && (
-              <ExpandedRow result={result} showStylo={showStylo} onClose={() => setExpanded(null)} />
+              <ExpandedRow result={result} onClose={() => setExpanded(null)} />
             )}
-            {i < filtered.length - 1 && <GoldRule faint />}
           </div>
         ))}
       </div>
-    </div>
+    </Page>
   );
 }

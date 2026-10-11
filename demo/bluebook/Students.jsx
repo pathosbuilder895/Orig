@@ -77,13 +77,13 @@ export function StudentsScreen({ onNavigate }) {
           <MetaLabel>
             {students.length} enrolled ·{' '}
             <span style={{ color:students.filter(s=>s.flagged).length > 0 ? '#C47A6B' : BB.fade }}>
-              {students.filter(s=>s.flagged).length} flagged
+              {students.filter(s=>s.flagged).length} worth a look
             </span>
           </MetaLabel>
         </div>
         {/* Filter pills */}
         <div style={{ display:'flex', gap:2, border:'1px solid rgba(201,169,97,0.22)' }}>
-          {[['all','All Students'],['flagged','Flagged Only']].map(([val, label]) => (
+          {[['all','All Students'],['flagged','Worth a look']].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)} style={{
               fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
               textTransform:'uppercase', padding:'8px 18px',
@@ -141,7 +141,7 @@ export function StudentsScreen({ onNavigate }) {
         ))}
         {filtered.length === 0 && (
           <div style={{ padding:'40px 20px', textAlign:'center' }}>
-            <MetaLabel>No flagged submissions</MetaLabel>
+            <MetaLabel>Nothing worth a look</MetaLabel>
           </div>
         )}
       </div>
