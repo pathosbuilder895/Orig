@@ -21,7 +21,7 @@
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
    Live.signOut()    forget the session and the kept papers, go to the sign-in page
-                     (a student's is Bluebook's, a teacher's the main one) */
+                     (a student's is Collections', a teacher's the main one) */
 (function (window, document) {
   'use strict';
 
