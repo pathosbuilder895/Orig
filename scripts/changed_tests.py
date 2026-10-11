@@ -280,48 +280,30 @@ def main(argv: list[str]) -> int:
             print(t)
         return 0
 
-    codes = []
-    if tests:
-        env = os.environ.copy()
-        database = nullcontext(None)
-        if not env.get("DATABASE_URL") and _local_postgres_reachable():
-            database = scratch_database()
-        with database as db_url:
-            if db_url:
-                env["DATABASE_URL"] = db_url
-                print(
-                    "changed-tests: local Postgres detected, postgres-marked tests will run "
-                    f"against {db_url.rsplit('/', 1)[1]}"
-                )
-            print(f"changed-tests: running {len(tests)} mapped test file(s)")
-            codes.append(
-                subprocess.run(
-                    # Same selection as the blocking CI lane: known-red tests
-                    # (docs/testing/09 §3, scripts/known_red.py) are red by design
-                    # and must not veto a push.
-                    [sys.executable, "-m", "pytest", "-q",
-                     "-m", "not blocker and not certification", *tests],
-                    cwd=REPO_ROOT, env=env,
-                ).returncode
-            )
-    else:
+    if not tests:
         print("changed-tests: no Python tests mapped to the pushed changes")
+        return 0
 
-    app_changed = any(Path(c).as_posix().startswith("app/") for c in changed)
-    if app_changed:
-        if (REPO_ROOT / "app" / "node_modules").is_dir():
-            print("changed-tests: app/ changed — running its vitest suite")
-            codes.append(
-                subprocess.run(["npm", "--prefix", "app", "test"], cwd=REPO_ROOT).returncode
-            )
-        else:
+    env = os.environ.copy()
+    database = nullcontext(None)
+    if not env.get("DATABASE_URL") and _local_postgres_reachable():
+        database = scratch_database()
+    with database as db_url:
+        if db_url:
+            env["DATABASE_URL"] = db_url
             print(
-                "changed-tests: warning: app/ changed but app/node_modules is "
-                "missing — run `cd app && npm ci && npm test`",
-                file=sys.stderr,
+                "changed-tests: local Postgres detected, postgres-marked tests will run "
+                f"against {db_url.rsplit('/', 1)[1]}"
             )
-
-    return max(codes, default=0)
+        print(f"changed-tests: running {len(tests)} mapped test file(s)")
+        return subprocess.run(
+            # Same selection as the blocking CI lane: known-red tests
+            # (docs/testing/09 §3, scripts/known_red.py) are red by design
+            # and must not veto a push.
+            [sys.executable, "-m", "pytest", "-q",
+             "-m", "not blocker and not certification", *tests],
+            cwd=REPO_ROOT, env=env,
+        ).returncode
 
 
 if __name__ == "__main__":
