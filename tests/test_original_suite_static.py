@@ -824,30 +824,84 @@ def test_sign_in_sends_a_teacher_to_the_new_original_pages():
     # Roles other than operator and admin (a teacher is role "professor") end up
     # at the last alternative, which is the suite's front page, not professor.html.
     assert _sign_in_redirect() == (
-        "role === 'operator' ? 'operator.html' : role === 'admin' ? 'admin.html' : 'original/'"
+        "role === 'operator' ? 'operator.html' : role === 'admin' ? 'admin.html' "
+        ": products && products.indexOf('original') < 0 ? 'bluebook/' : 'original/'"
     )
-    # ...and the redirect has to resolve to a real page under demo/.
+    # ...and every page it can name has to resolve to a real page under demo/.
     assert (DEMO / "original" / "index.html").is_file()
+    assert (DEMO / "bluebook" / "index.html").is_file()
+    assert (DEMO / "operator.html").is_file() and (DEMO / "admin.html").is_file()
 
 
-@needs_node
-@pytest.mark.parametrize(
-    "role,target",
-    [
-        ("professor", "original/"),
-        ("admin", "admin.html"),
-        ("operator", "operator.html"),
-    ],
-)
-def test_sign_in_redirect_evaluates_to_the_right_page(role, target):
+def _sign_in_redirect_code() -> str:
+    """The page's own code from the role to the redirect, with the assignment to
+    window.location.href turned into a return, so a test can run it on a login response."""
+    html = (DEMO / "index.html").read_text(encoding="utf-8")
+    found = re.search(
+        r"(const role = data\.role \|\| 'professor';.*?)window\.location\.href\s*=\s*([^;]+);", html, re.S
+    )
+    assert found, "index.html's post-sign-in redirect moved"
+    return found.group(1) + "return " + found.group(2) + ";"
+
+
+def _redirect_for(login_response: dict) -> str:
     run = subprocess.run(
-        [shutil.which("node"), "-e", "process.stdout.write(String(new Function('role', 'return ' + process.argv[1])(process.argv[2])))", _sign_in_redirect(), role],
+        [
+            shutil.which("node"),
+            "-e",
+            "process.stdout.write(String(new Function('data', 'localStorage', process.argv[1])"
+            "(JSON.parse(process.argv[2]), { setItem() {} })))",
+            _sign_in_redirect_code(),
+            json.dumps(login_response),
+        ],
         capture_output=True,
         text=True,
         timeout=60,
     )
     assert run.returncode == 0, run.stderr
-    assert run.stdout == target
+    return run.stdout
+
+
+BOTH = ["bluebook", "original"]  # the order the server sends: sorted
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "response,target",
+    [
+        ({"role": "professor", "products": BOTH}, "original/"),
+        ({"role": "professor", "products": ["original"]}, "original/"),
+        # A workspace with no Original goes straight to Bluebook.
+        ({"role": "professor", "products": ["bluebook"]}, "bluebook/"),
+        # The role is "professor" when the response names none.
+        ({"products": ["bluebook"]}, "bluebook/"),
+        # A response that lists no products is not read as "no Original".
+        ({"role": "professor"}, "original/"),
+        ({"role": "professor", "products": []}, "original/"),
+        ({"role": "professor", "products": "bluebook"}, "original/"),
+        # Admins and operators keep their own pages whatever the workspace holds.
+        ({"role": "admin", "products": ["bluebook"]}, "admin.html"),
+        ({"role": "admin", "products": BOTH}, "admin.html"),
+        ({"role": "operator", "products": ["bluebook"]}, "operator.html"),
+        ({"role": "operator"}, "operator.html"),
+    ],
+    ids=[
+        "teacher-both", "teacher-original-only", "teacher-bluebook-only", "no-role-bluebook-only",
+        "no-products", "empty-products", "products-not-a-list", "admin-bluebook-only", "admin-both",
+        "operator-bluebook-only", "operator-no-products",
+    ],
+)
+def test_sign_in_redirect_evaluates_to_the_right_page(response, target):
+    assert _redirect_for(response) == target
+
+
+def test_sign_in_remembers_the_workspace_products_for_bluebook():
+    # Bluebook reads original_products (demo/bluebook/components.jsx, products()) and
+    # defaults to "Original is on" without it, so a Bluebook-only teacher would see an
+    # Original link until Bluebook's first refresh.
+    html = (DEMO / "index.html").read_text(encoding="utf-8")
+    assert "localStorage.setItem('original_products', JSON.stringify(products))" in html
+    assert "original_products" in (DEMO / "bluebook" / "components.jsx").read_text(encoding="utf-8")
 
 
 def test_demo_professor_pill_opens_the_new_original_pages():

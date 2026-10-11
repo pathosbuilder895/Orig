@@ -928,8 +928,16 @@ async function handleLogin(e) {
     localStorage.setItem('original_tenant', data.tenant_id || '');
     localStorage.setItem('original_name', data.name || '');
     const role = data.role || 'professor';
+    // The workspace's products, as the login response lists them (original/routers/auth.py
+    // _session_payload). Bluebook reads them from here too, so it does not show an
+    // Original link to a workspace that has none until its first refresh.
+    const products = Array.isArray(data.products) && data.products.length ? data.products : null;
+    if (products) localStorage.setItem('original_products', JSON.stringify(products));
+    // A teacher whose workspace has no Original goes straight to Bluebook; a response
+    // that lists no products is not read as "no Original" (the pages say it if so).
     window.location.href = role === 'operator' ? 'operator.html'
       : role === 'admin' ? 'admin.html'
+      : products && products.indexOf('original') < 0 ? 'bluebook/'
       : 'original/';
   } catch {
     err.classList.add('show');
