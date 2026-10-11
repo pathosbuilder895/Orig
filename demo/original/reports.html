@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Reports</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -209,7 +209,7 @@
 
     <div class="two">
       <div class="card" style="margin-bottom:0;">
-        <div class="card-h"><div><div class="t">Baseline health</div><div class="s">Is there enough approved writing on file yet?</div></div></div>
+        <div class="card-h"><div><div class="t">Baseline health</div><div class="s">Is there enough writing on file yet?</div></div></div>
         <div id="baseline"></div>
         <div class="bh-note" id="bh-note"></div>
       </div>
@@ -221,7 +221,7 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.2"></script>
+<script src="live.js?v=2026-10-10.3"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -474,14 +474,14 @@
     const building=sc.students.filter(s=>s.verdict==='developing').length;
     const none=sc.students.filter(s=>s.verdict==='insufficient').length;
     const unknown=n-ready-building-none;
-    const lead='A student needs a few teacher-approved samples before Original can read a new paper against their own writing. ';
+    const lead='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more. ';
     if(!res.ok){ Live.empty(el,'Could not load your students'); note.textContent=lead.trim(); return; }
-    if(!n){ Live.empty(el,'Appears once students have approved samples'); note.textContent=lead.trim(); return; }
+    if(!n){ Live.empty(el,'Appears once students have counted samples'); note.textContent=lead.trim(); return; }
     // Counts are the server's own baseline verdicts, as Live.roster returns them.
     el.innerHTML=miniRow('Ready',ready,n,'var(--ok)')+miniRow('Building',building,n,'var(--watch)')+miniRow('None yet',none,n,'var(--slate)')+
       (unknown?miniRow('Not available',unknown,n,'rgba(245,239,224,0.28)'):'');
     note.innerHTML=esc(lead)+(n>unknown
-      ? '<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'is':'are')+' ready'+(ready<n-unknown?'; the rest still need more approved writing.':'.')
+      ? '<b>'+ready+' of '+plural(n,'student')+'</b> '+(ready===1?'is':'are')+' ready'+(ready<n-unknown?'; the rest still need more counted samples.':'.')
       : '');
   }
 

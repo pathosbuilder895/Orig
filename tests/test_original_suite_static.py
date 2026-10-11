@@ -1156,8 +1156,8 @@ def test_roster_asks_readiness_of_the_first_60_and_never_more_than_6_at_a_time()
     assert [s["verdict"] for s in res["students"][:60]] == ["ready"] * 60
     assert [s["verdict"] for s in res["students"][60:]] == [None] * 10
     # An ids-only list takes its counts from the readiness response.
-    assert res["students"][0]["approved"] == 5 and res["students"][0]["samples"] == 5
-    assert res["students"][65]["approved"] is None
+    assert res["students"][0]["counted"] == 5 and res["students"][0]["samples"] == 5
+    assert res["students"][65]["counted"] is None
 
 
 @needs_node
@@ -1241,12 +1241,12 @@ def test_roster_reports_the_servers_verdict_and_treats_ids_as_ids():
         {"id": "c1", "code": "THEO 301", "name": "Theology"},
         {"id": "c2", "code": "", "name": "Biblical studies"},
     ]
-    assert (ada["approved"], ada["samples"]) == (6, 7)
+    assert (ada["counted"], ada["samples"]) == (6, 7)
     assert (ada["sealed"], ada["pending"]) == (2, 1)
     assert ada["lastSealed"] == "2026-10-01T10:00:00Z"
     assert by_id["__proto__"]["email"] is None and by_id["__proto__"]["sealed"] == 0
     assert by_id["__proto__"]["lastSealed"] is None
-    assert by_id["ten:a"]["approved"] is None  # the roster had no count, and its readiness call failed
+    assert by_id["ten:a"]["counted"] is None  # the roster had no count, and its readiness call failed
     assert by_id["ten:a"]["lastSealed"] == "2026-09-20T10:00:00Z"  # newest sealed exam when Bluebook has no date
     assert res["sealedToReview"] == 2
     assert res["courseCount"] == 3
@@ -2717,6 +2717,48 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+# authenticated_count is every sample the server weighs above zero: a teacher-approved one or
+# a student's own upload. It is "counted", never "approved" (a count of what a teacher
+# approved needs the sample list and its provenance). So no file may call a sample
+# "approved" without saying "teacher-approved", and the places that show the server's count
+# say "counted". Pinned as exact strings so a reword cannot quietly bring the label back.
+_APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baseline )?samples?\b", re.IGNORECASE)
+
+COUNTED_LABELS = {
+    "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples'", "' teacher-approved'"),
+    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "' teacher-approved)'"),
+    "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
+}
+
+
+@pytest.mark.parametrize("path", [*_code_files()], ids=lambda p: p.relative_to(SUITE).as_posix())
+def test_no_suite_file_calls_the_servers_count_approved(path):
+    found = [m.group(0) for m in _APPROVED_SAMPLES.finditer(path.read_text(encoding="utf-8"))]
+    assert found == [], f"{path.name} calls an authenticated_count 'approved': {found}"
+
+
+def test_the_approved_sample_check_allows_teacher_approved_and_nothing_else():
+    for fine in ("4 teacher-approved samples", "plural(a,'teacher-approved sample')", "a teacher approved samples"):
+        assert _APPROVED_SAMPLES.findall(fine) == [], fine
+    for bad in ("5 approved samples", "plural(n,'approved sample')", "Approved samples", "1 approved baseline sample"):
+        assert _APPROVED_SAMPLES.findall(bad), bad
+
+
+@pytest.mark.parametrize("name", sorted(COUNTED_LABELS))
+def test_pages_that_show_the_servers_count_call_it_counted(name):
+    page = (SUITE / name).read_text(encoding="utf-8")
+    for label in COUNTED_LABELS[name]:
+        assert label in page, f"{name} lost {label!r}"
+
+
+def test_the_roster_hands_pages_a_counted_field_and_no_approved_one():
+    live = (SUITE / "live.js").read_text(encoding="utf-8")
+    assert "counted: r.ac," in live and "approved: r.ac" not in live
+    for page in PAGES:
+        assert "s.approved" not in page.read_text(encoding="utf-8"), page.name
+
+
 def _extract(script: str, name: str) -> str:
     """The source of one top-level ``const name=...;`` line or ``function name(...)``
     of a page's inline script, so a test can run just the part that decides."""
@@ -2751,7 +2793,10 @@ def _verdicts(cases: list[dict]) -> list[dict]:
     script = _inline_scripts(SUITE / "writing-state.html")
     src = "\n".join(
         _extract(script, name)
-        for name in ("num", "plural", "baselineHref", "approved", "resultVerdict", "verdictNow", "thinResultLine", "thinNote")
+        for name in (
+            "num", "plural", "baselineHref", "APPROVED", "counted", "teacherApproved", "countedPhrase",
+            "READY_NEEDS", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
+        )
     )
     run = subprocess.run(
         [shutil.which("node"), "-e", VERDICT_RUN],
@@ -2820,12 +2865,12 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     assert ready["line"] == ""
     assert building["line"] == (
-        " Original rates this baseline as still building (3 approved samples), "
-        "so treat this reading as inconclusive."
+        " Original rates this baseline as still building (3 counted samples; "
+        "ready needs 5 or more counted samples), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
-        " Original rates this baseline as having too little approved writing (1 approved sample), "
-        "so treat this reading as inconclusive."
+        " Original rates this baseline as too thin to rely on yet (1 counted sample; "
+        "ready needs 5 or more counted samples), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
     assert unreadable["line"] == (
@@ -2833,8 +2878,31 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "still building (3 approved samples)" in building["note"]
-    assert "too thin to rely on yet (1 approved sample)" in thin["note"]
+    assert "still building (3 counted samples; ready needs 5 or more counted samples)" in building["note"]
+    assert "too thin to rely on yet (1 counted sample; ready needs 5 or more counted samples)" in thin["note"]
+
+
+def _record(counted: int, *provenances: str) -> dict:
+    return {"authenticated_count": counted, "samples": [{"provenance": p} for p in provenances]}
+
+
+@needs_node
+def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones():
+    # authenticated_count is every sample the server weighs, a student upload included: it is
+    # "counted". The sample list says which of them a teacher approved (proctored, verified,
+    # canvas), and that number is shown beside it, never in its place.
+    split, no_list, stale = _verdicts(
+        [
+            _scored(3, 2, student=_record(3, "proctored", "verified", "unverified")),
+            _scored(3, 2, student={"authenticated_count": 3}),  # no sample list: no split to give
+            _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+        ]
+    )
+    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples)" in split["line"]
+    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples)" in split["note"]
+    assert "teacher-approved" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
+    # The analysis counted 3 and the record now says 5: splitting 5 by provenance beside a 3 would mislead.
+    assert "teacher-approved" not in stale["line"] and "(3 counted samples;" in stale["line"]
 
 
 # The packet's inline script, run for real under node: the stored analysis is in
@@ -2922,15 +2990,15 @@ def test_packet_card_describes_a_listed_habit_in_the_neutral_words_of_writing_st
     assert "<b>What this habit measures:</b> How often dashes (like this) interrupt or extend a sentence." in habits
     # 0.1 against 0.5: lower by 0.40, on the scale the page names.
     assert "Here the paper is lower than Ada\u2019s usual by 0.40, on a scale from 0 to 1." in habits
-    assert "5 approved samples" in habits
+    assert "5 counted samples" in habits
 
 
 @needs_node
 def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
-    # Neither the analysis nor the student record has a count: not "0 approved".
+    # Neither the analysis nor the student record has a count: not "0 counted".
     out = _packet_run({}, student=[500, {"detail": "boom"}])
-    assert not re.search(r"\d+ approved sample", out["habits"])
-    assert "A weighted average of Ada\u2019s approved samples" in out["habits"]
+    assert not re.search(r"\d+ counted sample", out["habits"])
+    assert "A weighted average of Ada\u2019s counted samples" in out["habits"]
     assert "compared against" not in out["sub"]
     assert "Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive." in out["baseline"]
     assert "could not be loaded just now" in out["baseline"]
@@ -2979,7 +3047,7 @@ def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_serv
     "student,table_says",
     [
         ([500, {"detail": "boom"}], "could not be loaded just now"),
-        ([200, {"samples": []}], "No approved samples are on file"),
+        ([200, {"samples": []}], "No samples are on file"),
     ],
     ids=["list-fails", "list-empty"],
 )
@@ -2987,6 +3055,42 @@ def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(
     out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
     assert table_says in out["baseline"]
     assert "too thin to rely on yet" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+
+
+def _mixed_samples() -> list:
+    """Four supervised or verified or imported samples and one student upload."""
+    kinds = ["proctored", "verified", "canvas", "proctored", "unverified"]
+    return [
+        {"index": i, "assignment": f"Paper {i}", "provenance": k, "submitted_at": "2025-01-2%d" % i}
+        for i, k in enumerate(kinds)
+    ]
+
+
+@needs_node
+def test_packet_counts_teacher_approved_samples_apart_from_counted_ones_and_uses_baseline_words():
+    counts = {"authenticated_count": 5, "effective_sample_count": 4}
+    out = _packet_run(
+        counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
+    )
+    # The server's count is "counted"; the sample list says how many of them a teacher approved.
+    assert "<b>5 counted samples</b> (4 teacher-approved)" in out["sub"]
+    assert "On file now: 5 samples, 4 teacher-approved and 1 student upload." in out["baseline"]
+    # The provenance words are the ones baseline.html uses.
+    for word in ("Supervised sitting", "Verified by teacher", "Imported", "Student upload"):
+        assert f'<span class="how">{word}</span>' in out["baseline"], word
+    for retired in ("Proctored exam", "Teacher verified", "Imported from a course site", "Not verified"):
+        assert retired not in out["baseline"], retired
+
+
+@needs_node
+def test_packet_gives_no_teacher_approved_split_beside_a_count_the_record_no_longer_has():
+    # The analysis counted 4; the record now holds 5. A split of 5 beside a 4 would mislead.
+    counts = {"authenticated_count": 4, "effective_sample_count": 4}
+    out = _packet_run(
+        counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
+    )
+    assert "<b>4 counted samples</b>" in out["sub"] and "teacher-approved" not in out["sub"]
+    assert "This analysis compared the paper with 4 counted samples; 5 are on file now." in out["baseline"]
 
 
 @needs_node

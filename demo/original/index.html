@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your classes</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -246,7 +246,7 @@
           <div class="ops-h"><b>Students</b><span id="ops-count"></span></div>
           <div id="ops-wrap">
             <table>
-              <thead><tr><th>Student</th><th>Courses</th><th>Approved samples</th><th>Last sealed exam</th><th class="r"></th></tr></thead>
+              <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed exam</th><th class="r"></th></tr></thead>
               <tbody id="ops-body"></tbody>
             </table>
           </div>
@@ -255,8 +255,8 @@
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.2"></script>
-<script src="js/fingerprint.js?v=2026-10-10.2"></script>
+<script src="live.js?v=2026-10-10.3"></script>
+<script src="js/fingerprint.js?v=2026-10-10.3"></script>
 <script>
   (function(){
     function init(){
@@ -326,7 +326,7 @@
   }
 
   // ── data ──
-  // rows: one per student on the roster. approved/total are null for a student
+  // rows: one per student on the roster. counted/total are null for a student
   // whose sample counts could not be read (see load). sealed is null when
   // Bluebook data is not available (bb !== 'ok').
   let rows=[], rosterOk=false, bb='ok', subs=[], courseCount=0, beyondCap=0;
@@ -357,7 +357,7 @@
       id:s.id,
       name:s.name,
       courses:s.courses.map(c=>c.code||c.name),
-      approved:s.approved,
+      counted:s.counted,
       total:s.samples,
       verdict:s.verdict,
       sealed:s.sealed,
@@ -401,7 +401,7 @@
     const checked=rows.filter(r=>r.verdict).length, unchecked=rows.length-checked, unread=unchecked-beyondCap;
     const rs=$('ready-s');
     if(!rosterOk) Live.empty(rs,'Could not load your students');
-    else if(!rows.length) Live.empty(rs,'Appears once students have approved samples');
+    else if(!rows.length) Live.empty(rs,'Appears once students have counted samples');
     else if(!checked) Live.empty(rs,'Baseline readiness could not be loaded');
     else rs.textContent=ready+' of '+plural(rows.length,'student')+(ready===1?' has':' have')+' a ready baseline'+(unchecked?' ('+unchecked+' not counted)':'');
 
@@ -438,12 +438,15 @@
   const ICO='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
   const BARS='<svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>';
 
-  function approvedCell(r){
-    if(r.approved==null) return '<span style="color:var(--dim);">-</span>';
+  // "Counted" is the server's authenticated_count: teacher-approved samples and a
+  // student's own uploads. The roster carries no provenance, so this page never
+  // says how many were approved.
+  function countedCell(r){
+    if(r.counted==null) return '<span style="color:var(--dim);">-</span>';
     // The dot is the server's readiness verdict; the tooltip names it.
     const col=r.verdict==='ready'?'var(--ok)':r.verdict==='developing'?'var(--gold)':r.verdict==='insufficient'?'var(--dim-2)':'var(--dim)';
     const tip=r.verdict?'Baseline: '+r.verdict:'Baseline readiness not available';
-    return '<span class="st" title="'+esc(tip)+'"><span class="d" style="background:'+col+'"></span>'+r.approved+'</span>';
+    return '<span class="st" title="'+esc(tip)+'"><span class="d" style="background:'+col+'"></span>'+r.counted+'</span>';
   }
 
   function renderTable(){
@@ -455,7 +458,7 @@
       return '<tr class="flag-row" data-id="'+esc(r.id)+'" title="'+esc('Show '+r.name+'’s summary')+'">'+
         '<td><div class="doc"><span class="ic">'+ICO+'</span><span class="nm-t">'+esc(r.name)+'</span></div></td>'+
         '<td class="crs">'+esc(r.courses.join(', '))+'</td>'+
-        '<td>'+approvedCell(r)+'</td>'+
+        '<td>'+countedCell(r)+'</td>'+
         '<td style="color:var(--dim);">'+esc(bb==='ok'?(last||'None yet'):'-')+'</td>'+
         '<td class="r"><button class="stats-btn" data-id="'+esc(r.id)+'">'+BARS+'stats</button></td>'+
       '</tr>';
@@ -466,8 +469,8 @@
 
   // ── one student: the left rail swaps to that student's own numbers ──
   function summary(r){
-    if(r.approved==null) return 'Sample counts are not available for this student here.';
-    let h='<b>'+plural(r.approved,'approved sample')+'</b> on file as reference writing'+(r.total>r.approved?', out of '+r.total+' samples in all':'')+'.';
+    if(r.counted==null) return 'Sample counts are not available for this student here.';
+    let h='<b>'+plural(r.counted,'counted sample')+'</b> in their baseline'+(r.total>r.counted?', out of '+r.total+' samples in all':'')+'.';
     if(r.verdict) h+=' Baseline: '+r.verdict+'.';
     if(bb==='ok') h+=r.last?' Last sealed exam: '+esc(fmtDate(r.last))+'.':' No sealed exam yet.';
     return h;
@@ -480,9 +483,9 @@
     const su=$('sum-stu'); su.style.display='block';
     su.innerHTML='<div class="card-t">'+esc(r.name)+(r.courses.length?' <span style="font-family:var(--mono);font-size:.62rem;color:var(--dim-2);letter-spacing:.08em;">'+esc(r.courses.join(', '))+'</span>':'')+'</div><p>'+summary(r)+'</p>';
 
-    $('stat1-l').textContent='Approved samples';
-    if(r.approved==null){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Not available here'); }
-    else { setNum($('stat1-n'),r.approved); setU($('stat1-u'),r.total>r.approved?'of '+r.total+' on file':'all on file'); }
+    $('stat1-l').textContent='Counted samples';
+    if(r.counted==null){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Not available here'); }
+    else { setNum($('stat1-n'),r.counted); setU($('stat1-u'),r.total>r.counted?'of '+r.total+' on file':'all on file'); }
 
     $('stat2-l').textContent='Sealed exams';
     $('trend-t').textContent='Sealed exams per week';

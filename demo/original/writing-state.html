@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -419,7 +419,7 @@
             <details class="rw" id="ro-pur" hidden>
               <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
               <div class="ro-pur-body">
-                <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> approved samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
+                <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> counted samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
                 <p><b>Testing caveat (T-01):</b> baselines of 3-5 samples produce false alarms; see docs/testing.</p>
               </div>
             </details>
@@ -473,9 +473,9 @@
         <div>
           <div class="sec-h"><b>How the number is made</b></div>
           <div class="card mnote">
-            <p>Each of the 97 measured habits is compared with the range this student shows across their teacher-approved samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
-            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same approved samples. It does not produce the deviation number. The fingerprint above is decorative, not drawn from ρ: it is the same print for every student.</p>
-            <p>With few approved samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+            <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
+            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The fingerprint above is decorative, not drawn from ρ: it is the same print for every student.</p>
+            <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
           </div>
         </div>
       </div>
@@ -483,9 +483,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-10.2"></script>
-<script src="js/feature-data.js?v=2026-10-10.2"></script>
-<script src="js/fingerprint.js?v=2026-10-10.2"></script>
+<script src="live.js?v=2026-10-10.3"></script>
+<script src="js/feature-data.js?v=2026-10-10.3"></script>
+<script src="js/fingerprint.js?v=2026-10-10.3"></script>
 <script>
 (function(){
   'use strict';
@@ -531,13 +531,30 @@
   const who=()=>S.name||S.id;
   const poss=()=>who()+'’s';
   const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
-  function approved(){
+  // "Counted" is the server's authenticated_count: every sample it weighs above zero,
+  // whether a teacher approved it or the student uploaded it. Only the sample list of
+  // GET /students/{id} says which, so the teacher-approved count comes from there (the
+  // same rule as baseline.html's approvedN(): proctored, verified or canvas).
+  const APPROVED=['proctored','verified','canvas'];
+  function counted(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null;
     if(a!=null) return a;
     return S.student?num(S.student.authenticated_count):null;
   }
-  const hasBaseline=()=>!!S.student&&(approved()||0)>0;
+  // null when the list is missing, or when the count shown is an analysis's older one
+  // and no longer the record's: a split of two different counts would mislead.
+  function teacherApproved(){
+    const st=S.student, sm=st&&Array.isArray(st.samples)?st.samples:null;
+    if(!sm||counted()!==num(st.authenticated_count)) return null;
+    return sm.filter(x=>x&&typeof x==='object'&&APPROVED.indexOf(x.provenance)>=0).length;
+  }
+  function countedPhrase(){
+    const a=teacherApproved();
+    return plural(counted()||0,'counted sample')+(a!=null?', '+a+' teacher-approved':'');
+  }
+  const READY_NEEDS='ready needs 5 or more counted samples';
+  const hasBaseline=()=>!!S.student&&(counted()||0)>0;
   const actionOf=()=>(S.result&&S.result.recommendation)?S.result.recommendation.action:'';
   const look=()=>has(ACTION,actionOf())?ACTION[actionOf()]:OTHER_ACTION;
   function contrib(f){ return S.D.get(f.code)||S.C.get(f.code)||null; }
@@ -774,8 +791,8 @@
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
       const diff=(v!=null&&s!=null)?s-v:null;
       const sc=out&&diff!=null?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
-      const badge=out?' <span class="fd-flag" title="Further from their average than their approved samples usually vary">OUTSIDE USUAL RANGE</span>'
-        :(within?' <span class="fd-flag ok" title="Close to the average of their approved samples">WITHIN USUAL RANGE</span>':'');
+      const badge=out?' <span class="fd-flag" title="Further from their average than their counted samples usually vary">OUTSIDE USUAL RANGE</span>'
+        :(within?' <span class="fd-flag ok" title="Close to the average of their counted samples">WITHIN USUAL RANGE</span>':'');
       return '<div class="fd-row" data-tier="'+esc(f.tier)+'" data-code="'+esc(f.code)+'">'+
         '<div><div class="fd-nm">'+esc(f.name)+badge+'</div><div class="fd-ds">'+esc(f.desc||'')+'</div></div>'+
         '<div class="fd-bar"><div class="fd-track"></div>'+(v!=null?'<div class="fd-base" style="width:'+Math.round(clamp01(v)*100)+'%"></div>':'')+(s!=null?'<div class="fd-sub-mark" style="left:'+Math.round(clamp01(s)*100)+'%;--sm:'+sc+'"></div>':'')+'</div>'+
@@ -836,7 +853,7 @@
       $('evi-flag').hidden=!out;
       $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
-      const n=approved()||0;
+      const n=counted()||0;
       if(s!=null){
         const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
           :within?'This is one of the habits closest to '+poss()+' usual range in this paper, by Original\u2019s measure.'
@@ -848,10 +865,10 @@
         $('evi-sub-src').textContent='';
       }
       if(v!=null){
-        $('evi-base').innerHTML='<span class="evi-big">'+v.toFixed(2)+'</span><p>'+esc('The average across '+plural(n,'approved sample')+' of '+poss()+' writing, on the same scale.')+'</p>';
-        $('evi-base-src').textContent=plural(n,'approved sample');
+        $('evi-base').innerHTML='<span class="evi-big">'+v.toFixed(2)+'</span><p>'+esc('The average across '+plural(n,'counted sample')+' of '+poss()+' writing, on the same scale.')+'</p>';
+        $('evi-base-src').textContent=countedPhrase();
       } else {
-        $('evi-base').innerHTML='<p class="none">No approved writing measured for this habit yet.</p>';
+        $('evi-base').innerHTML='<p class="none">No baseline value for this habit yet.</p>';
         $('evi-base-src').textContent='';
       }
       box.classList.add('show');
@@ -914,7 +931,7 @@
     else if(!S.loaded){ st.textContent='loading'; st.style.color=OTHER_ACTION.color; }
     else if(!hasBaseline()){ st.textContent='no baseline yet'; st.style.color=OTHER_ACTION.color; }
     else if(S.view==='submission'&&S.result){ const lk=look(); st.textContent=lowerFirst(lk.words); st.style.color=lk.color; }
-    else { st.textContent='baseline of '+plural(approved()||0,'approved sample'); st.style.color=BASE_LOOK.color; }
+    else { st.textContent='baseline of '+plural(counted()||0,'counted sample'); st.style.color=BASE_LOOK.color; }
   }
 
   // The habits the server returned as furthest from the usual range
@@ -935,7 +952,7 @@
   // When the roster gave no verdict (past its 60-student cap, a failed
   // readiness call, or a student reached by link who is not on it), the
   // server's own readiness rule (original/routers/students.py, readiness)
-  // applied to the score response: ready at 5 approved samples and 3
+  // applied to the score response: ready at 5 counted samples and 3
   // effective, building from 2, else too little. Null when a field is missing.
   function resultVerdict(){
     const bc=S.result&&S.result.baseline_confidence;
@@ -949,27 +966,27 @@
 
   // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
-    const n=approved()||0, v=verdictNow();
-    if(v==='developing') return ' Original rates this baseline as still building ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
-    if(v==='insufficient') return ' Original rates this baseline as having too little approved writing ('+plural(n,'approved sample')+'), so treat this reading as inconclusive.';
+    const v=verdictNow();
+    if(v==='developing') return ' Original rates this baseline as still building ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
+    if(v==='insufficient') return ' Original rates this baseline as too thin to rely on yet ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
     if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
 
   function renderPlain(){
     const pr=$('plain-read');
-    if(!S.id){ pr.textContent='Choose a student on the left. Their approved writing appears here, and you can analyse a paper against it.'; return; }
+    if(!S.id){ pr.textContent='Choose a student on the left. Their baseline appears here, and you can analyse a paper against it.'; return; }
     if(S.stErr){ pr.textContent=S.stErr; return; }
     if(!S.loaded){ pr.textContent='Loading'; return; }
     if(!hasBaseline()){
-      pr.innerHTML='Not enough approved writing to compare yet: no approved samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+      pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
       return;
     }
-    const n=approved()||0;
+    const n=counted()||0, a=teacherApproved();
     if(!S.result){
-      let h='<b>'+plural(n,'approved sample')+'</b> make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
-      if(S.verdict==='developing') h+=' Original rates this baseline as still building, so a result will be less steady until more approved writing is added.';
-      else if(S.verdict==='insufficient') h+=' Original rates this baseline as too thin to rely on yet, so read any result with extra care.';
+      let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
+      if(S.verdict==='developing') h+=' Original rates this baseline as still building ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
+      else if(S.verdict==='insufficient') h+=' Original rates this baseline as too thin to rely on yet ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
       return;
     }
@@ -1010,13 +1027,13 @@
     if(mode!=='form') msg('');
   }
   function notEnough(){
-    note('<b>Not enough approved writing to compare yet.</b> Original compares a paper with writing you have approved as '+esc(poss())+'. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
+    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
     setCard('none');
   }
   function thinNote(){
-    const n=approved()||0, v=verdictNow();
-    if(v==='developing') return 'Original rates this baseline as still building ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
-    if(v==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+plural(n,'approved sample')+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    const v=verdictNow();
+    if(v==='developing') return 'Original rates this baseline as still building ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='insufficient') return 'Original rates this baseline as too thin to rely on yet ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
@@ -1056,7 +1073,7 @@
     } else if(st.status===404){
       S.student=null;
     } else {
-      S.stErr=st.status===403?'You do not have access to this student’s writing.':'This student’s approved writing could not be loaded just now. Try reloading the page.';
+      S.stErr=st.status===403?'You do not have access to this student’s writing.':'This student’s writing could not be loaded just now. Try reloading the page.';
     }
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }

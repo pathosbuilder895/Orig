@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.2" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-10.3" />
+<link rel="stylesheet" href="suite.css?v=2026-10-10.3" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -231,7 +231,7 @@
         </div>
         <h1 id="p-title"></h1>
         <div class="h-sub" id="p-sub"></div>
-        <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how a paper compares with a student&rsquo;s own approved writing. A difference here is a reason to talk with the student; on its own it is never evidence.</div>
+        <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how a paper compares with a student&rsquo;s own earlier writing. A difference here is a reason to talk with the student; on its own it is never evidence.</div>
         <div data-testing-notice="on-paper"></div>
 
         <section>
@@ -240,12 +240,12 @@
         </section>
 
         <section>
-          <div class="sec-t">Furthest from their usual range <span>this paper&rsquo;s numbers beside their own approved writing</span></div>
+          <div class="sec-t">Furthest from their usual range <span>this paper&rsquo;s numbers beside their own earlier writing</span></div>
           <div id="p-habits"></div>
         </section>
 
         <section>
-          <div class="sec-t">Where their baseline comes from <span>the approved writing this paper was compared with</span></div>
+          <div class="sec-t">Where their baseline comes from <span>the counted writing this paper was compared with</span></div>
           <div id="p-baseline"></div>
         </section>
 
@@ -277,8 +277,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-10.2"></script>
-<script src="js/feature-data.js?v=2026-10-10.2"></script>
+<script src="live.js?v=2026-10-10.3"></script>
+<script src="js/feature-data.js?v=2026-10-10.3"></script>
 <script>
 (function(){
   'use strict';
@@ -299,8 +299,12 @@
   // page keeps them inline, so they are repeated here rather than shared).
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const FAMILY={Surface:'how the sentences look',Discourse:'how the ideas connect',Rhetorical:'how the case is made'};
-  // GET /students/{id}: samples[].provenance, in plain words
-  const HOW={proctored:'Proctored exam',verified:'Teacher verified',canvas:'Imported from a course site',unverified:'Not verified'};
+  // GET /students/{id}: samples[].provenance, in the words baseline.html uses
+  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
+  // Teacher-approved means proctored, verified or imported: the same rule as
+  // baseline.html's approvedN(). The server's authenticated_count ("counted")
+  // also includes a student's own upload, so it is never called approved.
+  const APPROVED=['proctored','verified','canvas'];
   const VERDICT_WORDS={developing:'still building',insufficient:'too thin to rely on yet'};
 
   // ── account menu ──
@@ -377,7 +381,7 @@
   // contribution, at most five. About a third of habits sit that far out by
   // chance even in a student's own writing, so nothing here counts them or
   // calls them differences: it names the ones Original puts furthest out.
-  // nUsed is the approved-sample count, or null when it is not known.
+  // nUsed is the counted-sample count (authenticated_count), or null when it is not known.
   function habitCards(d,poss,nUsed){
     const res=d.result, inter=res.interference&&typeof res.interference==='object'?res.interference:{};
     const list=Array.isArray(inter.destructive_features)?inter.destructive_features:[];
@@ -395,8 +399,8 @@
       const sub=[PLAIN_TIER[f.tier]||(t&&t.name)||'',family].filter(Boolean).join(' · ');
       const paper=(d.assignment&&typeof d.assignment==='string'?d.assignment:'This paper');
       // baseline_mean is weighted by provenance (AUTH_WEIGHTS) and recency (RECENCY_DECAY)
-      const basedOn=nUsed!=null?plural(nUsed,'approved sample'):null;
-      const avgLine='A weighted average of '+(basedOn||poss+' approved samples')+' (newer and supervised writing counts for more), on the same scale as this paper.';
+      const basedOn=nUsed!=null?plural(nUsed,'counted sample'):null;
+      const avgLine='A weighted average of '+(basedOn||poss+' counted samples')+' (newer and supervised writing counts for more), on the same scale as this paper.';
       cards.push(
         '<div class="ex">'+
           '<div class="ex-h"><b>'+esc(f.name)+'</b><span>'+esc(sub)+'</span></div>'+
@@ -420,6 +424,8 @@
   }
 
   // ── where the baseline comes from (GET /students/{id}) ──
+  const approvedIn=samples=>samples.filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
+  const uploadsIn=samples=>samples.filter(s=>s.provenance==='unverified').length;
   function baselineTable(samples){
     const rows=samples.map((s,i)=>{
       const idx=num(s.index)!=null?s.index:i;
@@ -448,7 +454,7 @@
   }
   // The server's own readiness rule (original/routers/students.py,
   // get_student_readiness), as writing-state.html's resultVerdict() applies it
-  // to the score response: ready at 5 approved samples and 3 effective,
+  // to the score response: ready at 5 counted samples and 3 effective,
   // building from 2, else too little. Null when a field is missing.
   function storedVerdict(bc){
     const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
@@ -461,7 +467,7 @@
   function baselineNote(nUsed,onFile,verdict,poss){
     let t='';
     if(onFile!=null&&nUsed!=null&&onFile!==nUsed){
-      t+='This analysis compared the paper with '+plural(nUsed,'approved sample')+'; '+onFile+' '+(onFile===1?'is':'are')+' on file now. ';
+      t+='This analysis compared the paper with '+plural(nUsed,'counted sample')+'; '+onFile+' '+(onFile===1?'is':'are')+' on file now. ';
     }
     if(has(VERDICT_WORDS,verdict)){
       t+='Original rates this baseline as '+VERDICT_WORDS[verdict]+'. With this little to compare against, a paper the student wrote themselves can also look different, especially on a new topic or in a new genre, so treat this reading as inconclusive.';
@@ -506,7 +512,10 @@
     if(analysed) bits.push('analysed '+shortDay(analysed));
     if(words!=null) bits.push(plural(words,'word'));
     const sub=esc(bits.join(' · ')).replace(/^[a-z]/,c=>c.toUpperCase());
-    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'approved sample'))+'</b>':'');
+    // The teacher-approved split comes from the sample list, and only when that list is
+    // the one the analysis counted (a changed list would split a different count).
+    const sameCount=!!(samples&&st.data&&nUsed!=null&&num(st.data.authenticated_count)===nUsed);
+    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount?esc(' ('+approvedIn(samples)+' teacher-approved)'):''):'');
     $('back').href='writing-state.html?student='+encodeURIComponent(id);
 
     // summary: the sentence Writing State showed, as plain text
@@ -523,11 +532,13 @@
     const box=$('p-baseline');
     const note='<p class="prov-note">'+esc(baselineNote(nUsed,onFile,verdict,poss))+'</p>';
     if(!samples){
-      box.innerHTML='<p class="none-line">The list of approved samples could not be loaded just now. Reload the page to try again.</p>'+note;
+      box.innerHTML='<p class="none-line">The list of samples could not be loaded just now. Reload the page to try again.</p>'+note;
     } else if(!samples.length){
-      box.innerHTML='<p class="none-line">No approved samples are on file for '+esc(who)+' now.</p>'+note;
+      box.innerHTML='<p class="none-line">No samples are on file for '+esc(who)+' now.</p>'+note;
     } else {
-      box.innerHTML=baselineTable(samples)+note;
+      const up=uploadsIn(samples);
+      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+', '+approvedIn(samples)+' teacher-approved'+(up?' and '+plural(up,'student upload'):'')+'.')+'</p>';
+      box.innerHTML=split+baselineTable(samples)+note;
       fillLengths(id,box);
     }
 

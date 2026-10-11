@@ -390,8 +390,12 @@
   // before it sorts or adds a field. Resolves, and never rejects:
   //   ok, error      ok is false when the student list itself could not be read
   //   scoped         true when /students carried a roster (names and counts)
-  //   students[]     {id, name, email, courses:[{id,code,name}], approved,
+  //   students[]     {id, name, email, courses:[{id,code,name}], counted,
   //                   samples, verdict, lastSealed, sealed, pending}
+  //                  counted is the server's authenticated_count: every sample it
+  //                  weighs above zero, a teacher-approved one or a student's own
+  //                  upload. It is never "approved"; call it counted. The roster
+  //                  carries no provenance, so no approved count exists here.
   //                  name is what the API returned, else the id; email is
   //                  Bluebook's, else null; verdict is the server's word
   //                  ('ready' | 'developing' | 'insufficient') or null;
@@ -491,7 +495,7 @@
             name: String(r.name || r.id),
             email: b && b.email ? String(b.email) : null,
             courses: freezeList(courses),
-            approved: r.ac,
+            counted: r.ac,
             samples: r.sc,
             verdict: r.verdict,
             lastSealed: bluebook === 'ok' ? ((b && b.last_submitted_at) || (e && e.last) || null) : null,
