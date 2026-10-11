@@ -1,7 +1,7 @@
 services:
   # ════════════════════════════════════════════════════════════════════════════
-  # original-pilot — the REAL service: the public Bluebook site and the
-  # institutional pilot (Starter plan, managed Postgres). Same dashboard app,
+  # original-pilot is the REAL service: the invitation-only Bluebook pilot for
+  # independent teachers (Starter plan, managed Postgres). Same dashboard app,
   # hardened by ORIGINAL_ENV=pilot:
   #   • boots REFUSE to start without a stable SECRET_KEY (fail-fast)
   #   • CORS locked to ALLOWED_ORIGINS (empty = nothing allowed)
@@ -32,9 +32,9 @@ services:
 
     # --skip-seed: a pilot must never boot with synthetic students. The
     # database starts empty. The pilot is invitation-only (SELF_SERVE_SIGNUP
-    # below): professors are invited with scripts/invite_professor.py, and
-    # institutions buying Original are provisioned via
-    # docs/PROVISIONING_CHECKLIST.md.
+    # below): each teacher is invited with scripts/invite_professor.py, which
+    # creates a private workspace. (docs/PROVISIONING_CHECKLIST.md is for a
+    # later phase, when a school adopts Original.)
     startCommand: python run.py --demo --port $PORT --skip-seed
 
     healthCheckPath: /health

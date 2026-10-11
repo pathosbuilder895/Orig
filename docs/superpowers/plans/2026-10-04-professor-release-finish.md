@@ -1357,12 +1357,12 @@ These tasks need accounts, money, legal review or people. Each names its owner. 
 - [ ] Name the **support contact** (an email address that someone reads) and the **operator** (hosting, invitations, restores, incidents). Replace `hello@originalvoice.io` in `demo/bluebook/Landing.jsx` and `demo/legal/*.html` if that is not the real address, then rebuild the bundle and commit.
 - **Done when:** all of the above are written into `docs/release/VERIFICATION_AND_BLOCKERS.md` (names and choices only, no secrets).
 
-### Task B2: Legal pages and institutional terms (owner + counsel, then engineer)
+### Task B2: Legal pages and teacher terms (owner + counsel, then engineer)
 
 - [ ] Counsel fills every blank: `privacy.html` lines 17 (legal entity and address), 36 (region; must match B1), 39 (object-storage provider; must match B1), 44 (retention days); `terms.html` lines 14 (legal entity), 41 (warranty/liability/indemnity), 44 (governing law and venue). Counsel also reviews `student-notice.html`.
-- [ ] With the first institution's privacy/legal staff: agree the allowed use, retention and deletion procedure, who may see submissions, and the incident contact. Record it as a short operating note in `docs/release/`.
+- [ ] With counsel (independent teachers have no school agreement, NORTH_STAR 2026-10-08): agree the allowed use, retention and deletion procedure, who may see submissions, and the incident contact, as terms each invited teacher accepts. Record it as a short operating note in `docs/release/`. `docs/release/COUNSEL_PACKET.md` lists the questions. (Note: the blank line numbers above moved down by one when `2d1bab7b` added a version line; the packet has the current ones.)
 - [ ] Engineer applies the final text: removes the `class="draft"` banner from all three pages, sets one final version string (e.g. `2026-11-01`) in each page's version line, in `TERMS_VERSION` in `original/routers/auth.py`, and in `demo/bluebook/Account.jsx`. Then `cd demo/bluebook && npm run build`, `pytest tests/test_legal_release_guard.py` passes, commit `Add final legal text for the pilot`.
-- **Done when:** the guard test passes with a non-draft version, and the institution's operating note exists.
+- **Done when:** the guard test passes with a non-draft version, and the operating note exists.
 
 ### Task B3: Create the hosted pilot from the merged commit (operator)
 
@@ -1396,7 +1396,7 @@ Follow `docs/BLUEBOOK_LAUNCH_CHECKLIST.md` §3–§4 with these differences:
 
 - [ ] Write `docs/release/PROFESSOR_QUICKSTART.md`, one page in plain language. Cover: the address; set your password from the invitation email; Courses → New course → add students by email (tick "Email each student their invitation"); Examinations → New examination (questions, duration, open/close times); what students see; Submissions → Read & mark → Release results; Export CSV. Then four points: lockdown warnings are context, not evidence; Original comparisons are not enabled in this pilot; support address and response expectations; how to ask for deletion. Send it with each invitation.
 - [ ] Invite 1–3 professors with `scripts/invite_professor.py` (one run per professor). Start with a synthetic rehearsal session in their own workspace before any real class.
-- [ ] Before any real classroom use, the institution's operating note (B2) is in place, and the professor knows the support contact.
+- [ ] Before any real classroom use, the operating note (B2) is in place, and the professor knows the support contact.
 - [ ] Watch the first real sessions: the operator checks `/health`, Render logs for 5xx, and that every student's submission appears for the professor.
 - **Stop rule:** pause intake (set `MAINTENANCE_MODE`, or stop inviting) if acknowledged work is lost, a student sees another student's data, or a privacy boundary fails. Fix, re-run B4, then resume.
 - **Done when:** each pilot professor has completed one session without developer help, and every acknowledged submission is visible to them and to no one else.

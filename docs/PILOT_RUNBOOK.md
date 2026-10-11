@@ -1,5 +1,10 @@
 # Pilot Runbook — taking Original to a seminary
 
+> **Not for the current phase.** Seminaries are later prospects, not
+> customers (NORTH_STAR, 2026-10-08). The current pilot is Bluebook for
+> independent teachers, with Original off by default. This runbook is kept
+> for that later phase.
+
 The operational playbook for a first institutional pilot: what to verify
 before launch, how to collect baselines, how the AI-likelihood detector's
 shadow period works, and what numbers decide the go/no-go at each step.
