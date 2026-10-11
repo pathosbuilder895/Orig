@@ -179,7 +179,9 @@ actually does, with a DRAFT banner and bracketed blanks.
 ## 7. Launch
 
 - [ ] Invite each professor (*Operating it* → Inviting a professor). They set a
-  password from the link, then sign in at `https://<host>/bluebook/`.
+  password from the link, then sign in at `https://<host>/bluebook/`. Send
+  each one `docs/release/PROFESSOR_QUICKSTART.md`, with its support contact
+  filled in first.
 - [ ] Tell Claude the URL: it will re-run the smoke test and walk the professor
   invite → student invite → exam → mark → release journey against the live
   site.
