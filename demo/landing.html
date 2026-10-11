@@ -71,11 +71,12 @@
   <main id="top">
 
     <!-- ─── Act 0: Cold open ─────────────────────────────────────────── -->
-    <!-- The design's engraved hero (class "engraved" plus an .hero-bg image) is
-         off: its plate was an AI rendering that prints "Drawn & Eng. by J. & H. S.
-         Storer, 1822" inside the image. Restore both with a genuine public-domain
-         scan, credited correctly. See ADR-011. -->
+    <!-- Images on this page come from the live suite's folder (demo/original/assets/)
+         at Andrew's direction, 2026-10-11. None has a licence on record; see
+         demo/original/assets/CREDITS.md and ADR-011. The design's light "engraved"
+         hero stays off: its plate printed a false 1822 engraver credit. -->
     <section class="cold-open" data-screen-label="00 Cold open">
+      <img class="hero-bg" src="original/assets/radcliffe-interior.avif" alt="">
       <div class="hero-cin" aria-hidden="true"></div>
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="epigraph">
@@ -148,6 +149,7 @@
 
     <!-- ─── Ruin: full-bleed photo section ──────────────────────────── -->
     <section class="act ruin-act" id="ruin" data-screen-label="01b Ruin">
+      <img class="ruin-bg" src="original/assets/all-souls-engraving-wide.jpg" alt="">
       <div class="ruin-tint"></div>
       <div class="ruin reveal">
         <div class="ruin-q">Do we walk into ruin?</div>
@@ -624,6 +626,14 @@
             </div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ─── Parallax photo break ─────────────────────────────────────── -->
+    <section class="act" style="padding: 0; min-height: 0;" data-screen-label="05b Photo break">
+      <div class="parallax-figure">
+        <img class="parallax-bg" src="original/assets/st-andrews-quad.jpg" alt="A graduation procession crossing a college quadrangle in St Andrews, seen from above">
+        <span class="caption">St Andrews, Scotland</span>
       </div>
     </section>
 
