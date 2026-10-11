@@ -36,7 +36,6 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import List, Tuple
 
 _ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_ROOT))
@@ -65,7 +64,7 @@ POSTGRES_NOT_SUPPORTED = (
 
 class Checklist:
     def __init__(self) -> None:
-        self.rows: List[Tuple[str, str, str]] = []
+        self.rows: list[tuple[str, str, str]] = []
 
     def add(self, status: str, name: str, detail: str = "") -> None:
         self.rows.append((status, name, detail))
