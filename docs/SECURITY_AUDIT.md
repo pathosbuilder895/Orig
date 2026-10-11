@@ -26,7 +26,7 @@
 |----------|--------|-------|
 | JWT Token Configuration | ✅ PASS | 15-min access / 7-day refresh |
 | SQL Injection | ✅ PASS | ORM + parameterized raw queries |
-| Rate Limiting | ✅ PASS | slowapi configured on scoring/auth endpoints |
+| Rate Limiting | ✅ PASS (corrected 2026-10-11) | Live stack: in-process limits on scoring and sign-in, see Section 3 |
 | RBAC | ✅ PASS | `get_current_instructor`, `require_admin` on all routes |
 | Input Sanitization | ✅ PASS | HTML stripping, min/max word count validation |
 | Dependency Vulnerabilities | ⚠️ FIXED | 7 packages updated (see Section 5) |
@@ -80,6 +80,16 @@ No raw string interpolation into SQL was found. SQLAlchemy ORM queries throughou
 ## 3. Rate Limiting
 
 **Finding: PASS**
+
+> **Correction (2026-10-11, gap T-19).** The slowapi description below belongs to the
+> v1 `/api/v1/*` stack, deleted in PR #90; slowapi is not imported anywhere in the live
+> app. The live stack's limits are in-process (single worker): sign-in, signup and invite
+> redemption are throttled on failed attempts per IP and per email
+> (`original/routers/_shared.py`, `LOGIN_THROTTLE_*`), and on a real deploy
+> `POST /students/{id}/score` and `POST /me/work` share a per-caller budget of
+> `SCORE_RATE_LIMIT_PER_MINUTE` (default 30) per rolling minute
+> (`original/routers/students_scoring.py`, `tests/test_score_rate_limit.py`).
+> The original text is kept below as the historical record.
 
 Rate limiting is implemented via `slowapi` (a Starlette-compatible wrapper for `limits`):
 
