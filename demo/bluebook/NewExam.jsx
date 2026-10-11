@@ -287,7 +287,7 @@ export function NewExamScreen({ onNavigate }) {
         setSaveError(`The examination was not saved: ${(e && e.message) || 'unknown error'}.`);
         return;
       }
-      console.warn('Bluebook exam persistence failed:', e && e.message);
+      console.warn('Collections exam persistence failed:', e && e.message);
     }
     setSaving(false);
     setSaved(true);

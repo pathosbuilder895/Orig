@@ -356,7 +356,7 @@ def test_professor_invite_email_text(monkeypatch):
         lambda to, subject, text: captured.update(to=to, subject=subject, text=text) or True,
     )
     assert mailer.send_professor_invite("p@x.edu", "https://x.test/bluebook/?invite=abc") is True
-    assert captured["subject"] == "Your Bluebook workspace is ready"
+    assert captured["subject"] == "Your Original Collections workspace is ready"
     assert "https://x.test/bluebook/?invite=abc" in captured["text"]
     assert "Original" not in captured["text"]
 

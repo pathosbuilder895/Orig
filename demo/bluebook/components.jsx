@@ -66,7 +66,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
   const interactiveProps = onClick ? {
     onClick,
     type: 'button',
-    'aria-label': 'Bluebook — go to dashboard',
+    'aria-label': 'Collections — go to dashboard',
   } : {};
   return (
     <Tag

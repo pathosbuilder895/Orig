@@ -5,7 +5,7 @@
 ---
 
 ## Project Overview
-Writing-consistency tool for independent teachers (invitation-only pilot, 1–3 teachers to start). Original is optional and off by default; when on, shown with testing-phase warning. Bluebook is a locked writing/exam app. See `docs/NORTH_STAR.md` for phase, mission, and non-negotiables.
+Writing-consistency tool for independent teachers (invitation-only pilot, 1–3 teachers to start). Original is optional and off by default; when on, shown with testing-phase warning. Collections (full name: Original Collections, a digital replacement for the blue book exam) is a locked writing/exam app. **User-facing name is Original Collections (in-app: Collections). Internal code keeps bluebook identifiers.** See `docs/NORTH_STAR.md` for phase, mission, and non-negotiables.
 
 **Working directory:** Repository root (wherever you checked it out)
 **Python environment:** always use `.venv/bin/python` and `.venv/bin/pytest` from the checkout's root — NOT system python3. Each checkout or worktree needs its own venv at its root (create with `python3.11 -m venv .venv` and install per README), or activate an existing venv and use plain `python -m pytest`.
@@ -198,7 +198,7 @@ Text → 109-feature pipeline (original/features/)
 no effect on the live stack. See `docs/ARCHITECTURE.md` before touching auth or LTI.
 New pilot features go in the live stack only.
 
-**Bluebook frontend:** after editing any `demo/bluebook/*.jsx`, rebuild and
+**Collections frontend:** after editing any `demo/bluebook/*.jsx`, rebuild and
 commit the bundle: `cd demo/bluebook && npm run build` (Render has no Node —
 the committed `bluebook.bundle.js` is what production serves).
 

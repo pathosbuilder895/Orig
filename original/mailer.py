@@ -1,7 +1,7 @@
 """mailer.py — account email (invites and password resets) via SendGrid.
 
 Scope is deliberately narrow. This module sends exactly two kinds of message:
-an invitation to set a Bluebook password, and a password-reset link. Both
+an invitation to set a password, and a password-reset link. Both
 carry a one-time link and nothing about a student's work or any score.
 Scoring notifications remain a documented no-op
 (``routers/_shared.py:_send_notification_email``) — that is a policy decision
@@ -18,8 +18,8 @@ pilot's slim requirements are unchanged.
 
 Env:
     SENDGRID_API_KEY  API key with Mail Send permission.
-    MAIL_FROM         Verified sender, e.g. "Bluebook <no-reply@example.edu>".
-    PUBLIC_BASE_URL   Absolute site origin for links, e.g. "https://bluebook.example.com".
+    MAIL_FROM         Verified sender, e.g. "Original Collections <no-reply@example.edu>".
+    PUBLIC_BASE_URL   Absolute site origin for links, e.g. "https://collections.example.com".
                       Falls back to the request's own origin when unset.
 """
 
@@ -102,12 +102,12 @@ def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool
     who = teacher or "Your teacher"
     where = f" for {course}" if course else ""
     text = (
-        f"{who} has added you to Bluebook{where}.\n\n"
+        f"{who} has added you to Original Collections{where}.\n\n"
         f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
         "Then sign in with this email address to see your examinations.\n\n"
         "If you were not expecting this, you can ignore this email."
     )
-    return send(to, f"You've been added to Bluebook{where}", text)
+    return send(to, f"You've been added to Original Collections{where}", text)
 
 
 def send_professor_invite(to: str, link: str, with_original: bool = False) -> bool:
@@ -123,7 +123,7 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
         else ""
     )
     text = (
-        "You have been invited to Bluebook, the online written-examination "
+        "You have been invited to Original Collections, the online written-examination "
         "service, with a private workspace of your own.\n\n"
         f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
         "Then sign in with this email address to create a course, invite your "
@@ -131,13 +131,13 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
         f"{original}"
         "If you were not expecting this, you can ignore this email."
     )
-    return send(to, "Your Bluebook workspace is ready", text)
+    return send(to, "Your Original Collections workspace is ready", text)
 
 
 def send_reset(to: str, link: str) -> bool:
     text = (
-        "Someone asked to reset the password for this Bluebook account.\n\n"
+        "Someone asked to reset the password for this Original Collections account.\n\n"
         f"Choose a new password here (this link works once and expires in 14 days):\n{link}\n\n"
         "If you did not ask for this, you can ignore this email; your password is unchanged."
     )
-    return send(to, "Reset your Bluebook password", text)
+    return send(to, "Reset your Original Collections password", text)

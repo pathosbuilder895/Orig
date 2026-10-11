@@ -1,16 +1,18 @@
-# Original + Bluebook
+# Original + Collections
 
 Platform for trusted writing submission and writing-consistency observation. Helps teachers make sure a student's writing is really their own, and helps students become stronger writers by building their own skill.
 
+**User-facing name is Original Collections (in-app: Collections). Internal code keeps bluebook identifiers.**
+
 ## The Two Products
 
-- **Bluebook**: Locked, in-browser writing and exam app. Teachers create classes, invite students, run timed sessions, and read, grade, release, and export sealed submissions. Works entirely on its own — a Bluebook-only workspace never builds a writing profile.
+- **Collections**: Locked, in-browser writing and exam app, a digital replacement for the blue book exam. Teachers create classes, invite students, run timed sessions, and read, grade, release, and export sealed submissions. Works entirely on its own — a Collections-only workspace never builds a writing profile.
 
 - **Original**: Writing-consistency engine. Builds a profile from teacher-approved earlier writing and reports how a new piece compares. **Optional and off by default.** When turned on, it displays testing-phase warnings. Original supports a teacher's judgment and is a reason for a conversation, never an accusation or a verdict.
 
 ## Current Phase
 
-**Invitation-only Bluebook pilot for independent teachers.** Start with 1–3 teachers, possibly growing to a few dozen. No public signup.
+**Invitation-only Collections pilot for independent teachers.** Start with 1–3 teachers, possibly growing to a few dozen. No public signup.
 
 Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). **The pilot and a fictional demo are deployed; no teachers are invited yet.** See [`docs/STATUS.md`](docs/STATUS.md) for the live state.
 
@@ -70,7 +72,7 @@ From [`original/constants.py:AUTH_WEIGHTS`](original/constants.py):
 
 | Provenance | Weight | Meaning |
 |------------|--------|---------|
-| `proctored` | 2.0 | Live Bluebook exam |
+| `proctored` | 2.0 | Live Collections exam |
 | `verified` | 1.0 | Teacher-confirmed paper |
 | `canvas` | 0.8 | LMS-imported |
 | `unverified` | 0.5 | Student self-upload |

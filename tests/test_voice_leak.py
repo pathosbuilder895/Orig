@@ -633,7 +633,7 @@ def test_old_student_pages_say_what_my_work_does_with_a_piece():
     student = (REPO_ROOT_FOR_COPY / "demo/student.html").read_text(encoding="utf-8")
     assert (
         "It is compared with the writing on your profile and is not added to it. Only writing "
-        "your teacher approves, such as sealed Bluebook work, joins your writing profile."
+        "your teacher approves, such as sealed Collections work, joins your writing profile."
     ) in student
     tour = json.loads((REPO_ROOT_FOR_COPY / "demo/_tour/tour-content.json").read_text(encoding="utf-8"))
     bodies = [stop["body"] for stop in tour["student"]["stops"]]
@@ -762,7 +762,7 @@ def test_no_baseline_result_is_honest_and_says_nothing_was_added():
     # sentence says what does join a profile instead.
     assert (
         "Not added to your writing profile. Only writing your teacher approves, such as "
-        "sealed Bluebook work, joins your writing profile."
+        "sealed Collections work, joins your writing profile."
     ) in res["summary"]
     assert "may choose" not in res["summary"]
     assert res["steady"] == [] and res["review_opportunity"] is False
@@ -867,7 +867,7 @@ def test_the_inconclusive_result_says_it_cannot_tell_and_what_joins_a_profile():
     assert "can't tell much from this comparison yet" in res["summary"]
     assert (
         "Not added to your writing profile. Only writing your teacher approves, such as "
-        "sealed Bluebook work, joins your writing profile."
+        "sealed Collections work, joins your writing profile."
     ) in res["summary"]
     said = (res["headline"] + " " + res["summary"]).lower()
     # No reading of the piece and no number of any kind: the threshold is never sent.

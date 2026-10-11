@@ -133,7 +133,7 @@ def auth_signup(body: AuthSignupRequest, request: Request):
         raise HTTPException(
             status_code=403,
             detail=(
-                "Bluebook is invitation-only during the pilot, so new "
+                "Collections is invitation-only during the pilot, so new "
                 "workspaces can't be created here. If you have been invited, "
                 "use the link in your invitation email."
             ),

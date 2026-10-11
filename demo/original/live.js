@@ -55,7 +55,7 @@
   // The label on the student pages (voice.html, my-work.html): the same
   // testing-phase warning, plus what NORTH_STAR rule 10 says a student must be
   // told about their sealed work. A student never sees the teacher's sentence.
-  var STUDENT_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Your teacher may approve your sealed Bluebook work as reference writing for it, and can undo that approval.';
+  var STUDENT_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Your teacher may approve your sealed Collections work as reference writing for it, and can undo that approval.';
 
   var ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -208,7 +208,7 @@
         }
         panel(el, 'Sign in to continue',
           'This page shows your own writing, so it needs you to be signed in as a student.',
-          '/bluebook/', 'Sign in');
+          '/bluebook/', 'Sign in to Collections');
         return null;
       }
       if (s.mode === 'signed-out') {
@@ -223,8 +223,8 @@
       }
       if (s.products.indexOf('original') < 0) {
         panel(el, 'Original is off for this workspace',
-          'Your workspace uses Bluebook only. Your classes and sealed exams are in Bluebook.',
-          '/bluebook/', 'Open Bluebook');
+          'Your workspace uses Collections only. Your classes and sealed exams are in Collections.',
+          '/bluebook/', 'Open Collections');
         return null;
       }
       return s;

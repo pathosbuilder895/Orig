@@ -122,7 +122,7 @@
       <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
       <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
       <a class="pill on" href="submissions.html" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
       <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
     </div>
     <div class="nav-right">
@@ -161,7 +161,7 @@
       <div id="rows"></div>
       <div class="empty" id="empty" style="display:block">Loading</div>
     </div>
-    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens Bluebook (Bluebook has no address for a single exam yet): under Examinations, open the exam and choose Read &amp; mark.</p>
+    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens Collections (Collections has no address for a single exam yet): under Examinations, open the exam and choose Read &amp; mark.</p>
   </main>
 </div>
 <script src="live.js?v=2026-10-10.5"></script>
@@ -205,7 +205,7 @@
   const docIco='<svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>';
   const goIco='<span class="go"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>';
 
-  let rows=[], curF='all', loaded=false, emptyText='No sealed exams yet. They appear here when a student seals an exam in Bluebook.';
+  let rows=[], curF='all', loaded=false, emptyText='No sealed exams yet. They appear here when a student seals an exam in Collections.';
 
   function rowHTML(r){
     const reviewed=!!r.graded_at;
@@ -213,7 +213,7 @@
       ? '<span class="badge clear"><span class="d"></span>Reviewed'+(r.mark?'<span class="mk2">'+esc(r.mark)+'</span>':'')+'</span>'
       : '<span class="badge watch"><span class="d"></span>Awaiting review</span>';
     const date=fmtDate(r.created_at);
-    return '<a class="q-row" href="/bluebook/" title="Opens Bluebook">'+
+    return '<a class="q-row" href="/bluebook/" title="Opens Collections">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
       '<div class="when">'+esc(date||DASH)+(r.late?'<span class="late">Late</span>':'')+'</div>'+
@@ -250,10 +250,10 @@
     if(!loaded){
       rows=[];
       const off=state==='off';
-      note('v-await',off?'Bluebook is off':'Could not load sealed exams');
-      note('v-week',off?'Bluebook is off':'Could not load sealed exams');
-      $('sub').textContent=off?'Bluebook is off for this workspace, so there are no sealed exams here.':'Sealed exams could not be loaded just now. Try reloading the page.';
-      emptyText=off?'Bluebook is off for this workspace.':'Your sealed exams could not be loaded just now. Try reloading the page.';
+      note('v-await',off?'Collections is off':'Could not load sealed exams');
+      note('v-week',off?'Collections is off':'Could not load sealed exams');
+      $('sub').textContent=off?'Collections is off for this workspace, so there are no sealed exams here.':'Sealed exams could not be loaded just now. Try reloading the page.';
+      emptyText=off?'Collections is off for this workspace.':'Your sealed exams could not be loaded just now. Try reloading the page.';
       applyF();
       return;
     }

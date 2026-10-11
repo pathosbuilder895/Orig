@@ -52,7 +52,7 @@ function App() {
   const screen = t.currentScreen || autoScreen;
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
-    document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Bluebook' : 'Bluebook';
+    document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
   }, [screen]);
   // Read once at mount, alongside autoScreen and for the same reason: the
   // answer belongs to the launch, and a panel that could appear part-way
