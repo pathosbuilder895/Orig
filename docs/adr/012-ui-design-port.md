@@ -1,0 +1,178 @@
+# ADR-012: Port the navy design as the live Original UI
+
+**Status:** Accepted by owner in session 2026-10-09/10; open items listed below need owner decisions.
+**Date:** 2026-10-10
+**Deciders:** Andrew (product, copy, imagery, and what the live pages may claim)
+**Branch:** `claude/ui-design-port` (Bluebook restyle on `ui-design-port-bluebook`, not merged into it)
+**Relates to:** `docs/NORTH_STAR.md` rule 9 ("port its look, not its invented data"); PR #237 (the fictional navy demo under `demo/prototypes/navy/`, which the live pages start from); ADR-011 (public landing; this ADR reuses its claim-table format; ADR-011 lives on branch `claude/original-landing-integration-d19b53` and is still "Proposed"). Plan: `docs/superpowers/plans/2026-10-10-live-navy-suite.md`. Mockups: `docs/design/2026-10-mocks/`.
+
+Line numbers below are as of commit `336c8dfb` for `demo/original/**` (another agent was still editing those files when this was written, so they can drift by a few lines). Mock line numbers are stable: they point into the unchanged copies in `docs/design/2026-10-mocks/`, written `dashboard:236` for `original-dashboard.html` line 236.
+
+## Context
+
+### What was handed over
+
+On 2026-10-08 Claude Design delivered thirteen page mockups (the "Navy Suite"): an overview, a roster, a submissions queue, a per-student Writing State, a conversation packet, a voice baseline, reports, settings, two student pages (My Voice, My Work), a student Library, and restyles of the Bluebook teacher and student screens. NORTH_STAR rule 9 names the selected design as the visual reference for the teacher UI and says to port its look, not its invented data. On 2026-10-10 Andrew added: the live pages must look the same as the handoff, and the photographs ship now.
+
+The mockups are single static HTML files with inline CSS and JavaScript. Every number, name and date in them is invented, and several claims in them cannot be made by the system that exists. PR #237 produced a cleaned, labelled-fictional copy. This work turns that copy into pages that read the real API.
+
+### What the live system can and cannot say (verified on this branch)
+
+| # | Fact | Evidence |
+|---|---|---|
+| 1 | 109 features are defined; Tier 17 (behavioural) and Tier 18 (uniformity) are in `DISABLED_FEATURE_GROUPS`, so 97 are active | `original/constants.py:221`, `:400-403` |
+| 2 | A scoring response lists at most five "destructive" (differing) features and five "constructive" ones, so no count of differing habits exists | `original/quantum/scoring.py:444-445` |
+| 3 | Baseline readiness is the server's word: `ready` at 5 or more counted samples and 3 effective, `developing` at 2 or more, else `insufficient` | `original/routers/students.py:131-138` |
+| 4 | No reviewable analysis result is stored. Scoring writes a fidelity row, a context manifest and an audit row, but nothing a teacher can list, count or reopen: there is no `score_results` table, flags do not exist as stored data, and a Writing State result lives only in the browser | no match for `score_results` in `original/` or `alembic/`; plan Task 12; ADR-011 problem 8 |
+| 5 | Bluebook's own integrity readings (`stylometric`, `ai_score`, `status`) are computed in the student's browser and stored as sent | ADR-011 problem 4 (`Exam.jsx:506-524`, `bluebook.py:236-237`) |
+| 6 | `authorship_probability` and the AI-likelihood fields exist in the score response, are report-only, and the AI detector is off | `original/schemas.py:764`; CLAUDE.md flags table (`AI_LIKELIHOOD_ENABLED=0`) |
+| 7 | A student session can still POST its own baseline sample; it is downgraded to `unverified` (weight 0.5) and still counts toward `authenticated_count` | `original/routers/students_baseline.py:116`; `tests/test_baseline_provenance_authz.py:5-11`; `original/constants.py:690-695` |
+| 8 | The cold-start false-alarm test is red at small baselines (T-01) | `docs/testing/10-gap-register.md`; CLAUDE.md |
+
+## Decision
+
+1. **The mockups become the live Original UI**, as static pages under `demo/original/`, served at `/original/` by the existing static mount (`run.py:85` mounts `demo/`), reading existing API endpoints only. Live pages: `index.html` (Your classes), `students.html`, `submissions.html`, `writing-state.html`, `packet.html`, `baseline.html`, `reports.html`, `settings.html`, and for students `voice.html` and `my-work.html`. Every number is real API data or an honest empty state ("Appears once Original keeps analysis results"). No fictional banner appears on a live page.
+2. **Static HTML, not React.** Each page keeps the mockup's markup and CSS so it looks the same, and replaces only the fictional content and data. The reasons the plan and repo support: the look is exactly what the owner asked to preserve and the mockups are already static pages; a React page would need a committed bundle (Render has no Node, and CI byte-checks the Bluebook bundle); `demo/bluebook/**` is being changed by Codex Task C in parallel, so Original's pages stay out of that tree; and a static suite can be held to its rules by one contract test that reads every file (`tests/test_original_suite_static.py`). The Bluebook screens, which already are React, are restyled in React on their own branch.
+3. **One shared script, `demo/original/live.js`, exposes `window.Live`**, and pages fetch through `Live.api` only. It holds `api` (same-origin only, adds the bearer token), `session`, `roster` (the teacher's students with the server's readiness verdicts; at most six requests in flight, readiness for the first 60 students), `sealed` (one allowlisted loader for Bluebook's sealed exams, so `ai_score`, `stylometric` and `FLAGGED` can never reach a page), `gate` (sign-in, "Original is off", and the student audience), `notices`, `empty`, and `signOut` (clears tokens and every kept paper on this computer). The testing-phase label exists once, in `live.js` (`NOTICE` at line 49, `STUDENT_NOTICE` at line 54), and the contract test fails if it is written anywhere else.
+4. **`professor.html` stays**, linked as "Analysis (classic)" from every teacher account menu until the new pages cover it. Student pages' menu holds Sign out only.
+5. **Sign-in lands on `/original/`** (`demo/index.html:933`, and the demo "Professor" pill at `:737`). A workspace without Original sees "Original is off for this workspace" with a link to Bluebook.
+6. **The testing label** (NORTH_STAR rule 10) is shown on the views that show an Original result: the Writing State result, the conversation packet (on screen and in the print footer), and the student pages. Pages that show no score (Your classes, Students, Submissions, Reports, Settings, Voice Baseline) do not carry it.
+7. **Student check is compare-only.** `POST /me/work` no longer adds a student's piece to their baseline (NORTH_STAR rule 8). Commit `ebed644d`.
+8. **Bluebook's teacher and student screens are restyled to the same design** on `ui-design-port-bluebook`, keeping every behaviour, route and e2e selector, and removing the "Authenticity" score display.
+
+## Options considered
+
+- **A. Static pages under `demo/original/`** (chosen): same look, no build, one contract test, Original stays optional and separate from Bluebook.
+- **B. Build the pages as React screens inside Bluebook.** ADR-011 (Proposed) and NORTH_STAR milestone 3 describe Original reports living in the teacher workspace. This would put the design in the same bundle as Bluebook, but it multiplies the merge conflicts with Codex Task C, needs a rebuilt bundle on every edit, and ties Original's pages to a product that must work without it. Not chosen. The ledger records the choice, not a debate, so these reasons are inferred from CLAUDE.md and the plan. The tension with ADR-011 is recorded under Consequences.
+- **C. Re-theme `professor.html` only.** The first slice (branch `claude/original-navy-theme`, Tasks 1-5 approved, Task 6 unreviewed) is parked. It was parked when Andrew said the pages must look the same as the handoff, and a re-themed old page keeps the old layout. Not chosen; the old page is kept as "Analysis (classic)".
+- **D. Ship the mockups as a labelled fictional demo.** PR #237 did this for `demo/prototypes/navy/`. It does not serve a teacher who has real students, and NORTH_STAR rule 2 forbids invented numbers presented as real. Not chosen for the live suite.
+
+## What changed against the design, and why
+
+### 2026-10-10: claims reconciled with the code
+
+#### Overview and roster (dashboard, students, review)
+
+| Where | Design said | Code says | Page says |
+|---|---|---|---|
+| Overview heading | "Integrity Operations Center" (`dashboard:6`, `:236`) | Original supports a teacher's judgement and is a reason for a conversation (NORTH_STAR rule 1); audience is independent teachers | "Your classes" (`index.html:6`, `:243`) |
+| Overview stats | "Active flags" (`dashboard:215-216`, `:409`), "7 awaiting review" (`:239`), "Habits outside range of 103 measured" (`:396`) | No flag is stored (fact 4); `/students` returns a roster, `/bluebook/submissions` the sealed exams | "Students monitored" is the roster length (`index.html:217`); second stat is "Sealed exams to review", counted from sealed exams with no `graded_at` (`:222`) |
+| Overview trend | "Flag Rate" card, "last 6 weeks" (`dashboard:222`, data shape `:287-290`) | No flag rate exists | "Sealed exams per week", last 6 weeks, counted from `created_at` (`index.html:229`) |
+| Overview gauge | "Flag Sensitivity", "Set to Balanced, the department default" (`dashboard:203`) | No such setting exists; readiness is the server's verdict (fact 3) | "Baselines ready: N of M students have a ready baseline" (`index.html:210`) |
+| Overview table | "Recent Flags" with Status, Flagged and Deviation columns (`dashboard:239-241`) | Nothing to list until results are stored | "Students" table with approved samples and last sealed exam (`index.html:246-249`); empty line "Flags will appear here once Original keeps analysis results." (`:452`) |
+| Overview sentence | "N of M students are writing in their own voice ... each flag is a starting point" (`dashboard:352`) | A per-student reading is not stored, and "writing in their own voice" is a verdict about people (rule 1) | A sentence built only from the ready-baseline count and the sealed-exams-waiting count |
+| Overview shell | Notifications menu (`dashboard:188`) | No notification system exists | Removed |
+| Students header | "Spring 2026 · 4 courses · sorted by who needs attention" (`students:125`) | Courses come from Bluebook, and the page cannot know "who needs attention" | "N courses · sorted by baseline readiness" (courses omitted when Bluebook is off) |
+| Students strip and filters | "Flagged now" (`students:134`), "Flagged" chip (`:138`), "Writing like themselves" chip (`:140`) | No stored results; the second is a verdict | Strip: Enrolled, Baseline ready, Building baseline, No baseline yet, Sealed exams to review; chips All, Ready, Building, No baseline yet (`students.html:160-163`) |
+| Students columns | Deviation bars and percentages (`students:145`); `@sbts.edu` addresses (`:178`); "Last paper" | Deviation is not stored; the roster carries no invented domain; the date is a sealed exam's | "Deviation from their voice" shows "–" with the line "Deviation appears here once Original keeps analysis results." (`students.html:168`, `:173`); email only when Bluebook has one; "Last exam" |
+| Submissions | "3 papers want your eyes today - the rest read like the students who wrote them" (`review:119`), "31 of 38 papers this week read like the students who wrote them" (`:140`), chips "Reads differently", "Cleared", "Within baseline" (`:129-131`, `:155`), "Cleared this week" (`:125`) | Verdicts about authorship are forbidden (rules 1, 2); Bluebook's `ai_score`, `stylometric` and `status` come from the student's browser (fact 5) | Rows are sealed Bluebook exams from an allowlist of ten fields (`live.js:267`); status "Awaiting review" or "Reviewed"; "Reads very differently" and "Worth a look" say "Appears once Original keeps analysis results" (`submissions.html:148-149`) |
+
+#### Writing State and conversation packet (quantum, flagged)
+
+| Where | Design said | Code says | Page says |
+|---|---|---|---|
+| Feature counts | "all 17 tiers" (`quantum:279`), "DIMENSIONS · 103" (`:306`), "103-dimensional writing fingerprint" (`:336`), "19 of 103" (`:312`, `flagged:129`), "of 103 measured" (`dashboard:396`) | 109 defined, 97 active (fact 1) | "HABITS MEASURED · 97" (`writing-state.html:418`), "97 measured writing habits" (`:453`) |
+| Count of differing habits | "19 of 103 writing habits" differ, with per-family counts "6 habits look different" (`quantum:312`, `flagged:129`) | The server lists at most five (fact 2); a count would be invented | The habits named, up to five, in the server's order, no count: "The habits furthest from X's usual range in this paper are ..." (`writing-state.html:932`); packet title "Furthest from their usual range" (`packet.html:243`) |
+| Purity | "PURITY Tr(ρ²) · 0.297" shown openly (`quantum:307`); "How settled it is" ring (`baseline-voice:157`, `:174`) | Tr(ρ²) describes the baseline and does not produce the deviation number; small baselines give false alarms (T-01, fact 8) | Inside a `<details>` that says what it is and carries "Testing caveat (T-01): baselines of 3-5 samples produce false alarms; see docs/testing." (`writing-state.html:420-423`, `baseline.html:300`, `:316`); a contract test fails if `Tr(` appears outside `<details>` |
+| Evidence quotes | "Where it appears" tabs and highlighted sentence pairs (`quantum:327-330`, `:693`); "Side by side" in the packet (`flagged:134-152`) | A score response carries no text positions, so no quote can be located | This paper's value and the baseline value as numbers with one sentence each (`writing-state.html:446-447`); packet cards show the numbers (`packet.html:243`) |
+| AI wording | Tier 7 named "AI-Detection & Burstiness", blurb "smooth AI text" (`js/feature-data.js:88-89`); "AI text is often suspiciously even" (`:90`), "a flat arc can signal AI writing" (`:122`); "characteristic of generated prose, not of his voice" (`flagged:144`) | NORTH_STAR "Not doing now": claims to detect AI authorship, any authorship probability; the field exists but is report-only (fact 6). No mockup prints an "Authorship Probability" figure; the plan bans the phrase | Neutral descriptions (`demo/original/js/feature-data.js:94-100`); no suite file reads `authorship_probability`, `ai_likelihood`, `style_authorship`, `fused_score` or `typicality_` (pinned by `test_no_suite_file_reads_report_only_score_fields`) |
+| Tier 7 name | "AI-Detection & Burstiness" in the handoff; the first cleaning pass (#237) renamed it "Voice Authenticity" | Both read as verdict wording; "authentic" is a claim about the writer | "Natural Unevenness" (`demo/original/js/feature-data.js:94`; `writing-state.html` tooltips) |
+| Fingerprint | "Writing fingerprint · illustration" (#237); canvas drawn as if it were the student's | The print is the same for every student and is not drawn from ρ | "Writing fingerprint · decorative" (`writing-state.html:429`); baseline "an illustration, not a measurement" (`baseline.html:332`) |
+| Readout tag | "J. Whitfield · 0x4A7" (`quantum:305`) | A made-up hash | Name or id |
+| Triage | "Looks fine", "Have a conversation", "Escalate for review" (`quantum:315-317`) | `/submissions/{id}/correct` rewrites the fidelity row that feeds calibration (`original/routers/admin.py:275-286`). The Writing State build also reported that, with manifests off, "Looks fine" on a `no_action` result could be recorded as inauthentic, and that repeated analyses of one student shared a submission id (reported by the build, not re-verified here) | "Escalate" removed. The other two write a note on this computer only, in the same shape `professor.html` uses, and say so: "Kept on this computer only, for now." (`writing-state.html:433-436`) |
+| Packet case record | "Case AI-2026-014", "Prepared for Dr. R. Hendricks", "29 July 2026" (`flagged:121`, `:188`); footer "stylometric authorship analysis" | There is no case system; names are fictional | No case number; blank "Teacher signature · date" and "Outcome of the conversation" lines (`packet.html:270-271`); footer "Original · writing-consistency report" (`:273`) |
+| Packet advice | "every comparison sample was authenticated" (`flagged:155`); "Offer a path back: a supervised rewrite of one section banks a fresh baseline sample and can close the case." (`:174`) | Sealing adds nothing; only teacher-approved writing joins a baseline and approvals can be undone (rule 8); no case to close | Samples listed with provenance in plain words (Proctored exam, Teacher verified, Imported, Not verified); "Offer a way to add reference writing: a supervised piece in Bluebook, which you can approve as part of their baseline if it helps." (`packet.html:259`); "This is a starting point, not a verdict." (`:234`) |
+
+#### Voice baseline, reports, settings (baseline-voice, reports, settings)
+
+| Where | Design said | Code says | Page says |
+|---|---|---|---|
+| Baseline wording | "3 authenticated samples" (`baseline-voice:147`, `:219`), "three authenticated papers" (`:195`) | `authenticated_count` counts every sample with weight above zero, including student uploads at 0.5 (fact 7) | "teacher-approved sample" (`baseline.html:559`) and "student upload" counted apart (`:511`) |
+| Baseline story | "James writes the way he talks through a problem ..." (`baseline-voice:195`); "give him credit for that growth" (`:226`) | No source for narrative text | No prose without a source: readiness verdict in plain words, counts, and per-tier means of the baseline vector under "Signature habits" (`baseline.html:348`) |
+| Adding writing | "Add the fourth sample: run a Bluebook session ... banks an authenticated baseline for the whole class" (`baseline-voice:229`) | Sealing adds nothing automatically; a teacher approves each exam and can undo it (rule 8) | "A sealed exam joins this baseline only when you approve it, and you can take it out again." (`baseline.html:371`); Approve and Undo call Bluebook's baseline approve and undo endpoints |
+| Reports headline | "94% of papers read like the students who wrote them, steady across all 18 weeks" (`reports:129`, `:190`), KPI "Read as authentic 94%" (`:142`), "91% of your students are ready" (`:173`) | No results are stored (fact 4); a percentage of authentic papers is a verdict and an unsupported precision (rules 1, 2) | Counts only: "N of M students have a ready baseline. K sealed exams are waiting for your review." (`reports.html:357`, `:363`); "Papers analyzed" and "Within their usual range" show "–" and "Appears once Original keeps analysis results" (`:184-185`); "By assignment type" is empty (`:499`) |
+| Settings sensitivity | "Flag Sensitivity", "Your department set Balanced as the default" (`settings:92-99`) | No sensitivity setting exists in the code, and there are no stored flags for it to filter | Removed; "Change password" takes its slot (`settings.html:120`) |
+| Settings connections | Canvas "Connected", Blackboard "Not used at this institution" (`settings:104-105`) | Canvas/LTI is deferred and not configured in the pilot (NORTH_STAR "Not doing now") | Removed; "Your courses" comes from Bluebook (`settings.html:139`); "The demo has no account" (`:186`) |
+| Department framing | "the department default" (`dashboard:203`), "@sbts.edu" (`students:178`), "THEO 301 · Spring 2026" (`my-work:131`), "Dr. Hendricks" | Audience this phase is independent teachers (NORTH_STAR); fictional names must be labelled | No institution, department, term or course code unless it comes from the teacher's own Bluebook courses |
+
+#### Student pages and Bluebook (voice, my-work, library, bluebook-teacher, bluebook-student)
+
+| Where | Design said | Code says | Page says |
+|---|---|---|---|
+| My Voice source line | "portrait drawn from 3 authenticated pieces of your own writing" (`voice:215`) | The profile can hold student uploads; "authenticated" overstates | "portrait drawn from the writing on file in your profile" (`voice.html:483`) |
+| Habit counts | "34 habits", "9 of 34 habits recognised", "34 habits recognised" at the centre of the term timeline (`my-work:173`, `:191`, `:211`; `voice:254`) | `GET /me/voice` returns seven blended dimensions; no count of recognised habits exists | No habit count; seven threads whose length is the real value |
+| Term timeline and lineage | A "Your voice, over the term" timeline (`voice:250-258`), and "Writers closest to you" with 81%, 74% and 38% matches to named authors (`voice:463-470`), linking to the Library | NORTH_STAR "Not doing now": "My Voice" longitudinal graphics, writer-similarity percentages; no endpoint | Left out of `voice.html`; no Library link |
+| Keystroke data | "Typing rhythm from Bluebook sessions - pace and pauses, as numbers." (`voice:304`); "Your typing rhythm strengthens your baseline" (`bluebook-student:130`); "Typing rhythm is recorded to strengthen each student's baseline" (`bluebook-teacher:170`); Tier 17 | NORTH_STAR rule 6: no keystroke data is collected, stored or scored; Tier 17 is disabled (fact 1) | "Never kept: How you type: no key-by-key timing is ever recorded." (`voice.html` "Never kept" list); Bluebook capture note "Bluebook saves your words and a few session facts (time, word count, pastes, leaving the window). Your screen is never watched." (`Exam.jsx`, restyle branch) |
+| Sealing and baselines | "Every finished booklet becomes an authenticated baseline sample" (`bluebook-teacher:135`), "This essay now strengthens your authorship baseline" (`bluebook-student:148`), "strong enough to vouch for a student" (`bluebook-teacher:204`) | Sealing adds nothing; only approved writing counts (rule 8); T-01 is red at small baselines | The restyle's setup note lists the session facts Bluebook keeps and makes no baseline claim; with Original on, the briefing and sealed screen say "Your teacher may choose to add this to your writing profile" (`Exam.jsx`, restyle branch) |
+| Bluebook "Authenticity" | Not in the mockups; the existing Results screen shows an "Authenticity" column and score block from `aiScore` (`Results.jsx:262`, `:400` on this branch) | `aiScore` is computed in the student's browser (fact 5) | Removed on the restyle branch ("Session details"; `FLAGGED` shown as "worth a look"; stored values unchanged) |
+| My Work baseline | Each piece "part of your portrait", "Role: baseline sample", "Reads as your voice: clearly" (`my-work:209-228`, `:191`) | Until `ebed644d`, `/me/work` added every submission to the student's baseline, against rule 8; My Work cannot add anything now | "Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile." (`my-work.html:164`, `:181`; `original/voice.py:371-374`); "In your writing profile: Not added" (`my-work.html:220`). The plan's first sentence, "Your teacher may choose to add this to your writing profile.", was retired in `21943039` because My Work cannot do that; it stays only on the Bluebook booklet |
+| My Work highlights | Phrase-level marks and a "Highlight my habits" toggle (`my-work:139`, `:153`) | No text positions exist (fact 2 and the Writing State row) | Removed; the result is the server's headline, summary and "Held steady" list |
+| Student label | None in the handoff (the #237 cleaning added the sentence) | Rule 10: students must be told their sealed work may be used as reference writing | `STUDENT_NOTICE` (`live.js:54`) on both student pages (`voice.html:195`, `my-work.html:140`) |
+| Library | A student Library page (`original-library.html`) | Not decided by the code; the ledger records the decision, not a reason | Skipped by owner decision 2026-10-10; nothing links to it |
+
+#### Shell, fonts and look
+
+| Where | Design said | Code says | Page says |
+|---|---|---|---|
+| Fonts | Google Fonts links (`<head>` of every mockup) and JetBrains Mono | NORTH_STAR rule 7: no third-party fonts or telemetry; the contract test bans external requests | Self-hosted from `../bluebook/fonts.css` plus `demo/original/fonts.css` (IBM Plex Mono 700, Caveat), each with its OFL file |
+| Fictional banner | The #237 copy carried a "fictional" ribbon | The live pages are real | None |
+
+### Imagery
+
+NORTH_STAR says no unlicensed images and no AI-generated images credited as historical art, and ADR-011 removed three images on those grounds. The owner decided on 2026-10-10 to ship the handoff images as they are, with no licence on record. Every image has a row in `demo/original/assets/CREDITS.md`, none carries an invented credit line, and the contract test fails if a file lacks a row.
+
+| File | Page | Notes |
+|---|---|---|
+| `radcliffe-night-stars.jpeg` | `index.html`, `baseline.html` | A caption is printed inside the photograph: "Sarah Savić Kallesøe \| Oxford by Night", visible at about 480 px. Recorded verbatim in CREDITS.md. The owner is asking the photographer for permission. |
+| `radcliffe-observatory-watercolour.jpg` | `writing-state.html` | A signed watercolour with a handwritten inscription (as read: July 1953, Oxford, signature "Methuen"). Likely still in copyright. |
+| `all-souls-engraving-wide.jpg` | `voice.html` | Appears to be AI-generated in an engraving style. Shipped with an empty `alt` and never described as a historical engraving. Replace it when a genuine scan is found. |
+| `white-stag.jpg` | `my-work.html` | Origin unknown; looks like a photograph with a painterly effect. |
+| `st-andrews-quad.jpg`, `gonville-caius-facade.jpg`, `radcliffe-interior.avif` | `students`, `reports`, `submissions` | No licence on record. The build saw no printed caption on `st-andrews-quad.jpg`; the other two were not checked for one. The first two are re-encoded to JPEG to fit the 700 KB commit limit. |
+
+Not shipped under `/original/`: `long-room-library.png` (only the skipped Library used it). `codrington-library.jpeg` is used by the Bluebook restyle branch; its credit is that branch's concern.
+
+## Owner decisions recorded
+
+| Date | Decision | Where it shows |
+|---|---|---|
+| 2026-10-09 | `POST /me/work` becomes compare-only (the student's piece is no longer added to their baseline) | commit `ebed644d`; `original/routers/me.py`; `original/voice.py` |
+| 2026-10-09 | A stored-results backend ("Task 12": `score_results` table, tenant-scoped list/overview/review endpoints, deletion coverage, the corrections-bug fix) is approved but not built | plan Task 12; no `score_results` in the code |
+| 2026-10-10 | The live pages must look the same as the handoff | plan "Look" constraint |
+| 2026-10-10 | Ship the handoff photographs without licences on record; keep the Radcliffe photo and record its printed caption while Andrew asks the photographer; record that the watercolour is signed and dated 1953; record that the All Souls engraving appears AI-generated | `demo/original/assets/CREDITS.md` |
+| 2026-10-10 | Sign-in lands on `/original/` now; the old page stays linked as "Analysis (classic)" | `demo/index.html:933`; every teacher account menu |
+| 2026-10-10 | Bluebook teacher and student screens are restyled now, in this effort, accepting merge conflicts with Codex Task C | branch `ui-design-port-bluebook` (restyle commits `30643dae`, `cdbd4724`, `d5fdef86` as of 2026-10-10; the branch history was still being reorganised) |
+| 2026-10-10 | The Library page is skipped | no `library.html`; nothing links to it |
+
+Build decisions taken by the controller during the work, which the owner can reverse: "ready" is the server's readiness verdict, not a rule in the page; no count of differing habits, because the server lists five at most; triage buttons write local notes until Task 12; the My Work sentence is the compare-only one above; Tier 7 is called "Natural Unevenness".
+
+## Open owner decisions
+
+Items 1, 2, 3, 6 and 7 are the progress ledger's "OWNER DECISIONS TO RAISE". Items 4 and 5 come from the Bluebook restyle task's notes.
+
+1. **Students can still POST their own unverified baseline samples** (`POST /students/{own}/baseline`, `students_baseline.py:116`). NORTH_STAR rule 8 says only teacher-approved writing becomes a baseline, but the server accepts these at weight 0.5 and `tests/test_baseline_provenance_authz.py` pins the behaviour. `student-coach.html` uses it. Until students are refused here, the My Work sentence "Only writing your teacher approves ... joins your writing profile" is true of every route the new pages use but not of the API, and `ready`, "Voice Sampled" and "Voice Affirmed" can be reached on student uploads. `baseline.html` already counts them apart ("teacher-approved sample" and "student upload").
+2. **Teacher correction notes are shown to students.** The note a teacher types in `professor.html`'s "Why is the original verdict wrong?" form is returned in `/me/voice` as `voice_notes` and shown to the student under "From your teacher". Decide whether a correction note should ever reach the student, or whether notes need a separate student-facing field.
+3. **`/me/voice` still sends fidelity values to student browsers** (`subhead`, `arc`, `review_opportunities`; hidden in the UI, readable in the network tab), and the portrait headline is derived from the fidelity trend ("strengthened across this term"). A student can be told, indirectly, that their writing moved. Decide whether to strip the fields and decouple the headline.
+4. **The Bluebook Results correction form asks about a hidden verdict.** The Examiner's Correction form still asks Correct/Incorrect with authentic/uncertain/anomalous for a score the restyle now hides; the wording is pinned by e2e. Decide whether to retire the form until stored results return.
+5. **Docs drift left for their owners:** `docs/PROFESSOR_QUICKSTART.md:59`, `docs/DAY_ONE_CLASS.md` and `docs/PILOT_SMOKE_TEST.md` quote the removed "Authenticity" and "Integrity Analysis" labels; `docs/OWNERS_MANUAL.md:68` says `professor.html` greets a teacher after sign-in. This ADR does not edit them.
+6. **Old student pages still say writing is added to a "formation record"**: `demo/student.html:745` ("added to your formation record") and `demo/student-coach.html:123` ("Saved to your formation record"). The ledger also lists `demo/_components/help-hint.js` and `demo/_tour/tour-content.json` (not re-checked), and `demo/app/Portal.jsx` shows a "Formation track". For `/me/work` that is now false.
+7. **`/me/work` self-checks still write a fidelity row** (which feeds that student's own calibration set) **and a staff-readable audit row**, through `score_submission`. The page says only that the result of the comparison is kept. Task 12 is the place to decide.
+
+Also open, smaller: the printed Radcliffe caption and the 1953 watercolour need a licence or replacement; the Bluebook pill still reads "Original Analysis" although it now opens the overview; unlicensed and AI-made images reverse the imagery policy ADR-011 applied to the landing page.
+
+## Consequences
+
+- **Easier:** a teacher signs in and lands on pages that look like the approved design, show only what the system knows, and say so where it does not. A contract test (`tests/test_original_suite_static.py`) holds every page to no third-party requests, no retired copy, the testing label in one place, resolving links, credited images and no em dash. The mockups are kept for reference without being served.
+- **Harder:** two Original UIs exist until `professor.html` is retired, and its portfolio (localStorage) is the only place analysis history lives. Static pages repeat their shell markup (nav, account menu) per page. The look follows the mockups, so copy changes must be checked against `docs/NORTH_STAR.md` each time.
+- **Tension to resolve:** ADR-011 (Proposed) and NORTH_STAR milestone 3 describe Original reports living in the Bluebook teacher workspace. The suite lives at `/original/`, reached from sign-in and from a pill in Bluebook. The owner chose this on 2026-10-10; revisit if Original is later embedded in Bluebook.
+- **Known limits:** with more than 60 students, readiness is not checked beyond the 60th ("Readiness was not checked for N"); "Add student" and sealed-exam rows open `/bluebook/` because Bluebook has no address for a single roster or exam; Writing State takes pasted text or `.txt` only (`.docx`/`.pdf` extraction is server-side on the old page); as of Task 10 nothing links a student to `voice.html`; `/original/` sends `Last-Modified`/`ETag` without `Cache-Control`, so a browser can briefly pair a new page with an old `live.js` (it fails safe, into an error state).
+- **What Task 12 (stored analysis results) will change:** analyses will be stored server-side per tenant, so the flag cards come back on Your classes, Submissions and Reports ("Flags will appear here once Original keeps analysis results" goes away); the Deviation columns and "Papers analyzed", "Within their usual range" and "By assignment type" fill in; Writing State can reopen a past result; triage notes move from the browser to the server; the packet stops depending on `sessionStorage`; the browser copy of kept papers stops being the only record. Any returning number must still pass the rules that removed it: counts of observations, never a percentage of authentic papers, "inconclusive" when the baseline is thin, and the testing label. Task 12 needs its own spec and plan before code; it also settles open decisions 2, 3 and 7.
+
+## Action items
+
+1. [ ] Andrew: decide open items 1-7 above. Item 1 gates the truth of the My Work sentence.
+2. [ ] Andrew: confirm or replace the unlicensed images. Ask the Radcliffe photographer (in progress); find a licensed or genuine scan for the All Souls engraving and the 1953 watercolour; or update NORTH_STAR's imagery rule to match the 2026-10-10 decision.
+3. [ ] Merge `ui-design-port-bluebook` after resolving conflicts with Codex Task C; rebuild `bluebook.bundle.js` and `teacher-demo.bundle.js` on the merged result.
+4. [ ] Add cache-busting (`?v=`) to `live.js` and `feature-data.js`, or `Cache-Control: no-cache` on `/original/`.
+5. [ ] Write the Task 12 spec and plan (stored analysis results), then retire `professor.html` and the "Analysis (classic)" link.
+6. [ ] Update the quickstart, day-one and smoke-test docs and `OWNERS_MANUAL.md:68` (open item 5), and the old student pages (open item 6).
+7. [ ] Decide the Bluebook pill label ("Original Analysis" or "Original") and give a student a link to `voice.html` from Bluebook's student home.
