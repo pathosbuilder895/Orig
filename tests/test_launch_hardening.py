@@ -247,6 +247,46 @@ def test_oversize_request_is_413_through_the_app(live_client):
     assert r.status_code == 413
 
 
+# Starlette spools each uploaded file into a SpooledTemporaryFile that rolls
+# over to a real temp file on local disk past MultiPartParser.spool_max_size
+# (1 MB by default). Student papers must stay off the container's disk
+# (NORTH_STAR rule 7), so every upload the body cap admits must stay in memory.
+
+
+def test_spool_ceiling_covers_every_body_the_cap_admits(live_app):
+    from starlette.formparsers import MultiPartParser
+
+    from original import body_limit
+
+    assert MultiPartParser.spool_max_size >= body_limit.MAX_REQUEST_BYTES
+
+
+def test_upload_over_1mb_never_touches_disk(live_client, monkeypatch):
+    import io
+    import tempfile
+
+    # SpooledTemporaryFile.rollover() creates its on-disk file through this
+    # module global, so any rollover during the request shows up here.
+    real_temporary_file = tempfile.TemporaryFile
+    created = []
+
+    def spy(*args, **kwargs):
+        created.append(kwargs)
+        return real_temporary_file(*args, **kwargs)
+
+    monkeypatch.setattr(tempfile, "TemporaryFile", spy)
+
+    paper = b"word " * (2 * 1024 * 1024 // 5)  # 2 MB, over Starlette's 1 MB spool
+    r = live_client.post(
+        "/students/spool-check/upload",
+        files={"file": ("paper.txt", io.BytesIO(paper), "text/plain")},
+    )
+
+    assert r.status_code == 200, r.text
+    assert r.json()["word_count"] == len(paper.split())
+    assert created == [], "the upload was rolled over to a temp file on disk"
+
+
 # ── API docs ──────────────────────────────────────────────────────────────────
 
 
