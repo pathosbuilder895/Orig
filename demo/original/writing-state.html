@@ -292,6 +292,7 @@
   .an-done{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
   .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
   .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .an-done .d .an-restored{display:block;font-style:italic;font-size:.78rem;color:var(--dim);margin-top:.15rem;}
   .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
   .an-again:hover{color:var(--cream);border-color:var(--line);}
   /* Purity, inside a details block with its caveat */
@@ -381,7 +382,7 @@
           </div>
         </form>
         <div class="an-done" id="an-done" hidden>
-          <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span></div>
+          <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span><span class="an-restored" id="an-restored" hidden>Showing your last analysis of this paper.</span></div>
           <button class="an-again" id="an-again" type="button">Analyse another</button>
         </div>
       </div>
@@ -1077,7 +1078,7 @@
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
-    else { note(thinNote()); setCard('form'); }
+    else if(!restoreLast()){ note(thinNote()); setCard('form'); }
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
@@ -1088,11 +1089,14 @@
         if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
         if(!S.stErr&&hasBaseline()) note(thinNote());
         if(!hasBaseline()&&!S.stErr) notEnough();
+        // A note already chosen names the student: say it with the roster's name.
+        const chosen=document.querySelector('.triage button.tri-btn.sel');
+        if(S.result&&chosen) showTriage(chosen.dataset.act,chosen);
       }
     }catch(e){ /* the id stays as the name */ }
   }
 
-  function setResult(d,assignment,words){
+  function setResult(d,assignment,words,analysedAt){
     S.result=d;
     S.sub=(d.feature_vector&&typeof d.feature_vector==='object')?d.feature_vector:null;
     if(d.baseline_vector&&typeof d.baseline_vector==='object') S.base=d.baseline_vector;
@@ -1102,7 +1106,7 @@
     S.D=new Map(); S.C=new Map();
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
-    S.assignment=assignment; S.words=words; S.analysedAt=new Date().toISOString();
+    S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
   }
 
   async function analyse(e){
@@ -1126,9 +1130,13 @@
       renderAll();
       $('an-done-t').textContent=assignment||'Untitled paper';
       $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+      $('an-restored').hidden=true;
       note(thinNote()); setCard('done');
       $('tri-done').textContent=''; $('tri-done').classList.remove('err');
       document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+      // Kept for this tab as soon as it exists, so the packet, the Voice
+      // baseline link and the browser's Back button all find it again.
+      storeForPacket();
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
       return;
     }
@@ -1192,6 +1200,12 @@
       done.textContent='This note could not be kept: this browser is not storing data for the page.';
       return;
     }
+    showTriage(act,btn);
+  }
+  // The note's wording and the marked button, for a choice just made or one
+  // already kept with the analysis being shown again.
+  function showTriage(act,btn){
+    const done=$('tri-done');
     done.classList.remove('err');
     document.querySelectorAll('.triage button.tri-btn').forEach(x=>x.classList.toggle('sel',x===btn));
     done.textContent=act==='fine'?'Recorded: looks fine.':'Recorded: you plan to talk with '+who()+'.';
@@ -1206,7 +1220,7 @@
     const bc=r.baseline_confidence||{};
     const keep={
       kind:'original_writing_state', version:1,
-      student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words,
+      student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
       habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
       summary:$('plain-read').textContent,
       result:{
@@ -1218,6 +1232,53 @@
       }
     };
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
+  }
+
+  // ── coming back to an analysis ──
+  // The record above is also how this page shows the last analysis again: Back
+  // from the packet or from the Voice baseline, or a reload, finds the reading,
+  // the note already chosen and the pasted paper where they were. It is data
+  // from storage, so it is shape-checked, and it is used only for the student
+  // in the address, never for another.
+  function lastRecord(raw,id){
+    if(!raw||!id) return null;
+    let d; try{ d=JSON.parse(raw); }catch(e){ return null; }
+    if(!d||typeof d!=='object'||d.kind!=='original_writing_state'||d.version!==1||d.student_id!==id) return null;
+    const r=d.result;
+    if(!r||typeof r!=='object'||!r.feature_vector||typeof r.feature_vector!=='object'||!r.baseline_vector||typeof r.baseline_vector!=='object') return null;
+    return d;
+  }
+  // The kept paper (text and note) the record points at, or null.
+  function keptEntry(entries,rec){
+    const id=(typeof rec.entry_id==='string'&&rec.entry_id)||(typeof rec.result.submission_id==='string'?rec.result.submission_id:'');
+    return id?(entries.find(h=>h&&typeof h==='object'&&h.id===id)||null):null;
+  }
+  function restoreLast(){
+    let raw=null;
+    try{ raw=window.sessionStorage.getItem('original_last_result'); }catch(e){ return false; }
+    const rec=lastRecord(raw,S.id);
+    if(!rec) return false;
+    const entry=keptEntry(readPortfolio(),rec);
+    const assignment=typeof rec.assignment==='string'?rec.assignment.slice(0,200):'';
+    const at=typeof rec.analysed_at==='string'&&!isNaN(Date.parse(rec.analysed_at))?rec.analysed_at:'';
+    if(typeof rec.student_name==='string'&&rec.student_name.trim()) S.name=rec.student_name.trim();
+    setResult(rec.result,assignment,num(rec.word_count)||0,at);
+    S.entryId=entry?entry.id:'';
+    $('an-assign').value=assignment;
+    $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
+    updateWords();
+    setView('submission',true);
+    renderAll();
+    $('an-done-t').textContent=assignment||'Untitled paper';
+    $('an-done-s').textContent=plural(S.words,'word')+(at?' · analysed '+new Date(at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'');
+    $('an-restored').hidden=false;
+    note(thinNote()); setCard('done');
+    $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+    document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+    const kept=entry&&entry.professorAction&&typeof entry.professorAction==='object'?entry.professorAction.action:'';
+    const act=kept==='no_action'?'fine':(kept==='schedule_conversation'?'talk':'');
+    if(act) showTriage(act,document.querySelector('.triage button.tri-btn[data-act="'+act+'"]'));
+    return true;
   }
 
   function start(){
