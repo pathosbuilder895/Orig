@@ -2322,6 +2322,16 @@ def test_baseline_page_shows_purity_only_inside_a_details_block_with_the_t01_cav
     assert "Lowest possible" not in _baseline_page() and "pur-floor" not in _baseline_page()
 
 
+def test_worth_a_look_means_one_thing_in_the_suite():
+    # "Worth a look" is Original's mark on a sealed exam. The note a teacher reads about a
+    # sealed exam's session facts before approving it is not that mark, so it says something else.
+    page = _baseline_page()
+    assert "Before approving, note: " in page
+    assert "Worth a look before approving" not in page
+    used = {p.name for p in _code_files() if re.search(r"worth a look", p.read_text(encoding="utf-8"), re.IGNORECASE)}
+    assert used == {"submissions.html"}
+
+
 def test_baseline_page_carries_no_testing_label_because_it_shows_no_score():
     assert "data-testing-notice" not in _baseline_page()
 

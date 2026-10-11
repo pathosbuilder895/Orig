@@ -259,10 +259,28 @@ const STATUS_MAP = {
   LINK:        { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
 };
 
+// ─── The "worth a look" mark and Original's testing-phase label ─────────────
+// "Worth a look" is an Original result (a sealed exam compared with the writing
+// in the student's baseline), so wherever a teacher can see it the screen must
+// say plainly that Original is in its testing phase (NORTH_STAR rule 10). The
+// sentence is the one the Original suite shows (demo/original/live.js, NOTICE);
+// a test pins the two together. A tooltip is not enough: a screen that shows the
+// mark (this badge, a count, a filter, a row) renders <WorthALookNote /> once.
+export const ORIGINAL_TESTING_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.';
+export const WORTH_A_LOOK_SOURCE = "Worth a look: marked by Original's comparison with the writing in each student's baseline.";
+// Styled by `.bb-hint` (inside a .bb-page screen); a screen laid out in inline
+// styles passes `style`.
+export function WorthALookNote({ style }) {
+  return (
+    <p className="bb-hint" style={{ margin: '0 0 .8rem', ...style }}>{WORTH_A_LOOK_SOURCE} {ORIGINAL_TESTING_NOTICE}</p>
+  );
+}
+
 export function StatusBadge({ status, pulse = false }) {
   const s = STATUS_MAP[(status || '').toUpperCase()] || STATUS_MAP.DRAFT;
+  const flagged = (status || '').toUpperCase() === 'FLAGGED';
   return (
-    <span style={{
+    <span title={flagged ? `${WORTH_A_LOOK_SOURCE} ${ORIGINAL_TESTING_NOTICE}` : undefined} style={{
       fontFamily: fontMono,
       fontSize: 9,
       letterSpacing: '0.18em',
@@ -283,7 +301,7 @@ export function StatusBadge({ status, pulse = false }) {
           flexShrink: 0,
         }} />
       )}
-      {(status || '').toUpperCase() === 'FLAGGED' ? 'worth a look' : (status || '').toLowerCase().replace(/_/g, ' ')}
+      {flagged ? 'worth a look' : (status || '').toLowerCase().replace(/_/g, ' ')}
     </span>
   );
 }

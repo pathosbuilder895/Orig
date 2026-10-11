@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB_API, rowKeyDown } from './components.jsx';
+import { BB_API, ORIGINAL_TESTING_NOTICE, WorthALookNote, rowKeyDown } from './components.jsx';
 import { Badge, Btn, Page, Stat } from './forms.jsx';
 import { AllSubmissionsScreen } from './Teacher.jsx';
 
@@ -49,7 +49,7 @@ function ExpandedRow({ result, onClose }) {
         <div>
           <span className="bb-label">Session details</span>
           {result.status === 'FLAGGED' && (
-            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with the writing in this student's baseline.</p>
+            <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Marked by Original's comparison with the writing in this student's baseline. {ORIGINAL_TESTING_NOTICE}</p>
           )}
           <div className="bb-facts">
             {[
@@ -123,9 +123,9 @@ function ScoredResultsScreen({ onNavigate }) {
         <Stat value={counts.reviewed} label="Reviewed" />
       </div>
 
-      {counts.flagged > 0 && (
-        <p className="bb-hint" style={{ margin: '0 0 .8rem' }}>Worth a look: marked by Original's comparison with the writing in each student's baseline.</p>
-      )}
+      {/* This screen shows Original's mark (a count, a filter, a status), so it
+          always says what the mark is and that Original is in testing. */}
+      <WorthALookNote />
 
       <div className="bb-filter" role="group" aria-label="Show submissions">
         {[['all','All'],['SUBMITTED','Submitted'],['FLAGGED','Worth a look'],['REVIEWED','Reviewed']].map(([val,label]) => (

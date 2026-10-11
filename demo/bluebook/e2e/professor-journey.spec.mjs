@@ -315,6 +315,15 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // table shows a dash for it, never a literal "null%".
     expect(journey.submission.stylometric ?? null).toBeNull()
     await expect(staffPage.getByText('null%')).toHaveCount(0)
+    // The "worth a look" count and filter are Original's mark, so the screen says
+    // what the mark is and that Original is in testing (NORTH_STAR rule 10), once.
+    await expect(staffPage.getByText(
+      "Worth a look: marked by Original's comparison with the writing in each student's baseline.",
+    )).toHaveCount(1)
+    await expect(staffPage.getByText(
+      'Testing phase: Original is not yet validated on real student writing. '
+      + 'Treat any result as a reason for a conversation, never as evidence.',
+    )).toHaveCount(1)
   })
 
   // ── 8 ────────────────────────────────────────────────────────────────

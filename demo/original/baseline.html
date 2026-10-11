@@ -845,7 +845,7 @@
       const meta=[fmtDate(m.created), m.course].filter(Boolean).join(' · ');
       let look='';
       const why=[]; if(m.late) why.push('sealed late'); if(m.warns) why.push(plural(m.warns,'lockdown warning'));
-      if(why.length) look='<div class="ex-look">Worth a look before approving: '+esc(why.join(', '))+'.</div>';
+      if(why.length) look='<div class="ex-look">Before approving, note: '+esc(why.join(', '))+'.</div>';
       let st, btns='';
       if(m.has_text===false){ st='<span class="st off"><span class="d"></span>Nothing written</span>'; }
       else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }

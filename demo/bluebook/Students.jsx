@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
+import { BB, BB_API, GoldRule, MetaLabel, StatusBadge, WorthALookNote, fontBody, fontDisplay, fontMono, rowKeyDown } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Students Screen
@@ -95,7 +95,9 @@ export function StudentsScreen({ onNavigate }) {
           ))}
         </div>
       </div>
-      <GoldRule double style={{ margin:'20px 0 36px' }} />
+      <GoldRule double style={{ margin:'20px 0 20px' }} />
+      {/* The "worth a look" count, filter and badge are Original's mark: say what it is, once. */}
+      <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:14, lineHeight:1.5 }} />
 
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 120px 80px 120px 80px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>
