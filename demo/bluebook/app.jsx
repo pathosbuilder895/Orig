@@ -16,6 +16,7 @@ import {
 } from './Teacher.jsx';
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
+import { DEEP_LINK_SCREEN, clearDeepLink, deepLinkScreen, parseDeepLink } from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -33,7 +34,14 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const navigate = (screen) => setTweak('currentScreen', screen);
+  // Moving to another screen drops a deep-link hash (deep-link.jsx), so the
+  // address bar never names an exam the teacher has left.
+  const navigate = (screen) => { clearDeepLink(); setTweak('currentScreen', screen); };
+  // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
+  // on a signed-in teacher's dashboard: straight away for a teacher who is
+  // already signed in, after sign-in for one who is not, and never for a
+  // student, whose screens ignore it.
+  const [deepLink, setDeepLink] = useState(() => parseDeepLink(window.location.hash));
   // Auth-gated entry, in priority order: an invite link → set password; a
   // bound student launch → briefing; a student account → their exams; a
   // signed-in teacher → dashboard; otherwise the public landing.
@@ -50,6 +58,39 @@ function App() {
     return 'landing';
   });
   const screen = t.currentScreen || autoScreen;
+  const teacherHome = screen === 'dashboard' && BB_API.isAuthed()
+    && !BB_API.isStudentLaunch() && !BB_API.isStudentAccount();
+  // A link followed while the app is already open (same page, new hash).
+  React.useEffect(() => {
+    const onHash = () => {
+      const link = parseDeepLink(window.location.hash);
+      if (!link) return;
+      setDeepLink(link);
+      if (BB_API.isAuthed() && !BB_API.isStudentLaunch() && !BB_API.isStudentAccount()) {
+        setTweak('currentScreen', 'dashboard');
+      }
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  // Open the linked exam only once the server says this teacher may see it.
+  // A 404 (unknown id) or 403 (another workspace's) leaves the dashboard as
+  // it is, with no error, and drops the hash.
+  React.useEffect(() => {
+    if (!deepLink || !teacherHome) return undefined;
+    let live = true;
+    BB_API.getExam(deepLink.id).then(exam => {
+      if (!live) return;
+      setDeepLink(null);
+      if (exam && exam.id === deepLink.id) setTweak('currentScreen', deepLinkScreen(deepLink, exam));
+      else clearDeepLink();
+    }).catch(() => {
+      if (!live) return;
+      setDeepLink(null);
+      clearDeepLink();
+    });
+    return () => { live = false; };
+  }, [deepLink, teacherHome]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Bluebook' : 'Bluebook';
@@ -67,6 +108,16 @@ function App() {
       break;
     case 'sessions':
     case 'dashboard':
+      // While a deep link is being checked, say so instead of flashing the
+      // dashboard first.
+      if (deepLink && teacherHome) {
+        content = (
+          <DashboardLayout activeScreen={DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'exams'} onNavigate={navigate}>
+            <div className="bb-page"><p role="status" className="bb-meta">Opening the examination…</p></div>
+          </DashboardLayout>
+        );
+        break;
+      }
       content = (
         <DashboardLayout activeScreen={screen} onNavigate={navigate}>
           <LiveTeacherSessions onNavigate={navigate} overview={screen === 'dashboard'} />
