@@ -33,7 +33,7 @@
     },
     milestones: {
       title: 'Formation milestones',
-      body:  'Named milestones in your formation record — Voice Sampled (your first piece is on file), Voice Established (enough on file to recognise your patterns), Voice Affirmed (a verified piece confirms it). They are not deadlines; they describe what is already true about your record.',
+      body:  'Named milestones in your writing profile: Voice Sampled (some of your writing is on file), Voice Established (enough on file to recognise your patterns), Voice Affirmed (a piece your teacher approved is on file). They are not deadlines; they describe what is already true about your profile.',
     },
     formation: {
       title: 'Formation pathway',

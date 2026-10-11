@@ -594,6 +594,48 @@ def test_me_voice_affirms_a_voice_once_a_teacher_approved_piece_is_on_file(fresh
     assert _affirmed_state(tok)["Voice Affirmed"] == "reached"
 
 
+# ── The old student pages: what happens to a piece a student submits ────────
+# /me/work compares a piece and adds nothing to the profile (NORTH_STAR rule 8),
+# so the old student pages may not tell a student it joined a "formation record".
+# (student-coach.html is the exception that proves the check: it still POSTs the
+# piece to /students/{id}/baseline as the student's own upload, so it says so.)
+
+OLD_STUDENT_PAGE_FILES = (
+    "demo/student.html",
+    "demo/student-coach.html",
+    "demo/_components/help-hint.js",
+    "demo/_tour/tour-content.json",
+)
+
+
+@pytest.mark.parametrize("rel", OLD_STUDENT_PAGE_FILES)
+def test_old_student_pages_never_say_a_piece_joins_a_formation_record(rel):
+    text = (REPO_ROOT_FOR_COPY / rel).read_text(encoding="utf-8")
+    for retired in (
+        "formation record",
+        "added to your formation",
+        "Saved to your formation",
+        "Submit Work adds a piece",
+        "a verified piece confirms it",
+    ):
+        assert retired not in text, f"{rel} still says {retired!r}"
+
+
+def test_old_student_pages_say_what_my_work_does_with_a_piece():
+    student = (REPO_ROOT_FOR_COPY / "demo/student.html").read_text(encoding="utf-8")
+    assert (
+        "It is compared with the writing on your profile and is not added to it. Only writing "
+        "your teacher approves, such as sealed Bluebook work, joins your writing profile."
+    ) in student
+    tour = json.loads((REPO_ROOT_FOR_COPY / "demo/_tour/tour-content.json").read_text(encoding="utf-8"))
+    bodies = [stop["body"] for stop in tour["student"]["stops"]]
+    assert any(b.startswith("Submit Work compares a piece with the writing on your profile.") for b in bodies)
+    coach = (REPO_ROOT_FOR_COPY / "demo/student-coach.html").read_text(encoding="utf-8")
+    # The coach page still saves the piece as the student's own upload: it says that.
+    assert "/baseline" in coach and "provenance:'unverified'" in coach
+    assert "Saved as your own upload. Only writing your teacher approves counts as approved writing." in coach
+
+
 # ── Student-facing copy never says "formation" ───────────────────────────────
 # Owner decision 2026-10-09: the student pages do not use "formation" wording
 # (the pathway is still a feature; the word is not copy). Two nets, so neither a
