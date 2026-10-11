@@ -167,7 +167,10 @@ exclude-not-abort behavior rule 4 describes.
     # over --only groups with the vector cache persisted via actions/cache,
     # then merges the leg reports (scripts/merge_calibration_reports.py)
     # into the `calibration-report` artifact; a leg whose job overran is
-    # listed under missing_legs, never silently absent.
+    # listed under missing_legs, never silently absent. The run goes red
+    # only on ERROR (a crashed, cut-off or missing leg, a gate that raised):
+    # scripts/battery_gate.py and merge --fail-on-error-only. A fail or
+    # uninformative verdict is a measurement, listed but not red.
     # First complete CI run: 2026-09-08, run 34226363871 (cold cache):
     # G2 12 min, G2b 12 min, G6+G7+G8+T 9 min, G1+G1p 1 h 33 min,
     # G3+G4 2 h 32 min (G3 alone 2 h 11 min), G5 4 h 26 min -- G5 is the
