@@ -53,11 +53,21 @@ def get_engine():
     if _engine is None:
         db_url = os.environ.get("DATABASE_URL") or _DEFAULT_DATABASE_URL
         echo = os.environ.get("DEBUG", "").lower() in ("1", "true")
+        # Bound parameters are student writing (submission text, answers,
+        # baseline samples). SQLAlchemy puts them in every DBAPI exception
+        # message by default, and PostgresRepository logs those exceptions,
+        # so one failed write would copy an essay into the app logs. Hiding
+        # them keeps Postgres the only store of student text.
         if db_url.startswith("sqlite"):
             # Supports pointing the live schema at a throwaway SQLite file in
-            # tests without a real Postgres instance — production always uses
+            # tests without a real Postgres instance; production always uses
             # a postgresql:// URL.
-            _engine = create_engine(db_url, connect_args={"check_same_thread": False}, echo=echo)
+            _engine = create_engine(
+                db_url,
+                connect_args={"check_same_thread": False},
+                echo=echo,
+                hide_parameters=True,
+            )
         else:
             _engine = create_engine(
                 db_url,
@@ -65,6 +75,7 @@ def get_engine():
                 max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "20") or 20),
                 pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "3600") or 3600),
                 echo=echo,
+                hide_parameters=True,
             )
         log.info("Live-schema engine created for %s", db_url.split("@")[-1])
     return _engine
