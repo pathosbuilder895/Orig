@@ -236,7 +236,6 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
 // ─── Submissions table (shared) ──────────────────────────────────────────────
 export function SubmissionsTable({ subs, showExam = false, empty = 'No submissions yet.', onChanged }) {
   const [open, setOpen] = useState('');
-  const showScores = BB_API.hasOriginal();
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
     showExam && { key: 'exam', label: 'Examination' },
@@ -244,7 +243,6 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No submissio
     { key: 'words', label: 'Words', num: true },
     { key: 'warnings', label: 'Warnings', num: true, render: s => (s.warnings || []).length },
     { key: 'mark', label: 'Mark', render: s => s.mark || '—' },
-    showScores && { key: 'aiScore', label: 'Score', num: true, render: s => s.aiScore != null ? s.aiScore : '—' },
     { key: 'read', label: 'Read', actions: true, render: s => (
       <LinkBtn onClick={() => setOpen(open === s.id ? '' : s.id)} aria-expanded={open === s.id}>
         {open === s.id ? 'Hide' : 'Read & mark'}
