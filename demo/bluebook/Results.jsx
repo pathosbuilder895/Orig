@@ -5,8 +5,8 @@ import { AllSubmissionsScreen } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK: Results screen (a workspace that holds Original)
-//  Sealed submissions, their session facts, and the examiner's
-//  correction form. No score is shown here: Original's analysis
+//  Sealed submissions and their session facts. No score is shown
+//  here, so no correction form is either: Original's analysis
 //  belongs in Original, where it carries its testing-phase label.
 // ════════════════════════════════════════════════════════════════
 const { useState: useResState } = React;
@@ -29,157 +29,15 @@ function StatusPill({ status }) {
   return <Badge tone={STATUS_TONE[status] || ''}>{STATUS_LABEL[status] || String(status || '').toLowerCase()}</Badge>;
 }
 
-const { useState: useCPState, useEffect: useCPEffect } = React;
-
-const VERDICT_OPTIONS = ['authentic', 'uncertain', 'anomalous'];
-const ACTION_OPTIONS = ['no_action', 'monitor', 'schedule_conversation', 'escalate'];
-
-function relativeTime(iso) {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return iso;
-  const diffMin = Math.round((Date.now() - then) / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.round(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.round(diffH / 24)}d ago`;
-}
-
-function CorrectionHistoryItem({ c }) {
-  return (
-    <div className="bb-corr-item">
-      <div className="bb-corr-line">
-        <span className={c.is_correct ? 'ok' : 'bad'}>
-          {c.is_correct ? '✓ Verdict correct' : '✗ Verdict overridden'}
-        </span>
-        <span className="who">
-          {c.reviewer || 'Unknown reviewer'} · {relativeTime(c.created_at)}
-        </span>
-      </div>
-      {!c.is_correct && (c.corrected_verdict || c.corrected_action) && (
-        <p className="moved">
-          {c.corrected_verdict && `→ ${c.corrected_verdict}`}
-          {c.corrected_verdict && c.corrected_action && ' · '}
-          {c.corrected_action && `→ ${c.corrected_action}`}
-        </p>
-      )}
-      {c.notes && <p>{c.notes}</p>}
-    </div>
-  );
-}
-
-function CorrectionPanel({ result }) {
-  const [history,       setHistory]       = useCPState(null);
-  const [isCorrect,     setIsCorrect]     = useCPState(null); // null = unset, true/false once chosen
-  const [correctedVerdict, setCorrectedVerdict] = useCPState('');
-  const [correctedAction,  setCorrectedAction]  = useCPState('');
-  const [notes,          setNotes]         = useCPState('');
-  const [submitting,     setSubmitting]    = useCPState(false);
-  const [error,          setError]         = useCPState(null);
-
-  const submissionId = result.submission_uuid;
-  // Disabled ("cold-start") state is keyed on whether a score was ever
-  // computed, not on uuid presence: a real sealed exam always carries a
-  // submission_uuid (threaded into the score call too), so uuid presence
-  // alone can't distinguish a cold-start 422 from a genuinely scored
-  // submission. aiScore is null exactly when no score was recorded. The
-  // score itself is not displayed; it only decides whether there is a
-  // verdict to correct.
-  const hasScore = result.aiScore != null;
-
-  useCPEffect(() => {
-    if (!hasScore) return;
-    let live = true;
-    BB_API.listCorrections(submissionId).then(items => { if (live) setHistory(items || []); });
-    return () => { live = false; };
-  }, [hasScore, submissionId]);
-
-  function resetForm() {
-    setIsCorrect(null);
-    setCorrectedVerdict('');
-    setCorrectedAction('');
-    setNotes('');
-  }
-
-  async function handleFile() {
-    if (isCorrect === null || !submissionId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const identity = BB_API.identity();
-      const created = await BB_API.fileCorrection(submissionId, {
-        isCorrect,
-        correctedVerdict: isCorrect ? null : (correctedVerdict || null),
-        correctedAction: isCorrect ? null : (correctedAction || null),
-        reviewer: identity.name || null,
-        notes: notes || null,
-      });
-      setHistory(h => [created, ...(h || [])]);
-      resetForm();
-    } catch (e) {
-      setError(String(e && e.message || e));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  if (!hasScore) {
-    return (
-      <div>
-        <span className="bb-label">Examiner's Correction</span>
-        <p className="bb-corr-empty">
-          This submission wasn't scored — no verdict to correct.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <span className="bb-label">Examiner's Correction</span>
-
-      {history === null ? (
-        <p className="bb-hint">Loading history…</p>
-      ) : history.length > 0 ? (
-        <div className="bb-corr-history">
-          {history.map(c => <CorrectionHistoryItem key={c.id} c={c} />)}
-        </div>
-      ) : null}
-
-      <div className="bb-toggle-row">
-        <button type="button" className="bb-toggle ok" aria-pressed={isCorrect === true} onClick={() => setIsCorrect(true)}>Correct</button>
-        <button type="button" className="bb-toggle bad" aria-pressed={isCorrect === false} onClick={() => setIsCorrect(false)}>Incorrect</button>
-      </div>
-
-      {isCorrect === false && (
-        <div className="bb-toggle-row">
-          <select className="bb-input" aria-label="Corrected verdict" value={correctedVerdict} onChange={e => setCorrectedVerdict(e.target.value)}>
-            <option value="">No verdict change</option>
-            {VERDICT_OPTIONS.map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select className="bb-input" aria-label="Corrected action" value={correctedAction} onChange={e => setCorrectedAction(e.target.value)}>
-            <option value="">No action change</option>
-            {ACTION_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-      )}
-
-      <textarea
-        className="bb-input"
-        value={notes}
-        onChange={e => setNotes(e.target.value)}
-        placeholder="Record observations, decision rationale, or marginal notes…"
-        rows={4}
-        aria-label="Notes for this correction"
-      />
-
-      {error && <p className="bb-error" role="alert" style={{ marginTop: '.6rem' }}>{error}</p>}
-
-      <Btn primary onClick={handleFile} disabled={isCorrect === null || submitting} style={{ marginTop: '.8rem', width: '100%', justifyContent: 'center' }}>
-        {submitting ? 'Filing…' : 'File Correction'}
-      </Btn>
-    </div>
-  );
+// The Examiner's Correction form asks whether Original's verdict on a sealed exam
+// was right. This screen no longer shows that verdict (Original's reading belongs in
+// Original, where it carries the testing-phase label), so there is nothing here to
+// mark correct or incorrect and the form is not rendered. Corrections are still filed
+// from the classic Analysis page. Bring the form back when stored results return
+// (docs/adr/012-ui-design-port.md, open item 4); BB_API.fileCorrection and
+// BB_API.listCorrections are kept for it.
+function CorrectionNote() {
+  return <p className="bb-hint">Corrections are made in Original Analysis (classic) for now.</p>;
 }
 
 // ─── Expanded row detail ──────────────────────────────────────────────────────
@@ -207,9 +65,9 @@ function ExpandedRow({ result, onClose }) {
           </div>
         </div>
 
-        {/* Right: correction form + history */}
+        {/* Right: where corrections are made, and Close */}
         <div>
-          <CorrectionPanel result={result} />
+          <CorrectionNote />
           <div style={{ marginTop: '.8rem' }}>
             <Btn onClick={onClose} style={{ width: '100%', justifyContent: 'center' }}>Close</Btn>
           </div>

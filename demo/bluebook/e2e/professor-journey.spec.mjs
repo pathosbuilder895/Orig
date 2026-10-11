@@ -7,8 +7,8 @@
  * create course → publish exam (ToggleRow lockdown states) → save a second
  * exam as DRAFT → preview the briefing → a student seals a submission that
  * Original scores live → Dashboard → Results (rows only, no score shown)
- * → drill into the session details → Students roster → file a
- * correction → correction visible in corrections + audit.
+ * → drill into the session details (no correction form) → Students roster
+ * → a correction filed through the API is visible in corrections + audit.
  *
  * Serial-mode notes:
  *  - `journey` below carries state forward (created exam, recorded
@@ -25,13 +25,14 @@
  *    create our course under one of those hardcoded codes so the journey
  *    stays coherent; this is a known frontend gap, not a test bug.
  *
- * Results.jsx's ExpandedRow now has a real CorrectionPanel (Correct/
- * Incorrect, verdict/action selects, notes, "File Correction") that calls
- * POST /submissions/{id}/correct and lists history via GET
- * /admin/corrections — the correction test below drives that UI directly
- * rather than hitting the API standalone. The old "Mark Reviewed" button
- * (local component state only, never persisted) is gone; step 8 now
- * asserts on the CorrectionPanel heading instead.
+ * Results.jsx's ExpandedRow no longer carries the Examiner's Correction form
+ * (Correct/Incorrect, verdict/action selects, notes, "File Correction"): it asks
+ * about a verdict this screen does not show, so while the score is hidden the
+ * form is not rendered and one quiet line says where corrections are made
+ * (Original Analysis (classic), which files them through POST
+ * /submissions/{id}/correct). Steps 8, 10 and 11 assert the form is absent, and
+ * step 10 still proves the endpoint itself files into corrections and the audit
+ * trail. The old "Mark Reviewed" button (local state only) is long gone.
  *
  * The two non-serial describes at the bottom are Stage-2 breadth on the
  * same surface: NewExam form gating, and the fresh-tenant empty states
@@ -337,11 +338,11 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // is read in Original, not in a Bluebook results row.
     await expect(staffPage.getByText('Authenticity')).toHaveCount(0)
     await expect(staffPage.getByText(/scored via Original/)).toHaveCount(0)
-    // The right-hand panel is the real CorrectionPanel (see step 10 below for
-    // the full filing flow) — "Mark Reviewed"/"Examiner's Notes" were the
-    // pre-CorrectionPanel local-state placeholder this test used to assert
-    // on; both were removed when the real panel replaced them.
-    await expect(staffPage.getByText("Examiner's Correction")).toBeVisible()
+    // The Examiner's Correction form asks about a verdict this screen does not
+    // show, so it is not rendered; one quiet line says where corrections are made
+    // (step 10 below asserts the whole form is absent).
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
+    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible()
   })
 
   // ── 9 ────────────────────────────────────────────────────────────────
@@ -405,7 +406,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 10 ───────────────────────────────────────────────────────────────
-  test('a correction filed against the scored submission lands in corrections and the audit trail', async ({
+  test('the Results screen offers no correction form while the score is hidden, and the endpoint still files one', async ({
     workerTenant, request, staffPage,
   }) => {
     await openScreen(staffPage, 'Results')
@@ -417,32 +418,41 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const row = staffPage.locator('div', { hasText: candidateName }).last()
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.click()
+    await expect(staffPage.getByText('Session details')).toBeVisible({ timeout: 10_000 })
 
-    // exact:true matters here — Playwright's role-name matching is a
-    // substring match by default, and "Correct" is a substring of both
-    // "Incorrect" and "File Correction".
-    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toBeVisible({ timeout: 10_000 })
-    await staffPage.getByRole('button', { name: 'Incorrect' }).click()
-    await staffPage.locator('select').first().selectOption('authentic')
-    await staffPage.locator('select').nth(1).selectOption('no_action')
-    await staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')
-      .fill('E2E professor-journey correction')
+    // No form: no toggle, no verdict or action selects, no notes box, no file
+    // button, no heading, no history. exact:true because "Correct" is a
+    // substring of "Incorrect" and "File Correction".
+    await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
+    await expect(staffPage.getByRole('button', { name: 'Incorrect' })).toHaveCount(0)
+    await expect(staffPage.getByRole('button', { name: 'File Correction' })).toHaveCount(0)
+    await expect(staffPage.getByLabel('Corrected verdict')).toHaveCount(0)
+    await expect(staffPage.getByLabel('Corrected action')).toHaveCount(0)
+    await expect(staffPage.getByPlaceholder('Record observations, decision rationale, or marginal notes…')).toHaveCount(0)
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
+    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible()
 
-    const [correctionResponse] = await Promise.all([
-      staffPage.waitForResponse(r => r.url().includes('/submissions/') && r.url().includes('/correct') && r.request().method() === 'POST'),
-      staffPage.getByRole('button', { name: 'File Correction' }).click(),
-    ])
-    expect(correctionResponse.ok()).toBe(true)
-    const correction = await correctionResponse.json()
-    const submissionId = correction.submission_id
-
-    // The filed correction appears in the panel's history immediately.
-    await expect(staffPage.getByText('✗ Verdict overridden')).toBeVisible({ timeout: 5_000 })
-    await expect(staffPage.getByText('E2E professor-journey correction')).toBeVisible()
-
-    // API-level verification alongside the UI-level one: the pipeline is
-    // proven end to end (click → write → audit), not just the click.
+    // The endpoint the classic Analysis page files through is unchanged: a
+    // correction against this sealed submission lands in corrections and in the
+    // audit trail. The submission id is the sealed exam's own uuid.
     const headers = staffAuth(workerTenant)
+    const listRes = await request.get('/bluebook/submissions', { headers })
+    expect(listRes.ok()).toBe(true)
+    const sealed = (await listRes.json()).submissions.find(x => x.candidate === candidateName)
+    expect(sealed && sealed.submission_uuid).toBeTruthy()
+    const fileRes = await request.post(`/submissions/${encodeURIComponent(sealed.submission_uuid)}/correct`, {
+      headers,
+      data: {
+        is_correct: false,
+        corrected_verdict: 'authentic',
+        corrected_action: 'no_action',
+        reviewer: 'E2E reviewer',
+        notes: 'E2E professor-journey correction',
+      },
+    })
+    expect(fileRes.ok()).toBe(true)
+    const submissionId = (await fileRes.json()).submission_id
+
     const correctionsListRes = await request.get(
       `/admin/corrections?submission_id=${encodeURIComponent(submissionId)}`,
       { headers },
@@ -462,7 +472,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   })
 
   // ── 11 ───────────────────────────────────────────────────────────────
-  test('a cold-start sitting with no AI score shows the disabled correction state', async ({
+  test('a cold-start sitting with no AI score shows no correction form either', async ({
     staffPage, request, workerTenant,
   }) => {
     // Record a Bluebook submission the way a real cold-start sitting looks:
@@ -502,8 +512,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     const row = staffPage.locator('div', { hasText: 'Cold Start Candidate' }).last()
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.click()
-    await expect(staffPage.getByText("This submission wasn't scored — no verdict to correct.")).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Corrections are made in Original Analysis (classic) for now.')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByRole('button', { name: 'Correct', exact: true })).toHaveCount(0)
+    await expect(staffPage.getByText("Examiner's Correction")).toHaveCount(0)
   })
 })
 
