@@ -2629,7 +2629,13 @@ def test_feature_descriptions_are_written_about_the_writer_not_to_them():
 # tier called "Authenticity". The server's field name authenticated_count is a
 # count of the samples that join a baseline, read by the pages but never printed,
 # and baseline.html rewrites the server's own "authenticated" into "counted".
-_AUTHENTIC_ALLOWED = ("authenticated_count", "replace(/authenticated/gi,'counted')")
+# settings.html matches the server's "Not authenticated" (a 401 with that detail
+# means the session ended) so that it can say "Your sign-in has expired" instead.
+_AUTHENTIC_ALLOWED = (
+    "authenticated_count",
+    "replace(/authenticated/gi,'counted')",
+    r"/^not authenticated\.?$/i",
+)
 
 
 def _displayed_authentic(text: str) -> list[str]:
@@ -2647,6 +2653,7 @@ def test_the_authentic_check_allows_the_api_field_name_and_nothing_else():
     assert _displayed_authentic("const a = bc.authenticated_count;") == []
     assert _displayed_authentic("// its authenticated is a sample it counts") == []
     assert _displayed_authentic("String(t).replace(/authenticated/gi,'counted')") == []
+    assert _displayed_authentic(r"/^not authenticated\.?$/i.test(said)") == []
     for shown in ("75% authentic", "Voice Authenticity", "<b>Authentic</b>", "an authenticated sample", "authentically"):
         assert _displayed_authentic(shown), shown
 
@@ -2986,3 +2993,182 @@ def test_baseline_page_still_says_how_many_when_the_follow_up_read_works():
 def test_baseline_page_gives_back_the_save_lock_even_when_drawing_the_result_throws():
     out = _baseline_run(throwOnAddedMsg=True)
     assert out["after"]["paste"] is False and out["after"]["pasteLabel"] == "Add to baseline"
+
+
+# ── Settings (settings.html) ──────────────────────────────────────────────────
+
+
+def _settings() -> str:
+    return (SUITE / "settings.html").read_text(encoding="utf-8")
+
+
+def test_settings_page_reads_no_roster_and_sets_its_messages_as_text_only():
+    page = _settings()
+    # It is about the account and nothing about a student.
+    assert "Live.roster" not in page and "Live.sealed" not in page
+    assert "/students" not in page
+    # What the server says (a sentence of its own) is shown as text, never as markup.
+    code = _inline_scripts(SUITE / "settings.html")
+    assert not re.search(r"\b(?:msg|errLine)\.innerHTML", code)
+    assert code.count("msg.textContent=") == 1 and code.count("errLine.textContent=") == 1
+
+
+def test_settings_page_is_not_gated_on_the_original_product_and_says_why():
+    code = _inline_scripts(SUITE / "settings.html")
+    # A workspace with Original off still has an account, products, courses and a password.
+    assert "deliberately not gated on the Original product" in code
+    assert "Live.gate(main)" in code  # only for signed-out visitors and students
+    assert "indexOf('original')" not in code
+
+
+def test_settings_page_marks_up_its_password_form_for_a_screen_reader():
+    page = _settings()
+    fieldset = page[page.index("<fieldset") : page.index("</fieldset>")]
+    assert "<legend>Change your password</legend>" in fieldset
+    # Progress and success are a polite status; a problem is an alert of its own.
+    assert '<div class="pw-msg" id="pw-msg" role="status" aria-live="polite"></div>' in page
+    assert '<div class="pw-msg err" id="pw-err" role="alert"></div>' in page
+    assert "Choose a new password for your account." in page and "for this sign-in" not in page
+
+
+def test_settings_page_names_every_staff_role_in_plain_words():
+    page = _settings()
+    assert "super_admin:'Platform admin'" in page
+    for role in ("professor:'Teacher'", "admin:'Workspace admin'", "operator:'Operator'"):
+        assert role in page
+
+
+SETTINGS_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+if (sc.breakCourses) {
+  const real = window.Live.api;
+  window.Live.api = (p, o) => (p === '/bluebook/courses' ? Promise.reject(new Error('down')) : real(p, o));
+}
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+(async () => {
+  for (let i = 0; i < 500 && !el('courses').innerHTML; i++) await sleep(10);
+  await sleep(20);
+  const out = { courses: el('courses').innerHTML, account: el('account').innerHTML, fieldsDisabled: el('pw-fields').disabled };
+  if (sc.password) {
+    el('pw-current').value = sc.password.current;
+    el('pw-new').value = sc.password.next;
+    el('pw-again').value = sc.password.again;
+    el('pw-form').handlers.submit.forEach((fn) => fn({ preventDefault() {} }));
+    await sleep(80);
+    out.msg = el('pw-msg').textContent; out.err = el('pw-err').textContent;
+    out.fields = [el('pw-current').value, el('pw-new').value, el('pw-again').value];
+  }
+  process.stdout.write(JSON.stringify(Object.assign(out, { calls })));
+})();
+"""
+
+TEACHER = {"original_principal_token": "t"}
+
+
+def _teacher_me(products=("original", "bluebook"), role="professor") -> list:
+    return [200, {"role": role, "products": list(products), "tenant_id": "ten"}]
+
+
+def _settings_run(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + SETTINGS_TAIL],
+        input=json.dumps({"live": str(SUITE / "live.js"), "page": str(SUITE / "settings.html"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+def _change_password(reply, **extra) -> dict:
+    return _settings_run(
+        local=TEACHER,
+        me=_teacher_me(),
+        routes={"/auth/password": reply, "/bluebook/courses": [200, {"courses": []}]},
+        password={"current": "old-secret", "next": "new-secret-1", "again": "new-secret-1"},
+        **extra,
+    )
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "reply,said",
+    [
+        ([401, {}], "Your sign-in has expired. Sign in again."),
+        ([401, None], "Your sign-in has expired. Sign in again."),
+        ([401, {"detail": "Not authenticated"}], "Your sign-in has expired. Sign in again."),
+        ([401, {"detail": "Current password is incorrect."}], "Current password is incorrect."),
+        ([422, {"detail": "Password must be at least 8 characters."}], "Password must be at least 8 characters."),
+        ([429, {"detail": "Too many attempts. Try again later."}], "Too many attempts. Try again later."),
+        ([500, {"detail": "Internal Server Error"}], "The server had a problem. Try again."),
+        ([502, None], "The server had a problem. Try again."),
+        ([404, None], "The server had a problem. Try again."),  # a reply that is not JSON
+        ([422, {"detail": [{"msg": "field required"}]}], "Your password could not be changed. Check the three fields and try again."),
+    ],
+    ids=["401-empty", "401-no-body", "401-not-authenticated", "401-wrong-password", "422-sentence", "429", "500", "502-no-body", "404-no-body", "422-list"],
+)
+def test_settings_page_tells_a_teacher_what_happened_when_the_password_is_refused(reply, said):
+    out = _change_password(reply)
+    assert out["err"] == said and out["msg"] == ""
+    assert out["fields"][0] == "old-secret"  # a refused change keeps what was typed
+
+
+@needs_node
+def test_settings_page_says_so_when_the_server_cannot_be_reached():
+    out = _change_password([200, {"ok": True}], rejectOn=["^/auth/password$"])
+    assert out["err"] == "Could not reach the server. Try again in a moment."
+
+
+@needs_node
+def test_settings_page_clears_the_fields_and_says_so_when_the_password_is_changed():
+    out = _change_password([200, {"ok": True}])
+    assert out["msg"] == "Your password was changed." and out["err"] == ""
+    assert out["fields"] == ["", "", ""]
+    assert [c for c in out["calls"] if c == "/auth/password"] == ["/auth/password"]
+
+
+@needs_node
+def test_settings_page_does_not_send_a_password_that_does_not_match_its_copy():
+    out = _settings_run(
+        local=TEACHER, me=_teacher_me(), routes={"/bluebook/courses": [200, {"courses": []}]},
+        password={"current": "old-secret", "next": "new-secret-1", "again": "new-secret-2"},
+    )
+    assert out["err"] == "The two new passwords do not match." and "/auth/password" not in out["calls"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "scenario,said",
+    [
+        (dict(me=_teacher_me(("original",))), "Courses are kept in Bluebook, which is off for this workspace."),
+        (dict(routes={"/bluebook/courses": [403, {"detail": "no"}]}), "Courses are kept in Bluebook, which is off for this workspace."),
+        (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "Your courses could not be loaded just now."),
+        (dict(routes={"/bluebook/courses": [200, {"courses": "nope"}]}), "Your courses could not be loaded just now."),
+        (dict(routes={"/bluebook/courses": [200, None]}), "Your courses could not be loaded just now."),
+        (dict(routes={"/bluebook/courses": [200, {"courses": []}]}), "No courses yet. Add one in Bluebook."),
+        (dict(routes={"/bluebook/courses": [200, {"courses": [None, "x"]}]}), "No courses yet. Add one in Bluebook."),
+        (dict(breakCourses=True), "Your courses could not be loaded just now."),
+        (
+            dict(routes={"/bluebook/courses": [200, {"courses": [{"code": "THEO 301", "name": "Theology", "students": 4, "exams": 1, "active": True}]}]}),
+            "THEO 301: Theology",
+        ),
+    ],
+    ids=["no-bluebook", "403", "500", "not-a-list", "not-json", "empty", "junk-rows", "request-throws", "one-course"],
+)
+def test_settings_page_courses_card_always_ends_in_a_real_answer(scenario, said):
+    base = dict(local=TEACHER, me=_teacher_me())
+    base.update(scenario)
+    out = _settings_run(**base)
+    assert said in out["courses"], out["courses"]
+
+
+@needs_node
+def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_can_change_its_password():
+    out = _settings_run(local=TEACHER, me=_teacher_me(role="super_admin"), routes={"/bluebook/courses": [200, {"courses": []}]})
+    assert "Platform admin" in out["account"] and out["fieldsDisabled"] is False

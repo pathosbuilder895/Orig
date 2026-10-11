@@ -64,7 +64,9 @@
   .pw-btn{align-self:flex-start;font-family:var(--body);font-size:.95rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.62rem 1.3rem;cursor:pointer;font-weight:600;}
   .pw-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .pw-btn:disabled{opacity:.45;cursor:not-allowed;}
-  .pw-msg{margin-top:.9rem;font-size:.92rem;line-height:1.45;color:var(--dim);font-style:italic;min-height:1.4em;}
+  .pw legend{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+  .pw-msgs{margin-top:.9rem;min-height:1.4em;}
+  .pw-msg{font-size:.92rem;line-height:1.45;color:var(--dim);font-style:italic;}
   .pw-msg.err{color:var(--flag);font-style:normal;}
   .pw-msg.ok{color:var(--ok);font-style:normal;}
   .card-foot{font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--line-soft);}
@@ -118,16 +120,20 @@
     <div class="cols">
       <div class="card">
         <div class="card-t">Change password</div>
-        <div class="card-s">Choose a new password for this sign-in.</div>
+        <div class="card-s">Choose a new password for your account.</div>
         <form id="pw-form" method="post" action="#" autocomplete="off" novalidate>
           <fieldset class="pw" id="pw-fields" disabled>
+            <legend>Change your password</legend>
             <div><label for="pw-current">Current password</label><input id="pw-current" type="password" autocomplete="current-password" /></div>
             <div><label for="pw-new">New password</label><input id="pw-new" type="password" autocomplete="new-password" /></div>
             <div><label for="pw-again">New password, again</label><input id="pw-again" type="password" autocomplete="new-password" /></div>
             <button class="pw-btn" id="pw-btn" type="submit">Change password</button>
           </fieldset>
         </form>
-        <div class="pw-msg" id="pw-msg" role="status" aria-live="polite"></div>
+        <div class="pw-msgs">
+          <div class="pw-msg" id="pw-msg" role="status" aria-live="polite"></div>
+          <div class="pw-msg err" id="pw-err" role="alert"></div>
+        </div>
         <div class="card-foot">A new password needs at least 8 characters. Your current password is needed to change it.</div>
       </div>
       <div class="stack">
@@ -164,7 +170,7 @@
     if(!w.length) return '';
     return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
   }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator',super_admin:'Platform admin'};
   function renderChrome(sess){
     $('me-btn').textContent=initials(sess.name)||'··';
     $('mm-name').textContent=sess.name||'Your account';
@@ -202,33 +208,49 @@
     return row(title,parts.join(' · '),right);
   }
   const NO_BLUEBOOK='Courses are kept in Bluebook, which is off for this workspace.';
+  const COURSES_FAILED='Your courses could not be loaded just now. Try reloading the page.';
+  // Never leaves the card on "Loading": every way this can end draws something.
   function renderCourses(sess){
     const box=$('courses');
     if(sess.products.indexOf('bluebook')<0){ Live.empty(box,NO_BLUEBOOK); return Promise.resolve(); }
-    return Live.api('/bluebook/courses').then(res=>{
+    return Promise.resolve().then(()=>Live.api('/bluebook/courses')).then(res=>{
       if(res.status===403){ Live.empty(box,NO_BLUEBOOK); return; }
       const list=res.ok&&res.data&&Array.isArray(res.data.courses)?res.data.courses:null;
-      if(!list){ Live.empty(box,'Your courses could not be loaded just now. Try reloading the page.'); return; }
+      if(!list){ Live.empty(box,COURSES_FAILED); return; }
       // Active courses first; the server's own order (newest first) within each group.
       const shown=list.filter(c=>c&&typeof c==='object').sort((a,b)=>(b.active?1:0)-(a.active?1:0));
       if(!shown.length){ Live.empty(box,'No courses yet. Add one in Bluebook.'); return; }
       box.innerHTML=shown.map(courseRow).join('');
-    });
+    }).catch(()=>{ Live.empty(box,COURSES_FAILED); });
   }
 
   // ── change password: POST /auth/password {current_password, new_password} ──
   // The three values live only in the form fields and in the one request body.
   // They are never logged, stored or put in a URL, and the fields are cleared
   // once the server accepts the change.
-  const msg=$('pw-msg'), fields=$('pw-fields'), btn=$('pw-btn');
+  // Progress and success go to #pw-msg (a polite status); a problem goes to #pw-err
+  // (an alert), so a screen reader announces it at once. Both are set with
+  // textContent only: what the server said is shown as text, never as markup.
+  const msg=$('pw-msg'), errLine=$('pw-err'), fields=$('pw-fields'), btn=$('pw-btn');
   function say(kind,text){
-    msg.className='pw-msg'+(kind?' '+kind:'');
-    msg.textContent=text||'';          // textContent: what the server said is shown as text, never as markup
+    const isErr=kind==='err';
+    msg.className='pw-msg'+(kind&&!isErr?' '+kind:'');
+    msg.textContent=isErr?'':(text||'');
+    errLine.textContent=isErr?(text||''):'';
   }
+  // What to tell the teacher about a refusal. The server's own sentence is shown only
+  // when it is one a person can act on (a wrong current password, a too-short new
+  // one, too many tries); a missing session, an outage and a reply that is not JSON
+  // each get a plain sentence of ours.
   function serverText(res){
     const d=res.data&&res.data.detail;
-    if(typeof d==='string'&&d) return d;
-    if(res.status===0||res.data===null) return 'Could not reach the server. Try again in a moment.';
+    const said=typeof d==='string'?d.trim():'';
+    if(res.status===0) return 'Could not reach the server. Try again in a moment.';
+    // 401 is also "Current password is incorrect." (a sentence to show). Without a
+    // sentence, or with the generic "Not authenticated", the session is what ended.
+    if(res.status===401&&(!said||/^not authenticated\.?$/i.test(said))) return 'Your sign-in has expired. Sign in again.';
+    if(res.status>=500||res.data===null) return 'The server had a problem. Try again.';
+    if(said) return said;
     return 'Your password could not be changed. Check the three fields and try again.';
   }
   let busy=false;
@@ -259,6 +281,9 @@
       main.classList.add('gated');
       return Live.gate(main);
     }
+    // Settings is deliberately not gated on the Original product (no Live.gate here):
+    // a workspace with Original off still has an account, products and courses to look
+    // at, and a password to change. The page says Original is off in the account card.
     renderAccount(sess);
     if(sess.mode==='demo'){
       say('','The demo has no account; sign in on a real workspace to change your password.');
