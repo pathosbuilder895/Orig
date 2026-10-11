@@ -155,7 +155,7 @@ ignore), gitleaks. Add:
 - A test that the pilot lockset contains no package absent from
   `requirements.txt` at a different version (lockset drift; §08 §3 has the
   boot half of this).
-- `npm audit --audit-level=high` for `demo/bluebook` and `app/`, non-blocking
+- `npm audit --audit-level=high` for `demo/bluebook`, non-blocking
   for one month, then blocking.
 
 ## 7. FERPA deletion as a security property

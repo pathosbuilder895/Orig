@@ -42,7 +42,7 @@ explains one slice of it.
 | 02 | `02-unit-property-math.md` | Feature tiers, quantum scoring invariants, redaction, pure helpers; property tests; mutation testing | touching `original/features/`, `original/quantum/`, `voice.py` |
 | 03 | `03-api-persistence.md` | Routers, repository contract, Alembic, shadow dual-write, cutover, migration drift | touching `store.py`, `postgres_repository.py`, `alembic/`, `routers/` |
 | 04 | `04-security-adversarial.md` | Abuse-case suite: tenant isolation, auth matrix, CORS, throttle, LTI replay, secrets, destructive guards | any auth/tenant/LTI change; before pilot go-live |
-| 05 | `05-frontend-e2e-a11y.md` | Playwright, the untested second React frontend, axe, visual regression policy, mobile | touching `demo/`, `demo/bluebook/`, `demo/app/`, `app/` |
+| 05 | `05-frontend-e2e-a11y.md` | Playwright, the untested second React frontend, axe, visual regression policy, mobile | touching `demo/`, `demo/bluebook/`, `demo/app/` |
 | 06 | `06-scientific-validation.md` | The gate battery, cold-start FPR as a CI test, TermSim, corpora, how results may be cited | any change to scoring thresholds, flags, or corpora |
 | 07 | `07-performance-reliability.md` | Latency budgets, event-loop blocking, per-score table scans, concurrency, single-worker constraint | before enabling shadow flags; before load |
 | 08 | `08-config-deploy-readiness.md` | Env-flag byte-identity matrix, lockset boot matrix, render.yaml vs preflight drift, restore drill, container smoke | any `run.py`, `render.yaml`, requirements, or flag change |
@@ -84,7 +84,6 @@ Coverage stays a *tripwire*, not a goal.
 | Metric | Today | Target | Rule |
 |---|---|---|---|
 | `original/` combined branch coverage | 99.61 % | hold ≥ 98 % (CI floor) | do not raise the floor; do not chase the last 0.4 % |
-| `app/src` branch coverage | 100 % | hold | enforced by `app/vite.config.ts` |
 | Mutation score on the 6 named critical modules (§02 §5) | unmeasured | ≥ 80 % surviving-mutant kill rate, measured weekly | the metric that says whether 99.6 % means anything |
 | Cold-start FPR certification (§06 §3) | **fails today** by probe | passes at N=3 baselines on the committed corpus | pilot go-live blocker |
 | Abuse-case suite (§04) | 5 known holes, 0 tests | 0 open holes with tests green | pilot go-live blocker |
