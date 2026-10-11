@@ -6,12 +6,17 @@ image. `tests/test_original_suite_static.py` fails if a file here has no row.
 | File | Page | Licence |
 |---|---|---|
 | `radcliffe-night-stars.jpeg` | `index.html`, `baseline.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
-| `st-andrews-quad.jpg` | `students.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `st-andrews-quad.jpg` | `students.html`, `../landing.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `radcliffe-observatory-watercolour.jpg` | `writing-state.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
-| `radcliffe-interior.avif` | `submissions.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `radcliffe-interior.avif` | `submissions.html`, `../landing.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `gonville-caius-facade.jpg` | `reports.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
-| `all-souls-engraving-wide.jpg` | `voice.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `all-souls-engraving-wide.jpg` | `voice.html`, `../landing.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `white-stag.jpg` | `my-work.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+
+The public landing page (`demo/landing.html`) uses three of these files at the owner's direction on
+2026-10-11, under the same terms: no credit or licence text is shown, and `all-souls-engraving-wide.jpg`
+has an empty `alt` there too. The watermarked `radcliffe-night-stars.jpeg` is not used on the landing
+page while the photographer's permission is pending.
 
 `st-andrews-quad.jpg` is the handoff photograph (3173 x 2068, 2.3 MB) re-encoded as a JPEG at quality 75 with its
 longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit.
