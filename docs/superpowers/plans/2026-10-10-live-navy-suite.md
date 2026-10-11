@@ -73,7 +73,8 @@ Pages wire the account menu's Sign out to `Live.signOut()`, and use only `Live.a
 | `reports.html` | `original-reports.html` | later |
 | `settings.html` | `original-settings.html` | later |
 | `voice.html`, `my-work.html`, `library.html` | student mockups | later |
-| Bluebook pill | links to `/bluebook/` (React, Task C) | 1 |
+| `bluebook.html` (Bluebook Sessions) | `original-bluebook-teacher.html` | 13 |
+| Bluebook pill | teacher pages: `bluebook.html` (Task 13, owner decision 2026-10-11); student pages: `/bluebook/` | 1, 13 |
 
 A nav link to a page not built yet points at its final filename; the page is added by its own task before the PR opens.
 
@@ -207,3 +208,11 @@ Teacher Sessions (`demo/bluebook/TeacherWorkspace.jsx` session setup, live and r
 
 ### Task 12: Stored analysis results (backend) and the flag cards
 Per the 2026-10-09 plan's PR 5 and PR 6: `score_results` table (SQLite + Postgres + alembic), tenant-scoped list/overview/review endpoints, deletion and inventory coverage, the corrections-bug fix; then the flag cards on Your classes, Submissions and Reports, and reopening a past result on Writing State. Own spec and plan before code.
+
+### Task 13: Bluebook Sessions (`bluebook.html`, from `original-bluebook-teacher.html`) and deep links into Bluebook
+Owner decision 2026-10-11 (ADR-012): the Bluebook pill on every teacher page opens this suite page; `/bluebook/` itself is the public sign-up and learn site; the Bluebook app opens one exam from a link. Student pages keep `/bluebook/`.
+- **Deep links (Bluebook app):** `/bluebook/#exam/<id>` opens Manage examination and `/bluebook/#live/<id>` the live view, for a signed-in teacher only (`demo/bluebook/deep-link.jsx`, `app.jsx`). The app checks the exam with `GET /bluebook/exams/{id}` first; an unknown or other-workspace id lands on the normal dashboard with no error. A signed-out visitor gets the landing page and the exam after signing in; a student's screens ignore the hash. Covered by `unit/deep-link.test.mjs` and `e2e/deep-link.spec.mjs`.
+- **Start a new session:** question boxes (1 to 4), class pills from `GET /bluebook/courses` (code, name, student count), the duration slider, the summary line, and "Open the booklets", which sends `POST /bluebook/exams` with exactly the payload Bluebook's `SessionSetup` sends (title "<code> · <date>", `status:'ACTIVE'`, `minWords:0`, `maxWords:0`, `conditions:{}`). After it opens: how students reach it (the class roster finds it under "My exams" in Bluebook; there is no join code), "Open the live room" (`#live/<id>`) and "Manage it in Bluebook" (`#exam/<id>`). The server's refusal is shown as text.
+- **Past sessions:** `GET /bluebook/exams`, newest first, six rows then "Show all"; per row the sealed and awaiting-review counts from `Live.sealed()` and, for visible rows with a sealed booklet, how many are in baselines (`GET /bluebook/exams/{id}/baseline`, at most six in flight). Each row links to `#exam/<id>`. No "worth a look" count: it would need Bluebook's submission status, which `Live.sealed()` does not pass on.
+- **States:** `Live.gate`; no Bluebook product or a 403 shows "Bluebook is off for this workspace" in the cards; no course shows "Add a course in Bluebook first" with a link to `/bluebook/`.
+- Contract tests in `tests/test_original_suite_static.py` (pill targets, no integrity readings named, the create request pinned to `SessionSetup`'s, behaviour under node).

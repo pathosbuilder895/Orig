@@ -361,6 +361,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/reports.html",
         "/original/voice.html",
         "/original/my-work.html",
+        "/original/bluebook.html",
         "/original/live.js",
         "/original/suite.css",
         "/original/fonts.css",
@@ -373,6 +374,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/assets/gonville-caius-facade.jpg",
         "/original/assets/all-souls-engraving-wide.jpg",
         "/original/assets/white-stag.jpg",
+        "/original/assets/codrington-library.jpeg",
         "/original/fonts/ibm-plex-mono-latin-700-normal.woff2",
         "/bluebook/fonts.css",
     ],
@@ -3469,3 +3471,346 @@ def test_settings_page_courses_card_always_ends_in_a_real_answer(scenario, said)
 def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_can_change_its_password():
     out = _settings_run(local=TEACHER, me=_teacher_me(role="super_admin"), routes={"/bluebook/courses": [200, {"courses": []}]})
     assert "Platform admin" in out["account"] and out["fieldsDisabled"] is False
+
+
+# ── Bluebook Sessions (bluebook.html) ─────────────────────────────────────────
+# Owner decision 2026-10-11: the Bluebook pill on a teacher page opens this suite
+# page; /bluebook/ itself is the public sign-up and learn site, and the Bluebook
+# app opens one exam from a link (#exam/<id>, #live/<id>; demo/bluebook/deep-link.jsx).
+
+_PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?([^<]*)</a>', re.S)
+
+
+def _bluebook_pills(path: Path) -> list[str]:
+    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Bluebook"]
+
+
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_bluebook_pill_opens_the_suite_page_for_teachers_and_the_app_for_students(path):
+    want = "/bluebook/" if path.name in STUDENT_PAGES else "bluebook.html"
+    assert _bluebook_pills(path) == [want], path.name
+
+
+def test_the_bluebook_pill_is_marked_current_only_on_the_bluebook_page():
+    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
+    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in page
+    for path in PAGES:
+        if path.name != "bluebook.html":
+            assert 'href="bluebook.html" aria-current' not in path.read_text(encoding="utf-8"), path.name
+
+
+def _bluebook_page() -> str:
+    return (SUITE / "bluebook.html").read_text(encoding="utf-8")
+
+
+def test_bluebook_page_never_names_bluebooks_integrity_readings():
+    # Bluebook's AI-likelihood number, stylometric number and FLAGGED status stay in
+    # Bluebook. The page counts sealed booklets through Live.sealed()'s allowlist only.
+    page = _bluebook_page()
+    for word in ("ai_score", "aiscore", "stylometric", "flagged", "authenticity", "worth a look"):
+        assert word not in page.lower(), f"bluebook.html mentions {word}"
+    assert "Live.sealed()" in page
+
+
+def test_bluebook_page_makes_no_claim_the_code_does_not_support():
+    page = _bluebook_page()
+    for gone in ("authenticated baseline", "typing rhythm", "keystroke", "banked", "fingerprint", "gold standard", "vouch", "join at"):
+        assert gone not in page.lower(), f"bluebook.html says {gone!r}"
+    # A booklet joins a baseline only by the teacher's approval, and Original's
+    # comparison depends on Original being on.
+    assert "only when you <b>approve</b> it, and you can undo that choice." in page
+    assert "only when Original is on for your workspace" in page
+
+
+# SessionSetup's submit (demo/bluebook/TeacherWorkspace.jsx): the one request that
+# opens a session in Bluebook. The suite page sends the same one.
+SESSION_SETUP_CREATE = (
+    "onCreate({title:`${selected.code||selected.name||'Class'} · ${new Date().toLocaleDateString()}`,"
+    "course:selected.code||selected.name,course_id:selected.id,duration,questions:list,"
+    "status:'ACTIVE',minWords:0,maxWords:0,conditions:{}})"
+)
+
+
+def test_bluebook_page_opens_a_session_with_the_request_bluebooks_own_setup_sends():
+    workspace = (DEMO / "bluebook" / "TeacherWorkspace.jsx").read_text(encoding="utf-8")
+    assert SESSION_SETUP_CREATE in workspace, "SessionSetup's create request changed: change bluebook.html to match"
+    assert "BB_API.createExam(payload)" in workspace
+    script = _inline_scripts(SUITE / "bluebook.html")
+    assert "Live.api('/bluebook/exams',{method:'POST',body:sessionPayload(" in script
+    assert _extract(script, "sessionPayload") == (
+        "  function sessionPayload(course,questions,duration,today){\n"
+        "    return {title:(course.code||course.name||'Class')+' · '+today,course:course.code||course.name,"
+        "course_id:course.id,duration:duration,questions:questions,status:'ACTIVE',minWords:0,maxWords:0,conditions:{}};\n"
+        "  }"
+    )
+
+
+def test_bluebook_page_links_into_the_app_by_its_deep_links():
+    page = _bluebook_page()
+    assert "'<a class=\"sess\" href=\"/bluebook/#exam/'+encodeURIComponent(e.id)+'\"" in page
+    assert "/bluebook/#live/'+id+'\">Open the live room</a>" in page
+    assert "/bluebook/#exam/'+id+'\">Manage it in Bluebook</a>" in page
+    deep = (DEMO / "bluebook" / "deep-link.jsx").read_text(encoding="utf-8")
+    assert "const DEEP_LINK = /^#(exam|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
+    assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' }" in deep
+
+
+BLUEBOOK_TAIL = r"""
+const page = fs.readFileSync(sc.page, 'utf8');
+const scripts = Array.from(page.matchAll(/<script>([\s\S]*?)<\/script>/g)).map((m) => m[1]);
+if (scripts.length !== 1) throw new Error('expected one inline script, found ' + scripts.length);
+// The create call is answered here; everything else goes through the stubbed fetch.
+const posts = [];
+const realApi = window.Live.api;
+window.Live.api = (p, o) => {
+  if (o && o.method === 'POST') {
+    posts.push({ path: p, body: o.body });
+    return Promise.resolve(sc.created || { ok: false, status: 500, data: null });
+  }
+  return realApi(p, o);
+};
+new Function('window', 'document', 'Live', "'use strict';\n" + scripts[0])(window, document, window.Live);
+const el = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fire = (id, type, ev) => (el(id).handlers[type] || []).forEach((fn) => fn(ev));
+const snap = () => ({
+  off: el('setup-live').hidden === true && el('setup-off').hidden === false,
+  courses: el('course-row').innerHTML,
+  sum: el('launch-sum').textContent,
+  launchDisabled: el('launch').disabled,
+  sessions: el('sessions').innerHTML,
+  count: el('rev-count').textContent,
+  more: el('more').hidden ? '' : el('more').textContent,
+  note: el('rev-note').hidden ? '' : el('rev-note').textContent,
+  err: el('launch-err').hidden ? '' : el('launch-err').textContent,
+  chip: el('cc-text').innerHTML,
+  gate: document.querySelector('main').innerHTML,
+});
+const settled = () => {
+  const s = el('sessions').innerHTML;
+  return (s && !/>Loading</.test(s)) || document.querySelector('main').innerHTML;
+};
+(async () => {
+  for (let i = 0; i < 500 && !settled(); i++) await sleep(10);
+  await sleep(60);
+  const out = { before: snap() };
+  if (sc.form) {
+    if (sc.form.course) fire('course-row', 'click', { target: { closest: () => ({ getAttribute: () => sc.form.course }) } });
+    sc.form.questions.forEach((q, i) => {
+      if (i > 0) fire('add-q', 'click', {});
+      fire('prompts', 'input', { target: { getAttribute: () => String(i), value: q } });
+    });
+    if (sc.form.duration) fire('time-slider', 'input', { target: { value: String(sc.form.duration) } });
+    fire('setup', 'submit', { preventDefault() {} });
+    await sleep(60);
+    out.after = snap();
+  }
+  out.today = new Date().toLocaleDateString();
+  process.stdout.write(JSON.stringify(Object.assign(out, { posts, calls, max })));
+})();
+"""
+
+
+def _bluebook_run(**scenario) -> dict:
+    run = subprocess.run(
+        [shutil.which("node"), "-e", PRELUDE + BLUEBOOK_TAIL],
+        input=json.dumps({"live": str(SUITE / "live.js"), "page": str(SUITE / "bluebook.html"), **scenario}),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert run.stdout, "the page never finished loading"
+    return json.loads(run.stdout)
+
+
+def _bb_course(cid: str, code: str, name: str, students: int) -> dict:
+    return {"id": cid, "code": code, "name": name, "term": "Fall", "status": "ACTIVE", "students": students, "exams": 0}
+
+
+def _bb_exam(eid: str, title: str, created: str, **extra) -> dict:
+    return {
+        "id": eid, "title": title, "course": "THEO 301", "course_id": "c1", "created_at": created,
+        "duration": 50, "status": "ACTIVE", **extra,
+    }
+
+
+def _bb_sealed(sid: str, exam_id: str, graded: bool = False) -> dict:
+    return {
+        "id": sid, "exam_id": exam_id, "student_id": "t:s-" + sid, "candidate": "A Student", "exam": "", "course": "",
+        "created_at": "2026-10-01T10:00:00+00:00", "late": 0, "mark": "B" if graded else "",
+        "graded_at": "2026-10-02T10:00:00+00:00" if graded else None,
+    }
+
+
+BB_COURSES = [
+    _bb_course("c1", "THEO 301", "Theology of the Reformation", 34),
+    _bb_course("c2", "HIST 210", "Early Modern Europe", 1),
+]
+BB_EXAMS = [
+    _bb_exam("e-old", "Reformation causes", "2026-09-01T10:00:00+00:00", status="CLOSED"),
+    _bb_exam("e-new", "Midterm", "2026-10-05T10:00:00+00:00"),
+    _bb_exam("e-mid", "In-class essay", "2026-09-20T10:00:00+00:00", status="CLOSED"),
+]
+
+
+def _bb_scenario(**extra) -> dict:
+    base = dict(
+        local=TEACHER,
+        me=_teacher_me(),
+        routes={
+            "/bluebook/courses": [200, {"courses": BB_COURSES}],
+            "/bluebook/exams/e-mid/baseline": [200, {"submissions": [
+                {"submission_id": "s2", "student": "x", "in_baseline": True, "has_text": True},
+                {"submission_id": "s3", "student": "y", "in_baseline": False, "has_text": True},
+            ]}],
+        },
+        bbExams=[200, {"exams": BB_EXAMS}],
+        bbSubmissions=[200, {"submissions": [
+            _bb_sealed("s1", "e-new"), _bb_sealed("s2", "e-mid", graded=True), _bb_sealed("s3", "e-mid", graded=True),
+        ]}],
+    )
+    for k, v in extra.items():
+        base[k] = {**base["routes"], **v} if k == "routes" else v
+    return base
+
+
+@needs_node
+def test_bluebook_page_lists_past_sessions_newest_first_with_counts_from_the_sealed_loader():
+    out = _bluebook_run(**_bb_scenario())
+    s = out["before"]
+    assert re.findall(r'<div class="s-t">([^<]*)</div>', s["sessions"]) == ["Midterm", "In-class essay", "Reformation causes"]
+    hrefs = re.findall(r'<a class="sess" href="([^"]*)"', s["sessions"])
+    assert hrefs == ["/bluebook/#exam/e-new", "/bluebook/#exam/e-mid", "/bluebook/#exam/e-old"]
+    assert s["count"] == "3 sessions · newest first"
+    # e-new is open with one ungraded booklet; e-mid has two, both graded, one in a baseline.
+    assert "Open now" in s["sessions"] and "1 sealed · 1 to review" in s["sessions"]
+    assert "All reviewed" in s["sessions"] and "2 sealed · 1 in baselines" in s["sessions"]
+    assert "0 sealed" in s["sessions"] and "Closed" in s["sessions"]
+    # Baselines are asked only for a row with a sealed booklet; only live.js reads the list route.
+    asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
+    assert asked == ["/bluebook/exams/e-mid/baseline", "/bluebook/exams/e-new/baseline"]
+    assert out["calls"].count("/bluebook/submissions") == 1
+    # The class pills carry the real code, name and count; the first is chosen.
+    assert 'aria-pressed="true" data-course="c1">THEO 301 · Theology of the Reformation · 34 students</button>' in s["courses"]
+    assert "HIST 210 · Early Modern Europe · 1 student</button>" in s["courses"]
+    assert s["sum"] == "THEO 301 · 1 question · 50 minutes" and s["launchDisabled"] is False
+
+
+@needs_node
+def test_bluebook_page_asks_about_baselines_for_the_visible_rows_only_six_at_a_time():
+    exams = [_bb_exam(f"e{i:02d}", f"Session {i}", f"2026-10-{i + 1:02d}T10:00:00+00:00") for i in range(10)]
+    sealed = [_bb_sealed(f"s{i}", f"e{i:02d}") for i in range(10)]
+    out = _bluebook_run(**_bb_scenario(bbExams=[200, {"exams": exams}], bbSubmissions=[200, {"submissions": sealed}]))
+    asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
+    assert asked == [f"/bluebook/exams/e{i:02d}/baseline" for i in range(4, 10)]
+    assert out["max"] <= 6
+    assert out["before"]["more"] == "Show all 10 sessions"
+
+
+@needs_node
+def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
+    created = {"ok": True, "status": 201, "data": {
+        "id": "e-made", "title": "x", "course": "HIST 210", "course_id": "c2", "status": "ACTIVE",
+        "duration": 75, "opens_at": None, "closes_at": None, "submissions": 0,
+    }}
+    form = {"course": "c2", "questions": ["  First question. ", "Second question."], "duration": 75}
+    out = _bluebook_run(**_bb_scenario(created=created), form=form)
+    assert out["posts"] == [{"path": "/bluebook/exams", "body": {
+        "title": "HIST 210 · " + out["today"], "course": "HIST 210", "course_id": "c2", "duration": 75,
+        "questions": ["First question.", "Second question."], "status": "ACTIVE", "minWords": 0, "maxWords": 0,
+        "conditions": {},
+    }}]
+    after = out["after"]
+    assert after["err"] == ""
+    assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
+    assert "<b>My exams</b>" in after["chip"]
+    assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
+    assert '<a href="/bluebook/#exam/e-made">Manage it in Bluebook</a>' in after["chip"]
+    assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"
+    assert after["sum"] == "HIST 210 · 1 question · 75 minutes"  # the questions are cleared for the next session
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "reply,said",
+    [
+        (
+            {"ok": False, "status": 403, "data": {"detail": "Free workspaces can hold 50 exams. <b>Delete</b> one."}},
+            "Free workspaces can hold 50 exams. <b>Delete</b> one.",
+        ),
+        (
+            {"ok": False, "status": 422, "data": {"detail": [{"msg": "field required"}]}},
+            "The session could not be saved. Your questions are still here.",
+        ),
+        ({"ok": False, "status": 0, "data": None}, "Could not reach the server. Your questions are still here."),
+        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The session could not be saved. Your questions are still here."),
+    ],
+    ids=["server-sentence", "validation-list", "no-network", "no-id"],
+)
+def test_bluebook_page_shows_the_servers_refusal_as_text(reply, said):
+    out = _bluebook_run(**_bb_scenario(created=reply), form={"questions": ["A question."]})
+    # Set as textContent, so markup in the server's words is shown, never run.
+    assert out["after"]["err"] == said
+    assert "Session is open." not in out["after"]["chip"]
+
+
+@needs_node
+def test_bluebook_page_does_not_send_a_blank_question():
+    out = _bluebook_run(**_bb_scenario(), form={"questions": ["One.", "   "]})
+    assert out["posts"] == []
+    assert out["after"]["err"] == "Choose a class and write each question before opening the booklets."
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        dict(me=_teacher_me(("original",))),
+        dict(routes={"/bluebook/courses": [403, {"detail": "This workspace's plan does not include Bluebook."}]}),
+    ],
+    ids=["no-bluebook-product", "403"],
+)
+def test_bluebook_page_says_bluebook_is_off_instead_of_breaking(scenario):
+    out = _bluebook_run(**_bb_scenario(**scenario))
+    assert out["before"]["off"] is True
+    assert "Bluebook is off for this workspace." in out["before"]["sessions"]
+    if "me" in scenario:
+        assert not [c for c in out["calls"] if c.startswith("/bluebook/")]
+
+
+@needs_node
+def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
+    out = _bluebook_run(**_bb_scenario(
+        routes={"/bluebook/courses": [200, {"courses": []}]},
+        bbExams=[200, {"exams": []}],
+        bbSubmissions=[200, {"submissions": []}],
+    ))
+    s = out["before"]
+    assert '<a href="/bluebook/">Add a course in Bluebook first</a>' in s["courses"]
+    assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
+    assert "No sessions yet. Your first one will appear here." in s["sessions"]
+
+
+@needs_node
+@pytest.mark.parametrize(
+    "scenario,where,said",
+    [
+        (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "courses", "Your classes could not be loaded just now."),
+        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your sessions could not be loaded just now."),
+        (dict(rejectOn=["^/bluebook/submissions$"]), "note", "Sealed booklets could not be counted just now."),
+    ],
+    ids=["courses-500", "exams-not-a-list", "sealed-down"],
+)
+def test_bluebook_page_says_what_could_not_be_loaded(scenario, where, said):
+    out = _bluebook_run(**_bb_scenario(**scenario))
+    assert said in out["before"][where]
+    if where == "courses":
+        assert out["before"]["launchDisabled"] is True
+
+
+@needs_node
+def test_bluebook_page_gates_like_the_other_teacher_pages():
+    out = _bluebook_run(local={}, health=[200, {"environment": "pilot"}])
+    assert "Sign in to continue" in out["before"]["gate"]
+    assert not [c for c in out["calls"] if c.startswith("/bluebook/")]

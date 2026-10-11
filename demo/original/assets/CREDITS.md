@@ -12,6 +12,7 @@ image. `tests/test_original_suite_static.py` fails if a file here has no row.
 | `gonville-caius-facade.jpg` | `reports.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `all-souls-engraving-wide.jpg` | `voice.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 | `white-stag.jpg` | `my-work.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
+| `codrington-library.jpeg` | `bluebook.html` | No licence on record; shipped at the owner's direction on 2026-10-10 |
 
 `st-andrews-quad.jpg` is the handoff photograph (3173 x 2068, 2.3 MB) re-encoded as a JPEG at quality 75 with its
 longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit.
@@ -38,3 +39,7 @@ is never described on the page as a historical engraving: the image carries an e
 `white-stag.jpg` is the handoff image (`white-stag.png`, 1448 x 1086, 3.1 MB) re-encoded as a JPEG at quality 75
 with its longest side at 1600 px (`sips`), same framing, so it fits the 700 KB commit limit. Its origin is unknown
 (it looks like a photograph with a painterly effect applied). No credit text is known, and none is shown on the page.
+
+`codrington-library.jpeg` is the handoff file copied unchanged (643 x 476, 55 KB). It is byte-identical to
+`demo/assets/codrington-library.jpeg`, which the Bluebook teacher screens already use. It shows a library interior
+with no caption printed in it. No credit text is known, and none is shown on the page.
