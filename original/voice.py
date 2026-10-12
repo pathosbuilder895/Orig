@@ -375,7 +375,8 @@ def project_voice_view(
 # sentence about that, for the result that has to say so (the page that shows
 # results carries the second half for every piece).
 JOINS_PROFILE_LINE = (
-    "Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile."
+    "Only writing your teacher approves, such as sealed Collections work, "
+    "joins your writing profile."
 )
 NOT_ADDED_LINE = "Not added to your writing profile. " + JOINS_PROFILE_LINE
 

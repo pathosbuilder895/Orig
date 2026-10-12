@@ -1,4 +1,4 @@
-# Counsel packet: Bluebook legal pages for independent teachers
+# Counsel packet: Original Collections legal pages for independent teachers
 
 *Prepared 2026-10-11 for counsel review (plan Task B2). Engineering does not edit
 `demo/legal/**`; counsel's answers go back to Andrew, and engineering then applies
@@ -7,10 +7,10 @@ advice.*
 
 ## Who the pages are for
 
-Bluebook is in an **invitation-only pilot for independent teachers**: 1 to 3 to
+Original Collections (in the app: Collections; formerly Bluebook) is in an **invitation-only pilot for independent teachers**: 1 to 3 to
 start, possibly a few dozen. Each teacher gets a private workspace and has **no
 school or institution contract behind them** (`docs/NORTH_STAR.md`). Teachers
-invite their own students by email. Bluebook is a locked, in-browser writing and
+invite their own students by email. Collections is a locked, in-browser writing and
 exam app.
 
 Original, the separate writing-consistency feature, is **off by default**. An
@@ -39,17 +39,17 @@ and privacy policy before setting a password. The server records the
 
 ## 2. Sentences that become untrue when Original is on
 
-1. **`student-notice.html:25`** (under "What Bluebook does not do"): "It does not analyse your writing style or compare it with your earlier work."
-2. **`privacy.html:33`**: "...and Bluebook does not analyse a student's writing style or compare it with earlier work."
+1. **`student-notice.html:25`** (under "What Collections does not do"): "It does not analyse your writing style or compare it with your earlier work."
+2. **`privacy.html:33`**: "...and Collections does not analyse a student's writing style or compare it with earlier work."
 
-Both are true for a Bluebook-only workspace. Neither is true where Original is
+Both are true for a Collections-only workspace. Neither is true where Original is
 on. There, a teacher can approve a student's sealed exams as reference writing,
 including exams sat before Original was switched on. Original then compares
 later writing with them. Teachers can undo an approval.
 
 **Proposal for the student notice:**
 
-> Bluebook itself does not analyse your writing style. If your teacher's
+> Collections itself does not analyse your writing style. If your teacher's
 > workspace uses Original, a separate feature that is still in its testing
 > phase, your teacher may choose some of your sealed work as reference writing
 > and compare later work with it. Your teacher can undo that choice. A result
@@ -63,7 +63,7 @@ category that exists only where Original is on.
 
 | Page and line | Text | Question |
 |---|---|---|
-| `privacy.html:21` | "When a teacher uses Bluebook for a school, we process student information on the school's and teacher's behalf..." | What is our role when there is no school, only an independent teacher? |
+| `privacy.html:21` | "When a teacher uses Collections for a school, we process student information on the school's and teacher's behalf..." | What is our role when there is no school, only an independent teacher? |
 | `terms.html:24` | "...you confirm that you are authorised to do so (for example by your school)..." | What should an independent teacher confirm before adding students? |
 | `student-notice.html:29` | "Only your teacher (and people your school authorises)." | Change to "Only your teacher" where there is no school? |
 
@@ -75,10 +75,17 @@ teacher responsible for any legally required consent for younger students.
 (NORTH_STAR open question). Under-13 students would bring COPPA parental-consent
 duties. Counsel should confirm the right floor and who obtains consent.
 
-## 5. Other things counsel should know
+## 5. Product name
+
+The product was renamed from "Bluebook" to **Original Collections** (in the app,
+**Collections**) on 2026-10-11 because of trademark risk; the legal pages, emails and
+screens now use the new name. Counsel should confirm that "Original Collections" is
+clear to use before the pages are made final.
+
+## 6. Other things counsel should know
 
 - **Contact address.** `hello@originalvoice.io` appears on all three pages and on
-  the Bluebook landing page. Confirm the mailbox exists and who answers it.
+  the Collections landing page. Confirm the mailbox exists and who answers it.
 - **Processors.** SendGrid receives teacher and student email addresses and
   invitation links (no student writing). Sentry, if enabled, receives error
   reports scrubbed of request bodies. Both need data processing terms.

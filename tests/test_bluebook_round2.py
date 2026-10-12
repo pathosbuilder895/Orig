@@ -104,7 +104,7 @@ def test_mailer_posts_to_sendgrid_without_click_tracking(monkeypatch):
     body = seen["body"]
     assert body["from"] == {"email": "no-reply@x.edu", "name": "Bluebook"}
     assert body["tracking_settings"]["click_tracking"]["enable"] is False
-    assert "Ms T has added you to Bluebook for Ethics" in body["content"][0]["value"]
+    assert "Ms T has added you to Original Collections for Ethics" in body["content"][0]["value"]
     assert "https://b/?invite=t" in body["content"][0]["value"]
 
 
@@ -171,7 +171,7 @@ def test_roster_add_emails_invites_when_asked(live_client, mail):
     assert [row["emailed"] for row in rows] == [True, True]
     assert {m["to"] for m in mail} == {"a@x.edu", "b@x.edu"}
     assert "https://bluebook.test.example/bluebook/?invite=" in mail[0]["text"]
-    assert "Ms Teach has added you to Bluebook for Ethics" in mail[0]["text"]
+    assert "Ms Teach has added you to Original Collections for Ethics" in mail[0]["text"]
     # the emailed link is the same one-time link the teacher sees
     link = mail[0]["text"].split("expires in 14 days):\n")[1].split("\n")[0]
     assert _token(link) in {_token(row["invite_path"]) for row in rows}

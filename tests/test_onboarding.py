@@ -374,7 +374,7 @@ def test_professor_invite_email_text(monkeypatch):
     assert mailer.send_professor_invite("p@x.edu", "https://x.test/bluebook/?invite=abc") is True
     assert captured["subject"] == "Your Original Collections workspace is ready"
     assert "https://x.test/bluebook/?invite=abc" in captured["text"]
-    assert "Original" not in captured["text"]
+    assert "testing phase" not in captured["text"]
 
 
 def test_professor_invite_email_labels_original_as_testing(monkeypatch):
