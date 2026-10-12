@@ -101,4 +101,4 @@ class TestSyllabusParagraph:
         para = rl.syllabus_paragraph()
         # The doc ships with the repo; if present the paragraph must be substantive.
         if para is not None:
-            assert "Original" in para and "Bluebook" in para and len(para) > 100
+            assert "Original" in para and "Collections" in para and len(para) > 100

@@ -418,7 +418,7 @@ _ORIGINAL_ONLY_PREFIXES = (
 )
 _BLUEBOOK_ONLY_EXACT = frozenset({"/bluebook/me"})
 _BLUEBOOK_ONLY_PREFIXES = ("/bluebook/", "/proctor/")
-_PRODUCT_LABEL = {"original": "Original", "bluebook": "Bluebook"}
+_PRODUCT_LABEL = {"original": "Original", "bluebook": "Collections"}
 
 
 def _required_product(path: str) -> str | None:

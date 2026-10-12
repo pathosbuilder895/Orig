@@ -65,7 +65,7 @@
         "target": ".btn-primary[onclick*='submit'], #sb-submit",
         "eye": "Stop 5 of 5 · Submit",
         "title": "Compare a piece",
-        "body": "Submit Work compares a piece with the writing on your profile. The piece is not added to your profile: only writing your teacher approves, such as sealed Bluebook work, joins it. Nothing here is graded."
+        "body": "Submit Work compares a piece with the writing on your profile. The piece is not added to your profile: only writing your teacher approves, such as sealed Collections work, joins it. Nothing here is graded."
       }
     ]
   },

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Original · Bluebook Sessions</title>
+<title>Original · Collections Sessions</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
 <link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
 <link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
@@ -163,7 +163,7 @@
       <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
       <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
       <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill on" href="bluebook.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill on" href="bluebook.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
       <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
     </div>
     <div class="nav-right">
@@ -179,9 +179,9 @@
   <main class="body" id="live-main">
     <div class="head">
       <div>
-        <div class="eyebrow">Bluebook Sessions</div>
+        <div class="eyebrow">Collections Sessions</div>
         <h1>In-class writing, in their own hand.</h1>
-        <div class="sub">A Bluebook session is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
+        <div class="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
       </div>
     </div>
     <div class="cols">
@@ -190,7 +190,7 @@
           <div class="bb-mark"></div>
           <div><b>Start a new session</b><span>Three questions. That's the whole setup.</span></div>
         </div>
-        <div class="card-off" id="setup-off" role="status" hidden><b>Bluebook is off for this workspace</b>Sessions, classes and sealed booklets live in Bluebook, which this workspace does not include.</div>
+        <div class="card-off" id="setup-off" role="status" hidden><b>Collections is off for this workspace</b>Sessions, classes and sealed booklets live in Collections, which this workspace does not include.</div>
         <div id="setup-live">
           <div class="stepper">
             <div class="step">
@@ -211,7 +211,7 @@
               </div>
               <div class="quiet-note">
                 <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
-                <div><b>Everything else is already handled.</b> Drafts save on the student's device every few seconds, and the finished booklet reaches you when they seal it. Bluebook keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</div>
+                <div><b>Everything else is already handled.</b> Drafts save on the student's device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</div>
               </div>
             </div>
           </div>
@@ -229,14 +229,14 @@
       <div>
         <div class="card rev">
           <div class="rev-h"><b>Past sessions</b><span id="rev-count">newest first</span></div>
-          <p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Bluebook.</p>
+          <p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Collections.</p>
           <div id="sessions"><div class="live-empty">Loading</div></div>
           <button type="button" class="more" id="more" hidden></button>
           <p class="rev-note" id="rev-note" hidden></p>
         </div>
         <div class="card why">
-          <b>Why Bluebook matters</b>
-          <p>Bluebook gives students a quiet, trustworthy place to write. A sealed booklet is supervised writing, kept exactly as the student wrote it. It joins that student's baseline only when you <b>approve</b> it, and you can undo that choice. Original compares later papers with a student's baseline only when Original is on for your workspace, and with only a few samples it may say it can't tell.</p>
+          <b>Why Collections matters</b>
+          <p>Collections gives students a quiet, trustworthy place to write. A sealed booklet is supervised writing, kept exactly as the student wrote it. It joins that student's baseline only when you <b>approve</b> it, and you can undo that choice. Original compares later papers with a student's baseline only when Original is on for your workspace, and with only a few samples it may say it can't tell.</p>
         </div>
       </div>
     </div>
@@ -346,7 +346,7 @@
     const row=$('course-row');
     if(coursesState==='loading'){ row.innerHTML='<span class="row-note">Loading your classes</span>'; return; }
     if(coursesState==='error'){ row.innerHTML='<span class="row-note">Your classes could not be loaded just now. Try reloading the page.</span>'; return; }
-    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Bluebook first</a>, then come back here to open a session for it.</span>'; return; }
+    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Collections first</a>, then come back here to open a session for it.</span>'; return; }
     const sel=selected();
     row.innerHTML=courses.map(c=>{
       const on=c===sel;
@@ -387,8 +387,8 @@
     const roster=course.code||course.name;
     $('cc-code').textContent=st==='open'?'OPEN':STATE_WORD[st].toUpperCase();
     $('cc-text').innerHTML=(st==='open'?'Session is open. ':'Session saved: '+esc(STATE_WORD[st].toLowerCase())+'. ')+
-      'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My exams</b> when they sign in to Bluebook at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
-      '<span class="cc-links"><a href="/bluebook/#live/'+id+'">Open the live room</a><a href="/bluebook/#exam/'+id+'">Manage it in Bluebook</a></span>';
+      'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My exams</b> when they sign in to Collections at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
+      '<span class="cc-links"><a href="/bluebook/#live/'+id+'">Open the live room</a><a href="/bluebook/#exam/'+id+'">Manage it in Collections</a></span>';
     const chip=$('code-chip');
     chip.classList.add('show');
     if(chip.scrollIntoView) chip.scrollIntoView({block:'nearest'});
@@ -479,7 +479,7 @@
       if(inBaselines.has(e.id)) sub.push(inBaselines.get(e.id)+' in a baseline');
     }
     // The count is a match by text against each student's baseline samples, so the title says so.
-    const title=inBaselines.has(e.id)?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook."':'';
+    const title=inBaselines.has(e.id)?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Collections."':'';
     return '<span class="s-badge '+badge[0]+'"><span class="d"></span>'+esc(badge[1])+'</span>'+
       (sub.length?'<div class="s-sub"'+title+'>'+esc(sub.join(' · '))+'</div>':'');
   }
@@ -487,7 +487,7 @@
   function rowHTML(e){
     const st=examState(e);
     const meta=[courseOf(e),fmtDate(e.created_at),e.duration!=null?e.duration+' min':''].filter(Boolean).join(' · ');
-    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this session in Bluebook">'+
+    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this session in Collections">'+
       '<div class="s-ic'+(st==='closed'?' done':'')+'"></div>'+
       '<div class="s-main"><div class="s-t">'+esc(e.title||'Untitled session')+'</div><div class="s-m">'+esc(meta)+'</div></div>'+
       '<div class="s-right">'+rightHTML(e)+'</div>'+
@@ -548,7 +548,7 @@
     $('setup-live').hidden=true;
     $('setup-off').hidden=false;
     $('rev-count').textContent='';
-    Live.empty($('sessions'),'Bluebook is off for this workspace.');
+    Live.empty($('sessions'),'Collections is off for this workspace.');
   }
 
   function newestFirst(a,b){

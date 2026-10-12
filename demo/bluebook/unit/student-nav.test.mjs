@@ -38,14 +38,14 @@ const products = list => store.set('original_products', JSON.stringify(list));
 test('a student whose workspace holds Original can reach My voice and My work', () => {
   products(['bluebook', 'original']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Bluebook', 'My exams', 'My voice', 'My work', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'My voice', 'My work', 'Account', 'Sign out']);
   assert.deepEqual(links(html), [['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']]);
 });
 
 test('a Bluebook-only workspace keeps the shell it always had', () => {
   products(['bluebook']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Bluebook', 'My exams', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Account', 'Sign out']);
   assert.deepEqual(links(html), []);
 });
 

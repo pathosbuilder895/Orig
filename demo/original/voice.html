@@ -169,7 +169,7 @@
   <div class="pills">
     <a class="pill on" href="voice.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
     <a class="pill" href="my-work.html"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
-    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
   </div>
   <div class="nav-right">
     <button class="avatar" id="me-btn" type="button" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
@@ -196,7 +196,7 @@
       <div class="status" id="status" role="status" hidden></div>
       <div class="hero-cta">
         <a class="btn pri" href="#markers"><svg viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2"/></svg>See what makes it yours</a>
-        <a class="btn" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/></svg>Go to Bluebook</a>
+        <a class="btn" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/></svg>Go to Collections</a>
       </div>
     </div>
     <div class="portrait">
@@ -231,9 +231,9 @@
   </section>
 
   <section class="blk" id="work">
-    <div class="sec-h"><div class="t">Your work</div><div class="s">Writing your teacher approves, such as sealed Bluebook work, joins your portrait.</div></div>
+    <div class="sec-h"><div class="t">Your work</div><div class="s">Writing your teacher approves, such as sealed Collections work, joins your portrait.</div></div>
     <div class="card work">
-      <a class="w-row" href="/bluebook/"><div><div class="w-t">Your sealed exams and written pieces</div><div class="w-m">IN BLUEBOOK</div></div><div class="w-c">Read what you have written there.</div><span></span><div class="w-add">Open →</div></a>
+      <a class="w-row" href="/bluebook/"><div><div class="w-t">Your sealed exams and written pieces</div><div class="w-m">IN COLLECTIONS</div></div><div class="w-c">Read what you have written there.</div><span></span><div class="w-add">Open →</div></a>
       <a class="w-row" href="my-work.html"><div><div class="w-t">Compare a piece with your voice</div><div class="w-m">MY WORK</div></div><div class="w-c">Paste a piece and see how it sits beside the writing in your profile.</div><span></span><div class="w-add">Open →</div></a>
     </div>
   </section>
@@ -246,7 +246,7 @@
         <ul>
           <li>Measurements of the habits above, and how much they vary across your pieces.</li>
           <li>The writing on file in your profile, so a measurement can always be traced back to its source.</li>
-          <li>A few Bluebook session facts: time spent, word count, paste attempts and times the window lost focus. They are context, not evidence.</li>
+          <li>A few Collections session facts: time spent, word count, paste attempts and times the window lost focus. They are context, not evidence.</li>
           <li>When you use My Work, the result of the comparison is kept and your teacher can see it. The piece itself is not kept.</li>
         </ul>
       </div>
@@ -518,7 +518,7 @@
         return;
       }
       if(res.status===403){
-        panel('Original is off for your class','Your class uses Bluebook only, so there is no writing voice to show here.','/bluebook/','Open Bluebook');
+        panel('Original is off for your class','Your class uses Collections only, so there is no writing voice to show here.','/bluebook/','Open Collections');
         return;
       }
       if(!res.ok||!res.data||typeof res.data!=='object'||Array.isArray(res.data)){

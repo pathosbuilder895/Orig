@@ -165,7 +165,7 @@ export function InviteScreen({ onNavigate }) {
   return (
     <AuthShell title="Set your password" footer={<LegalLinks />}>
       <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
-        Choose a password for your Bluebook account. You will use it with your
+        Choose a password for your Collections account. You will use it with your
         email address to sign in from now on.
       </p>
       <form onSubmit={submit}>
@@ -196,7 +196,7 @@ export function ForgotPasswordScreen({ onNavigate }) {
       const r = await BB_API.requestPasswordReset(email.trim());
       setDone(r && r.mail === false
         ? 'Email is not set up on this site yet. Students: ask your teacher for a new link. Teachers: contact support.'
-        : 'If that address has a Bluebook account, a reset link is on its way. Check your inbox and spam folder.');
+        : 'If that address has a Collections account, a reset link is on its way. Check your inbox and spam folder.');
     } catch (err) { setError(err.message || 'Could not send the reset email.'); }
     setBusy(false);
   }
@@ -282,7 +282,7 @@ export function StudentShell({ onNavigate, active, children }) {
   return (
     <div className="bb-student">
       <nav className="bb-student-nav" aria-label="Student navigation">
-        <button className="brand" onClick={() => onNavigate('student-home')}>Bluebook</button>
+        <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
         <div className="tabs">
           {tab('student-home', 'My exams')}
           {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
@@ -374,7 +374,7 @@ export function StudentHomeScreen({ onNavigate }) {
 
   return (
     <StudentShell onNavigate={onNavigate} active="student-home">
-      <Page eyebrow="Bluebook"
+      <Page eyebrow="Collections"
         title={me ? `Welcome, ${me.name || 'student'}.` : 'My exams'}
         meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'Not enrolled in any course yet')}>
         <ErrorText>{error}</ErrorText>

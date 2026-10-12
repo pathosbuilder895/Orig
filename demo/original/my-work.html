@@ -118,7 +118,7 @@
   <div class="pills">
     <a class="pill" href="voice.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.2v2.4M12 17.4v2.4M4.2 12h2.4M17.4 12h2.4M6.6 6.6l1.7 1.7M15.7 15.7l1.7 1.7M17.4 6.6l-1.7 1.7M8.3 15.7l-1.7 1.7"/></svg>My Voice</a>
     <a class="pill on" href="my-work.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>My Work</a>
-    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+    <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
   </div>
   <div class="nav-right">
     <button class="avatar" id="me-btn" type="button" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
@@ -161,7 +161,7 @@
       <div class="card">
         <div class="ch"><b>This piece at a glance</b></div>
         <div id="glance"></div>
-        <div class="sum-note" id="glance-note">Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.</div>
+        <div class="sum-note" id="glance-note">Only writing your teacher approves, such as sealed Collections work, joins your writing profile.</div>
       </div>
     </div>
   </div>
@@ -178,7 +178,7 @@
   const content=$('content'), gateEl=$('gate');
   // What the page says about the piece after a comparison (the same sentence
   // the server uses when it has nothing to compare with).
-  const JOINS='Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile.';
+  const JOINS='Only writing your teacher approves, such as sealed Collections work, joins your writing profile.';
   const SHORT_WORDS=100;     // below this the page says a short piece tells Original little
 
   // ── account menu ──
@@ -248,7 +248,7 @@
         return;
       }
       if(res.status===403){
-        panel('Original is off for your class','Your class uses Bluebook only, so there is nothing to compare a piece with here.','/bluebook/','Open Bluebook');
+        panel('Original is off for your class','Your class uses Collections only, so there is nothing to compare a piece with here.','/bluebook/','Open Collections');
         return;
       }
       const d=res.data;

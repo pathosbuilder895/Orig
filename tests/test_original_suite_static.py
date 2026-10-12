@@ -1779,7 +1779,7 @@ def test_reports_term_block_says_could_not_load_instead_of_nothing_on_file(scena
 
 STUDENT_ENDPOINT = {"voice.html": "/me/voice", "my-work.html": "/me/work"}
 STUDENT_SENTENCE = (
-    "Your teacher may approve your sealed Bluebook work as reference writing for it, "
+    "Your teacher may approve your sealed Collections work as reference writing for it, "
     "and can undo that approval."
 )
 
@@ -1859,7 +1859,7 @@ def test_my_work_page_says_what_joins_a_profile_and_reads_only_the_redacted_resu
     page = (SUITE / "my-work.html").read_text(encoding="utf-8")
     # A piece compared in My Work is never stored, so a teacher cannot add it:
     # the page says what does join a writing profile, and never offers to add it.
-    assert "Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile." in page
+    assert "Only writing your teacher approves, such as sealed Collections work, joins your writing profile." in page
     assert "may choose to add" not in page
     code = _inline_scripts(SUITE / "my-work.html")
     for field in ("r.headline", "r.summary", "r.steady"):
@@ -2272,7 +2272,7 @@ def test_my_work_says_the_piece_was_not_added_once_when_the_server_already_has()
             "headline": "Nothing to compare this with yet.",
             "summary": (
                 "Original has no approved writing from you to compare this piece with yet, so it "
-                "cannot say anything about it. Not added to your writing profile. Only writing your teacher approves, such as sealed Bluebook work, joins your writing profile."
+                "cannot say anything about it. Not added to your writing profile. Only writing your teacher approves, such as sealed Collections work, joins your writing profile."
             ),
             "steady": [],
             "review_opportunity": False,
@@ -3445,13 +3445,13 @@ def test_settings_page_does_not_send_a_password_that_does_not_match_its_copy():
 @pytest.mark.parametrize(
     "scenario,said",
     [
-        (dict(me=_teacher_me(("original",))), "Courses are kept in Bluebook, which is off for this workspace."),
-        (dict(routes={"/bluebook/courses": [403, {"detail": "no"}]}), "Courses are kept in Bluebook, which is off for this workspace."),
+        (dict(me=_teacher_me(("original",))), "Courses are kept in Collections, which is off for this workspace."),
+        (dict(routes={"/bluebook/courses": [403, {"detail": "no"}]}), "Courses are kept in Collections, which is off for this workspace."),
         (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "Your courses could not be loaded just now."),
         (dict(routes={"/bluebook/courses": [200, {"courses": "nope"}]}), "Your courses could not be loaded just now."),
         (dict(routes={"/bluebook/courses": [200, None]}), "Your courses could not be loaded just now."),
-        (dict(routes={"/bluebook/courses": [200, {"courses": []}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.'),
-        (dict(routes={"/bluebook/courses": [200, {"courses": [None, "x"]}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.'),
+        (dict(routes={"/bluebook/courses": [200, {"courses": []}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Collections</a>.'),
+        (dict(routes={"/bluebook/courses": [200, {"courses": [None, "x"]}]}), 'No courses yet. <a href="/bluebook/#courses">Add one in Collections</a>.'),
         (dict(breakCourses=True), "Your courses could not be loaded just now."),
         (
             dict(routes={"/bluebook/courses": [200, {"courses": [{"code": "THEO 301", "name": "Theology", "students": 4, "exams": 1, "active": True}]}]}),
@@ -3482,7 +3482,7 @@ _PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?
 
 
 def _bluebook_pills(path: Path) -> list[str]:
-    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Bluebook"]
+    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Collections"]
 
 
 @pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
@@ -3549,7 +3549,7 @@ def test_bluebook_page_links_into_the_app_by_its_deep_links():
     page = _bluebook_page()
     assert "'<a class=\"sess\" href=\"/bluebook/#exam/'+encodeURIComponent(e.id)+'\"" in page
     assert "/bluebook/#live/'+id+'\">Open the live room</a>" in page
-    assert "/bluebook/#exam/'+id+'\">Manage it in Bluebook</a>" in page
+    assert "/bluebook/#exam/'+id+'\">Manage it in Collections</a>" in page
     deep = (DEMO / "bluebook" / "deep-link.jsx").read_text(encoding="utf-8")
     assert "const DEEP_LINK = /^#(exam|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
     assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' }" in deep
@@ -3726,7 +3726,7 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
     assert "<b>My exams</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
-    assert '<a href="/bluebook/#exam/e-made">Manage it in Bluebook</a>' in after["chip"]
+    assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
     assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"
     assert after["sum"] == "HIST 210 · 1 question · 75 minutes"  # the questions are cleared for the next session
 
@@ -3774,7 +3774,7 @@ def test_bluebook_page_does_not_send_a_blank_question():
 def test_bluebook_page_says_bluebook_is_off_instead_of_breaking(scenario):
     out = _bluebook_run(**_bb_scenario(**scenario))
     assert out["before"]["off"] is True
-    assert "Bluebook is off for this workspace." in out["before"]["sessions"]
+    assert "Collections is off for this workspace." in out["before"]["sessions"]
     if "me" in scenario:
         assert not [c for c in out["calls"] if c.startswith("/bluebook/")]
 
@@ -3787,7 +3787,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
         bbSubmissions=[200, {"submissions": []}],
     ))
     s = out["before"]
-    assert '<a href="/bluebook/#courses">Add a course in Bluebook first</a>' in s["courses"]
+    assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in s["courses"]
     assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
     assert "No sessions yet. Your first one will appear here." in s["sessions"]
 

@@ -35,7 +35,7 @@ function Sidebar({ activeScreen, onNavigate }) {
   const displayName = id.authed ? (id.name || 'Signed in') : 'Demo Session';
   const displayRole = id.authed
     ? (id.email || id.role || 'instructor')
-    : 'Bluebook · demo';
+    : 'Collections · demo';
   // Only a workspace that bought Original gets the cross-link to it.
   const showOriginal = !id.authed || BB_API.hasOriginal();
 

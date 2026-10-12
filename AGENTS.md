@@ -168,8 +168,10 @@ Then commit the bundle. Render has no Node — the committed `bluebook.bundle.js
 ## Key Facts About This Repo
 
 **Two products:**
-- **Bluebook**: Standalone locked writing/exam app for teachers and students
+- **Collections**: Standalone locked writing/exam app for teachers and students (full name: Original Collections, a digital replacement for the blue book exam)
 - **Original**: Optional writing-consistency engine, off by default
+
+**User-facing name is Original Collections (in-app: Collections). Internal code keeps bluebook identifiers.**
 
 **Target users:**
 - Current phase: independent teachers (invitation-only, 1–3 teachers to start)

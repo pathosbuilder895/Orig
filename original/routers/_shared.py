@@ -340,7 +340,7 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     """
     sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
     html = (
-        "<!doctype html><meta charset=utf-8><title>Bluebook · Original</title>"
+        "<!doctype html><meta charset=utf-8><title>Collections · Original</title>"
         '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
         'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
         "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"

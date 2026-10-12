@@ -1,7 +1,9 @@
-# Owner's Manual — driving Original + Bluebook yourself
+# Owner's Manual — driving Original + Collections yourself
 
 
 Where `OPS_RUNBOOK.md` covers operating the server, this is **how you personally use and present the product**.
+
+**User-facing name is Original Collections (in-app: Collections). Internal code keeps bluebook identifiers.**
 
 ---
 
@@ -24,7 +26,7 @@ never system python3.)
 | URL | What | When you use it |
 |---|---|---|
 | `/professor.html` | THE dashboard — analyze, baselines, history | the core demo + daily use |
-| `/bluebook/` | secure-exam app (Oxford blue-book) | second half of the demo |
+| `/bluebook/` | secure-exam app (Collections, digital blue book) | second half of the demo |
 | `/index.html` | sign-in page (email/password + demo role pills) | showing real auth |
 | `/admin.html` | institution console (stats, activity, integrations) | dean-flavored overview |
 | `/operator.html` | multi-school view (tenants, audit log) | showing multi-tenancy |
@@ -43,8 +45,8 @@ never system python3.)
 **Beat 2 — provenance (2 min), still on professor:**
 5. Click the **Baselines** tab — show the per-sample provenance (`proctored` beats `uploaded`). "Trust comes from *how* the baseline was collected."
 
-**Beat 3 — Bluebook (4 min):**
-6. Sidebar → **Bluebook ↗**. On the landing page: **Sign in → "Explore the demo →"**.
+**Beat 3 — Collections (4 min):**
+6. Sidebar → **Collections ↗**. On the landing page: **Sign in → "Explore the demo →"**.
 7. **Examinations → + New Examination** — flip through Sections I–V, pausing on **IV. Secure Lockdown** (AI / web / clipboard toggles). Publish it.
 8. Open it from the list → **Begin Examination** — fullscreen engages, the gold "● Locked" strip shows. Type a few sentences; try **Cmd+C** (blocked, examiner's notice appears). Mention: "typing rhythm is being captured — it feeds the voice profile."
 9. (If time) lower stakes: type past the minimum → **Seal & Surrender** → "Examination Sealed" → **Results** shows the sitting with its scores.

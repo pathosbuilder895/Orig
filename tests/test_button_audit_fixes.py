@@ -384,7 +384,7 @@ def test_bluebook_page_carries_no_testing_label_because_it_shows_no_original_res
 def test_bluebook_page_words_the_baseline_count_as_a_match_by_text_never_banked_or_approved():
     page = _bluebook_page()
     assert "' in a baseline'" in page and "in baselines" not in page
-    assert "Matched by text against each student\\u2019s baseline samples. Approve or undo in Bluebook." in page
+    assert "Matched by text against each student\\u2019s baseline samples. Approve or undo in Collections." in page
     for gone in ("banked", "approved"):
         label = page[page.index("function rightHTML") : page.index("function rowHTML")]
         assert gone not in label.lower().replace("approve or undo", ""), gone
@@ -444,7 +444,7 @@ def test_bluebook_page_patches_one_row_when_a_baseline_answer_comes_instead_of_r
     out = _patch_run(**_bb_scenario())
     # The baseline answer arrived (e-mid has one booklet in a baseline) ...
     assert "2 sealed · 1 in a baseline" in out["html"]
-    assert "Matched by text against each student\u2019s baseline samples. Approve or undo in Bluebook." in out["html"]
+    assert "Matched by text against each student\u2019s baseline samples. Approve or undo in Collections." in out["html"]
     assert [c for c in out["calls"] if c.endswith("/baseline")]
     # ... and drew nothing but that row: the list was written once, so a focused row keeps its focus.
     assert out["writesAfter"] == out["writesAtRows"]
@@ -461,7 +461,7 @@ def test_bluebook_page_says_in_the_open_demo_that_sessions_open_for_a_signed_in_
     teacher = _patch_run(**_bb_scenario())
     assert teacher["demoHidden"] is True
     page = _bluebook_page()
-    assert '<p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Bluebook.</p>' in page
+    assert '<p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Collections.</p>' in page
     assert "if(sess.mode==='demo') $('demo-note').hidden=false;" in page
 
 
@@ -503,32 +503,32 @@ def test_a_submissions_row_opens_its_own_exam_in_bluebook():
         bbSubmissions=[200, {"submissions": sealed}], bbExams=[200, {"exams": []}],
     )
     rows = out["rows"]
-    assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Bluebook"' in rows
-    assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Bluebook"' in rows  # an id is encoded, never spliced in
-    assert 'href="/bluebook/" title="Opens this exam in Bluebook"' in rows  # a booklet with no exam id opens Bluebook itself
+    assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Collections"' in rows
+    assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Collections"' in rows  # an id is encoded, never spliced in
+    assert 'href="/bluebook/" title="Opens this exam in Collections"' in rows  # a booklet with no exam id opens Bluebook itself
     assert 'title="Opens Bluebook"' not in rows
 
 
 def test_the_submissions_page_no_longer_says_bluebook_has_no_address_for_an_exam():
     page = (SUITE / "submissions.html").read_text(encoding="utf-8")
     assert "no address" not in page and "Read &amp; mark" not in page
-    assert "Each row opens that exam in Bluebook." in page
+    assert "Each row opens that exam in Collections." in page
 
 
 def test_add_student_and_the_empty_roster_line_open_the_students_screen_and_courses_open_courses():
     students = (SUITE / "students.html").read_text(encoding="utf-8")
     assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in students
-    assert 'Add them in <a href="/bluebook/#students">Bluebook</a>.' in (SUITE / "writing-state.html").read_text(encoding="utf-8")
-    assert '<a href="/bluebook/#courses">Add a course in Bluebook first</a>' in _bluebook_page()
+    assert 'Add them in <a href="/bluebook/#students">Collections</a>.' in (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in _bluebook_page()
 
 
 @needs_node
 def test_settings_links_its_courses_to_bluebooks_courses_screen():
     course = {"code": "THEO 301", "name": "Theology", "students": 4, "exams": 1, "active": True}
     one = _settings_run(local=TEACHER, me=_teacher_me(), routes={"/bluebook/courses": [200, {"courses": [course]}]})
-    assert '<div class="c-more"><a href="/bluebook/#courses">Manage your courses in Bluebook</a></div>' in one["courses"]
+    assert '<div class="c-more"><a href="/bluebook/#courses">Manage your courses in Collections</a></div>' in one["courses"]
     none = _settings_run(local=TEACHER, me=_teacher_me(), routes={"/bluebook/courses": [200, {"courses": []}]})
-    assert 'No courses yet. <a href="/bluebook/#courses">Add one in Bluebook</a>.' in none["courses"]
+    assert 'No courses yet. <a href="/bluebook/#courses">Add one in Collections</a>.' in none["courses"]
     # A workspace without Bluebook has no courses screen to send anyone to.
     off = _settings_run(local=TEACHER, me=_teacher_me(("original",)))
     assert "/bluebook/" not in off["courses"]
