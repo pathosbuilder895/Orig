@@ -1,6 +1,6 @@
 # Original + Bluebook: Current Status
 
-*Last updated: 2026-10-08*
+*Last updated: 2026-10-11*
 
 **Quick ref:** This file tracks what's deployed, what's in flight, what's blocked, and what's next. Every AI tool should update this at the end of a session.
 
@@ -12,7 +12,7 @@
 
 Original is off by default. It may be switched on per workspace with testing-phase warnings.
 
-Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026). The pilot and the fictional demo are deployed (since 6 Oct 2026); no teacher is invited yet. See Deployed.
+Engineering for this phase is merged (PRs #226, #227, 5 Oct 2026), and the 2026-10-11 clean-up of the remaining problems is merged too (#238 to #265, see Session Log). The pilot and the fictional demo are deployed; no teacher is invited yet. What is left before the first invite is owner work (Blockers below).
 
 See `docs/NORTH_STAR.md` for phase goals and non-negotiables.
 
@@ -20,18 +20,22 @@ See `docs/NORTH_STAR.md` for phase goals and non-negotiables.
 
 ## Deployed
 
-**The pilot and the fictional demo are live on Render (since 6 Oct 2026). No teacher has been invited yet.**
+Checked 2026-10-11 in the Render dashboard and against `/health`. No teacher has been invited yet.
 
-| Service | URL | State (checked 2026-10-08) |
-|---------|-----|----------------------------|
-| `original-pilot` | https://original-pilot.onrender.com | `/health` ok; backend `postgres`; environment `pilot`; `signup_open: false`; 0 students; commit `00247875` |
-| `bluebook-teacher-demo` | https://bluebook-teacher-demo.onrender.com | Serves the fictional teacher demo; Codex reported it at commit `2c2d62d2` |
+| Service | URL / plan | State |
+|---------|-----------|-------|
+| `original-pilot` | https://original-pilot.onrender.com, Starter, Oregon | `/health` ok; backend `postgres`; environment `pilot`; `signup_open: false`; 0 students; commit `56188ee4` (Manual Deploy from `main`, 2026-10-11) |
+| `original-db` | Postgres 16, basic-256mb | internal-only (`ipAllowList: []`) |
+| `original-pg-backup` | cron, 08:30 UTC daily | builds; the bucket and `BACKUP_ENCRYPTION_KEY` are not set, so its `--require-upload` run cannot succeed until B1 is done (run history not checked) |
+| `bluebook-teacher-demo` | https://bluebook-teacher-demo.onrender.com, static | deployed; Blueprint-managed |
+| `original-demo` | https://original-demo.onrender.com, free, Ohio | **suspended 2026-10-11** on Andrew's instruction (returns 503). It had stayed active and auto-deployed every push to `main` after leaving the blueprint on 2026-10-05. Resume or delete it from the dashboard. |
 
-- **The pilot runs a pre-merge build, not `main`.** `00247875` sits on `codex/bluebook-pilot-c962a917`. That work reached `main` as the squash-merged #235, so `main` has the same code plus everything merged since, including the T-01 scoring fix and the Canvas SSRF fixes. Neither has an effect while Original and Canvas are off. Redeploy from `main` before the first teacher is invited.
-- **Render probably deploys from `codex/bluebook-pilot-c962a917`**: both live commits are on it (and on `codex/pilot-secrets`). Unconfirmed, because the Render CLI on the dev machine is not logged in. Point the services at `main` in the Render dashboard before deleting either branch, or future deploys lose their source.
-- Codex reported on 6 Oct that the managed Postgres migrations succeeded and 12 public smoke checks passed. The full deployed acceptance run (B4) has not happened.
-- The old free service `Originall` (`https://originall.onrender.com`) did not respond within 70 s on 2026-10-08. Its fate is part of B1.
-- Intended hosting: Render Hobby following the `render.yaml` blueprint, Postgres 16, Oregon region. The plan and budget are not yet signed off.
+- **Render deploys from `main`** (the pilot's Branch setting, checked 2026-10-11). `original-pilot` has auto-deploy off: it redeploys when a `render.yaml` change syncs the Blueprint, or by Manual Deploy. Two Manual Deploys on 2026-10-11 (`6174276d`, then `56188ee4`) put it on `main`, including the dependency batch (#262) and the T-23 boot refusal (#263); only this docs update is newer.
+- **Smoke test against `6174276d` and again against `56188ee4` (2026-10-11):** `scripts/pilot_smoke_test.py --bluebook` PASS (12 checks); HSTS on; CORS sends no allow-origin to a foreign origin; `POST /auth/signup` 403; `/` redirects to Bluebook.
+- `codex/bluebook-pilot-c962a917` (`2c2d62d2`) and `codex/pilot-secrets` (`d31d7086`) were deleted on 2026-10-11 after confirming Render deploys from `main`; restore from those SHAs if ever needed.
+- The old free service `Originall` is no longer listed in the dashboard.
+- The full deployed acceptance run (B4) has not happened.
+- Hosting: Render per the `render.yaml` blueprint. The plan and budget are not yet signed off.
 
 ---
 
@@ -39,94 +43,57 @@ See `docs/NORTH_STAR.md` for phase goals and non-negotiables.
 
 ### Open PRs
 
-| PR | Branch | Owner | Status | Notes |
-|----|--------|-------|--------|-------|
-| [#228](https://github.com/pathosbuilder895/Orig/pull/228) | `claude/original-landing-integration-d19b53` | Claude Code (Task B) | Open; CI green; **merge conflicts with main** | Landing page, reworked 7 Oct to NORTH_STAR: removed the invented-data dashboard mock and the unlicensed and AI-generated images. Includes ADR-011. Needs a rebase, then Andrew's call on hosting claims, final images and footer. |
+| PR | Owner | Notes |
+|----|-------|-------|
+| [#260](https://github.com/pathosbuilder895/Orig/pull/260) | another Claude session | Renames user-facing "Bluebook" to "Collections" (trademark risk). A branding decision for Andrew. |
 
-**Closed 2026-10-08:** [#160](https://github.com/pathosbuilder895/Orig/pull/160) and [#225](https://github.com/pathosbuilder895/Orig/pull/225), keystroke work ruled out by NORTH_STAR rule 6 and ADR-010. Their branches are kept. `sprint/lane-a-claude` (#225) holds `62f2152e`, the LTI key rotation made after the key leak. `main` has not picked it up: `scripts/o1_golive_check.py` and its test still expect `7939c6c8a6f9a736`, the leaked key's id. Port the rotation when Canvas/LTI comes back; never go back to the old key.
+Dependabot backlog: cleared 2026-10-11. The `/app` PRs were closed when `/app` was deleted (#243); the rest were applied as one tested batch (#262) and closed.
 
-### Branches Without PRs
-
-| Branch | Owner | Status | Notes |
-|--------|-------|--------|-------|
-| `codex/bluebook-pilot-c962a917` | Codex | Superseded by #235 (merged 2026-10-08) | Its only difference from `main` is an older `render.yaml` comment. Both live deploys came from it, so delete it (and the merged `codex/pilot-secrets`) only after the Render services point at `main`. |
-
-### Dependabot PRs
-
-24 open dependabot PRs for dependencies. Several are major version bumps (vitest 5, eslint 10, ruff 0.16, pydantic 2.13). 10 target `/app` directory (re-scoped legacy tree per ADR-008-ws8) — decide whether to merge these or configure dependabot to ignore `/app`.
+`sprint/lane-a-claude` (#225, closed) still exists; its LTI key-rotation note `62f2152e` reached `main` in #248, so nothing else on it is needed.
 
 ---
 
 ## Blockers
 
-From `docs/release/VERIFICATION_AND_BLOCKERS.md` "Still open":
-
 ### Owner/Operator Tasks (B1–B6)
 
-1. **Hosting and budget sign-off:** the services already run on Render, but the plan, instance size and Postgres plan are not signed off. Research is in `docs/research/2026-10-07-hosting-and-storage.md`. Awaiting Andrew's approval.
-2. **Email provider** — SendGrid Essentials ~$19.95/mo. Sending domain must be verified. Awaiting Andrew's setup.
-3. **Encrypted off-box backups** — R2 or B2 bucket in separate account, Fernet key stored offline. Awaiting Andrew's setup.
-4. **Legal pages final** — Privacy policy, terms, student notice. Draft placeholders exist with `[ENTITY]`, `[CONTACT]`, `[PROVIDER]` blanks. Counsel needs to approve terms and data agreement for teachers without school contracts. See NORTH_STAR open questions.
-5. **Deployed acceptance testing:** the full B4 run on the live instance (journey on phone and laptop, restart persistence, encrypted restore drill, rollback, uptime monitor). Only Codex's 12 public smoke checks have run (6 Oct).
-6. **Publishing fictional demo:** done, live since 6 Oct at `bluebook-teacher-demo.onrender.com`. `VERIFICATION_AND_BLOCKERS.md` still lists B3 (create the hosted pilot) and B5 (publish the demo) as not done; that file belongs to Task C, which marks them done on `claude/independent-teacher-wording`.
-7. **First teacher invites** — 1–3 teachers. Use `scripts/invite_professor.py`. Pilot stays invitation-only.
+1. **Hosting and budget sign-off.** Research: `docs/research/2026-10-07-hosting-and-storage.md` (Render, about $13/month hosting, about $33 with email).
+2. **Email.** SendGrid Essentials (about $19.95/month) and a verified sending domain; then set `SENDGRID_API_KEY`, `MAIL_FROM` and `PUBLIC_BASE_URL` on `original-pilot`. Without `PUBLIC_BASE_URL` invites are not emailed (`scripts/invite_professor.py` now says when the value lacks `https://`).
+3. **Encrypted off-box backups.** An R2 or B2 bucket in a separate account and an offline Fernet key; set the five `BACKUP_OFFBOX_*` values and `BACKUP_ENCRYPTION_KEY` on `original-pg-backup`. The restore drill fetches the newest dump with `scripts/pg_backup_offbox.py --download-latest DIR` (#248).
+4. **Legal pages.** Send `docs/release/COUNSEL_PACKET.md` to counsel: every blank, the two "does not analyse your writing style" sentences that are untrue where Original is on, the school-assuming lines, and the open student-age (COPPA) question. Also name a support contact: `docs/release/PROFESSOR_QUICKSTART.md` has `[Andrew: support contact]` placeholders.
+5. **Deployed acceptance (B4)** on the live pilot: full journey on phone and laptop, password reset email, restart persistence, encrypted restore drill, rollback, uptime monitor. Steps: `docs/BLUEBOOK_LAUNCH_CHECKLIST.md`.
+6. **First teacher invites:** 1–3, with `scripts/invite_professor.py`, sending `docs/release/PROFESSOR_QUICKSTART.md`.
 
 ### Technical Open Items
 
-From `docs/testing/10-gap-register.md` (rows re-checked 2026-10-11):
-- **T-10** (green): `tests/test_alembic.py` holds the model to the migrations (single head, `compare_metadata` empty, round trip). It found one real drift on `bluebook_submissions.submission_uuid` (partial unique index in the migration, UNIQUE constraint in the model), fixed in the model.
-- **T-13**: G7 (cross-topic false-positive gate) has never returned a verdict.
-- **T-14** (partial): the weekly calibration battery now finishes every leg, but `continue-on-error` still hides failing gates.
-- **T-17** (partial): the per-score `all_states()` scan is tenant-scoped and runs once per request; no scan-count or scaling test.
-- **T-18** (partial): one worker on one instance is now asserted against `render.yaml`; no cross-instance cache test.
-- **T-23** (red): `GUARD_DESTRUCTIVE=1` outside a real deploy still boots; a boot-matrix cell tracks it.
-- **T-24** (partial): calibration-lab Apply reaches scoring; no test drives the Apply route or a browser.
-- Verified closed: T-11 (schema provisioned by `alembic upgrade head` before each deploy), T-12 (committed G5/G6 report: G5 pass, G6 uninformative), T-16, T-20, T-74.
+From `docs/testing/10-gap-register.md` (2026-10-11):
+- **Closed 2026-10-11:** T-10, T-11, T-12, T-14 (#264; the first weekly run after merge is the proof), T-16, T-19 (#261), T-20, T-23 (#263), T-74.
+- **T-13**: G7 (cross-topic false-positive gate) has never returned a verdict; its corpus cannot be committed.
+- **T-17, T-18, T-24** (partial): see their rows.
+- **T-27**: no secrets-never-leak sentinel test.
+- **T-70 to T-73, T-75** (adversarial and minimum-baseline): Bluebook now records a sitting INCONCLUSIVE below 3 approved samples (#247), but the score route still returns a recommendation and gates G-A1 to G-A6 are not built. Deferred until Original is on for a teacher.
+- **T-21, T-22** (LTI): deferred with Canvas.
 
 ### Known Conflicts
 
-From NORTH_STAR "Known conflicts with independent teachers":
-- `docs/release/PROFESSOR_ACCESS_PLAN.md` step 6: assumes institution contract
-- `VERIFICATION_AND_BLOCKERS.md` items 6, 9, B2: require institutional approval
-- `render.yaml` comments: describe "institutional pilot"
-- Signup refusal message: tells users to contact "institution"
-- Draft legal pages: say Bluebook "does not analyse writing style" (stops being true when Original is on)
+The NORTH_STAR "Known conflicts with independent teachers" list is resolved in code and docs (#245, #247, #248) except:
+- the draft legal pages, which are counsel's (item 4 above);
+- NORTH_STAR itself: its "done" section says the testing-phase warning exists only in operator scripts. Since #240 and #247 it is shown wherever a teacher sees an Original result. Only Andrew edits NORTH_STAR.
 
 ### Repository Visibility
 
-`pathosbuilder895/Orig` should become **private** (NORTH_STAR decision). Access steps documented in hosting research. GitHub app authorizations needed for Claude, Codex before switch. **Andrew's action.**
+`pathosbuilder895/Orig` should become **private** (NORTH_STAR decision). Confirm the Codex connector, Claude GitHub App and Render GitHub app grants first (steps in the hosting research). **Andrew's action.**
 
 ---
 
-## Next up (assigned 2026-10-07)
+## Next up
 
-Work in this order. Each task owns its files; nobody touches another task's files while it is open.
+Tasks A, B and C from 2026-10-07 are done: A as #235, B as #228, C as #245 and #247 (Claude Code took C over from Codex on 2026-10-11). The shared testing-phase sentence is live wherever a teacher sees an Original result.
 
-| # | Task | Owner | Branch → PR | Starts | May touch | Must not touch |
-|---|------|-------|-------------|--------|-----------|----------------|
-| A | Render-generated pilot secrets + matching docs | Codex | `codex/pilot-secrets` (from `codex/bluebook-pilot-c962a917`) | Now | `render.yaml` (secret entries + teacher-demo envVars), `tests/test_render_blueprint.py`, secret lines in `docs/BLUEBOOK_LAUNCH_CHECKLIST.md`, `docs/OPS_RUNBOOK.md`, `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, `docs/DAY_ONE_CLASS.md` | Institution/LTI wording (task C), `original/**`, `demo/**`, `docs/release/**`, `docs/adr/**` |
-| B | Rework [#228](https://github.com/pathosbuilder895/Orig/pull/228) landing to NORTH_STAR | Claude Code | `claude/original-landing-integration-d19b53` → #228 | Now (parallel with A) | Files #228 already touches: `demo/landing.html`, `demo/original-quantum.html` (remove), `demo/js/cursor.js`, `demo/js/live-demo.js`, `demo/styles/original-landing.css`, `demo/assets/` (its images), `docs/adr/011-*` | `demo/bluebook/**`, `original/**`, `render.yaml`, `scripts/**`, `docs/release/**`, ops docs and checklists |
-| C | Independent-teacher + T-01 wording, testing-phase label in teacher screens | Claude Code (taken over from Codex 2026-10-11, Andrew's decision) | `claude/independent-teacher-wording` (non-screen part); screen part after #240 merges | Now | `original/onboarding.py` (`ORIGINAL_NOT_VALIDATED`), signup 403 text in `original/routers/auth.py` + its tests, `docs/release/*`, launch/provisioning checklists, 10-04 plan B2, `docs/DAY_ONE_CLASS.md`, `docs/OPS_RUNBOOK.md`, `render.yaml` comments only, `demo/bluebook/*.jsx` + rebuilt bundles | Task B files, `demo/legal/**` (counsel), scoring code, constants and flags |
-
-**Shared label text (B and C):** "Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence." *(proposed; Andrew may edit)*
-
-**Rules for every task:** read AGENTS.md → NORTH_STAR → STATUS first. Work on a pushed `codex/*` or `claude/*` branch with a PR. CI must be green. Never push to main, never merge, never flip feature flags. Append one line to Log Entries and edit nothing else here.
-
-**Andrew decides:** merging A, then B and C. Hosting for the landing page (B). Final images (B). Legal-page wording (counsel). Closing #160 and #225.
-
-**Progress (2026-10-08):** A is merged as #235, so C may start. #160 and #225 are closed. B (#228) needs a rebase onto `main`.
-
----
-
-## Next Steps
-
-1. **Andrew: sign off the hosting plan.** The services already run on Render; confirm the plan and instance sizes.
-2. **Andrew: make the repo private** after confirming the Claude and Codex GitHub app grants.
-3. **Andrew: point the Render services at `main`**, then delete `codex/bluebook-pilot-c962a917` and `codex/pilot-secrets`.
-4. **Legal pages:** counsel reviews the terms, privacy policy and student notice for independent teachers.
-5. **Finish hosting setup:** SendGrid, plus the encrypted backup bucket and its key.
-6. **Redeploy from `main` and test:** measure RSS, then run the B4 acceptance checks on the live instance.
-7. **Invite the first teachers:** 1 to 3, via `scripts/invite_professor.py`.
+What remains is the owner work under Blockers. When it is done:
+1. **After any further merge, Manual Deploy `original-pilot`** (auto-deploy is off), then re-run `python -m scripts.pilot_smoke_test --base-url https://original-pilot.onrender.com --bluebook`.
+2. **Run B4 together** (Claude drives the checks it can; the phone, inbox and dashboard steps are Andrew's). Record each step, dated, in `docs/release/VERIFICATION_AND_BLOCKERS.md`.
+3. **Invite the first teachers.**
 
 ---
 
@@ -177,3 +144,4 @@ text would get both copies kept, with no conflict to flag it.
 - 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/battery-fail-on-error | T-14: the weekly calibration battery now goes red only on ERROR. New `scripts/battery_gate.py` reads each leg's report with the battery's exit status (exit 1 is a fail/uninformative gate or an uncaught exception, so the report decides) and fails the leg on a non-0/1 exit (124 = timeout), a missing or unparseable report, a missing gate, or a gate with `detail.machinery_error`; the merge job runs `merge_calibration_reports.py --fail-on-error-only`. `continue-on-error` and the merge `|| true` removed; fail/uninformative verdicts stay listed but exit 0. `tests/test_battery_gate.py` 42 passed; register T-14 green and 06 §7 rewritten. No weekly run since, so the first scheduled run after merge is the proof.
 - *2026-10-11 | Claude Code (Claude Opus 5.5) | claude/guard-destructive-refuse-boot | Closed T-23 (SECURITY_REAUDIT_2026-07-09 #5): `GUARD_DESTRUCTIVE=1` with `ORIGINAL_ENV` not pilot/staging/production (unset means demo) now refuses boot from the `original/api.py` lifespan with a RuntimeError naming the variable, next to the SECRET_KEY refusal; `ORIGINAL_ENV=pilot` with the guard (the render.yaml pilot) still boots. Boot-matrix cell `demo-guard-destructive` is now `today: refuse`; new `tests/config/test_guard_destructive_boot.py` (10 passed); local boot_check: demo and unset refuse (exit 3), pilot up. Gap register T-23 green; OPS_RUNBOOK and testing docs 04/08 updated. Nothing in the repo set the guard outside a real deploy. Technical Open Items above still lists T-23 as red (not edited in this session). No flags, scoring or render.yaml touched.*
 - 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/score-rate-limit | T-19: per-caller scoring budget on real deploys (`SCORE_RATE_LIMIT_PER_MINUTE`, default 30/min, shared by /students/{id}/score and /me/work, 429 past it); SECURITY_AUDIT.md's slowapi claim corrected; CLAUDE.md flag row added. Tests: test_score_rate_limit 9 passed; scoring-route, security, lockdown and OpenAPI snapshot tests 468 passed. No effect while Original is off for every pilot workspace.
+- 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/status-refresh-2026-10-11 | Rewrote the sections above the Session Log to the verified 2026-10-11 state: on Andrew's instruction, pilot Manual-Deployed from `main` twice (`6174276d`, then `56188ee4`; Render Branch setting confirmed `main`; smoke test PASS both times, HSTS, CORS, signup 403) and `original-demo` suspended (it was still active and auto-deploying `main`), `codex/bluebook-pilot-c962a917` and `codex/pilot-secrets` deleted (SHAs recorded above), Dependabot backlog cleared, Tasks A-C done, remaining blockers are owner work. Gap register reconciliation note and T-75 updated; stale battery lines in testing docs 01 and 09 fixed.
