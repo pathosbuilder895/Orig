@@ -24,14 +24,14 @@ Checked 2026-10-11 in the Render dashboard and against `/health`. No teacher has
 
 | Service | URL / plan | State |
 |---------|-----------|-------|
-| `original-pilot` | https://original-pilot.onrender.com, Starter, Oregon | `/health` ok; backend `postgres`; environment `pilot`; `signup_open: false`; 0 students; commit `56188ee4` (Manual Deploy from `main`, 2026-10-11) |
+| `original-pilot` | https://original-pilot.onrender.com, Starter, Oregon | `/health` ok; backend `postgres`; environment `pilot`; `signup_open: false`; 0 students; commit `6f4bb3d3` (Manual Deploy from `main`, 2026-10-11) |
 | `original-db` | Postgres 16, basic-256mb | internal-only (`ipAllowList: []`) |
 | `original-pg-backup` | cron, 08:30 UTC daily | builds; the bucket and `BACKUP_ENCRYPTION_KEY` are not set, so its `--require-upload` run cannot succeed until B1 is done (run history not checked) |
 | `bluebook-teacher-demo` | https://bluebook-teacher-demo.onrender.com, static | deployed; Blueprint-managed |
 | `original-demo` | https://original-demo.onrender.com, free, Ohio | **suspended 2026-10-11** on Andrew's instruction (returns 503). It had stayed active and auto-deployed every push to `main` after leaving the blueprint on 2026-10-05. Resume or delete it from the dashboard. |
 
-- **Render deploys from `main`** (the pilot's Branch setting, checked 2026-10-11). `original-pilot` has auto-deploy off: it redeploys when a `render.yaml` change syncs the Blueprint, or by Manual Deploy. Two Manual Deploys on 2026-10-11 (`6174276d`, then `56188ee4`) put it on `main`, including the dependency batch (#262) and the T-23 boot refusal (#263); only this docs update is newer.
-- **Smoke test against `6174276d` and again against `56188ee4` (2026-10-11):** `scripts/pilot_smoke_test.py --bluebook` PASS (12 checks); HSTS on; CORS sends no allow-origin to a foreign origin; `POST /auth/signup` 403; `/` redirects to Bluebook.
+- **Render deploys from `main`** (the pilot's Branch setting, checked 2026-10-11). `original-pilot` has auto-deploy off: it redeploys when a `render.yaml` change syncs the Blueprint, or by Manual Deploy. Three Manual Deploys on 2026-10-11, on Andrew's instruction (`6174276d`, `56188ee4`, then `6f4bb3d3`), put it on `main`, including the dependency batch (#262), the T-23 boot refusal (#263) and the Collections rename (#260); only docs are newer.
+- **Smoke test against `6174276d`, `56188ee4` and `6f4bb3d3` (2026-10-11):** `scripts/pilot_smoke_test.py --bluebook` PASS (12 checks); HSTS on; CORS sends no allow-origin to a foreign origin; `POST /auth/signup` 403; `/` redirects to Bluebook.
 - `codex/bluebook-pilot-c962a917` (`2c2d62d2`) and `codex/pilot-secrets` (`d31d7086`) were deleted on 2026-10-11 after confirming Render deploys from `main`; restore from those SHAs if ever needed.
 - The old free service `Originall` is no longer listed in the dashboard.
 - The full deployed acceptance run (B4) has not happened.
@@ -45,7 +45,9 @@ Checked 2026-10-11 in the Render dashboard and against `/health`. No teacher has
 
 | PR | Owner | Notes |
 |----|-------|-------|
-| [#260](https://github.com/pathosbuilder895/Orig/pull/260) | another Claude session | Renames user-facing "Bluebook" to "Collections" (trademark risk). A branding decision for Andrew. |
+| [#267](https://github.com/pathosbuilder895/Orig/pull/267) | another Claude session | Refactors the per-run Postgres test databases and trims redundant tests. In progress. |
+
+**Product name:** the user-facing name is now **Original Collections** (in the app, **Collections**), from #260 on 2026-10-11 (trademark risk); live on the pilot (legal pages and app bundle checked). URL paths (`/bluebook/`), file names and code identifiers keep "bluebook". The counsel packet asks counsel to clear the new name.
 
 Dependabot backlog: cleared 2026-10-11. The `/app` PRs were closed when `/app` was deleted (#243); the rest were applied as one tested batch (#262) and closed.
 
@@ -148,3 +150,4 @@ text would get both copies kept, with no conflict to flag it.
 - 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/status-refresh-2026-10-11 | Rewrote the sections above the Session Log to the verified 2026-10-11 state: on Andrew's instruction, pilot Manual-Deployed from `main` twice (`6174276d`, then `56188ee4`; Render Branch setting confirmed `main`; smoke test PASS both times, HSTS, CORS, signup 403) and `original-demo` suspended (it was still active and auto-deploying `main`), `codex/bluebook-pilot-c962a917` and `codex/pilot-secrets` deleted (SHAs recorded above), Dependabot backlog cleared, Tasks A-C done, remaining blockers are owner work. Gap register reconciliation note and T-75 updated; stale battery lines in testing docs 01 and 09 fixed.
 - 2026-10-11 | Claude Code (Claude Opus 5.5) | cursor/rename-collections-6014 (#260) | On Andrew's instruction, finished the Bluebook to Collections rename so CI passes: merged main (conflicts in the suite pages, TeacherWorkspace.jsx and bundles resolved keeping main's structure and the new name), renamed what main had added since (the suite's Collections page, the navy demo, the teacher-demo buttons), fixed the half-renamed sentence in original/voice.py that broke the my-work note, the student disclosure and the product-gate 403 label, and updated the tests that pinned the old name. Quickstart and counsel packet use the new name; the packet asks counsel to clear "Original Collections". URL paths (/bluebook/) and internal identifiers are unchanged. Full suite 5056 passed (+ the 8 rename failures fixed and the load-flaky perf test passing 3/3 alone); Playwright 124/124.
 - 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/restore-landing-page | Restored the public landing page that #260 deleted in a merge commit (it believed the page lived only in #228, already merged); the pilot at `6f4bb3d3` serves a 404 at `/landing.html` until this merges and is deployed. Renamed its 10 visible "Bluebook"/"Blue Book" strings to Collections (links, anchors and comments keep `bluebook`). New `tests/test_landing_page.py` (4 tests: exists, served on a real deploy, every asset it loads exists, no old name in visible text), red with the page removed and with the un-renamed page, green after. Launch checklist: `MAIL_FROM` sender name and the example domain no longer say Bluebook. No flags, scoring or deploys.
+- 2026-10-11 | Claude Code (Claude Opus 5.5) | claude/status-after-rename | #260 merged (`6f4bb3d3`) after CI passed; on Andrew's instruction the pilot was Manual-Deployed to `6f4bb3d3` (smoke test PASS, signup 403, live legal pages and bundle say Collections with no Bluebook left). STATUS Deployed, In Flight and product-name lines updated.
