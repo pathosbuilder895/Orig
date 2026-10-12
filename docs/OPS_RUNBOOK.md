@@ -66,7 +66,11 @@ var, only one of which is live on the pilot:
    endpoints return **503** instead — a misconfiguration signal, not an open
    door. `render.yaml` sets `GUARD_DESTRUCTIVE=1` on `original-pilot`. (The
    old `original-demo` service, removed from the blueprint, left it unset so
-   the sales demo stayed click-through.)
+   the sales demo stayed click-through.) Set it only on a real deploy: with
+   `ORIGINAL_ENV` anything but `pilot`/`staging`/`production` (unset means
+   `demo`) the app refuses to boot with a `RuntimeError` naming
+   `GUARD_DESTRUCTIVE` (T-23), because the demo surfaces, including the
+   backdoor in item 2, stay open there.
 2. **Demo-only admin-login backdoor (not live on the pilot).** The same
    `MAINTENANCE_TOKEN` value, presented as the password to
    `POST /api/v1/auth/login`, grants the **admin** role and writes a WARNING
