@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # ── API ──────────────────────────────────────────────────────────────────
     API_V1_PREFIX: str = "/api/v1"
     _ALLOWED_ORIGINS_STR: str = (
-        "http://localhost:3000,http://localhost:8080," "http://localhost:8000,http://127.0.0.1:8000"
+        "http://localhost:3000,http://localhost:8080,http://localhost:8000,http://127.0.0.1:8000"
     )
 
     @property
