@@ -58,6 +58,8 @@ re-parse of every corpus document), so the job as written cannot complete; and
 `fail` in the Actions UI. No run artifact was available offline to confirm
 either way — treat the job as unproven until one is.
 
+*Update 2026-10-11:* both problems are fixed. A feature-vector cache and six `--only` legs (merged by `scripts/merge_calibration_reports.py`) let every weekly run finish since 2026-09-08, and since #264 a leg fails only on ERROR (`scripts/battery_gate.py`), while gate fail and uninformative verdicts stay visible without turning the run red.
+
 **Timing.** No committed `--durations`. Known hot spots from the CI comment:
 `tests/fusion/test_wiring.py` six cases at 72–82 s each (~8 min of one job),
 `test_dirichlet_multinomial_drift` ~32 s, `test_calibration_scoring_config`
