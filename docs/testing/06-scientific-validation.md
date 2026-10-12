@@ -26,8 +26,8 @@ test the campaign did not name, and fixes how results are reported.
 | G-P3 | `CHARACTERISTIC_WEIGHTS` validation | **no evaluator exists** |
 | T-1…T-4 | TermSim term-shaped gates | **merged** (`0d35d486`), registered in `gate_contracts.py`; first-light report 2026-08-27 at 3 seeds shows honest-term flag probability saturating at monitor+ and `LLR_ACTION_MODE=gate` never exceeding `llr-shadow` on TRANSFER |
 
-The battery is in CI as `calibration-battery.yml` (weekly, `--strict`, 30-minute
-cap, `continue-on-error`) but see §7: it cannot finish. The unit layer (`test_calibration_gate.py`,
+The battery is in CI as `calibration-battery.yml` (weekly, `--strict`, six
+`--only` legs merged into one report, red only on ERROR; see §7). The unit layer (`test_calibration_gate.py`,
 `test_gate_falsifiability.py`, `test_gate_properties.py`, `test_corpus_policy.py`,
 `test_measurability.py`) runs on every commit and is fast.
 
@@ -153,49 +153,70 @@ where possible:
 | "FPR is Y %" | which path (typicality vs `ACTION_THRESHOLDS`), which N, which corpus — all three, or the number is not citable |
 | "The suite is green" | full CI command, Postgres up, 0 failed; certification tests reported separately |
 
-## 7. Battery in CI — what exists and why it cannot finish
+## 7. Battery in CI: what exists and when it goes red
 
-`calibration-battery.yml` exists: weekly Monday, `workflow_dispatch`, one job,
-`ubuntu-latest`, `timeout-minutes: 30`, `continue-on-error: true`, runs
-`python -m validation.calibration_gate --strict --out calibration-report.json`
-and uploads it. It carries a TODO for regenerating the G7 corpus.
+`calibration-battery.yml` runs weekly (Monday 08:17 UTC) and on
+`workflow_dispatch`. It no longer matches the single 30-minute job this
+section first described: one hosted runner cannot finish the battery (a
+warm-cache run on a 10-core Mac took about 7 h on 2026-09-07, and the first CI
+attempt was cut off at the 6-hour cap inside G5), so it is a six-job matrix
+over `--only` leg groups (G1+G1p, G2, G2b, G3+G4, G5, G6+G7+G8+T), each run
+`--strict` under a 330-minute step `timeout` inside a 360-minute job cap.
+Feature vectors are memoised by `validation/vector_cache.py`
+(`CALIBRATION_GATE_VECTOR_CACHE`; hit-equals-fresh pinned by
+`tests/test_vector_cache.py`) and persisted through `actions/cache`, keyed on
+the feature implementation and the committed corpora. A merge job joins the
+leg reports with `scripts/merge_calibration_reports.py` into the
+`calibration-report` artifact, lists any leg that reported nothing under
+`missing_legs`, and writes the gate table to the job summary. First complete
+run 34226363871 (2026-09-08, cold cache, G5 4 h 26 min); every weekly run on
+`main` since has finished all six legs.
 
-The runtime does not fit. The 2026-09-07 merge session measured the full
-G-battery at **20+ CPU-hours** because every gate re-parses every corpus
-document through spaCy; TermSim's standard matrix alone is 18–34 minutes of
-wall on a 12-core machine at 7 workers. A 30-minute two-core GitHub job will
-time out every week, and `continue-on-error` will make that look like a
-yellow tick rather than a failure. Nothing offline could confirm a completed
-run; treat the job as unproven.
+**When it goes red (T-14, 2026-10-11): on ERROR only.** `--strict` exits 1
+for a `fail` or `uninformative` gate, and Python also exits 1 on an uncaught
+exception, so the exit code alone cannot tell a measurement from a crash.
+Each leg therefore hands its report and the battery's exit status to
+`scripts/battery_gate.py`, which fails the leg on:
 
-Fix, in order:
+- an exit status other than 0 or 1 (124 is the step `timeout`);
+- no report, or one that does not parse (a crash in G1, G3 or T is not
+  caught inside `run_all()`, so it kills the process before the report is
+  written);
+- a requested gate missing from the report;
+- a gate that raised instead of returning a verdict (`run_all()` records it
+  as `fail` with `detail.machinery_error` and a current value starting
+  `ERROR (machinery)`);
+- exit 1 with every gate in the report passing.
 
-1. **Feature-vector cache for the G-battery.** TermSim already has an
-   auditable vector cache (`0d491bba`, `.benchmark_cache/termsim/`). Give the
-   G-gates the same: cache `(sha256(text), pipeline_version) → vector` under
-   `.benchmark_cache/gates/`, restored via `actions/cache`. Extraction is the
-   cost; scoring is seconds. Add a test that a cache hit and a fresh extract
-   are byte-identical (the determinism suite's pattern) so the cache can
-   never lie.
-2. **One job per gate** (matrix over `G1…G8`, `T-1…T-4`), each with its own
-   cap, a `combine` job that merges the JSONs. A slow gate then times out
-   alone and is reported as `ERROR` for that gate, not as a lost run.
-3. **Fail the step on `ERROR`.** Drop `continue-on-error`; parse the JSON and
-   `exit 1` if any verdict is `ERROR`. Science `fail` stays non-blocking via
-   the schedule-only trigger.
-4. **Record runtime.** Each gate writes its wall time into the report; a
-   test asserts the job cap exceeds the newest recorded max by 2×, so the cap
-   is derived from measurement (the `test.yml` comment's own rule).
+The merge job runs `merge_calibration_reports.py --fail-on-error-only`, which
+fails on a missing leg or an errored gate. Neither job is
+`continue-on-error` any more. A `fail` or `uninformative` verdict is a
+measurement: it stays in the leg log, the merged report and the job summary,
+and it does not turn the run red. This departs from the original plan (drop
+`continue-on-error` and rely on the schedule-only trigger to keep science
+`fail` non-blocking): on 2026-10-05 (run 37346489159) G1, G1p, G3, G6, G7,
+T-1 and T-3 did not pass, so a run red on any `fail` would be red every week
+and nobody would read it. Nothing here blocks a PR; the workflow has no
+`pull_request` trigger. No weekly run has happened since this landed, so the
+first scheduled run after merge is the proof that a measurement-only week
+stays green.
 
-Until 1–2 land, run the battery on the 12-core machine by hand and commit the
-report; that is the only path to the post-fix G5/G6 verdicts Plan 01 owes.
+Still open from the original fix list:
 
-The weekly workflow, once it can finish, also hosts: `pytest -m certification`
+1. **Per-gate jobs.** The six leg groups are sized by measured cost, not one
+   job per gate; a leg that times out is reported as an ERROR for its whole
+   group.
+2. **Record runtime.** `_leg_clock()` prints each leg's wall time to the log
+   (`[battery] <leg> done at +<h>h<mm>m`), but the report JSON does not carry it and
+   no test derives the job cap from the newest recorded maximum (the
+   `test.yml` comment's own rule).
+
+The weekly workflow is also the planned home for `pytest -m certification`
 (also per PR), TermSim standard matrix at 3 seeds, the mutation run
 (§02 §5), `scripts/load_smoke.py` (§07 §8), the restore drill (§08 §6), and
-visual regression (§05 §5). A red weekly run is Monday reading, not a merge
-blocker — except for the certification step, which is also per-PR and *is* a
-blocker once it is green on `main`.
+visual regression (§05 §5); none is in it yet. A red weekly run is Monday
+reading, not a merge blocker, except for the certification step, which is
+also per-PR and *is* a blocker once it is green on `main`.
 
 ## 8. Acceptance for this slice
 
