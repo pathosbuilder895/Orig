@@ -510,10 +510,7 @@ def _build_observations(
             continue
         # Pick more/less based on direction of delta
         direction_text = entry["more"] if fc.delta > 0 else entry["less"]
-        obs = (
-            f"In terms of {entry['label']}, {name} {direction_text} "
-            f"compared to their prior work."
-        )
+        obs = f"In terms of {entry['label']}, {name} {direction_text} compared to their prior work."
         observations.append(obs)
         if len(observations) >= 4:
             break
@@ -715,9 +712,7 @@ def _build_confidence_note(
         # caveat above, each gets its own sentence when it applies, rather
         # than collapsing to a single "worse of the two" note.
         if readiness == "thin":
-            note += (
-                " This student's baseline is still small, so treat any " "signal as provisional."
-            )
+            note += " This student's baseline is still small, so treat any signal as provisional."
         if loo_outliers:
             note += (
                 " One of the baseline writings looks stylistically unlike "

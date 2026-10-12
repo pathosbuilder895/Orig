@@ -1227,8 +1227,7 @@ def manifest_stats(
     try:
         with _get_conn() as conn:
             for row in conn.execute(
-                f"SELECT action, manifest_json, divergence_score "
-                f"FROM submission_manifests{where}",
+                f"SELECT action, manifest_json, divergence_score FROM submission_manifests{where}",
                 params,
             ):
                 total += 1
