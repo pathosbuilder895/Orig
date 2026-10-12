@@ -141,5 +141,5 @@ def list_datasets() -> list[dict]:
 def get_dataset(label: str) -> DatasetSpec:
     """Look up a dataset by label; raise KeyError if unknown."""
     if label not in _REGISTRY:
-        raise KeyError(f"unknown dataset: {label!r}; " f"known: {sorted(_REGISTRY)}")
+        raise KeyError(f"unknown dataset: {label!r}; known: {sorted(_REGISTRY)}")
     return _REGISTRY[label]

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Collections Sessions</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --flag:#e0725a;--warn:#d8b04a;--ok:#6bbf8a;--bb:#3a5ba0;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  [hidden]{display:none !important;}
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav.top{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;position:relative;z-index:1;}
+  .body.gated{display:grid;}
+  nav.top{position:relative;z-index:2;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.5),rgba(22,36,79,0.5)),url('assets/codrington-library.jpeg') center 42%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.55) brightness(.52) contrast(1.12) hue-rotate(184deg);opacity:.78;}
+  .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.36) 0%,rgba(8,12,30,0.72) 42%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
+  .head h1,.head .sub{text-shadow:0 2px 18px rgba(7,11,28,0.9);}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem;padding:.6rem 0 1.3rem;border-bottom:1px solid var(--line-soft);margin-bottom:1.4rem;}
+  .head .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+  .head h1{font-family:var(--display);font-weight:500;font-size:2rem;line-height:1.15;margin-top:.4rem;}
+  .head .sub{font-size:.98rem;color:var(--dim);font-style:italic;margin-top:.35rem;max-width:56ch;}
+  .head .sub b{color:var(--gold-2);font-style:normal;font-weight:400;}
+  .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:1.5rem;align-items:start;}
+  .cols>*{min-width:0;}
+  .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;}
+  /* ── Setup card ── */
+  .setup{padding:1.5rem 1.6rem 1.6rem;}
+  .setup-h{display:flex;align-items:center;gap:.7rem;margin-bottom:1.2rem;}
+  .bb-mark{width:34px;height:42px;border-radius:4px 8px 8px 4px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border:1px solid rgba(255,255,255,0.18);border-left:3px solid rgba(255,255,255,0.25);box-shadow:0 4px 10px rgba(0,0,0,0.3);flex-shrink:0;position:relative;}
+  .bb-mark::after{content:'';position:absolute;left:6px;right:6px;top:9px;height:1px;background:rgba(255,255,255,0.35);box-shadow:0 5px 0 rgba(255,255,255,0.2),0 10px 0 rgba(255,255,255,0.2);}
+  .setup-h b{font-family:var(--display);font-weight:500;font-size:1.3rem;display:block;}
+  .setup-h span{font-size:.88rem;color:var(--dim);font-style:italic;}
+  .stepper{display:flex;flex-direction:column;gap:0;counter-reset:step;}
+  .step{position:relative;padding:0 0 1.5rem 2.6rem;counter-increment:step;}
+  .step::before{content:counter(step);position:absolute;left:0;top:-.15rem;width:30px;height:30px;border-radius:50%;background:rgba(201,160,40,0.12);border:1px solid rgba(201,160,40,0.35);color:var(--gold-2);font-family:var(--display);font-size:.95rem;display:flex;align-items:center;justify-content:center;}
+  .step:not(:last-child)::after{content:'';position:absolute;left:14.5px;top:32px;bottom:6px;width:1px;background:var(--line-soft);}
+  .step-q{font-family:var(--display);font-size:1.08rem;font-weight:500;margin-bottom:.6rem;}
+  .step-q label{cursor:default;}
+  .step-hint{font-size:.85rem;color:var(--dim-2);font-style:italic;margin-top:.5rem;}
+  textarea.prompt{width:100%;min-height:96px;background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);border-radius:12px;padding:.85rem 1rem;color:var(--cream);font-family:var(--body);font-size:1.02rem;line-height:1.5;resize:vertical;outline:none;transition:border-color .15s;}
+  textarea.prompt:focus{border-color:rgba(201,160,40,0.45);}
+  textarea.prompt::placeholder{color:var(--dim-2);font-style:italic;}
+  textarea.prompt:disabled{opacity:.6;}
+  .q-field+.q-field{margin-top:.6rem;}
+  .rm-q{margin-top:.35rem;background:none;border:none;color:var(--dim-2);font-family:var(--body);font-size:.84rem;font-style:italic;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .rm-q:hover{color:var(--cream);}
+  .add-q{margin-top:.6rem;background:none;border:1px dashed rgba(201,160,40,0.35);color:var(--gold-2);border-radius:999px;padding:.35rem .9rem;font-family:var(--body);font-size:.85rem;cursor:pointer;}
+  .add-q:hover{background:rgba(201,160,40,0.08);}
+  .choice-row{display:flex;gap:.5rem;flex-wrap:wrap;}
+  .choice{background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.45rem 1rem;font-family:var(--body);font-size:.92rem;cursor:pointer;transition:all .15s;text-align:left;}
+  .choice:hover{color:var(--cream);border-color:var(--line);}
+  .choice.on{background:rgba(201,160,40,0.13);border-color:rgba(201,160,40,0.45);color:var(--gold-2);}
+  .row-note{font-size:.92rem;color:var(--dim);font-style:italic;line-height:1.5;}
+  .time-row{display:flex;align-items:center;gap:1.1rem;}
+  input[type=range]{flex:1;min-width:0;appearance:none;-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(245,239,224,0.12);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+  .time-val{font-family:var(--mono);font-weight:700;font-size:1.25rem;color:var(--cream);width:96px;text-align:right;flex-shrink:0;}
+  .quiet-note{display:flex;gap:.7rem;background:rgba(107,191,138,0.07);border:1px solid rgba(107,191,138,0.2);border-radius:12px;padding:.8rem 1rem;font-size:.88rem;color:var(--dim);line-height:1.5;margin-top:.2rem;}
+  .quiet-note svg{width:17px;height:17px;stroke:var(--ok);fill:none;stroke-width:1.7;flex-shrink:0;margin-top:.1rem;}
+  .quiet-note b{color:var(--ok);font-weight:500;}
+  .launch-row{display:flex;align-items:center;gap:1rem;margin-top:1.3rem;padding-top:1.3rem;border-top:1px solid var(--line-soft);}
+  .launch{display:inline-flex;align-items:center;gap:.55rem;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;border:none;border-radius:999px;padding:.7rem 1.5rem;font-family:var(--body);font-weight:600;font-size:1rem;cursor:pointer;box-shadow:0 6px 18px rgba(201,160,40,0.25);flex-shrink:0;}
+  .launch svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;}
+  .launch:disabled{opacity:.55;cursor:default;box-shadow:none;}
+  .launch-sum{font-size:.88rem;color:var(--dim);font-style:italic;}
+  .launch-err{margin-top:.9rem;padding:.65rem .9rem;border:1px solid rgba(224,114,90,0.4);border-radius:10px;background:rgba(224,114,90,0.08);color:#f0a690;font-size:.9rem;line-height:1.45;}
+  .code-chip{display:none;align-items:center;gap:.8rem;background:rgba(58,91,160,0.15);border:1px solid rgba(90,130,200,0.4);border-radius:14px;padding:.9rem 1.2rem;margin-top:1.2rem;}
+  .code-chip.show{display:flex;}
+  .code-chip .code{font-family:var(--mono);font-weight:700;font-size:1.6rem;letter-spacing:.14em;color:#a8c2f0;}
+  .code-chip .cc-l{font-size:.85rem;color:var(--dim);line-height:1.45;}
+  .code-chip .cc-l b{color:var(--cream);font-weight:500;}
+  .code-chip a{white-space:nowrap;}
+  .cc-links{display:flex;flex-wrap:wrap;gap:.3rem 1rem;margin-top:.45rem;}
+  .card-off{font-size:.95rem;color:var(--dim);font-style:italic;line-height:1.55;}
+  .card-off b{display:block;font-family:var(--display);font-style:normal;font-weight:500;font-size:1.1rem;color:var(--cream);margin-bottom:.35rem;}
+  .add-q:focus-visible,.rm-q:focus-visible,.choice:focus-visible,.launch:focus-visible,.sess:focus-visible,.more:focus-visible,.code-chip a:focus-visible,.row-note a:focus-visible,.card-off a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  /* ── Review side ── */
+  .rev{padding:1.3rem 1.4rem;}
+  .rev-h{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.9rem;}
+  .rev-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
+  .rev-h span{font-size:.82rem;color:var(--dim-2);}
+  .sess{display:flex;align-items:center;gap:.9rem;padding:.85rem 0;border-top:1px solid rgba(255,255,255,0.05);cursor:pointer;color:inherit;text-decoration:none;}
+  .sess:first-of-type{border-top:none;}
+  .sess:hover .s-t{color:var(--gold-2);}
+  .s-main{min-width:0;}
+  .s-ic{width:30px;height:38px;border-radius:3px 6px 6px 3px;background:linear-gradient(160deg,#4a6cb5,#2c4a8c);border-left:2px solid rgba(255,255,255,0.25);flex-shrink:0;opacity:.85;}
+  .s-ic.done{background:linear-gradient(160deg,#3e4f6e,#2a3852);opacity:.6;}
+  .s-t{font-size:.98rem;color:var(--cream);transition:color .13s;overflow-wrap:anywhere;}
+  .s-m{font-family:var(--mono);font-size:.68rem;color:var(--dim-2);margin-top:.15rem;}
+  .s-right{margin-left:auto;text-align:right;flex-shrink:0;}
+  .s-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.76rem;padding:.22rem .6rem;border-radius:999px;white-space:nowrap;}
+  .s-badge .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .s-badge.live{color:#a8c2f0;background:rgba(90,130,200,0.14);border:1px solid rgba(90,130,200,0.35);}
+  .s-badge.done{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.24);}
+  .s-badge.look{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.28);}
+  .s-badge.quiet{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
+  .s-sub{font-family:var(--mono);font-size:.66rem;color:var(--dim-2);margin-top:.3rem;}
+  .more{margin-top:.7rem;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.35rem .9rem;font-family:var(--body);font-size:.85rem;cursor:pointer;}
+  .more:hover{color:var(--cream);border-color:var(--line);}
+  .rev-note{margin-top:.7rem;font-size:.84rem;color:var(--dim-2);font-style:italic;}
+  .why{padding:1.2rem 1.4rem;margin-top:1.5rem;}
+  .why b{font-family:var(--display);font-weight:500;font-size:1.05rem;display:block;margin-bottom:.5rem;}
+  .why p{font-size:.9rem;color:var(--dim);line-height:1.55;font-style:italic;}
+  .why p b{display:inline;font-family:var(--body);font-style:normal;font-weight:500;color:var(--gold-2);font-size:.9rem;}
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav.top{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .cols{grid-template-columns:1fr;}
+  }
+  @media (max-width:600px){
+    .launch-row{flex-wrap:wrap;gap:.7rem;}
+    .code-chip{flex-wrap:wrap;}
+    .time-val{width:auto;}
+    .sess{align-items:flex-start;flex-wrap:wrap;}
+    .s-main{flex:1 1 0;}
+    .s-right{flex-basis:calc(100% - 30px - .9rem);min-width:0;margin-left:calc(30px + .9rem);text-align:left;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav class="top">
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill on" href="bluebook.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Collections Sessions</div>
+        <h1>In-class writing, in their own hand.</h1>
+        <div class="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
+      </div>
+    </div>
+    <div class="cols">
+      <form class="card setup" id="setup" novalidate>
+        <div class="setup-h">
+          <div class="bb-mark"></div>
+          <div><b>Start a new session</b><span>Three questions. That's the whole setup.</span></div>
+        </div>
+        <div class="card-off" id="setup-off" role="status" hidden><b>Collections is off for this workspace</b>Sessions, classes and sealed booklets live in Collections, which this workspace does not include.</div>
+        <div id="setup-live">
+          <div class="stepper">
+            <div class="step">
+              <div class="step-q" id="q-label">What should they write about?</div>
+              <div id="prompts" role="group" aria-labelledby="q-label"></div>
+              <button type="button" class="add-q" id="add-q">+ Add a second question</button>
+              <div class="step-hint">Write it the way you'd say it aloud. Students see exactly these words.</div>
+            </div>
+            <div class="step">
+              <div class="step-q" id="class-label">Which class?</div>
+              <div class="choice-row" id="course-row" role="group" aria-labelledby="class-label"><span class="row-note">Loading your classes</span></div>
+            </div>
+            <div class="step">
+              <div class="step-q"><label for="time-slider">How long do they get?</label></div>
+              <div class="time-row">
+                <input type="range" id="time-slider" min="15" max="120" step="5" value="50" aria-label="Session length in minutes" />
+                <output class="time-val" id="time-val" for="time-slider">50 min</output>
+              </div>
+              <div class="quiet-note">
+                <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
+                <div><b>Everything else is already handled.</b> Drafts save on the student's device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</div>
+              </div>
+            </div>
+          </div>
+          <div class="launch-row">
+            <button type="submit" class="launch" id="launch" disabled><svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg><span id="launch-t">Open the booklets</span></button>
+            <div class="launch-sum" id="launch-sum">Choose a class · 1 question · 50 minutes</div>
+          </div>
+          <p class="launch-err" id="launch-err" role="alert" hidden></p>
+          <div class="code-chip" id="code-chip" role="status">
+            <div class="code" id="cc-code">OPEN</div>
+            <div class="cc-l" id="cc-text"></div>
+          </div>
+        </div>
+      </form>
+      <div>
+        <div class="card rev">
+          <div class="rev-h"><b>Past sessions</b><span id="rev-count">newest first</span></div>
+          <p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Collections.</p>
+          <div id="sessions"><div class="live-empty">Loading</div></div>
+          <button type="button" class="more" id="more" hidden></button>
+          <p class="rev-note" id="rev-note" hidden></p>
+        </div>
+        <div class="card why">
+          <b>Why Collections matters</b>
+          <p>Collections gives students a quiet, trustworthy place to write. A sealed booklet is supervised writing, kept exactly as the student wrote it. It joins that student's baseline only when you <b>approve</b> it, and you can undo that choice. Original compares later papers with a student's baseline only when Original is on for your workspace, and with only a few samples it may say it can't tell.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="live.js?v=2026-10-11.1"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const plural=(n,one,many)=>n+' '+(n===1?one:many||one+'s');
+  const MAX_QUESTIONS=4, MAX_CHARS=8000, VISIBLE=6, IN_FLIGHT=6;
+  const FIRST_PLACEHOLDER="e.g. In two pages, explain the difference between Luther's and Calvin's views of the Lord's Supper, and which you find more persuasive, and why.";
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
+  })();
+
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  function fmtDate(iso){
+    const d=new Date(iso); if(isNaN(d.getTime())) return '';
+    const o={day:'numeric',month:'short'};
+    if(d.getFullYear()!==new Date().getFullYear()) o.year='numeric';
+    return d.toLocaleDateString(undefined,o);
+  }
+  const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
+  const str=v=>(v==null?'':String(v));
+
+  // The request Bluebook's own session setup sends (demo/bluebook/TeacherWorkspace.jsx,
+  // SessionSetup's submit): same endpoint, same fields, same defaults. `today` is
+  // new Date().toLocaleDateString(), as there.
+  function sessionPayload(course,questions,duration,today){
+    return {title:(course.code||course.name||'Class')+' · '+today,course:course.code||course.name,course_id:course.id,duration:duration,questions:questions,status:'ACTIVE',minWords:0,maxWords:0,conditions:{}};
+  }
+
+  // Bluebook's own reading of an exam's state (demo/bluebook/Teacher.jsx examState).
+  function examState(e){
+    const status=String(e.status||'DRAFT').toUpperCase();
+    if(status==='DRAFT') return 'draft';
+    if(status==='CLOSED'||status==='ARCHIVED') return 'closed';
+    const now=Date.now();
+    if(e.opens_at&&now<Date.parse(e.opens_at)) return 'upcoming';
+    if(e.closes_at&&now>=Date.parse(e.closes_at)) return 'closed';
+    return 'open';
+  }
+  const STATE_WORD={open:'Open now',closed:'Closed',upcoming:'Not open yet',draft:'Draft'};
+
+  // Runs the calls it is given at most `max` at a time.
+  function limiter(max){
+    let active=0; const waiting=[];
+    function pump(){
+      while(active<max&&waiting.length){
+        const job=waiting.shift(); active++;
+        Promise.resolve().then(job.fn).then(v=>v,()=>null).then(v=>{active--;job.resolve(v);pump();});
+      }
+    }
+    return fn=>new Promise(resolve=>{waiting.push({fn:fn,resolve:resolve});pump();});
+  }
+  const ask=limiter(IN_FLIGHT);
+
+  // ── state ──
+  let courses=[], courseId='', questions=[''], duration=50, saving=false;
+  let coursesState='loading';   // 'loading' | 'ok' | 'error'
+  let exams=[], examsState='loading', sealedState='loading', shown=VISIBLE;
+  let sealedBy=new Map();       // exam id -> {n, pending}
+  const inBaselines=new Map(), asked=new Set();
+
+  function selected(){ return courses.find(c=>c.id===courseId)||courses[0]||null; }
+  function courseLabel(c){
+    const parts=[];
+    if(c.code) parts.push(c.code);
+    if(c.name&&c.name!==c.code) parts.push(c.name);
+    parts.push(plural(c.students,'student'));
+    return parts.join(' · ');
+  }
+
+  // ── setup card ──
+  function renderQuestions(){
+    $('prompts').innerHTML=questions.map((q,i)=>
+      '<div class="q-field"><textarea class="prompt" data-i="'+i+'" maxlength="'+MAX_CHARS+'" aria-label="Question '+(i+1)+'"'+
+      ' placeholder="'+esc(i===0?FIRST_PLACEHOLDER:'Question '+(i+1)+'. Students can move between questions freely.')+'"'+(saving?' disabled':'')+'>'+esc(q)+'</textarea>'+
+      (i>0?'<button type="button" class="rm-q" data-rm="'+i+'"'+(saving?' disabled':'')+'>Remove question '+(i+1)+'</button>':'')+'</div>'
+    ).join('');
+    const add=$('add-q');
+    add.textContent='+ Add '+(questions.length===1?'a second':'another')+' question';
+    add.hidden=questions.length>=MAX_QUESTIONS;
+    add.disabled=saving;
+  }
+
+  function renderCourses(){
+    const row=$('course-row');
+    if(coursesState==='loading'){ row.innerHTML='<span class="row-note">Loading your classes</span>'; return; }
+    if(coursesState==='error'){ row.innerHTML='<span class="row-note">Your classes could not be loaded just now. Try reloading the page.</span>'; return; }
+    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Collections first</a>, then come back here to open a session for it.</span>'; return; }
+    const sel=selected();
+    row.innerHTML=courses.map(c=>{
+      const on=c===sel;
+      return '<button type="button" class="choice'+(on?' on':'')+'" aria-pressed="'+on+'" data-course="'+esc(c.id)+'"'+(saving?' disabled':'')+'>'+esc(courseLabel(c))+'</button>';
+    }).join('');
+  }
+
+  function renderSummary(){
+    const sel=selected();
+    $('launch-sum').textContent=((sel&&(sel.code||sel.name))||'Choose a class')+' · '+plural(questions.length,'question')+' · '+duration+' minutes';
+    $('launch').disabled=saving||coursesState!=='ok'||!courses.length;
+    $('launch-t').textContent=saving?'Opening…':'Open the booklets';
+    $('time-slider').disabled=saving;
+  }
+
+  function renderSetup(){ renderQuestions(); renderCourses(); renderSummary(); }
+
+  function showError(text){
+    const el=$('launch-err');
+    el.textContent=text||'';
+    el.hidden=!text;
+  }
+
+  // The server's own words when it sent a sentence; otherwise a plain one.
+  function errorText(res){
+    const d=res&&!res.ok&&res.data&&res.data.detail;
+    if(typeof d==='string'&&d.trim()) return d.trim();
+    if(res&&res.status===0) return 'Could not reach the server. Your questions are still here.';
+    return 'The session could not be saved. Your questions are still here.';
+  }
+
+  // What the create call returned, and what is true for students: there is no
+  // join code. A student on the class roster finds the open session under
+  // "My exams" once signed in to Bluebook.
+  function showReceipt(exam,course){
+    const id=encodeURIComponent(exam.id);
+    const st=examState(exam);
+    const roster=course.code||course.name;
+    $('cc-code').textContent=st==='open'?'OPEN':STATE_WORD[st].toUpperCase();
+    $('cc-text').innerHTML=(st==='open'?'Session is open. ':'Session saved: '+esc(STATE_WORD[st].toLowerCase())+'. ')+
+      'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My exams</b> when they sign in to Collections at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
+      '<span class="cc-links"><a href="/bluebook/#live/'+id+'">Open the live room</a><a href="/bluebook/#exam/'+id+'">Manage it in Collections</a></span>';
+    const chip=$('code-chip');
+    chip.classList.add('show');
+    if(chip.scrollIntoView) chip.scrollIntoView({block:'nearest'});
+  }
+
+  async function submit(e){
+    e.preventDefault();
+    if(saving) return;
+    const sel=selected();
+    showError('');
+    if(!sel||questions.some(q=>!q.trim())){ showError('Choose a class and write each question before opening the booklets.'); return; }
+    const list=questions.map(q=>q.trim());
+    if(list.some(q=>q.length>MAX_CHARS)){ showError('Keep each question under 8,000 characters.'); return; }
+    saving=true; renderSetup();
+    let res;
+    try { res=await Live.api('/bluebook/exams',{method:'POST',body:sessionPayload(sel,list,duration,new Date().toLocaleDateString())}); }
+    catch(err){ res={ok:false,status:0,data:null}; }
+    saving=false;
+    const exam=res&&res.ok&&res.data&&typeof res.data==='object'?res.data:null;
+    if(!exam||exam.id==null||exam.id===''){ renderSetup(); showError(errorText(res)); return; }
+    questions=[''];
+    renderSetup();
+    showReceipt(exam,sel);
+    // A list that could not be read stays "could not be loaded" rather than
+    // turning into a list of one.
+    // The create call does not return created_at; the session was made just now.
+    if(examsState==='ok'){ exams.unshift(pickExam(Object.assign({created_at:new Date().toISOString()},exam))); renderSessions(); }
+  }
+
+  $('setup').addEventListener('submit',submit);
+  $('prompts').addEventListener('input',e=>{
+    const i=Number(e.target&&e.target.getAttribute&&e.target.getAttribute('data-i'));
+    if(i>=0&&i<questions.length){ questions[i]=e.target.value; }
+  });
+  $('prompts').addEventListener('click',e=>{
+    const b=e.target&&e.target.closest&&e.target.closest('[data-rm]');
+    if(!b||saving) return;
+    questions.splice(Number(b.getAttribute('data-rm')),1);
+    renderQuestions(); renderSummary();
+  });
+  $('add-q').addEventListener('click',()=>{
+    if(saving||questions.length>=MAX_QUESTIONS) return;
+    questions.push('');
+    renderQuestions(); renderSummary();
+    const boxes=document.querySelectorAll('#prompts textarea');
+    if(boxes.length) boxes[boxes.length-1].focus();
+  });
+  $('course-row').addEventListener('click',e=>{
+    const b=e.target&&e.target.closest&&e.target.closest('[data-course]');
+    if(!b||saving) return;
+    courseId=b.getAttribute('data-course');
+    renderCourses(); renderSummary();
+  });
+  $('time-slider').addEventListener('input',e=>{
+    duration=Number(e.target.value)||50;
+    $('time-val').textContent=duration+' min';
+    renderSummary();
+  });
+
+  // ── past sessions ──
+  function pickExam(e){
+    return {
+      id:str(e.id), title:str(e.title), course:str(e.course), course_id:e.course_id==null?'':str(e.course_id),
+      created_at:str(e.created_at), duration:num(e.duration), status:str(e.status),
+      opens_at:e.opens_at?str(e.opens_at):'', closes_at:e.closes_at?str(e.closes_at):''
+    };
+  }
+
+  function courseOf(e){
+    if(e.course) return e.course;
+    const c=courses.find(x=>x.id===e.course_id);
+    return c?(c.code||c.name):'';
+  }
+
+  // The right-hand side of a row: the badge and the small counts line.
+  function rightHTML(e){
+    const st=examState(e);
+    const c=sealedState==='ok'?(sealedBy.get(e.id)||{n:0,pending:0}):null;
+    let badge;
+    if(st==='open') badge=['live','Open now'];
+    else if(c&&c.pending>0) badge=['look',c.pending+' to review'];
+    else if(c&&c.n>0) badge=['done','All reviewed'];
+    else badge=['quiet',STATE_WORD[st]];
+    const sub=[];
+    if(c){
+      sub.push(c.n+' sealed');
+      if(st==='open'&&c.pending>0) sub.push(c.pending+' to review');
+      if(inBaselines.has(e.id)) sub.push(inBaselines.get(e.id)+' in a baseline');
+    }
+    // The count is a match by text against each student's baseline samples, so the title says so.
+    const title=inBaselines.has(e.id)?' title="Matched by text against each student\u2019s baseline samples. Approve or undo in Collections."':'';
+    return '<span class="s-badge '+badge[0]+'"><span class="d"></span>'+esc(badge[1])+'</span>'+
+      (sub.length?'<div class="s-sub"'+title+'>'+esc(sub.join(' · '))+'</div>':'');
+  }
+
+  function rowHTML(e){
+    const st=examState(e);
+    const meta=[courseOf(e),fmtDate(e.created_at),e.duration!=null?e.duration+' min':''].filter(Boolean).join(' · ');
+    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this session in Collections">'+
+      '<div class="s-ic'+(st==='closed'?' done':'')+'"></div>'+
+      '<div class="s-main"><div class="s-t">'+esc(e.title||'Untitled session')+'</div><div class="s-m">'+esc(meta)+'</div></div>'+
+      '<div class="s-right">'+rightHTML(e)+'</div>'+
+    '</a>';
+  }
+
+  // A baseline answer changes one row's counts line. Only that row's right-hand side is redrawn,
+  // so a row the teacher has focused keeps its focus; false when the row is not on screen.
+  function patchRow(id){
+    const e=exams.find(x=>x.id===id);
+    const rows=$('sessions').querySelectorAll('a.sess');
+    for(let i=0;e&&i<rows.length;i++){
+      if(rows[i].getAttribute('data-exam')!==id) continue;
+      const right=rows[i].querySelector('.s-right');
+      if(!right) return false;
+      right.innerHTML=rightHTML(e);
+      return true;
+    }
+    return false;
+  }
+
+  function renderSessions(){
+    const el=$('sessions'), more=$('more'), note=$('rev-note');
+    more.hidden=true; note.hidden=true;
+    if(examsState==='loading'){ Live.empty(el,'Loading'); return; }
+    if(examsState==='error'){ $('rev-count').textContent=''; Live.empty(el,'Your sessions could not be loaded just now. Try reloading the page.'); return; }
+    if(!exams.length){ $('rev-count').textContent=''; Live.empty(el,'No sessions yet. Your first one will appear here.'); return; }
+    $('rev-count').textContent=plural(exams.length,'session')+' · newest first';
+    const list=exams.slice(0,shown);
+    el.innerHTML=list.map(rowHTML).join('');
+    if(exams.length>shown){ more.textContent='Show all '+exams.length+' sessions'; more.hidden=false; }
+    if(sealedState==='error'){ note.textContent='Sealed booklets could not be counted just now.'; note.hidden=false; }
+    askBaselines(list);
+  }
+
+  // How many of an exam's sealed booklets are in their students' baselines.
+  // Asked only for the rows on screen that have a sealed booklet, at most six
+  // requests at a time; a row whose answer does not come shows no count.
+  function askBaselines(list){
+    list.forEach(e=>{
+      const c=sealedBy.get(e.id);
+      if(sealedState!=='ok'||!c||!c.n||asked.has(e.id)) return;
+      asked.add(e.id);
+      ask(()=>Live.api('/bluebook/exams/'+encodeURIComponent(e.id)+'/baseline')).then(res=>{
+        const subs=res&&res.ok&&res.data&&Array.isArray(res.data.submissions)?res.data.submissions:null;
+        if(!subs) return;
+        const n=subs.filter(s=>s&&s.in_baseline===true).length;
+        if(inBaselines.get(e.id)===n) return;
+        inBaselines.set(e.id,n);
+        if(!patchRow(e.id)) renderSessions();
+      });
+    });
+  }
+  $('more').addEventListener('click',()=>{ shown=exams.length; renderSessions(); });
+
+  // ── states ──
+  function bluebookOff(){
+    $('setup-live').hidden=true;
+    $('setup-off').hidden=false;
+    $('rev-count').textContent='';
+    Live.empty($('sessions'),'Collections is off for this workspace.');
+  }
+
+  function newestFirst(a,b){
+    const ta=Date.parse(a.created_at), tb=Date.parse(b.created_at);
+    if(isNaN(ta)!==isNaN(tb)) return isNaN(ta)?1:-1;
+    return isNaN(ta)?0:tb-ta;
+  }
+
+  async function load(){
+    const [cr,er,sl]=await Promise.all([Live.api('/bluebook/courses'),Live.api('/bluebook/exams'),Live.sealed()]);
+    if(cr.status===403||er.status===403||sl.bluebook==='off'){ bluebookOff(); return; }
+
+    if(cr.ok&&cr.data&&Array.isArray(cr.data.courses)){
+      courses=cr.data.courses.filter(c=>c&&typeof c==='object'&&c.id!=null&&c.id!=='').map(c=>({
+        id:str(c.id), code:str(c.code), name:str(c.name), students:num(c.students)||0
+      }));
+      coursesState='ok';
+    } else coursesState='error';
+
+    if(er.ok&&er.data&&Array.isArray(er.data.exams)){
+      exams=er.data.exams.filter(e=>e&&typeof e==='object'&&e.id!=null&&e.id!=='').map(pickExam).sort(newestFirst);
+      examsState='ok';
+    } else examsState='error';
+
+    sealedState=sl.bluebook;
+    if(sealedState==='ok'){
+      sl.submissions.forEach(s=>{
+        if(s.exam_id==null) return;
+        const k=String(s.exam_id);
+        const c=sealedBy.get(k)||{n:0,pending:0};
+        c.n++; if(!s.graded_at) c.pending++;
+        sealedBy.set(k,c);
+      });
+    }
+    renderSetup();
+    renderSessions();
+  }
+
+  // ── go ──
+  // Any answer of an unexpected shape ends in a "could not be loaded" line,
+  // never in a page stuck on "Loading".
+  renderSetup();
+  Live.session().then(renderChrome);
+  const main=document.querySelector('main');
+  Live.gate(main).then(async sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    // The open demo has no teacher signed in, and Bluebook's pages open its public landing for a visitor.
+    if(sess.mode==='demo') $('demo-note').hidden=false;
+    if(sess.products.indexOf('bluebook')<0){ bluebookOff(); return; }
+    try { await load(); }
+    catch(e){
+      try { coursesState='error'; examsState='error'; renderSetup(); renderSessions(); } catch(e2){}
+    }
+  });
+})();
+</script>
+</body>
+</html>

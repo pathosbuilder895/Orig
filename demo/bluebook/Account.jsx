@@ -266,8 +266,16 @@ export function AccountScreen() {
 }
 
 // ─── Student shell ───────────────────────────────────────────────────────────
+// The two Original pages a student can open: their own voice and a piece of
+// their writing compared with it. They are offered only when the student's
+// workspace holds Original (BB_API.hasOriginal: the products sign-in stored,
+// refreshed by every student-home load), and a Bluebook-only workspace sees
+// the shell it always had. The pages check the session themselves.
+export const STUDENT_ORIGINAL_LINKS = [['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']];
+
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
+  const studentOriginalLinks = BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
   const tab = (key, label) => (
     <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
   );
@@ -277,6 +285,7 @@ export function StudentShell({ onNavigate, active, children }) {
         <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
         <div className="tabs">
           {tab('student-home', 'My exams')}
+          {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
           {tab('student-account', 'Account')}
           <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
         </div>

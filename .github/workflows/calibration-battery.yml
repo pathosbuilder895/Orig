@@ -22,12 +22,17 @@ jobs:
     # 10-core Mac took ~7 h (2026-09-07) and the first CI attempt was cut
     # off at the 6-hour cap inside G5. It is split across legs with --only
     # (validation/calibration_gate.py) and merged below; a job that still
-    # overruns shows up as a missing leg in the merged report, never as a
-    # silent pass. Legs are grouped by measured cost (run 34226363871,
-    # 2026-09-08, cold cache): G2 12m, G2b 12m, G6+G7+G8+T 9m,
+    # overruns fails its leg and shows up as a missing leg in the merged
+    # report, never as a silent pass. Legs are grouped by measured cost (run
+    # 34226363871, 2026-09-08, cold cache): G2 12m, G2b 12m, G6+G7+G8+T 9m,
     # G1+G1p 1h33m, G3+G4 2h32m, G5 4h26m.
+    #
+    # No continue-on-error: a leg job is red only on ERROR (see the run step),
+    # so a red weekly run means the battery did not measure, not that a gate
+    # measured fail or uninformative. Those verdicts are in the reports and
+    # the job summary. There is no pull_request trigger, so neither blocks a
+    # PR.
     timeout-minutes: 360
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -68,14 +73,24 @@ jobs:
             calibration-vectors-${{ runner.os }}-
       # TODO(campaign-plan-02): regenerate the uncommitted G7 corpus here
       # after its reproducible fetch/cache workflow lands. Until then G7 is
-      # UNINFORMATIVE on a fresh checkout and --strict exits 1 -- which is
-      # why this job is continue-on-error rather than blocking.
+      # UNINFORMATIVE on a fresh checkout and --strict exits 1 -- a
+      # measurement, which the step below lets through.
       # `timeout` ends the step before the job cap so the save/upload steps
       # still run.
+      #
+      # --strict exits 1 when a gate is fail or uninformative, and Python
+      # also exits 1 on an uncaught exception, so the exit code alone cannot
+      # tell a measurement from a crash. scripts/battery_gate.py decides from
+      # the report instead and fails the step only on ERROR: an exit status
+      # other than 0/1 (124 = this timeout), no or unreadable report, a
+      # requested gate missing from it, or a gate that raised instead of
+      # returning a verdict (detail.machinery_error).
       - name: Run strict battery legs ${{ matrix.legs }}
         run: |
           set -o pipefail
-          timeout 330m python -m validation.calibration_gate --strict --only "${{ matrix.legs }}" --out "calibration-report-${{ matrix.name }}.json" 2>&1 | tee "battery-${{ matrix.name }}.log"
+          status=0
+          timeout 330m python -m validation.calibration_gate --strict --only "${{ matrix.legs }}" --out "calibration-report-${{ matrix.name }}.json" 2>&1 | tee "battery-${{ matrix.name }}.log" || status=$?
+          python scripts/battery_gate.py "calibration-report-${{ matrix.name }}.json" --legs "${{ matrix.legs }}" --exit-status "$status" | tee -a "battery-${{ matrix.name }}.log"
       - name: Save feature-vector cache
         if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -84,7 +99,7 @@ jobs:
           key: ${{ steps.vector-cache.outputs.cache-primary-key }}
       - name: Upload leg report and log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: calibration-report-${{ matrix.name }}
           path: |
@@ -99,34 +114,38 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
       - name: Download leg reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: calibration-report-*
           path: legs
           merge-multiple: true
+      # --fail-on-error-only: exit 1 on a missing leg or a gate that raised
+      # (scripts/battery_gate.py), 0 when every gate returned a verdict. The
+      # merged report is written either way; a crash here (an unreadable leg
+      # report, legs from different commits) also fails the step.
       - name: Merge into one report
         run: |
+          set -o pipefail
           ls -la legs
-          python scripts/merge_calibration_reports.py calibration-report.json legs/calibration-report-*.json | tee merge.log || true
+          python scripts/merge_calibration_reports.py --fail-on-error-only calibration-report.json legs/calibration-report-*.json | tee merge.log
       - name: Gate table to job summary
         if: always()
         run: |
           {
             echo '```'
             cat merge.log 2>/dev/null || true
-            python scripts/merge_calibration_reports.py --summary calibration-report.json 2>/dev/null || echo "no merged report (every leg job failed before writing one -- see the leg artifacts)"
+            python scripts/merge_calibration_reports.py --summary calibration-report.json 2>/dev/null || echo "no merged report (the merge crashed or no leg wrote a report -- see the leg artifacts and logs)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload merged report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: calibration-report
           path: |

@@ -226,7 +226,7 @@ lint ─┬─ pytest-core ────┐
       ├─ container-smoke
       └─ security (pip-audit, gitleaks, npm audit)
 
-weekly (extend the existing calibration-battery.yml; see 06 §7 for why it cannot finish today):
+weekly (calibration-battery.yml: six --only legs merged into one report, red only on ERROR since #264; see 06 §7):
         certification ▸ per-gate battery matrix --strict ▸ TermSim ▸ mutation ▸ load_smoke ▸ restore drill ▸ serial-lockout ▸ visual regression
 ```
 

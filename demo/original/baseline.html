@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-10.5" />
-<link rel="stylesheet" href="suite.css?v=2026-10-10.5" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -48,6 +48,7 @@
   .left::-webkit-scrollbar{display:none;width:0;height:0;}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
   .greet{font-family:var(--display);font-size:1.75rem;font-weight:500;line-height:1.06;color:var(--cream);margin-top:.1rem;overflow-wrap:anywhere;}
+  .greet-id{font-family:var(--mono);font-size:.58rem;letter-spacing:.05em;color:var(--dim-2);opacity:.75;margin-top:.35rem;overflow-wrap:anywhere;}
   .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;line-height:1.55;overflow-wrap:anywhere;}
   .side-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
   .side-link{display:inline-block;font-size:.9rem;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;transition:all .15s;}
@@ -256,7 +257,7 @@
       <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
       <a class="pill on" href="students.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
       <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="/bluebook/"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
+      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
       <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
     </div>
     <div class="nav-right">
@@ -275,6 +276,7 @@
         <div class="greet-eyebrow">Voice Baseline</div>
         <div class="greet" id="greet">Loading</div>
         <div class="greet-meta" id="meta"></div>
+        <div class="greet-id" id="greet-id" hidden></div>
         <div class="side-links">
           <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
           <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
@@ -361,7 +363,7 @@
                   <div class="d" id="traj-d"></div>
                 </div>
               </div>
-              <a class="bb-cta" id="bb-cta" href="/bluebook/" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="bb-cta" id="bb-cta" href="/bluebook/#students" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
             </div>
           </div>
 
@@ -428,9 +430,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-10-10.5"></script>
-<script src="js/feature-data.js?v=2026-10-10.5"></script>
-<script src="live.js?v=2026-10-10.5"></script>
+<script src="js/fingerprint.js?v=2026-10-11.1"></script>
+<script src="js/feature-data.js?v=2026-10-11.1"></script>
+<script src="live.js?v=2026-10-11.1"></script>
 <script>
 (function(){
   'use strict';
@@ -548,11 +550,15 @@
     if(!ID){
       $('greet').textContent='Choose a student';
       $('meta').textContent='';
+      $('greet-id').hidden=true;
       $('analyse-link').hidden=true; $('add-link').hidden=true;
       return;
     }
     $('greet').textContent=nm();
-    const parts=[ID];
+    // The raw id is small, secondary text, and only when the heading is a name (else it would say the same thing twice).
+    $('greet-id').textContent='ID '+ID;
+    $('greet-id').hidden=nm()===ID;
+    const parts=[];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
     if(S.status==='ok'){
@@ -829,9 +835,17 @@
   }
 
   // ── sealed Bluebook exams for this student ──
+  // Where "Add more samples" goes: the exam of this student's sealed booklet that is waiting for approval
+  // (else their newest sealed exam), in Bluebook's #exam/<id> link; with no exam known, the Students screen.
+  function bluebookHref(){
+    const list=S.sealed==='ok'?S.exams:[];
+    const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
+    return '/bluebook/#'+(pick?'exam/'+enc(pick.exam_id):'students');
+  }
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');
     $('bb-cta').hidden=(S.sealed==='off')||!ID||!canAdd();
+    $('bb-cta').href=bluebookHref();
     if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
     if(S.sealed==='loading'){ return; }
     if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Collections is off for this workspace, so there are no sealed exams to approve.'); return; }
@@ -970,6 +984,26 @@
     catch(e){ return false; }
   }
 
+  // An id for one pasted paper: the same student and the same words (whitespace aside) always give the same
+  // 64 hex characters, so pasting a paper twice is the same paper twice. SHA-256 where the browser has it
+  // (secure pages); otherwise a plain mixing hash of the same shape, since the server compares the text itself.
+  function mixKey(s){
+    const h=[]; for(let k=0;k<8;k++) h.push((0x811c9dc5^Math.imul(k,0x9e3779b1))>>>0);
+    for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); for(let k=0;k<8;k++) h[k]=Math.imul(h[k]^c,16777619+2*k)>>>0; }
+    return h.map(n=>('00000000'+n.toString(16)).slice(-8)).join('');
+  }
+  async function pasteKey(id,text){
+    const norm=String(id)+'\n'+String(text).replace(/\s+/g,' ').trim();
+    try{
+      const sub=window.crypto&&window.crypto.subtle;
+      if(sub&&typeof TextEncoder==='function'){
+        const buf=await sub.digest('SHA-256',new TextEncoder().encode(norm));
+        return Array.from(new Uint8Array(buf),b=>(b<16?'0':'')+b.toString(16)).join('');
+      }
+    }catch(e){ /* not a secure page: the mixing hash below */ }
+    return mixKey(norm);
+  }
+
   async function addPasted(){
     if(S.saving||!canAdd()) return;
     const text=$('paste-text').value.trim();
@@ -980,6 +1014,8 @@
     if(!startSave('paste')) return;
     try{
       addMsg('Saving... This takes a few seconds.','');
+      // The server leaves out a paper already in the baseline only when the request carries a submission_uuid.
+      body.submission_uuid=await pasteKey(ID,text);
       const res=await Live.api('/students/'+enc(ID)+'/baseline',{method:'POST',body:body});
       if(res.status===202||res.status===409){
         const again=S.heldPaste.has(text);

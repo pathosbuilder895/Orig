@@ -576,8 +576,35 @@
     window.location.replace(next);
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', notices);
-  else notices();
+  // On a narrow screen the page's pill strip scrolls inside itself, and the pills past the edge are
+  // out of sight. A fade on the edge that has more pills says so (the .fade-start and .fade-end
+  // classes, drawn in suite.css), and the strip opens with the current page's pill in view.
+  var FADE_SLACK = 4;
+  function updateFade(strip) {
+    var start = strip.scrollLeft > FADE_SLACK;
+    var end = strip.scrollWidth - strip.clientWidth - strip.scrollLeft > FADE_SLACK;
+    strip.classList.toggle('fade-start', start);
+    strip.classList.toggle('fade-end', end);
+  }
+  function pillFade() {
+    var strips = document.querySelectorAll('.pills');
+    for (var i = 0; i < strips.length; i++) {
+      (function (strip) {
+        var here = strip.querySelector('[aria-current="page"]');
+        if (here && strip.scrollWidth > strip.clientWidth) {
+          var room = strip.clientWidth - here.offsetWidth;
+          strip.scrollLeft = Math.max(0, here.offsetLeft - strip.offsetLeft - room / 2);
+        }
+        updateFade(strip);
+        strip.addEventListener('scroll', function () { updateFade(strip); });
+        if (typeof window.addEventListener === 'function') window.addEventListener('resize', function () { updateFade(strip); });
+      })(strips[i]);
+    }
+  }
+
+  function ready() { notices(); pillFade(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+  else ready();
 
   window.Live = {
     TOKEN_KEYS: TOKEN_KEYS,

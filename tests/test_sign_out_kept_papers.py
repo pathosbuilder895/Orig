@@ -95,13 +95,13 @@ def test_the_classic_page_sign_out_forgets_every_kept_paper_and_the_last_result(
     )
     assert out["local"] == ["another_site_key", "original_portfolio"]
     assert out["session"] == ["unrelated"]
-    assert out["replaced"] == ["professor.html"]
+    assert out["replaced"] == ["/index.html"]
 
 
 @needs_node
 def test_the_classic_page_still_signs_out_when_the_browser_blocks_storage():
     out = _run(blockStorage=True)
-    assert out["replaced"] == ["professor.html"]
+    assert out["replaced"] == ["/index.html"]
 
 
 def test_every_sign_out_names_the_same_keys():

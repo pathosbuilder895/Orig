@@ -302,7 +302,7 @@ def students_list(request: Request):
         row["submissions"] = stats.get(sid, {}).get("n", 0)
         row["last_submitted_at"] = stats.get(sid, {}).get("last")
         rows.append(row)
-    rows.sort(key=lambda r: ((r.get("name") or r.get("email") or "~").lower()))
+    rows.sort(key=lambda r: (r.get("name") or r.get("email") or "~").lower())
     return {"students": rows}
 
 

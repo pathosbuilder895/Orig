@@ -30,6 +30,23 @@
 .live-testing.on-paper { color: #5c564a; border-color: #d9c48a; background: #f4ecd6; }
 .live-testing.live-testing.on-paper b { color: #7a5a10; }
 
+/* The pill strip scrolls inside itself on a narrow screen. live.js adds .fade-end while there are
+   more pills past the right edge and .fade-start while there are more past the left, so the edge
+   with more pills fades out instead of ending in a hard cut. It draws only where the strip
+   overflows, which is a phone width. */
+.pills.fade-end {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.4rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.4rem), transparent);
+}
+.pills.fade-start {
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.4rem), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - 2.4rem), transparent);
+}
+.pills.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
+}
+
 .live-empty {
   margin: auto 0;
   font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);

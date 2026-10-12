@@ -112,10 +112,10 @@ Plan: `docs/superpowers/plans/2026-10-04-professor-release-finish.md`, Part B. B
 - **B6 Admit the first invited professors:** quickstart page, 1 to 3 invitations, watched first sessions.
 - **Step 5 of this task:** push the branch and open the draft PR once the owner has run `gh auth login -h github.com`. Merge is the owner's action.
 
-Deferred from review (minor, not blocking this pass):
-- Relative-link warning wording when `PUBLIC_BASE_URL` lacks a scheme; reissue ignores `--name`.
-- `docs/ARCHITECTURE.md:36`, `README.md:278` and `docs/DAY_ONE_CLASS.md:26` still mention `original-demo`.
-- `NULL_MODEL=impostor` via `run.py --demo` on a pilot: no effect while Original is off; consider pinning it to none.
-- SSRF DNS-rebinding hardening before Canvas is enabled.
-- `composition_summary` should become an allowlist before Original is enabled.
+Deferred from review (minor, not blocking this pass). Status as of 2026-10-11:
+- Done: the relative-link warning now says when `PUBLIC_BASE_URL` has no scheme, and a reissue says `--name` was not applied (`scripts/invite_professor.py`, `tests/test_onboarding.py`).
+- Done: `docs/ARCHITECTURE.md` lists the real services (#245); `README.md` was rewritten earlier; `docs/DAY_ONE_CLASS.md` is marked as a later-phase document.
+- Done: `render.yaml` pins `NULL_MODEL=none` (#247).
+- Open, deferred with Canvas: SSRF DNS-rebinding hardening before Canvas is enabled.
+- Done (already true at review time): `composition_summary` is an allowlist (`COMPOSITION_SUMMARY_KEYS` in `original/schemas.py`) whenever the behavioral feature group is disabled, the classroom default.
 - Pre-existing, order-dependent `tests/test_scoring_router_branches.py::test_tuned_thresholds_*` (also fails on the parent commit); it did not fail in this run.

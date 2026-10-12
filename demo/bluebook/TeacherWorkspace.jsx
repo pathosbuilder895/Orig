@@ -21,7 +21,35 @@ function NavIcon({ name }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">{NAV_ICONS[NAV_ICON_KEY[name] || name]}</svg>;
 }
 
+// On a phone the pill strip scrolls inside itself, and the pills past its edge are out of sight.
+// This marks the strip with .fade-start / .fade-end while there are more pills past that edge
+// (teacher-workspace.css draws the fade) and opens it with the current page's pill in view.
+const PILL_FADE_SLACK = 4;
+function usePillFade(ref, deps) {
+  useEffect(() => {
+    const strip = ref.current;
+    if (!strip) return undefined;
+    const update = () => {
+      strip.classList.toggle('fade-start', strip.scrollLeft > PILL_FADE_SLACK);
+      strip.classList.toggle('fade-end', strip.scrollWidth - strip.clientWidth - strip.scrollLeft > PILL_FADE_SLACK);
+    };
+    const here = strip.querySelector('[aria-current="page"]');
+    if (here && strip.scrollWidth > strip.clientWidth) {
+      strip.scrollLeft = Math.max(0, here.offsetLeft - strip.offsetLeft - (strip.clientWidth - here.offsetWidth) / 2);
+    }
+    update();
+    strip.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      strip.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, deps);
+}
+
 export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
+  const pills = useRef(null);
+  usePillFade(pills, [active, demo]);
   const identity = demo ? {name: 'Professor · demonstration'} : BB_API.identity();
   const initials = (identity.name || 'Teacher').split(/\s+/).slice(0, 2).map(n => n[0]).join('');
   const items = demo
@@ -31,7 +59,7 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame">
     <nav className="teacher-nav" aria-label="Teacher navigation">
       <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo || BB_API.hasOriginal() ? 'Original' : 'Collections'}</div>
-      <div className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
+      <div ref={pills} className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
         {items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
         {withOriginal && <button onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>Original Analysis ↗</button>}
       </div>

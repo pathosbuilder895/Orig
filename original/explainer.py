@@ -259,7 +259,7 @@ def explain(result: Layer7Output) -> dict:
             )
         else:
             top_reasons.append(
-                "overall statistical patterns resemble those common in " "AI-generated text"
+                "overall statistical patterns resemble those common in AI-generated text"
             )
 
     # ── 3. Ghostwriting signal ────────────────────────────────────────────────

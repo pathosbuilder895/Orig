@@ -31,6 +31,7 @@ def _run_cell(payload: tuple) -> dict:
     os.environ.update(flags)
     db_dir = Path(tempfile.mkdtemp(prefix=f"termsim-{name}-"))
     os.environ["ORIGINAL_DB"] = str(db_dir / "profiles.db")
+    cell_url = None
     if backend == "postgres":
         from validation.termsim.runner import create_postgres_schema, isolated_postgres_url
 
@@ -40,36 +41,50 @@ def _run_cell(payload: tuple) -> dict:
                 "--backend postgres needs DATABASE_URL set to a postgresql:// "
                 "instance — run `bash scripts/local_postgres.sh up` and export "
                 "DATABASE_URL=$(bash scripts/local_postgres.sh url)")
-        os.environ["DATABASE_URL"] = isolated_postgres_url(base_url, name)
+        cell_url = isolated_postgres_url(base_url, name)
+        os.environ["DATABASE_URL"] = cell_url
         os.environ["REPO_BACKEND"] = "postgres"
-        create_postgres_schema()
     else:
         os.environ["DATABASE_URL"] = f"sqlite:///{db_dir / 'live.db'}"
         os.environ["REPO_BACKEND"] = "sqlite"
     os.environ.setdefault("SECRET_KEY", "termsim-isolated-secret-" * 3)
+    try:
+        if cell_url is not None:
+            create_postgres_schema()
 
-    from fastapi.testclient import TestClient
+        from fastapi.testclient import TestClient
 
-    import run
+        import run
 
-    manifest = build_manifest()
-    events = generate(seed, cohort_sizes=cohorts, weeks=weeks,
-                      personas=manifest["personas"], scenarios=scenarios)
-    started = time.perf_counter()
-    from validation.termsim.runner import install_vector_cache
-    install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
-    with TestClient(run.load_legacy_demo_app()) as client:
-        from validation.termsim.runner import run_events
-        rows = run_events(client, events, CorpusTextResolver(manifest),
-                          accrete=name not in FROZEN_CELLS)
-    elapsed = time.perf_counter() - started
-    output = Path(out_dir)
-    output.mkdir(parents=True, exist_ok=True)
-    log_path = output / f"{name}.jsonl"
-    log_path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
-    return {"cell": name, "flags": flags, "seed": seed, "elapsed_seconds": elapsed,
-            "script_sha256": script_hash(events), "manifest_sha256": manifest["manifest_sha256"],
-            "event_log": str(log_path), "metrics": compute(rows)}
+        manifest = build_manifest()
+        events = generate(seed, cohort_sizes=cohorts, weeks=weeks,
+                          personas=manifest["personas"], scenarios=scenarios)
+        started = time.perf_counter()
+        from validation.termsim.runner import install_vector_cache
+        install_vector_cache(ROOT / ".benchmark_cache" / "termsim" / "vectors")
+        with TestClient(run.load_legacy_demo_app()) as client:
+            from validation.termsim.runner import run_events
+            rows = run_events(client, events, CorpusTextResolver(manifest),
+                              accrete=name not in FROZEN_CELLS)
+        elapsed = time.perf_counter() - started
+        output = Path(out_dir)
+        output.mkdir(parents=True, exist_ok=True)
+        log_path = output / f"{name}.jsonl"
+        log_path.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows))
+        return {"cell": name, "flags": flags, "seed": seed, "elapsed_seconds": elapsed,
+                "script_sha256": script_hash(events),
+                "manifest_sha256": manifest["manifest_sha256"],
+                "event_log": str(log_path), "metrics": compute(rows)}
+    finally:
+        if cell_url is not None:
+            # Pool workers run several cells, and the next one reads its server
+            # URL from DATABASE_URL: put it back, then drop this cell's database.
+            from original.db import postgres_session
+            from validation.termsim.runner import drop_isolated_postgres_db
+
+            os.environ["DATABASE_URL"] = base_url
+            postgres_session.reset_engine()
+            drop_isolated_postgres_db(base_url, cell_url)
 
 
 def pooled_gate_evidence(seed_dirs: list[Path], cell: str = "baseline") -> dict:

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import os
+import uuid
 from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
@@ -42,21 +44,43 @@ def install_vector_cache(cache_dir: Path) -> None:
 
 
 def isolated_postgres_url(base_url: str, cell: str) -> str:
-    """Create (dropping any stale copy) a per-cell database on the local
-    Postgres instance and return its URL. Cells run in parallel worker
-    processes; a shared database would interleave their tenants, so each
-    cell gets ``termsim_<cell>`` on the same server instead."""
+    """Create a database of this run's own for one cell on the server behind
+    ``base_url`` and return its URL. Cells run in parallel worker processes,
+    and separate runs (parallel worktrees) share one local server; a shared
+    database would interleave their tenants, and a fixed per-cell name let
+    one run DROP another's mid-run. So each call gets
+    ``termsim_<cell>_<pid>_<hex8>``. Pair it with drop_isolated_postgres_db;
+    only SIGKILL leaves one behind, safe to drop once its <pid> has exited."""
     import sqlalchemy
 
-    dbname = f"termsim_{cell.replace('-', '_')}"
+    dbname = f"termsim_{cell.replace('-', '_')}_{os.getpid()}_{uuid.uuid4().hex[:8]}"
+    if len(dbname.encode()) > 63:  # Postgres would silently truncate it
+        raise ValueError(f"cell name too long for a database name: {cell!r}")
     engine = sqlalchemy.create_engine(base_url, isolation_level="AUTOCOMMIT")
     try:
         with engine.connect() as conn:
-            conn.execute(sqlalchemy.text(f'DROP DATABASE IF EXISTS "{dbname}"'))
             conn.execute(sqlalchemy.text(f'CREATE DATABASE "{dbname}"'))
     finally:
         engine.dispose()
     return base_url.rsplit("/", 1)[0] + "/" + dbname
+
+
+def drop_isolated_postgres_db(base_url: str, cell_url: str) -> None:
+    """Drop a database isolated_postgres_url created, connecting through
+    ``base_url``. Refuses any other name, so a mixed-up URL cannot drop the
+    shared database."""
+    import sqlalchemy
+
+    dbname = cell_url.rsplit("/", 1)[1]
+    if not dbname.startswith("termsim_"):
+        raise ValueError(f"not a TermSim cell database: {dbname!r}")
+    engine = sqlalchemy.create_engine(base_url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as conn:
+            # FORCE (Postgres 13+) ends connections a pool may still hold open.
+            conn.execute(sqlalchemy.text(f'DROP DATABASE IF EXISTS "{dbname}" WITH (FORCE)'))
+    finally:
+        engine.dispose()
 
 
 def create_postgres_schema() -> None:

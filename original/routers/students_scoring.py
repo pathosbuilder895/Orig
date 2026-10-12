@@ -10,8 +10,9 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+import time
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
@@ -25,16 +26,53 @@ from ..schemas import (
     WindowScoreOut,
 )
 from ..tension_arc import analyze_tension_arc
-from ._shared import _repo, _send_notification_email, _to_response
+from ._shared import _api, _client_ip, _repo, _send_notification_email, _to_response
 
 router = APIRouter()
+
+
+# ── Score rate limit (T-19) ───────────────────────────────────────────────────
+# Scoring is the heaviest request in the app (feature extraction, spaCy), so one
+# caller looping it can starve the single-worker Starter instance. Each signed-in
+# caller gets SCORE_RATE_LIMIT_PER_MINUTE scoring requests per rolling minute
+# (0 turns the limit off). Real deploys only, like _shared._client_ip's proxy
+# handling: off them every request runs as the one demo principal, which would
+# share a single budget across the whole test suite and the zero-login demo.
+# In-process memory, so it assumes the single-worker deploy (T-18).
+_SCORE_LIMIT_PER_MINUTE = int(os.environ.get("SCORE_RATE_LIMIT_PER_MINUTE", "30"))
+_score_calls: dict[str, list[float]] = {}
+
+
+def _throttle_score(request: Request | None) -> None:
+    """Raise 429 when this caller has used its scoring budget for the minute."""
+    if request is None or _SCORE_LIMIT_PER_MINUTE <= 0 or not _api()._IS_REAL_DEPLOY:
+        return
+    p = getattr(request.state, "principal", None)
+    key = f"{p.tenant_id}:{p.user_id}" if p is not None else f"ip:{_client_ip(request)}"
+    now = time.monotonic()
+    window = [t for t in _score_calls.get(key, []) if now - t < 60]
+    if len(window) >= _SCORE_LIMIT_PER_MINUTE:
+        _score_calls[key] = window
+        raise HTTPException(
+            status_code=429, detail="Too many scoring requests. Try again in a minute."
+        )
+    window.append(now)
+    _score_calls[key] = window
+    if len(_score_calls) > 10_000:  # bound memory under caller churn
+        _score_calls.clear()
 
 
 # ── Score submission ──────────────────────────────────────────────────────────
 
 
 @router.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
-def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool = False):
+def score_submission(
+    student_id: str,
+    req: ScoreSubmissionRequest,
+    force: bool = False,
+    request: Request = None,  # injected by FastAPI; None for in-process callers
+):
+    _throttle_score(request)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -248,8 +286,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
             if _genre_stats is None and os.environ.get("COHORT_PRIOR_FALLBACK") == "1":
                 _genre_stats = _repo().get_cohort_stats(_prior_tenant, student_id)
                 logging.getLogger(__name__).info(
-                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s "
-                    "n_prior=%d n_students=%d",
+                    "bayesian_prior_cohort_fallback outcome=%s tenant=%s n_prior=%d n_students=%d",
                     "hit" if _genre_stats is not None else "miss",
                     _prior_tenant,
                     _genre_stats["n_samples"] if _genre_stats is not None else 0,
@@ -285,8 +322,7 @@ def score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool =
     # student id in the line, only the aggregate numbers.
     if _scoring_config_env.topic_variance_inflation != "off":
         logging.getLogger(__name__).info(
-            "topic_inflation mode=%s d=%s mean_inflation=%s deviation=%.4f "
-            "deviation_inflated=%s",
+            "topic_inflation mode=%s d=%s mean_inflation=%s deviation=%.4f deviation_inflated=%s",
             _scoring_config_env.topic_variance_inflation,
             result.topic_distance,
             result.topic_mean_inflation,
