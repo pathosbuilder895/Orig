@@ -342,6 +342,7 @@ _DEMO_ONLY_STATICS = frozenset(
         # Harmless in the public demo; real deploy has no reason to hand out its
         # own build internals (T-06).
         "/bluebook/bluebook.bundle.js.map",
+        "/collections/bluebook.bundle.js.map",
         # FastAPI's interactive docs and schema: a full map of every route,
         # including the staff-only and guarded ones. Useful in the demo;
         # nothing on a real deploy needs them.

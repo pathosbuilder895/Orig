@@ -161,3 +161,18 @@ def test_root_opens_bluebook_on_a_real_deploy(mounted_pilot_client):
 def test_root_keeps_the_original_tour_in_the_demo(mounted_client):
     r = mounted_client.get("/", follow_redirects=False)
     assert r.headers["location"] == "/professor.html"
+
+
+def test_collections_path_serves_the_app(mounted_pilot_client):
+    """/collections/ is the user-facing path for the Collections app; it
+    serves the same SPA as /bluebook/ (which stays live for emails and LTI)."""
+    r = mounted_pilot_client.get("/collections/")
+    assert r.status_code == 200
+    assert "bluebook.bundle.js" in r.text
+    assert mounted_pilot_client.get("/collections/bluebook.bundle.js").status_code == 200
+    r = mounted_pilot_client.get("/collections?invite=x", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/collections/?invite=x"
+
+
+def test_collections_sourcemap_404_in_pilot(mounted_pilot_client):
+    assert mounted_pilot_client.get("/collections/bluebook.bundle.js.map").status_code == 404

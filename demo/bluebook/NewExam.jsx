@@ -175,13 +175,13 @@ export function NewExamScreen({ onNavigate }) {
   const [maxWords,  setMaxWords]  = useNEState(1200);
   const [prompts,   setPrompts]   = useNEState(['']);
   // ── Lockdown (default ON — the secure baseline) ──
-  const [blockAI,    setBlockAI]    = useNEState(true);
+  const [blockAI,    setBlockAI]    = useNEState(false);
   const [blockWeb,   setBlockWeb]   = useNEState(true);
   const [blockCopy,  setBlockCopy]  = useNEState(true);
   // ── Secondary conditions ──
   const [spellChk,  setSpellChk]  = useNEState(false);
   const [phoneBlk,  setPhoneBlk]  = useNEState(true);
-  const [aiDetect,  setAiDetect]  = useNEState(true);
+  const [aiDetect,  setAiDetect]  = useNEState(false);
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
   const [saveError, setSaveError] = useNEState('');
@@ -528,7 +528,7 @@ export function NewExamScreen({ onNavigate }) {
             <GoldRule faint />
             {BB_API.hasOriginal() && (
               <>
-                <ToggleRow label="Authorship comparison (Original)" desc="Compare each submission with the student's own past writing" value={aiDetect} onChange={setAiDetect} />
+                <ToggleRow label="Writing consistency (in testing)" desc="Compare each submission with the student's own past writing" value={aiDetect} onChange={setAiDetect} />
                 <GoldRule faint />
               </>
             )}
