@@ -21,6 +21,7 @@ from .. import invites as invites_mod
 from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
+from ..consent import policy as consent_policy
 from ..schemas import RosterAddRequest, SendEmailRequest
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
 from .bluebook import _owned_course, _owned_exam
@@ -513,6 +514,8 @@ def me(request: Request):
         "products": sorted(p.products),
         "has_account": user is not None,
         "courses": courses,
+        # Consent MVP: the SPA shows the consent screen when this is set.
+        "consent_blocked": consent_policy.student_block_reason(p.tenant_id, p.user_id),
     }
 
 
@@ -577,7 +580,9 @@ def my_exam_start(exam_id: str, request: Request):
     seconds = rules.session_seconds(exam, now)
     s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
     proctor_token = None
-    if "original" in p.products:
+    if "original" in p.products and consent_policy.original_allowed(
+        p.user_id, p.tenant_id, exam.get("course_id")
+    ):
         proctor_token = student_auth.mint_proctor_attestation(p.user_id, exam_id)
     _repo().log_audit(
         action="bluebook_dashboard_start",

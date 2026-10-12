@@ -70,6 +70,7 @@ from original.db.models.live import (
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsentRecord,
     ConsumedAttestation,
     Correction,
     FidelityScore,
@@ -77,6 +78,7 @@ from original.db.models.live import (
     FusedScore,
     ParkBeat,
     ParkSession,
+    PilotAgreement,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -911,8 +913,8 @@ class _BluebookCourseMigrator(_Migrator):
 
     def read_sqlite(self, conn):
         rows = conn.execute(
-            "SELECT course_id, tenant_id, code, name, term, status, created_at "
-            "FROM bluebook_courses"
+            "SELECT course_id, tenant_id, code, name, term, status, created_at, "
+            "original_enabled FROM bluebook_courses"
         ).fetchall()
         return [
             {
@@ -923,6 +925,7 @@ class _BluebookCourseMigrator(_Migrator):
                 "term": r[4],
                 "status": r[5],
                 "created_at": _canon_ts(r[6]),
+                "original_enabled": int(r[7] or 0),
             }
             for r in rows
         ]
@@ -936,6 +939,7 @@ class _BluebookCourseMigrator(_Migrator):
             term=row["term"],
             status=row["status"],
             created_at=_parse_ts(row["created_at"]),
+            original_enabled=row["original_enabled"],
         )
 
     def read_pg(self, session):
@@ -948,6 +952,7 @@ class _BluebookCourseMigrator(_Migrator):
                 "term": c.term,
                 "status": c.status,
                 "created_at": _canon_ts(c.created_at),
+                "original_enabled": int(c.original_enabled or 0),
             }
             for c in session.query(BluebookCourse).all()
         ]
@@ -1223,6 +1228,84 @@ class _ConsumedAttestationMigrator(_Migrator):
         ]
 
 
+class _ConsentRecordMigrator(_Migrator):
+    """Student consent MVP: append-only consent decisions. No tenant FK and
+    the full scoped student id in both schemas, like consumed_attestations."""
+
+    name = "consent_records"
+    model = ConsentRecord
+    pk = "record_id"
+    _COLS = (
+        "record_id", "tenant_id", "student_id", "course_id", "scope", "decision",
+        "doc_version", "body_sha256", "typed_name", "age_attested", "created_at",
+    )  # fmt: skip
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM consent_records").fetchall()
+        out = []
+        for r in rows:
+            d = dict(zip(self._COLS, r, strict=True))
+            d["age_attested"] = int(d["age_attested"] or 0)
+            d["created_at"] = _canon_ts(d["created_at"])
+            out.append(d)
+        return out
+
+    def to_model(self, row):
+        return ConsentRecord(**{**row, "created_at": _parse_ts(row["created_at"])})
+
+    def read_pg(self, session):
+        out = []
+        for c in session.query(ConsentRecord).all():
+            d = {k: getattr(c, k) for k in self._COLS}
+            d["age_attested"] = int(d["age_attested"] or 0)
+            d["created_at"] = _canon_ts(d["created_at"])
+            out.append(d)
+        return out
+
+
+class _PilotAgreementMigrator(_Migrator):
+    """Student consent MVP: school/department pilot agreements. No tenant FK."""
+
+    name = "pilot_agreements"
+    model = PilotAgreement
+    pk = "agreement_id"
+    _COLS = (
+        "agreement_id", "tenant_id", "entity_name", "signer_name", "signer_title",
+        "signer_email", "doc_version", "doc_sha256", "signed_on", "recorded_by",
+        "recorded_at", "breach_contacts_json", "superseded_at",
+    )  # fmt: skip
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM pilot_agreements").fetchall()
+        out = []
+        for r in rows:
+            d = dict(zip(self._COLS, r, strict=True))
+            d["breach_contacts_json"] = _parse_json(d["breach_contacts_json"]) or []
+            d["recorded_at"] = _canon_ts(d["recorded_at"])
+            d["superseded_at"] = _canon_ts(d["superseded_at"]) if d["superseded_at"] else None
+            out.append(d)
+        return out
+
+    def to_model(self, row):
+        return PilotAgreement(
+            **{
+                **row,
+                "recorded_at": _parse_ts(row["recorded_at"]),
+                "superseded_at": _parse_ts(row["superseded_at"]) if row["superseded_at"] else None,
+            }
+        )
+
+    def read_pg(self, session):
+        out = []
+        for a in session.query(PilotAgreement).all():
+            d = {k: getattr(a, k) for k in self._COLS}
+            d["breach_contacts_json"] = d["breach_contacts_json"] or []
+            d["recorded_at"] = _canon_ts(d["recorded_at"])
+            d["superseded_at"] = _canon_ts(d["superseded_at"]) if d["superseded_at"] else None
+            out.append(d)
+        return out
+
+
 class _FormationMigrator(_Migrator):
     name = "formation_pathways"
     model = FormationPathway
@@ -1446,6 +1529,8 @@ MIGRATORS: list[_Migrator] = [
     _BluebookInviteMigrator(),
     _AuditMigrator(),
     _ConsumedAttestationMigrator(),
+    _ConsentRecordMigrator(),
+    _PilotAgreementMigrator(),
     _FormationMigrator(),
     _BaselineRequestMigrator(),
     _ParkSessionMigrator(),

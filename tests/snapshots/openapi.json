@@ -1013,6 +1013,17 @@
             ],
             "title": "Name"
           },
+          "original_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Enabled"
+          },
           "status": {
             "anyOf": [
               {
@@ -1553,6 +1564,52 @@
           "status"
         ],
         "title": "CalibrationRunSummary",
+        "type": "object"
+      },
+      "ConsentSubmitRequest": {
+        "description": "POST /bluebook/me/consent. Optional scopes default to off.",
+        "properties": {
+          "class_use": {
+            "default": false,
+            "title": "Class Use",
+            "type": "boolean"
+          },
+          "consistency": {
+            "default": false,
+            "title": "Consistency",
+            "type": "boolean"
+          },
+          "over_18": {
+            "default": false,
+            "title": "Over 18",
+            "type": "boolean"
+          },
+          "typed_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Typed Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "typed_name"
+        ],
+        "title": "ConsentSubmitRequest",
+        "type": "object"
+      },
+      "ConsentWithdrawRequest": {
+        "description": "POST /bluebook/me/consent/withdraw. Mode is always exclude in the MVP.",
+        "properties": {
+          "scope": {
+            "pattern": "^(class_use|consistency)$",
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "title": "ConsentWithdrawRequest",
         "type": "object"
       },
       "ContextManifestOut": {
@@ -3091,6 +3148,68 @@
           "email"
         ],
         "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PilotAgreementRequest": {
+        "description": "POST /tenants/{id}/agreements (operator). Signed offline; recorded here.",
+        "properties": {
+          "breach_contacts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Breach Contacts",
+            "type": "array"
+          },
+          "doc_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Doc Sha256",
+            "type": "string"
+          },
+          "doc_version": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Doc Version",
+            "type": "string"
+          },
+          "entity_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entity Name",
+            "type": "string"
+          },
+          "signed_on": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "title": "Signed On",
+            "type": "string"
+          },
+          "signer_email": {
+            "default": "",
+            "maxLength": 254,
+            "title": "Signer Email",
+            "type": "string"
+          },
+          "signer_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Signer Name",
+            "type": "string"
+          },
+          "signer_title": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Signer Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_name",
+          "signer_name",
+          "doc_version",
+          "doc_sha256",
+          "signed_on"
+        ],
+        "title": "PilotAgreementRequest",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -5714,6 +5833,44 @@
         "summary": "Bluebook Update Course"
       }
     },
+    "/bluebook/courses/{course_id}/consent": {
+      "get": {
+        "description": "Teacher roster: per student, class use, Original on/off, version,\ndate, and the alternative-assignment flag. Typed names are not shown and\nthe declined scope is never named beyond \"Original off\".",
+        "operationId": "course_consent_roster_bluebook_courses__course_id__consent_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Course Consent Roster"
+      }
+    },
     "/bluebook/courses/{course_id}/invites/reissue-pending": {
       "post": {
         "description": "Fresh links for every student on the course who has not set a\npassword yet. Links are stored hashed, so an earlier link can never be\nshown again; this replaces them all in one go.",
@@ -6460,6 +6617,94 @@
           }
         },
         "summary": "Me"
+      }
+    },
+    "/bluebook/me/consent": {
+      "get": {
+        "description": "The consent documents, this student's answer per scope, and which\nscopes still need an answer at the current version.",
+        "operationId": "my_consent_bluebook_me_consent_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Consent"
+      },
+      "post": {
+        "operationId": "submit_consent_bluebook_me_consent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentSubmitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Consent"
+      }
+    },
+    "/bluebook/me/consent/withdraw": {
+      "post": {
+        "description": "Withdraw a scope now. Default and only MVP mode: exclude (D8).",
+        "operationId": "withdraw_consent_bluebook_me_consent_withdraw_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentWithdrawRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Consent"
       }
     },
     "/bluebook/me/exams": {
@@ -8323,6 +8568,89 @@
           }
         },
         "summary": "Update Tenant Products"
+      }
+    },
+    "/tenants/{tenant_id}/agreements": {
+      "get": {
+        "operationId": "list_agreements_tenants__tenant_id__agreements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Agreements"
+      },
+      "post": {
+        "description": "Record a school/department pilot agreement signed offline (D11).",
+        "operationId": "record_agreement_tenants__tenant_id__agreements_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PilotAgreementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Agreement"
       }
     },
     "/tenants/{tenant_id}/stats": {

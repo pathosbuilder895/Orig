@@ -29,6 +29,13 @@ def issue(tenant_id: str, user_id: str, created_by: str, course_id: str | None =
     """Void earlier invites for ``user_id`` and issue a fresh one. Returns
     ``{"invite_path", "expires_at", "invite_id"}``; the raw token lives only
     in ``invite_path``."""
+    if course_id is not None:
+        # Every student invite path (roster add, reissue, reissue-pending,
+        # scripts/roster_links.py) comes through here, so the pilot-agreement
+        # gate lives here once. Raises 409 agreement_required.
+        from .consent import policy as consent_policy
+
+        consent_policy.require_agreement(tenant_id)
     repo = get_repository()
     repo.void_invites_for_user(user_id)
     token = secrets.token_urlsafe(32)

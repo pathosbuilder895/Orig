@@ -4,6 +4,7 @@ import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, when,
 } from './forms.jsx';
 import { examToConfig } from './Exam.jsx';
+import { ConsentPanel } from './Consent.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Self-serve accounts
@@ -328,10 +329,22 @@ export function StudentHomeScreen({ onNavigate }) {
   const [error, setError] = useState('');
   const [opening, setOpening] = useState('');
 
+  const [consent, setConsent] = useState(null);
+  const [reload, setReload] = useState(0);
+
   useEffect(() => {
     let live = true;
-    Promise.all([BB_API.me(), BB_API.myExams(), BB_API.mySubmissions()])
-      .then(([m, e, s]) => { if (live) { setMe(m); setExams(e); setSubs(s); } })
+    // Consent first (university beta): until it is answered the exam routes
+    // return 403, so only /bluebook/me is read.
+    BB_API.me()
+      .then(m => {
+        if (!live) return null;
+        setMe(m);
+        setConsent(m.consent_blocked || null);
+        if (m.consent_blocked) { setExams([]); return null; }
+        return Promise.all([BB_API.myExams(), BB_API.mySubmissions()]);
+      })
+      .then(r => { if (live && r) { setExams(r[0]); setSubs(r[1]); } })
       .catch(err => {
         if (!live) return;
         if (/sign in|not authenticated/i.test(err.message || '')) {
@@ -341,7 +354,7 @@ export function StudentHomeScreen({ onNavigate }) {
         setExams([]);
       });
     return () => { live = false; };
-  }, []);
+  }, [reload]);
 
   async function open(e) {
     setOpening(e.exam_id); setError('');
@@ -378,6 +391,10 @@ export function StudentHomeScreen({ onNavigate }) {
         title={me ? `Welcome, ${me.name || 'student'}.` : 'My exams'}
         meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'Not enrolled in any course yet')}>
         <ErrorText>{error}</ErrorText>
+        {consent ? (
+          <ConsentPanel blocked={consent === 'consent_required' ? null : consent}
+            onDone={how => { if (how === 'reopen') setConsent('consent_required'); else setReload(n => n + 1); }} />
+        ) : (<>
         <Section title="Examinations">
           <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your examinations"
             empty={loading ? 'Loading…' : 'No examinations yet. Your teacher will add them to your course.'} />
@@ -385,6 +402,7 @@ export function StudentHomeScreen({ onNavigate }) {
         <Section title="My submissions">
           <Table columns={subColumns} rows={subs} rowKey={s => s.id} caption="Your submissions" empty="Nothing submitted yet." />
         </Section>
+        </>)}
       </Page>
     </StudentShell>
   );

@@ -682,6 +682,53 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
             ON bluebook_invites(user_id)
     """)
+    # Student consent MVP (2026-10). Append-only consent decisions (no IP,
+    # no user agent), pilot agreements, and the per-course Original switch.
+    _course_cols = {r[1] for r in conn.execute("PRAGMA table_info(bluebook_courses)")}
+    if "original_enabled" not in _course_cols:
+        conn.execute(
+            "ALTER TABLE bluebook_courses ADD COLUMN original_enabled INTEGER NOT NULL DEFAULT 0"
+        )
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS consent_records (
+            record_id    TEXT PRIMARY KEY,
+            tenant_id    TEXT NOT NULL,
+            student_id   TEXT NOT NULL,
+            course_id    TEXT,
+            scope        TEXT NOT NULL,
+            decision     TEXT NOT NULL,
+            doc_version  TEXT NOT NULL,
+            body_sha256  TEXT NOT NULL,
+            typed_name   TEXT NOT NULL DEFAULT '',
+            age_attested INTEGER NOT NULL DEFAULT 0,
+            created_at   TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_consent_records_student
+            ON consent_records(tenant_id, student_id, scope, created_at)
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pilot_agreements (
+            agreement_id         TEXT PRIMARY KEY,
+            tenant_id            TEXT NOT NULL,
+            entity_name          TEXT NOT NULL,
+            signer_name          TEXT NOT NULL,
+            signer_title         TEXT NOT NULL DEFAULT '',
+            signer_email         TEXT NOT NULL DEFAULT '',
+            doc_version          TEXT NOT NULL,
+            doc_sha256           TEXT NOT NULL,
+            signed_on            TEXT NOT NULL,
+            recorded_by          TEXT NOT NULL,
+            recorded_at          TEXT NOT NULL,
+            breach_contacts_json TEXT NOT NULL DEFAULT '[]',
+            superseded_at        TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_pilot_agreements_tenant
+            ON pilot_agreements(tenant_id, recorded_at)
+    """)
     conn.commit()
 
 
@@ -1871,6 +1918,7 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM audit_log WHERE student_id = ?", (student_id,))
             # T-69: the single-use ledger identifies the student too — erase it.
             conn.execute("DELETE FROM consumed_attestations WHERE student_id = ?", (student_id,))
+            conn.execute("DELETE FROM consent_records WHERE student_id = ?", (student_id,))
             # Bluebook self-serve (2026-09): rosters, set-password links, and
             # the student's own login row. Staff rows are never matched: a
             # student account's user_id is the scoped student id itself.
@@ -2813,6 +2861,7 @@ def _bluebook_course_to_dict(row) -> dict:
         "students": 0,
         "exams": 0,
         "created_at": row[6],
+        "original_enabled": bool(row[7]) if len(row) > 7 else False,
     }
 
 
@@ -2844,7 +2893,7 @@ def put_bluebook_course(rec: dict) -> None:
 
 
 def list_bluebook_courses(tenant_id: str | None) -> list[dict]:
-    cols = "course_id, tenant_id, code, name, term, status, created_at"
+    cols = "course_id, tenant_id, code, name, term, status, created_at, original_enabled"
     try:
         with _get_conn() as conn:
             if tenant_id is None:
@@ -3038,8 +3087,8 @@ def set_bluebook_submission_feedback(
 def get_bluebook_course(course_id: str) -> dict | None:
     with _get_conn() as conn:
         row = conn.execute(
-            "SELECT course_id, tenant_id, code, name, term, status, created_at "
-            "FROM bluebook_courses WHERE course_id = ?",
+            "SELECT course_id, tenant_id, code, name, term, status, created_at, "
+            "original_enabled FROM bluebook_courses WHERE course_id = ?",
             (course_id,),
         ).fetchone()
     return _bluebook_course_to_dict(row) if row else None
@@ -4162,3 +4211,121 @@ def park_purge(before: datetime) -> int:
         ).rowcount
         conn.commit()
     return int(beats) + int(sessions)
+
+
+# ── Student consent MVP (2026-10) ─────────────────────────────────────────────
+# consent_records is append-only: nothing here updates or deletes a row
+# except FERPA erasure (delete_student). No IP / user agent columns exist.
+
+_CONSENT_COLS = (
+    "record_id, tenant_id, student_id, course_id, scope, decision, doc_version, "
+    "body_sha256, typed_name, age_attested, created_at"
+)
+
+
+def _consent_to_dict(row) -> dict:
+    keys = [c.strip() for c in _CONSENT_COLS.split(",")]
+    d = dict(zip(keys, row, strict=True))
+    d["age_attested"] = bool(d["age_attested"])
+    return d
+
+
+def append_consent_record(rec: dict) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO consent_records ({_CONSENT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                rec["record_id"],
+                rec["tenant_id"],
+                rec["student_id"],
+                rec.get("course_id"),
+                rec["scope"],
+                rec["decision"],
+                rec["doc_version"],
+                rec["body_sha256"],
+                rec.get("typed_name") or "",
+                1 if rec.get("age_attested") else 0,
+                rec["created_at"],
+            ),
+        )
+        conn.commit()
+
+
+def list_consent_records(tenant_id: str, student_id: str | None = None) -> list[dict]:
+    with _get_conn() as conn:
+        if student_id is None:
+            rows = conn.execute(
+                f"SELECT {_CONSENT_COLS} FROM consent_records WHERE tenant_id = ? "
+                "ORDER BY created_at, rowid",
+                (tenant_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                f"SELECT {_CONSENT_COLS} FROM consent_records "
+                "WHERE tenant_id = ? AND student_id = ? ORDER BY created_at, rowid",
+                (tenant_id, student_id),
+            ).fetchall()
+    return [_consent_to_dict(r) for r in rows]
+
+
+_AGREEMENT_COLS = (
+    "agreement_id, tenant_id, entity_name, signer_name, signer_title, signer_email, "
+    "doc_version, doc_sha256, signed_on, recorded_by, recorded_at, breach_contacts_json, "
+    "superseded_at"
+)
+
+
+def _agreement_to_dict(row) -> dict:
+    keys = [c.strip() for c in _AGREEMENT_COLS.split(",")]
+    d = dict(zip(keys, row, strict=True))
+    d["breach_contacts"] = json.loads(d.pop("breach_contacts_json") or "[]")
+    return d
+
+
+def put_pilot_agreement(rec: dict) -> None:
+    """Record an agreement, superseding any current one for the tenant."""
+    with _get_conn() as conn:
+        conn.execute(
+            "UPDATE pilot_agreements SET superseded_at = ? "
+            "WHERE tenant_id = ? AND superseded_at IS NULL",
+            (rec["recorded_at"], rec["tenant_id"]),
+        )
+        conn.execute(
+            f"INSERT INTO pilot_agreements ({_AGREEMENT_COLS}) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL)",
+            (
+                rec["agreement_id"],
+                rec["tenant_id"],
+                rec["entity_name"],
+                rec["signer_name"],
+                rec.get("signer_title") or "",
+                rec.get("signer_email") or "",
+                rec["doc_version"],
+                rec["doc_sha256"],
+                rec["signed_on"],
+                rec["recorded_by"],
+                rec["recorded_at"],
+                json.dumps(rec.get("breach_contacts") or []),
+            ),
+        )
+        conn.commit()
+
+
+def list_pilot_agreements(tenant_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_AGREEMENT_COLS} FROM pilot_agreements WHERE tenant_id = ? "
+            "ORDER BY recorded_at, rowid",
+            (tenant_id,),
+        ).fetchall()
+    return [_agreement_to_dict(r) for r in rows]
+
+
+def set_course_original(course_id: str, enabled: bool) -> bool:
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_courses SET original_enabled = ? WHERE course_id = ?",
+            (1 if enabled else 0, course_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1

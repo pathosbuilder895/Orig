@@ -149,6 +149,8 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/exams/{exam_id}/baseline"),
     ("POST", "/bluebook/exams/{exam_id}/release"),
     ("POST", "/bluebook/exams/{exam_id}/unrelease"),
+    ("POST", "/bluebook/me/consent"),
+    ("POST", "/bluebook/me/consent/withdraw"),
     ("POST", "/bluebook/me/exams/{exam_id}/start"),
     ("POST", "/bluebook/submissions/{submission_id}/baseline"),
     ("POST", "/canvas/baseline/{student_id}/fetch-submission-text"),
@@ -168,6 +170,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/students/{student_id}/upload"),
     ("POST", "/submissions/{submission_id}/correct"),
     ("POST", "/tenants"),
+    ("POST", "/tenants/{tenant_id}/agreements"),
     ("POST", "/test/score"),
 ]
 
@@ -188,6 +191,15 @@ JSON_BODIES: dict[str, dict] = {
     "/auth/password": {"current_password": "x" * 8, "new_password": "y" * 8},
     "/bluebook/courses/{course_id}/students": {"students": [{"email": "s@x.edu"}]},
     "/tenants/{tenant_id}": {"products": ["bluebook"]},
+    "/bluebook/me/consent": {"typed_name": "x"},
+    "/bluebook/me/consent/withdraw": {"scope": "consistency"},
+    "/tenants/{tenant_id}/agreements": {
+        "entity_name": "e",
+        "signer_name": "s",
+        "doc_version": "v",
+        "doc_sha256": "0" * 64,
+        "signed_on": "2026-10-12",
+    },
 }
 
 # UploadFile-based routes: (form field name, is-list).

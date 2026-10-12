@@ -13,6 +13,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import voice as voice_mod
+from ..consent import policy as consent_policy
 from ..schemas import (
     ScoreSubmissionRequest,
     VoiceSubmitRequest,
@@ -106,6 +107,9 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     # the try below, because that block reports every HTTPException as "no
     # writing on file", which would hide a 429.
     _throttle_score(request)
+    # Consent gate, outside the try for the same reason: "not available"
+    # is not "no writing on file".
+    consent_policy.require_original(sid)
 
     try:
         layer7 = score_submission(

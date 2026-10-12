@@ -39,6 +39,7 @@ from original.db.models.live import (
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsentRecord,
     ConsumedAttestation,
     Correction,
     FidelityScore,
@@ -47,6 +48,7 @@ from original.db.models.live import (
     LiveBase,
     ParkBeat,
     ParkSession,
+    PilotAgreement,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -75,6 +77,8 @@ EXPECTED_TABLES = {
     "bluebook_invites",  # self-serve set-password links (2026-09)
     "audit_log",
     "consumed_attestations",  # T-69 proctor-attestation single-use ledger
+    "consent_records",  # student consent MVP (2026-10), append-only
+    "pilot_agreements",  # student consent MVP (2026-10)
     "formation_pathways",
     "baseline_requests",
     # T8 phone-park — authored against this schema, not ported from SQLite.
@@ -364,6 +368,30 @@ REPRESENTATIVE_ROWS = {
     ),
     # T-69: student_id stores the full "tenant:local" scoped string verbatim
     # (like BluebookSubmission below), not split into tenant_id/local_id.
+    ConsentRecord: dict(
+        record_id="c" * 32,
+        tenant_id=TENANT_ID,
+        student_id=f"{TENANT_ID}:marcus",
+        scope="consistency",
+        decision="granted",
+        doc_version="2026-10-12-draft",
+        body_sha256="d" * 64,
+        typed_name="Marcus Aurelius",
+        age_attested=0,
+        created_at=NOW,
+    ),
+    PilotAgreement: dict(
+        agreement_id="p" * 32,
+        tenant_id=TENANT_ID,
+        entity_name="Dept. of Theology",
+        signer_name="Dean",
+        doc_version="pilot-draft",
+        doc_sha256="e" * 64,
+        signed_on="2026-10-12",
+        recorded_by="op-1",
+        recorded_at=NOW,
+        breach_contacts_json=["dean@seminary.edu"],
+    ),
     ConsumedAttestation: dict(
         jti="a" * 64,
         tenant_id=TENANT_ID,

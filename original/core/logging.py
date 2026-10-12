@@ -164,7 +164,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "status_code": status_code,
                     "latency_ms": latency_ms,
-                    "client_ip": request.client.host if request.client else None,
-                    "user_agent": request.headers.get("user-agent"),
+                    # No client IP and no user agent (student consent MVP,
+                    # 2026-10): request logs must not identify a device.
                 },
             )
