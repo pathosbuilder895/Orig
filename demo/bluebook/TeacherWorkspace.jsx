@@ -53,12 +53,12 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   const identity = demo ? {name: 'Professor · demonstration'} : BB_API.identity();
   const initials = (identity.name || 'Teacher').split(/\s+/).slice(0, 2).map(n => n[0]).join('');
   const items = demo
-    ? [['Overview','overview'],['Students','students'],['Submissions','submissions'],['Bluebook','sessions'],['Reports','reports']]
-    : [['Overview','dashboard'],['Bluebook','sessions'],['Examinations','exams'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
+    ? [['Overview','overview'],['Students','students'],['Submissions','submissions'],['Collections','sessions'],['Reports','reports']]
+    : [['Overview','dashboard'],['Collections','sessions'],['Examinations','exams'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
   const withOriginal = !demo && BB_API.hasOriginal();
   return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame">
     <nav className="teacher-nav" aria-label="Teacher navigation">
-      <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo || BB_API.hasOriginal() ? 'Original' : 'Bluebook'}</div>
+      <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo || BB_API.hasOriginal() ? 'Original' : 'Collections'}</div>
       <div ref={pills} className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
         {items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
         {withOriginal && <button onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>Original Analysis ↗</button>}
@@ -109,11 +109,11 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
   }
   return <>
     <header className="teacher-head"><div>
-      <div className="eyebrow">Bluebook Sessions</div>
+      <div className="eyebrow">Collections Sessions</div>
       <h1>In-class writing, in their own hand.</h1>
       {hasOriginal
-        ? <p className="sub">A Bluebook session is a supervised essay written live in class. Sealed booklets stay as written. Because Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</p>
-        : <p className="sub">A Bluebook session is a supervised essay written live in class. Sealed booklets stay exactly as written, and you read them all in one place.</p>}
+        ? <p className="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay as written. Because Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</p>
+        : <p className="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay exactly as written, and you read them all in one place.</p>}
     </div></header>
     {error && <div role="alert" className="teacher-error">{error} <button onClick={onRetry}>Try again</button></div>}
     <div className="teacher-columns">
@@ -129,7 +129,7 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
             {loading?<p role="status">Loading your classes…</p>:courses.map(c=><button type="button" key={c.id} disabled={busy} aria-pressed={selected?.id===c.id} onClick={()=>setCourseId(c.id)}>{c.code||c.name} · {c.students??0} student{c.students===1?'':'s'}</button>)}
           </div>{!loading&&!courses.length&&!error&&<p>No classes yet. <button type="button" className="quiet-button" onClick={onCourses}>Create your first course</button></p>}</section>
           <section className="teacher-step"><h3><label htmlFor="teacher-duration">How long do they get?</label></h3><div className="time-row"><input id="teacher-duration" aria-label="Session duration in minutes" type="range" min="15" max="120" step="5" value={duration} disabled={busy} onChange={e=>setDuration(Number(e.target.value))}/><output htmlFor="teacher-duration">{duration} min</output></div>
-            <div className="quiet-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg><p><strong>Everything else is already handled.</strong> Drafts save on the student’s device every few seconds, and the finished booklet reaches you when they seal it. Bluebook keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</p></div>
+            <div className="quiet-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg><p><strong>Everything else is already handled.</strong> Drafts save on the student’s device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</p></div>
           </section>
         </div>
         {saveError&&<p className="teacher-error" role="alert">{saveError}</p>}
@@ -138,10 +138,10 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
       </form>
       <aside><section className="teacher-card session-history"><div className="section-title"><h2>Sessions</h2><span>{demo?'example term':`${exams.length} in total`}</span></div>
         {loading?<p role="status">Loading sessions…</p>:!exams.length?<p>No sessions yet. Your first one will appear here.</p>:exams.map(e=>{const st=sessionState(e);return <button className="session-row" key={e.id} onClick={()=>onOpen(e)}><span className={'small-book'+(st==='closed'?' done':'')} aria-hidden="true"/><span className="session-title"><strong>{e.title}</strong><small>{[e.course,dateLabel(e.created_at),`${e.duration} min`].filter(Boolean).join(' · ')}</small></span><span className="session-badge"><span className={'s-badge '+SESSION_TONE[st]}><span className="d"/>{st}</span><small>{e.submissions??0} sealed</small></span></button>;})}
-      </section><section className="teacher-card teacher-why"><h2>Why Bluebook matters</h2>
+      </section><section className="teacher-card teacher-why"><h2>Why Collections matters</h2>
         {hasOriginal
-          ? <p>Bluebook gives students a quiet, trustworthy place to write. Because Original is on, the sealed booklets you <b>approve</b> become the reference writing it compares later papers against. More approved samples give it more to go on; with only a few, it may say it can’t tell.</p>
-          : <p>Bluebook gives students a quiet, trustworthy place to write. Give them a clear prompt and enough time, then read their work, in their own words, in one place.</p>}
+          ? <p>Collections gives students a quiet, trustworthy place to write. Because Original is on, the sealed booklets you <b>approve</b> become the reference writing it compares later papers against. More approved samples give it more to go on; with only a few, it may say it can’t tell.</p>
+          : <p>Collections gives students a quiet, trustworthy place to write. Give them a clear prompt and enough time, then read their work, in their own words, in one place.</p>}
       </section></aside>
     </div>
   </>;
@@ -215,7 +215,7 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
         <button className="teacher-primary" onClick={() => onNavigate('courses')}>Create your first course →</button>
       </div>}
       {!!courses.length && <div className="bb-actions" style={{ marginBottom: '1.5rem' }}>
-        <button className="teacher-primary" onClick={() => onNavigate('sessions')}>Start a Bluebook session →</button>
+        <button className="teacher-primary" onClick={() => onNavigate('sessions')}>Start a Collections session →</button>
         <button className="quiet-button" onClick={() => onNavigate('courses')}>Manage courses and invitations</button>
       </div>}
       {unreleased.length > 0 && <Section title="Ready to release">

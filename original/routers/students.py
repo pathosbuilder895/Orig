@@ -140,7 +140,7 @@ def get_student_readiness(student_id: str):
     recs: list[str] = []
     if auth == 0:
         recs.append(
-            "Collect a first proctored writing sample (via Bluebook) — "
+            "Collect a first proctored writing sample (via Collections) — "
             "scoring cannot run until at least one authenticated sample exists."
         )
     if auth < 5:

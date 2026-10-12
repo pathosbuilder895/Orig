@@ -233,7 +233,7 @@ def test_original_only_tenant_gated_on_dotted_student_ids(live_client, principal
     h = principal_headers("p1", "professor", "orig-only")
     r = live_client.delete(path, headers=h)
     assert r.status_code == 403
-    assert "does not include Bluebook" in r.json()["detail"]
+    assert "does not include Collections" in r.json()["detail"]
 
 
 @pytest.mark.parametrize(

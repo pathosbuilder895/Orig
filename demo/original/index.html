@@ -183,7 +183,7 @@
       <a class="pill on" href="index.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
       <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
       <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Bluebook</a>
+      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
       <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
     </div>
     <div class="nav-right">
@@ -385,7 +385,7 @@
     return counts[hot];
   }
 
-  function bbNote(){ return bb==='off'?'Bluebook is off':'Could not load sealed exams'; }
+  function bbNote(){ return bb==='off'?'Collections is off':'Could not load sealed exams'; }
 
   function renderTerm(first){
     $('back-term').classList.remove('show');
@@ -429,7 +429,7 @@
         ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' a ready baseline.'+(unread?' Readiness could not be read for '+unread+'.':'')+(beyondCap?' Readiness was not checked for '+beyondCap+'.':'')
         : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
       if(bb==='ok') h+=pending>0
-        ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Bluebook.'
+        ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Collections.'
         : ' No sealed exams are waiting for your review.';
       pr.innerHTML=h;
     }

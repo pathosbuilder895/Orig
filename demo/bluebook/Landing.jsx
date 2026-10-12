@@ -175,7 +175,7 @@ export function LandingScreen({ onNavigate }) {
             textTransform: 'uppercase', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
           }}>Sign in</button>
-          <a href="mailto:hello@originalvoice.io?subject=Bluebook%20support" style={{
+          <a href="mailto:hello@originalvoice.io?subject=Collections%20support" style={{
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
             textDecoration: 'none',
@@ -310,7 +310,7 @@ export function LoginScreen({ onNavigate }) {
               textAlign: 'center', fontFamily: fontBody, fontSize: 16,
               color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
             }}>
-              Teachers join Bluebook by invitation during the pilot.
+              Teachers join Collections by invitation during the pilot.
             </p>
           )}
           <p style={{

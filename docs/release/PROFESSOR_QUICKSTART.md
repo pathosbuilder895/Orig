@@ -1,15 +1,15 @@
-# Bluebook quickstart for invited teachers
+# Collections quickstart for invited teachers
 
-Bluebook is a locked, in-browser writing room. You set a question, your
+Original Collections (in the app: Collections) is a locked, in-browser writing room, a digital replacement for the blue book exam. You set a question, your
 students write in it for a set time, and you read, mark and return their work
-in one place. Your workspace is private to you and uses Bluebook only: it does
+in one place. Your workspace is private to you and uses Collections only: it does
 not build writing profiles or score anyone's writing.
 
 **Support:** [Andrew: support contact]
 
 ## 1. Set your password
 
-1. Open the email **"Your Bluebook workspace is ready"** and follow the link.
+1. Open the email **"Your Original Collections workspace is ready"** and follow the link.
    It works once and expires after 14 days; if it has expired, ask support for
    a new one.
 2. On **Set your password**, type a **New password** (at least 8 characters)
@@ -28,7 +28,7 @@ press **Sign in**, enter your **Email** and **Password**, and press **Enter**.
 2. Under **Add students**, paste your students' email addresses, one per line
    (`Name, email` also works). Keep **Email each student their invitation**
    ticked and press **Add students**.
-3. Each student gets an email ("You've been added to Bluebook for" your
+3. Each student gets an email ("You've been added to Original Collections for" your
    course) with a one-time link to set their password. If email is not
    working, use **Copy all links** or **Download links (CSV)** and send the
    links yourself. **Fresh links for all *N* waiting** replaces links that
@@ -38,7 +38,7 @@ press **Sign in**, enter your **Email** and **Password**, and press **Enter**.
 
 There are two ways:
 
-- **Quick session:** open **Bluebook** in the top bar. Under **Start a new
+- **Quick session:** open **Collections** in the top bar. Under **Start a new
   session**, write the question (**+ Add a second question** if you want
   more), choose the class under **Which class?**, set **How long do they
   get?**, and press **Open the booklets**. It is open to that class straight

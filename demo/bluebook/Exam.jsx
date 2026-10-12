@@ -375,7 +375,7 @@ export function BriefingScreen({ onNavigate }) {
           <div className="bk-cover">
             <div className="bk-cover-inner">
               <span className="bk-exam-lbl">Examination Booklet</span>
-              <h1>Blue Book</h1>
+              <h1>Collections</h1>
               <p role={loadState === 'error' ? 'alert' : 'status'} className="bk-cover-note state">
                 {loadState === 'error' ? loadError : 'Loading your examination…'}
               </p>
@@ -407,7 +407,7 @@ export function BriefingScreen({ onNavigate }) {
 
           <div className="bk-cover-inner">
             <span className="bk-exam-lbl">Preliminary Instructions</span>
-            <h1>Blue Book</h1>
+            <h1>Collections</h1>
             <div className="bk-rule" />
 
             <div className="bk-fields">
@@ -442,7 +442,7 @@ export function BriefingScreen({ onNavigate }) {
               </button>
             )}
             <p className="bk-cover-note">Once begun, this examination cannot be paused</p>
-            <p className="bk-cover-note">{withOriginal ? 'Original · Bluebook · quiet by design' : 'Bluebook · quiet by design'}</p>
+            <p className="bk-cover-note">{withOriginal ? 'Original · Collections · quiet by design' : 'Collections · quiet by design'}</p>
           </div>
         </div>
       </div>
@@ -1000,7 +1000,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             </div>
             <span className="bk-capture">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
-              Bluebook saves your words and a few session facts (time, word count, pastes, print or save attempts, leaving the window). Your screen is never watched.
+              Collections saves your words and a few session facts (time, word count, pastes, print or save attempts, leaving the window). Your screen is never watched.
             </span>
             <button
               type="button"

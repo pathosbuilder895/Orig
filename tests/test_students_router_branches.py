@@ -616,7 +616,7 @@ class TestMyWorkCompareOnly:
             # what does join a profile.
             assert (
                 "Not added to your writing profile. Only writing your teacher approves, "
-                "such as sealed Bluebook work, joins your writing profile."
+                "such as sealed Collections work, joins your writing profile."
             ) in body["summary"]
             assert "may choose" not in body["summary"]
             assert body["steady"] == []

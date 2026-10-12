@@ -142,7 +142,7 @@ def test_original_results_carry_the_testing_phase_notice(name):
 def test_student_pages_say_sealed_work_may_become_reference_writing():
     for name in ("original-voice.html", "original-my-work.html", "original-bluebook-student.html"):
         text = (SUITE / name).read_text()
-        assert "may approve your sealed Bluebook work as reference writing" in text, name
+        assert "may approve your sealed Collections work as reference writing" in text, name
         assert "can undo that approval" in text, name
 
 
