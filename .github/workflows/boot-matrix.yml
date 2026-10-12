@@ -124,19 +124,22 @@ jobs:
             fragment: ""
             extra: ""
 
-          # REAUDIT #5 / T-23: guarding destructive endpoints outside a real
-          # deploy is a misconfiguration that should refuse boot. It does not —
-          # the app comes up and logs the guard as active. `expect: refuse`
-          # records the intent; `today: up` records the product.
+          # REAUDIT #5 / T-23 (fixed 2026-10-11): guarding destructive
+          # endpoints outside a real deploy is a misconfiguration, and the
+          # app now refuses to boot. The api.py lifespan raises a RuntimeError
+          # naming GUARD_DESTRUCTIVE when it is 1 and ORIGINAL_ENV is not
+          # pilot, staging or production, the same exit path as the SECRET_KEY
+          # refusal (uvicorn exits non-zero). `gap` stays as the history of
+          # which register row this cell closed.
           - name: demo-guard-destructive
             reqs: requirements-pilot.lock.txt
             env: "ORIGINAL_ENV=demo GUARD_DESTRUCTIVE=1"
             expect: refuse
-            today: up
+            today: refuse
             gap: T-23
-            # Whatever wording the eventual refusal takes, it will name the
-            # variable. Only consulted once this cell is `refuse` — a refusal
-            # is exit-non-zero AND this fragment, never the fragment alone.
+            # A refusal is exit-non-zero AND this fragment in the log, never
+            # the fragment alone: the boot log names GUARD_DESTRUCTIVE on
+            # every successful start.
             fragment: "GUARD_DESTRUCTIVE"
             extra: ""
 

@@ -83,7 +83,9 @@ automatically.
   `GUARD_DESTRUCTIVE=1`; with a wrong token → 403; with the right token from a
   *student* principal → 403 (role and token are both required).
 - `GUARD_DESTRUCTIVE=1` with a non-real `ORIGINAL_ENV` refuses to boot
-  (REAUDIT follow-up #5 — unimplemented; test is red).
+  (REAUDIT follow-up #5, T-23: implemented 2026-10-11 in the `original/api.py`
+  lifespan; `tests/config/test_guard_destructive_boot.py` and the
+  `demo-guard-destructive` boot-matrix cell, both green).
 - `MAINTENANCE_TOKEN` login backdoor: succeeds only when the env var is set
   *and* `ORIGINAL_ENV` is real; logs an audit row naming the backdoor.
 

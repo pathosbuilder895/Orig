@@ -137,6 +137,17 @@ async def lifespan(app: FastAPI):
     else:
         _log.info("SECRET_KEY is pinned from environment — JWT tokens survive restarts.")
     _log.info("ORIGINAL_ENV=%s — CORS=%s", ORIGINAL_ENV, _ALLOWED_ORIGINS)
+    if _GUARD_DESTRUCTIVE and not _IS_REAL_DEPLOY:
+        # Fail closed (T-23, SECURITY_REAUDIT_2026-07-09 #5): the guard is a
+        # real-deploy control. Outside one the demo surfaces stay open,
+        # including the demo login that takes MAINTENANCE_TOKEN as an admin
+        # password, so booting and logging the endpoints as GUARDED would
+        # give a false sense of protection.
+        raise RuntimeError(
+            f"GUARD_DESTRUCTIVE=1 requires a real deploy, but ORIGINAL_ENV={ORIGINAL_ENV}. "
+            "Set ORIGINAL_ENV to pilot, staging or production for a real deploy, "
+            "or unset GUARD_DESTRUCTIVE for the demo."
+        )
     _log.info(
         "GUARD_DESTRUCTIVE=%s — destructive endpoints are %s.",
         _GUARD_DESTRUCTIVE,

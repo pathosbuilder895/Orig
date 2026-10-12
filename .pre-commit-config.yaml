@@ -18,7 +18,7 @@ repos:
         exclude: ^demo/bluebook/bluebook\.bundle\.js(\.map)?$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9                      # keep in lockstep with requirements-dev pin
+    rev: v0.16.10                    # keep in lockstep with requirements-dev pin
     hooks:
       # Scoped to original/ to mirror the CI lint gate (.github/workflows/test.yml):
       # tests/, validation/, scripts/, and alembic/ were never swept for lint

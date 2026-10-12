@@ -2,6 +2,7 @@
 matrix) into one report with the full-battery shape.
 
     python scripts/merge_calibration_reports.py OUT.json IN1.json IN2.json ...
+    python scripts/merge_calibration_reports.py --fail-on-error-only OUT.json IN...
     python scripts/merge_calibration_reports.py --summary OUT.json   # gate table
 
 Every input must come from the same git SHA (the experiment spec's
@@ -11,6 +12,12 @@ input covered under `merged_from`, and records `missing_legs` -- legs that
 no input reported (a cut-off matrix job) -- so a merged report can never
 read as complete when it is not. Exit code 1 when any leg is missing or a
 gate is fail/uninformative, mirroring `--strict`.
+
+`--fail-on-error-only` (what the weekly workflow uses) writes the same merged
+report but exits 1 only on an ERROR as `scripts/battery_gate.py` defines it
+(a missing leg, a gate that raised instead of returning a verdict), and 0
+when every gate returned pass, fail or uninformative. Those verdicts are
+measurements: still printed, still in the merged report.
 """
 
 from __future__ import annotations
@@ -78,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(argv) == 2 and argv[0] == "--summary":
         print(summarize(json.loads(Path(argv[1]).read_text())))
         return 0
+    errors_only = argv[:1] == ["--fail-on-error-only"]
+    if errors_only:
+        argv = argv[1:]
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
         return 2
@@ -90,6 +100,13 @@ def main(argv: list[str] | None = None) -> int:
         f"missing legs: {merged['missing_legs'] or 'none'}; "
         f"not passing: {not_pass or 'none'}"
     )
+    if errors_only:
+        from scripts.battery_gate import find_errors
+
+        errors = find_errors(merged)
+        for e in errors:
+            print(f"ERROR: {e}")
+        return 1 if errors else 0
     return 1 if (merged["missing_legs"] or not_pass) else 0
 
 
