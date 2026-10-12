@@ -45,7 +45,7 @@ import socket
 import subprocess
 import sys
 import uuid
-from contextlib import contextmanager, nullcontext
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -285,15 +285,12 @@ def main(argv: list[str]) -> int:
         return 0
 
     env = os.environ.copy()
-    database = nullcontext(None)
-    if not env.get("DATABASE_URL") and _local_postgres_reachable():
-        database = scratch_database()
-    with database as db_url:
-        if db_url:
-            env["DATABASE_URL"] = db_url
+    with ExitStack() as stack:
+        if not env.get("DATABASE_URL") and _local_postgres_reachable():
+            env["DATABASE_URL"] = stack.enter_context(scratch_database())
             print(
                 "changed-tests: local Postgres detected, postgres-marked tests will run "
-                f"against {db_url.rsplit('/', 1)[1]}"
+                f"against {env['DATABASE_URL'].rsplit('/', 1)[1]}"
             )
         print(f"changed-tests: running {len(tests)} mapped test file(s)")
         return subprocess.run(

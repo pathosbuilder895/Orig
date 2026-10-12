@@ -3,7 +3,7 @@
 #
 # Mirrors CI's service container (.github/workflows/test.yml `services: postgres:`)
 # exactly: image postgres:16, user/password/db original/original/original_test,
-# port 5432. The 166 postgres-marked tests (`-m postgres`) self-skip unless
+# port 5432. The postgres-marked tests (`-m postgres`) self-skip unless
 # DATABASE_URL points at a reachable postgresql:// instance — this script is
 # what makes them run for real locally instead of only in CI.
 #
@@ -107,7 +107,7 @@ case "${1:-}" in
             # --force (Postgres 13+) ends connections a killed run left open.
             trap 'docker exec "$CONTAINER" dropdb -U original --force --if-exists "$scratch" >/dev/null \
                 || echo "warning: could not drop throwaway database $scratch; drop it by hand" >&2' EXIT
-            url="postgresql://original:original@localhost:${PORT}/${scratch}"
+            url="${DB_URL%/*}/${scratch}"
         else
             echo "warning: could not create a throwaway database; using the shared $DB_URL," \
                 "where a parallel run can drop tables under this one" >&2
