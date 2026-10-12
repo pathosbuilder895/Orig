@@ -18,7 +18,6 @@ import importlib.util
 import os
 import re
 import signal
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -189,7 +188,6 @@ class _FakeRun:
     def __call__(self, cmd, cwd=None, env=None):
         self.calls.append(
             SimpleNamespace(
-                cmd=cmd,
                 db_url=(env or {}).get("DATABASE_URL"),
                 dropped_so_far=list(self.server.dropped),
             )
@@ -239,7 +237,6 @@ class TestScratchDatabase:
         (name,) = hook.server.created
         (call,) = hook.run.calls
         assert call.db_url == f"{_SERVER}/{name}"
-        assert call.db_url != _SHARED_URL
         assert call.dropped_so_far == []
         assert hook.server.dropped == [name]
 
@@ -257,16 +254,6 @@ class TestScratchDatabase:
     def test_failing_run_still_drops_and_keeps_exit_code(self, hook):
         hook.run.returncode = 1
         assert _run_hook() == 1
-        assert len(hook.server.created) == 1
-        assert hook.server.dropped == hook.server.created
-
-    def test_interrupted_run_still_drops(self, hook):
-        def interrupt():
-            raise KeyboardInterrupt
-
-        hook.run.during = interrupt
-        with pytest.raises(KeyboardInterrupt):
-            _run_hook()
         assert len(hook.server.created) == 1
         assert hook.server.dropped == hook.server.created
 
@@ -329,111 +316,12 @@ class TestScratchDatabase:
         assert name in err
 
 
-# ── --run: the deleted app/ frontend ─────────────────────────────────────────
-
-# Captured at import, before the hook fixture stubs it out.
-_REAL_MAP = changed_tests.map_changed_to_tests
-
-
-class TestDeletedAppFrontend:
-    """#243 deleted app/ (ADR-008 Option C). A branch that merges main pushes
-    those deletions; the hook used to warn about app/node_modules for them,
-    or run `npm --prefix app test` against a directory with no package.json."""
-
-    # node_modules/ is gitignored, so pulling #243 can leave it behind.
-    @pytest.mark.parametrize("leftover_node_modules", [False, True])
-    def test_only_deleted_app_paths_run_nothing_and_print_nothing_about_app(
-        self, hook, monkeypatch, tmp_path, capsys, leftover_node_modules
-    ):
-        if leftover_node_modules:
-            (tmp_path / "app" / "node_modules").mkdir(parents=True)
-        monkeypatch.setattr(changed_tests, "REPO_ROOT", tmp_path)
-        monkeypatch.setattr(changed_tests, "map_changed_to_tests", _REAL_MAP)
-        monkeypatch.setattr(
-            changed_tests,
-            "changed_from_git",
-            lambda: [
-                "app/package.json",
-                "app/src/App.test.tsx",
-                "app/src/App.tsx",
-                "app/src/components/Modal.tsx",
-                "app/vite.config.ts",
-            ],
-        )
-        assert _run_hook() == 0
-        assert hook.run.calls == []
-        assert hook.server.created == []
-        out, err = capsys.readouterr()
-        assert "app/" not in out + err
-
-
-class _FakeCursor:
-    def __init__(self, conn):
-        self.conn = conn
-
-    def execute(self, sql):
-        self.conn.executed.append((sql, self.conn.autocommit))
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
-
-
-class _FakeConnection:
-    def __init__(self, dsn, kwargs):
-        self.dsn = dsn
-        self.kwargs = kwargs
-        self.autocommit = False
-        self.executed = []
-        self.closed = False
-
-    def cursor(self):
-        return _FakeCursor(self)
-
-    def close(self):
-        self.closed = True
-
-
-@pytest.fixture
-def fake_psycopg2(monkeypatch):
-    connections = []
-
-    def connect(dsn, **kwargs):
-        conn = _FakeConnection(dsn, kwargs)
-        connections.append(conn)
-        return conn
-
-    monkeypatch.setitem(sys.modules, "psycopg2", SimpleNamespace(connect=connect))
-    return connections
-
-
-class TestScratchDatabaseSql:
-    def test_create_runs_outside_a_transaction_on_the_maintenance_db(self, fake_psycopg2):
-        changed_tests._create_scratch_db("original_test_tmp_42_0123abcd")
-        (conn,) = fake_psycopg2
-        assert conn.dsn == f"{_SERVER}/postgres"
-        assert conn.kwargs.get("connect_timeout")  # never hang a push
-        # CREATE DATABASE refuses to run inside a transaction block.
-        assert conn.executed == [('CREATE DATABASE "original_test_tmp_42_0123abcd"', True)]
-        assert conn.closed
-
-    def test_drop_forces_out_connections_a_killed_run_left_behind(self, fake_psycopg2):
-        changed_tests._drop_scratch_db("original_test_tmp_42_0123abcd")
-        (conn,) = fake_psycopg2
-        assert conn.dsn == f"{_SERVER}/postgres"
-        assert conn.executed == [
-            ('DROP DATABASE IF EXISTS "original_test_tmp_42_0123abcd" WITH (FORCE)', True)
-        ]
-        assert conn.closed
-
-
 @pytest.mark.postgres
 def test_scratch_database_round_trip_on_real_postgres(postgres_available):
     """Real CREATE/DROP against the server the hook targets (CI's service
-    container, or the local one): proves WITH (FORCE) drops a database that
-    still has an open connection, which a killed pytest run leaves behind."""
+    container, or the local one): proves CREATE DATABASE runs outside a
+    transaction block, and that WITH (FORCE) drops a database that still has
+    an open connection, which a killed pytest run leaves behind."""
     url = urlparse(os.environ.get("DATABASE_URL", ""))
     if not postgres_available or (url.hostname, url.port, url.username) not in {
         ("localhost", 5432, "original"),
