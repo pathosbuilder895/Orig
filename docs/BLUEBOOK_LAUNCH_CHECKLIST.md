@@ -35,7 +35,7 @@ later phase (schools and colleges that adopt Original) and is not needed here.
 
 ## 2. Accounts you need first (≈ 1 hour, mostly waiting on DNS)
 
-- [ ] **Domain** (optional but recommended), e.g. `bluebook.example.org`. Without
+- [ ] **Domain** (optional but recommended), e.g. `collections.example.org`. Without
   one, the site is `https://original-pilot.onrender.com/bluebook/`.
 - [ ] **SendGrid** account. This is a paid item: SendGrid has retired its free
   plan, and Essentials is about $19.95/month (prices read 2026-10-07, see
@@ -83,8 +83,8 @@ later phase (schools and colleges that adopt Original) and is not needed here.
 | `SECRET_KEY` | Render-generated 256-bit value; retain across deploys and syncs. |
 | `MAINTENANCE_TOKEN` | Independently Render-generated 256-bit value; retain across deploys and syncs. |
 | `SENDGRID_API_KEY` | the `SG.…` key |
-| `MAIL_FROM` | `Bluebook <no-reply@your-domain>` — the address must be on the authenticated domain |
-| `PUBLIC_BASE_URL` | `https://bluebook.example.org` (or `https://original-pilot.onrender.com`), no trailing slash. Required for `scripts/invite_professor.py` invitations to be emailed: without it (or `--base-url`) the script has no request to take a host from, so the link is relative and is not sent |
+| `MAIL_FROM` | `Original Collections <no-reply@your-domain>` — the address must be on the authenticated domain |
+| `PUBLIC_BASE_URL` | `https://collections.example.org` (or `https://original-pilot.onrender.com`), no trailing slash. Required for `scripts/invite_professor.py` invitations to be emailed: without it (or `--base-url`) the script has no request to take a host from, so the link is relative and is not sent |
 | `SENTRY_DSN` | the DSN, or leave empty |
 | `MAINTENANCE_MODE` | leave empty |
 | `BBOOK_API_URL`, `BBOOK_EXTERNAL_SECRET`, `AI_LIKELIHOOD_SHADOW` | leave empty (Canvas and Original-only features; not needed for Bluebook) |
@@ -107,8 +107,8 @@ later phase (schools and colleges that adopt Original) and is not needed here.
 
 - [ ] `original-pilot` → Settings → Custom Domains → add the domain; add the DNS
   record Render shows; wait for the certificate.
-- [ ] Environment → `ALLOWED_ORIGINS` = `https://bluebook.example.org,https://original-pilot.onrender.com`
-  and `PUBLIC_BASE_URL` = `https://bluebook.example.org` → **Save, then Manual Deploy**.
+- [ ] Environment → `ALLOWED_ORIGINS` = `https://collections.example.org,https://original-pilot.onrender.com`
+  and `PUBLIC_BASE_URL` = `https://collections.example.org` → **Save, then Manual Deploy**.
 - [ ] Optional: a redirect from the bare domain to `/bluebook/` at your DNS host.
 
 ## 5. Legal pages (before sending the link to anyone)
