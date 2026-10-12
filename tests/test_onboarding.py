@@ -343,6 +343,22 @@ def test_cli_reissues_and_warns_about_a_relative_link(capsys):
     assert "PUBLIC_BASE_URL" in warning and "--base-url" in warning
 
 
+def test_cli_warns_when_the_base_url_has_no_scheme(capsys, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "pilot.example.org")
+    assert cli.main(["noscheme@seminary.edu"]) == 0
+    captured = capsys.readouterr()
+    assert "has no https:// scheme" in captured.err
+    assert "neither PUBLIC_BASE_URL nor --base-url is set" not in captured.err
+    assert "pilot.example.org/bluebook/?invite=" in captured.out
+
+
+def test_cli_says_a_reissue_keeps_the_original_name(capsys):
+    assert cli.main(["renamed@seminary.edu", "--name", "First", "--base-url", "https://x.test"]) == 0
+    capsys.readouterr()
+    assert cli.main(["renamed@seminary.edu", "--name", "Second", "--base-url", "https://x.test"]) == 0
+    assert "--name was not applied" in capsys.readouterr().out
+
+
 def test_cli_fails_cleanly(capsys):
     assert cli.main(["not-an-email"]) == 1
     assert "valid email" in capsys.readouterr().err
