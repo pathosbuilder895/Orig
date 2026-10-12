@@ -13,6 +13,7 @@
           "composition_summary": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -25,6 +26,7 @@
           "keystroke_data": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -408,6 +410,7 @@
         "properties": {
           "loo_outlier_samples": {
             "items": {
+              "additionalProperties": true,
               "type": "object"
             },
             "title": "Loo Outlier Samples",
@@ -671,6 +674,7 @@
             "title": "Closes At"
           },
           "conditions": {
+            "additionalProperties": true,
             "description": "Arbitrary exam-condition metadata",
             "title": "Conditions",
             "type": "object"
@@ -1052,6 +1056,7 @@
           "conditions": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1281,6 +1286,7 @@
             "title": "Completed At"
           },
           "config": {
+            "additionalProperties": true,
             "title": "Config",
             "type": "object"
           },
@@ -1328,6 +1334,7 @@
           "report": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1559,14 +1566,17 @@
             "type": "array"
           },
           "baseline_match": {
+            "additionalProperties": true,
             "title": "Baseline Match",
             "type": "object"
           },
           "citations": {
+            "additionalProperties": true,
             "title": "Citations",
             "type": "object"
           },
           "composition_mode": {
+            "additionalProperties": true,
             "title": "Composition Mode",
             "type": "object"
           },
@@ -1582,10 +1592,12 @@
             "type": "array"
           },
           "genre": {
+            "additionalProperties": true,
             "title": "Genre",
             "type": "object"
           },
           "language": {
+            "additionalProperties": true,
             "title": "Language",
             "type": "object"
           },
@@ -1598,6 +1610,7 @@
             "type": "string"
           },
           "topic": {
+            "additionalProperties": true,
             "title": "Topic",
             "type": "object"
           },
@@ -1851,6 +1864,7 @@
           "meta": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -2594,6 +2608,7 @@
           "human_explanation": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3364,6 +3379,7 @@
           "composition_summary": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3376,6 +3392,7 @@
           "keystroke_data": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3432,6 +3449,7 @@
             "type": "string"
           },
           "context_manifest": {
+            "additionalProperties": true,
             "title": "Context Manifest",
             "type": "object"
           },
@@ -3716,6 +3734,7 @@
           "expected_improvement": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -3725,6 +3744,7 @@
             "title": "Expected Improvement"
           },
           "metadata": {
+            "additionalProperties": true,
             "title": "Metadata",
             "type": "object"
           },
@@ -3782,6 +3802,7 @@
             "type": "array"
           },
           "summary": {
+            "additionalProperties": true,
             "title": "Summary",
             "type": "object"
           }
@@ -3915,6 +3936,7 @@
           "keystroke_data": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4149,6 +4171,7 @@
           "provenance": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -6870,6 +6893,7 @@
               "schema": {
                 "anyOf": [
                   {
+                    "additionalProperties": true,
                     "type": "object"
                   },
                   {
@@ -6925,6 +6949,7 @@
               "schema": {
                 "anyOf": [
                   {
+                    "additionalProperties": true,
                     "type": "object"
                   },
                   {
@@ -6980,6 +7005,7 @@
               "schema": {
                 "anyOf": [
                   {
+                    "additionalProperties": true,
                     "type": "object"
                   },
                   {
@@ -7727,6 +7753,7 @@
               "schema": {
                 "anyOf": [
                   {
+                    "additionalProperties": true,
                     "type": "object"
                   },
                   {

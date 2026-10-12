@@ -8,7 +8,6 @@ original/api.py.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -677,7 +676,7 @@ def admin_apply_thresholds(run_id: int, req: ApplyThresholdsRequest, request: Re
     return TunedThresholdsRecord(**active)
 
 
-@router.get("/admin/tuned-thresholds", response_model=Optional[TunedThresholdsRecord])
+@router.get("/admin/tuned-thresholds", response_model=TunedThresholdsRecord | None)
 def admin_get_tuned_thresholds(request: Request):
     """Return the currently-active tuned thresholds (or null if none set).
 
