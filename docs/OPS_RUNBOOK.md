@@ -155,22 +155,23 @@ on a machine you trust with student writing:
 export BACKUP_OFFBOX_PREFIX=original-pg-backups/
 
 createdb restore_drill   # any empty Postgres you control
-export DATABASE_URL=postgresql://localhost/restore_drill
-alembic upgrade head
-FILE=$(python scripts/pg_backup_offbox.py --download-latest ~/restore-drill) &&
-  BACKUP_ENCRYPTION_KEY=<from the password manager> \
-  python scripts/pg_backup_offbox.py --restore "$FILE"
+BACKUP_ENCRYPTION_KEY=<from the password manager> \
+  python scripts/restore_drill.py --database-url 'postgresql://localhost/restore_drill'
+# Or pass an already-downloaded encrypted backup as the final argument:
+BACKUP_ENCRYPTION_KEY=<from the password manager> \
+  python scripts/restore_drill.py --database-url 'postgresql://localhost/restore_drill' \
+  ~/restore-drill/original-pg-YYYYmmddTHHMMSSZ.jsonl.gz.fernet
 ```
 
-`--download-latest` lists the bucket under the prefix, picks the newest
-`original-pg-*.jsonl.gz.fernet` by the timestamp in its name, saves it in the
-folder and prints its path. It exits 1 with the reason when a bucket setting
-is missing or nothing matches; it needs neither `DATABASE_URL` nor the key.
-The restore must end `restore parity: OK` (every table's row count and
-checksum match the dump), and it refuses a database that already has rows.
-It decrypts to a private temp file and deletes it; the downloaded file stays
-encrypted. Afterwards delete `~/restore-drill`, drop the scratch database and
-add a line to `docs/PILOT_LOG.md`.
+With no file argument, the drill lists the bucket under the configured prefix
+and restores the newest encrypted `original-pg-*.jsonl.gz.fernet` directly. It
+requires the bucket settings and `BACKUP_ENCRYPTION_KEY`; it decrypts only to a
+private temporary file and deletes that plaintext after the run. The report
+lists every table's restored and expected row counts and checksums, ending in
+`restore parity: OK`. It creates the schema in the explicit scratch database,
+refuses a non-empty target, and refuses a URL matching the shell's configured
+`DATABASE_URL`. Do not set the scratch URL as `DATABASE_URL` for this command.
+Afterwards drop the scratch database and add a line to `docs/PILOT_LOG.md`.
 
 ## Database loss or corruption
 
@@ -294,6 +295,13 @@ default).
 
 ## Monitoring
 
+- Render's service health check should remain `/health`: it runs a bounded
+  `SELECT 1` against the active database and returns 503 when the database is
+  unavailable. `/livez` is a fast process-only liveness probe for systems that
+  specifically need to distinguish a running process from database readiness.
+  Do not use `/livez` as the pilot availability alert because it intentionally
+  stays 200 during a database outage. The Render dashboard setting is not
+  changed by this code; Andrew can confirm the path there after deployment.
 - UptimeRobot (or BetterStack) on `https://original-pilot.onrender.com/health`,
   1–5 min interval, alert → operator email. `/health` returns student count —
   a sudden drop to 0 with a 200 status also means trouble.
