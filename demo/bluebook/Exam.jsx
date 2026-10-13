@@ -362,6 +362,13 @@ function bbAuthHeaders() {
 // { deadlineMs, offsetMs } (offset = serverNow - clientNow, so deadline math
 // runs on server time), or null when the backend is unreachable — the caller
 // then degrades open to the local countdown rather than stranding a student.
+// The server's answer when this student has already submitted this exam
+// (routers/bluebook.py _ALREADY_SUBMITTED, and the dashboard start route):
+// from another tab or device, or earlier. A 409 with those words.
+export function bbAlreadySubmitted(status, detail) {
+  return status === 409 && /already submitted/i.test(String(detail || ''));
+}
+
 async function bbStartSession(cfg, studentId) {
   if (!cfg.id) return null;
   // A student loaded this exam through /bluebook/me: start there, so the
@@ -378,7 +385,7 @@ async function bbStartSession(cfg, studentId) {
       const deadlineMs = Date.parse(d.deadline_at);
       if (!deadlineMs) return null;
       return { deadlineMs, offsetMs: Date.parse(d.server_now) - Date.now() };
-    } catch (e) { return null; }
+    } catch (e) { return bbAlreadySubmitted(e && e.status, e && e.message) ? { alreadySubmitted: true } : null; }
   }
   try {
     const r = await fetch(`${BB_API_BASE}/bluebook/exams/${encodeURIComponent(cfg.id)}/session`, {
@@ -388,7 +395,11 @@ async function bbStartSession(cfg, studentId) {
         candidate: cfg.candidateEmail || cfg.candidate || '',
       }),
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.json()).detail || ''; } catch (e) {}
+      return bbAlreadySubmitted(r.status, detail) ? { alreadySubmitted: true } : null;
+    }
     const d = await r.json();
     const deadlineMs = Date.parse(d.deadline_at);
     if (!deadlineMs) return null;
@@ -681,6 +692,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // ref (not `submitting`) stops a double press, or time expiry racing a
   // press, from starting two seal loops.
   const sealingRef  = useExRef(false);
+  // This student has already submitted this exam (another tab or device, or
+  // earlier): the booklet stays closed and nothing is sent.
+  const [alreadySubmitted, setAlreadySubmitted] = useExState(false);
+  const alreadySubmittedRef = useExRef(false);
   const announcedSaveRef = useExRef(false);
   // Session facts carried across a refresh: when writing started, and how
   // many pastes were attempted. No per-key data is kept (NORTH_STAR rule 6).
@@ -755,7 +770,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     // opts.force: time expiry (or finishing a seal already confirmed) seals
     // whatever exists, bypassing the word minimum. A student must never be
     // stranded at a dead 00:00.
-    if (sealingRef.current) return;
+    if (sealingRef.current || alreadySubmittedRef.current) return;
     if (!opts.force && (words < cfg.minWords || !hasWriting())) return;
     if (opts.force && !hasWriting()) {
       // Nothing written when time ran out: don't record an empty submission.
@@ -886,6 +901,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       aiScore: seal.aiScore,
       withOriginal,
       expired: !!seal.expired,
+      alreadySubmitted: !(result && result.ok) && bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message),
       draftKey,
     };
     sealingRef.current = false;
@@ -903,7 +919,19 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       const sid = await bbResolveStudentId(cfg);
       const sess = await bbStartSession(cfg, sid);
       if (cancelled) return;
-      if (sess) deadlineRef.current = sess;
+      if (sess && sess.alreadySubmitted) {
+        // A seal this tab is finishing may be the very submission the server
+        // already holds (its reply was lost): let it finish, and the server
+        // returns that row. Otherwise the booklet stays closed.
+        if (!resumeRef.current) {
+          alreadySubmittedRef.current = true;
+          lockedRef.current = true;
+          setLocked(true);
+          setAlreadySubmitted(true);   // the banner is a status: it is announced
+        }
+      } else if (sess) {
+        deadlineRef.current = sess;
+      }
       clockReadyRef.current = true;
     })();
     return () => { cancelled = true; };
@@ -1160,6 +1188,11 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 : 'You are offline. Your writing is saved on this device, and you can keep writing.'}
             </div>
           )}
+          {alreadySubmitted && (
+            <div role="status" className="bk-offline">
+              You have already submitted this exam, so this booklet cannot be sent again. Your teacher has the work you submitted. If you need to change something, please talk to your teacher.
+            </div>
+          )}
           {!storageOk && (
             <div role="status" className="bk-offline">
               This browser cannot keep a copy of your writing on this device. Please keep this window open until you have submitted.
@@ -1282,7 +1315,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 }}
                 disabled={words < cfg.minWords || !words || submitting || locked}
                 aria-describedby={sealHint ? 'bbSealHint' : (sealNote ? 'bbSealNote' : undefined)}
-              >{submitting || locked ? 'Submitting…' : 'Seal & Submit'}</button>
+              >{alreadySubmitted ? 'Already submitted' : (submitting || locked ? 'Submitting…' : 'Seal & Submit')}</button>
               {sealHint && <span id="bbSealHint" className="bk-seal-hint">{sealHint}</span>}
               {(submitting || locked) && sealNote && <span id="bbSealNote" className="bk-seal-hint">{sealNote}</span>}
             </div>
@@ -1327,8 +1360,15 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             {transmitFailed ? (
               <React.Fragment>
-                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : 'Your exam has not been submitted yet'}</h1>
-                {sub.empty ? (
+                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : sub.alreadySubmitted ? 'This exam was already submitted' : 'Your exam has not been submitted yet'}</h1>
+                {sub.alreadySubmitted ? (
+                  <p>
+                    Your account already has a submission for this exam, perhaps
+                    from another tab or device, so this copy was not sent. Your
+                    writing is still saved on this device. If you meant to change
+                    your answers, please talk to your teacher.
+                  </p>
+                ) : sub.empty ? (
                   <p>
                     Nothing was written in this booklet, so there was nothing to
                     submit. If that is not right, please talk to your teacher.
@@ -1379,7 +1419,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
             </div>
 
             <div className="acts">
-              {transmitFailed && !sub.empty && (
+              {transmitFailed && !sub.empty && !sub.alreadySubmitted && (
                 <button type="button" className="go" onClick={() => onNavigate('exam')}>Try again</button>
               )}
               {!isStudent && (

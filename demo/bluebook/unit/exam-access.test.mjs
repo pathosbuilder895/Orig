@@ -19,7 +19,7 @@ globalThis.localStorage = {
 };
 const {
   bbClock, bbSpokenTime, bbTimeMilestone, bbWordSummary, bbWordMilestone,
-  bbSealHint, bbSealRetryable, BB_SEAL_BACKOFF, bbDraftKey, bbAdoptLegacyDraft,
+  bbSealHint, bbSealRetryable, BB_SEAL_BACKOFF, bbDraftKey, bbAdoptLegacyDraft, bbAlreadySubmitted,
 } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
 test('the visible clock shows hours once a sitting is an hour or longer', () => {
@@ -152,4 +152,11 @@ test("a draft saved under the old shared key is adopted once by the student sitt
   store.set('bb_draft_exam-9', legacy(now - 60 * 1000));
   bbAdoptLegacyDraft(cfg, now);
   assert.equal(store.has('bb_draft_exam-9'), true);
+});
+
+test('"already submitted" is the server\'s 409 with those words, nothing else', () => {
+  assert.equal(bbAlreadySubmitted(409, 'You have already submitted this exam.'), true);
+  assert.equal(bbAlreadySubmitted(409, 'This exam is closed.'), false);
+  assert.equal(bbAlreadySubmitted(403, 'You have already submitted this exam.'), false);
+  assert.equal(bbAlreadySubmitted(undefined, undefined), false);
 });

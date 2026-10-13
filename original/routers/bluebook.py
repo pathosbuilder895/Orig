@@ -7,7 +7,9 @@ added here directly (exam-day robustness).
 
 from __future__ import annotations
 
+import contextlib
 import sqlite3
+import threading
 import urllib.parse
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -281,6 +283,27 @@ def _student_key(body) -> str:
     return (body.student_id or (body.candidate and f"cand:{body.candidate}") or "")[:128]
 
 
+# One submission per student per stored exam. Within one tab a retried seal
+# reuses its submission_uuid and gets the first row back (below); two tabs on
+# the same exam each mint their own uuid, so without this rule both were
+# recorded. The dashboard start route already refused a second sitting with
+# the same words (routers/bluebook_accounts.py my_exam_start). Only a
+# signed-in student and only a stored exam: staff recording a submission (a
+# teacher previewing their own exam) and sample ids behave as before.
+_ALREADY_SUBMITTED = "You have already submitted this exam."
+# The check and the write happen together, or two seals arriving at the same
+# moment could both pass the check. One lock is enough because the app runs
+# as a single worker process (render.yaml, T-18).
+_ONE_SITTING_LOCK = threading.Lock()
+
+
+def _student_already_submitted(exam_id: str, student_id: str) -> bool:
+    return any(
+        s.get("exam_id") == exam_id
+        for s in _repo().list_bluebook_submissions_for_student(student_id)
+    )
+
+
 @router.post("/bluebook/exams/{exam_id}/session", response_model=BluebookSessionResponse)
 def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, request: Request):
     """Begin (or resume) a sitting: the first call pins the server deadline;
@@ -294,6 +317,7 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
     student_id on any exam under the demo tenant (T-65) — same class of
     hole as ``bluebook_record_submission`` below, same fix shape.
     """
+    session = None
     try:
         _require_staff(request)
     except HTTPException:
@@ -307,6 +331,10 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
     exam = _repo().get_bluebook_exam(exam_id)
     if exam is None or exam.get("tenant_id") not in (tenant, None):
         raise HTTPException(status_code=404, detail="exam not found")
+    # A tab opened after this student sealed is told now, before they write.
+    sid = (body.student_id or session.get("sid") or "") if session else ""
+    if sid and _student_already_submitted(exam_id, sid):
+        raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
     duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
     student_key = _student_key(body)
     if not student_key.strip():
@@ -336,10 +364,12 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     into someone else's (its text would then be exported with the exam, and a
     professor's approval would write into the other workspace's profile).
     """
+    student_caller = False
     try:
         staff = _require_staff(request)
     except HTTPException:
         session = _require_student_session(request)
+        student_caller = True
         if body.student_id and session.get("sid") != body.student_id:
             raise HTTPException(
                 status_code=403,
@@ -358,6 +388,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     stored_exam = _repo().get_bluebook_exam(str(body.exam_id)) if body.exam_id else None
     if stored_exam and stored_exam.get("tenant_id") not in (tenant, None):
         raise HTTPException(status_code=404, detail="exam not found")
+    one_sitting = student_caller and stored_exam is not None and bool(body.student_id)
 
     # Idempotent sealing (robustness spec §2): a retried seal with the same
     # client submission_uuid returns the prior row instead of writing again.
@@ -433,35 +464,38 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
             deadline = datetime.fromisoformat(sess["deadline_at"])
             if datetime.now(UTC) > deadline + timedelta(seconds=300):
                 rec["late"] = 1
-    try:
-        _repo().put_bluebook_submission(rec)
-    except Exception as e:
-        # A racing replay: two requests carrying the same client submission_uuid
-        # can both pass the `prior is None` check above, then race to insert —
-        # the loser hits the unique index/constraint on submission_uuid. SQLite
-        # raises sqlite3.IntegrityError directly; Postgres (via SQLAlchemy) raises
-        # sqlalchemy.exc.IntegrityError. sqlalchemy is imported lazily here
-        # (not at module top) so a SQLite-only deployment never pays for
-        # importing it just to check an exception type it will never see —
-        # get_repository() applies the same lazy-import discipline for the
-        # same reason.
-        is_uuid_conflict = isinstance(e, sqlite3.IntegrityError)
-        if not is_uuid_conflict:
-            try:
-                from sqlalchemy.exc import IntegrityError as _SAIntegrityError
-            except ImportError:
-                _SAIntegrityError = ()
-            is_uuid_conflict = isinstance(e, _SAIntegrityError)
-        if is_uuid_conflict and rec["submission_uuid"]:
-            prior = _repo().get_bluebook_submission_by_uuid(rec["submission_uuid"])
-            if prior is not None:
-                return {
-                    "id": prior["id"],
-                    "status": prior["status"],
-                    "late": prior.get("late", 0),
-                    "duplicate": True,
-                }
-        raise
+    with _ONE_SITTING_LOCK if one_sitting else contextlib.nullcontext():
+        if one_sitting and _student_already_submitted(rec["exam_id"], rec["student_id"]):
+            raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
+        try:
+            _repo().put_bluebook_submission(rec)
+        except Exception as e:
+            # A racing replay: two requests carrying the same client submission_uuid
+            # can both pass the `prior is None` check above, then race to insert —
+            # the loser hits the unique index/constraint on submission_uuid. SQLite
+            # raises sqlite3.IntegrityError directly; Postgres (via SQLAlchemy) raises
+            # sqlalchemy.exc.IntegrityError. sqlalchemy is imported lazily here
+            # (not at module top) so a SQLite-only deployment never pays for
+            # importing it just to check an exception type it will never see —
+            # get_repository() applies the same lazy-import discipline for the
+            # same reason.
+            is_uuid_conflict = isinstance(e, sqlite3.IntegrityError)
+            if not is_uuid_conflict:
+                try:
+                    from sqlalchemy.exc import IntegrityError as _SAIntegrityError
+                except ImportError:
+                    _SAIntegrityError = ()
+                is_uuid_conflict = isinstance(e, _SAIntegrityError)
+            if is_uuid_conflict and rec["submission_uuid"]:
+                prior = _repo().get_bluebook_submission_by_uuid(rec["submission_uuid"])
+                if prior is not None:
+                    return {
+                        "id": prior["id"],
+                        "status": prior["status"],
+                        "late": prior.get("late", 0),
+                        "duplicate": True,
+                    }
+            raise
     _repo().log_audit(
         action="bluebook_submission",
         tenant_id=tenant,

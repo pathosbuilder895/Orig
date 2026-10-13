@@ -20,6 +20,7 @@
  */
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
+import { studentStorageState } from './fixtures/api-setup.mjs'
 
 const BOX = 'textarea[placeholder="Begin writing here…"]'
 const ESSAY =
@@ -245,6 +246,55 @@ test.describe('Exam reliability @robustness', () => {
 
     await studentPage.context().setOffline(false)
     await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(1)
+  })
+
+  test('two tabs on the same exam submit once, and the second is told calmly', async ({
+    browser, testTenant, request,
+  }) => {
+    test.setTimeout(60_000)
+    const exam = await createExam(request, testTenant, 'Reliability two tabs exam')
+    const context = await browser.newContext({ storageState: studentStorageState(testTenant.baseURL, testTenant.student) })
+    const [tabA, tabB] = [await context.newPage(), await context.newPage()]
+    for (const tab of [tabA, tabB]) {
+      await bootInExam(tab, exam, testTenant)
+      await enter(tab)
+    }
+    await tabA.locator(BOX).click()
+    await tabA.keyboard.type(ESSAY, { delay: 1 })
+    await tabB.locator(BOX).click()
+    await tabB.keyboard.type('A second attempt written in another tab, long enough to be sealed on its own too.', { delay: 1 })
+
+    tabA.once('dialog', d => d.accept())
+    await tabA.getByRole('button', { name: /Seal & Submit/ }).click()
+    await expect(tabA.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+
+    tabB.once('dialog', d => d.accept())
+    await tabB.getByRole('button', { name: /Seal & Submit/ }).click()
+    await expect(tabB.getByRole('heading', { name: 'This exam was already submitted' })).toBeVisible({ timeout: 10_000 })
+    await expect(tabB.getByText(/so this copy was not sent/)).toBeVisible()
+    await expect(tabB.getByRole('button', { name: /Try again/ })).toHaveCount(0)
+
+    const rows = await rowsFor(request, testTenant, exam.id)
+    expect(rows).toHaveLength(1)
+    const sealed = await (await request.get(`/bluebook/submissions/${rows[0].id}`, { headers: staffAuth(testTenant) })).json()
+    expect(sealed.text).toContain(ESSAY)
+    await context.close()
+  })
+
+  test('a tab opened after the seal says so before the student writes', async ({ studentPage, testTenant, request }) => {
+    test.setTimeout(60_000)
+    const exam = await createExam(request, testTenant, 'Reliability later tab exam')
+    await bootInExam(studentPage, exam, testTenant)
+    await writeAndSeal(studentPage)
+    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+
+    const later = await studentPage.context().newPage()
+    await bootInExam(later, exam, testTenant)
+    await enter(later)
+    await expect(later.getByText(/You have already submitted this exam/)).toBeVisible()
+    await expect(later.getByRole('button', { name: 'Already submitted' })).toBeDisabled()
+    await expect(later.locator(BOX)).toHaveAttribute('readonly', '')
     expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(1)
   })
 
