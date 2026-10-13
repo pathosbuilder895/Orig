@@ -2293,6 +2293,142 @@ def _compute_termsim_gates() -> list[GateResult]:
     ]
 
 
+# ── G-S1: natural/shadow study operating point ───────────────────────────────
+#
+# Reads a CANDIDATE operating point written by scripts/propose_thresholds.py
+# from a study CSV (docs/research/STUDY_PROTOCOL_2026-10.md). The candidate's
+# own in-sample numbers are never judged: its threshold was chosen to meet the
+# false-flag cap on exactly those rows, so they pass by construction. The gate
+# reads only out-of-sample evidence: the proposal's leave-one-student-out
+# re-selection, or a fresh cohort scored at the frozen threshold.
+#
+# Three legs, all pre-registered in the protocol doc:
+#   A  false flags on natural attempts <= 5%      (protect honest students)
+#   B  AUC natural vs shadow above chance         (the score separates at all)
+#   C  catch rate on shadow attempts above 5%     (the flag fires on imitation
+#                                                  more than the cap allows on
+#                                                  honest writing)
+# A leg whose observed value misses its bar is a FAIL, never downgraded. A leg
+# whose 95% interval straddles its bar is undecided, and any undecided leg
+# makes the gate UNINFORMATIVE. With about 20 students, leg A is undecided
+# even at zero false flags (the Wilson upper bound for 0/40 is 8.8%); that is
+# the honest reading of a study that size, not a defect.
+
+_GS1_CAP = 0.05
+_GS1_MIN_STUDENTS = 10
+_GS1_EVIDENCE_KINDS = ("leave_one_student_out", "fresh_cohort")
+_GS1_CRITERION = (
+    f"study, out of sample: natural false flags <= {_GS1_CAP:.0%}, AUC above chance, "
+    f"shadow catch > {_GS1_CAP:.0%}"
+)
+STUDY_CANDIDATE_DEFAULT = "validation/study/candidates/candidate_operating_point.json"
+
+
+def evaluate_g_s1_study_operating_point(
+    oos_false_flags: int,
+    oos_natural: int,
+    oos_caught: int,
+    oos_shadow: int,
+    auc: float | None = None,
+    auc_ci95: tuple[float, float] | list[float] | None = None,
+    n_students: int = 0,
+    evidence: str = "leave_one_student_out",
+    weights_match_scores: bool = True,
+) -> GateResult:
+    from validation.power import bar_decidable, wilson_interval
+
+    detail: dict = {
+        "evidence": evidence,
+        "n_students": n_students,
+        "cap": _GS1_CAP,
+        "min_students": _GS1_MIN_STUDENTS,
+        "false_flags": {"k": oos_false_flags, "n": oos_natural},
+        "catches": {"k": oos_caught, "n": oos_shadow},
+        "auc": auc,
+        "auc_ci95": list(auc_ci95) if auc_ci95 else None,
+    }
+
+    def _result(verdict: str, value: str) -> GateResult:
+        return GateResult(name="G-S1", passed=verdict == "pass", criterion=_GS1_CRITERION,
+                          current_value=value, detail=detail, verdict=verdict)
+
+    if not weights_match_scores:
+        detail["reason"] = "candidate changes tier weights"
+        return _result("uninformative", (
+            "candidate changes tier weights, but the study's scores were computed under "
+            "the current weights; re-score the study under the candidate weights first"))
+    if evidence not in _GS1_EVIDENCE_KINDS:
+        detail["reason"] = "no out-of-sample evidence"
+        return _result("uninformative", (
+            f"evidence {evidence!r} is not out of sample: a threshold judged on the rows it "
+            "was chosen from passes by construction"))
+    if oos_natural <= 0 or oos_shadow <= 0:
+        detail["reason"] = "no conclusive attempts of one kind"
+        return _result("uninformative", "no conclusive natural or shadow attempts to judge")
+
+    legs: dict[str, str] = {}
+    ff_rate = oos_false_flags / oos_natural
+    if ff_rate > _GS1_CAP:
+        legs["A"] = "fail"
+    else:
+        legs["A"] = "pass" if bar_decidable(oos_false_flags, oos_natural, _GS1_CAP) == "below" else "undecided"
+    if auc is None or auc <= 0.5:
+        legs["B"] = "fail"
+    elif not auc_ci95 or auc_ci95[0] <= 0.5:
+        legs["B"] = "undecided"
+    else:
+        legs["B"] = "pass"
+    catch_rate = oos_caught / oos_shadow
+    if catch_rate <= _GS1_CAP:
+        legs["C"] = "fail"
+    else:
+        legs["C"] = "pass" if bar_decidable(oos_caught, oos_shadow, _GS1_CAP) == "above" else "undecided"
+    detail["legs"] = legs
+    detail["false_flags"]["rate"] = round(ff_rate, 4)
+    detail["false_flags"]["wilson95"] = [round(x, 4) for x in wilson_interval(oos_false_flags, oos_natural)]
+    detail["catches"]["rate"] = round(catch_rate, 4)
+    detail["catches"]["wilson95"] = [round(x, 4) for x in wilson_interval(oos_caught, oos_shadow)]
+
+    value = (
+        f"false flags {oos_false_flags}/{oos_natural} ({ff_rate:.1%}), caught "
+        f"{oos_caught}/{oos_shadow} ({catch_rate:.1%}), AUC "
+        f"{'n/a' if auc is None else f'{auc:.3f}'}; {n_students} students, {evidence}; "
+        f"legs A={legs['A']} B={legs['B']} C={legs['C']}"
+    )
+    if "fail" in legs.values():
+        return _result("fail", value)
+    if "undecided" in legs.values():
+        return _result("uninformative", value)
+    if n_students < _GS1_MIN_STUDENTS:
+        detail["reason"] = f"fewer than {_GS1_MIN_STUDENTS} students"
+        return _result("uninformative", value + f"; under the {_GS1_MIN_STUDENTS}-student floor")
+    return _result("pass", value)
+
+
+def _compute_g_s1_study_gate(path: str | os.PathLike | None = None) -> GateResult:
+    """G-S1 on the candidate named by STUDY_CANDIDATE (or the default path).
+    No candidate means no study has been run: uninformative, with the steps."""
+    candidate_path = Path(path or os.environ.get("STUDY_CANDIDATE") or (_ROOT / STUDY_CANDIDATE_DEFAULT))
+    if not candidate_path.exists():
+        reason = (
+            "no study candidate; run the study (docs/research/STUDY_PROTOCOL_2026-10.md), "
+            "then validation/study_eval.py and scripts/propose_thresholds.py"
+        )
+        return GateResult(name="G-S1", passed=False, criterion=_GS1_CRITERION, current_value=reason,
+                          detail={"reason": reason, "path": str(candidate_path)}, verdict="uninformative")
+    candidate = json.loads(candidate_path.read_text())
+    inputs = candidate.get("gate_inputs")
+    if candidate.get("kind") != "candidate" or not isinstance(inputs, dict):
+        raise ValueError(f"{candidate_path} is not a study candidate written by scripts/propose_thresholds.py")
+    result = evaluate_g_s1_study_operating_point(**inputs)
+    result.detail["candidate"] = {
+        "path": str(candidate_path),
+        "flag_if_score_below": candidate.get("flag_rule", {}).get("flag_if_score_below"),
+        "eval_input_sha256": candidate.get("derived_from", {}).get("eval_input_sha256"),
+    }
+    return result
+
+
 # Set by run_all() for main()'s report: the vector-cache description (dir,
 # key scheme, backend) when CALIBRATION_GATE_VECTOR_CACHE was honoured, else
 # None. A report must be able to say whether its extraction was memoised.
@@ -2337,12 +2473,13 @@ def _leg_clock():
     return mark
 
 
-GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T")
+GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T", "S")
 
 
 def _parse_only(spec: str | None) -> set[str] | None:
     """`--only G1,g2b` -> {"G1", "G2b"}; None/empty -> None (every leg).
-    "T" selects the four TermSim deployment gates together. Unknown names
+    "T" selects the four TermSim deployment gates together; "S" selects the
+    natural/shadow study gate G-S1. Unknown names
     raise ValueError naming the valid legs."""
     if not spec or not spec.strip():
         return None
@@ -2607,6 +2744,16 @@ def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
     # scheduled TermSim job refreshes this small committed evidence artifact.
     if _want("T"):
         results.extend(_compute_termsim_gates())
+
+    # G-S1 reads a candidate written by scripts/propose_thresholds.py from a
+    # real study; none is committed, so a fresh checkout reports a loud
+    # "uninformative" naming the steps. A crash is a machinery failure, same
+    # convention as the wrappers above.
+    if _want("S"):
+        try:
+            results.append(_compute_g_s1_study_gate())
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G-S1", _GS1_CRITERION, exc))
 
     # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
     # future report can be checked for comparability against this one without
@@ -4816,7 +4963,7 @@ def run_g5(
 
 
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1, G1p-G8 + T-1…T-4) ─────────────────╮"]
+    lines = ["╭─ Calibration gates (G1, G1p-G8 + T-1…T-4 + G-S1) ──────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
