@@ -7,6 +7,7 @@ added here directly (exam-day robustness).
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 import urllib.parse
 import uuid
@@ -158,8 +159,11 @@ def bluebook_magic_launch(request: Request, t: str = ""):
         "bluebook_student_id": sid,
         "original_tenant": tenant,
         # Authorizes the `proctored` provenance (see _authorize_provenance) —
-        # without it the sitting would be downgraded to 'unverified'.
-        "bluebook_proctor_token": student_auth.mint_proctor_attestation(sid, exam),
+        # without it the sitting would be downgraded to 'unverified'. Bound to
+        # this link, so reopening it cannot buy a second proctored sample.
+        "bluebook_proctor_token": student_auth.mint_proctor_attestation(
+            sid, exam, sitting="launch:" + hashlib.sha256(t.encode()).hexdigest()
+        ),
         "original_products": _launch_products(tenant),
     }
     # A link bound to a stored exam on a course enrols the student on that

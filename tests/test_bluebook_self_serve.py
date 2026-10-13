@@ -1229,7 +1229,12 @@ def test_start_after_submitting_is_409(live_client, classroom):
     assert r.status_code == 409
 
 
-def test_start_mints_a_proctor_token_when_tenant_has_original(live_client, principal_headers):
+def test_start_never_mints_a_proctor_token_even_when_tenant_has_original(
+    live_client, principal_headers
+):
+    """Baselines from dashboard exams come only from professor approval; a
+    student-held attestation would let the student post any text as a
+    proctored sample directly, skipping that approval."""
     get_repository().put_tenant("both-school", "Both", environment="pilot")
     principal_mod.invalidate_tenant_cache()
     h = principal_headers("p1", "professor", "both-school")
@@ -1245,7 +1250,7 @@ def test_start_mints_a_proctor_token_when_tenant_has_original(live_client, princ
     ).json()
     r = live_client.post(f"/bluebook/me/exams/{exam['id']}/start", headers=_auth(s["token"]))
     assert r.status_code == 200
-    assert student_auth.verify_proctor_attestation(r.json()["proctor_token"], s["student_id"])
+    assert r.json()["proctor_token"] is None
 
 
 # ── Submissions ───────────────────────────────────────────────────────────────

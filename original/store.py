@@ -3397,6 +3397,14 @@ def consume_proctor_attestation(
     return consumed
 
 
+def release_proctor_attestation(jti: str) -> None:
+    """Undo ``consume_proctor_attestation`` for a write that was never
+    stored, so the retry of the same sitting can still redeem it."""
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM consumed_attestations WHERE jti = ?", (jti,))
+        conn.commit()
+
+
 # ── Phase 2: Tenant-scoped student operations ─────────────────────────────────
 # Student IDs for tenant-scoped deployments use the convention
 # "{tenant_id}:{local_id}" (e.g. "seminary-dallas:marcus_whitfield").

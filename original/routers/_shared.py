@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse
 
 from .. import principal as principal_mod
 from .. import student_auth
+from ..constants import TRUSTED_PROVENANCE as _TRUSTED_PROVENANCE
 from ..repository import get_repository
 from ..schemas import (
     AiIndicatorOut,
@@ -416,12 +417,21 @@ def _require_student_session(request: Request) -> dict:
     return session
 
 
-# Provenances that carry weight into the baseline_mean (auth_weight > 0). A
-# student must not be able to self-assert any of these — that would let them
-# inject ghostwritten/AI text as trusted "voice" and drag their own baseline
-# toward the very thing the system should flag. 'unverified' (weight 0.5) is
-# the only self-assertable provenance.
-_TRUSTED_PROVENANCE = frozenset({"proctored", "verified", "canvas"})
+def _caller_is_trusted(request: Request) -> bool:
+    """Whether the caller's own principal carries baseline-write trust:
+    an authenticated staff role, or the anonymous demo principal off a real
+    deploy (the zero-login sandbox). On a real deploy the anonymous
+    principal is not authenticated and gets no trust — the same posture as
+    ``_require_staff``. It carries a synthetic staff role ("operator" by
+    default, see principal.py), so it is settled before the role check;
+    otherwise dropping the Authorization header would buy *more* trust than
+    sending a real student session."""
+    p = getattr(request.state, "principal", None)
+    if p is None:
+        return False
+    if p.is_demo:
+        return not _api()._IS_REAL_DEPLOY
+    return p.role in _STAFF_ROLES
 
 
 def _authorize_provenance(
@@ -436,34 +446,26 @@ def _authorize_provenance(
       • unverified / unknown        → unchanged.
       • in-process server call (request is None, e.g. seed scripts) → unchanged
                                        (server authority, no HTTP principal).
-      • authenticated staff principal → unchanged (professor/admin/operator/super).
-      • anonymous demo principal    → unchanged OFF a real deploy (the zero-login
-                                       sandbox); on a real deploy it is not
-                                       authenticated, so it gets no trust and
-                                       falls through to the attestation rule —
-                                       same posture as ``_require_staff``.
-      • student with a valid proctor attestation (``X-Proctor-Attestation``,
-        minted server-side at exam launch) for THIS student → unchanged.
-      • otherwise (student, no attestation) → downgraded to 'unverified'.
+      • a trusted caller (``_caller_is_trusted``) → unchanged.
+      • 'proctored' from a student with a valid proctor attestation
+        (``X-Proctor-Attestation``, minted server-side at exam launch) for
+        THIS student → unchanged. An attestation vouches for a proctored
+        sitting only: it never buys 'verified' or 'canvas', which the
+        single-use ledger (T-69) does not track.
+      • otherwise → downgraded to 'unverified'.
 
     Returns ``(effective_provenance, was_downgraded)``.
     """
     if requested not in _TRUSTED_PROVENANCE or request is None:
         return requested, False
-    p = getattr(request.state, "principal", None)
-    if p is not None:
-        if p.is_demo:
-            # The anonymous principal carries a synthetic staff role
-            # ("operator" by default, see principal.py), so it must be settled
-            # here and never reach the _STAFF_ROLES rule below — otherwise
-            # dropping the Authorization header would buy *more* trust than
-            # sending a real student session.
-            if not _api()._IS_REAL_DEPLOY:
-                return requested, False
-        elif p.role in _STAFF_ROLES:
-            return requested, False
+    if _caller_is_trusted(request):
+        return requested, False
     attestation = request.headers.get("X-Proctor-Attestation", "")
-    if attestation and student_auth.verify_proctor_attestation(attestation, student_id):
+    if (
+        requested == "proctored"
+        and attestation
+        and student_auth.verify_proctor_attestation(attestation, student_id)
+    ):
         return requested, False
     return "unverified", True
 

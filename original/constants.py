@@ -694,6 +694,11 @@ AUTH_WEIGHTS = {
     "unverified":  0.5,   # student self-upload — lowest trust
 }
 
+# The provenances a teacher or a proctored sitting stands behind: every
+# AUTH_WEIGHTS key but 'unverified', the only one a student may self-assert
+# (otherwise ghostwritten text could enter the baseline as trusted voice).
+TRUSTED_PROVENANCE = frozenset({"proctored", "verified", "canvas"})
+
 RECENCY_DECAY = 0.85  # λ — weight of sample i = λ^(N-1-i), newest = 1.0
 
 # ── Thresholds ───────────────────────────────────────────────────────────────
