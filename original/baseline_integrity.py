@@ -1,8 +1,8 @@
 """baseline_integrity.py — report-only baseline health diagnostic (T-70).
 
 Summarizes how trustworthy a student's authenticated baseline is: how many
-samples actually contribute, their provenance mix, the calendar span they
-were collected over, whether any single sample looks like a stylistic
+approved samples it holds, the provenance mix of every contributing sample,
+the calendar span they were collected over, whether any single sample looks like a stylistic
 outlier relative to the rest (leave-one-out), and whether this student's
 baseline spread is wider than the peer population's (when an impostor pool
 is available).
@@ -25,6 +25,7 @@ from datetime import datetime
 
 import numpy as np
 
+from .constants import TRUSTED_PROVENANCE
 from .quantum.state import StudentState
 from .style_authorship import MIN_BASELINES
 
@@ -48,7 +49,7 @@ _SIGMA_INFLATION_NOTE_THRESHOLD = 0.5
 class BaselineIntegrity:
     """Report-only summary of a student's authenticated baseline health."""
 
-    n_baselines: int
+    n_baselines: int  # approved (proctored / verified / canvas) samples
     min_required: int
     readiness: str  # "ready" | "thin" | "absent"
     provenance_mix: dict[str, int]
@@ -87,9 +88,12 @@ def _build(
         return None
 
     contributing = [s for s in state.samples if s.auth_weight > 0]
-    n_baselines = len(contributing)
+    # Readiness counts approved samples only: a self-upload carries weight
+    # but no teacher or proctor stands behind it, and Bluebook treats
+    # anything short of "ready" as too thin to read.
+    n_baselines = sum(1 for s in contributing if s.provenance in TRUSTED_PROVENANCE)
 
-    if n_baselines == 0:
+    if not contributing:
         readiness = "absent"
     elif n_baselines < MIN_BASELINES:
         readiness = "thin"
@@ -171,7 +175,7 @@ def _build_notes(
     if readiness == "absent":
         notes.append("no authenticated baseline samples")
     elif readiness == "thin":
-        notes.append(f"baseline thinner than N={MIN_BASELINES}")
+        notes.append(f"baseline thinner than N={MIN_BASELINES} approved samples")
     if loo_outlier_samples:
         notes.append("one sample stylistically unlike the others")
     if sigma_inflation is not None and sigma_inflation > _SIGMA_INFLATION_NOTE_THRESHOLD:
