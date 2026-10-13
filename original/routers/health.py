@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from .. import backup as backup_mod
 from ..constants import FEATURE_DIM
@@ -17,18 +18,68 @@ router = APIRouter()
 # ── Health ────────────────────────────────────────────────────────────────────
 
 
+def _database_probe() -> None:
+    """Run a bounded, read-only probe against the configured repository."""
+    from ..repository import backend_name
+
+    if backend_name() == "postgres":
+        from sqlalchemy import text
+
+        from ..db.postgres_session import get_engine
+
+        # Bound both a newly-created socket and execution on a connected DB.
+        # The engine's connect timeout is configured in postgres_session.py.
+        with get_engine().connect() as connection:
+            with connection.begin():
+                connection.execute(text("SET LOCAL statement_timeout = '1500ms'"))
+                connection.execute(text("SELECT 1")).scalar_one()
+    else:
+        from .. import store
+
+        connection = store._get_conn()
+        try:
+            connection.execute("SELECT 1").fetchone()
+        finally:
+            connection.close()
+
+
+@router.get("/livez")
+def livez():
+    """Fast process liveness probe; deliberately does not touch the database."""
+    return {"status": "ok"}
+
+
 @router.get("/health", response_model=HealthResponse)
 def health():
     from ..repository import backend_name
+
+    commit = os.environ.get("RENDER_GIT_COMMIT", "dev")
+    backend = backend_name()
+    signup_open = _signup_open()
+    try:
+        _database_probe()
+    except Exception:
+        # Keep deployment identity in the body so an operator can diagnose a
+        # failed readiness check without making an unhealthy dependency appear
+        # healthy to Render or an uptime monitor.
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unavailable",
+                "commit": commit,
+                "backend": backend,
+                "signup_open": signup_open,
+            },
+        )
 
     return HealthResponse(
         status="ok",
         feature_dim=FEATURE_DIM,
         students_in_store=_repo().count(),
         environment=_api().ORIGINAL_ENV,
-        signup_open=_signup_open(),
-        commit=os.environ.get("RENDER_GIT_COMMIT", "dev"),
-        backend=backend_name(),
+        signup_open=signup_open,
+        commit=commit,
+        backend=backend,
     )
 
 

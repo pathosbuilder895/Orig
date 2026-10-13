@@ -21,6 +21,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from scripts import pg_backup_offbox as pgb
+from scripts import restore_drill
 from scripts.migrate_sqlite_to_pg import MIGRATORS
 from tests.test_migration import fresh_pg, seeded_sqlite  # noqa: F401  (fixtures re-used)
 
@@ -378,6 +379,84 @@ _PFX = "original-pg-backups/"
 
 def _dump_key(stamp: str) -> str:
     return f"{_PFX}original-pg-{stamp}.jsonl.gz.fernet"
+
+
+def test_upload_collapses_a_repeated_bucket_prefix_for_s3(monkeypatch, tmp_path):
+    """S3's bucket is separate from the object key; its name must not be
+    repeated inside the configured key prefix."""
+    import urllib.parse
+
+    import scripts.backup_offbox as offbox
+
+    bucket_name = "original-pg-backups"
+    env = {
+        **_OFFBOX,
+        "BACKUP_OFFBOX_BUCKET": bucket_name,
+        "BACKUP_OFFBOX_PREFIX": f"{bucket_name}/{bucket_name}/",
+    }
+    cfg = pgb.offbox_config(env)
+    source = tmp_path / "original-pg-20261013T000000Z.jsonl.gz.fernet"
+    source.write_bytes(b"dummy encrypted bytes")
+    captured = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(request, timeout):
+        parsed = urllib.parse.urlsplit(request.full_url)
+        bucket_path, key = parsed.path.lstrip("/").split("/", 1)
+        captured.append((bucket_path, key, request.data, timeout))
+        return Response()
+
+    monkeypatch.setattr(offbox.urllib.request, "urlopen", fake_urlopen)
+
+    offbox.upload(cfg, source)
+
+    assert cfg.prefix == f"{bucket_name}/"
+    assert captured == [
+        (
+            bucket_name,
+            f"{bucket_name}/{source.name}",
+            b"dummy encrypted bytes",
+            60,
+        )
+    ]
+
+
+def test_restore_drill_restores_encrypted_dump_into_sqlite_url(monkeypatch, tmp_path, caplog):
+    key = Fernet.generate_key().decode()
+    plain = tmp_path / "backup.jsonl.gz"
+    rows = _empty_rows()
+    pgb.write_dump(rows, plain, NOW)
+    encrypted = pgb.encrypt_file(plain, key)
+    target = tmp_path / "restore.sqlite"
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("BACKUP_ENCRYPTION_KEY", key)
+
+    result = restore_drill.main(["--database-url", f"sqlite:///{target}", str(encrypted)])
+
+    assert result == 0
+    assert "restore parity: OK" in caplog.text
+    assert "audit_log" in caplog.text
+    assert plain.exists()  # only the drill's private decrypted copy is removed
+
+
+def test_restore_drill_refuses_configured_database_url(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://example.invalid/live")
+    monkeypatch.setenv("BACKUP_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    backup = tmp_path / "does-not-need-to-exist.fernet"
+
+    result = restore_drill.main(
+        ["--database-url", "postgres://different-user@example.invalid/live", str(backup)]
+    )
+
+    assert result == 1
 
 
 class _FakeResponse:

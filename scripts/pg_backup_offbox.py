@@ -182,6 +182,23 @@ def dump_filename(now: datetime | None = None) -> str:
     return f"{FILE_PREFIX}{now.strftime('%Y%m%dT%H%M%SZ')}.jsonl.gz"
 
 
+def offbox_config(env: dict) -> OffboxConfig:
+    """Read the legacy BACKUP_OFFBOX_* settings and collapse a duplicated
+    bucket-name prefix left by older Render configuration.
+
+    The bucket is a separate S3 namespace component. If the configured key
+    prefix starts with ``<bucket>/<bucket>/``, the first copy is redundant;
+    keep one copy so new uploads and newest-backup lookup use
+    ``<prefix>/<filename>`` exactly once. Correct single-prefix settings are
+    unchanged.
+    """
+    cfg = OffboxConfig(env)
+    repeated = f"{cfg.bucket}/{cfg.bucket}/" if cfg.bucket else ""
+    if repeated and cfg.prefix.startswith(repeated):
+        cfg.prefix = cfg.prefix[len(cfg.bucket) + 1 :]
+    return cfg
+
+
 # ── Encryption ────────────────────────────────────────────────────────────────
 # The dump holds every student answer. It is encrypted before it leaves
 # Render, with a key that lives only in Render's env and the owner's password
@@ -304,7 +321,7 @@ def restore(session_scope, path: Path) -> dict:
 def _download_latest_cli(dest_dir: Path) -> int:
     """--download-latest: needs the bucket settings only. BACKUP_OFFBOX_ENABLED
     gates the scheduled upload, so a download does not require it."""
-    cfg = OffboxConfig(os.environ)
+    cfg = offbox_config(os.environ)
     missing = cfg.missing()
     if missing:
         log.error("pg download: bucket not configured (missing %s).", ", ".join(missing))
@@ -386,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         log.info("restore parity: %s", "OK" if report["parity"] else "FAILED")
         return 0 if report["parity"] else 1
 
-    cfg = OffboxConfig(os.environ)
+    cfg = offbox_config(os.environ)
     if args.require_upload and not cfg.ready():
         log.error(
             "pg backup: upload required but not configured (%s).",

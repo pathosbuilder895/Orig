@@ -10,7 +10,8 @@ name: Boot matrix
 # suite stays green (T-07, docs/testing/08-config-deploy-readiness.md §2).
 # tests/config/test_lockset_imports.py pins that at the import level; this job
 # is the end-to-end twin: a fresh venv from ONE lockset, `python run.py`, and a
-# /health poll.
+# /livez poll. Database readiness is checked separately by the PostgreSQL
+# service tests; this boot matrix verifies process startup from each lockset.
 #
 # KNOWN-RED SEMANTICS (same as Phase A):
 #   expect = the outcome a fixed product would produce
@@ -23,17 +24,17 @@ name: Boot matrix
 #
 # Observed outcomes at the time this job was added (2026-09-08), measured
 # locally against venvs built from these exact locksets:
-#   pilot-sqlite ............... up      /health backend=sqlite
+#   pilot-sqlite ............... up      /livez
 #   pilot-postgres ............. down    ModuleNotFoundError: sqlalchemy,
 #                                        raised from api.py lifespan (which
 #                                        catches NotImplementedError only);
-#                                        uvicorn exits 3, /health never answers
+#                                        uvicorn exits 3, /livez never answers
 #   pilot-shadow-postgres ...... down    same, via ShadowRepository
 #   pilot-origins-wildcard ..... refuse  exit 1 at import of original.api
 #   pilot-guard-destructive .... up
 #   demo-guard-destructive ..... up      should refuse (T-23, REAUDIT #5)
 #   pilot-no-skip-seed ......... refuse  exit 1, seeder's hard refusal
-#   demo-lockset-default ....... up      /health environment=demo
+#   demo-lockset-default ....... up      /livez
 #
 # Note the two Postgres cells are `down`, not `refuse`: the process does exit
 # non-zero, but on an unhandled ImportError traceback, not a named refusal —
