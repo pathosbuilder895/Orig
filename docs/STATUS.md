@@ -46,7 +46,7 @@ Checked 2026-10-11 in the Render dashboard and against `/health`. No teacher has
 | PR | Owner | Notes |
 |----|-------|-------|
 | [#267](https://github.com/pathosbuilder895/Orig/pull/267) | another Claude session | Refactors the per-run Postgres test databases and trims redundant tests. In progress. |
-| draft (pending) | Codex GPT-6 | `codex/overnight-ops-reliability`: database-aware health, backup/restore reliability, deterministic Canvas/SSRF checks, and timing-test headroom. |
+| [#272](https://github.com/pathosbuilder895/Orig/pull/272) | Codex GPT-6 | Draft: database-aware health, backup/restore reliability, deterministic Canvas/SSRF checks, and timing-test headroom. |
 
 **Product name:** the user-facing name is now **Original Collections** (in the app, **Collections**), from #260 on 2026-10-11 (trademark risk); live on the pilot (legal pages and app bundle checked). URL paths (`/bluebook/`), file names and code identifiers keep "bluebook". The counsel packet asks counsel to clear the new name.
 
