@@ -83,9 +83,17 @@ export async function saveStudyLabel(submissionId, label, imitatedId, api = BB_A
   return { ok: false, message: detail || `Could not save the label (HTTP ${r.status}).` };
 }
 
-function StudyLabelRow({ sub, subs, onRouteMissing }) {
-  const [label, setLabel] = useState(sub.study_label || '');
-  const [imitated, setImitated] = useState(sub.imitated_student_id || '');
+// The label a row starts from: one saved during this visit, else what the
+// server sent with the submission, else none.
+export function initialStudyLabel(sub, known) {
+  if (known) return { label: known.label, imitated: known.imitated || '' };
+  return { label: (sub && sub.study_label) || '', imitated: (sub && sub.imitated_student_id) || '' };
+}
+
+function StudyLabelRow({ sub, subs, known, onSaved, onRouteMissing }) {
+  const start = initialStudyLabel(sub, known);
+  const [label, setLabel] = useState(start.label);
+  const [imitated, setImitated] = useState(start.imitated);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
@@ -96,7 +104,7 @@ function StudyLabelRow({ sub, subs, onRouteMissing }) {
     setBusy(true); setSaved(''); setError('');
     const res = await saveStudyLabel(sub.id, label, imitated);
     setBusy(false);
-    if (res.ok) { setSaved(`Saved: ${label}${label === 'shadow' ? `, imitating ${(choices.find(c => c.id === imitated) || {}).name || imitated}` : ''}.`); return; }
+    if (res.ok) { onSaved({ label, imitated: label === 'shadow' ? imitated : '' }); setSaved(`Saved: ${label}${label === 'shadow' ? `, imitating ${(choices.find(c => c.id === imitated) || {}).name || imitated}` : ''}.`); return; }
     if (res.missing) onRouteMissing();
     else setError(res.message);
   }
@@ -105,13 +113,13 @@ function StudyLabelRow({ sub, subs, onRouteMissing }) {
     <div className="bb-card" style={{ marginTop: '.8rem' }}>
       <p style={{ margin: 0 }}><strong>{sub.student || 'Candidate'}</strong> <span className="bb-hint">{(sub.words || 0).toLocaleString()} words</span></p>
       <div className="bb-grid cols-2">
-        <Select id={`study-label-${sub.id}`} label="Written as" value={label} onChange={v => { setLabel(v); setSaved(''); }}>
+        <Select id={`study-label-${sub.id}`} label="Written as" value={label} onChange={v => { setLabel(v); setSaved(''); setError(''); }}>
           <option value="">Not labelled</option>
           <option value="natural">Natural (as themselves)</option>
           <option value="shadow">Shadow (imitating a classmate)</option>
         </Select>
         {label === 'shadow' && (
-          <Select id={`study-imitated-${sub.id}`} label="Imitating" value={imitated} onChange={v => { setImitated(v); setSaved(''); }}>
+          <Select id={`study-imitated-${sub.id}`} label="Imitating" value={imitated} onChange={v => { setImitated(v); setSaved(''); setError(''); }}>
             <option value="">Choose a classmate</option>
             {choices.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
@@ -130,6 +138,11 @@ function StudyLabelRow({ sub, subs, onRouteMissing }) {
 export function StudyLabelPanel({ subs }) {
   const [open, setOpen] = useState(false);
   const [routeMissing, setRouteMissing] = useState(false);
+  // Labels saved during this visit. Rows unmount on Hide, and the submissions
+  // list is not reloaded after a save, so without this a saved label would read
+  // "Not labelled" on Show, where a second staff member checks the labels
+  // (docs/research/STUDY_PROTOCOL_2026-10.md, step 7).
+  const [savedLabels, setSavedLabels] = useState({});
   if (!studyPanelVisible()) return null;
   const list = subs || [];
   return (
@@ -150,7 +163,11 @@ export function StudyLabelPanel({ subs }) {
           {routeMissing && <p role="alert" className="bb-error">{STUDY_ROUTE_MISSING}</p>}
           {list.length === 0
             ? <p className="bb-hint">Nobody has submitted yet.</p>
-            : list.map(s => <StudyLabelRow key={s.id} sub={s} subs={list} onRouteMissing={() => setRouteMissing(true)} />)}
+            : list.map(s => (
+              <StudyLabelRow key={s.id} sub={s} subs={list} known={savedLabels[s.id]}
+                onSaved={v => setSavedLabels(m => ({ ...m, [s.id]: v }))}
+                onRouteMissing={() => setRouteMissing(true)} />
+            ))}
         </>
       )}
     </Panel>

@@ -13,7 +13,7 @@ const built = await build({
 globalThis.window = { BB_API_BASE: '' };
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {}, key: () => null, length: 0 };
 const {
-  STUDY_PANEL_TITLE, STUDY_ROUTE_MISSING, imitationChoices, isRouteMissing, saveStudyLabel,
+  STUDY_PANEL_TITLE, STUDY_ROUTE_MISSING, imitationChoices, initialStudyLabel, isRouteMissing, saveStudyLabel,
   studyLabelBody, studyLabelProblem, studyPanelVisible,
 } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
@@ -100,4 +100,13 @@ test('refusals and network failures are reported, not swallowed', async () => {
   assert.equal((await saveStudyLabel('sub1', 'shadow', 'x', api())).message, 'imitated_student_id is not in this workspace');
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   assert.match((await saveStudyLabel('sub1', 'natural', '', api())).message, /Could not reach the server/);
+});
+
+test('a label saved this visit wins over the stale list, so it survives Hide and Show', () => {
+  const sub = { id: 'a', study_label: null, imitated_student_id: null };
+  assert.deepEqual(initialStudyLabel(sub, undefined), { label: '', imitated: '' });
+  assert.deepEqual(initialStudyLabel(sub, { label: 'shadow', imitated: 's2' }), { label: 'shadow', imitated: 's2' });
+  // A server that already returns labels prefills them.
+  assert.deepEqual(initialStudyLabel({ study_label: 'natural', imitated_student_id: null }, undefined),
+    { label: 'natural', imitated: '' });
 });
