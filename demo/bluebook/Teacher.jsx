@@ -422,7 +422,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
       <Section title="Submissions">
         <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet." />
       </Section>
-      <StudyLabelPanel subs={subs} />
+      <StudyLabelPanel exam={exam} subs={subs} />
       {form && (
         <Section title="Settings">
           <Panel>

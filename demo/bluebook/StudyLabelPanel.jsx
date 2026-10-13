@@ -11,8 +11,12 @@ import { Btn, ErrorText, LinkBtn, Notice, Panel, Select } from './forms.jsx';
 //  shows no score. Labels go to
 //    POST /bluebook/submissions/{id}/study-label
 //    { study_label: "natural" | "shadow", imitated_student_id: string | null }
-//  which the backend may not have yet; a missing route is said plainly
-//  and nothing is reported as saved.
+//  (imitated_student_id is null on a natural label). A server without the
+//  route is said plainly and nothing is reported as saved; a 422 shows the
+//  server's own reason.
+//  The panel exists only for staff, and only on an exam that runs Original
+//  (the same rule the server scores study submissions by): otherwise it is
+//  not rendered at all.
 // ════════════════════════════════════════════════════════════════
 const { useState } = React;
 
@@ -22,11 +26,22 @@ export const STUDY_ROUTE_MISSING =
   'Study labels cannot be saved on this server yet: it does not have the study-label route '
   + '(POST /bluebook/submissions/{id}/study-label). Nothing was saved.';
 
+// Whether this exam runs Original: its stored conditions switch the
+// authorship comparison on (NewExam.jsx "Authorship comparison (Original)").
+// Strictly true, as the server checks it before scoring a study submission
+// (original/study_scoring.py style_scoring_enabled): an exam saved without
+// the condition is not an Original exam, whatever the sitting defaults to.
+export function examHasOriginal(exam) {
+  const c = exam && exam.conditions;
+  return !!c && typeof c === 'object' && c.aiDetect === true;
+}
+
 // Who may see the panel: a signed-in staff member (a principal token, never a
-// student session) in a workspace that holds Original, since the study
-// measures Original's readings.
-export function studyPanelVisible(api = BB_API) {
-  return api.isAuthed() && !api.isStudentAccount() && !api.isStudentLaunch() && api.hasOriginal();
+// student session) in a workspace that holds Original, on an exam that runs
+// Original, since the study measures Original's readings of that exam.
+export function studyPanelVisible(exam, api = BB_API) {
+  return api.isAuthed() && !api.isStudentAccount() && !api.isStudentLaunch()
+    && api.hasOriginal() && examHasOriginal(exam);
 }
 
 // The classmates a shadow submission may imitate: everyone else who sat this
@@ -55,6 +70,22 @@ export function studyLabelBody(label, imitatedId) {
   return { study_label: label, imitated_student_id: label === 'shadow' ? imitatedId : null };
 }
 
+// The server's reason, as text. A route's own refusal is a string; FastAPI's
+// request validation (422) is a list of {loc, msg}, each named by its field.
+export function detailText(detail) {
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map(d => {
+      if (typeof d === 'string') return d;
+      if (!d || typeof d.msg !== 'string') return '';
+      const loc = Array.isArray(d.loc) ? d.loc.filter(x => x !== 'body').join('.') : '';
+      return loc ? `${loc}: ${d.msg}` : d.msg;
+    }).filter(Boolean).join('; ');
+  }
+  if (detail && typeof detail.msg === 'string') return detail.msg;
+  return '';
+}
+
 // FastAPI answers an unknown path with 404 {"detail": "Not Found"}; the
 // Bluebook routes answer a missing submission with their own detail. Only the
 // first means the route is not there.
@@ -75,11 +106,13 @@ export async function saveStudyLabel(submissionId, label, imitatedId, api = BB_A
   }
   if (r.ok) return { ok: true };
   let detail = '';
-  try { detail = (await r.json()).detail || ''; } catch (e) {}
-  if (typeof detail !== 'string') detail = '';
+  try { detail = detailText((await r.json()).detail); } catch (e) {}
   if (isRouteMissing(r.status, detail)) return { ok: false, missing: true, message: STUDY_ROUTE_MISSING };
   if (r.status === 401) return { ok: false, message: 'Please sign out and sign in again.' };
   if (r.status === 403) return { ok: false, message: 'Only staff can record study labels.' };
+  if (r.status === 422) {
+    return { ok: false, message: detail ? `Not saved: ${detail}` : 'Not saved: the server refused this label (HTTP 422).' };
+  }
   return { ok: false, message: detail || `Could not save the label (HTTP ${r.status}).` };
 }
 
@@ -135,7 +168,8 @@ function StudyLabelRow({ sub, subs, known, onSaved, onRouteMissing }) {
   );
 }
 
-export function StudyLabelPanel({ subs }) {
+// `api` is for tests; the app always uses BB_API.
+export function StudyLabelPanel({ exam, subs, api = BB_API }) {
   const [open, setOpen] = useState(false);
   const [routeMissing, setRouteMissing] = useState(false);
   // Labels saved during this visit. Rows unmount on Hide, and the submissions
@@ -143,7 +177,7 @@ export function StudyLabelPanel({ subs }) {
   // "Not labelled" on Show, where a second staff member checks the labels
   // (docs/research/STUDY_PROTOCOL_2026-10.md, step 7).
   const [savedLabels, setSavedLabels] = useState({});
-  if (!studyPanelVisible()) return null;
+  if (!studyPanelVisible(exam, api)) return null;
   const list = subs || [];
   return (
     <Panel style={{ marginTop: '1.5rem' }}>

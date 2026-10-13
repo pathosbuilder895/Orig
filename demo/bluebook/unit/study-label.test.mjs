@@ -4,19 +4,34 @@ import { build } from 'esbuild';
 
 // The staff-only study label panel (StudyLabelPanel.jsx): who sees it, what it
 // sends to POST /bluebook/submissions/{id}/study-label, and what it says when
-// the backend does not have that route yet.
+// the server refuses or lacks that route. The panel itself is rendered for
+// real with react-dom/server, to check it is absent (not merely disabled)
+// wherever it must not show.
 const built = await build({
-  entryPoints: [new URL('../StudyLabelPanel.jsx', import.meta.url).pathname],
+  stdin: {
+    contents: `
+      import React from 'react';
+      import { renderToStaticMarkup } from 'react-dom/server';
+      import { StudyLabelPanel } from './StudyLabelPanel.jsx';
+      export * from './StudyLabelPanel.jsx';
+      export const renderPanel = props => renderToStaticMarkup(React.createElement(StudyLabelPanel, props));
+    `,
+    resolveDir: new URL('..', import.meta.url).pathname,
+    loader: 'jsx',
+  },
   bundle: true, platform: 'node', format: 'esm', write: false, jsx: 'automatic', logLevel: 'silent',
   loader: { '.css': 'empty' },  // forms.jsx imports its stylesheet; node has no use for it
+  // react-dom/server is CommonJS and reads node's own modules; a data: URL has no file to resolve them from.
+  banner: { js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(process.cwd() + '/');" },
 });
 globalThis.window = { BB_API_BASE: '' };
 globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {}, key: () => null, length: 0 };
 const {
-  STUDY_PANEL_TITLE, STUDY_ROUTE_MISSING, imitationChoices, initialStudyLabel, isRouteMissing, saveStudyLabel,
-  studyLabelBody, studyLabelProblem, studyPanelVisible,
+  STUDY_PANEL_TITLE, STUDY_ROUTE_MISSING, detailText, examHasOriginal, imitationChoices, initialStudyLabel,
+  isRouteMissing, renderPanel, saveStudyLabel, studyLabelBody, studyLabelProblem, studyPanelVisible,
 } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
+const ORIGINAL_EXAM = { id: 'e1', conditions: { aiDetect: true } };
 const api = (over = {}) => ({
   base: '', _headers: () => ({ 'Content-Type': 'application/json', Authorization: 'Bearer t' }),
   isAuthed: () => true, isStudentAccount: () => false, isStudentLaunch: () => false, hasOriginal: () => true,
@@ -35,11 +50,37 @@ test('the panel is labelled as research and staff only', () => {
 });
 
 test('only signed-in staff in a workspace with Original see it', () => {
-  assert.equal(studyPanelVisible(api()), true);
-  assert.equal(studyPanelVisible(api({ isAuthed: () => false })), false);
-  assert.equal(studyPanelVisible(api({ isStudentAccount: () => true })), false);
-  assert.equal(studyPanelVisible(api({ isStudentLaunch: () => true })), false);
-  assert.equal(studyPanelVisible(api({ hasOriginal: () => false })), false);
+  assert.equal(studyPanelVisible(ORIGINAL_EXAM, api()), true);
+  assert.equal(studyPanelVisible(ORIGINAL_EXAM, api({ isAuthed: () => false })), false);
+  assert.equal(studyPanelVisible(ORIGINAL_EXAM, api({ isStudentAccount: () => true })), false);
+  assert.equal(studyPanelVisible(ORIGINAL_EXAM, api({ isStudentLaunch: () => true })), false);
+  assert.equal(studyPanelVisible(ORIGINAL_EXAM, api({ hasOriginal: () => false })), false);
+});
+
+test('only on an exam that runs Original: aiDetect strictly true, as the server checks it', () => {
+  assert.equal(examHasOriginal(ORIGINAL_EXAM), true);
+  for (const exam of [
+    null, undefined, {}, { conditions: null }, { conditions: {} }, { conditions: { aiDetect: false } },
+    { conditions: { aiDetect: 'true' } }, { conditions: { aiDetect: 1 } },
+  ]) {
+    assert.equal(examHasOriginal(exam), false, JSON.stringify(exam));
+    assert.equal(studyPanelVisible(exam, api()), false, JSON.stringify(exam));
+  }
+});
+
+test('where it may not show, the panel is not rendered at all', () => {
+  const subs = [{ id: 'a', student_id: 's1', student: 'Ann', words: 300 }];
+  assert.match(renderPanel({ exam: ORIGINAL_EXAM, subs, api: api() }), /Study label \(research, staff only\)/);
+  for (const [exam, who] of [
+    [{ conditions: { aiDetect: false } }, api()],  // the exam does not run Original
+    [null, api()],  // the exam has not loaded yet
+    [ORIGINAL_EXAM, api({ isStudentAccount: () => true })],
+    [ORIGINAL_EXAM, api({ isStudentLaunch: () => true })],
+    [ORIGINAL_EXAM, api({ isAuthed: () => false })],
+    [ORIGINAL_EXAM, api({ hasOriginal: () => false })],
+  ]) {
+    assert.equal(renderPanel({ exam, subs, api: who }), '');
+  }
 });
 
 test('the imitated-student picker offers each other student once, by name', () => {
@@ -74,6 +115,37 @@ test('saving posts to the study-label route', async () => {
   assert.equal(sent.init.headers.Authorization, 'Bearer t');
 });
 
+test('a natural label is posted with imitated_student_id null, even after a shadow choice', async () => {
+  respond({ ok: true });
+  await saveStudyLabel('sub1', 'natural', 's2', api());
+  const body = JSON.parse(sent.init.body);
+  assert.deepEqual(body, { study_label: 'natural', imitated_student_id: null });
+  assert.ok('imitated_student_id' in body);  // sent as null, not left out
+});
+
+test("a 422 shows the server's reason", async () => {
+  respond({ detail: 'imitated_student_id must belong to this workspace' }, 422);
+  assert.equal((await saveStudyLabel('sub1', 'shadow', 'x', api())).message,
+    'Not saved: imitated_student_id must belong to this workspace');
+  // FastAPI's own request validation: a list of {loc, msg}.
+  respond({ detail: [
+    { loc: ['body', 'study_label'], msg: "Input should be 'natural' or 'shadow'", type: 'literal_error' },
+    { loc: ['body', 'imitated_student_id'], msg: 'Field required', type: 'missing' },
+  ] }, 422);
+  assert.equal((await saveStudyLabel('sub1', 'shadow', 'x', api())).message,
+    "Not saved: study_label: Input should be 'natural' or 'shadow'; imitated_student_id: Field required");
+  respond({}, 422);
+  assert.match((await saveStudyLabel('sub1', 'shadow', 'x', api())).message, /Not saved: .*HTTP 422/);
+});
+
+test('detail text reads strings, validation lists and single objects', () => {
+  assert.equal(detailText('nope'), 'nope');
+  assert.equal(detailText([{ loc: ['body'], msg: 'bad body' }, 'plain', null, {}]), 'bad body; plain');
+  assert.equal(detailText({ msg: 'one' }), 'one');
+  assert.equal(detailText(undefined), '');
+  assert.equal(detailText(42), '');
+});
+
 test('a server without the route says so, and nothing reads as saved', async () => {
   respond({ detail: 'Not Found' }, 404);
   const r = await saveStudyLabel('sub1', 'natural', '', api());
@@ -96,8 +168,6 @@ test('a missing submission is not mistaken for a missing route', async () => {
 test('refusals and network failures are reported, not swallowed', async () => {
   respond({ detail: 'Staff only' }, 403);
   assert.match((await saveStudyLabel('sub1', 'natural', '', api())).message, /Only staff/);
-  respond({ detail: 'imitated_student_id is not in this workspace' }, 422);
-  assert.equal((await saveStudyLabel('sub1', 'shadow', 'x', api())).message, 'imitated_student_id is not in this workspace');
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   assert.match((await saveStudyLabel('sub1', 'natural', '', api())).message, /Could not reach the server/);
 });
