@@ -158,3 +158,10 @@ validation/genre_crossgenre_2026-08/vectors_meta.json
 # Written locally by the certification tests; not yet uploaded by CI.
 certification-report.json
 dist-teacher-demo/
+
+# Natural/shadow study outputs (docs/research/STUDY_PROTOCOL_2026-10.md).
+# out/ holds per-row results from real students: never commit it. A candidate
+# is aggregates only, but committing one is an owner decision (it makes the
+# weekly battery's G-S1 gate read it), so it takes `git add -f`.
+validation/study/out/
+validation/study/candidates/
