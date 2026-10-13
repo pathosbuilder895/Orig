@@ -5,6 +5,7 @@ import {
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { StudyLabelPanel } from './StudyLabelPanel.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
@@ -421,6 +422,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
       <Section title="Submissions">
         <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet." />
       </Section>
+      <StudyLabelPanel subs={subs} />
       {form && (
         <Section title="Settings">
           <Panel>
