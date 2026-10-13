@@ -136,6 +136,76 @@ test.describe('Student-facing wording', () => {
     expect(unkindIn(await visibleText(studentPage))).toEqual([])
   })
 
+  test('the public, sign-in, reset, invite and phone pages read calmly', async ({ page }) => {
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByText('Your own words,')).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+    // The wordmark says the product's name, not the internal one.
+    expect(await visibleText(page)).not.toMatch(/bluebook/i)
+
+    await page.getByRole('button', { name: 'Sign in' }).first().click()
+    await expect(page.getByLabel('Email')).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+    expect(await visibleText(page)).not.toMatch(/bluebook/i)
+    await page.getByRole('button', { name: 'Forgot your password?' }).click()
+    await expect(page.getByRole('button', { name: 'Email me a reset link' })).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+
+    await page.goto('/bluebook/?invite=not-a-real-code')
+    await page.getByLabel('New password').fill('a-new-password-1')
+    await page.getByLabel('Confirm password').fill('a-new-password-1')
+    await page.getByRole('button', { name: 'Save and continue' }).click()
+    await expect(page.getByText(/link/i).last()).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+
+    await page.goto('/bluebook/parked.html')
+    await page.waitForLoadState('networkidle')
+    expect(unkindIn(await visibleText(page))).toEqual([])
+  })
+
+  test("a student's home, sealed work and account read calmly", async ({ browser, testTenant, request }) => {
+    const exam = await createExam(request, testTenant, 'Wording home exam')
+    const s = testTenant.student
+    const sealed = await request.post('/bluebook/submissions', {
+      headers: { Authorization: `Bearer ${s.token}` },
+      data: { exam_id: exam.id, student_id: s.student_id, candidate: 'Wording Student', exam_title: exam.title,
+        word_count: 18, text: ESSAY, answers: [ESSAY], submission_uuid: `wording-${Date.now()}` },
+    })
+    expect(sealed.ok()).toBe(true)
+    const context = await browser.newContext({ storageState: {
+      cookies: [],
+      origins: [{ origin: testTenant.baseURL, localStorage: [
+        { name: 'original_session_token', value: s.token },
+        { name: 'original_student_id', value: s.student_id },
+        { name: 'original_role', value: 'student' },
+        { name: 'original_tenant', value: s.tenant_id },
+        { name: 'original_name', value: 'Wording Student' },
+        { name: 'original_products', value: JSON.stringify(['bluebook']) },
+      ] }],
+    } })
+    const page = await context.newPage()
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+
+    await page.getByRole('button', { name: /Read/ }).first().click()
+    await expect(page.getByText(ESSAY)).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+
+    await page.getByRole('button', { name: 'Account' }).click()
+    await expect(page.getByLabel('Current password')).toBeVisible()
+    // A wrong current password says so, rather than "sign in again".
+    await page.getByLabel('Current password').fill('not-my-password')
+    await page.getByLabel('New password', { exact: true }).fill('a-new-password-1')
+    await page.getByLabel('Confirm new password').fill('a-new-password-1')
+    await page.getByRole('button', { name: 'Change password' }).click()
+    await expect(page.getByText('Current password is incorrect.')).toBeVisible()
+    expect(unkindIn(await visibleText(page))).toEqual([])
+    await context.close()
+  })
+
   test('an exam that is closed or not yet open is explained kindly', async ({ studentPage, testTenant, request }) => {
     const exam = await createExam(request, testTenant, 'Wording closed exam')
     await boot(studentPage, exam, testTenant, { loaded: true, state: 'closed' })

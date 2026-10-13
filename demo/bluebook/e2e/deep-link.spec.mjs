@@ -122,11 +122,11 @@ test.describe('Deep links into one exam', () => {
 
   test('a signed-out visitor following #students gets the landing page, then the Students screen after signing in', async ({ page, workerTenant }) => {
     await page.goto('/bluebook/#students')
-    await expect(page.getByText('Academic integrity,')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await page.getByPlaceholder('you@school.edu').fill(workerTenant.staff.email)
     await page.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
   })
 
@@ -160,11 +160,11 @@ test.describe('Deep links into one exam', () => {
     const title = `Deep link after sign-in ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
     await page.goto(`/bluebook/#exam/${exam.id}`)
-    await expect(page.getByText('Academic integrity,')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await page.getByPlaceholder('you@school.edu').fill(workerTenant.staff.email)
     await page.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
   })
 

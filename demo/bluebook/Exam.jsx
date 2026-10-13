@@ -141,7 +141,7 @@ function buildConditions(cfg, withOriginal) {
     withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
     cfg.phoneBlk  && 'Please silence your phone and other devices.',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
-    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile, and can undo that.',
+    withOriginal  && 'Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.',
   ].filter(Boolean);
 }
 
@@ -529,7 +529,7 @@ export function BriefingScreen({ onNavigate }) {
                 {conditions.map(rule => <li key={rule}>{rule}</li>)}
               </ul>
               {(cfg.blockWeb || cfg.blockCopy) && (
-                <p className="bk-conditions-note">Notes like these are context for your teacher, not an accusation. Moments away happen.</p>
+                <p className="bk-conditions-note">These notes help your teacher understand the session. Short moments away are normal.</p>
               )}
             </div>
 
@@ -1320,7 +1320,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                 <h1 ref={headRef} tabIndex={-1}>Examination Sealed</h1>
                 <p>
                   Your examination has been received, sealed, and submitted
-                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile, and can undo that.'}
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.'}
                 </p>
                 {sub.expired && (
                   <p>Time ran out, so your booklet was sealed with everything you had written.</p>
@@ -1333,10 +1333,10 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             <div className="gist">
               {[
-                { label: 'Examination',  value: examTitle             },
+                { label: 'Exam',         value: examTitle             },
                 { label: 'Course',       value: courseT               },
-                { label: 'Candidate',    value: candidate             },
-                { label: 'Word Count',   value: `${finalWords} words` },
+                { label: 'Name',         value: candidate             },
+                { label: 'Words',        value: `${finalWords} words` },
               ].filter(({ value }) => value).map(({ label, value }) => (
                 <div key={label}>
                   <b>{label}</b>
@@ -1352,7 +1352,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
               {!isStudent && (
                 <button type="button" className="back" onClick={() => onNavigate('dashboard')}>Return to Dashboard</button>
               )}
-              {studentAccount && !transmitFailed && (
+              {studentAccount && (
                 <button type="button" className="back" onClick={() => onNavigate('student-home')}>Back to my exams</button>
               )}
             </div>
@@ -1364,7 +1364,9 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
               </p>
             )}
 
-            <p className="closed-on">Session closed · {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+            {!transmitFailed && (
+              <p className="closed-on">Sealed on {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+            )}
           </div>
         </div>
       </div>
