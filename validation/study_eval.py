@@ -4,14 +4,17 @@ validation/study_eval.py: analysis of the natural/shadow study.
 Input is a CSV that meets ``validation/study_contract.py`` (one row per sealed
 study submission). Output is a Markdown report, a JSON report and PNG charts:
 
-  - separation: ROC curve and AUC (natural vs shadow), with a 95% interval
-    from a bootstrap that resamples STUDENTS, not rows;
-  - the confusion matrix at the current strict threshold (the live
-    Collections flag rule, read from validation/study/current_operating_point.json);
-  - a threshold sweep: false-flag rate on natural attempts against catch
-    rate on shadow attempts, at every whole-point cut-off;
+  - separation: ROC curve and AUC (natural vs shadow) on ``deviation_score``,
+    with a 95% interval from a bootstrap that resamples STUDENTS, not rows;
+  - the confusion matrix at the exported verdict (the live Collections rule,
+    scored against the claimed student's baseline), checked against that
+    rule when the CSV carries ``authorship_probability``;
+  - a threshold sweep on ``deviation_score``: false-flag rate on natural
+    attempts against catch rate on shadow attempts, at every 0.01 cut-off,
+    with Original's action bands (validation/study/current_operating_point.json)
+    marked;
   - the INCONCLUSIVE rate, overall and per label;
-  - the same numbers broken down by baseline size and by word count;
+  - the same numbers broken down by baseline count and by word count;
   - each student's own natural-versus-shadow gap;
   - which ``f_`` feature columns separate natural from shadow (exploratory);
   - a small-sample caveat computed from the data, at the top of the report.
@@ -55,24 +58,33 @@ from validation.study_contract import (  # noqa: E402
     CONTRACT_VERSION,
     LABEL_NATURAL,
     LABEL_SHADOW,
-    STATUS_FLAGGED,
+    SCORE_COLUMN,
+    SCORE_DIRECTION,
+    SCORE_MAX,
+    SCORE_MIN,
     StudyData,
     StudyRow,
     load_study_csv,
 )
 
-SCHEMA = "study-eval-v1"
+SCHEMA = "study-eval-v2"
 DEFAULT_SEED = 20261013
 DEFAULT_BOOTSTRAP = 2000
 DEFAULT_PERMUTATIONS = 1000
 DEFAULT_CAP = 0.05
 CURRENT_OPERATING_POINT = _ROOT / "validation" / "study" / "current_operating_point.json"
 
-# Flag rule everywhere in this module: an attempt is flagged when its
-# consistency score is BELOW the cut-off t. t = 0 flags nothing, t = 101 flags
-# every score. Collections stores whole-number scores, so whole points are
-# the finest cut-offs that can differ.
-THRESHOLD_GRID: tuple[int, ...] = tuple(range(0, 102))
+# Flag rule everywhere in this module, from the contract's SCORE_DIRECTION
+# (higher deviation_score = less consistent): an attempt is flagged when its
+# deviation_score is AT OR ABOVE the cut-off t, the [lower, upper) convention
+# of ACTION_THRESHOLDS. t = 0 flags every score; FLAG_NOTHING (above the score
+# range) flags none. The grid steps by 0.01, the precision the action bands
+# are written in.
+FLAG_NOTHING = round(SCORE_MAX + 0.01, 2)
+THRESHOLD_GRID: tuple[float, ...] = tuple(
+    round(SCORE_MIN + i / 100, 2) for i in range(0, round((FLAG_NOTHING - SCORE_MIN) * 100) + 1)
+)
+FLAG_RULE_TEXT = f"flagged when {SCORE_COLUMN} >= cut-off"
 
 # Baseline bins follow MODEL_CARD's minimum-baseline table (<3 insufficient,
 # 3-4 reduced confidence, >=5 full range); word bins put the 300-word
@@ -115,21 +127,29 @@ def _rate(k: int, n: int) -> dict:
     return {"k": k, "n": n, "rate": _r(k / n), "wilson95": [_r(lo), _r(hi)]}
 
 
-def auc_lower_is_shadow(natural: np.ndarray, shadow: np.ndarray) -> float | None:
-    """P(a shadow attempt scores LOWER consistency than a natural one), ties
-    counted half. 1.0 = perfect separation, 0.5 = chance."""
+def auc_shadow_less_consistent(natural: np.ndarray, shadow: np.ndarray) -> float | None:
+    """P(a shadow attempt reads LESS consistent, i.e. has a higher
+    deviation_score, than a natural one), ties counted half. 1.0 = perfect
+    separation, 0.5 = chance."""
     n_n, n_s = len(natural), len(shadow)
     if n_n == 0 or n_s == 0:
         return None
     from scipy.stats import rankdata
 
     ranks = rankdata(np.concatenate([natural, shadow]))
-    r_nat = float(ranks[:n_n].sum())
-    return (r_nat - n_n * (n_n + 1) / 2.0) / (n_n * n_s)
+    r_sh = float(ranks[n_n:].sum())
+    return (r_sh - n_s * (n_s + 1) / 2.0) / (n_n * n_s)
 
 
 def _flag_counts(scores: np.ndarray, t: float) -> int:
-    return int(np.count_nonzero(scores < t))
+    return int(np.count_nonzero(scores >= t))
+
+
+def collections_score(authorship_probability: float) -> int:
+    """The live Collections score: Math.round(prob * 100) clamped to 0-100
+    (demo/bluebook/Exam.jsx bbScoreWithOriginal). JavaScript rounds halves up;
+    Python's round() would not."""
+    return max(0, min(100, math.floor(authorship_probability * 100 + 0.5)))
 
 
 # ── the evaluation ────────────────────────────────────────────────────────────
@@ -137,7 +157,12 @@ def _flag_counts(scores: np.ndarray, t: float) -> int:
 
 @dataclasses.dataclass(frozen=True)
 class EvalSettings:
-    strict_threshold: float
+    # The live Collections cut-off (score below it is FLAGGED), used only to
+    # check the exported verdict when authorship_probability is present.
+    live_flag_if_score_below: float
+    # Original's action bands as deviation_score cut-offs, marked on the
+    # sweep: {action: lower bound}, from the current operating point.
+    reference_cutoffs: dict[str, float] = dataclasses.field(default_factory=dict)
     cap: float = DEFAULT_CAP
     n_bootstrap: int = DEFAULT_BOOTSTRAP
     n_permutations: int = DEFAULT_PERMUTATIONS
@@ -148,25 +173,39 @@ class EvalSettings:
 def looks_fictional(data: StudyData) -> bool:
     """Synthetic fixtures name every writer synth-NN. A report built from
     them must say it is fictional (NORTH_STAR rule 2)."""
-    return all(r.writer_student_id.startswith("synth-") for r in data.rows)
+    return all(r.student_id.startswith("synth-") for r in data.rows)
 
 
 def load_current_operating_point(path: Path = CURRENT_OPERATING_POINT) -> dict:
     return json.loads(Path(path).read_text())
 
 
-def _conclusive(rows, label):
-    return np.array([r.score for r in rows if r.label == label and r.conclusive], dtype=float)
+def reference_cutoffs(current: dict) -> dict[str, float]:
+    """Each action band above no_action, as the deviation_score at which it
+    starts (ACTION_THRESHOLDS are [lower, upper) on deviation_score)."""
+    bands = current.get("action_thresholds", {})
+    return {name: float(lo) for name, (lo, _hi) in bands.items() if lo > SCORE_MIN}
 
 
-def _clusters(rows: tuple[StudyRow, ...]) -> list[tuple[np.ndarray, np.ndarray]]:
+def _conclusive(rows, label, value=lambda r: r.deviation_score):
+    return np.array([value(r) for r in rows if r.label == label and r.conclusive], dtype=float)
+
+
+def _verdict_flag(r: StudyRow) -> float:
+    return 1.0 if r.verdict_flagged else 0.0
+
+
+def _clusters(
+    rows: tuple[StudyRow, ...], value=lambda r: r.deviation_score
+) -> list[tuple[np.ndarray, np.ndarray]]:
     """Per claimed student (the baseline both kinds of row are scored
-    against): (natural scores, shadow scores), conclusive rows only."""
+    against): (natural values, shadow values), conclusive rows only."""
     by: dict[str, list[StudyRow]] = {}
     for r in rows:
         by.setdefault(r.claimed_student_id, []).append(r)
     return [
-        (_conclusive(by[k], LABEL_NATURAL), _conclusive(by[k], LABEL_SHADOW)) for k in sorted(by)
+        (_conclusive(by[k], LABEL_NATURAL, value), _conclusive(by[k], LABEL_SHADOW, value))
+        for k in sorted(by)
     ]
 
 
@@ -195,10 +234,11 @@ def _cluster_bootstrap(clusters, stat, n_boot: int, rng) -> dict:
 
 
 def _roc(natural: np.ndarray, shadow: np.ndarray) -> list[dict]:
+    """From flag-nothing to flag-everything: the cut-off starts above every
+    score and steps down through each observed score."""
     if len(natural) == 0 or len(shadow) == 0:
         return []
-    cuts = sorted(set(np.concatenate([natural, shadow]).tolist()))
-    cuts = cuts + [cuts[-1] + 1.0]
+    cuts = [FLAG_NOTHING] + sorted(set(np.concatenate([natural, shadow]).tolist()), reverse=True)
     pts = []
     for t in cuts:
         pts.append(
@@ -224,12 +264,33 @@ def _sweep(natural: np.ndarray, shadow: np.ndarray) -> list[dict]:
     return out
 
 
-def _confusion(rows, t: float) -> dict:
+def _verdict_check(rows, live_cutoff: float) -> dict:
+    """The exported verdict against the live Collections rule (FLAGGED when
+    round(100 x authorship_probability) < cut-off), on the conclusive rows
+    that carry authorship_probability. A disagreement means the export
+    derived its verdict some other way, or from another baseline."""
+    checked = [r for r in rows if r.conclusive and r.authorship_probability is not None]
+    disagree = [
+        r.submission_id
+        for r in checked
+        if r.verdict_flagged != (collections_score(r.authorship_probability) < live_cutoff)
+    ]
+    return {
+        "live_rule": f"FLAGGED when round(100 x authorship_probability) < {live_cutoff:g}",
+        "rows_checked": len(checked),
+        "disagreements": len(disagree),
+        "disagreeing_submissions": disagree[:20],
+    }
+
+
+def _confusion(rows, live_cutoff: float) -> dict:
+    """The matrix the exported verdict gives: what the live Collections rule
+    did on these attempts, scored against the claimed student's baseline."""
     out = {}
     for label in (LABEL_NATURAL, LABEL_SHADOW):
         rs = [r for r in rows if r.label == label]
-        flagged = sum(1 for r in rs if r.conclusive and r.score < t)
-        not_flagged = sum(1 for r in rs if r.conclusive and r.score >= t)
+        flagged = sum(1 for r in rs if r.conclusive and r.verdict_flagged)
+        not_flagged = sum(1 for r in rs if r.conclusive and not r.verdict_flagged)
         out[label] = {
             "total": len(rs),
             "flagged": flagged,
@@ -238,12 +299,8 @@ def _confusion(rows, t: float) -> dict:
             "unscored": sum(1 for r in rs if r.unscored),
         }
     nat, sh = out[LABEL_NATURAL], out[LABEL_SHADOW]
-    mismatched = sum(
-        1 for r in rows if r.conclusive and (r.status == STATUS_FLAGGED) != (r.score < t)
-    )
     return {
-        "threshold": t,
-        "rule": f"flagged when consistency_score < {t:g}",
+        "rule": "flagged when the exported verdict is FLAGGED (the live Collections rule)",
         "matrix": out,
         "false_flag_rate_conclusive": _rate(nat["flagged"], nat["flagged"] + nat["not_flagged"]),
         "catch_rate_conclusive": _rate(sh["flagged"], sh["flagged"] + sh["not_flagged"]),
@@ -251,7 +308,7 @@ def _confusion(rows, t: float) -> dict:
         # inconclusive attempt counts, as never flagged.
         "false_flag_rate_all_attempts": _rate(nat["flagged"], nat["total"] - nat["unscored"]),
         "catch_rate_all_attempts": _rate(sh["flagged"], sh["total"] - sh["unscored"]),
-        "stored_status_disagrees_with_rule": mismatched,
+        "verdict_check": _verdict_check(rows, live_cutoff),
     }
 
 
@@ -275,16 +332,18 @@ def _bin_of(value: int, bins) -> str:
     return bins[-1][0]
 
 
-def _breakdown(rows, key, bins, t: float) -> list[dict]:
+def _breakdown(rows, key, bins) -> list[dict]:
     out = []
     for name, lo, hi in bins:
         rs = [r for r in rows if _bin_of(key(r), bins) == name]
         nat = _conclusive(rs, LABEL_NATURAL)
         sh = _conclusive(rs, LABEL_SHADOW)
+        nat_flag = _conclusive(rs, LABEL_NATURAL, _verdict_flag)
+        sh_flag = _conclusive(rs, LABEL_SHADOW, _verdict_flag)
         auc = None
         auc_note = None
         if len(nat) >= MIN_PER_CLASS_FOR_AUC and len(sh) >= MIN_PER_CLASS_FOR_AUC:
-            auc = _r(auc_lower_is_shadow(nat, sh))
+            auc = _r(auc_shadow_less_consistent(nat, sh))
         else:
             auc_note = f"needs >= {MIN_PER_CLASS_FOR_AUC} conclusive attempts of each kind"
         n_nat_all = sum(1 for r in rs if r.label == LABEL_NATURAL)
@@ -298,8 +357,8 @@ def _breakdown(rows, key, bins, t: float) -> list[dict]:
                 "inconclusive": _rate(
                     sum(1 for r in rs if r.inconclusive), sum(1 for r in rs if not r.unscored)
                 ),
-                "false_flags_at_strict": _rate(_flag_counts(nat, t), len(nat)),
-                "catches_at_strict": _rate(_flag_counts(sh, t), len(sh)),
+                "false_flags_at_verdict": _rate(int(nat_flag.sum()), len(nat_flag)),
+                "catches_at_verdict": _rate(int(sh_flag.sum()), len(sh_flag)),
                 "auc": auc,
                 "auc_note": auc_note,
             }
@@ -316,7 +375,7 @@ def _sign_test_p(pos: int, neg: int) -> float | None:
     return float(binomtest(pos, n, 0.5).pvalue)
 
 
-def _per_student(rows, t: float, rng, n_boot: int) -> dict:
+def _per_student(rows, rng, n_boot: int) -> dict:
     by: dict[str, list[StudyRow]] = {}
     for r in rows:
         by.setdefault(r.claimed_student_id, []).append(r)
@@ -327,7 +386,7 @@ def _per_student(rows, t: float, rng, n_boot: int) -> dict:
         nat = _conclusive(rs, LABEL_NATURAL)
         sh = _conclusive(rs, LABEL_SHADOW)
         both = len(nat) > 0 and len(sh) > 0
-        gap = float(nat.mean() - sh.mean()) if both else None
+        gap = float(sh.mean() - nat.mean()) if both else None
         if gap is not None:
             gaps.append(gap)
         students.append(
@@ -339,10 +398,12 @@ def _per_student(rows, t: float, rng, n_boot: int) -> dict:
                 "natural_mean": _r(nat.mean()) if len(nat) else None,
                 "shadow_mean": _r(sh.mean()) if len(sh) else None,
                 "gap": _r(gap),
-                "separable": bool(both and sh.max() < nat.min()),
-                "natural_flagged_at_strict": _flag_counts(nat, t),
-                "shadow_caught_at_strict": _flag_counts(sh, t),
-                "baseline_size": max(r.baseline_size for r in rs),
+                "separable": bool(both and sh.min() > nat.max()),
+                "natural_flagged_at_verdict": int(
+                    _conclusive(rs, LABEL_NATURAL, _verdict_flag).sum()
+                ),
+                "shadow_caught_at_verdict": int(_conclusive(rs, LABEL_SHADOW, _verdict_flag).sum()),
+                "baseline_count": max(r.baseline_count for r in rs),
             }
         )
     pos = sum(1 for g in gaps if g > 0)
@@ -367,8 +428,8 @@ def _per_student(rows, t: float, rng, n_boot: int) -> dict:
             "median_gap_ci95": median_ci,
             "sign_test_p": _r(_sign_test_p(pos, neg), 6),
             "note": (
-                "gap = mean natural score minus mean shadow score against the same "
-                "baseline; positive means the imitation read as less consistent"
+                f"gap = mean shadow {SCORE_COLUMN} minus mean natural {SCORE_COLUMN} against "
+                "the same baseline; positive means the imitation read as less consistent"
             ),
         },
     }
@@ -508,7 +569,7 @@ def _min_n_demonstrable(cap: float) -> int:
 def _small_sample(data: StudyData, confusion: dict, cap: float) -> dict:
     rows = data.rows
     claimed = {r.claimed_student_id for r in rows}
-    writers = {r.writer_student_id for r in rows}
+    writers = {r.student_id for r in rows}
     nat = confusion["matrix"][LABEL_NATURAL]
     n_nat = nat["flagged"] + nat["not_flagged"]
     ff = nat["flagged"]
@@ -528,8 +589,8 @@ def _small_sample(data: StudyData, confusion: dict, cap: float) -> dict:
         f"To show a false-flag rate at or below {cap:.0%} with 95% confidence needs at "
         f"least {min_n} conclusive natural attempts, from as many different students, with "
         f"none flagged (gate G-S1 counts a student's repeat attempts once). This study has "
-        f"{n_nat}; against the {cap:.0%} bar its observed false-flag count is "
-        f"'{decid}' (validation.power.bar_decidable).",
+        f"{n_nat}; against the {cap:.0%} bar the live verdict's observed false-flag count "
+        f"is '{decid}' (validation.power.bar_decidable).",
         "Every threshold read off this report was chosen on these same rows, so it "
         "flatters itself. scripts/propose_thresholds.py re-checks its choice "
         "leave-one-student-out; a fresh cohort is still needed before anything is "
@@ -542,7 +603,7 @@ def _small_sample(data: StudyData, confusion: dict, cap: float) -> dict:
         "writers": len(writers),
         "attempts": len(rows),
         "conclusive_natural": n_nat,
-        "natural_false_flags_at_strict": ff,
+        "natural_false_flags_at_verdict": ff,
         "min_natural_attempts_to_demonstrate_cap": min_n,
         "false_flag_bar_decidable": decid,
         "lines": lines,
@@ -552,32 +613,37 @@ def _small_sample(data: StudyData, confusion: dict, cap: float) -> dict:
     return out
 
 
+def _rate_of_flags(nat, sh, label):
+    v = nat if label == LABEL_NATURAL else sh
+    return float(v.mean()) if len(v) else None
+
+
 def evaluate(data: StudyData, settings: EvalSettings) -> dict:
     rows = data.rows
-    t = settings.strict_threshold
     natural = _conclusive(rows, LABEL_NATURAL)
     shadow = _conclusive(rows, LABEL_SHADOW)
     clusters = _clusters(rows)
+    flag_clusters = _clusters(rows, _verdict_flag)
     rng = np.random.default_rng(settings.seed)
 
-    auc = auc_lower_is_shadow(natural, shadow)
-    auc_boot = _cluster_bootstrap(clusters, auc_lower_is_shadow, settings.n_bootstrap, rng)
+    auc = auc_shadow_less_consistent(natural, shadow)
+    auc_boot = _cluster_bootstrap(clusters, auc_shadow_less_consistent, settings.n_bootstrap, rng)
 
-    def _ffr(nat, sh):
-        return _flag_counts(nat, t) / len(nat) if len(nat) else None
-
-    def _catch(nat, sh):
-        return _flag_counts(sh, t) / len(sh) if len(sh) else None
-
-    confusion = _confusion(rows, t)
+    confusion = _confusion(rows, settings.live_flag_if_score_below)
     confusion["false_flag_rate_conclusive"]["student_bootstrap95"] = _cluster_bootstrap(
-        clusters, _ffr, settings.n_bootstrap, rng
+        flag_clusters,
+        lambda nat, sh: _rate_of_flags(nat, sh, LABEL_NATURAL),
+        settings.n_bootstrap,
+        rng,
     )["ci95"]
     confusion["catch_rate_conclusive"]["student_bootstrap95"] = _cluster_bootstrap(
-        clusters, _catch, settings.n_bootstrap, rng
+        flag_clusters,
+        lambda nat, sh: _rate_of_flags(nat, sh, LABEL_SHADOW),
+        settings.n_bootstrap,
+        rng,
     )["ci95"]
 
-    per_student = _per_student(rows, t, rng, settings.n_bootstrap)
+    per_student = _per_student(rows, rng, settings.n_bootstrap)
 
     return {
         "schema": SCHEMA,
@@ -586,6 +652,13 @@ def evaluate(data: StudyData, settings: EvalSettings) -> dict:
             "aliases_applied": data.aliases_applied,
             "warnings": list(data.warnings),
             "feature_columns": len(data.feature_codes),
+            "unlabelled_rows_left_out": data.unlabelled,
+        },
+        "score": {
+            "column": SCORE_COLUMN,
+            "direction": SCORE_DIRECTION,
+            "range": [SCORE_MIN, SCORE_MAX],
+            "flag_rule": FLAG_RULE_TEXT,
         },
         "input": {"name": data.source_name, "sha256": data.sha256},
         "settings": dataclasses.asdict(settings),
@@ -597,32 +670,36 @@ def evaluate(data: StudyData, settings: EvalSettings) -> dict:
             "conclusive_natural": int(len(natural)),
             "conclusive_shadow": int(len(shadow)),
             "claimed_students": len({r.claimed_student_id for r in rows}),
-            "writers": len({r.writer_student_id for r in rows}),
+            "writers": len({r.student_id for r in rows}),
         },
         "auc": {
             "value": _r(auc),
-            "meaning": "probability a shadow attempt scores lower consistency than a natural one",
+            "meaning": (
+                f"probability a shadow attempt has a higher {SCORE_COLUMN} (reads less "
+                "consistent with the claimed student) than a natural one"
+            ),
             **auc_boot,
             "method": "percentile bootstrap resampling claimed students with replacement",
         },
         "roc": _roc(natural, shadow),
-        "confusion_at_strict": confusion,
+        "confusion_at_verdict": confusion,
         "inconclusive": _inconclusive(rows),
         "sweep": _sweep(natural, shadow),
-        "by_baseline_size": _breakdown(rows, lambda r: r.baseline_size, BASELINE_BINS, t),
-        "by_word_count": _breakdown(rows, lambda r: r.word_count, WORD_BINS, t),
+        "by_baseline_count": _breakdown(rows, lambda r: r.baseline_count, BASELINE_BINS),
+        "by_word_count": _breakdown(rows, lambda r: r.word_count, WORD_BINS),
         "per_student": per_student,
         "feature_importance": _feature_importance(data, settings.n_permutations, settings.seed),
         "rows": [
             {
                 "submission_id": r.submission_id,
                 "claimed_student_id": r.claimed_student_id,
-                "writer_student_id": r.writer_student_id,
+                "student_id": r.student_id,
                 "label": r.label,
-                "score": r.score,
+                "verdict": r.verdict,
+                SCORE_COLUMN: r.deviation_score,
                 "conclusive": r.conclusive,
                 "inconclusive": r.inconclusive,
-                "baseline_size": r.baseline_size,
+                "baseline_count": r.baseline_count,
                 "word_count": r.word_count,
             }
             for r in rows
@@ -651,10 +728,11 @@ def _experiment(report: dict, created_at: str) -> dict:
         windowing={"source": "sealed submissions as-is"},
         aggregation={
             "unit": "claimed student (bootstrap and permutation clusters)",
-            "flag_rule": "consistency_score < threshold",
+            "flag_rule": FLAG_RULE_TEXT,
+            "live_rule": "exported verdict",
         },
         thresholds={
-            "strict_threshold": report["settings"]["strict_threshold"],
+            "reference_cutoffs": report["settings"]["reference_cutoffs"],
             "false_flag_cap": report["settings"]["cap"],
         },
     )
@@ -689,9 +767,13 @@ def _na(x) -> str:
     return "n/a" if x is None else str(x)
 
 
+def _cut(t: float) -> str:
+    return f"{t:.2f}"
+
+
 def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
     s = report["settings"]
-    c = report["confusion_at_strict"]
+    c = report["confusion_at_verdict"]
     m = c["matrix"]
     out = [
         "# Natural/shadow study: evaluation",
@@ -709,6 +791,10 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         f"Seed {s['seed']}, {s['n_bootstrap']} bootstrap resamples, "
         f"{s['n_permutations']} permutations.",
         "",
+        f"Score: `{report['score']['column']}`, {report['score']['range'][0]:g}-"
+        f"{report['score']['range'][1]:g}; higher means LESS consistent with the claimed "
+        f"student's baseline. Every cut-off below is {report['score']['flag_rule']}.",
+        "",
         "## Read this first: small sample",
         "",
     ]
@@ -716,6 +802,12 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
     if report["contract"]["warnings"]:
         out += ["", "Contract warnings:"]
         out += [f"- {w}" for w in report["contract"]["warnings"]]
+    if report["contract"].get("unlabelled_rows_left_out"):
+        out += [
+            "",
+            f"{report['contract']['unlabelled_rows_left_out']} exported row(s) had no study label "
+            "and are in no number below.",
+        ]
     cn = report["counts"]
     out += [
         "",
@@ -744,7 +836,10 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         out += ["", f"![ROC curve]({chart_files['roc']})"]
     out += [
         "",
-        f"## Confusion matrix at the current strict threshold ({c['rule']})",
+        "## Confusion matrix at the live rule (the exported verdict)",
+        "",
+        f"Read from the `verdict` column: {c['rule']}, scored against the claimed student's "
+        "baseline. It is not a cut-off on the score above.",
         "",
         "| | flagged | not flagged | inconclusive | unscored |",
         "|---|---:|---:|---:|---:|",
@@ -763,10 +858,22 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         f"- Over all attempts (an inconclusive or unscored attempt is never flagged): false flags "
         f"{_rate_text(c['false_flag_rate_all_attempts'])}, catches {_rate_text(c['catch_rate_all_attempts'])}.",
     ]
-    if c["stored_status_disagrees_with_rule"]:
+    vc = c["verdict_check"]
+    if vc["rows_checked"]:
         out.append(
-            f"- {c['stored_status_disagrees_with_rule']} conclusive row(s) carry a stored status that "
-            "disagrees with this rule; every number here recomputes the flag from the score."
+            f"- Verdict checked against the live rule ({vc['live_rule']}) on {vc['rows_checked']} "
+            f"row(s) carrying `authorship_probability`: {vc['disagreements']} disagree"
+            + (
+                "; the export did not derive its verdict the way Collections does, so this matrix "
+                "is not the live rule's."
+                if vc["disagreements"]
+                else "."
+            )
+        )
+    else:
+        out.append(
+            "- The CSV carries no `authorship_probability`, so the verdict could not be checked "
+            "against the live rule; this matrix is the export's verdict as given."
         )
     inc = report["inconclusive"]
     out += [
@@ -787,18 +894,21 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         "",
         "## Threshold sweep",
         "",
-        "Flag when the score is below the cut-off. Rates are over conclusive attempts.",
+        f"Flag when `{SCORE_COLUMN}` is at or above the cut-off. Rates are over conclusive "
+        "attempts. Rows marked with an action are where Original's action bands start "
+        "(`ACTION_THRESHOLDS`); every 0.01 step is in the JSON.",
         "",
         "| cut-off | false flags (natural) | caught (shadow) |",
         "|---:|---|---|",
     ]
-    strict = s["strict_threshold"]
+    refs = {round(v, 2): k for k, v in s["reference_cutoffs"].items()}
     for row in report["sweep"]:
         t = row["threshold"]
-        if t % 10 == 0 or t == strict:
-            mark = " (current)" if t == strict else ""
+        if round(t * 100) % 10 == 0 or t in refs:
+            mark = f" ({refs[t]})" if t in refs else ""
             out.append(
-                f"| {t}{mark} | {_rate_text(row['false_flags'])} | {_rate_text(row['catches'])} |"
+                f"| {_cut(t)}{mark} | {_rate_text(row['false_flags'])} | "
+                f"{_rate_text(row['catches'])} |"
             )
     if "sweep" in chart_files:
         out += ["", f"![Threshold sweep]({chart_files['sweep']})"]
@@ -810,19 +920,19 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
             "",
             f"## By {title}",
             "",
-            "| bin | natural | shadow | inconclusive | false flags at strict | caught at strict | AUC |",
+            "| bin | natural | shadow | inconclusive | false flags (verdict) | caught (verdict) | AUC |",
             "|---|---:|---:|---|---|---|---|",
         ]
         for b in rows:
             auc = f"{b['auc']:.3f}" if b["auc"] is not None else f"n/a ({b['auc_note']})"
             lines.append(
                 f"| {b['bin']} | {b['natural_attempts']} | {b['shadow_attempts']} | "
-                f"{_rate_text(b['inconclusive'])} | {_rate_text(b['false_flags_at_strict'])} | "
-                f"{_rate_text(b['catches_at_strict'])} | {auc} |"
+                f"{_rate_text(b['inconclusive'])} | {_rate_text(b['false_flags_at_verdict'])} | "
+                f"{_rate_text(b['catches_at_verdict'])} | {auc} |"
             )
         return lines
 
-    out += _bd("baseline size (approved reference samples)", report["by_baseline_size"])
+    out += _bd("baseline count (approved reference samples)", report["by_baseline_count"])
     out += _bd("word count", report["by_word_count"])
 
     ps = report["per_student"]
@@ -833,7 +943,7 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         "",
         f"{sm['note']}. Students with both kinds: {sm['students_with_both_kinds']}; positive gap "
         f"{sm['positive_gap']}, negative {sm['negative_gap']}, zero {sm['zero_gap']}; fully "
-        f"separable {sm['separable']}. Median gap {sm['median_gap']} points, bootstrap 95% "
+        f"separable {sm['separable']}. Median gap {sm['median_gap']}, bootstrap 95% "
         f"{_ci_text(sm['median_gap_ci95'])}; sign test p {_p_text(sm['sign_test_p'])}.",
         "",
         "| student | natural n | shadow n | natural mean | shadow mean | gap | separable | baseline |",
@@ -843,7 +953,7 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         out.append(
             f"| {st['claimed_student_id']} | {st['natural_n']} | {st['shadow_n']} | "
             f"{_na(st['natural_mean'])} | {_na(st['shadow_mean'])} | {_na(st['gap'])} | "
-            f"{'yes' if st['separable'] else 'no'} | {st['baseline_size']} |"
+            f"{'yes' if st['separable'] else 'no'} | {st['baseline_count']} |"
         )
     if "gaps" in chart_files:
         out += ["", f"![Per-student gap]({chart_files['gaps']})"]
@@ -923,8 +1033,21 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
     chart_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.family": "DejaVu Sans", "figure.facecolor": _SURFACE})
     files: dict[str, str] = {}
-    strict = report["settings"]["strict_threshold"]
+    refs = report["settings"]["reference_cutoffs"]
     cap = report["settings"]["cap"]
+
+    def _ref_lines(ax, y_text: float) -> None:
+        for name, v in sorted(refs.items(), key=lambda kv: kv[1]):
+            ax.axvline(v, color=_NEUTRAL, linewidth=1, linestyle=":")
+            ax.text(
+                v + 0.006,
+                y_text,
+                name.replace("_", " "),
+                color=_TEXT_2,
+                fontsize=7,
+                rotation=90,
+                va="top",
+            )
 
     def _save(fig, key, name):
         fig.tight_layout()
@@ -935,19 +1058,21 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
     # ROC
     if report["roc"]:
         fig, ax = plt.subplots(figsize=(5.6, 5.0))
-        xs = [0.0] + [p["false_flag_rate"] for p in report["roc"]]
-        ys = [0.0] + [p["catch_rate"] for p in report["roc"]]
+        xs = [p["false_flag_rate"] for p in report["roc"]]
+        ys = [p["catch_rate"] for p in report["roc"]]
         ax.plot([0, 1], [0, 1], color=_NEUTRAL, linewidth=1, linestyle="--")
         ax.text(0.62, 0.55, "chance", color=_TEXT_2, fontsize=8, rotation=38)
         # Straight segments, not a staircase: tied scores move both rates at
         # once, and the area under these segments is the reported AUC.
         ax.plot(xs, ys, color=_NATURAL, linewidth=2)
-        cm = report["confusion_at_strict"]
+        cm = report["confusion_at_verdict"]
         fx, fy = cm["false_flag_rate_conclusive"]["rate"], cm["catch_rate_conclusive"]["rate"]
         if fx is not None and fy is not None:
-            ax.scatter([fx], [fy], s=64, color=_NATURAL, edgecolor=_SURFACE, linewidth=2, zorder=3)
+            # The live verdict is a point, not on the curve: it reads another
+            # score (the Collections score), so it can sit off the curve.
+            ax.scatter([fx], [fy], s=64, color=_SHADOW, edgecolor=_SURFACE, linewidth=2, zorder=3)
             ax.annotate(
-                f"current rule (< {strict:g})",
+                "live verdict",
                 (fx, fy),
                 xytext=(8, -14),
                 textcoords="offset points",
@@ -962,7 +1087,7 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
         )
         _style(
             ax,
-            f"Natural vs shadow ROC  ({sub})",
+            f"Natural vs shadow ROC on {SCORE_COLUMN}  ({sub})",
             "False-flag rate on natural attempts",
             "Catch rate on shadow attempts",
         )
@@ -994,23 +1119,24 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
             label="Caught (shadow)",
         )
     ax.axhline(cap, color=_NEUTRAL, linewidth=1, linestyle="--")
-    ax.text(1, cap + 0.015, f"{cap:.0%} false-flag cap", color=_TEXT_2, fontsize=8)
-    ax.axvline(strict, color=_NEUTRAL, linewidth=1, linestyle=":")
-    ax.text(strict + 1, 0.92, f"current cut-off ({strict:g})", color=_TEXT_2, fontsize=8)
+    ax.text(0.01, cap + 0.015, f"{cap:.0%} false-flag cap", color=_TEXT_2, fontsize=8)
+    _ref_lines(ax, 0.98)
     _style(
         ax,
-        "Threshold sweep: flag when score is below the cut-off",
-        "Cut-off (consistency score)",
+        f"Threshold sweep: flag when {SCORE_COLUMN} is at or above the cut-off",
+        f"Cut-off ({SCORE_COLUMN})",
         "Share of conclusive attempts flagged",
     )
     ax.set_ylim(-0.02, 1.02)
-    ax.set_xlim(0, 101)
-    ax.legend(loc="center left", frameon=False, fontsize=8, labelcolor=_TEXT)
+    ax.set_xlim(SCORE_MIN, FLAG_NOTHING)
+    ax.legend(loc="center right", frameon=False, fontsize=8, labelcolor=_TEXT)
     _save(fig, "sweep", "threshold_sweep.png")
 
     # Score distributions (strip plot, deterministic jitter)
-    nat = [r["score"] for r in report["rows"] if r["conclusive"] and r["label"] == LABEL_NATURAL]
-    sh = [r["score"] for r in report["rows"] if r["conclusive"] and r["label"] == LABEL_SHADOW]
+    nat = [
+        r[SCORE_COLUMN] for r in report["rows"] if r["conclusive"] and r["label"] == LABEL_NATURAL
+    ]
+    sh = [r[SCORE_COLUMN] for r in report["rows"] if r["conclusive"] and r["label"] == LABEL_SHADOW]
     if nat or sh:
         fig, ax = plt.subplots(figsize=(7.2, 3.2))
         jit = np.random.default_rng(report["settings"]["seed"])
@@ -1026,13 +1152,16 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
                     label=name,
                     zorder=3,
                 )
-        ax.axvline(strict, color=_NEUTRAL, linewidth=1, linestyle=":")
+        _ref_lines(ax, 1.55)
         ax.set_yticks([0, 1])
         ax.set_yticklabels(["Shadow", "Natural"])
         _style(
-            ax, "Consistency scores by attempt kind (conclusive attempts)", "Consistency score", ""
+            ax,
+            f"{SCORE_COLUMN} by attempt kind (conclusive attempts; higher = less consistent)",
+            SCORE_COLUMN,
+            "",
         )
-        ax.set_xlim(-2, 102)
+        ax.set_xlim(SCORE_MIN - 0.02, SCORE_MAX + 0.02)
         ax.set_ylim(-0.6, 1.6)
         ax.legend(loc="lower left", frameon=False, fontsize=8, labelcolor=_TEXT, ncol=2)
         _save(fig, "distributions", "score_distributions.png")
@@ -1067,11 +1196,10 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
             label="Shadow mean",
             zorder=3,
         )
-        ax.axvline(strict, color=_NEUTRAL, linewidth=1, linestyle=":")
         ax.set_yticks(ys)
         ax.set_yticklabels([s["claimed_student_id"] for s in studs], fontsize=7)
-        _style(ax, "Each student's natural vs shadow mean (same baseline)", "Consistency score", "")
-        ax.set_xlim(-2, 102)
+        _style(ax, "Each student's natural vs shadow mean (same baseline)", SCORE_COLUMN, "")
+        ax.set_xlim(SCORE_MIN - 0.02, SCORE_MAX + 0.02)
         ax.legend(
             loc="upper center",
             bbox_to_anchor=(0.5, -0.1),
@@ -1108,7 +1236,6 @@ def run(
     csv_path: str | Path,
     out_dir: str | Path,
     *,
-    strict_threshold: float | None = None,
     cap: float = DEFAULT_CAP,
     n_bootstrap: int = DEFAULT_BOOTSTRAP,
     n_permutations: int = DEFAULT_PERMUTATIONS,
@@ -1122,10 +1249,10 @@ def run(
     data = load_study_csv(csv_path)
     if fictional is None:
         fictional = looks_fictional(data)
-    if strict_threshold is None:
-        strict_threshold = float(load_current_operating_point()["flag_rule"]["flag_if_score_below"])
+    current = load_current_operating_point()
     settings = EvalSettings(
-        strict_threshold=float(strict_threshold),
+        live_flag_if_score_below=float(current["flag_rule"]["flag_if_score_below"]),
+        reference_cutoffs=reference_cutoffs(current),
         cap=float(cap),
         n_bootstrap=int(n_bootstrap),
         n_permutations=int(n_permutations),
@@ -1151,15 +1278,11 @@ def run(
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Evaluate a natural/shadow study CSV.")
-    p.add_argument("--csv", required=True, help="study CSV (validation/study_contract.py)")
     p.add_argument(
-        "--out-dir", default="validation/study/out", help="report directory (git-ignored)"
+        "--csv", required=True, help=f"study CSV ({CONTRACT_VERSION}, validation/study_contract.py)"
     )
     p.add_argument(
-        "--strict-threshold",
-        type=float,
-        default=None,
-        help="flag cut-off; default: the live rule in validation/study/current_operating_point.json",
+        "--out-dir", default="validation/study/out", help="report directory (git-ignored)"
     )
     p.add_argument(
         "--cap",
@@ -1187,7 +1310,6 @@ def main(argv=None) -> int:
         report = run(
             args.csv,
             args.out_dir,
-            strict_threshold=args.strict_threshold,
             cap=args.cap,
             n_bootstrap=args.bootstrap,
             n_permutations=args.permutations,
@@ -1200,12 +1322,12 @@ def main(argv=None) -> int:
         print(str(e), file=sys.stderr)
         return 2
     a = report["auc"]
-    c = report["confusion_at_strict"]
+    ff = report["confusion_at_verdict"]["false_flag_rate_conclusive"]
+    ca = report["confusion_at_verdict"]["catch_rate_conclusive"]
     print(f"wrote {Path(args.out_dir) / 'study_eval.md'}")
     print(
-        f"AUC {a['value']} (student bootstrap 95% {a['ci95']}); "
-        f"false flags {c['false_flag_rate_conclusive']['k']}/{c['false_flag_rate_conclusive']['n']}, "
-        f"caught {c['catch_rate_conclusive']['k']}/{c['catch_rate_conclusive']['n']} at < {c['threshold']:g}"
+        f"AUC on {SCORE_COLUMN} {a['value']} (student bootstrap 95% {a['ci95']}); live verdict: "
+        f"false flags {ff['k']}/{ff['n']}, caught {ca['k']}/{ca['n']}"
     )
     print(
         "Small sample: read the intervals, not the point estimates (see the report's first section)."

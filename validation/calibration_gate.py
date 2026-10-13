@@ -2296,7 +2296,10 @@ def _compute_termsim_gates() -> list[GateResult]:
 # ── G-S1: natural/shadow study operating point ───────────────────────────────
 #
 # Reads a CANDIDATE operating point written by scripts/propose_thresholds.py
-# from a study CSV (docs/research/STUDY_PROTOCOL_2026-10.md). The candidate's
+# from a study CSV (docs/research/STUDY_PROTOCOL_2026-10.md, contract
+# study-csv-v2: the candidate flags when deviation_score is at or above its
+# cut-off). The gate itself reads counts and an AUC, never a score, so
+# it does not depend on the score's direction. The candidate's
 # own in-sample numbers are never judged: its threshold was chosen to meet the
 # false-flag cap on exactly those rows, so they pass by construction. The gate
 # reads only out-of-sample evidence: the proposal's leave-one-student-out
@@ -2323,9 +2326,10 @@ def _compute_termsim_gates() -> list[GateResult]:
 # Two more things keep a pass from meaning more than it does. A cut-off chosen
 # at any cap other than the pre-registered one is a deviation (a would-be pass
 # becomes uninformative; a fail stays a fail), so the cap cannot be swept until
-# a cohort passes. A candidate cut-off above every leave-one-student-out fold's
-# cut-off is judged by folds that flagged less than it does, so that would-be
-# pass is uninformative too. And only a fresh-cohort pass is adoption
+# a cohort passes. A candidate that flags more than every leave-one-student-out
+# fold's cut-off (on deviation_score, a cut-off below all of theirs) is judged
+# by folds that flagged less than it does, so that would-be pass is
+# uninformative too. And only a fresh-cohort pass is adoption
 # evidence; a leave-one-student-out pass says so in its value.
 
 _GS1_CAP = 0.05
@@ -2363,7 +2367,7 @@ def evaluate_g_s1_study_operating_point(
     natural_students: int | None = None,
     shadow_students: int | None = None,
     selection_cap: float = _GS1_SELECTION_CAP,
-    candidate_above_folds: bool = False,
+    candidate_flags_more_than_folds: bool = False,
 ) -> GateResult:
     if auc_ci95 is not None and len(auc_ci95) == 2 and auc_ci95[0] > auc_ci95[1]:
         raise ValueError(f"auc_ci95 is reversed: {list(auc_ci95)}")
@@ -2373,7 +2377,7 @@ def evaluate_g_s1_study_operating_point(
         "n_students": n_students,
         "cap": _GS1_CAP,
         "selection_cap": selection_cap,
-        "candidate_above_folds": candidate_above_folds,
+        "candidate_flags_more_than_folds": candidate_flags_more_than_folds,
         "min_students": _GS1_MIN_STUDENTS,
         "false_flags": {"k": oos_false_flags, "n": oos_natural, "students": natural_students},
         "catches": {"k": oos_caught, "n": oos_shadow, "students": shadow_students},
@@ -2441,8 +2445,8 @@ def evaluate_g_s1_study_operating_point(
         detail["reason"] = "selection cap deviates from the pre-registered one"
         return _result("uninformative", value + (
             f"; chosen at cap {selection_cap:g}, not the pre-registered {_GS1_SELECTION_CAP:g}"))
-    if candidate_above_folds and evidence == "leave_one_student_out":
-        detail["reason"] = "candidate cut-off above every leave-one-student-out cut-off"
+    if candidate_flags_more_than_folds and evidence == "leave_one_student_out":
+        detail["reason"] = "candidate flags more than every leave-one-student-out cut-off"
         return _result("uninformative", value + (
             "; the candidate flags more than any fold did, so the fold count understates it"))
     if n_students < _GS1_MIN_STUDENTS:
@@ -2477,7 +2481,10 @@ def _compute_g_s1_study_gate(path: str | os.PathLike | None = None) -> GateResul
     result = evaluate_g_s1_study_operating_point(**inputs)
     result.detail["candidate"] = {
         "path": str(candidate_path),
-        "flag_if_score_below": candidate.get("flag_rule", {}).get("flag_if_score_below"),
+        "score_field": candidate.get("score_field"),
+        "flag_if_deviation_score_at_least": candidate.get("flag_rule", {}).get(
+            "flag_if_deviation_score_at_least"
+        ),
         "eval_input_sha256": candidate.get("derived_from", {}).get("eval_input_sha256"),
     }
     return result

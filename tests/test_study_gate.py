@@ -136,10 +136,12 @@ class TestGateLegs:
         # ... but a failure at that cap is still a failure.
         assert g_s1(10, 120, 70, 100, selection_cap=0.02, **GOOD).verdict == "fail"
 
-    def test_a_candidate_above_every_fold_cannot_pass_on_folds(self):
-        r = g_s1(0, 120, 70, 100, candidate_above_folds=True, **GOOD)
+    def test_a_candidate_flagging_more_than_every_fold_cannot_pass_on_folds(self):
+        r = g_s1(0, 120, 70, 100, candidate_flags_more_than_folds=True, **GOOD)
         assert r.verdict == "uninformative" and "understates" in r.current_value
-        assert g_s1(10, 120, 70, 100, candidate_above_folds=True, **GOOD).verdict == "fail"
+        assert (
+            g_s1(10, 120, 70, 100, candidate_flags_more_than_folds=True, **GOOD).verdict == "fail"
+        )
 
     def test_only_a_fresh_cohort_pass_is_adoption_evidence(self):
         loso = g_s1(0, 120, 70, 100, **GOOD)

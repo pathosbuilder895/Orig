@@ -10,45 +10,59 @@ imitated student's for a shadow row. That is what makes the study an
 impersonation test rather than a "write unlike yourself" test.
 
 This module is the ONE place the column names live. `validation/study_eval.py`
-and `scripts/propose_thresholds.py` build against it, not against the export
-code, so if the export's header differs, this file is what changes.
+and `scripts/propose_thresholds.py` build against it, and
+`tests/test_study_eval_on_export.py` checks the export
+(`original.study_export`) against it.
 
-Columns (contract version ``study-csv-v1``):
+Columns (contract version ``study-csv-v2``, the shared contract):
 
   required
     submission_id        unique per row (the Collections submission id)
-    writer_student_id    pseudonymous id of the person who wrote the text
-    study_label          ``natural`` | ``shadow`` (case-insensitive)
-    status               SUBMITTED | FLAGGED | INCONCLUSIVE, the outcome of scoring
-                         against the CLAIMED student's baseline (for a shadow row,
-                         the imitated student's: NOT the seal-time status, which
-                         Collections computes against the writer's own baseline).
-                         INCONCLUSIVE when that baseline had fewer than 3
-                         approved samples.
-    consistency_score    0-100, higher = more consistent with the claimed
-                         student's baseline (Collections stores it as
-                         ``ai_score``; ``demo/bluebook/Exam.jsx``
-                         ``bbScoreWithOriginal``). Blank when INCONCLUSIVE.
-    baseline_size        approved reference samples the claimed student had
+    student_id           the WRITER: pseudonymous id of the person who wrote
+                         the text. Never the claimed student on a shadow row.
+    study_label          ``natural`` | ``shadow`` (case-insensitive). A row
+                         with a blank label was never labelled: it is left out
+                         and counted, with a warning.
+    verdict              SUBMITTED | FLAGGED | INCONCLUSIVE, the Collections
+                         verdict from scoring against the CLAIMED student's
+                         baseline (for a shadow row the imitated student's, NOT
+                         the seal-time status, which Collections computes
+                         against the writer's own baseline). INCONCLUSIVE when
+                         that baseline had fewer than 3 approved samples.
+    deviation_score      the primary score: Original's deviation from the
+                         claimed student's baseline, 0-1. Direction in
+                         SCORE_DIRECTION: HIGHER means LESS consistent. Blank
+                         when INCONCLUSIVE.
+    baseline_count       approved reference samples the claimed student had
                          when the row was scored
     word_count           words in the submission
 
   optional
-    imitated_student_id  required (and != writer) on a shadow row, blank on a
-                         natural row
+    imitated_student_id  required (and != student_id) on a shadow row, blank
+                         on a natural row
     claimed_student_id   whose baseline the row was scored against. Derived
-                         when absent (writer for natural, imitated for
+                         when absent (student_id for natural, imitated for
                          shadow); validated against that rule when present
-    exam_id, deviation_score, llr_deviation_score, authorship_probability,
-    scored_at            carried through, never required
+    authorship_probability
+                         Born-rule probability the live Collections flag rule
+                         reads; when present the eval checks the verdict
+                         against that rule
+    exam_id, llr_deviation_score, scored_at, engine_version,
+    threshold_version    carried through, never required
     f_<feature_code>     one column per extracted feature (``ALL_FEATURE_CODES``
                          names). Only the feature-importance section reads them.
 
-Unambiguous aliases are accepted and reported (``ai_score`` /
-``aiScore`` -> consistency_score, ``words`` -> word_count, ``label`` ->
-study_label). ``student_id`` is NOT aliased: in a shadow row it could mean the
-writer or the claimed student, and guessing wrong would silently invert the
-study.
+Aliases kept from ``study-csv-v1`` because they cannot mean anything else, and
+reported when applied: ``writer_student_id`` -> student_id, ``baseline_size``
+-> baseline_count, ``words`` -> word_count, ``label`` -> study_label. Two v1
+names are refused rather than aliased:
+
+  - ``status``: a submission's stored status is its seal-time status, scored
+    against the WRITER's baseline. For a shadow row that is the wrong
+    baseline, so it is never read as the verdict.
+  - ``consistency_score`` / ``ai_score`` / ``aiScore``: v1's 0-100 Collections
+    score is 100 x authorship_probability, a different quantity from
+    deviation_score, so it cannot be converted into one.
 
 A SUBMITTED or FLAGGED row with a blank score is **unscored** (the score call
 failed or Original was off): it is counted and reported, then left out of
@@ -64,47 +78,61 @@ import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
-CONTRACT_VERSION = "study-csv-v1"
+CONTRACT_VERSION = "study-csv-v2"
+
+# The primary score, and its direction stated once. deviation_score is
+# Original's D_adjusted (original/quantum/scoring.py, clipped to [0, 1]): it
+# grows as a text moves away from the claimed student's baseline, so a HIGHER
+# score reads LESS like the claimed student. The study's flag rule follows:
+# flag when deviation_score >= cut-off, the same [lower, upper) convention as
+# ACTION_THRESHOLDS. Nothing in the study needs a higher-is-more-consistent
+# score; anything that ever does derives it in code (SCORE_MAX - score), never
+# from a column. study_eval records this direction in its report and
+# propose_thresholds refuses a report made under any other.
+SCORE_COLUMN = "deviation_score"
+SCORE_DIRECTION = "higher_is_less_consistent"
+SCORE_MIN, SCORE_MAX = 0.0, 1.0
 
 LABEL_NATURAL = "natural"
 LABEL_SHADOW = "shadow"
 LABELS = (LABEL_NATURAL, LABEL_SHADOW)
 
-STATUS_SUBMITTED = "SUBMITTED"
-STATUS_FLAGGED = "FLAGGED"
-STATUS_INCONCLUSIVE = "INCONCLUSIVE"
-STATUSES = (STATUS_SUBMITTED, STATUS_FLAGGED, STATUS_INCONCLUSIVE)
+VERDICT_SUBMITTED = "SUBMITTED"
+VERDICT_FLAGGED = "FLAGGED"
+VERDICT_INCONCLUSIVE = "INCONCLUSIVE"
+VERDICTS = (VERDICT_SUBMITTED, VERDICT_FLAGGED, VERDICT_INCONCLUSIVE)
 
 REQUIRED_COLUMNS = (
     "submission_id",
-    "writer_student_id",
+    "student_id",
     "study_label",
-    "status",
-    "consistency_score",
-    "baseline_size",
+    "verdict",
+    SCORE_COLUMN,
+    "baseline_count",
     "word_count",
 )
 OPTIONAL_COLUMNS = (
     "imitated_student_id",
     "claimed_student_id",
-    "exam_id",
-    "deviation_score",
-    "llr_deviation_score",
     "authorship_probability",
+    "exam_id",
+    "llr_deviation_score",
     "scored_at",
+    "engine_version",
+    "threshold_version",
 )
 FEATURE_PREFIX = "f_"
 
 # Header spelling -> contract column. Only names that cannot mean anything
-# else; see the module docstring for why student_id is not here.
+# else; see the module docstring for the v1 names that are refused instead.
 ALIASES = {
-    "ai_score": "consistency_score",
-    "aiScore": "consistency_score",
+    "writer_student_id": "student_id",
+    "baseline_size": "baseline_count",
     "words": "word_count",
     "label": "study_label",
 }
+REFUSED_V1_SCORE_COLUMNS = ("consistency_score", "ai_score", "aiScore")
 
-SCORE_MIN, SCORE_MAX = 0.0, 100.0
 # Approved reference samples below which Original reads INCONCLUSIVE
 # (original/baseline_integrity.py readiness, via style_authorship.MIN_BASELINES;
 # pinned to it by tests/test_study_gate.py).
@@ -125,30 +153,34 @@ class StudyContractError(ValueError):
 @dataclass(frozen=True)
 class StudyRow:
     submission_id: str
-    writer_student_id: str
+    student_id: str
     claimed_student_id: str
     imitated_student_id: str | None
     label: str
-    status: str
-    score: float | None
-    baseline_size: int
+    verdict: str
+    deviation_score: float | None
+    baseline_count: int
     word_count: int
     exam_id: str | None = None
-    deviation_score: float | None = None
+    authorship_probability: float | None = None
     features: dict[str, float | None] = field(default_factory=dict)
 
     @property
     def inconclusive(self) -> bool:
-        return self.status == STATUS_INCONCLUSIVE
+        return self.verdict == VERDICT_INCONCLUSIVE
 
     @property
     def unscored(self) -> bool:
         """Not INCONCLUSIVE, yet carries no score."""
-        return not self.inconclusive and self.score is None
+        return not self.inconclusive and self.deviation_score is None
 
     @property
     def conclusive(self) -> bool:
-        return not self.inconclusive and self.score is not None
+        return not self.inconclusive and self.deviation_score is not None
+
+    @property
+    def verdict_flagged(self) -> bool:
+        return self.verdict == VERDICT_FLAGGED
 
 
 @dataclass(frozen=True)
@@ -159,6 +191,7 @@ class StudyData:
     warnings: tuple[str, ...]
     sha256: str
     source_name: str
+    unlabelled: int = 0
 
 
 def _blank(v: str | None) -> bool:
@@ -192,6 +225,29 @@ def load_study_csv(path: str | Path) -> StudyData:
     return parse_study_csv(raw, source_name=path.name)
 
 
+def _header_problems(columns: set[str]) -> list[str]:
+    problems = []
+    missing = [c for c in REQUIRED_COLUMNS if c not in columns]
+    if "verdict" in missing and "status" in columns:
+        problems.append(
+            "no verdict column: 'status' is not read as one, because a submission's "
+            "stored status is scored against the writer's own baseline, which is the "
+            "wrong baseline for a shadow row"
+        )
+        missing.remove("verdict")
+    v1_scores = [c for c in REFUSED_V1_SCORE_COLUMNS if c in columns]
+    if SCORE_COLUMN in missing and v1_scores:
+        problems.append(
+            f"no {SCORE_COLUMN} column: {', '.join(v1_scores)} is the study-csv-v1 "
+            "0-100 Collections score (100 x authorship_probability), a different "
+            f"quantity that cannot be converted into {SCORE_COLUMN}; re-export"
+        )
+        missing.remove(SCORE_COLUMN)
+    if missing:
+        problems.append(f"missing required column(s): {', '.join(missing)}")
+    return problems
+
+
 def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
     from original.constants import ALL_FEATURE_CODES
 
@@ -217,9 +273,12 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         if target != h:
             aliases_applied[h] = target
     columns = set(rename.values())
-    missing = [c for c in REQUIRED_COLUMNS if c not in columns]
-    if missing:
-        problems.append(f"missing required column(s): {', '.join(missing)}")
+    problems.extend(_header_problems(columns))
+    ignored_v1 = [c for c in REFUSED_V1_SCORE_COLUMNS if c in columns]
+    if SCORE_COLUMN in columns and ignored_v1:
+        warnings.append(
+            f"ignoring {', '.join(ignored_v1)}: the v1 Collections score, not {SCORE_COLUMN}"
+        )
 
     feature_cols = sorted(c for c in columns if c.startswith(FEATURE_PREFIX))
     feature_codes: list[str] = []
@@ -234,6 +293,7 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
 
     rows: list[StudyRow] = []
     seen_ids: set[str] = set()
+    unlabelled: list[str] = []
     for line_no, raw_row in enumerate(reader, start=2):
         r = {rename.get(k.strip(), k.strip()): v for k, v in raw_row.items() if k is not None}
         where = f"line {line_no}"
@@ -246,15 +306,18 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
             row_problems.append(f"{where}: duplicate submission_id {sid!r}")
         seen_ids.add(sid)
 
-        writer = (r.get("writer_student_id") or "").strip()
-        if not writer:
-            row_problems.append(f"{where}: blank writer_student_id")
-
         label = (r.get("study_label") or "").strip().lower()
+        if not label and not row_problems:
+            unlabelled.append(where)
+            continue
         if label not in LABELS:
             row_problems.append(
                 f"{where}: study_label must be natural or shadow, got {r.get('study_label')!r}"
             )
+
+        writer = (r.get("student_id") or "").strip()
+        if not writer:
+            row_problems.append(f"{where}: blank student_id (the writer)")
 
         imitated = (r.get("imitated_student_id") or "").strip() or None
         if label == LABEL_SHADOW:
@@ -274,41 +337,43 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
                 f"({expected_claimed!r})"
             )
 
-        status = (r.get("status") or "").strip().upper()
-        if status not in STATUSES:
+        verdict = (r.get("verdict") or "").strip().upper()
+        if verdict not in VERDICTS:
             row_problems.append(
-                f"{where}: status must be one of {', '.join(STATUSES)}, got {r.get('status')!r}"
+                f"{where}: verdict must be one of {', '.join(VERDICTS)}, got {r.get('verdict')!r}"
             )
 
         try:
-            score = _float(r.get("consistency_score"))
+            score = _float(r.get(SCORE_COLUMN))
             if score is not None and not SCORE_MIN <= score <= SCORE_MAX:
-                row_problems.append(f"{where}: consistency_score {score} is outside 0-100")
+                row_problems.append(
+                    f"{where}: {SCORE_COLUMN} {score} is outside {SCORE_MIN:g}-{SCORE_MAX:g}"
+                )
         except ValueError as e:
-            row_problems.append(f"{where}: consistency_score {e}")
+            row_problems.append(f"{where}: {SCORE_COLUMN} {e}")
             score = None
-        if status == STATUS_INCONCLUSIVE and score is not None:
+        if verdict == VERDICT_INCONCLUSIVE and score is not None:
             warnings.append(f"{where}: INCONCLUSIVE row carries a score; the score is ignored")
             score = None
 
         try:
-            baseline_size = _int(r.get("baseline_size"))
+            baseline_count = _int(r.get("baseline_count"))
         except ValueError as e:
-            row_problems.append(f"{where}: baseline_size {e}")
-            baseline_size = 0
-        if status == STATUS_INCONCLUSIVE and baseline_size >= MIN_READY_BASELINE:
+            row_problems.append(f"{where}: baseline_count {e}")
+            baseline_count = 0
+        if verdict == VERDICT_INCONCLUSIVE and baseline_count >= MIN_READY_BASELINE:
             warnings.append(
-                f"{where}: INCONCLUSIVE with {baseline_size} approved samples; was status "
+                f"{where}: INCONCLUSIVE with {baseline_count} approved samples; was the verdict "
                 "computed against the writer's baseline instead of the claimed student's?"
             )
         elif (
-            status in (STATUS_SUBMITTED, STATUS_FLAGGED)
+            verdict in (VERDICT_SUBMITTED, VERDICT_FLAGGED)
             and score is not None
-            and (baseline_size < MIN_READY_BASELINE)
+            and baseline_count < MIN_READY_BASELINE
         ):
             warnings.append(
-                f"{where}: scored with only {baseline_size} approved samples (fewer than "
-                f"{MIN_READY_BASELINE}); was status computed against the writer's baseline?"
+                f"{where}: scored with only {baseline_count} approved samples (fewer than "
+                f"{MIN_READY_BASELINE}); was the verdict computed against the writer's baseline?"
             )
         try:
             word_count = _int(r.get("word_count"))
@@ -317,10 +382,12 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
             word_count = 0
 
         try:
-            deviation = _float(r.get("deviation_score"))
+            prob = _float(r.get("authorship_probability"))
+            if prob is not None and not 0.0 <= prob <= 1.0:
+                row_problems.append(f"{where}: authorship_probability {prob} is outside 0-1")
         except ValueError as e:
-            row_problems.append(f"{where}: deviation_score {e}")
-            deviation = None
+            row_problems.append(f"{where}: authorship_probability {e}")
+            prob = None
 
         feats: dict[str, float | None] = {}
         for code in feature_codes:
@@ -336,26 +403,32 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         rows.append(
             StudyRow(
                 submission_id=sid,
-                writer_student_id=writer,
+                student_id=writer,
                 claimed_student_id=claimed,
                 imitated_student_id=imitated,
                 label=label,
-                status=status,
-                score=score,
-                baseline_size=baseline_size,
+                verdict=verdict,
+                deviation_score=score,
+                baseline_count=baseline_count,
                 word_count=word_count,
                 exam_id=(r.get("exam_id") or "").strip() or None,
-                deviation_score=deviation,
+                authorship_probability=prob,
                 features=feats,
             )
         )
 
     if problems:
         raise StudyContractError(problems)
+    if unlabelled:
+        shown = ", ".join(unlabelled[:10]) + (" ..." if len(unlabelled) > 10 else "")
+        warnings.append(
+            f"{len(unlabelled)} row(s) have no study_label and were left out ({shown}); "
+            "label them in the exam view's study panel and re-export"
+        )
     if not rows:
-        raise StudyContractError(["the CSV has a header but no rows"])
+        raise StudyContractError(["the CSV has no labelled rows"])
 
-    writers = {r.writer_student_id for r in rows}
+    writers = {r.student_id for r in rows}
     for imitated in sorted(
         {r.imitated_student_id for r in rows if r.imitated_student_id} - writers
     ):
@@ -371,4 +444,5 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         warnings=tuple(warnings),
         sha256=hashlib.sha256(raw).hexdigest(),
         source_name=source_name,
+        unlabelled=len(unlabelled),
     )

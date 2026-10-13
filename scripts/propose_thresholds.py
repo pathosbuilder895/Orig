@@ -6,9 +6,10 @@
 
 Reads the JSON written by ``validation/study_eval.py`` and writes two files:
 
-  candidate_operating_point.json       same schema as the committed
+  candidate_operating_point.json       the fields of the committed
                                        validation/study/current_operating_point.json,
-                                       kind "candidate", plus the evidence it
+                                       kind "candidate", with its flag rule on
+                                       deviation_score, plus the evidence it
                                        was chosen on and the exact inputs gate
                                        G-S1 reads (``gate_inputs``)
   candidate_operating_point.diff.md    what changes against the current
@@ -21,12 +22,18 @@ an existing candidate is only replaced with ``--force``. Adopting a candidate
 is a separate, owner-approved change to Exam.jsx and the snapshot, after
 gate G-S1 passes (NORTH_STAR rule 4).
 
-Threshold rule. Flag when the consistency score is below the cut-off. Among
-cut-offs whose false-flag rate on conclusive natural attempts is at most
-``--cap`` (default 5%), take the one that catches the most shadow attempts;
-among cut-offs that catch the same number, take the lowest, which leaves
-the widest margin below every natural attempt. If no cut-off within the cap
-catches anything, the candidate flags nothing (cut-off 0).
+Threshold rule. The score is ``deviation_score`` (contract study-csv-v2;
+higher = less consistent with the claimed student), and an attempt is flagged
+when its score is at or above the cut-off, on a 0.01 grid. Among cut-offs
+whose false-flag count on conclusive natural attempts is within ``--cap``
+(default 5%), take the one that catches the most shadow attempts; among
+cut-offs that catch the same number, take the HIGHEST, which leaves the widest
+margin above every natural attempt. If no cut-off within the cap catches
+anything, the candidate flags nothing (cut-off 1.01, above the score range).
+
+The live Collections rule is not a cut-off on deviation_score (it reads
+round(100 x authorship_probability) < 70), so "current" numbers come from the
+exported verdict, and the candidate's flag rule names the score it reads.
 
 The in-sample numbers flatter the choice: it was made on those rows. So the
 script repeats the whole selection leave-one-student-out (each student's
@@ -67,15 +74,19 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from validation.power import wilson_interval  # noqa: E402
+from validation.study_contract import SCORE_COLUMN, SCORE_DIRECTION  # noqa: E402
+from validation.study_eval import FLAG_NOTHING, THRESHOLD_GRID  # noqa: E402
 
 CURRENT_ARTIFACT = _ROOT / "validation" / "study" / "current_operating_point.json"
 DEFAULT_OUT_DIR = _ROOT / "validation" / "study" / "candidates"
 CANDIDATE_NAME = "candidate_operating_point.json"
 DIFF_NAME = "candidate_operating_point.diff.md"
 PROTECTED_DIRS = ("original", "demo")
-EVAL_SCHEMA = "study-eval-v1"
+EVAL_SCHEMA = "study-eval-v2"
 DEFAULT_CAP = 0.05
-GRID = tuple(range(0, 102))
+GRID = THRESHOLD_GRID
+# The candidate's flag rule: flag when SCORE_COLUMN >= this value.
+RULE_KEY = f"flag_if_{SCORE_COLUMN}_at_least"
 TRADE_OFF_CAPS = (0.0, 0.01, 0.02, 0.05, 0.10)
 WEIGHT_SHRINK_K = 20  # factor shrinkage n/(n+K): at 20 students half the raw effect survives
 WEIGHT_CLIP = (0.5, 2.0)
@@ -97,8 +108,10 @@ class ProposalError(ValueError):
 # ── selection ─────────────────────────────────────────────────────────────────
 
 
-def _count_below(scores: list[float], t: float) -> int:
-    return sum(1 for s in scores if s < t)
+def _count_flagged(scores: list[float], t: float) -> int:
+    """Attempts the rule flags at cut-off t: score at or above it (higher
+    deviation_score = less consistent, contract SCORE_DIRECTION)."""
+    return sum(1 for s in scores if s >= t)
 
 
 def false_flag_allowance(n_natural: int, cap: float) -> int:
@@ -109,14 +122,14 @@ def false_flag_allowance(n_natural: int, cap: float) -> int:
 def select_threshold(
     natural: list[float], shadow: list[float], cap: float, max_false_flags: int | None = None
 ) -> dict:
-    """The cut-off rule in the module docstring, over whole-point cut-offs.
+    """The cut-off rule in the module docstring, over the 0.01 grid.
     The cap is applied as a count of allowed false flags: ``max_false_flags``
     when given (the leave-one-student-out folds pass the full cohort's
     allowance, so a fold with one natural attempt fewer is not held to a
     stricter rule than the candidate), else floor(cap * n)."""
     if not natural or not shadow:
         return {
-            "threshold": 0,
+            "threshold": FLAG_NOTHING,
             "false_flags": 0,
             "catches": 0,
             "n_natural": len(natural),
@@ -126,23 +139,23 @@ def select_threshold(
     allowed = (
         false_flag_allowance(len(natural), cap) if max_false_flags is None else max_false_flags
     )
-    best_t, best_c = 0, -1
-    for t in GRID:
-        ff = _count_below(natural, t)
+    best_t, best_c = FLAG_NOTHING, -1
+    for t in reversed(GRID):  # from flag-nothing down: the first t to reach a count is the highest
+        ff = _count_flagged(natural, t)
         if ff > allowed:
-            break  # the false-flag count only grows with t
-        c = _count_below(shadow, t)
+            break  # the false-flag count only grows as t falls
+        c = _count_flagged(shadow, t)
         if c > best_c:
             best_t, best_c = t, c
     out = {
         "threshold": best_t,
-        "false_flags": _count_below(natural, best_t),
+        "false_flags": _count_flagged(natural, best_t),
         "catches": best_c,
         "n_natural": len(natural),
         "n_shadow": len(shadow),
     }
     if best_c == 0:
-        out["threshold"] = 0
+        out["threshold"] = FLAG_NOTHING
         out["false_flags"] = 0
         out["note"] = "no cut-off within the cap catches any shadow attempt; flag nothing"
     return out
@@ -156,9 +169,21 @@ def _rate(k: int, n: int) -> dict:
 
 
 def _split(rows: list[dict]) -> tuple[list[float], list[float]]:
-    nat = [r["score"] for r in rows if r["conclusive"] and r["label"] == "natural"]
-    sh = [r["score"] for r in rows if r["conclusive"] and r["label"] == "shadow"]
+    nat = [r[SCORE_COLUMN] for r in rows if r["conclusive"] and r["label"] == "natural"]
+    sh = [r[SCORE_COLUMN] for r in rows if r["conclusive"] and r["label"] == "shadow"]
     return nat, sh
+
+
+def _verdict_counts(rows: list[dict]) -> tuple[int, int, int, int]:
+    """(natural flagged, natural, shadow flagged, shadow) by the exported
+    verdict, over conclusive attempts: what the live rule did."""
+    nat = [r for r in rows if r["conclusive"] and r["label"] == "natural"]
+    sh = [r for r in rows if r["conclusive"] and r["label"] == "shadow"]
+
+    def flagged(rs: list[dict]) -> int:
+        return sum(1 for r in rs if r["verdict"] == "FLAGGED")
+
+    return flagged(nat), len(nat), flagged(sh), len(sh)
 
 
 def _students_with(rows: list[dict], label: str | None = None) -> int:
@@ -190,9 +215,9 @@ def leave_one_student_out(rows: list[dict], cap: float) -> dict:
         t = select_threshold(*_split(train), cap, max_false_flags=allowed)["threshold"]
         thresholds.append(t)
         nat, sh = _split(test)
-        ff += _count_below(nat, t)
+        ff += _count_flagged(nat, t)
         n_nat += len(nat)
-        caught += _count_below(sh, t)
+        caught += _count_flagged(sh, t)
         n_sh += len(sh)
     ts = sorted(thresholds)
     return {
@@ -214,7 +239,7 @@ def leave_one_student_out(rows: list[dict], cap: float) -> dict:
     }
 
 
-def fresh_cohort(fresh: dict, threshold: int) -> dict:
+def fresh_cohort(fresh: dict, threshold: float) -> dict:
     nat, sh = _split(fresh["rows"])
     return {
         "kind": "fresh_cohort",
@@ -222,8 +247,8 @@ def fresh_cohort(fresh: dict, threshold: int) -> dict:
         "students": _students_with(fresh["rows"]),
         "natural_students": _students_with(fresh["rows"], "natural"),
         "shadow_students": _students_with(fresh["rows"], "shadow"),
-        "false_flags": _rate(_count_below(nat, threshold), len(nat)),
-        "catches": _rate(_count_below(sh, threshold), len(sh)),
+        "false_flags": _rate(_count_flagged(nat, threshold), len(nat)),
+        "catches": _rate(_count_flagged(sh, threshold), len(sh)),
         "auc": fresh["auc"]["value"],
         "auc_ci95": fresh["auc"]["ci95"],
     }
@@ -290,13 +315,28 @@ def _check_disjoint(train: list[dict], fresh: list[dict]) -> None:
         raise ProposalError(f"the fresh cohort repeats {len(shared_subs)} training submission(s)")
 
     def people(rows):
-        return {r["claimed_student_id"] for r in rows} | {r["writer_student_id"] for r in rows}
+        return {r["claimed_student_id"] for r in rows} | {r["student_id"] for r in rows}
 
     shared_people = people(train) & people(fresh)
     if shared_people:
         raise ProposalError(
             f"the fresh cohort shares {len(shared_people)} student(s) with the training cohort; "
             "a fresh cohort must be different students"
+        )
+
+
+def _check_eval(ev: dict) -> None:
+    """An eval report this script can read: the right schema, and a score
+    with the column and direction the selection rule is written for."""
+    if ev.get("schema") != EVAL_SCHEMA:
+        raise ProposalError(
+            f"expected an eval report with schema {EVAL_SCHEMA!r}, got {ev.get('schema')!r}"
+        )
+    score = ev.get("score") or {}
+    if score.get("column") != SCORE_COLUMN or score.get("direction") != SCORE_DIRECTION:
+        raise ProposalError(
+            f"the eval report scores {score.get('column')!r} ({score.get('direction')!r}); this "
+            f"script selects on {SCORE_COLUMN!r} ({SCORE_DIRECTION!r})"
         )
 
 
@@ -308,10 +348,7 @@ def propose(
     weights: str = "unchanged",
     fresh: dict | None = None,
 ) -> dict:
-    if ev.get("schema") != EVAL_SCHEMA:
-        raise ProposalError(
-            f"expected an eval report with schema {EVAL_SCHEMA!r}, got {ev.get('schema')!r}"
-        )
+    _check_eval(ev)
     if not 0 <= cap < 1:
         raise ProposalError(f"cap must be in [0, 1), got {cap}")
     if weights not in ("unchanged", "study"):
@@ -323,6 +360,7 @@ def propose(
     if fresh is not None:
         if fresh.get("schema") != EVAL_SCHEMA:
             raise ProposalError("the fresh-cohort file is not a study eval report")
+        _check_eval(fresh)
         if fresh["input"]["sha256"] == ev["input"]["sha256"]:
             raise ProposalError("the fresh cohort is the same CSV the threshold is chosen on")
         _check_disjoint(ev["rows"], fresh["rows"])
@@ -331,7 +369,6 @@ def propose(
     nat, sh = _split(rows)
     chosen = select_threshold(nat, sh, cap)
     t = chosen["threshold"]
-    t_now = current["flag_rule"]["flag_if_score_below"]
 
     trade = []
     for c in sorted(set(TRADE_OFF_CAPS) | {cap}):
@@ -350,8 +387,14 @@ def propose(
     evidence = fresh_ev or loso
 
     cand = copy.deepcopy({k: current[k] for k in current if k in COMPARED_FIELDS})
-    cand["flag_rule"]["flag_if_score_below"] = t
-    cand["flag_rule"]["source"] = "CANDIDATE from scripts/propose_thresholds.py; not live"
+    # The candidate reads another score than the live rule, so its flag rule
+    # is rewritten, not edited: the diff shows the score field changing too.
+    cand["score_field"] = SCORE_COLUMN
+    cand["flag_rule"] = {
+        RULE_KEY: t,
+        "status_when_flagged": current["flag_rule"].get("status_when_flagged", "FLAGGED"),
+        "source": "CANDIDATE from scripts/propose_thresholds.py; not live",
+    }
     weight_block = {
         "mode": weights,
         "scores_valid_for_candidate": True,
@@ -378,10 +421,11 @@ def propose(
         "false_flags": _rate(chosen["false_flags"], len(nat)),
         "catches": _rate(chosen["catches"], len(sh)),
     }
+    v_ff, v_nat, v_c, v_sh = _verdict_counts(rows)
     current_in_sample = {
-        "threshold": t_now,
-        "false_flags": _rate(_count_below(nat, t_now), len(nat)),
-        "catches": _rate(_count_below(sh, t_now), len(sh)),
+        "rule": "exported verdict (the live Collections rule)",
+        "false_flags": _rate(v_ff, v_nat),
+        "catches": _rate(v_c, v_sh),
     }
     if "note" in chosen:
         in_sample["note"] = chosen["note"]
@@ -399,8 +443,10 @@ def propose(
         "natural_students": evidence["natural_students"],
         "shadow_students": evidence["shadow_students"],
         "selection_cap": cap,
-        "candidate_above_folds": bool(
-            fresh_ev is None and loso["fold_thresholds"] and t > loso["fold_thresholds"]["max"]
+        # A LOWER cut-off flags more: below every fold's cut-off, the candidate
+        # flags more than any fold did, so the fold count understates it.
+        "candidate_flags_more_than_folds": bool(
+            fresh_ev is None and loso["fold_thresholds"] and t < loso["fold_thresholds"]["min"]
         ),
     }
 
@@ -423,8 +469,8 @@ def propose(
         },
         "selection": {
             "rule": (
-                "flag when score < cut-off; most shadow catches with natural false flags <= cap; "
-                "ties go to the lowest cut-off"
+                f"flag when {SCORE_COLUMN} >= cut-off; most shadow catches with natural false "
+                "flags <= cap; ties go to the highest cut-off"
             ),
             "cap": cap,
             "in_sample": in_sample,
@@ -486,39 +532,53 @@ def _verdict_note(verdict: str, cap: float, evidence: str = "leave_one_student_o
     )
 
 
+def _cut(t: float) -> str:
+    return f"{t:.2f}"
+
+
 def _fold_text(ft: dict | None) -> str:
     if not ft:
         return "n/a"
-    return f"{ft['min']}-{ft['max']}, median {ft['median']}"
+    return f"{_cut(ft['min'])}-{_cut(ft['max'])}, median {_cut(ft['median'])}"
 
 
 def _pct(d: dict) -> str:
     return "n/a" if d["rate"] is None else f"{d['k']}/{d['n']} ({d['rate']:.1%})"
 
 
+def _more_fewer(n: int, what: str) -> str:
+    return f"{abs(n)} {'more' if n > 0 else 'fewer'} {what}"
+
+
 def trade_off_text(chosen: dict, now: dict, cap: float) -> str:
-    t, t_now = chosen["threshold"], now["threshold"]
+    t = chosen["threshold"]
+    rule = (
+        "flagging nothing (no cut-off within the cap catches a shadow attempt)"
+        if t >= FLAG_NOTHING
+        else f"flagging only {SCORE_COLUMN} of {_cut(t)} or more"
+    )
     head = (
-        f"Holding false flags on natural writing to at most {cap:.0%} means flagging only scores "
-        f"below {t}. On this cohort that flags {_pct(chosen['false_flags'])} of natural attempts and "
-        f"catches {_pct(chosen['catches'])} of shadow attempts; the live rule (< {t_now}) flags "
-        f"{_pct(now['false_flags'])} and catches {_pct(now['catches'])}."
+        f"Holding false flags on natural writing to at most {cap:.0%} means {rule}. On this "
+        f"cohort that flags {_pct(chosen['false_flags'])} of natural attempts and catches "
+        f"{_pct(chosen['catches'])} of shadow attempts; the live rule (the exported verdict) "
+        f"flags {_pct(now['false_flags'])} and catches {_pct(now['catches'])}."
     )
     d_ff = chosen["false_flags"]["k"] - now["false_flags"]["k"]
     d_c = chosen["catches"]["k"] - now["catches"]["k"]
-    if t < t_now:
-        tail = (
-            f" The price of the cap is {-d_c} fewer shadow catches for {-d_ff} fewer false flags: "
-            f"every shadow attempt scoring {t} or more passes unflagged."
+    if d_ff == 0 and d_c == 0:
+        return head + " On this cohort the candidate and the live rule flag the same counts."
+    parts = [
+        _more_fewer(d_c, "shadow catches") if d_c else "the same shadow catches",
+        _more_fewer(d_ff, "false flags on honest writing") if d_ff else "the same false flags",
+    ]
+    tail = f" Against the live rule the candidate has {parts[0]} and {parts[1]}."
+    if d_ff > 0:
+        tail += (
+            " It stays within the cap on this cohort only; read the out-of-sample numbers "
+            "before believing that."
         )
-    elif t > t_now:
-        tail = (
-            f" This candidate is MORE aggressive than the live rule: {d_c} more shadow catches "
-            f"for {d_ff} more false flags on honest writing. It stays within the cap on this "
-            "cohort only; read the out-of-sample numbers before believing that."
-        )
-    else:
-        tail = " The live rule already sits at this cut-off."
+    if t < FLAG_NOTHING:
+        tail += f" Every shadow attempt below {_cut(t)} passes unflagged."
     return head + tail
 
 
@@ -569,7 +629,8 @@ def render_diff(current: dict, candidate: dict) -> str:
     ]
     for row in sel["trade_off_table"]:
         lines.append(
-            f"| {row['cap']:.0%} | {row['threshold']} | {_pct(row['false_flags'])} | {_pct(row['catches'])} |"
+            f"| {row['cap']:.0%} | {_cut(row['threshold'])} | {_pct(row['false_flags'])} | "
+            f"{_pct(row['catches'])} |"
         )
     lines += [
         "",
