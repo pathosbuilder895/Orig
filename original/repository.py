@@ -306,6 +306,8 @@ class Repository(Protocol):
         self, jti: str, tenant_id: str | None, exam: str, student_id: str
     ) -> bool: ...
 
+    def release_proctor_attestation(self, jti: str) -> None: ...
+
     # ── Baseline requests ─────────────────────────────────────────────────
     def put_baseline_request(
         self,
@@ -840,6 +842,9 @@ class SqliteRepository:
     ) -> bool:
         return store.consume_proctor_attestation(jti, tenant_id, exam, student_id)
 
+    def release_proctor_attestation(self, jti: str) -> None:
+        store.release_proctor_attestation(jti)
+
     # ── Baseline requests ─────────────────────────────────────────────────
     def put_baseline_request(
         self,
@@ -925,6 +930,7 @@ _WRITE_METHODS = frozenset(
         "put_bluebook_course",
         "log_audit",
         "consume_proctor_attestation",
+        "release_proctor_attestation",
         "open_formation_pathway",
         "advance_formation_pathway",
         "put_baseline_request",

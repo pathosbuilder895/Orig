@@ -9,17 +9,25 @@ from __future__ import annotations
 
 import io
 import logging
+from collections import Counter
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
 from .. import principal as principal_mod
-from ..constants import AUTH_WEIGHTS
+from ..constants import AUTH_WEIGHTS, TRUSTED_PROVENANCE
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _caller_is_trusted,
+    _persist_or_503,
+    _repo,
+    _require_guard,
+    _require_staff,
+)
 
 router = APIRouter()
 
@@ -81,36 +89,38 @@ def _existing_text_hashes(student_id: str) -> set[str]:
 
 def _consume_proctor_attestation_if_needed(
     request: Request | None, student_id: str, sample: BaselineSample, provenance: str
-) -> tuple[str, bool]:
+) -> tuple[str, bool, str | None]:
     """Single-use enforcement for proctor attestations (T-69).
 
-    If ``sample`` was admitted at 'proctored' trust and the caller
-    presented an ``X-Proctor-Attestation`` header, consume the token's jti;
-    a second write presenting the same token (replay within its 6h window)
-    is retroactively downgraded rather than admitted at full weight again.
+    If ``sample`` was admitted at 'proctored' trust on the strength of an
+    ``X-Proctor-Attestation`` header, consume the token's sitting; a second
+    write for the same sitting (a replay, or a re-minted token) is
+    retroactively downgraded rather than admitted at full weight again.
     Mutates ``sample`` in place on downgrade — safe because every baseline
     aggregate (``baseline_mean``/``baseline_std``/``loo_distances``) filters
     on ``auth_weight`` at READ time (quantum/state.py), never at admit time.
 
-    No-op (returns ``provenance`` unchanged, no downgrade) when there is no
-    attestation header or the sample wasn't admitted at proctored trust in
-    the first place — the common case for every non-proctored write.
+    No-op when there is no attestation header, the sample wasn't admitted
+    at proctored trust, or the caller's own role already carries that trust
+    (a staff write neither spends nor is limited by a student's sitting).
 
-    Returns ``(effective_provenance, downgraded_here)``.
+    Returns ``(effective_provenance, downgraded_here, consumed_jti)``;
+    ``consumed_jti`` is set when this call spent a sitting, so a caller
+    whose write then fails to persist can release it.
     """
-    if provenance != "proctored" or request is None:
-        return provenance, False
+    if provenance != "proctored" or request is None or _caller_is_trusted(request):
+        return provenance, False, None
     attestation = request.headers.get("X-Proctor-Attestation", "")
     if not attestation:
-        return provenance, False
+        return provenance, False, None
     jti = student_auth.attestation_jti(attestation)
     exam = student_auth.attestation_exam(attestation)
     tenant_id = principal_mod.tenant_of(student_id)
     if consumed_attestations.mark_used(jti, tenant_id, exam, student_id):
-        return provenance, False
+        return provenance, False, jti
     sample.provenance = "unverified"
     sample.auth_weight = AUTH_WEIGHTS["unverified"]
-    return "unverified", True
+    return "unverified", True, None
 
 
 @router.post("/students/{student_id}/baseline")
@@ -218,7 +228,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     # a successful admit — not before the drift gate above — so a
     # drift-held (202/409) attempt never burns the attestation; a
     # legitimate retry of the same sitting can still redeem it.
-    provenance, downgraded_by_replay = _consume_proctor_attestation_if_needed(
+    provenance, downgraded_by_replay, consumed_jti = _consume_proctor_attestation_if_needed(
         request, student_id, sample, provenance
     )
     if downgraded_by_replay:
@@ -232,7 +242,12 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
             new_mean = update_student_baseline_kappa(state.kappa_log, arc.catastrophe_index)
             state.baseline_kappa = new_mean
 
-    _persist_or_503(state)  # persist to SQLite
+    try:
+        _persist_or_503(state)
+    except HTTPException:
+        if consumed_jti:
+            consumed_attestations.release(consumed_jti)
+        raise
 
     # Audit log — record the baseline addition
     _repo().log_audit(
@@ -252,10 +267,11 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     )
 
     # Auto-complete any outstanding magic-link baseline requests for this
-    # student (Phase 2). Only fires for authenticated provenance — an
-    # unverified self-upload doesn't satisfy a "proctored baseline" request.
+    # student (Phase 2). Only fires for trusted provenance — an unverified
+    # self-upload (weight 0.5, still above zero) doesn't satisfy a
+    # "proctored baseline" request.
     completed_requests: list = []
-    if auth_weight > 0:
+    if provenance in TRUSTED_PROVENANCE:
         try:
             completed_requests = baseline_requests.mark_completed_for_student(student_id)
         except Exception as e:
@@ -467,8 +483,10 @@ def upload_baseline_batch(
 
     The response always carries ``provenance`` / ``requested_provenance`` /
     ``provenance_downgraded`` (``add_baseline`` emits the latter two only on
-    a downgrade); always-present is the deliberate convention here because a
-    batch has one effective provenance for every file it admitted.
+    a downgrade). ``provenance`` is the effective provenance after any
+    downgrade; ``provenance_counts`` counts admitted files per provenance,
+    since a batch under one attestation admits only its first file as
+    proctored.
     """
     if provenance not in AUTH_WEIGHTS:
         raise HTTPException(
@@ -487,6 +505,10 @@ def upload_baseline_batch(
     # Phase 8: per-file drift outcomes — surfaced on the batch response so
     # an instructor can see which files were held without aborting the batch.
     drift_holds: list[dict] = []
+    consumed_jtis: list[str] = []
+    # Per admitted file: an attestation authorizes one proctored file, so a
+    # batch can mix provenances and one batch-level value cannot describe it.
+    provenance_counts: Counter[str] = Counter()
 
     # Dedup: seed from every hash already on record for this student, using
     # the same hash-building logic add_baseline's seal-replay guard and the
@@ -592,11 +614,14 @@ def upload_baseline_batch(
         # remaining file's own call short-circuits at
         # _consume_proctor_attestation_if_needed's first check
         # (provenance != "proctored") without touching the ledger again.
-        provenance, downgraded_by_replay = _consume_proctor_attestation_if_needed(
+        provenance, downgraded_by_replay, consumed_jti = _consume_proctor_attestation_if_needed(
             request, student_id, sample, provenance
         )
         if downgraded_by_replay:
             provenance_downgraded = True
+        if consumed_jti:
+            consumed_jtis.append(consumed_jti)
+        provenance_counts[sample.provenance] += 1
 
         if provenance in ("proctored", "verified"):
             arc = analyze_tension_arc(text)
@@ -609,7 +634,12 @@ def upload_baseline_batch(
     # Always persist when there was any state mutation (admitted samples
     # OR drift counter increments from holds).
     if imported > 0 or drift_holds:
-        _persist_or_503(state)
+        try:
+            _persist_or_503(state)
+        except HTTPException:
+            for jti in consumed_jtis:
+                consumed_attestations.release(jti)
+            raise
 
     # Audit log — mirrors add_baseline's shape so a provenance downgrade on
     # this route leaves the same forensic trace (attack 7 in the threat
@@ -621,6 +651,7 @@ def upload_baseline_batch(
             "provenance": provenance,
             "auth_weight": AUTH_WEIGHTS[provenance],
             "imported": imported,
+            "provenance_counts": dict(provenance_counts),
             "skipped_duplicates": skipped_duplicates,
             "drift_holds": len(drift_holds),
             "sample_count_after": state.sample_count,
@@ -638,6 +669,7 @@ def upload_baseline_batch(
         "errors": errors,
         "drift_holds": drift_holds,
         "provenance": provenance,
+        "provenance_counts": dict(provenance_counts),
         "requested_provenance": requested_provenance,
         "provenance_downgraded": provenance_downgraded,
     }

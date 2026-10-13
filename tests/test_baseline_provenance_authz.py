@@ -344,9 +344,183 @@ def test_attestation_reused_in_a_batch_upload_downgrades_remaining_files(client,
     assert body["imported"] == 2
     assert body["provenance"] == "unverified"
     assert body["provenance_downgraded"] is True
+    assert body["provenance_counts"] == {"proctored": 1, "unverified": 1}
 
     from original.repository import get_repository
 
     samples = get_repository().get(sid).samples
     assert [s.provenance for s in samples] == ["proctored", "unverified"]
     assert [s.auth_weight for s in samples] == [2.0, 0.5]
+
+
+# ── 8. An attestation authorizes ONE proctored sitting, nothing else ──────────
+
+THIRD_TEXT = (
+    "Church history rewards the reader who keeps several centuries in view at "
+    "once. Councils answered questions their predecessors had not thought to "
+    "ask, and each answer narrowed the next debate. A student tracing that "
+    "movement learns to read slowly, to weigh a creed against the controversy "
+    "that produced it, and to resist the temptation to read modern categories "
+    "back into ancient arguments. This third sample exists only to differ in "
+    "text from the other two, so no duplicate guard can mask a replay."
+)
+
+
+@pytest.mark.parametrize("provenance", ["verified", "canvas"])
+def test_attestation_does_not_authorize_non_proctored_provenance(client, provenance):
+    """A proctor attestation attests a proctored sitting. It must not buy
+    instructor-verified or LMS trust, which the single-use ledger never
+    consumes, so a student could otherwise replay one token as 'verified'
+    without limit for its whole validity window."""
+    sid = "acme:examtaker-verified"
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    attest = student_auth.mint_proctor_attestation(sid, "Week 1 Writing Sample")
+    headers = {**_auth(stu), "X-Proctor-Attestation": attest}
+    for text in (LONG_TEXT, SECOND_TEXT):
+        r = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": text, "provenance": provenance, "assignment": "a1"},
+            headers=headers,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["provenance"] == "unverified", r.json()
+        assert r.json()["provenance_downgraded"] is True
+
+
+def test_reissued_attestation_for_the_same_sitting_is_single_use(client, store_reset):
+    """Two attestations minted for the same sitting (a reloaded launch link,
+    a restarted exam) differ byte-for-byte because their expiry differs, but
+    they authorize ONE proctored sample between them."""
+    sid = "acme:examtaker-reissue"
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    first = student_auth.mint_proctor_attestation(sid, "Exam", sitting="link-1")
+    second = student_auth.mint_proctor_attestation(
+        sid, "Exam", ttl_seconds=3600, sitting="link-1"
+    )
+    assert first != second
+    r1 = _post_baseline(
+        client, sid, "proctored", headers={**_auth(stu), "X-Proctor-Attestation": first}
+    )
+    assert r1.json()["provenance"] == "proctored", r1.text
+    r2 = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": SECOND_TEXT, "provenance": "proctored", "assignment": "a1"},
+        headers={**_auth(stu), "X-Proctor-Attestation": second},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["provenance"] == "unverified", r2.json()
+
+
+def test_attestations_for_different_sittings_are_independent(client, store_reset):
+    sid = "acme:examtaker-two-sittings"
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    for sitting, text in (("exam-a", LONG_TEXT), ("exam-b", SECOND_TEXT)):
+        attest = student_auth.mint_proctor_attestation(sid, "Exam", sitting=sitting)
+        r = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": text, "provenance": "proctored", "assignment": "a1"},
+            headers={**_auth(stu), "X-Proctor-Attestation": attest},
+        )
+        assert r.json()["provenance"] == "proctored", r.text
+
+
+def test_staff_write_does_not_consume_an_attestation_header(client, store_reset):
+    """Staff trust comes from the staff role, not from any attestation the
+    request happens to carry, so a staff write must neither consume the
+    student's sitting nor be downgraded by an already-used token."""
+    sid = "acme:examtaker-staff"
+    attest = student_auth.mint_proctor_attestation(sid, "Exam", sitting="s-1")
+    prof = pr.mint_principal_token("prof-1", "professor", "acme")
+    staff = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": LONG_TEXT, "provenance": "proctored", "assignment": "a1"},
+        headers={**_auth(prof), "X-Proctor-Attestation": attest},
+    )
+    assert staff.json()["provenance"] == "proctored", staff.text
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    own = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": SECOND_TEXT, "provenance": "proctored", "assignment": "a1"},
+        headers={**_auth(stu), "X-Proctor-Attestation": attest},
+    )
+    assert own.json()["provenance"] == "proctored", own.text
+
+
+def test_failed_persist_releases_the_attestation(client, store_reset, monkeypatch):
+    """The attestation is redeemed only once the sample is stored: a storage
+    failure (503) must leave it redeemable for the retry of the same sitting."""
+    from fastapi import HTTPException
+
+    from original.routers import students_baseline
+
+    sid = "acme:examtaker-503"
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    attest = student_auth.mint_proctor_attestation(sid, "Exam", sitting="s-503")
+    headers = {**_auth(stu), "X-Proctor-Attestation": attest}
+
+    def _fail(state):
+        raise HTTPException(status_code=503, detail="Not persisted; retry.")
+
+    monkeypatch.setattr(students_baseline, "_persist_or_503", _fail)
+    assert _post_baseline(client, sid, "proctored", headers=headers).status_code == 503
+    monkeypatch.undo()
+
+    retry = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": THIRD_TEXT, "provenance": "proctored", "assignment": "a1"},
+        headers=headers,
+    )
+    assert retry.status_code == 200, retry.text
+    assert retry.json()["provenance"] == "proctored", retry.json()
+
+
+def test_downgraded_write_does_not_complete_a_baseline_request(client, store_reset, monkeypatch):
+    """Every AUTH_WEIGHTS value is above zero, so 'auth_weight > 0' let an
+    unverified self-upload mark a professor's proctored-sitting request done."""
+    from original import baseline_requests
+
+    calls = []
+    monkeypatch.setattr(
+        baseline_requests, "mark_completed_for_student", lambda sid: calls.append(sid) or []
+    )
+    sid = "acme:selfupload-request"
+    stu = pr.mint_principal_token(sid, "student", "acme")
+    r = _post_baseline(client, sid, "proctored", headers=_auth(stu))
+    assert r.json()["provenance"] == "unverified"
+    assert calls == []
+
+    prof = pr.mint_principal_token("prof-1", "professor", "acme")
+    r = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": SECOND_TEXT, "provenance": "proctored", "assignment": "a1"},
+        headers=_auth(prof),
+    )
+    assert r.json()["provenance"] == "proctored"
+    assert calls == [sid]
+
+
+def test_magic_link_reredemption_keeps_one_sitting(client, monkeypatch):
+    """Reopening the same launch link mints a fresh attestation (new expiry)
+    but for the SAME sitting, so it cannot buy a second proctored sample."""
+    sid = "acme:linktaker"
+    link = student_auth.mint_launch_token(sid, "acme", exam="Week 2")
+    first = client.get("/bluebook/launch", params={"t": link})
+    assert first.status_code == 200, first.text
+    clock = student_auth.time.time()
+    monkeypatch.setattr(student_auth.time, "time", lambda: clock + 120)
+    second = client.get("/bluebook/launch", params={"t": link})
+    assert second.status_code == 200, second.text
+
+    def _attestation(resp):
+        import re
+
+        m = re.search(r'localStorage\.setItem\("bluebook_proctor_token","([^"]+)"\)', resp.text)
+        assert m, resp.text[:500]
+        return m.group(1)
+
+    a1, a2 = _attestation(first), _attestation(second)
+    assert a1 != a2
+    assert student_auth.attestation_jti(a1) == student_auth.attestation_jti(a2)
+    other = student_auth.mint_launch_token(sid, "acme", exam="Week 3")
+    a3 = _attestation(client.get("/bluebook/launch", params={"t": other}))
+    assert student_auth.attestation_jti(a3) != student_auth.attestation_jti(a1)

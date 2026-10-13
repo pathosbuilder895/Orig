@@ -555,11 +555,10 @@ def my_exam(exam_id: str, request: Request):
 def my_exam_start(exam_id: str, request: Request):
     """Begin (or resume) a sitting from the dashboard. Pins the server
     deadline exactly as the launch-link path does, clipped so it never
-    passes the exam's closes_at. A tenant that bought Original also gets a
-    proctor attestation, which the seal's report-only comparison sends; the
-    seal never adds to the student's baseline (a professor approves which
-    sealed exams do). A Bluebook-only workspace gets none, because it never
-    profiles."""
+    passes the exam's closes_at. No proctor attestation is issued: the
+    seal's report-only comparison does not need one, and the seal never
+    adds to the student's baseline (a professor approves which sealed exams
+    do)."""
     p = _require_student(request)
     now = rules.now_utc()
     exam, state = _visible_exam(p, exam_id, now)
@@ -576,9 +575,6 @@ def my_exam_start(exam_id: str, request: Request):
         raise HTTPException(status_code=409, detail=detail)
     seconds = rules.session_seconds(exam, now)
     s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
-    proctor_token = None
-    if "original" in p.products:
-        proctor_token = student_auth.mint_proctor_attestation(p.user_id, exam_id)
     _repo().log_audit(
         action="bluebook_dashboard_start",
         tenant_id=p.tenant_id,
@@ -591,7 +587,10 @@ def my_exam_start(exam_id: str, request: Request):
         "deadline_at": s["deadline_at"],
         "server_now": datetime.now(UTC).isoformat(),
         "duration_seconds": seconds,
-        "proctor_token": proctor_token,
+        # A sealed exam reaches the baseline only through professor approval
+        # (routers/bluebook_baselines.py), so the student never holds a
+        # credential that could write a proctored sample directly.
+        "proctor_token": None,
     }
 
 

@@ -2526,6 +2526,16 @@ class PostgresRepository:
             log.error("consume_proctor_attestation failed for student=%s: %s", student_id, e)
             raise
 
+    def release_proctor_attestation(self, jti) -> None:
+        try:
+            with session_scope() as session:
+                session.execute(
+                    ConsumedAttestation.__table__.delete().where(ConsumedAttestation.jti == jti)
+                )
+        except Exception as e:
+            log.error("release_proctor_attestation failed: %s", e)
+            raise
+
     # ── Formation ─────────────────────────────────────────────────────────
     _FORMATION_STEPS = 3
 

@@ -6517,7 +6517,7 @@
     },
     "/bluebook/me/exams/{exam_id}/start": {
       "post": {
-        "description": "Begin (or resume) a sitting from the dashboard. Pins the server\ndeadline exactly as the launch-link path does, clipped so it never\npasses the exam's closes_at. A tenant that bought Original also gets a\nproctor attestation, which the seal's report-only comparison sends; the\nseal never adds to the student's baseline (a professor approves which\nsealed exams do). A Bluebook-only workspace gets none, because it never\nprofiles.",
+        "description": "Begin (or resume) a sitting from the dashboard. Pins the server\ndeadline exactly as the launch-link path does, clipped so it never\npasses the exam's closes_at. No proctor attestation is issued: the\nseal's report-only comparison does not need one, and the seal never\nadds to the student's baseline (a professor approves which sealed exams\ndo).",
         "operationId": "my_exam_start_bluebook_me_exams__exam_id__start_post",
         "parameters": [
           {
@@ -7612,7 +7612,7 @@
     },
     "/students/{student_id}/baseline/upload-batch": {
       "post": {
-        "description": "Upload one or more files (PDF, DOCX, TXT) as baseline samples in a single\nrequest. Used by the Import Papers drawer in the professor demo.\n\nHigh-trust provenance is gated the same way ``add_baseline`` gates it:\na non-staff caller without a valid proctor attestation is downgraded to\n``unverified`` (never rejected), so the batch route can no longer be used\nto self-assert ``verified`` for uploaded files (T-67). The anonymous demo\nprincipal keeps its requested provenance OFF a real deploy, exactly as\n``add_baseline`` does — the sandbox path is byte-identical.\n\nThe response always carries ``provenance`` / ``requested_provenance`` /\n``provenance_downgraded`` (``add_baseline`` emits the latter two only on\na downgrade); always-present is the deliberate convention here because a\nbatch has one effective provenance for every file it admitted.",
+        "description": "Upload one or more files (PDF, DOCX, TXT) as baseline samples in a single\nrequest. Used by the Import Papers drawer in the professor demo.\n\nHigh-trust provenance is gated the same way ``add_baseline`` gates it:\na non-staff caller without a valid proctor attestation is downgraded to\n``unverified`` (never rejected), so the batch route can no longer be used\nto self-assert ``verified`` for uploaded files (T-67). The anonymous demo\nprincipal keeps its requested provenance OFF a real deploy, exactly as\n``add_baseline`` does — the sandbox path is byte-identical.\n\nThe response always carries ``provenance`` / ``requested_provenance`` /\n``provenance_downgraded`` (``add_baseline`` emits the latter two only on\na downgrade). ``provenance`` is the effective provenance after any\ndowngrade; ``provenance_counts`` counts admitted files per provenance,\nsince a batch under one attestation admits only its first file as\nproctored.",
         "operationId": "upload_baseline_batch_students__student_id__baseline_upload_batch_post",
         "parameters": [
           {

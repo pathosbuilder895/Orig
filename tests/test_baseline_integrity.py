@@ -441,3 +441,38 @@ class TestWiringIntoScoreResponse:
         assert body["baseline_integrity"] is None
         assert "authorship" in body and "deviation_score" in body["authorship"]
         assert calls["n"] >= 2, "the defensive re-fetch inside _to_response must have run"
+
+
+class TestReadinessCountsApprovedSamplesOnly:
+    """Bluebook records a sitting INCONCLUSIVE unless readiness is "ready",
+    which it documents as three approved reference samples. Self-uploads
+    (and replay-downgraded writes) carry weight but are not approved."""
+
+    def test_three_self_uploads_are_thin(self):
+        samples = [
+            _sample(0.40 + 0.001 * i, provenance="unverified", auth_weight=0.5)
+            for i in range(3)
+        ]
+        bi = build_baseline_integrity(_state(samples))
+        assert bi.readiness == "thin"
+        assert bi.n_baselines == 0
+        assert bi.provenance_mix == {"unverified": 3}
+
+    def test_self_uploads_do_not_top_up_approved_samples(self):
+        samples = [
+            _sample(0.40, provenance="proctored", auth_weight=2.0),
+            _sample(0.401, provenance="verified"),
+            _sample(0.402, provenance="unverified", auth_weight=0.5),
+        ]
+        bi = build_baseline_integrity(_state(samples))
+        assert bi.readiness == "thin"
+        assert bi.n_baselines == 2
+        assert bi.provenance_mix == {"proctored": 1, "verified": 1, "unverified": 1}
+
+    def test_three_approved_samples_of_any_trusted_kind_are_ready(self):
+        samples = [
+            _sample(0.40, provenance="proctored", auth_weight=2.0),
+            _sample(0.401, provenance="verified"),
+            _sample(0.402, provenance="canvas", auth_weight=0.8),
+        ]
+        assert build_baseline_integrity(_state(samples)).readiness == "ready"

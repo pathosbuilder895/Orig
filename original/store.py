@@ -787,8 +787,8 @@ def _serialize(state: StudentState) -> str:
             # only scripts/tier17_report.py reads it back out.
             "keystroke_data": s.keystroke_data,
             # ADR-010 macro-only composition timing (additive) — None for
-            # legacy/summary-less samples. Not yet read by any scorer (Task 9
-            # wires resolve_composition_mode to it).
+            # legacy/summary-less samples. Stored for audit; no scorer reads
+            # it (the resolver uses the score request's own summary).
             "composition_summary": s.composition_summary,
         }
         for s in state.samples
@@ -3395,6 +3395,14 @@ def consume_proctor_attestation(
         consumed = cur.rowcount == 1
         conn.commit()
     return consumed
+
+
+def release_proctor_attestation(jti: str) -> None:
+    """Undo ``consume_proctor_attestation`` for a write that was never
+    stored, so the retry of the same sitting can still redeem it."""
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM consumed_attestations WHERE jti = ?", (jti,))
+        conn.commit()
 
 
 # ── Phase 2: Tenant-scoped student operations ─────────────────────────────────

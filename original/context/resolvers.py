@@ -547,6 +547,10 @@ def resolve_citations(text: str, citation_data: CitationData | None = None) -> d
 # real-world behaviour `rev_depth > 30` / `del_rate > 0.20` target on the
 # keystroke path — reads as "heavy". There is no single objectively-correct
 # value here; this is a documented judgment call, not a derived constant.
+# The request schemas drop `revision_count` while the `behavioral` feature
+# group is disabled (the classroom default, schemas._discard_keystroke_derived),
+# so by default an absent count reads as "normal" and only an enabled group
+# can reach "heavy" on this path.
 _COMPOSITION_SUMMARY_HEAVY_REVISION_RATE_PER_100_WORDS = 15.0
 
 
@@ -562,11 +566,13 @@ def resolve_composition_mode(
         tool_cleaned     — anomalously low error rates (Grammarly-cleaned)
         structured       — uniform sentence length / templated text
 
-    ``composition_summary`` (ADR-010, spec §5.3) is the newer macro-only
-    session summary Bluebook posts in place of raw ``keystroke_data``. When
-    both are supplied, ``composition_summary`` wins — it is the intended
-    replacement path. When only ``keystroke_data`` is supplied (today's real
-    callers), behaviour is byte-identical to before this parameter existed.
+    ``composition_summary`` (ADR-010, spec §5.3) is the macro-only session
+    summary Bluebook posts in place of raw ``keystroke_data``. When both are
+    supplied, ``composition_summary`` wins — it is the intended replacement
+    path. A keystroke-only call behaves exactly as before this parameter
+    existed. Paste attempts made while the exam blocked copy/paste
+    (``exam_config.block_copy``) inserted nothing, so they never count as
+    software mediation.
 
     Returns
     -------
@@ -600,6 +606,9 @@ def resolve_composition_mode(
             # (n = max(1, doc.word_count) above), so there is no
             # divide-by-zero case to guard here.
             paste_rate = (paste_attempts / word_count_for_rate) * 100
+            exam_config = composition_summary.get("exam_config")
+            if isinstance(exam_config, dict) and exam_config.get("block_copy") is True:
+                paste_rate = 0.0
 
             revision_count = float(composition_summary.get("revision_count", 0) or 0)
             revision_rate = (revision_count / word_count_for_rate) * 100
@@ -699,6 +708,7 @@ def run_resolvers(
     citation_data: CitationData | None = None,
     keystroke_data: dict | None = None,
     metadata: dict | None = None,
+    composition_summary: dict | None = None,
 ) -> dict[str, Any]:
     """
     Run all six resolvers in parallel via ThreadPoolExecutor.
@@ -725,7 +735,10 @@ def run_resolvers(
         "topic": (resolve_topic, (text, baseline_texts or [])),
         "length": (resolve_length, (text,)),
         "citations": (resolve_citations, (text, citation_data)),
-        "composition_mode": (resolve_composition_mode, (text, keystroke_data)),
+        "composition_mode": (
+            resolve_composition_mode,
+            (text, keystroke_data, composition_summary),
+        ),
     }
 
     results: dict[str, Any] = {}

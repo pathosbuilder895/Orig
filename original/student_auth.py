@@ -128,16 +128,24 @@ _PROCTOR_TTL = 6 * 3600  # one exam-day window
 
 
 def mint_proctor_attestation(
-    student_id: str, exam: str = "", ttl_seconds: int = _PROCTOR_TTL
+    student_id: str, exam: str = "", ttl_seconds: int = _PROCTOR_TTL, sitting: str = ""
 ) -> str:
-    """Mint a signed proctor attestation authorizing one student's proctored
-    baseline writes for a bounded window (issued at exam launch)."""
+    """Mint a signed proctor attestation authorizing ONE proctored baseline
+    sample from one sitting, valid for a bounded window (issued at launch).
+
+    ``sitting`` names the sitting the token stands for (a launch link, an
+    LTI resource link). Every attestation minted for the same student and
+    sitting shares one single-use identity (``attestation_jti``), so
+    re-launching does not buy a second proctored sample. Omitted, each
+    token is its own sitting."""
     body = {
         "typ": "proctor",
         "sid": student_id,
         "exam": exam,
         "exp": int(time.time()) + ttl_seconds,
     }
+    if sitting:
+        body["sit"] = sitting
     payload = _b64(json.dumps(body, separators=(",", ":")).encode())
     return f"{payload}.{_sign(payload)}"
 
@@ -175,12 +183,17 @@ def verify_proctor_attestation(token: str, student_id: str, exam: str | None = N
 
 def attestation_jti(token: str) -> str:
     """Stable identity for a proctor attestation, for single-use tracking
-    (T-69). The signature already binds the payload to ``SECRET_KEY``, so
-    hashing just the payload half (not re-deriving or storing the signature)
-    is enough: a caller must already hold a validly-signed token to have a
-    jti worth consuming, and the raw bearer token itself never touches the
-    single-use ledger."""
+    (T-69). A token carrying a ``sit`` claim is identified by its student
+    and sitting, so re-minted tokens for one sitting collide; a token
+    without one by its payload hash. Either way the raw bearer token never
+    touches the single-use ledger. Callers verify the signature first."""
     payload = token.split(".", 1)[0] if "." in token else token
+    try:
+        body = json.loads(_unb64(payload))
+    except Exception:
+        body = None
+    if isinstance(body, dict) and body.get("sit"):
+        return hashlib.sha256(f"sit:{body.get('sid')}:{body['sit']}".encode()).hexdigest()
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
