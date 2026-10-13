@@ -161,7 +161,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).toHaveValue('')
 
     // The examiner's warning banner appears with the canonical copy
-    await expect(page.getByText('Pasting is disabled. Your work must be composed here.'))
+    await expect(page.getByText('Pasting is turned off for this exam, so nothing was added.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -178,7 +178,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     const mod = browserName === 'webkit' || process.platform === 'darwin' ? 'Meta' : 'Control'
     await page.keyboard.press(`${mod}+p`)
 
-    await expect(page.getByText('Printing and saving are disabled during the examination.'))
+    await expect(page.getByText('Printing and saving are turned off during this exam.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -289,7 +289,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
       document.dispatchEvent(new Event('fullscreenchange'))
     })
 
-    await expect(page.getByText('You left full-screen — please return to full-screen to continue.'))
+    await expect(page.getByText('Full screen was turned off. You can turn it back on with the button at the top.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -310,7 +310,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await page.keyboard.type('Short answer, far below the minimum.', { delay: 4 })
 
     await expect(page.getByText('Examination Sealed')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText('Time expired — your work was sealed as written.')).toBeVisible()
+    await expect(page.getByText('Time expired, so your work was sealed as written.')).toBeVisible()
   })
 
   test('Timer expiry with nothing written clears the draft so the next sitting decides afresh', async ({ page }) => {
@@ -345,8 +345,6 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).toBeVisible()
     await textarea.click()
     await page.keyboard.type('Words that must survive a reload.', { delay: 4 })
-    // The 2s debounce persists the draft; wait past it.
-    await page.waitForTimeout(2600)
 
     await page.reload()
     await page.waitForLoadState('networkidle')

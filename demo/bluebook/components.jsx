@@ -344,13 +344,19 @@ async function bbDetail(r, fallback) {
 
 export const BB_API = {
   base: window.BB_API_BASE || '',
-  // JSON request that throws Error(detail) on any non-2xx.
+  // JSON request that throws Error(detail) on any non-2xx. The error carries
+  // the HTTP status, so a caller can tell a refusal (which will not change on
+  // retry) from a server that is briefly unavailable.
   async _json(method, path, body) {
     const r = await fetch(this.base + path, {
       method, headers: this._headers(),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!r.ok) throw new Error(r.status === 401 ? 'Please sign out and sign in again to load your workspace.' : await bbDetail(r));
+    if (!r.ok) {
+      const err = new Error(r.status === 401 ? 'Please sign out and sign in again to load your workspace.' : await bbDetail(r));
+      err.status = r.status;
+      throw err;
+    }
     return r.json();
   },
   _headers() {

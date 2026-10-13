@@ -116,7 +116,7 @@ test.describe('Public self-serve journey', () => {
     const box1 = student.getByLabel('Your answer to question 1')
     await box1.focus()
     await student.keyboard.type(answer, { delay: 1 })
-    await student.getByRole('button', { name: 'Next →' }).click()
+    await student.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(student.getByText(q2, { exact: false })).toBeVisible()
     const box2 = student.getByLabel('Your answer to question 2')
     await expect(box2).toHaveValue('')
