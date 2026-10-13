@@ -454,3 +454,108 @@ class TestResolveCompositionModeKeystrokePathUnchanged:
             "edit_signature": "normal",
             "software_mediated": False,
         }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 9. The summary reaches the resolver from a real scoring call
+#
+# Persisting composition_summary is not enough: the context pipeline used to
+# hand resolve_composition_mode only keystroke_data, which the request schema
+# now drops while the behavioral group is disabled, so a Bluebook sitting's
+# composition mode was inferred from text alone.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCompositionSummaryReachesTheResolver:
+    def test_run_resolvers_threads_the_summary(self):
+        out = r.run_resolvers(
+            _CM_TEXT, [], composition_summary={"word_count": _CM_WORD_COUNT, "paste_attempts": 1}
+        )
+        assert out["composition_mode"]["software_mediated"] is True
+
+    def test_pipeline_threads_the_summary_to_the_resolvers(self, monkeypatch):
+        from original.context import pipeline
+
+        seen = {}
+
+        def _capture(text, baseline_texts, **kwargs):
+            seen.update(kwargs)
+            raise RuntimeError("stop after capture")
+
+        monkeypatch.setattr(pipeline, "run_resolvers", _capture)
+        state = StudentState(student_id="demo:pipe", samples=[_baseline_sample()])
+        summary = {"word_count": _CM_WORD_COUNT, "paste_attempts": 0}
+        pipeline.run_adaptive_pipeline(
+            _CM_TEXT, state, "sub-1", composition_summary=summary, enable_manifest=True
+        )
+        assert seen["composition_summary"] == summary
+
+    def test_score_route_passes_the_request_summary(self, client, monkeypatch):
+        from original.context import pipeline
+
+        seen = {}
+        real = pipeline.run_adaptive_pipeline
+
+        def _capture(*args, **kwargs):
+            seen.update(kwargs)
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(pipeline, "run_adaptive_pipeline", _capture)
+        sid = "demo:composition-summary-score"
+        text = "A verified paper long enough to stand as one baseline sample here. " * 6
+        assert (
+            client.post(
+                f"/students/{sid}/baseline",
+                json={"text": text, "provenance": "verified", "assignment": "e1"},
+            ).status_code
+            == 200
+        )
+        r_score = client.post(
+            f"/students/{sid}/score",
+            json={
+                "text": _CM_TEXT,
+                "submission_id": "cs-score-1",
+                "composition_summary": _COMPOSITION_SUMMARY,
+            },
+        )
+        assert r_score.status_code == 200, r_score.text
+        assert seen["composition_summary"] == _COMPOSITION_SUMMARY_AT_BOUNDARY
+
+
+class TestBlockedPasteIsNotMediation:
+    """With copy/paste blocked, a paste attempt inserted nothing, so it is
+    not evidence that software produced the text."""
+
+    def test_blocked_paste_attempts_do_not_mark_software_mediated(self):
+        out = r.resolve_composition_mode(
+            _CM_TEXT,
+            composition_summary={
+                "word_count": _CM_WORD_COUNT,
+                "paste_attempts": 4,
+                "exam_config": {"block_copy": True},
+            },
+        )
+        assert out == {
+            "mode": "natural_drafted",
+            "edit_signature": "normal",
+            "software_mediated": False,
+        }
+
+    def test_unblocked_paste_attempts_still_count(self):
+        out = r.resolve_composition_mode(
+            _CM_TEXT,
+            composition_summary={
+                "word_count": _CM_WORD_COUNT,
+                "paste_attempts": 1,
+                "exam_config": {"block_copy": False},
+            },
+        )
+        assert out["software_mediated"] is True
+
+    def test_summary_without_revision_count_reads_normal_edits(self):
+        """What the request schema keeps by default carries no revision_count;
+        an absent count is unknown, never evidence of heavy editing."""
+        out = r.resolve_composition_mode(
+            _CM_TEXT, composition_summary=_COMPOSITION_SUMMARY_AT_BOUNDARY
+        )
+        assert out["edit_signature"] == "normal"

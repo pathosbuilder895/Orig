@@ -787,8 +787,8 @@ def _serialize(state: StudentState) -> str:
             # only scripts/tier17_report.py reads it back out.
             "keystroke_data": s.keystroke_data,
             # ADR-010 macro-only composition timing (additive) — None for
-            # legacy/summary-less samples. Not yet read by any scorer (Task 9
-            # wires resolve_composition_mode to it).
+            # legacy/summary-less samples. Stored for audit; no scorer reads
+            # it (the resolver uses the score request's own summary).
             "composition_summary": s.composition_summary,
         }
         for s in state.samples

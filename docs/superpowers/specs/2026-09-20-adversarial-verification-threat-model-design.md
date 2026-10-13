@@ -336,6 +336,14 @@ why it replaces raw keystroke capture):
 }
 ```
 
+Amended 2026-10-13: while the `behavioral` feature group is disabled (the
+classroom default), the request schemas keep only the coarse session keys and
+drop `revision_count` on arrival (`original/schemas.py`,
+`COMPOSITION_SUMMARY_KEYS`), and Bluebook no longer sends it. Consumers must
+treat an absent `revision_count` as unknown, never as zero edits. A paste
+attempt made under `exam_config.block_copy: true` inserted nothing and is not
+evidence of software mediation.
+
 All fields optional, `.get()`-defaulted on read. This is a JSON-document
 additive field on the existing `student_profiles.data` document store —
 per finding B in the programme plan's deep-exploration notes, adding it

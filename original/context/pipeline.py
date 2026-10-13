@@ -80,6 +80,7 @@ def run_adaptive_pipeline(
     enable_manifest: bool = False,
     enable_adaptive_weights: bool = False,
     enable_genre_invariant_weights: bool = False,
+    composition_summary: dict | None = None,
 ) -> AdaptivePipelineResult:
     """
     Run feature extraction with optional adaptive context layer.
@@ -115,6 +116,9 @@ def run_adaptive_pipeline(
         deciding to enable the attenuation. NOT yet validated against real
         student submissions — see weighting.py's
         GENRE_MISMATCH_ATTENUATE_TIERS comment.
+    composition_summary : Optional[Dict]
+        Bluebook's macro session summary (ADR-010), for the composition_mode
+        resolver only. No feature reads it.
 
     Returns
     -------
@@ -158,6 +162,7 @@ def run_adaptive_pipeline(
             text,
             baseline_texts,
             keystroke_data=keystroke_data,
+            composition_summary=composition_summary,
         )
     except Exception as e:
         log.warning("resolvers failed for %s: %s — falling back to Phase 1", submission_id, e)

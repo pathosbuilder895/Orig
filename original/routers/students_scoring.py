@@ -108,6 +108,7 @@ def score_submission(
             state=state,
             submission_id=submission_id,
             keystroke_data=req.keystroke_data,
+            composition_summary=req.composition_summary,
             enable_manifest=enable_manifest,
             enable_adaptive_weights=enable_adaptive,
             enable_genre_invariant_weights=enable_genre_invariant,

@@ -71,6 +71,7 @@ P3 = hygiene.
 
 | ID | Gap | Blind spot | Doc | Effort | Acceptance | State |
 |---|---|---|---|---|---|---|
+| T-77 | Bluebook's `composition_summary` was stored but never reached the composition-mode resolver, so with `keystroke_data` dropped at the schema every sitting's composition mode came from text alone | B1 | threat-model §5.3, ADR-010 | S | fixed 2026-10-13: the score route threads the request's summary through `run_adaptive_pipeline` and `run_resolvers`; blocked paste attempts do not count as mediation. `tests/context/test_composition_summary.py` §9 | green |
 | T-76 | `PostgresRepository.all_states()` fails closed-but-silent (returns `[]`) on any scan error, indistinguishable from a genuinely empty/clean result — surfaced by `scripts/purge_keystroke_blobs.py`'s dry-run report, but the underlying gap is in the repository layer, not the script | B1 | threat-model §1 (T-74 review) | S | a scan failure raises or is otherwise distinguishable from zero rows in a maintenance-tooling read path | open |
 | T-28 | `features/tier8.py` has no test file; math unpinned | — | 02 §1.1 | S | `test_tier8.py` with oracles | open |
 | T-29 | No cross-tier invariant suite (bounds, keys, quotes, length) | — | 02 §1.2 | S | `test_tier_invariants.py` | open |
