@@ -124,6 +124,25 @@ test.describe('Teacher reading and marking a sealed submission', () => {
     await ctx.close()
   })
 
+  test("an exam's submission list that failed to load clears its error once Try again works", async ({ browser, request, baseURL }) => {
+    const ws = await workspace(request)
+    const { ctx, page } = await teacherPage(browser, baseURL, ws)
+    await page.goto('/bluebook/')
+    await page.getByRole('button', { name: 'Examinations' }).first().click()
+    // Fail only the exam screen's own list request, not the dashboard's.
+    let failures = 1
+    await page.route('**/bluebook/submissions', route => {
+      if (route.request().method() !== 'GET' || failures-- <= 0) return route.continue()
+      return route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Briefly unavailable."}' })
+    })
+    await page.getByRole('button', { name: ws.examTitle }).click()
+    await expect(page.getByText('Briefly unavailable.')).toBeVisible()
+    await page.getByRole('button', { name: 'Try again' }).click()
+    await expect(page.getByRole('button', { name: 'Read & mark' })).toBeVisible()
+    await expect(page.getByText('Briefly unavailable.')).toHaveCount(0)
+    await ctx.close()
+  })
+
   test('print gives a clean sheet of the sealed submission', async ({ browser, request, baseURL }) => {
     const ws = await workspace(request)
     const { ctx, page } = await teacherPage(browser, baseURL, ws)

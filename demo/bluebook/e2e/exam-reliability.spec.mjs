@@ -49,16 +49,16 @@ async function rowsFor(request, testTenant, examId) {
   return (body.submissions || []).filter(s => s.exam_id === examId)
 }
 
-async function bootInExam(page, exam, testTenant, { studentId } = {}) {
-  await page.addInitScript(([examArg, sid]) => {
+async function bootInExam(page, exam, testTenant, { studentId, blockWeb = false } = {}) {
+  await page.addInitScript(([examArg, sid, bw]) => {
     localStorage.setItem('bluebook_student_id', sid)
     window.BB_EXAM_CONFIG = {
       id: examArg.id, title: examArg.title, course: examArg.course, courseTitle: examArg.course,
       candidate: 'Reliability Candidate', duration: 7200, minWords: 12, maxWords: null,
-      blockWeb: false, blockCopy: false, spellChk: true,
+      blockWeb: bw, blockCopy: false, spellChk: true,
     }
     Element.prototype.requestFullscreen = function () { return Promise.resolve() }
-  }, [exam, studentId || testTenant.student.student_id])
+  }, [exam, studentId || testTenant.student.student_id, blockWeb])
   await page.goto('/bluebook/')
   await page.waitForLoadState('networkidle')
 }
@@ -194,6 +194,35 @@ test.describe('Exam reliability @robustness', () => {
     expect(rows).toHaveLength(1)
     const sealed = await request.get(`/bluebook/submissions/${rows[0].id}`, { headers: staffAuth(testTenant) })
     expect((await sealed.json()).text).toContain(ESSAY)
+  })
+
+  test('leaving the window while the seal is retrying is not noted', async ({ studentPage, testTenant, request }) => {
+    test.setTimeout(60_000)
+    const exam = await createExam(request, testTenant, 'Reliability no notes while sealing exam')
+    let attempts = 0
+    await studentPage.route('**/bluebook/submissions', route => {
+      if (route.request().method() !== 'POST') return route.continue()
+      attempts += 1
+      if (attempts > 1) return route.continue()
+      // The first attempt hangs, then fails: the seal is in flight for a while.
+      return new Promise(r => setTimeout(r, 3000)).then(() => route.abort())
+    })
+    // Lockdown on, so leaving the window is noted while the student writes.
+    await bootInExam(studentPage, exam, testTenant, { blockWeb: true })
+    await enter(studentPage)
+    await studentPage.locator(BOX).click()
+    await studentPage.keyboard.type(ESSAY, { delay: 1 })
+    studentPage.once('dialog', d => d.accept())
+    await studentPage.getByRole('button', { name: /Seal & Submit/ }).click()
+    // While the seal is in flight (and past the 1.5s that absorbs the confirm
+    // dialog's own blur), the student looks away.
+    await expect.poll(() => attempts).toBe(1)
+    await studentPage.waitForTimeout(1800)
+    await studentPage.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    const rows = await rowsFor(request, testTenant, exam.id)
+    const sealed = await (await request.get(`/bluebook/submissions/${rows[0].id}`, { headers: staffAuth(testTenant) })).json()
+    expect(sealed.warnings).toEqual([])
   })
 
   test('a seal started offline waits, then submits once the connection returns', async ({

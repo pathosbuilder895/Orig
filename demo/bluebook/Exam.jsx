@@ -83,6 +83,27 @@ export function bbDraftKey(cfg) {
   return 'bb_draft_' + (owner ? owner + '|' : '') + exam;
 }
 
+// Drafts were once keyed by the exam alone. A sitting in progress when the
+// per-student key shipped would otherwise refresh into an empty booklet, so
+// a recent draft under the old key is moved to this student's key, once.
+// "Recent" is an exam day (12 hours): an older one is left alone, since on a
+// shared computer it may be someone else's. The student's own draft always
+// wins.
+const BB_LEGACY_DRAFT_MAX_AGE_MS = 12 * 3600 * 1000;
+export function bbAdoptLegacyDraft(cfg, now = Date.now()) {
+  try {
+    const key = bbDraftKey(cfg);
+    const legacy = 'bb_draft_' + ((cfg && (cfg.id || cfg.title)) || 'exam');
+    if (key === legacy || localStorage.getItem(key) != null) return;
+    const raw = localStorage.getItem(legacy);
+    if (raw == null) return;
+    const d = JSON.parse(raw);
+    if (!d || typeof d.savedAt !== 'number' || now - d.savedAt > BB_LEGACY_DRAFT_MAX_AGE_MS) return;
+    localStorage.setItem(key, raw);
+    localStorage.removeItem(legacy);
+  } catch (e) {}
+}
+
 // Whether this sitting's submission goes to Original. Original can be
 // switched on or off for a workspace mid-exam, and any home-page load then
 // refreshes the stored products, so the sitting decides once — when the
@@ -92,6 +113,7 @@ export function bbDraftKey(cfg) {
 // sitting has started (no draft, or a draft from an older page without the
 // decision), the workspace's current products answer.
 export function bbOriginalForSitting(cfg) {
+  bbAdoptLegacyDraft(cfg);
   try {
     const d = JSON.parse(localStorage.getItem(bbDraftKey(cfg)) || 'null');
     if (d && d.seal && typeof d.seal.withOriginal === 'boolean') return d.seal.withOriginal;
@@ -109,6 +131,7 @@ export function bbOriginalForSitting(cfg) {
 // briefing. Returns the decision the draft now holds, or null if storage
 // could not be written.
 export function bbLockOriginalDecision(cfg, withOriginal) {
+  bbAdoptLegacyDraft(cfg);
   const key = bbDraftKey(cfg);
   try {
     let d = null;
@@ -211,9 +234,11 @@ export function bbWordMilestone(prev, words, min, max) {
 
 // Why the seal button is not available yet, or null when it is.
 export function bbSealHint(words, min) {
-  if (!min || words >= min) return null;
-  const left = min - words;
-  return `Write ${bbN(left)} more word${left === 1 ? '' : 's'} to submit.`;
+  if (min && words < min) {
+    const left = min - words;
+    return `Write ${bbN(left)} more word${left === 1 ? '' : 's'} to submit.`;
+  }
+  return words ? null : 'Write your answer to submit.';
 }
 
 // Waits between seal attempts: about 37 seconds in all, long enough to ride
@@ -591,6 +616,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // student (bbDraftKey), written as the student types, restored on mount,
   // and removed only once the seal has been delivered.
   const draftKey = bbDraftKey(cfg);
+  bbAdoptLegacyDraft(cfg);
   const restored = (() => {
     try { return JSON.parse(localStorage.getItem(draftKey) || 'null'); }
     catch (e) { return null; }
@@ -693,7 +719,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // nothing is recorded (or sent to the teacher) while it is up.
   const sealPromptRef = useExRef(false);
   function recordWarning(msg, type = 'other') {
-    if (sealPromptRef.current) return;
+    // Nothing is noted once the answers are final: what a student does while
+    // the seal is on its way is not part of the sitting, and the notes sent
+    // with every retry stay exactly those of the sitting.
+    if (sealPromptRef.current || lockedRef.current) return;
     const now = Date.now();
     if (now - lastWarnRef.current < 1500) return;
     lastWarnRef.current = now;
@@ -727,7 +756,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     // whatever exists, bypassing the word minimum. A student must never be
     // stranded at a dead 00:00.
     if (sealingRef.current) return;
-    if (!opts.force && words < cfg.minWords) return;
+    if (!opts.force && (words < cfg.minWords || !hasWriting())) return;
     if (opts.force && !hasWriting()) {
       // Nothing written when time ran out: don't record an empty submission.
       // The draft holds only this sitting's Original decision (no writing),
@@ -1251,7 +1280,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                   }
                   if (ok) handleSubmit();
                 }}
-                disabled={words < cfg.minWords || submitting || locked}
+                disabled={words < cfg.minWords || !words || submitting || locked}
                 aria-describedby={sealHint ? 'bbSealHint' : (sealNote ? 'bbSealNote' : undefined)}
               >{submitting || locked ? 'Submitting…' : 'Seal & Submit'}</button>
               {sealHint && <span id="bbSealHint" className="bk-seal-hint">{sealHint}</span>}

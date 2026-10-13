@@ -19,7 +19,7 @@ globalThis.localStorage = {
 };
 const {
   bbClock, bbSpokenTime, bbTimeMilestone, bbWordSummary, bbWordMilestone,
-  bbSealHint, bbSealRetryable, BB_SEAL_BACKOFF, bbDraftKey,
+  bbSealHint, bbSealRetryable, BB_SEAL_BACKOFF, bbDraftKey, bbAdoptLegacyDraft,
 } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
 test('the visible clock shows hours once a sitting is an hour or longer', () => {
@@ -80,7 +80,12 @@ test('the seal button explains why it cannot be pressed yet', () => {
   assert.equal(bbSealHint(588, 600), 'Write 12 more words to submit.');
   assert.equal(bbSealHint(599, 600), 'Write 1 more word to submit.');
   assert.equal(bbSealHint(600, 600), null);
-  assert.equal(bbSealHint(0, 0), null);
+  assert.equal(bbSealHint(5, 0), null);
+});
+
+test('an empty booklet cannot be sealed, even when the exam sets no minimum', () => {
+  // A confirmed seal locks the answers; an empty one would lock nothing worth sending.
+  assert.equal(bbSealHint(0, 0), 'Write your answer to submit.');
 });
 
 test('a seal retries network trouble and server hiccups, never a refusal', () => {
@@ -116,4 +121,35 @@ test('a draft belongs to the student who wrote it', () => {
   store.set('original_role', 'professor');
   store.set('original_student_id', 'tenant:stale');
   assert.equal(bbDraftKey(cfg), 'bb_draft_exam-9');
+});
+
+test("a draft saved under the old shared key is adopted once by the student sitting now", () => {
+  const cfg = { id: 'exam-9', title: 'Essay' };
+  const now = Date.parse('2026-10-13T10:00:00Z');
+  const legacy = savedAt => JSON.stringify({ content: 'mine', answers: ['mine'], savedAt });
+  // A sitting in progress when this version shipped: moved to the student's key.
+  store.clear();
+  store.set('bluebook_student_id', 'tenant:aaaa');
+  store.set('bb_draft_exam-9', legacy(now - 30 * 60 * 1000));
+  bbAdoptLegacyDraft(cfg, now);
+  assert.equal(JSON.parse(store.get('bb_draft_tenant:aaaa|exam-9')).answers[0], 'mine');
+  assert.equal(store.has('bb_draft_exam-9'), false);
+  // An old draft (yesterday's sitting, or someone else's) is left alone.
+  store.clear();
+  store.set('bluebook_student_id', 'tenant:aaaa');
+  store.set('bb_draft_exam-9', legacy(now - 13 * 3600 * 1000));
+  bbAdoptLegacyDraft(cfg, now);
+  assert.equal(store.has('bb_draft_tenant:aaaa|exam-9'), false);
+  // The student's own draft is never overwritten.
+  store.clear();
+  store.set('bluebook_student_id', 'tenant:aaaa');
+  store.set('bb_draft_tenant:aaaa|exam-9', JSON.stringify({ answers: ['newer'], savedAt: now }));
+  store.set('bb_draft_exam-9', legacy(now - 60 * 1000));
+  bbAdoptLegacyDraft(cfg, now);
+  assert.equal(JSON.parse(store.get('bb_draft_tenant:aaaa|exam-9')).answers[0], 'newer');
+  // Nobody bound: the old key is already the right one.
+  store.clear();
+  store.set('bb_draft_exam-9', legacy(now - 60 * 1000));
+  bbAdoptLegacyDraft(cfg, now);
+  assert.equal(store.has('bb_draft_exam-9'), true);
 });

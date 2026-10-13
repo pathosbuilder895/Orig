@@ -448,6 +448,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   async function load() {
+    setError('');
     try {
       const [e, all, cs] = await Promise.all([
         BB_API.getExam(examId), BB_API.listSubmissions(), BB_API.listCourses(),
