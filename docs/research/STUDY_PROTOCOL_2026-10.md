@@ -4,23 +4,26 @@
 |---|---|
 | **Tool** | Claude Code (Claude Opus 5.5) |
 | **Date** | 2026-10-13 |
-| **Question** | When a student deliberately writes as a named classmate, does Original's consistency score against that classmate's baseline read lower than the classmate's own natural writing, and at what flag cut-off does that come without false flags on natural writing? |
-| **Decision it informs** | Whether the Collections flag rule (`demo/bluebook/Exam.jsx` `bbSealStatus`, score below 70) should move, via a candidate from `scripts/propose_thresholds.py` judged by gate G-S1 (`validation/calibration_gate.py`). NORTH_STAR milestone 3 (Original reports in teacher workspaces, labelled as testing) and rule 4 (no score-changing move without a passed gate and a human approval). |
+| **Question** | When a student deliberately writes as a named classmate, does Original's `deviation_score` against that classmate's baseline read higher (less consistent) than on the classmate's own natural writing, and at what `deviation_score` cut-off does that come without false flags on natural writing? |
+| **Decision it informs** | Whether the Collections flag (`demo/bluebook/Exam.jsx` `bbSealStatus`: Collections score, round(100 x authorship probability), below 70) should move to a cut-off on `deviation_score`, via a candidate from `scripts/propose_thresholds.py` judged by gate G-S1 (`validation/calibration_gate.py`). NORTH_STAR milestone 3 (Original reports in teacher workspaces, labelled as testing) and rule 4 (no score-changing move without a passed gate and a human approval). |
 
 Tooling this protocol relies on (PR `claude/study-analysis-calibration`):
-`validation/study_contract.py` (the CSV contract), `validation/study_eval.py`
-(the analysis), `scripts/propose_thresholds.py` (the candidate), gate G-S1, and
-the staff panel "Study label (research, staff only)" on the exam view. The
-export that produces the CSV and the `study-label` route are being built
-separately (Codex); this protocol states what they must deliver, not how.
+`validation/study_contract.py` (the CSV contract, `study-csv-v2`),
+`validation/study_eval.py` (the analysis), `scripts/propose_thresholds.py` (the
+candidate), gate G-S1, and the staff panel "Study label (research, staff
+only)" on the exam view. The export (`scripts/study_export.py`), the
+`study-label` route and the server-side study scoring are Codex's (PR #274,
+`codex/study-labels-export`); this protocol states what they must deliver, and
+`tests/test_study_eval_on_export.py` checks the export against the contract
+once both are merged.
 
 ## 1. What this study can and cannot tell us
 
 It **can** estimate, for one cohort on one day: how often the current flag
 rule marks a student's own writing (false flags), how often it marks a
 classmate's deliberate imitation (catches), how often Original cannot read an
-attempt at all (INCONCLUSIVE), and which cut-off would trade those off within
-a 5% false-flag cap.
+attempt at all (INCONCLUSIVE), and which `deviation_score` cut-off would trade
+those off within a 5% false-flag cap.
 
 It **cannot**:
 
@@ -54,7 +57,8 @@ These are preconditions, not steps. If one is not met, do not run the session.
   against its writer or its target, never reported as misconduct, and **never
   approved as a baseline sample** for anyone. Collections will score a shadow
   attempt against its *writer's* own baseline at sealing, and may mark it
-  "worth a look": the teacher disregards that mark for study sittings.
+  "worth a look": the teacher disregards that mark for study sittings. That
+  seal-time reading is not the study's number (section 6).
 - **No prose leaves the deployment.** The study CSV carries scores, counts and
   derived feature values, never text (NORTH_STAR rule 7). No keystroke or
   timing columns (rule 6): the contract has none, and `f_` columns from tier 17
@@ -77,12 +81,29 @@ These are preconditions, not steps. If one is not met, do not run the session.
   approved **before** the session, in the same broad genre as the prompts.
   Below 3, every attempt scored against that student is INCONCLUSIVE, which is
   a valid answer (NORTH_STAR rule 3) but carries no information for this study.
-  Record each student's baseline size at the session.
+  Record each student's baseline count at the session.
 - **Prompts.** Two prompts, P1 and P2, in the same genre and of similar
   difficulty, neither used in any baseline sample.
-- **Exams.** One Collections exam per sitting, published to the cohort's
-  course, 25 minutes each, with a minimum length so most attempts reach the
-  300-word reliability floor.
+- **Exams: two per session.** Create two Collections exams for the session,
+  both published to the cohort's course, 25 minutes each, with a minimum
+  length so most attempts reach the 300-word reliability floor:
+  - **exam N**, the natural sitting (sitting 1);
+  - **exam S**, the shadow sitting (sitting 2).
+
+  Each exam carries both prompts, labelled P1 and P2, and each student answers
+  only the one their sheet names (section 4, step 4: group A answers P1 in
+  exam N and P2 in exam S, group B the reverse), so the prompt counterbalancing
+  survives the split. Check in a rehearsal that a submission answering one of
+  the two prompts seals with its own word count above the minimum.
+
+  Keeping the two kinds in separate exams means the exam a submission sits in
+  already says which kind it should be, so a label that disagrees with its
+  exam is caught at the second-person check (section 5, step 7). Switch
+  **Authorship comparison (Original)** on for both when creating them. An exam
+  without it is not an Original exam: the server stores no study score for
+  it, and the study label panel does not appear on it.
+- **Note both exam ids** on the assignment sheet; the export takes them
+  (section 8).
 
 ## 4. Assigning shadow targets
 
@@ -126,52 +147,72 @@ In the room:
 
 1. Explain the study, that nothing is graded, and how to withdraw. Collect
    consent forms.
-2. **Sitting 1** (25 minutes): each student writes as themselves (group A on
-   P1, group B on P2).
+2. **Sitting 1, exam N** (25 minutes): each student writes as themselves
+   (group A on P1, group B on P2).
 3. Break of at least 10 minutes. Imitators read their target's two samples
    (10 minutes), then hand them back.
-4. **Sitting 2** (25 minutes): each student writes *as their target* on the
-   other prompt. Instruction: "Write the way your classmate writes: their word
-   choice, sentence length, punctuation, how they open and close. Do not copy
-   sentences from their samples."
+4. **Sitting 2, exam S** (25 minutes): each student writes *as their target*
+   on the other prompt. Instruction: "Write the way your classmate writes:
+   their word choice, sentence length, punctuation, how they open and close.
+   Do not copy sentences from their samples."
 5. Sealing works as for any exam.
 
-The same day, in the exam view's **Study label (research, staff only)** panel:
+The same day, in each exam's view, **Study label (research, staff only)**
+panel:
 
 6. Label every submission from the assignment sheet, never from memory:
-   *natural* for sitting 1, *shadow* plus the target for sitting 2.
-7. A second staff member checks every label against the sheet.
+   *natural* for every submission in exam N, *shadow* plus the target for
+   every submission in exam S. A submission left unlabelled is left out of
+   the analysis (the loader counts and names it).
+7. A second staff member checks every label against the sheet and against
+   the exam it sits in.
 8. Do not approve any study submission as a baseline sample.
 
 ## 6. What is measured
 
-The export produces one CSV row per labelled submission
-(`validation/study_contract.py`, contract `study-csv-v1`). The one thing the
-export must get right: **a shadow row's consistency score, status and
-baseline size all come from scoring against the imitated student's baseline**,
-not the writer's. Collections scores the writer's own baseline at sealing;
-that score and that status answer a different question and must not be the
-ones exported for a shadow row. (The loader warns when a row's status and its
-baseline size disagree, which is what a writer-baseline status looks like.)
+The export (`scripts/study_export.py --exam N --exam S --study-id ...`,
+section 8) produces one CSV row per submission of both exams, in contract
+`study-csv-v2` (`validation/study_contract.py`): `student_id` (the writer),
+`study_label`, `imitated_student_id`, `verdict`, `deviation_score`,
+`baseline_count`, `word_count` and `f_<feature>` columns.
+
+**Shadow attempts are scored against the imitated student's baseline.** That
+is the study's question: does the imitation pass as the classmate it
+imitates? So for a shadow row, `deviation_score`, `verdict` and
+`baseline_count` all come from scoring the text against the *imitated*
+student's approved baseline, never the writer's. A natural row is scored
+against the writer's own baseline. Collections scores every sitting against
+the writer's own baseline at sealing; that reading and that status answer a
+different question ("does this look like the writer?") and must not be the
+ones exported for a shadow row. The contract therefore never reads a stored
+`status` as the verdict, and the loader warns when a row's verdict and its
+baseline count disagree, which is what a writer-baseline verdict looks like.
+
+`deviation_score` runs from 0 to 1, and **higher means less consistent** with
+the claimed student (`SCORE_DIRECTION` in the contract). A cut-off flags an
+attempt when its `deviation_score` is at or above the cut-off, the same
+convention as Original's action bands (monitor from 0.40, schedule a
+conversation from 0.60, escalate from 0.75).
 
 `validation/study_eval.py` reports, all over conclusive attempts unless noted:
 
 | Measure | Read it as |
 |---|---|
-| AUC, natural vs shadow, with a student-cluster bootstrap 95% interval | does the score separate the two kinds at all |
-| Confusion matrix at the live rule (score below 70) | today's false flags and catches, plus inconclusive and unscored counts |
-| Threshold sweep, every whole point | the full false-flag vs catch trade-off |
+| AUC on `deviation_score`, natural vs shadow, with a student-cluster bootstrap 95% interval | does the score separate the two kinds at all |
+| Confusion matrix at the live rule, read from the exported `verdict` (checked against round(100 x authorship probability) < 70 when the CSV carries the probability) | today's false flags and catches, plus inconclusive and unscored counts |
+| Threshold sweep on `deviation_score`, every 0.01, action bands marked | the full false-flag vs catch trade-off |
 | INCONCLUSIVE rate, per label | how often Original declines to read |
-| The above by baseline size (0-2, 3-4, 5-9, 10+) and word count (<150, 150-299, 300-499, 500+) | where it works and where it does not |
-| Each student's natural mean minus shadow mean, against the same baseline | whether the effect is general or carried by a few students |
+| The above by baseline count (0-2, 3-4, 5-9, 10+) and word count (<150, 150-299, 300-499, 500+) | where it works and where it does not |
+| Each student's shadow mean minus natural mean, against the same baseline | whether the effect is general or carried by a few students |
 | Separation per `f_` feature, permutation p within student, BH q | exploratory leads for the next study only |
 
-`scripts/propose_thresholds.py` then proposes a candidate cut-off (most shadow
-catches with natural false flags at or under 5%, lowest cut-off on ties),
-re-runs that selection leave-one-student-out (each fold may flag as many
-natural attempts as the whole cohort may, so folds are not stricter than the
-candidate), and writes the out-of-sample counts gate G-S1 reads. Tier weights
-stay unchanged: the scores were computed under the current weights.
+`scripts/propose_thresholds.py` then proposes a candidate cut-off on
+`deviation_score` (most shadow catches with natural false flags at or under
+5%, highest cut-off on ties), re-runs that selection leave-one-student-out
+(each fold may flag as many natural attempts as the whole cohort may, so folds
+are not stricter than the candidate), and writes the out-of-sample counts gate
+G-S1 reads. Tier weights stay unchanged: the scores were computed under the
+current weights.
 
 ## 7. Success criteria, set in advance
 
@@ -196,8 +237,8 @@ to any of them after data exists must be reported as a deviation.
   here and in `validation/calibration_gate.py` before any data exists.
 - **Verdict.** Any leg failing is FAIL, never downgraded. Any leg undecided is
   UNINFORMATIVE. Fewer than 10 students with conclusive attempts cannot PASS.
-  A candidate cut-off above every leave-one-student-out fold's cut-off cannot
-  pass on fold evidence. A candidate that changes tier weights is always
+  A candidate that flags more than every leave-one-student-out fold (a
+  `deviation_score` cut-off below all of theirs) cannot pass on fold evidence. A candidate that changes tier weights is always
   UNINFORMATIVE: G-S1 does not judge weights (see below).
 - **Expected result for about 20 students: UNINFORMATIVE**, because leg A
   cannot be decided below 73 students' conclusive natural attempts. That
@@ -212,8 +253,9 @@ to any of them after data exists must be reported as a deviation.
   cut-off would have flagged real, natural submissions, computed without
   changing what teachers see), because both study cohorts are one room, one
   day, one genre; the owner's approval; and a separate PR that changes
-  `Exam.jsx` and the snapshot `validation/study/current_operating_point.json`
-  together. No research flag is turned on by this study.
+  `Exam.jsx` (the score its flag reads as well as the cut-off) and the
+  snapshot `validation/study/current_operating_point.json` together. No
+  research flag is turned on by this study.
 - **Weights are out of scope.** Tier factors from `--weights study` are fitted
   on this cohort, so re-scoring this cohort under them would be in-sample. A
   weight change needs a fresh cohort scored under the candidate weights and
@@ -226,12 +268,22 @@ to any of them after data exists must be reported as a deviation.
 
 ## 8. Analysis
 
+Export both of the session's exams in one run, so every student carries one
+pseudonymous id across the two (a shadow row's `imitated_student_id` must match
+the target's `student_id` in exam N). N and S are the two exam ids from the
+assignment sheet; `--study-id` names the study. The export is Codex's (PR #274):
+see its `--help` for the pseudonymisation salt.
+
 ```bash
+.venv/bin/python scripts/study_export.py --exam N --exam S --study-id STUDY_ID > study.csv
 .venv/bin/python -m validation.study_eval --csv study.csv --out-dir validation/study/out/cohort1
 .venv/bin/python scripts/propose_thresholds.py --eval validation/study/out/cohort1/study_eval.json
 STUDY_CANDIDATE=validation/study/candidates/candidate_operating_point.json \
   .venv/bin/python -m validation.calibration_gate --strict --only S
 ```
+
+`study.csv` holds per-row results: keep it out of git, beside the
+git-ignored outputs, and delete it with them when the study closes.
 
 With a second cohort, evaluate it the same way and pass its report to the
 proposal: `--fresh-cohort-eval validation/study/out/cohort2/study_eval.json`.
@@ -261,8 +313,11 @@ proposal: `--fresh-cohort-eval validation/study/out/cohort2/study_eval.json`.
 - **Baseline quality varies.** Baseline size is recorded and broken down, but
   genre match and sample length are not controlled beyond the preparation
   rules.
-- **The score studied is the Collections score** (Born-rule authorship
-  probability, or one minus the deviation score, as a whole number). It is
-  not `deviation_score`'s action bands and not `llr_deviation_score`.
+- **The score studied is `deviation_score`**, not the number the live
+  Collections flag reads (round(100 x Born-rule authorship probability)) and
+  not `llr_deviation_score`. The report takes the live rule's outcome from the
+  exported verdict and never re-derives it from `deviation_score`, so a
+  candidate cut-off is a change of the score the flag reads, not only of its
+  threshold.
 - **Feature separation is exploratory.** Dozens of features on about 20
   students; nothing there is a finding, and no weight is changed from it.
