@@ -538,8 +538,8 @@ async def maintenance_write_freeze(request: Request, call_next):
             status_code=503,
             content={
                 "detail": (
-                    "Maintenance in progress — writes are temporarily frozen while the "
-                    "service completes a scheduled migration. Please retry shortly."
+                    "Maintenance in progress. Collections is being updated, so changes "
+                    "are paused for a moment. Please try again in a few minutes."
                 )
             },
             headers={"Retry-After": "120"},

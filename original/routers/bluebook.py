@@ -34,6 +34,7 @@ from ._shared import (
     _exam_submissions,
     _int_or,
     _launch_products,
+    _render_launch_error,
     _render_launch_localstorage,
     _repo,
     _require_staff,
@@ -125,21 +126,32 @@ def _shape(rec: dict) -> dict:
 # The link carries only a signed, purpose-built launch token (no session token).
 
 
+_LAUNCH_INVALID = (
+    "This exam link has expired or is not valid. Please ask your teacher for a new one."
+)
+_LAUNCH_INCOMPLETE = "This exam link is incomplete. Please ask your teacher for a new one."
+
+
+def _refuse_launch(request: Request, message: str):
+    """A browser (which is what opens a launch link) gets a page it can show;
+    an API caller gets the usual JSON error."""
+    if "text/html" in request.headers.get("accept", ""):
+        return _render_launch_error(message)
+    raise HTTPException(status_code=400, detail=message)
+
+
 @router.get("/bluebook/launch")
 def bluebook_magic_launch(request: Request, t: str = ""):
     body = student_auth.verify_launch_token(t)
     if not body:
-        raise HTTPException(
-            status_code=400,
-            detail="This launch link is invalid or has expired. Ask your instructor for a new one.",
-        )
+        return _refuse_launch(request, _LAUNCH_INVALID)
     sid = str(body.get("sid") or "")
     tenant = str(body.get("tid") or "")
     exam = str(body.get("exam") or "")
     exam_id = str(body.get("eid") or "")
     name = str(body.get("name") or "")
     if not sid:
-        raise HTTPException(status_code=400, detail="Launch link is missing its student binding.")
+        return _refuse_launch(request, _LAUNCH_INCOMPLETE)
 
     # Record the LMS-style display name only if the operator opted to include it
     # (roster_links --include-name); links are name-free by default (FERPA).
