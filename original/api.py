@@ -55,6 +55,7 @@ from .routers import (
     bluebook,
     bluebook_accounts,
     bluebook_baselines,
+    bluebook_study,
     health,
     imports,
     lti_routes,
@@ -623,6 +624,7 @@ app.router.routes.extend(lti_routes.router.routes)
 app.router.routes.extend(bluebook.router.routes)
 app.router.routes.extend(bluebook_accounts.router.routes)
 app.router.routes.extend(bluebook_baselines.router.routes)
+app.router.routes.extend(bluebook_study.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)

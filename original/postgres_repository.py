@@ -2208,6 +2208,78 @@ class PostgresRepository:
                 out.append(d)
             return out
 
+    @staticmethod
+    def _bluebook_study_sub_to_dict(row):
+        return {
+            "id": row.submission_id,
+            "exam_id": row.exam_id,
+            "tenant_id": row.tenant_id,
+            "student_id": row.student_id,
+            "study_label": row.study_label,
+            "imitated_student_id": row.imitated_student_id,
+            "word_count": row.word_count or 0,
+            "status": row.status,
+            "text": row.text,
+            "style_score": row.style_score,
+            "style_features": row.style_features_json or {},
+            "style_engine_version": row.style_engine_version,
+            "style_threshold_version": row.style_threshold_version,
+            "style_scored_at": _iso_or_none(row.style_scored_at),
+            "created_at": row.created_at.isoformat(),
+        }
+
+    def get_bluebook_study_submission(self, submission_id):
+        with session_scope() as session:
+            row = session.get(BluebookSubmission, submission_id)
+            return self._bluebook_study_sub_to_dict(row) if row else None
+
+    def list_bluebook_study_submissions(self, exam_ids, tenant_id=None):
+        if not exam_ids:
+            return []
+        with session_scope() as session:
+            stmt = select(BluebookSubmission).where(BluebookSubmission.exam_id.in_(exam_ids))
+            if tenant_id is not None:
+                stmt = stmt.where(BluebookSubmission.tenant_id == tenant_id)
+            rows = session.execute(
+                stmt.order_by(BluebookSubmission.created_at, BluebookSubmission.submission_id)
+            ).scalars()
+            return [self._bluebook_study_sub_to_dict(row) for row in rows]
+
+    def set_bluebook_study_fields(self, submission_id, study_label, imitated_student_id):
+        with session_scope() as session:
+            row = session.get(BluebookSubmission, submission_id)
+            if row is None:
+                return None
+            previous = {
+                "study_label": row.study_label,
+                "imitated_student_id": row.imitated_student_id,
+            }
+            changed = previous != {
+                "study_label": study_label,
+                "imitated_student_id": imitated_student_id,
+            }
+            if changed:
+                row.study_label = study_label
+                row.imitated_student_id = imitated_student_id
+            return {"previous": previous, "changed": changed}
+
+    def set_bluebook_style_score(
+        self, submission_id, score, features, engine_version, threshold_version
+    ):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookSubmission)
+                .where(BluebookSubmission.submission_id == submission_id)
+                .values(
+                    style_score=float(score),
+                    style_features_json=features,
+                    style_engine_version=engine_version,
+                    style_threshold_version=threshold_version,
+                    style_scored_at=datetime.now(UTC),
+                )
+            )
+            return result.rowcount == 1
+
     def set_bluebook_submission_feedback(self, submission_id, mark, feedback, graded_by):
         with session_scope() as session:
             result = session.execute(

@@ -3633,6 +3633,37 @@
         "title": "StudentStateResponse",
         "type": "object"
       },
+      "StudyLabelsRequest": {
+        "description": "PATCH /bluebook/submissions/{id}/study-label; null/empty clears a field.",
+        "properties": {
+          "imitated_student_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imitated Student Id"
+          },
+          "study_label": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Label"
+          }
+        },
+        "title": "StudyLabelsRequest",
+        "type": "object"
+      },
       "StyleAuthorshipOut": {
         "description": "Peer-aligned same-author evidence; report-only and abstention-capable.",
         "properties": {
@@ -6320,6 +6351,43 @@
         "summary": "Bluebook Release Results"
       }
     },
+    "/bluebook/exams/{exam_id}/rescore": {
+      "post": {
+        "operationId": "rescore_study_exam_bluebook_exams__exam_id__rescore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rescore Study Exam"
+      }
+    },
     "/bluebook/exams/{exam_id}/session": {
       "post": {
         "description": "Begin (or resume) a sitting: the first call pins the server deadline;\nevery later call returns the same one, so reopening the tab never\nrestarts or pauses the clock (exam-day robustness spec §1).\n\nCallers: either the signed-in student starting/resuming their own\nsitting (session student id must match ``body.student_id``, when\ngiven), or staff. Previously this route had no auth check at all: an\nanonymous caller could pin the server-side deadline for an arbitrary\nstudent_id on any exam under the demo tenant (T-65) — same class of\nhole as ``bluebook_record_submission`` below, same fix shape.",
@@ -6368,6 +6436,43 @@
           }
         },
         "summary": "Bluebook Start Session"
+      }
+    },
+    "/bluebook/exams/{exam_id}/study-export.csv": {
+      "get": {
+        "operationId": "export_study_exam_bluebook_exams__exam_id__study_export_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Study Exam"
       }
     },
     "/bluebook/exams/{exam_id}/unrelease": {
@@ -6661,6 +6766,23 @@
         "summary": "Student Erase"
       }
     },
+    "/bluebook/study-labels.csv": {
+      "post": {
+        "description": "Apply CSV rows with exact columns submission_id,study_label,imitated_student_id.",
+        "operationId": "batch_set_study_labels_bluebook_study_labels_csv_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Batch Set Study Labels"
+      }
+    },
     "/bluebook/submissions": {
       "get": {
         "operationId": "bluebook_list_submissions_bluebook_submissions_get",
@@ -6870,6 +6992,54 @@
           }
         },
         "summary": "Bluebook Submission Feedback"
+      }
+    },
+    "/bluebook/submissions/{submission_id}/study-label": {
+      "patch": {
+        "description": "Set or clear ground-truth study metadata for one sealed submission.",
+        "operationId": "set_submission_study_label_bluebook_submissions__submission_id__study_label_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyLabelsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Submission Study Label"
       }
     },
     "/canvas/baseline/{student_id}/fetch-submission-text": {

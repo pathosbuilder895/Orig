@@ -236,6 +236,13 @@ class SubmissionFeedbackRequest(BaseModel):
     feedback: str | None = Field(None, description="Comment for the student (max 5,000)")
 
 
+class StudyLabelsRequest(BaseModel):
+    """PATCH /bluebook/submissions/{id}/study-label; null/empty clears a field."""
+
+    study_label: str | None = Field(None, max_length=120)
+    imitated_student_id: str | None = Field(None, max_length=128)
+
+
 class SendEmailRequest(BaseModel):
     """Body for invite reissue routes."""
 

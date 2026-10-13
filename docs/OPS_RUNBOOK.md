@@ -173,6 +173,51 @@ refuses a non-empty target, and refuses a URL matching the shell's configured
 `DATABASE_URL`. Do not set the scratch URL as `DATABASE_URL` for this command.
 Afterwards drop the scratch database and add a line to `docs/PILOT_LOG.md`.
 
+## Study labels, scoring and exports
+
+Study labels are staff-only metadata on sealed Collections submissions. Set or
+clear one with `PATCH /bluebook/submissions/{submission_id}/study-label`, or
+upload a UTF-8 CSV to `POST /bluebook/study-labels.csv` with the exact header
+`submission_id,study_label,imitated_student_id`. An empty field clears that
+value. Every changed row is audited. The CSV endpoint validates the whole file
+before applying any changes.
+
+Server-side style scoring runs after seal only when that exam's existing
+`conditions.aiDetect` value is exactly `true` and the workspace has the Original
+product. Missing approved student baselines leave the submission unscored; they
+do not fail the seal. Scored rows retain the score, feature values, engine
+version, threshold version and score time. Staff can retry with
+`POST /bluebook/exams/{exam_id}/rescore` or run
+`python scripts/study_rescore.py --exam EXAM_ID`. Re-scoring uses current
+approved baselines and is safe to repeat.
+
+The study export contract is a UTF-8 CSV with this exact column order:
+
+```text
+exam_id,submission_id,student_hash,study_label,imitated_student_hash,word_count,style_score,style_features_json,engine_version,threshold_version
+```
+
+Student identifiers are HMAC-SHA256 pseudonyms. Supply an unpredictable salt of
+at least 16 bytes via `STUDY_EXPORT_SALT` or the CLI `--salt` option; keep it
+outside exported files and source control. The staff endpoint is
+`GET /bluebook/exams/{exam_id}/study-export.csv`. For one or more exams, run:
+
+```bash
+STUDY_EXPORT_SALT='<secret salt from the password manager>' \
+  python scripts/study_export.py --exam EXAM_ID --exam ANOTHER_EXAM_ID > study.csv
+python scripts/study_readiness.py --exam EXAM_ID --exam ANOTHER_EXAM_ID
+```
+
+The readiness report lists each exam student's approved baseline count and
+word total against 3 papers / 300 words, missing submission labels, unscored
+sealed submissions, and shadow-labeled submissions without an imitated
+student. It is a preparation report, not a student-facing score or verdict.
+
+Before enabling a study workflow, the operator verifies that the intended
+workspace has Original and that the exam's existing feature flag is configured
+as intended. Do not enable or change either setting as part of deploying these
+tools. No student API or response includes the label or score metadata.
+
 ## Database loss or corruption
 
 1. If the service is still up, freeze writes: `MAINTENANCE_MODE=1` → deploy.

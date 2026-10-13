@@ -1,0 +1,3 @@
+exam_id,submission_id,student_hash,study_label,imitated_student_hash,word_count,style_score,style_features_json,engine_version,threshold_version
+exam-1,sub-1,hmac-sha256:370819afa5eef501ad17ba115212da30390b8a883065b3ecf3c19f8da633f53b,shadow,hmac-sha256:7225777d9b3d4c2c973bdc8113835f21d3bf426b2dd135e4221596c4cc57bf64,321,0.125,"{""feature_a"":0.2,""feature_z"":0.9}",original-layer7-style-v1,thresholds-sha256:abc123
+exam-2,sub-2,,,,0,,{},,

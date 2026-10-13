@@ -30,6 +30,16 @@
     "tampered": 401,
     "expired": 401
   },
+  "GET /bluebook/exams/nonexistent/study-export.csv": {
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
+    "professor_own": 404,
+    "professor_other": 404,
+    "operator": 404,
+    "tampered": 401,
+    "expired": 401
+  },
   "GET /health": {
     "anonymous": 200,
     "student_own": 200,

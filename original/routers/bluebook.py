@@ -352,6 +352,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     if body.submission_uuid:
         prior = _repo().get_bluebook_submission_by_uuid(body.submission_uuid[:64])
         if prior is not None:
+            _score_sealed_submission_if_enabled(prior)
             return {
                 "id": prior["id"],
                 "status": prior["status"],
@@ -460,7 +461,33 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
             "warnings": len(warnings),
         },
     )
+    # Original style scoring runs on the server after the seal is durable.
+    # Bluebook-only tenants and exams with aiDetect disabled never enter the
+    # scorer. A scoring failure leaves the acknowledged submission intact and
+    # appears as an unscored row in the staff readiness report.
+    _score_sealed_submission_if_enabled(rec, exam=stored_exam, tenant_id=tenant)
     return {"id": rec["id"], "status": rec["status"], "late": rec["late"]}
+
+
+def _score_sealed_submission_if_enabled(
+    rec: dict, *, exam: dict | None = None, tenant_id: str | None = None
+) -> None:
+    """Best-effort Original score on seal and on an idempotent seal replay."""
+    submission_id = rec.get("id") or rec.get("submission_id")
+    if not submission_id:
+        return
+    repo = _repo()
+    exam = exam or (repo.get_bluebook_exam(rec.get("exam_id")) if rec.get("exam_id") else None)
+    tenant_id = tenant_id if tenant_id is not None else rec.get("tenant_id")
+    if exam is None:
+        return
+    from ..study_scoring import score_study_submission, style_scoring_enabled
+
+    if not style_scoring_enabled(exam, tenant_id):
+        return
+    full_row = repo.get_bluebook_study_submission(submission_id)
+    if full_row is not None:
+        score_study_submission(full_row, repo=repo)
 
 
 @router.get("/bluebook/submissions")

@@ -307,6 +307,13 @@ REPRESENTATIVE_ROWS = {
         ai_score=8,
         status="SUBMITTED",
         created_at=NOW,
+        study_label="human",
+        imitated_student_id="marcus-peer",
+        style_score=0.27,
+        style_features_json={"feature_a": 0.1, "feature_b": 0.9},
+        style_engine_version="original-layer7-style-v1",
+        style_threshold_version="thresholds-sha256:1234abcd",
+        style_scored_at=NOW,
     ),
     BluebookSession: dict(
         exam_id="e-001",

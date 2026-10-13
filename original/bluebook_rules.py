@@ -30,10 +30,20 @@ MAX_MARK_CHARS = 20
 MAX_FEEDBACK_CHARS = 5000
 _WARNING_FIELD_CHARS = 40
 
-# Fields only a tenant that bought Original may see: they are Original's
-# stylometric and AI readings. Keys as the repository's submission dicts
-# spell them.
-SCORE_FIELDS = ("stylometric", "aiScore")
+# Fields excluded from student responses and from workspaces without Original.
+# Study labels and score features are reserved for authorized staff/export
+# paths; ordinary submission serializers never add them to their dictionaries.
+SCORE_FIELDS = (
+    "stylometric",
+    "aiScore",
+    "study_label",
+    "imitated_student_id",
+    "style_score",
+    "style_features",
+    "style_engine_version",
+    "style_threshold_version",
+    "style_scored_at",
+)
 
 
 def is_self_serve(tenant: dict | None) -> bool:
