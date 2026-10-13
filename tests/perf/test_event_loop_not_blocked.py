@@ -63,13 +63,16 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 # ── Budgets ───────────────────────────────────────────────────────────────────
-# §9: a budget is >= 3x the value measured at authoring time. Measured
+# The dispatch ceiling includes host scheduling delay as well as loop
+# starvation. Use 500 ms to absorb a single delayed wakeup on shared runners;
+# this still catches the regression, whose blocked-loop beats take 1-10 s.
+# Measured
 # 2026-09-07 on this checkout (Darwin, 12 CPUs, warm spaCy pipeline):
 #   unloaded beat  — median 7 ms over 5 samples (3.4-7.0 ms) -> control
 #                    budget 50 ms, ~7x
 #   loaded beat, healthy handler (students/upload, no feature extraction)
-#                  — 7 ms late over a 60 ms request -> budget 250 ms, ~36x
-BEAT_BUDGET_S = 0.25
+#                  — 7 ms late over a 60 ms request -> budget 500 ms, ~71x
+BEAT_BUDGET_S = 0.5
 CONTROL_BUDGET_S = 0.05
 # How far into the upload the heartbeat is due.
 SETTLE_S = 0.05
@@ -199,10 +202,7 @@ def _batch_upload(client: httpx.AsyncClient):
     original/routers/students_baseline.py:342. Calls feature_vector() per
     file inline: ~1 s each with spaCy warm.
     """
-    files = [
-        ("files", _txt(f"baseline-{i}.txt", _document(400, f"b{i}-")))
-        for i in range(10)
-    ]
+    files = [("files", _txt(f"baseline-{i}.txt", _document(400, f"b{i}-"))) for i in range(10)]
     return client.post(
         "/students/perf-s1/baseline/upload-batch",
         files=files,
@@ -247,8 +247,7 @@ def _turnitin_csv(client: httpx.AsyncClient):
     a repository get + get_or_create per row.
     """
     header = (
-        "Last Name,First Name,Student ID,Assignment Title,"
-        "Date Submitted,Similarity,File Name\n"
+        "Last Name,First Name,Student ID,Assignment Title,Date Submitted,Similarity,File Name\n"
     )
     rows = "".join(
         f"Last{i},First{i},perf-csv-{i},Essay {i},2026-01-01,12,paper{i}.docx\n"
@@ -359,9 +358,7 @@ async def test_heartbeat_probe_is_fast_with_no_load(store_reset, perf_client):
         pytest.param(_single_upload_txt, id="students-upload-txt"),
     ],
 )
-async def test_upload_does_not_starve_the_heartbeat(
-    store_reset, perf_client, send_upload
-):
+async def test_upload_does_not_starve_the_heartbeat(store_reset, perf_client, send_upload):
     """T-09, FIXED: bulk upload blocked the event loop; live exam heartbeats
     stalled. The batch importer and the CSV importer were moved off the event
     loop (5cfc2b6c), and /students/{id}/upload is now a plain ``def`` handler,

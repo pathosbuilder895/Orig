@@ -17,6 +17,10 @@ branch coverage via tests/test_imports_api_coverage.py — not touched here.
 
 from __future__ import annotations
 
+import socket
+
+import pytest
+
 import original.canvas.live_import as canvas_live
 from original import principal as pr
 
@@ -40,6 +44,21 @@ STAFF_TOKEN = pr.mint_principal_token("op-canvas-branches", "operator", "canvasb
 STAFF_HEADERS = {"Authorization": f"Bearer {STAFF_TOKEN}"}
 
 CONFIG = {"canvas_url": "https://fake.instructure.com", "access_token": "fake-token"}
+
+
+@pytest.fixture(autouse=True)
+def public_canvas_dns(monkeypatch):
+    real_getaddrinfo = socket.getaddrinfo
+
+    def resolve(host, *args, **kwargs):
+        if host == "fake.instructure.com":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.215.14", 443))]
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    # The SSRF guard resolves the synthetic host before test stubs replace
+    # Canvas HTTP; pin this DNS result so tests never use external DNS.
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+
 
 # Reused from tests/test_students_baseline_batch.py's drift-gate fixture
 # texts (same U1/U2/U3 + OUTLIER_TEXT pattern, verified empirically there to

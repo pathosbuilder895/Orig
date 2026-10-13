@@ -7106,6 +7106,23 @@
         "summary": "Import Turnitin Csv"
       }
     },
+    "/livez": {
+      "get": {
+        "description": "Fast process liveness probe; deliberately does not touch the database.",
+        "operationId": "livez_livez_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Livez"
+      }
+    },
     "/lti/jwks": {
       "get": {
         "operationId": "lti_jwks_lti_jwks_get",
