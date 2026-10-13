@@ -229,7 +229,7 @@ base.describe('Axe scan — public screens @a11y', () => {
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
     checkA11y(results, 'Briefing')
   })

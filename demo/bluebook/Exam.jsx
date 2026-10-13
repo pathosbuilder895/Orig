@@ -135,13 +135,13 @@ export function bbLockOriginalDecision(cfg, withOriginal) {
 // list and the value saved at Begin cannot differ.
 function buildConditions(cfg, withOriginal) {
   return [
-    cfg.blockAI   && 'AI assistants and other writing tools are not permitted',
-    cfg.blockWeb  && 'The examination runs full-screen; leaving it or switching tabs is recorded for your teacher',
-    cfg.blockCopy && 'Copy and paste are disabled in the answer box',
-    withOriginal  && 'Session duration and coarse writing information are noted as context for your teacher',
-    cfg.phoneBlk  && 'Devices must be silenced for the duration',
-    withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work',
-    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile, and can undo that',
+    cfg.blockAI   && 'Please write on your own, without AI assistants or other writing tools.',
+    cfg.blockWeb  && 'The exam opens full screen. If you leave it or switch tabs, your teacher sees a short note with the time.',
+    cfg.blockCopy && 'Copy and paste are turned off in the answer box.',
+    withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
+    cfg.phoneBlk  && 'Please silence your phone and other devices.',
+    withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
+    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile, and can undo that.',
   ].filter(Boolean);
 }
 
@@ -448,7 +448,13 @@ export function BriefingScreen({ onNavigate }) {
         });
         setLoadState('ready');
       })
-      .catch(err => { if (live) { setLoadError(err.message || 'This examination could not be loaded.'); setLoadState('error'); } });
+      .catch(err => {
+        if (!live) return;
+        setLoadError(err && err.status === 401
+          ? 'Your sign-in has expired. Please sign in again to open this exam.'
+          : 'We could not open this exam just now. Please refresh the page, or ask your teacher for a new link.');
+        setLoadState('error');
+      });
     return () => { live = false; };
   }, []);
 
@@ -469,7 +475,7 @@ export function BriefingScreen({ onNavigate }) {
               <span className="bk-exam-lbl">Examination Booklet</span>
               <h1>Collections</h1>
               <p role={loadState === 'error' ? 'alert' : 'status'} className="bk-cover-note state">
-                {loadState === 'error' ? loadError : 'Loading your examination…'}
+                {loadState === 'error' ? loadError : 'Opening your exam…'}
               </p>
             </div>
           </div>
@@ -498,7 +504,7 @@ export function BriefingScreen({ onNavigate }) {
           )}
 
           <div className="bk-cover-inner">
-            <span className="bk-exam-lbl">Preliminary Instructions</span>
+            <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />
 
@@ -511,29 +517,34 @@ export function BriefingScreen({ onNavigate }) {
 
             <p className="bk-meta">
               <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
-              {limits && ` ${limits}`} Your work saves itself as you write. When you open this booklet, the clock starts, and everything you write here is yours, in your own hand.
+              {limits && ` ${limits}`} Your work saves itself on this device as you write. The clock starts when you open the booklet.
             </p>
             {cfg.closesAt && (
               <p className="bk-closes">Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             )}
 
             <div className="bk-conditions">
-              <h2>Enforced Conditions</h2>
+              <h2>How this exam works</h2>
               <ul>
                 {conditions.map(rule => <li key={rule}>{rule}</li>)}
               </ul>
+              {(cfg.blockWeb || cfg.blockCopy) && (
+                <p className="bk-conditions-note">Notes like these are context for your teacher, not an accusation. Moments away happen.</p>
+              )}
             </div>
 
             {cannotBegin ? (
               <p role="status" className="bk-cover-note state">
-                {cfg.state === 'upcoming' ? 'This examination has not opened yet.' : 'This examination is closed.'}
+                {cfg.state === 'upcoming'
+                  ? 'This exam is not open yet. Please come back at the time your teacher gave you.'
+                  : 'This exam has closed. If you think that is a mistake, please talk to your teacher.'}
               </p>
             ) : (
               <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
                 {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
               </button>
             )}
-            <p className="bk-cover-note">Once begun, this examination cannot be paused</p>
+            <p className="bk-cover-note">Once you begin, the clock keeps running, even if you close this page</p>
             <p className="bk-cover-note">{withOriginal ? 'Original · Collections · quiet by design' : 'Collections · quiet by design'}</p>
           </div>
         </div>
@@ -1133,9 +1144,17 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 <button type="button" aria-expanded={warnLogOpen} aria-controls="bbNoticesList"
                   onClick={() => setWarnLogOpen(o => !o)}>{warnLogOpen ? 'Hide' : 'Show'}</button>
               </div>
-              <ul id="bbNoticesList" hidden={!warnLogOpen}>
-                {warnLog.map(w => <li key={w.id}>{w.msg}</li>)}
-              </ul>
+              <div id="bbNoticesList" hidden={!warnLogOpen}>
+                <p className="bk-notices-note">Your teacher sees these with the time, as context. They are not a judgement about you or your work.</p>
+                <ul>
+                  {warnLog.map(w => (
+                    <li key={w.id}>
+                      <span className="bk-notices-time">{new Date(w.id).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>{' '}
+                      <span>{w.msg}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </section>
           )}
 
@@ -1219,7 +1238,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                   // handleSubmit({ force: true }) and never reaches this.
                   sealPromptRef.current = true;
                   let ok = false;
-                  try { ok = window.confirm('Seal and submit now? You cannot change your answers after sealing.'); }
+                  try { ok = window.confirm('Ready to submit? Once your booklet is sealed, your answers cannot be changed.'); }
                   finally {
                     sealPromptRef.current = false;
                     // A blur or visibility event can arrive just after the
@@ -1275,13 +1294,26 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             {transmitFailed ? (
               <React.Fragment>
-                <h1 ref={headRef} tabIndex={-1}>We could not deliver your examination</h1>
-                <p>
-                  Your writing is saved on this device, so nothing is lost.
-                  Please try again, and if it still fails, tell your instructor
-                  before closing this window.
-                </p>
-                <p className="state err">{sub.error || 'The server could not be reached.'}</p>
+                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : 'Your exam has not been submitted yet'}</h1>
+                {sub.empty ? (
+                  <p>
+                    Nothing was written in this booklet, so there was nothing to
+                    submit. If that is not right, please talk to your teacher.
+                  </p>
+                ) : (
+                  <React.Fragment>
+                    <p>
+                      Your writing is saved on this device, so nothing is lost.
+                      Please try again. If it still does not go through, let your
+                      teacher know before you close this window.
+                    </p>
+                    {/* The server's own words, kept for the teacher rather than put in the student's way. */}
+                    <details className="state-details">
+                      <summary>Details for your teacher</summary>
+                      <p className="state err">{sub.error || 'The server could not be reached.'}</p>
+                    </details>
+                  </React.Fragment>
+                )}
               </React.Fragment>
             ) : (
               <React.Fragment>
@@ -1291,7 +1323,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                   for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile, and can undo that.'}
                 </p>
                 {sub.expired && (
-                  <p>Time expired, so your work was sealed as written.</p>
+                  <p>Time ran out, so your booklet was sealed with everything you had written.</p>
                 )}
                 {transmitted && (
                   <p className="state ok">✓ Delivered to your teacher</p>
@@ -1327,7 +1359,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             {isStudent && !transmitFailed && (
               <p>
-                Your teacher can now read it and will follow up with you.
+                Your teacher can now read it.
                 {!studentAccount && ' You may close this window.'}
               </p>
             )}

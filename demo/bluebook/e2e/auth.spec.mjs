@@ -79,10 +79,10 @@ test.describe('Bound student launch (magic-link / LTI launch consequence)', () =
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    // BriefingScreen renders the exam title + "Preliminary Instructions" —
+    // BriefingScreen renders the exam title + "Before you begin" —
     // never the sign-in form — confirming isStudentLaunch() short-circuited
     // routing straight past login/landing (app.jsx: BB_API.isStudentLaunch()).
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByPlaceholder('you@school.edu')).toHaveCount(0)
   })
 

@@ -173,7 +173,7 @@ test.describe('Exam screen access @a11y', () => {
   }) => {
     const exam = await createExam(request, testTenant, 'Access contrast exam')
     await boot(studentPage, exam, testTenant)
-    await expect(studentPage.getByText('Preliminary Instructions')).toBeVisible()
+    await expect(studentPage.getByText('Before you begin')).toBeVisible()
     await studentPage.waitForFunction(() => document.getAnimations().every(a => a.playState === 'finished'))
     const failures = await studentPage.evaluate(() => {
       const LIGHTEST = [0x43, 0x66, 0xac]   // .bk-cover's first gradient stop

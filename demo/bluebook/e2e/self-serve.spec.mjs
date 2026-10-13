@@ -106,7 +106,7 @@ test.describe('Public self-serve journey', () => {
     await expect(student.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     await expect(student).not.toHaveURL(/invite=/)
     await student.getByRole('button', { name: 'Open' }).click()
-    await expect(student.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     // Honest conditions: nothing claims AI tools are blocked.
     await expect(student.getByText(/AI .*blocked/i)).toHaveCount(0)
     await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()

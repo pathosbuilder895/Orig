@@ -310,7 +310,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await page.keyboard.type('Short answer, far below the minimum.', { delay: 4 })
 
     await expect(page.getByText('Examination Sealed')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText('Time expired, so your work was sealed as written.')).toBeVisible()
+    await expect(page.getByText('Time ran out, so your booklet was sealed with everything you had written.')).toBeVisible()
   })
 
   test('Timer expiry with nothing written clears the draft so the next sitting decides afresh', async ({ page }) => {

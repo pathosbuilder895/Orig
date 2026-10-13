@@ -49,6 +49,7 @@
 .bk-conditions h2{font:500 .66rem var(--mono);letter-spacing:.18em;text-transform:uppercase;color:#fff;margin:0 0 .55rem}
 .bk-conditions ul{list-style:none;margin:0;padding:0}
 .bk-conditions li{position:relative;padding-left:.95rem;margin-bottom:.25rem;font-size:.88rem;line-height:1.4;color:#fff}
+.bk-conditions-note{margin:.55rem 0 0;font-size:.85rem;font-style:italic;line-height:1.4;color:#fff}
 .bk-conditions li::before{content:'';position:absolute;left:0;top:.55em;width:4px;height:4px;border-radius:50%;background:#e0be55}
 .bk-begin{margin-top:1.3rem;border:none;border-radius:999px;padding:.85rem 2.2rem;background:#fbf8f0;color:var(--bb-ink);font:600 1.05rem var(--body);box-shadow:0 8px 24px rgba(0,0,0,.35);transition:transform .15s}
 .bk-begin:hover{transform:translateY(-2px)}
@@ -129,7 +130,9 @@
 .bk-notices-head h2{margin:0;font:.68rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--bb-ink)}
 .bk-notices-head button{border:0;background:none;color:var(--bb-blue);font:.68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;padding:.3rem}
 .bk-notices ul{list-style:none;margin:0;padding:0 1.6rem .5rem 2.2rem;max-height:96px;overflow-y:auto}
-.bk-notices li{margin:0 0 .3rem;text-align:center;font-size:.98rem;font-style:italic;color:var(--bb-ink)}
+.bk-notices-note{margin:0;padding:0 1.6rem .3rem 2.2rem;font-size:.85rem;font-style:italic;color:var(--muted)}
+.bk-notices li{margin:0 0 .3rem;font-size:.98rem;color:var(--bb-ink)}
+.bk-notices-time{font:.72rem var(--mono);color:var(--muted)}
 .bk-offline{flex-shrink:0;padding:.45rem 1.6rem .45rem 2.2rem;background:var(--paper);border-bottom:2px solid var(--bb-blue);font:.74rem var(--mono);letter-spacing:.06em;color:var(--bb-ink)}
 .bk-exit{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .75rem;border-radius:999px;border:1px solid rgba(90,130,200,.45);background:none;color:var(--bb-blue);font:.72rem var(--mono);letter-spacing:.06em;min-height:2rem}
 .bk-exit:hover{background:rgba(90,130,200,.1)}
@@ -147,6 +150,9 @@
 .bk-done p.state{font-style:normal;font:.74rem var(--mono);letter-spacing:.08em}
 .bk-done p.state.ok{color:var(--ok)}
 .bk-done p.state.err{color:#a8462f}
+.bk-done .state-details{margin:.9rem auto 0;max-width:40ch;text-align:left;font-size:.85rem;color:var(--muted)}
+.bk-done .state-details summary{cursor:pointer;font:.7rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--bb-blue)}
+.bk-done .state-details p.state{margin-top:.4rem}
 .bk-done .gist{margin:1.4rem 0 1.4rem;padding:.4rem 1.2rem;text-align:left;border:1px solid rgba(90,130,200,.2);border-radius:12px;background:rgba(90,130,200,.05)}
 .bk-done .gist div{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.65rem 0;border-top:1px solid rgba(90,130,200,.15)}
 .bk-done .gist div:first-child{border-top:0}
@@ -178,7 +184,7 @@
   .bk-finish{width:100%}
   .bk-writing::before{left:-1.1rem}
   .bk-notices-head,.bk-offline{padding-left:1.2rem;padding-right:1rem}
-  .bk-notices ul{padding-left:1.2rem;padding-right:1rem}
+  .bk-notices ul,.bk-notices-note{padding-left:1.2rem;padding-right:1rem}
   .bk-done{padding:2rem 1.2rem 1.8rem 1.8rem}
 }
 /* Short windows, which is also what 200% zoom looks like: a 1280x800 window
