@@ -50,6 +50,8 @@
 .bk-conditions ul{list-style:none;margin:0;padding:0}
 .bk-conditions li{position:relative;padding-left:.95rem;margin-bottom:.25rem;font-size:.88rem;line-height:1.4;color:#fff}
 .bk-conditions-note{margin:.55rem 0 0;font-size:.85rem;font-style:italic;line-height:1.4;color:#fff}
+.bk-conditions-note a{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.bk-conditions-note a:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .bk-conditions li::before{content:'';position:absolute;left:0;top:.55em;width:4px;height:4px;border-radius:50%;background:#e0be55}
 .bk-begin{margin-top:1.3rem;border:none;border-radius:999px;padding:.85rem 2.2rem;background:#fbf8f0;color:var(--bb-ink);font:600 1.05rem var(--body);box-shadow:0 8px 24px rgba(0,0,0,.35);transition:transform .15s}
 .bk-begin:hover{transform:translateY(-2px)}

@@ -188,6 +188,10 @@ export function LandingScreen({ onNavigate }) {
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
           }}>Terms</a>
+          <a href="../legal/student-notice.html" style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
+          }}>Student notice</a>
         </div>
       </footer>
     </div>

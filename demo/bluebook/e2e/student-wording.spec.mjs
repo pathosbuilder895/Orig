@@ -206,6 +206,23 @@ test.describe('Student-facing wording', () => {
     await context.close()
   })
 
+  test('the briefing and the landing page point students to the student notice', async ({
+    studentPage, testTenant, request,
+  }) => {
+    const exam = await createExam(request, testTenant, 'Wording notice exam')
+    await boot(studentPage, exam, testTenant)
+    const link = studentPage.getByRole('link', { name: /What Collections keeps/ })
+    await expect(link).toHaveAttribute('href', '../legal/student-notice.html')
+    await expect(link).toHaveAttribute('target', '_blank')
+    const res = await studentPage.request.get('/legal/student-notice.html')
+    expect(res.ok()).toBe(true)
+
+    const visitor = await studentPage.context().browser().newPage()
+    await visitor.goto('/bluebook/')
+    await expect(visitor.getByRole('link', { name: 'Student notice' })).toHaveAttribute('href', '../legal/student-notice.html')
+    await visitor.close()
+  })
+
   test('an exam that is closed or not yet open is explained kindly', async ({ studentPage, testTenant, request }) => {
     const exam = await createExam(request, testTenant, 'Wording closed exam')
     await boot(studentPage, exam, testTenant, { loaded: true, state: 'closed' })

@@ -531,6 +531,10 @@ export function BriefingScreen({ onNavigate }) {
               {(cfg.blockWeb || cfg.blockCopy) && (
                 <p className="bk-conditions-note">These notes help your teacher understand the session. Short moments away are normal.</p>
               )}
+              {/* Before the clock starts, so reading it costs no exam time. */}
+              <p className="bk-conditions-note">
+                <a href="../legal/student-notice.html" target="_blank" rel="noopener">What Collections keeps, and what it does not</a>
+              </p>
             </div>
 
             {cannotBegin ? (
