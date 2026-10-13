@@ -302,6 +302,27 @@ class TestG2bProxyLabelSurvives:
 class TestG8Witnesses:
     """G8's witnesses, pinned to the specific legs they exercise."""
 
+    def test_g_s1_fails_on_false_flags_alone(self):
+        # The witness is an otherwise strong operating point: only leg A
+        # (false flags on natural attempts) fails, with evidence out of sample
+        # and the student floor met.
+        result = GATE_CONTRACTS["evaluate_g_s1_study_operating_point"].failure_witness()
+        assert result.verdict == "fail"
+        assert result.detail["legs"] == {"A": "fail", "B": "pass", "C": "pass"}
+        assert result.detail["evidence"] == "leave_one_student_out"
+
+    def test_g_s1_label_destruction_cannot_pass_at_any_shared_rate(self):
+        # Shuffled labels flag both kinds at one rate. Legs A (rate <= 5%) and
+        # C (rate > 5%) cannot both hold at a shared observed rate, so no
+        # shared rate can pass, whatever the AUC says.
+        for n in (40, 80, 150, 400):
+            for k in range(n + 1):
+                r = calibration_gate.evaluate_g_s1_study_operating_point(
+                    k, n, k, n, auc=0.9, auc_ci95=(0.8, 0.95), n_students=200)
+                assert r.verdict != "pass", (k, n)
+        contract = GATE_CONTRACTS["evaluate_g_s1_study_operating_point"]
+        assert contract.label_destruction().detail["legs"]["B"] == "fail"
+
     def test_g8_fails_because_one_class_is_weak_not_because_of_the_other_legs(self):
         result = GATE_CONTRACTS["evaluate_g8_genre_discrimination"].failure_witness()
         assert result.detail["precision_leg_passed"] is False

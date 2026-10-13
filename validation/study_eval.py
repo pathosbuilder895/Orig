@@ -247,8 +247,10 @@ def _confusion(rows, t: float) -> dict:
         "matrix": out,
         "false_flag_rate_conclusive": _rate(nat["flagged"], nat["flagged"] + nat["not_flagged"]),
         "catch_rate_conclusive": _rate(sh["flagged"], sh["flagged"] + sh["not_flagged"]),
-        "false_flag_rate_all_attempts": _rate(nat["flagged"], nat["total"]),
-        "catch_rate_all_attempts": _rate(sh["flagged"], sh["total"]),
+        # "All attempts" still leaves unscored rows out (contract): an
+        # inconclusive attempt counts, as never flagged.
+        "false_flag_rate_all_attempts": _rate(nat["flagged"], nat["total"] - nat["unscored"]),
+        "catch_rate_all_attempts": _rate(sh["flagged"], sh["total"] - sh["unscored"]),
         "stored_status_disagrees_with_rule": mismatched,
     }
 
@@ -258,7 +260,9 @@ def _inconclusive(rows) -> dict:
     for label in (LABEL_NATURAL, LABEL_SHADOW, "all"):
         rs = [r for r in rows if label == "all" or r.label == label]
         out[label] = {
-            "inconclusive": _rate(sum(1 for r in rs if r.inconclusive), len(rs)),
+            "inconclusive": _rate(
+                sum(1 for r in rs if r.inconclusive), sum(1 for r in rs if not r.unscored)
+            ),
             "unscored": sum(1 for r in rs if r.unscored),
         }
     return out
@@ -291,7 +295,9 @@ def _breakdown(rows, key, bins, t: float) -> list[dict]:
                 "range": [lo, hi],
                 "natural_attempts": n_nat_all,
                 "shadow_attempts": n_sh_all,
-                "inconclusive": _rate(sum(1 for r in rs if r.inconclusive), len(rs)),
+                "inconclusive": _rate(
+                    sum(1 for r in rs if r.inconclusive), sum(1 for r in rs if not r.unscored)
+                ),
                 "false_flags_at_strict": _rate(_flag_counts(nat, t), len(nat)),
                 "catches_at_strict": _rate(_flag_counts(sh, t), len(sh)),
                 "auc": auc,
@@ -513,11 +519,15 @@ def _small_sample(data: StudyData, confusion: dict, cap: float) -> dict:
         f"{n_nat} conclusive natural). It describes this cohort, on these prompts, "
         "on this day. It is not an accuracy figure for Original and must not be quoted "
         "as one (NORTH_STAR rule 2).",
-        "Attempts by the same student are not independent, so intervals here resample "
-        "students. Even so, with about 20 students every interval is wide: read the "
-        "intervals, not the point estimates.",
+        "Attempts against the same baseline are not independent, so the AUC and headline "
+        "intervals resample claimed students (baselines). A writer's own natural and shadow "
+        "attempts land in different clusters, so dependence through the writer is not "
+        "captured and these intervals may still be too narrow; the sweep's Wilson "
+        "intervals treat attempts as independent and are narrower still. With about 20 "
+        "students every interval is wide: read the intervals, not the point estimates.",
         f"To show a false-flag rate at or below {cap:.0%} with 95% confidence needs at "
-        f"least {min_n} conclusive natural attempts with none flagged. This study has "
+        f"least {min_n} conclusive natural attempts, from as many different students, with "
+        f"none flagged (gate G-S1 counts a student's repeat attempts once). This study has "
         f"{n_nat}; against the {cap:.0%} bar its observed false-flag count is "
         f"'{decid}' (validation.power.bar_decidable).",
         "Every threshold read off this report was chosen on these same rows, so it "
@@ -929,7 +939,9 @@ def render_charts(report: dict, chart_dir: Path) -> dict[str, str]:
         ys = [0.0] + [p["catch_rate"] for p in report["roc"]]
         ax.plot([0, 1], [0, 1], color=_NEUTRAL, linewidth=1, linestyle="--")
         ax.text(0.62, 0.55, "chance", color=_TEXT_2, fontsize=8, rotation=38)
-        ax.step(xs, ys, where="post", color=_NATURAL, linewidth=2)
+        # Straight segments, not a staircase: tied scores move both rates at
+        # once, and the area under these segments is the reported AUC.
+        ax.plot(xs, ys, color=_NATURAL, linewidth=2)
         cm = report["confusion_at_strict"]
         fx, fy = cm["false_flag_rate_conclusive"]["rate"], cm["catch_rate_conclusive"]["rate"]
         if fx is not None and fy is not None:
@@ -1105,6 +1117,8 @@ def run(
     created_at: str | None = None,
     fictional: bool | None = None,
 ) -> dict:
+    if not 0 < cap < 1:
+        raise ValueError(f"cap must be in (0, 1), got {cap}")
     data = load_study_csv(csv_path)
     if fictional is None:
         fictional = looks_fictional(data)
@@ -1165,6 +1179,8 @@ def main(argv=None) -> int:
         help="label the report FICTIONAL DATA (automatic when every writer id is synth-NN)",
     )
     args = p.parse_args(argv)
+    if not 0 < args.cap < 1:
+        p.error(f"--cap must be in (0, 1), got {args.cap}")
     from validation.study_contract import StudyContractError
 
     try:

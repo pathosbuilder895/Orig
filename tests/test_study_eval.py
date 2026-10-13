@@ -134,6 +134,30 @@ class TestContract:
         assert by_id["c"].score is None  # an INCONCLUSIVE row's score is ignored ...
         assert any("INCONCLUSIVE row carries a score" in w for w in data.warnings)  # ... loudly
 
+    def test_two_columns_for_one_field_are_refused(self):
+        header = "submission_id,writer_student_id,study_label,status,ai_score,aiScore,baseline_size,word_count"
+        with pytest.raises(StudyContractError, match="both map to 'consistency_score'"):
+            parse_study_csv(_csv("a,s1,natural,SUBMITTED,90,10,5,400", header=header))
+
+    def test_status_that_follows_the_wrong_baseline_is_flagged(self):
+        data = parse_study_csv(
+            _csv(
+                "a,s1,shadow,s2,INCONCLUSIVE,,6,400",  # target ready, yet inconclusive
+                "b,s2,shadow,s1,SUBMITTED,80,2,400",  # target thin, yet scored
+                "c,s1,natural,,SUBMITTED,80,5,400",
+                "d,s2,natural,,SUBMITTED,80,5,400",
+            )
+        )
+        joined = " ".join(data.warnings)
+        assert "line 2: INCONCLUSIVE with 6 approved samples" in joined
+        assert "line 3: scored with only 2 approved samples" in joined
+
+    def test_an_imitated_student_who_never_wrote_is_warned_about(self):
+        data = parse_study_csv(
+            _csv("a,s1,shadow,s9,SUBMITTED,80,5,400", "b,s1,natural,,SUBMITTED,80,5,400")
+        )
+        assert any("'s9' never appears as a writer" in w for w in data.warnings)
+
     def test_unknown_feature_columns_are_ignored_with_a_warning(self):
         header = HEADER + ",f_type_token_ratio,f_not_a_feature"
         data = parse_study_csv(_csv("a,s1,natural,,SUBMITTED,80,5,400,0.5,1", header=header))
@@ -196,8 +220,16 @@ class TestEvaluation:
 
     def test_inconclusive_rate_is_reported_per_label(self, report):
         inc = report["inconclusive"]
-        assert inc["all"]["inconclusive"]["k"] == 8 and inc["all"]["inconclusive"]["n"] == 80
-        assert inc["natural"]["unscored"] == 1
+        # 80 attempts, one unscored: unscored rows are in no denominator.
+        assert inc["all"]["inconclusive"]["k"] == 8 and inc["all"]["inconclusive"]["n"] == 79
+        assert inc["natural"]["inconclusive"]["n"] == 39 and inc["natural"]["unscored"] == 1
+        all_ff = report["confusion_at_strict"]["false_flag_rate_all_attempts"]
+        assert all_ff["n"] == 39
+
+    def test_roc_area_is_the_reported_auc(self, report):
+        pts = [(0.0, 0.0)] + [(p["false_flag_rate"], p["catch_rate"]) for p in report["roc"]]
+        area = sum((x1 - x0) * (y0 + y1) / 2 for (x0, y0), (x1, y1) in zip(pts, pts[1:]))
+        assert area == pytest.approx(report["auc"]["value"], abs=2e-3)
 
     def test_breakdowns_partition_the_attempts(self, report):
         for key in ("by_baseline_size", "by_word_count"):
@@ -306,6 +338,13 @@ class TestCli:
         assert (out / "study_eval.json").exists() and (out / "study_eval.md").exists()
         assert not (out / "charts").exists()
         assert "read the intervals" in capsys.readouterr().out
+
+    def test_a_cap_that_can_never_be_demonstrated_is_refused(self, tmp_path):
+        with pytest.raises(SystemExit) as exc:
+            study_eval.main(["--csv", str(CSV), "--out-dir", str(tmp_path / "c"), "--cap", "0"])
+        assert exc.value.code == 2
+        with pytest.raises(ValueError, match="cap"):
+            study_eval.run(CSV, tmp_path / "c2", cap=0.0, charts=False)
 
     def test_contract_errors_exit_2(self, tmp_path, capsys):
         bad = tmp_path / "bad.csv"

@@ -33,15 +33,19 @@ script repeats the whole selection leave-one-student-out (each student's
 attempts are judged at a cut-off chosen without them), and that out-of-sample
 count is what ``gate_inputs`` carries. With ``--fresh-cohort-eval`` the frozen
 cut-off is instead applied to a second, untouched cohort, and that is the
-evidence the gate reads.
+evidence the gate reads. "Untouched" is checked: a fresh cohort that shares a
+submission or a student (writer or claimed) with the training cohort is
+refused, because re-exported training rows would pass by construction.
 
 Weights. ``--weights unchanged`` (default) copies the current tier weights:
 the study's scores were computed under them, so a threshold chosen on those
 scores is only valid for them. ``--weights study`` derives advisory tier
 factors from the eval's feature separation (shrunk toward 1 for a small
 cohort, clipped to [0.5, 2.0], sum of squared weights over active features
-preserved) and marks the candidate as needing a re-score; gate G-S1 then
-reports uninformative until the study is re-scored under those weights.
+preserved). Gate G-S1 never judges a weight change: the factors were fitted
+on this cohort, so re-scoring it would be in-sample. A weight change needs a
+FRESH cohort scored under the candidate weights and the score-changing-flag
+process in validation/README.md.
 
 Deterministic: no clock reads; the same eval JSON gives the same bytes.
 """
@@ -54,6 +58,7 @@ import difflib
 import hashlib
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -96,8 +101,19 @@ def _count_below(scores: list[float], t: float) -> int:
     return sum(1 for s in scores if s < t)
 
 
-def select_threshold(natural: list[float], shadow: list[float], cap: float) -> dict:
-    """The cut-off rule in the module docstring, over whole-point cut-offs."""
+def false_flag_allowance(n_natural: int, cap: float) -> int:
+    """How many natural attempts a cut-off may flag at this cap and n."""
+    return math.floor(cap * n_natural + 1e-9)
+
+
+def select_threshold(
+    natural: list[float], shadow: list[float], cap: float, max_false_flags: int | None = None
+) -> dict:
+    """The cut-off rule in the module docstring, over whole-point cut-offs.
+    The cap is applied as a count of allowed false flags: ``max_false_flags``
+    when given (the leave-one-student-out folds pass the full cohort's
+    allowance, so a fold with one natural attempt fewer is not held to a
+    stricter rule than the candidate), else floor(cap * n)."""
     if not natural or not shadow:
         return {
             "threshold": 0,
@@ -107,11 +123,14 @@ def select_threshold(natural: list[float], shadow: list[float], cap: float) -> d
             "n_shadow": len(shadow),
             "note": "no conclusive attempts of one kind; flag nothing",
         }
+    allowed = (
+        false_flag_allowance(len(natural), cap) if max_false_flags is None else max_false_flags
+    )
     best_t, best_c = 0, -1
     for t in GRID:
         ff = _count_below(natural, t)
-        if ff / len(natural) > cap:
-            break  # the false-flag rate only grows with t
+        if ff > allowed:
+            break  # the false-flag count only grows with t
         c = _count_below(shadow, t)
         if c > best_c:
             best_t, best_c = t, c
@@ -142,16 +161,33 @@ def _split(rows: list[dict]) -> tuple[list[float], list[float]]:
     return nat, sh
 
 
+def _students_with(rows: list[dict], label: str | None = None) -> int:
+    """Distinct claimed students with at least one conclusive attempt (of
+    `label`, when given): the units the gate's intervals and floor count."""
+    return len(
+        {
+            r["claimed_student_id"]
+            for r in rows
+            if r["conclusive"] and (label is None or r["label"] == label)
+        }
+    )
+
+
 def leave_one_student_out(rows: list[dict], cap: float) -> dict:
     """Re-run the selection once per claimed student without that student's
-    attempts, and judge their attempts at the cut-off chosen without them."""
+    attempts, and judge their attempts at the cut-off chosen without them.
+    Every fold may flag as many natural attempts as the full cohort may
+    (floor(cap * n) over ALL conclusive natural attempts): applying the cap as
+    a rate to a fold's smaller n would hold the folds to a stricter rule than
+    the candidate and understate its false flags."""
     students = sorted({r["claimed_student_id"] for r in rows if r["conclusive"]})
+    allowed = false_flag_allowance(len(_split(rows)[0]), cap)
     ff = n_nat = caught = n_sh = 0
     thresholds = []
     for s in students:
         train = [r for r in rows if r["claimed_student_id"] != s]
         test = [r for r in rows if r["claimed_student_id"] == s]
-        t = select_threshold(*_split(train), cap)["threshold"]
+        t = select_threshold(*_split(train), cap, max_false_flags=allowed)["threshold"]
         thresholds.append(t)
         nat, sh = _split(test)
         ff += _count_below(nat, t)
@@ -161,7 +197,11 @@ def leave_one_student_out(rows: list[dict], cap: float) -> dict:
     ts = sorted(thresholds)
     return {
         "kind": "leave_one_student_out",
+        "false_flag_allowance": allowed,
         "folds": len(students),
+        "students": len(students),
+        "natural_students": _students_with(rows, "natural"),
+        "shadow_students": _students_with(rows, "shadow"),
         "false_flags": _rate(ff, n_nat),
         "catches": _rate(caught, n_sh),
         "fold_thresholds": (
@@ -179,7 +219,9 @@ def fresh_cohort(fresh: dict, threshold: int) -> dict:
     return {
         "kind": "fresh_cohort",
         "eval_input_sha256": fresh["input"]["sha256"],
-        "students": fresh["counts"]["claimed_students"],
+        "students": _students_with(fresh["rows"]),
+        "natural_students": _students_with(fresh["rows"], "natural"),
+        "shadow_students": _students_with(fresh["rows"], "shadow"),
         "false_flags": _rate(_count_below(nat, threshold), len(nat)),
         "catches": _rate(_count_below(sh, threshold), len(sh)),
         "auc": fresh["auc"]["value"],
@@ -240,6 +282,24 @@ def _sha256_json(obj: dict) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()
 
 
+def _check_disjoint(train: list[dict], fresh: list[dict]) -> None:
+    """A fresh cohort shares no submission and no student with the cohort the
+    cut-off was chosen on; otherwise it is the training data again."""
+    shared_subs = {r["submission_id"] for r in train} & {r["submission_id"] for r in fresh}
+    if shared_subs:
+        raise ProposalError(f"the fresh cohort repeats {len(shared_subs)} training submission(s)")
+
+    def people(rows):
+        return {r["claimed_student_id"] for r in rows} | {r["writer_student_id"] for r in rows}
+
+    shared_people = people(train) & people(fresh)
+    if shared_people:
+        raise ProposalError(
+            f"the fresh cohort shares {len(shared_people)} student(s) with the training cohort; "
+            "a fresh cohort must be different students"
+        )
+
+
 def propose(
     ev: dict,
     current: dict,
@@ -256,11 +316,16 @@ def propose(
         raise ProposalError(f"cap must be in [0, 1), got {cap}")
     if weights not in ("unchanged", "study"):
         raise ProposalError(f"weights must be 'unchanged' or 'study', got {weights!r}")
+    if current.get("kind") != "current":
+        raise ProposalError(
+            f"--current must be the committed snapshot (kind 'current'), got kind {current.get('kind')!r}"
+        )
     if fresh is not None:
         if fresh.get("schema") != EVAL_SCHEMA:
             raise ProposalError("the fresh-cohort file is not a study eval report")
         if fresh["input"]["sha256"] == ev["input"]["sha256"]:
             raise ProposalError("the fresh cohort is the same CSV the threshold is chosen on")
+        _check_disjoint(ev["rows"], fresh["rows"])
 
     rows = ev["rows"]
     nat, sh = _split(rows)
@@ -301,9 +366,10 @@ def propose(
             "scores_valid_for_candidate": not changed,
             **derived,
             "note": (
-                "advisory: derived from about 20 students' feature separation; the threshold "
-                "above was chosen on scores made under the CURRENT weights, so the study must "
-                "be re-scored under these before the threshold means anything for them"
+                "advisory: derived from about 20 students' feature separation. The threshold above "
+                "was chosen on scores made under the CURRENT weights, and these factors were fitted "
+                "on this cohort, so neither can be checked on it: a weight change needs a FRESH "
+                "cohort scored under these weights, and G-S1 does not judge it"
             ),
         }
 
@@ -327,9 +393,15 @@ def propose(
         "oos_shadow": evidence["catches"]["n"],
         "auc": (fresh_ev or {}).get("auc", ev["auc"]["value"]),
         "auc_ci95": (fresh_ev or {}).get("auc_ci95", ev["auc"]["ci95"]),
-        "n_students": (fresh_ev or {}).get("students", ev["counts"]["claimed_students"]),
+        "n_students": evidence["students"],
         "evidence": evidence["kind"],
         "weights_match_scores": weight_block["scores_valid_for_candidate"],
+        "natural_students": evidence["natural_students"],
+        "shadow_students": evidence["shadow_students"],
+        "selection_cap": cap,
+        "candidate_above_folds": bool(
+            fresh_ev is None and loso["fold_thresholds"] and t > loso["fold_thresholds"]["max"]
+        ),
     }
 
     candidate = {
@@ -381,13 +453,15 @@ def _gate_preview(gate_inputs: dict) -> dict:
 def min_natural_to_demonstrate(cap: float) -> int:
     """Conclusive natural attempts needed before even zero false flags put
     the Wilson 95% upper bound at or below the cap."""
+    if not 0 < cap < 1:
+        raise ProposalError(f"cap must be in (0, 1) to be demonstrable, got {cap}")
     n = 1
     while wilson_interval(0, n)[1] > cap:
         n += 1
     return n
 
 
-def _verdict_note(verdict: str, cap: float) -> str:
+def _verdict_note(verdict: str, cap: float, evidence: str = "leave_one_student_out") -> str:
     if verdict == "fail":
         return (
             "A FAIL is a measurement and is never downgraded: out of sample, this candidate "
@@ -396,13 +470,19 @@ def _verdict_note(verdict: str, cap: float) -> str:
     if verdict == "uninformative":
         return (
             f"UNINFORMATIVE is the expected verdict for a study of about 20 students: showing a "
-            f"false-flag rate at or below {cap:.0%} with 95% confidence needs "
-            f"{min_natural_to_demonstrate(cap)} conclusive natural attempts with none flagged. "
+            f"false-flag rate at or below {cap:.0%} with 95% confidence needs conclusive natural "
+            f"attempts from {min_natural_to_demonstrate(cap)} different students with none flagged. "
             "It is not a pass."
         )
+    if evidence != "fresh_cohort":
+        return (
+            "PASS on leave-one-student-out evidence. That is not adoption evidence: only a "
+            "fresh-cohort PASS is (docs/research/STUDY_PROTOCOL_2026-10.md section 7)."
+        )
     return (
-        "PASS on one cohort. Adoption still needs the owner's approval and the change to "
-        "demo/bluebook/Exam.jsx and the snapshot (docs/research/STUDY_PROTOCOL_2026-10.md)."
+        "PASS on a fresh cohort. Adoption still needs the owner's approval, a shadow measurement on "
+        "live submissions, and the change to demo/bluebook/Exam.jsx and the snapshot "
+        "(docs/research/STUDY_PROTOCOL_2026-10.md section 7)."
     )
 
 
@@ -514,7 +594,9 @@ def render_diff(current: dict, candidate: dict) -> str:
         f"{gp['criterion']}  ",
         f"{gp['current_value']}",
         "",
-        _verdict_note(gp["verdict"], gp["detail"].get("cap", DEFAULT_CAP)),
+        _verdict_note(
+            gp["verdict"], gp["detail"].get("cap", DEFAULT_CAP), gp["detail"].get("evidence", "")
+        ),
         "",
         "## Weights",
         "",
@@ -536,18 +618,38 @@ def render_diff(current: dict, candidate: dict) -> str:
 # ── output guard + CLI ────────────────────────────────────────────────────────
 
 
+def _same(a: Path, b: Path) -> bool:
+    """Same file or directory on disk (inode, not spelling): catches a
+    differently cased path on a case-insensitive filesystem and a hard link."""
+    try:
+        return a.exists() and b.exists() and os.path.samefile(a, b)
+    except OSError:
+        return False
+
+
 def check_out_paths(paths: list[Path], current_path: Path, force: bool) -> None:
-    live = {current_path.resolve(), CURRENT_ARTIFACT.resolve()}
-    protected = [(_ROOT / d).resolve() for d in PROTECTED_DIRS]
+    live = [current_path, CURRENT_ARTIFACT]
+    protected = [_ROOT / d for d in PROTECTED_DIRS]
     for p in paths:
-        r = p.resolve()
-        if r in live:
+        r = Path(os.path.abspath(p))
+        if any(r.resolve() == x.resolve() or _same(r, x) for x in live):
             raise ProposalError(f"refusing to write {p}: that is the current (live) artifact")
         for d in protected:
-            if r == d or d in r.parents:
-                raise ProposalError(f"refusing to write {p}: candidates never go under {d.name}/")
+            for anc in (r, *r.parents):
+                if anc.resolve() == d.resolve() or _same(anc, d):
+                    raise ProposalError(
+                        f"refusing to write {p}: candidates never go under {d.name}/"
+                    )
         if r.exists() and not force:
             raise ProposalError(f"{p} exists; pass --force to replace a previous candidate")
+
+
+def _write_atomic(path: Path, text: str) -> None:
+    """Write beside the target, then rename over it: a hard link to some other
+    file at `path` is replaced, never written through."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
 
 
 def write_candidate(
@@ -557,8 +659,8 @@ def write_candidate(
     cand_path, diff_path = out_dir / CANDIDATE_NAME, out_dir / DIFF_NAME
     check_out_paths([cand_path, diff_path], current_path, force)
     out_dir.mkdir(parents=True, exist_ok=True)
-    cand_path.write_text(json.dumps(candidate, indent=2) + "\n")
-    diff_path.write_text(diff_md)
+    _write_atomic(cand_path, json.dumps(candidate, indent=2) + "\n")
+    _write_atomic(diff_path, diff_md)
     return cand_path, diff_path
 
 

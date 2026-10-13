@@ -2300,7 +2300,9 @@ def _compute_termsim_gates() -> list[GateResult]:
 # own in-sample numbers are never judged: its threshold was chosen to meet the
 # false-flag cap on exactly those rows, so they pass by construction. The gate
 # reads only out-of-sample evidence: the proposal's leave-one-student-out
-# re-selection, or a fresh cohort scored at the frozen threshold.
+# re-selection, or a fresh cohort of DIFFERENT students scored at the frozen
+# threshold (the proposal refuses a "fresh" cohort that shares a student or a
+# submission with the one the threshold was chosen on).
 #
 # Three legs, all pre-registered in the protocol doc:
 #   A  false flags on natural attempts <= 5%      (protect honest students)
@@ -2309,12 +2311,25 @@ def _compute_termsim_gates() -> list[GateResult]:
 #                                                  more than the cap allows on
 #                                                  honest writing)
 # A leg whose observed value misses its bar is a FAIL, never downgraded. A leg
-# whose 95% interval straddles its bar is undecided, and any undecided leg
-# makes the gate UNINFORMATIVE. With about 20 students, leg A is undecided
-# even at zero false flags (the Wilson upper bound for 0/40 is 8.8%); that is
-# the honest reading of a study that size, not a defect.
+# whose 95% interval straddles its bar (or whose input is missing) is
+# undecided, and any undecided leg makes the gate UNINFORMATIVE. The Wilson
+# intervals for A and C count each STUDENT once when students contributed
+# several attempts (the worst case for attempts within a student being
+# alike), so a student's second attempt cannot buy confidence. With about 20
+# students leg A is undecided even at zero false flags: the Wilson upper bound
+# for 0/20 is 16.1% (0/40 would still be 8.8%). That is the honest reading of
+# a study that size, not a defect.
+#
+# Two more things keep a pass from meaning more than it does. A cut-off chosen
+# at any cap other than the pre-registered one is a deviation (a would-be pass
+# becomes uninformative; a fail stays a fail), so the cap cannot be swept until
+# a cohort passes. A candidate cut-off above every leave-one-student-out fold's
+# cut-off is judged by folds that flagged less than it does, so that would-be
+# pass is uninformative too. And only a fresh-cohort pass is adoption
+# evidence; a leave-one-student-out pass says so in its value.
 
 _GS1_CAP = 0.05
+_GS1_SELECTION_CAP = 0.05  # pre-registered: the cap the candidate must have been chosen at
 _GS1_MIN_STUDENTS = 10
 _GS1_EVIDENCE_KINDS = ("leave_one_student_out", "fresh_cohort")
 _GS1_CRITERION = (
@@ -2322,6 +2337,17 @@ _GS1_CRITERION = (
     f"shadow catch > {_GS1_CAP:.0%}"
 )
 STUDY_CANDIDATE_DEFAULT = "validation/study/candidates/candidate_operating_point.json"
+STUDY_CURRENT_OPERATING_POINT = "validation/study/current_operating_point.json"
+
+
+def _gs1_wilson(k: int, n: int, units: int | None) -> tuple[float, float, int]:
+    """Wilson 95% interval at the observed rate k/n, over min(n, units)
+    observations when `units` (distinct students) is known."""
+    from validation.power import wilson_interval
+
+    n_eff = min(n, units) if units else n
+    lo, hi = wilson_interval(k / n * n_eff, n_eff)
+    return lo, hi, n_eff
 
 
 def evaluate_g_s1_study_operating_point(
@@ -2334,16 +2360,23 @@ def evaluate_g_s1_study_operating_point(
     n_students: int = 0,
     evidence: str = "leave_one_student_out",
     weights_match_scores: bool = True,
+    natural_students: int | None = None,
+    shadow_students: int | None = None,
+    selection_cap: float = _GS1_SELECTION_CAP,
+    candidate_above_folds: bool = False,
 ) -> GateResult:
-    from validation.power import bar_decidable, wilson_interval
-
+    if auc_ci95 is not None and len(auc_ci95) == 2 and auc_ci95[0] > auc_ci95[1]:
+        raise ValueError(f"auc_ci95 is reversed: {list(auc_ci95)}")
     detail: dict = {
         "evidence": evidence,
+        "adoption_eligible": evidence == "fresh_cohort",
         "n_students": n_students,
         "cap": _GS1_CAP,
+        "selection_cap": selection_cap,
+        "candidate_above_folds": candidate_above_folds,
         "min_students": _GS1_MIN_STUDENTS,
-        "false_flags": {"k": oos_false_flags, "n": oos_natural},
-        "catches": {"k": oos_caught, "n": oos_shadow},
+        "false_flags": {"k": oos_false_flags, "n": oos_natural, "students": natural_students},
+        "catches": {"k": oos_caught, "n": oos_shadow, "students": shadow_students},
         "auc": auc,
         "auc_ci95": list(auc_ci95) if auc_ci95 else None,
     }
@@ -2355,8 +2388,9 @@ def evaluate_g_s1_study_operating_point(
     if not weights_match_scores:
         detail["reason"] = "candidate changes tier weights"
         return _result("uninformative", (
-            "candidate changes tier weights, but the study's scores were computed under "
-            "the current weights; re-score the study under the candidate weights first"))
+            "candidate changes tier weights; G-S1 judges a cut-off under the current weights "
+            "only. A weight change needs a FRESH cohort scored under the candidate weights "
+            "and the score-changing-flag process in validation/README.md"))
     if evidence not in _GS1_EVIDENCE_KINDS:
         detail["reason"] = "no out-of-sample evidence"
         return _result("uninformative", (
@@ -2368,26 +2402,30 @@ def evaluate_g_s1_study_operating_point(
 
     legs: dict[str, str] = {}
     ff_rate = oos_false_flags / oos_natural
+    ff_lo, ff_hi, ff_n = _gs1_wilson(oos_false_flags, oos_natural, natural_students)
     if ff_rate > _GS1_CAP:
         legs["A"] = "fail"
     else:
-        legs["A"] = "pass" if bar_decidable(oos_false_flags, oos_natural, _GS1_CAP) == "below" else "undecided"
-    if auc is None or auc <= 0.5:
+        legs["A"] = "pass" if ff_hi < _GS1_CAP else "undecided"
+    if auc is None:
+        legs["B"] = "undecided"
+    elif auc <= 0.5:
         legs["B"] = "fail"
     elif not auc_ci95 or auc_ci95[0] <= 0.5:
         legs["B"] = "undecided"
     else:
         legs["B"] = "pass"
     catch_rate = oos_caught / oos_shadow
+    ca_lo, ca_hi, ca_n = _gs1_wilson(oos_caught, oos_shadow, shadow_students)
     if catch_rate <= _GS1_CAP:
         legs["C"] = "fail"
     else:
-        legs["C"] = "pass" if bar_decidable(oos_caught, oos_shadow, _GS1_CAP) == "above" else "undecided"
+        legs["C"] = "pass" if ca_lo > _GS1_CAP else "undecided"
     detail["legs"] = legs
-    detail["false_flags"]["rate"] = round(ff_rate, 4)
-    detail["false_flags"]["wilson95"] = [round(x, 4) for x in wilson_interval(oos_false_flags, oos_natural)]
-    detail["catches"]["rate"] = round(catch_rate, 4)
-    detail["catches"]["wilson95"] = [round(x, 4) for x in wilson_interval(oos_caught, oos_shadow)]
+    detail["false_flags"].update(rate=round(ff_rate, 4), wilson95=[round(ff_lo, 4), round(ff_hi, 4)],
+                                 wilson_n=ff_n)
+    detail["catches"].update(rate=round(catch_rate, 4), wilson95=[round(ca_lo, 4), round(ca_hi, 4)],
+                             wilson_n=ca_n)
 
     value = (
         f"false flags {oos_false_flags}/{oos_natural} ({ff_rate:.1%}), caught "
@@ -2399,15 +2437,27 @@ def evaluate_g_s1_study_operating_point(
         return _result("fail", value)
     if "undecided" in legs.values():
         return _result("uninformative", value)
+    if abs(selection_cap - _GS1_SELECTION_CAP) > 1e-12:
+        detail["reason"] = "selection cap deviates from the pre-registered one"
+        return _result("uninformative", value + (
+            f"; chosen at cap {selection_cap:g}, not the pre-registered {_GS1_SELECTION_CAP:g}"))
+    if candidate_above_folds and evidence == "leave_one_student_out":
+        detail["reason"] = "candidate cut-off above every leave-one-student-out cut-off"
+        return _result("uninformative", value + (
+            "; the candidate flags more than any fold did, so the fold count understates it"))
     if n_students < _GS1_MIN_STUDENTS:
         detail["reason"] = f"fewer than {_GS1_MIN_STUDENTS} students"
         return _result("uninformative", value + f"; under the {_GS1_MIN_STUDENTS}-student floor")
+    if evidence != "fresh_cohort":
+        value += "; leave-one-student-out: not adoption evidence until a fresh cohort passes"
     return _result("pass", value)
 
 
 def _compute_g_s1_study_gate(path: str | os.PathLike | None = None) -> GateResult:
     """G-S1 on the candidate named by STUDY_CANDIDATE (or the default path).
-    No candidate means no study has been run: uninformative, with the steps."""
+    No candidate means no study has been run: uninformative, with the steps.
+    Whether the candidate changes tier weights is checked here against the
+    committed snapshot, not taken from the candidate's own say-so."""
     candidate_path = Path(path or os.environ.get("STUDY_CANDIDATE") or (_ROOT / STUDY_CANDIDATE_DEFAULT))
     if not candidate_path.exists():
         reason = (
@@ -2420,6 +2470,10 @@ def _compute_g_s1_study_gate(path: str | os.PathLike | None = None) -> GateResul
     inputs = candidate.get("gate_inputs")
     if candidate.get("kind") != "candidate" or not isinstance(inputs, dict):
         raise ValueError(f"{candidate_path} is not a study candidate written by scripts/propose_thresholds.py")
+    current = json.loads((_ROOT / STUDY_CURRENT_OPERATING_POINT).read_text())
+    inputs = dict(inputs)
+    if candidate.get("tier_weights") != current["tier_weights"]:
+        inputs["weights_match_scores"] = False
     result = evaluate_g_s1_study_operating_point(**inputs)
     result.detail["candidate"] = {
         "path": str(candidate_path),
@@ -4968,6 +5022,8 @@ def render(results: list[GateResult]) -> str:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
         lines.append(f"│      current: {r.current_value}")
+        if r.verdict == "pass" and r.detail.get("adoption_eligible") is False:
+            lines.append("│      not adoption evidence: only a fresh-cohort pass is (study protocol §7)")
         power = r.detail.get("power")
         if r.verdict == "uninformative" and power:
             if "wilson_ci" in power:

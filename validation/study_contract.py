@@ -19,7 +19,12 @@ Columns (contract version ``study-csv-v1``):
     submission_id        unique per row (the Collections submission id)
     writer_student_id    pseudonymous id of the person who wrote the text
     study_label          ``natural`` | ``shadow`` (case-insensitive)
-    status               the stored seal status: SUBMITTED | FLAGGED | INCONCLUSIVE
+    status               SUBMITTED | FLAGGED | INCONCLUSIVE, the outcome of scoring
+                         against the CLAIMED student's baseline (for a shadow row,
+                         the imitated student's: NOT the seal-time status, which
+                         Collections computes against the writer's own baseline).
+                         INCONCLUSIVE when that baseline had fewer than 3
+                         approved samples.
     consistency_score    0-100, higher = more consistent with the claimed
                          student's baseline (Collections stores it as
                          ``ai_score``; ``demo/bluebook/Exam.jsx``
@@ -100,6 +105,10 @@ ALIASES = {
 }
 
 SCORE_MIN, SCORE_MAX = 0.0, 100.0
+# Approved reference samples below which Original reads INCONCLUSIVE
+# (original/baseline_integrity.py readiness, via style_authorship.MIN_BASELINES;
+# pinned to it by tests/test_study_gate.py).
+MIN_READY_BASELINE = 3
 
 
 class StudyContractError(ValueError):
@@ -195,16 +204,18 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
     warnings: list[str] = []
     aliases_applied: dict[str, str] = {}
     rename: dict[str, str] = {}
+    claimed_by: dict[str, str] = {}
     for h in header:
-        target = ALIASES.get(h)
-        if target is not None:
-            if target in header:
-                problems.append(f"both {h!r} and its contract name {target!r} are present")
-            else:
-                rename[h] = target
-                aliases_applied[h] = target
-        else:
-            rename[h] = h
+        target = ALIASES.get(h, h)
+        if target in claimed_by:
+            problems.append(
+                f"header columns {claimed_by[target]!r} and {h!r} both map to {target!r}"
+            )
+            continue
+        claimed_by[target] = h
+        rename[h] = target
+        if target != h:
+            aliases_applied[h] = target
     columns = set(rename.values())
     missing = [c for c in REQUIRED_COLUMNS if c not in columns]
     if missing:
@@ -285,6 +296,20 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         except ValueError as e:
             row_problems.append(f"{where}: baseline_size {e}")
             baseline_size = 0
+        if status == STATUS_INCONCLUSIVE and baseline_size >= MIN_READY_BASELINE:
+            warnings.append(
+                f"{where}: INCONCLUSIVE with {baseline_size} approved samples; was status "
+                "computed against the writer's baseline instead of the claimed student's?"
+            )
+        elif (
+            status in (STATUS_SUBMITTED, STATUS_FLAGGED)
+            and score is not None
+            and (baseline_size < MIN_READY_BASELINE)
+        ):
+            warnings.append(
+                f"{where}: scored with only {baseline_size} approved samples (fewer than "
+                f"{MIN_READY_BASELINE}); was status computed against the writer's baseline?"
+            )
         try:
             word_count = _int(r.get("word_count"))
         except ValueError as e:
@@ -329,6 +354,14 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         raise StudyContractError(problems)
     if not rows:
         raise StudyContractError(["the CSV has a header but no rows"])
+
+    writers = {r.writer_student_id for r in rows}
+    for imitated in sorted(
+        {r.imitated_student_id for r in rows if r.imitated_student_id} - writers
+    ):
+        warnings.append(
+            f"imitated student {imitated!r} never appears as a writer: a typo, or a withdrawal?"
+        )
 
     rows.sort(key=lambda x: x.submission_id)
     return StudyData(

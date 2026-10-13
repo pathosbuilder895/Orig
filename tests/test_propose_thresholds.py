@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict
 from pathlib import Path
 
@@ -84,6 +85,28 @@ class TestSelectThreshold:
         assert loso["folds"] == 3
         assert loso["false_flags"]["k"] == 1 and loso["false_flags"]["n"] == 5
 
+    def test_folds_get_the_full_cohort_false_flag_allowance(self):
+        # 20 students, one natural and one shadow each, so at a 5% cap the
+        # candidate may flag 1 of 20 natural attempts. Each fold has 19, and
+        # 5% of 19 allows none: held to that, a fold is stricter than the
+        # candidate and the out-of-sample count understates it. Here s1's
+        # natural attempt (55) is flagged only by a fold allowed the
+        # candidate's one false flag (the 50).
+        naturals = {"s00": 50, "s01": 55, **{f"s{i:02d}": 80 + i for i in range(2, 20)}}
+        shadows = {f"s{i:02d}": 30 for i in range(20)}
+        shadows.update({"s05": 52, "s06": 57, "s07": 60})
+        rows = []
+        for sid in sorted(naturals):
+            rows += _rows([naturals[sid]], [shadows[sid]], sid)
+        loso = pt.leave_one_student_out(rows, 0.05)
+        assert loso["false_flag_allowance"] == 1
+        assert loso["false_flags"]["k"] == 2  # s00's 50 and s01's 55
+        # The rate rule on the s01 fold (19 naturals) would have allowed none.
+        fold = [r for r in rows if r["claimed_student_id"] != "s01"]
+        nat, sh = pt._split(fold)
+        assert pt.select_threshold(nat, sh, 0.05)["threshold"] <= 55
+        assert pt.select_threshold(nat, sh, 0.05, max_false_flags=1)["threshold"] > 55
+
 
 # ── the proposal ──────────────────────────────────────────────────────────────
 
@@ -122,7 +145,11 @@ class TestPropose:
             loso["false_flags"]["n"],
         )
         assert (gi["oos_caught"], gi["oos_shadow"]) == (loso["catches"]["k"], loso["catches"]["n"])
-        assert gi["n_students"] == 20 and gi["weights_match_scores"] is True
+        # 18, not 20: synth-01/02 have thin baselines, so no conclusive attempt
+        # is scored against them and they add no evidence to the floor.
+        assert gi["n_students"] == loso["folds"] == 18
+        assert gi["natural_students"] == gi["shadow_students"] == 18
+        assert gi["weights_match_scores"] is True and gi["selection_cap"] == 0.05
 
     def test_gate_preview_is_what_calibration_gate_says(self, ev, current):
         cand = pt.propose(ev, current)
@@ -154,16 +181,21 @@ class TestPropose:
         cand = pt.propose(ev, current, weights="study")
         assert cand["weights"]["scores_valid_for_candidate"] is False
         assert cand["gate_preview"]["verdict"] == "uninformative"
-        assert "re-score" in cand["gate_preview"]["current_value"]
+        assert "FRESH cohort" in cand["gate_preview"]["current_value"]
+
+    def _fresh(self, tmp_path, name, src) -> dict:
+        path = tmp_path / f"{name}.csv"
+        path.write_text(src)
+        return study_eval.run(path, tmp_path / name, charts=False)
 
     def test_fresh_cohort_becomes_the_gate_evidence(self, ev, current, tmp_path):
-        src = CSV.read_text().replace("synth-exam-1", "synth-exam-2")  # same students, new bytes
-        path = tmp_path / "fresh.csv"
-        path.write_text(src)
-        fresh = study_eval.run(path, tmp_path / "fresh", charts=False)
+        # Different students and submissions (the fixture's numbers reused).
+        src = CSV.read_text().replace("synth-", "fresh-").replace("sub-", "fsub-")
+        fresh = self._fresh(tmp_path, "fresh", src)
         cand = pt.propose(ev, current, fresh=fresh)
         t = cand["flag_rule"]["flag_if_score_below"]
         assert cand["gate_inputs"]["evidence"] == "fresh_cohort"
+        assert cand["gate_preview"]["detail"]["adoption_eligible"] is True
         assert (
             cand["out_of_sample"]["fresh_cohort"]["false_flags"] == fresh["sweep"][t]["false_flags"]
         )
@@ -171,6 +203,23 @@ class TestPropose:
     def test_fresh_cohort_cannot_be_the_training_csv(self, ev, current):
         with pytest.raises(pt.ProposalError, match="same CSV"):
             pt.propose(ev, current, fresh=ev)
+
+    def test_fresh_cohort_cannot_be_the_training_rows_re_exported(self, ev, current, tmp_path):
+        # Same students and submissions, new bytes: in-sample again, so its
+        # false-flag count meets the cap by construction. Refused.
+        fresh = self._fresh(tmp_path, "reexport", CSV.read_text().replace("synth-exam-1", "x"))
+        with pytest.raises(pt.ProposalError, match="repeats 80 training submission"):
+            pt.propose(ev, current, fresh=fresh)
+
+    def test_fresh_cohort_must_be_different_students(self, ev, current, tmp_path):
+        fresh = self._fresh(tmp_path, "samekids", CSV.read_text().replace("sub-", "fsub-"))
+        with pytest.raises(pt.ProposalError, match="shares 20 student"):
+            pt.propose(ev, current, fresh=fresh)
+
+    def test_current_must_be_the_committed_snapshot(self, ev, current):
+        cand = pt.propose(ev, current, weights="study")
+        with pytest.raises(pt.ProposalError, match="kind 'current'"):
+            pt.propose(ev, cand)
 
     def test_rejects_something_that_is_not_an_eval(self, current):
         with pytest.raises(pt.ProposalError, match="schema"):
@@ -212,6 +261,27 @@ class TestOutputs:
         assert pt.main(["--eval", str(eval_path), "--out-dir", str(out)]) == 2
         assert not out.exists()
         assert f"never go under {protected}/" in capsys.readouterr().err
+
+    def test_a_differently_cased_path_to_a_protected_dir_is_refused(self, tmp_path):
+        probe = tmp_path / "CaseProbe"
+        probe.mkdir()
+        if not (tmp_path / "caseprobe").exists():
+            pytest.skip("case-sensitive filesystem: the bypass cannot happen here")
+        with pytest.raises(pt.ProposalError, match="never go under original/"):
+            pt.check_out_paths(
+                [pt._ROOT / "ORIGINAL" / "x" / pt.CANDIDATE_NAME], CURRENT, force=True
+            )
+
+    def test_a_hard_link_to_the_live_artifact_is_refused_and_never_written_through(self, tmp_path):
+        live = tmp_path / "current.json"
+        live.write_text('{"kind": "current"}')
+        link = tmp_path / "out" / pt.CANDIDATE_NAME
+        link.parent.mkdir()
+        os.link(live, link)
+        with pytest.raises(pt.ProposalError, match="current .live. artifact"):
+            pt.check_out_paths([link], live, force=True)
+        pt._write_atomic(link, "replaced")  # replaces the directory entry ...
+        assert live.read_text() == '{"kind": "current"}'  # ... not the linked file
 
     def test_existing_candidate_needs_force(self, ev, tmp_path, capsys):
         eval_path = tmp_path / "study_eval.json"
@@ -258,6 +328,25 @@ class TestCalibrationGateDropIn:
             calibration_gate._compute_g_s1_study_gate()
             .detail["candidate"]["path"]
             .endswith(pt.CANDIDATE_NAME)
+        )
+
+    def test_gate_checks_weights_against_the_snapshot_not_the_candidate(self, ev, tmp_path):
+        eval_path = tmp_path / "study_eval.json"
+        eval_path.write_text(json.dumps(ev))
+        assert (
+            pt.main(
+                ["--eval", str(eval_path), "--out-dir", str(tmp_path / "w"), "--weights", "study"]
+            )
+            == 0
+        )
+        cand_path = tmp_path / "w" / pt.CANDIDATE_NAME
+        cand = json.loads(cand_path.read_text())
+        cand["gate_inputs"]["weights_match_scores"] = True  # a hand-edited claim
+        cand_path.write_text(json.dumps(cand))
+        result = calibration_gate._compute_g_s1_study_gate(cand_path)
+        assert (
+            result.verdict == "uninformative"
+            and result.detail["reason"] == "candidate changes tier weights"
         )
 
     def test_fixture_candidate_fails_out_of_sample(self, ev, current):

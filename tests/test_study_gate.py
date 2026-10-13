@@ -58,8 +58,10 @@ class TestSnapshotMirrorsCode:
 
     def test_inconclusive_rule_matches_baseline_readiness(self, snap):
         from original.style_authorship import MIN_BASELINES
+        from validation.study_contract import MIN_READY_BASELINE
 
         assert snap["inconclusive_rule"]["min_approved_reference_samples"] == MIN_BASELINES
+        assert MIN_READY_BASELINE == MIN_BASELINES
 
     def test_snapshot_is_marked_current(self, snap):
         assert snap["kind"] == "current"
@@ -107,10 +109,48 @@ class TestGateLegs:
 
     def test_changed_weights_are_refused(self):
         r = g_s1(0, 120, 70, 100, weights_match_scores=False, **GOOD)
-        assert r.verdict == "uninformative" and "re-score" in r.current_value
+        assert r.verdict == "uninformative" and "FRESH cohort" in r.current_value
 
     def test_no_conclusive_attempts_is_uninformative(self):
         assert g_s1(0, 0, 0, 10, **GOOD).verdict == "uninformative"
+
+    def test_missing_auc_is_undecided_not_failed(self):
+        r = g_s1(0, 120, 70, 100, auc=None, n_students=60)
+        assert r.verdict == "uninformative" and r.detail["legs"]["B"] == "undecided"
+
+    def test_a_reversed_auc_interval_is_refused(self):
+        with pytest.raises(ValueError, match="reversed"):
+            g_s1(0, 120, 70, 100, auc=0.6, auc_ci95=(0.7, 0.45), n_students=60)
+
+    def test_repeated_attempts_do_not_buy_confidence(self):
+        # 0/120 natural attempts would demonstrate the cap, but they come from
+        # 20 students: counted once each, 0/20 has a 16.1% upper bound.
+        assert g_s1(0, 120, 70, 100, **GOOD).detail["legs"]["A"] == "pass"
+        r = g_s1(0, 120, 70, 100, natural_students=20, **GOOD)
+        assert r.detail["legs"]["A"] == "undecided" and r.detail["false_flags"]["wilson_n"] == 20
+        assert r.verdict == "uninformative"
+
+    def test_a_cap_other_than_the_pre_registered_one_cannot_pass(self):
+        r = g_s1(0, 120, 70, 100, selection_cap=0.02, **GOOD)
+        assert r.verdict == "uninformative" and "pre-registered" in r.current_value
+        # ... but a failure at that cap is still a failure.
+        assert g_s1(10, 120, 70, 100, selection_cap=0.02, **GOOD).verdict == "fail"
+
+    def test_a_candidate_above_every_fold_cannot_pass_on_folds(self):
+        r = g_s1(0, 120, 70, 100, candidate_above_folds=True, **GOOD)
+        assert r.verdict == "uninformative" and "understates" in r.current_value
+        assert g_s1(10, 120, 70, 100, candidate_above_folds=True, **GOOD).verdict == "fail"
+
+    def test_only_a_fresh_cohort_pass_is_adoption_evidence(self):
+        loso = g_s1(0, 120, 70, 100, **GOOD)
+        fresh = g_s1(0, 120, 70, 100, evidence="fresh_cohort", **GOOD)
+        assert loso.verdict == fresh.verdict == "pass"
+        assert (
+            loso.detail["adoption_eligible"] is False and fresh.detail["adoption_eligible"] is True
+        )
+        assert "not adoption evidence" in loso.current_value
+        assert "not adoption evidence" not in fresh.current_value
+        assert "not adoption evidence" in calibration_gate.render([loso])
 
 
 class TestBatteryWiring:
