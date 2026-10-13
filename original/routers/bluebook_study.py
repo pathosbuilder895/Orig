@@ -46,17 +46,28 @@ def _owned_original_submission(submission_id: str, request: Request) -> dict:
 
 def _clean_label(value: str | None) -> str | None:
     cleaned = (value or "").strip()
-    return cleaned or None
-
-
-def _clean_imitated_student_id(value: str | None, tenant_id: str | None) -> str | None:
-    cleaned = (value or "").strip()
     if not cleaned:
         return None
+    normalized = cleaned.casefold()
+    if normalized not in {"natural", "shadow"}:
+        raise HTTPException(status_code=422, detail="study_label must be natural, shadow, or null")
+    return normalized
+
+
+def _clean_imitated_student_id(
+    value: str | None, tenant_id: str | None, writer_id: str, study_label: str | None
+) -> str | None:
+    cleaned = (value or "").strip()
+    if study_label != "shadow":
+        return None
+    if not cleaned:
+        raise HTTPException(status_code=422, detail="imitated_student_id is required for shadow")
+    if cleaned == writer_id:
+        raise HTTPException(status_code=422, detail="imitated_student_id must differ from writer")
     if len(cleaned) > 128:
         raise HTTPException(status_code=422, detail="imitated_student_id is too long")
     owner = principal_mod.tenant_of(cleaned)
-    if owner is not None and owner != tenant_id:
+    if tenant_id is None or owner != tenant_id:
         raise HTTPException(
             status_code=422, detail="imitated_student_id must belong to this workspace"
         )
@@ -92,6 +103,7 @@ def _apply_labels(row: dict, label: str | None, imitated_id: str | None, actor: 
 
 
 @router.patch("/bluebook/submissions/{submission_id}/study-label")
+@router.post("/bluebook/submissions/{submission_id}/study-label")
 def set_submission_study_label(submission_id: str, body: StudyLabelsRequest, request: Request):
     """Set or clear ground-truth study metadata for one sealed submission."""
     staff = _require_staff(request)
@@ -104,10 +116,13 @@ def set_submission_study_label(submission_id: str, body: StudyLabelsRequest, req
         if "study_label" in body.model_fields_set
         else current.get("study_label")
     )
-    imitated_id = (
-        _clean_imitated_student_id(body.imitated_student_id, row.get("tenant_id"))
+    imitated_candidate = (
+        body.imitated_student_id
         if "imitated_student_id" in body.model_fields_set
         else current.get("imitated_student_id")
+    )
+    imitated_id = _clean_imitated_student_id(
+        imitated_candidate, row.get("tenant_id"), row.get("student_id") or "", label
     )
     changed = _apply_labels(row, label, imitated_id, staff.user_id)
     return {"submission_id": submission_id, "changed": changed}
@@ -154,7 +169,10 @@ async def batch_set_study_labels(request: Request):
         if label is not None and len(label) > 120:
             raise HTTPException(status_code=422, detail=f"study_label is too long at row {line}")
         imitated_id = _clean_imitated_student_id(
-            item.get("imitated_student_id"), row.get("tenant_id")
+            item.get("imitated_student_id"),
+            row.get("tenant_id"),
+            row.get("student_id") or "",
+            label,
         )
         updates.append((row, label, imitated_id))
 
@@ -165,12 +183,21 @@ async def batch_set_study_labels(request: Request):
 
 
 @router.get("/bluebook/exams/{exam_id}/study-export.csv")
-def export_study_exam(exam_id: str, request: Request):
+def export_study_exam(
+    exam_id: str,
+    request: Request,
+    study_id: str | None = None,
+    include_unscored: bool = False,
+):
     exam = _owned_original_exam(exam_id, request)
     salt = os.environ.get("STUDY_EXPORT_SALT", "")
+    study_id = (study_id or os.environ.get("STUDY_ID", "")).strip()
     try:
         content = export_csv(
-            _repo().list_bluebook_study_submissions([exam_id], exam.get("tenant_id")), salt
+            _repo().list_bluebook_study_submissions([exam_id], exam.get("tenant_id")),
+            salt,
+            study_id,
+            include_unscored=include_unscored,
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None

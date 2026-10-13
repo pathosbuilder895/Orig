@@ -43,7 +43,7 @@ def _threshold_version(repo) -> str:
 
 
 def score_study_submission(submission: dict, repo=None) -> dict:
-    """Score a sealed row against its student's current approved baselines.
+    """Score a sealed row against its current approved reference baselines.
 
     Repeated calls replace the single submission score row, making both a seal
     replay and a staff rescore safe. The probe itself is never added to the
@@ -56,10 +56,31 @@ def score_study_submission(submission: dict, repo=None) -> dict:
     repo = repo or get_repository()
     if submission.get("status", "SUBMITTED").upper() != "SUBMITTED":
         return {"status": "skipped", "reason": "not_sealed"}
-    student_id = str(submission.get("student_id") or "").strip()
+    writer_id = str(submission.get("student_id") or "").strip()
+    study_label = str(submission.get("study_label") or "").strip().casefold()
+    claimed_id = str(submission.get("imitated_student_id") or "").strip()
+    student_id = claimed_id if study_label == "shadow" else writer_id
     text = str(submission.get("text") or "")
     if not student_id or not text.strip():
         return {"status": "skipped", "reason": "missing_student_or_text"}
+
+    from . import principal
+
+    student_tenant = principal.tenant_of(student_id)
+    submission_tenant = submission.get("tenant_id")
+    if student_tenant is not None and submission_tenant and student_tenant != submission_tenant:
+        return {"status": "skipped", "reason": "baseline_student_tenant_mismatch"}
+    state = repo.get(student_id)
+    approved_samples = [
+        sample
+        for sample in getattr(state, "samples", [])
+        if state is not None
+        if getattr(sample, "provenance", None) in {"proctored", "verified"}
+    ]
+    baseline_count = len(approved_samples)
+    baseline_words = sum(
+        len((getattr(sample, "text", "") or "").split()) for sample in approved_samples
+    )
 
     probe_id = str(submission.get("id") or submission.get("submission_id") or "")
     try:
@@ -84,13 +105,28 @@ def score_study_submission(submission: dict, repo=None) -> dict:
     features = {str(key): float(value) for key, value in result.feature_vector.items()}
     engine_version = STYLE_ENGINE_VERSION
     threshold_version = _threshold_version(repo)
+    action = str(result.recommendation.action)
     if not repo.set_bluebook_style_score(
-        probe_id, score, features, engine_version, threshold_version
+        probe_id,
+        score,
+        features,
+        engine_version,
+        threshold_version,
+        float(result.authorship.authorship_probability),
+        action,
+        action,
+        baseline_count,
+        baseline_words,
     ):
         return {"status": "skipped", "reason": "submission_missing"}
     return {
         "status": "scored",
         "score": score,
+        "authorship_probability": float(result.authorship.authorship_probability),
+        "recommended_action": action,
+        "verdict": action,
+        "baseline_count": baseline_count,
+        "baseline_words": baseline_words,
         "engine_version": engine_version,
         "threshold_version": threshold_version,
     }

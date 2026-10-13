@@ -7,12 +7,13 @@ added here directly (exam-day robustness).
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import urllib.parse
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import Response
 
 from .. import bluebook_rules as rules
@@ -310,7 +311,9 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
 
 
 @router.post("/bluebook/submissions", status_code=201)
-def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
+def bluebook_record_submission(
+    body: BluebookRecordSubmissionRequest, request: Request, background_tasks: BackgroundTasks
+):
     """Record one sat examination (the integrity reading for the Results view).
 
     Callers: either the signed-in student sealing their own sitting (session
@@ -352,7 +355,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     if body.submission_uuid:
         prior = _repo().get_bluebook_submission_by_uuid(body.submission_uuid[:64])
         if prior is not None:
-            _score_sealed_submission_if_enabled(prior)
+            _score_sealed_submission_if_enabled(prior, background_tasks)
             return {
                 "id": prior["id"],
                 "status": prior["status"],
@@ -444,6 +447,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
         if is_uuid_conflict and rec["submission_uuid"]:
             prior = _repo().get_bluebook_submission_by_uuid(rec["submission_uuid"])
             if prior is not None:
+                _score_sealed_submission_if_enabled(prior, background_tasks)
                 return {
                     "id": prior["id"],
                     "status": prior["status"],
@@ -465,14 +469,18 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     # Bluebook-only tenants and exams with aiDetect disabled never enter the
     # scorer. A scoring failure leaves the acknowledged submission intact and
     # appears as an unscored row in the staff readiness report.
-    _score_sealed_submission_if_enabled(rec, exam=stored_exam, tenant_id=tenant)
+    _score_sealed_submission_if_enabled(rec, background_tasks, exam=stored_exam, tenant_id=tenant)
     return {"id": rec["id"], "status": rec["status"], "late": rec["late"]}
 
 
 def _score_sealed_submission_if_enabled(
-    rec: dict, *, exam: dict | None = None, tenant_id: str | None = None
+    rec: dict,
+    background_tasks: BackgroundTasks,
+    *,
+    exam: dict | None = None,
+    tenant_id: str | None = None,
 ) -> None:
-    """Best-effort Original score on seal and on an idempotent seal replay."""
+    """Queue scoring without delaying the seal response; do not queue current scores."""
     submission_id = rec.get("id") or rec.get("submission_id")
     if not submission_id:
         return
@@ -481,13 +489,38 @@ def _score_sealed_submission_if_enabled(
     tenant_id = tenant_id if tenant_id is not None else rec.get("tenant_id")
     if exam is None:
         return
-    from ..study_scoring import score_study_submission, style_scoring_enabled
+    from ..study_scoring import (
+        STYLE_ENGINE_VERSION,
+        _threshold_version,
+        score_study_submission,
+        style_scoring_enabled,
+    )
 
     if not style_scoring_enabled(exam, tenant_id):
         return
     full_row = repo.get_bluebook_study_submission(submission_id)
-    if full_row is not None:
-        score_study_submission(full_row, repo=repo)
+    if full_row is None:
+        return
+    try:
+        threshold_version = _threshold_version(repo)
+    except Exception:
+        logging.getLogger(__name__).exception("Unable to identify study scoring thresholds")
+        return
+    if (
+        full_row.get("style_score") is not None
+        and full_row.get("style_engine_version") == STYLE_ENGINE_VERSION
+        and full_row.get("style_threshold_version") == threshold_version
+    ):
+        return
+    background_tasks.add_task(_run_study_scoring_task, full_row, repo, score_study_submission)
+
+
+def _run_study_scoring_task(submission: dict, repo, scorer) -> None:
+    """Keep background scoring errors out of the student's seal response."""
+    try:
+        scorer(submission, repo=repo)
+    except Exception:
+        logging.getLogger(__name__).exception("Background study scoring failed")
 
 
 @router.get("/bluebook/submissions")

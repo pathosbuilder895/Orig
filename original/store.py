@@ -457,7 +457,12 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             style_features_json TEXT NOT NULL DEFAULT '{}',
             style_engine_version TEXT,
             style_threshold_version TEXT,
-            style_scored_at TEXT
+            style_scored_at TEXT,
+            authorship_probability REAL,
+            recommended_action TEXT,
+            verdict TEXT,
+            baseline_count INTEGER,
+            baseline_words INTEGER
         )
     """)
     conn.execute("""
@@ -479,6 +484,11 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         ("style_engine_version", "TEXT"),
         ("style_threshold_version", "TEXT"),
         ("style_scored_at", "TEXT"),
+        ("authorship_probability", "REAL"),
+        ("recommended_action", "TEXT"),
+        ("verdict", "TEXT"),
+        ("baseline_count", "INTEGER"),
+        ("baseline_words", "INTEGER"),
     ):
         if _col not in _sub_cols:
             conn.execute(f"ALTER TABLE bluebook_submissions ADD COLUMN {_col} {_ddl}")
@@ -3043,7 +3053,8 @@ _STUDY_SUBMISSION_COLS = (
     "submission_id, exam_id, tenant_id, student_id, study_label, "
     "imitated_student_id, word_count, status, text, style_score, "
     "style_features_json, style_engine_version, style_threshold_version, "
-    "style_scored_at, created_at"
+    "style_scored_at, authorship_probability, recommended_action, verdict, "
+    "baseline_count, baseline_words, created_at"
 )
 
 
@@ -3063,7 +3074,12 @@ def _study_submission_to_dict(row) -> dict:
         "style_engine_version": row[11],
         "style_threshold_version": row[12],
         "style_scored_at": row[13],
-        "created_at": row[14],
+        "authorship_probability": row[14],
+        "recommended_action": row[15],
+        "verdict": row[16],
+        "baseline_count": row[17],
+        "baseline_words": row[18],
+        "created_at": row[19],
     }
 
 
@@ -3117,7 +3133,12 @@ def set_bluebook_study_fields(
         }
         if changed:
             conn.execute(
-                "UPDATE bluebook_submissions SET study_label = ?, imitated_student_id = ? "
+                "UPDATE bluebook_submissions SET study_label = ?, imitated_student_id = ?, "
+                "style_score = NULL, style_features_json = '{}', "
+                "style_engine_version = NULL, style_threshold_version = NULL, "
+                "style_scored_at = NULL, authorship_probability = NULL, "
+                "recommended_action = NULL, verdict = NULL, baseline_count = NULL, "
+                "baseline_words = NULL "
                 "WHERE submission_id = ?",
                 (study_label, imitated_student_id, submission_id),
             )
@@ -3131,11 +3152,18 @@ def set_bluebook_style_score(
     features: dict[str, float],
     engine_version: str,
     threshold_version: str,
+    authorship_probability: float,
+    recommended_action: str,
+    verdict: str,
+    baseline_count: int,
+    baseline_words: int,
 ) -> bool:
     with _get_conn() as conn:
         cursor = conn.execute(
             "UPDATE bluebook_submissions SET style_score = ?, style_features_json = ?, "
-            "style_engine_version = ?, style_threshold_version = ?, style_scored_at = ? "
+            "style_engine_version = ?, style_threshold_version = ?, style_scored_at = ?, "
+            "authorship_probability = ?, recommended_action = ?, verdict = ?, "
+            "baseline_count = ?, baseline_words = ? "
             "WHERE submission_id = ?",
             (
                 float(score),
@@ -3143,6 +3171,11 @@ def set_bluebook_style_score(
                 engine_version,
                 threshold_version,
                 datetime.now(UTC).isoformat(),
+                float(authorship_probability),
+                recommended_action,
+                verdict,
+                int(baseline_count),
+                int(baseline_words),
                 submission_id,
             ),
         )

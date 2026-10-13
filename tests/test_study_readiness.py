@@ -12,13 +12,13 @@ class _Repo:
                 "id": "sub-1",
                 "student_id": "tenant:student-1",
                 "study_label": "shadow",
-                "imitated_student_id": None,
+                "imitated_student_id": "tenant:student-2",
                 "style_score": None,
             },
             {
                 "id": "sub-2",
                 "student_id": "tenant:student-1",
-                "study_label": "human",
+                "study_label": "natural",
                 "imitated_student_id": None,
                 "style_score": 0.2,
             },
@@ -27,6 +27,13 @@ class _Repo:
                 "student_id": "tenant:student-2",
                 "study_label": None,
                 "imitated_student_id": None,
+                "style_score": None,
+            },
+            {
+                "id": "sub-4",
+                "student_id": "tenant:student-1",
+                "study_label": "shadow",
+                "imitated_student_id": "tenant:student-1",
                 "style_score": None,
             },
         ]
@@ -54,12 +61,24 @@ def test_readiness_reports_baselines_labels_scores_and_imitation_links():
     result = study_readiness(["exam-1"], repo=_Repo())
     exam = result["exams"][0]
     assert result["minimum_baseline_papers"] == 3
-    first, second = exam["students"]
-    assert (first["baseline_papers"], first["baseline_words"], first["ready"]) == (3, 900, True)
-    assert (second["baseline_papers"], second["baseline_words"], second["ready"]) == (1, 3, False)
+    claimed, writer = exam["students"]
+    assert claimed["student_id"] == "tenant:student-2"
+    assert (claimed["baseline_papers"], claimed["baseline_words"], claimed["ready"]) == (
+        1,
+        3,
+        False,
+    )
+    assert writer["student_id"] == "tenant:student-1"
+    assert (writer["baseline_papers"], writer["baseline_words"], writer["ready"]) == (
+        3,
+        900,
+        True,
+    )
     assert exam["missing_labels"] == ["sub-3"]
-    assert exam["unscored_submissions"] == ["sub-1", "sub-3"]
-    assert exam["shadow_without_imitated_student"] == ["sub-1"]
+    assert exam["unscored_submissions"] == ["sub-1", "sub-3", "sub-4"]
+    assert exam["shadow_without_imitated_student"] == []
+    assert exam["shadow_imitated_student_is_writer"] == ["sub-4"]
+    assert exam["students_with_natural_and_shadow"] == ["tenant:student-1"]
     assert exam["feature_enabled"] is True
 
 

@@ -52,10 +52,28 @@ def upgrade() -> None:
         "bluebook_submissions",
         sa.Column("style_scored_at", sa.DateTime(timezone=True), nullable=True),
     )
+    op.add_column(
+        "bluebook_submissions", sa.Column("authorship_probability", sa.Float(), nullable=True)
+    )
+    op.add_column(
+        "bluebook_submissions", sa.Column("recommended_action", sa.Text(), nullable=True)
+    )
+    op.add_column("bluebook_submissions", sa.Column("verdict", sa.Text(), nullable=True))
+    op.add_column(
+        "bluebook_submissions", sa.Column("baseline_count", sa.Integer(), nullable=True)
+    )
+    op.add_column(
+        "bluebook_submissions", sa.Column("baseline_words", sa.Integer(), nullable=True)
+    )
 
 
 def downgrade() -> None:
     for column in (
+        "baseline_words",
+        "baseline_count",
+        "verdict",
+        "recommended_action",
+        "authorship_probability",
         "style_scored_at",
         "style_threshold_version",
         "style_engine_version",

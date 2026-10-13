@@ -269,6 +269,11 @@ class Repository(Protocol):
         features: dict[str, float],
         engine_version: str,
         threshold_version: str,
+        authorship_probability: float,
+        recommended_action: str,
+        verdict: str,
+        baseline_count: int,
+        baseline_words: int,
     ) -> bool: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
@@ -773,9 +778,23 @@ class SqliteRepository:
         features: dict[str, float],
         engine_version: str,
         threshold_version: str,
+        authorship_probability: float,
+        recommended_action: str,
+        verdict: str,
+        baseline_count: int,
+        baseline_words: int,
     ) -> bool:
         return store.set_bluebook_style_score(
-            submission_id, score, features, engine_version, threshold_version
+            submission_id,
+            score,
+            features,
+            engine_version,
+            threshold_version,
+            authorship_probability,
+            recommended_action,
+            verdict,
+            baseline_count,
+            baseline_words,
         )
 
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:

@@ -86,6 +86,7 @@ ROUTE_ROUTER: dict[str, str] = {
     "GET /bluebook/exams": "bluebook",
     "GET /bluebook/me": "bluebook_accounts",
     "GET /bluebook/exams/nonexistent/study-export.csv": "bluebook_study",
+    "POST /bluebook/submissions/nonexistent/study-label": "bluebook_study",
     "GET /bluebook/exams/nonexistent/baseline": "bluebook_baselines",
     "GET /health": "health",
     "POST /import/courses/{A}-course1/turnitin-csv": "imports",
@@ -103,9 +104,7 @@ ROUTE_ROUTER: dict[str, str] = {
 # carries a representative route for it.
 _ROUTERS_DIR = Path(__file__).resolve().parents[2] / "original" / "routers"
 _ALL_ROUTER_MODULES = frozenset(
-    path.stem
-    for path in _ROUTERS_DIR.glob("*.py")
-    if path.stem not in {"__init__", "_shared"}
+    path.stem for path in _ROUTERS_DIR.glob("*.py") if path.stem not in {"__init__", "_shared"}
 )
 
 # Routes that take a body other than "none" when the request is expected to
@@ -123,9 +122,7 @@ def _split_method_template(key: str) -> tuple[str, str]:
 
 def _resolve_path(template: str, *, tenant_a: str, tenant_b: str, student_a: str) -> str:
     return (
-        template.replace("{A_student}", student_a)
-        .replace("{A}", tenant_a)
-        .replace("{B}", tenant_b)
+        template.replace("{A_student}", student_a).replace("{A}", tenant_a).replace("{B}", tenant_b)
     )
 
 
@@ -156,9 +153,7 @@ def _role_headers(role: str, tenants: dict) -> dict:
         flipped_char = "A" if sig[0] != "A" else "B"
         return {"Authorization": f"Bearer {payload}.{flipped_char}{sig[1:]}"}
     if role == "expired":
-        tok = pr.mint_principal_token(
-            f"prof_{tenant_a}", "professor", tenant_a, ttl_seconds=-3600
-        )
+        tok = pr.mint_principal_token(f"prof_{tenant_a}", "professor", tenant_a, ttl_seconds=-3600)
         return {"Authorization": f"Bearer {tok}"}
     raise ValueError(f"unknown role {role!r}")
 
@@ -177,22 +172,18 @@ def _send(live_client, method: str, path: str, headers: dict):
             )
         if path.endswith("/score"):
             return live_client.post(path, headers=headers, json=_SCORE_BODY)
+        if path.endswith("/study-label"):
+            return live_client.post(path, headers=headers, json={"study_label": "natural"})
         raise AssertionError(f"no POST body rule for {path}")
     raise AssertionError(f"unhandled method {method}")
 
 
 # ── 1. The parametrised matrix ─────────────────────────────────────────────
 
-_CASES = [
-    (route_key, role)
-    for route_key in _MATRIX
-    for role in ROLES
-]
+_CASES = [(route_key, role) for route_key in _MATRIX for role in ROLES]
 
 
-@pytest.mark.parametrize(
-    "route_key,role", _CASES, ids=[f"{k} [{r}]" for k, r in _CASES]
-)
+@pytest.mark.parametrize("route_key,role", _CASES, ids=[f"{k} [{r}]" for k, r in _CASES])
 def test_auth_matrix(pilot_env, store_reset, live_client, two_tenants, route_key, role):
     expected = _MATRIX[route_key][role]
     method, template = _split_method_template(route_key)
@@ -205,8 +196,7 @@ def test_auth_matrix(pilot_env, store_reset, live_client, two_tenants, route_key
     headers = _role_headers(role, two_tenants)
     resp = _send(live_client, method, path, headers)
     assert resp.status_code == expected, (
-        f"{route_key} [{role}] -> {resp.status_code}, expected {expected}. "
-        f"Body: {resp.text[:300]}"
+        f"{route_key} [{role}] -> {resp.status_code}, expected {expected}. Body: {resp.text[:300]}"
     )
 
 

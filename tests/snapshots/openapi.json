@@ -3634,7 +3634,7 @@
         "type": "object"
       },
       "StudyLabelsRequest": {
-        "description": "PATCH /bluebook/submissions/{id}/study-label; null/empty clears a field.",
+        "description": "Staff study label update; null/empty clears the label.",
         "properties": {
           "imitated_student_id": {
             "anyOf": [
@@ -6450,6 +6450,32 @@
               "title": "Exam Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "study_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Study Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_unscored",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Unscored",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -6998,6 +7024,52 @@
       "patch": {
         "description": "Set or clear ground-truth study metadata for one sealed submission.",
         "operationId": "set_submission_study_label_bluebook_submissions__submission_id__study_label_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudyLabelsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Submission Study Label"
+      },
+      "post": {
+        "description": "Set or clear ground-truth study metadata for one sealed submission.",
+        "operationId": "set_submission_study_label_bluebook_submissions__submission_id__study_label_post",
         "parameters": [
           {
             "in": "path",

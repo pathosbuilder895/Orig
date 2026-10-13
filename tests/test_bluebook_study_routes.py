@@ -74,7 +74,8 @@ def _student(client, staff, course, email="student@school.edu"):
 
 def _fake_score(score):
     return SimpleNamespace(
-        authorship=SimpleNamespace(deviation_score=score),
+        authorship=SimpleNamespace(deviation_score=score, authorship_probability=0.82),
+        recommendation=SimpleNamespace(action="monitor"),
         feature_vector={"feature_a": 0.25, "feature_b": 0.75},
     )
 
@@ -101,24 +102,38 @@ def test_staff_can_set_and_clear_labels_but_students_cannot_see_or_change_them(
 ):
     staff, course, exam = _workspace(live_client)
     student = _student(live_client, staff, course)
+    target = _student(live_client, staff, course, email="target@school.edu")
     submission_id = _seal(live_client, student, exam["id"])
+    get_repository().set_bluebook_style_score(
+        submission_id,
+        0.3,
+        {"feature": 1.0},
+        "engine",
+        "threshold",
+        0.7,
+        "monitor",
+        "monitor",
+        3,
+        300,
+    )
     headers = _auth(staff["token"])
 
-    changed = live_client.patch(
+    changed = live_client.post(
         f"/bluebook/submissions/{submission_id}/study-label",
         headers=headers,
-        json={"study_label": "shadow", "imitated_student_id": student["student_id"]},
+        json={"study_label": "SHADOW", "imitated_student_id": target["student_id"]},
     )
     assert changed.status_code == 200, changed.text
     assert changed.json() == {"submission_id": submission_id, "changed": True}
     stored = get_repository().get_bluebook_study_submission(submission_id)
     assert stored["study_label"] == "shadow"
-    assert stored["imitated_student_id"] == student["student_id"]
+    assert stored["imitated_student_id"] == target["student_id"]
+    assert stored["style_score"] is None  # a label change invalidates its prior score
 
     denied = live_client.patch(
         f"/bluebook/submissions/{submission_id}/study-label",
         headers=_auth(student["token"]),
-        json={"study_label": "student-edit"},
+        json={"study_label": "natural"},
     )
     assert denied.status_code == 403
 
@@ -144,14 +159,57 @@ def test_staff_can_set_and_clear_labels_but_students_cannot_see_or_change_them(
     assert audits["total"] == 2
 
 
+def test_labels_are_restricted_and_shadow_requires_a_distinct_same_tenant_student(live_client):
+    staff, course, exam = _workspace(live_client)
+    writer = _student(live_client, staff, course, email="writer-label@school.edu")
+    target = _student(live_client, staff, course, email="target-label@school.edu")
+    other_staff, other_course, _ = _workspace(live_client, email="other-label@school.edu")
+    cross_tenant = _student(
+        live_client, other_staff, other_course, email="other-student@school.edu"
+    )
+    submission_id = _seal(live_client, writer, exam["id"])
+    url = f"/bluebook/submissions/{submission_id}/study-label"
+    headers = _auth(staff["token"])
+
+    invalid = live_client.patch(url, headers=headers, json={"study_label": "uncertain"})
+    assert invalid.status_code == 422
+    missing_claim = live_client.patch(url, headers=headers, json={"study_label": "shadow"})
+    assert missing_claim.status_code == 422
+    self_claim = live_client.patch(
+        url,
+        headers=headers,
+        json={"study_label": "shadow", "imitated_student_id": writer["student_id"]},
+    )
+    assert self_claim.status_code == 422
+    cross_claim = live_client.patch(
+        url,
+        headers=headers,
+        json={"study_label": "shadow", "imitated_student_id": cross_tenant["student_id"]},
+    )
+    assert cross_claim.status_code == 422
+
+    valid = live_client.patch(
+        url,
+        headers=headers,
+        json={"study_label": "ShAdOw", "imitated_student_id": target["student_id"]},
+    )
+    assert valid.status_code == 200, valid.text
+    natural = live_client.patch(url, headers=headers, json={"study_label": "NATURAL"})
+    assert natural.status_code == 200, natural.text
+    stored = get_repository().get_bluebook_study_submission(submission_id)
+    assert stored["study_label"] == "natural"
+    assert stored["imitated_student_id"] is None
+
+
 def test_batch_csv_is_staff_only_validated_and_audited_per_changed_submission(live_client):
     staff, course, exam = _workspace(live_client)
     student = _student(live_client, staff, course)
+    target = _student(live_client, staff, course, email="batch-target@school.edu")
     sub1 = _seal(live_client, student, exam["id"], submission_uuid="seal-1")
     sub2 = _seal(live_client, student, exam["id"], submission_uuid="seal-2")
     body = (
         "submission_id,study_label,imitated_student_id\n"
-        f"{sub1},human,\n{sub2},shadow,{student['student_id']}\n"
+        f"{sub1},NATURAL,\n{sub2},shadow,{target['student_id']}\n"
     )
     response = live_client.post(
         "/bluebook/study-labels.csv",
@@ -160,20 +218,32 @@ def test_batch_csv_is_staff_only_validated_and_audited_per_changed_submission(li
     )
     assert response.status_code == 200, response.text
     assert response.json() == {"rows": 2, "changed": 2, "unchanged": 0}
-    assert get_repository().get_bluebook_study_submission(sub1)["study_label"] == "human"
+    assert get_repository().get_bluebook_study_submission(sub1)["study_label"] == "natural"
+    assert get_repository().get_bluebook_study_submission(sub1)["imitated_student_id"] is None
     assert get_repository().get_bluebook_study_submission(sub2)["study_label"] == "shadow"
+    assert (
+        get_repository().get_bluebook_study_submission(sub2)["imitated_student_id"]
+        == target["student_id"]
+    )
     assert get_repository().list_audit(action="bluebook_study_labels")["total"] == 2
 
     invalid = live_client.post(
         "/bluebook/study-labels.csv",
-        content=f"submission_id,label,imitated_student_id\n{sub1},human,\n",
+        content=f"submission_id,label,imitated_student_id\n{sub1},natural,\n",
         headers={**_auth(staff["token"]), "Content-Type": "text/csv"},
     )
     assert invalid.status_code == 422
 
+    invalid_label = live_client.post(
+        "/bluebook/study-labels.csv",
+        content=f"submission_id,study_label,imitated_student_id\n{sub1},uncertain,\n",
+        headers={**_auth(staff["token"]), "Content-Type": "text/csv"},
+    )
+    assert invalid_label.status_code == 422
+
     malformed = live_client.post(
         "/bluebook/study-labels.csv",
-        content=f"submission_id,study_label,imitated_student_id\n{sub1},human\n",
+        content=f"submission_id,study_label,imitated_student_id\n{sub1},natural\n",
         headers={**_auth(staff["token"]), "Content-Type": "text/csv"},
     )
     assert malformed.status_code == 422
@@ -204,6 +274,10 @@ def test_seal_scores_on_server_only_when_exam_and_tenant_allow_original(live_cli
     assert stored["style_features"] == {"feature_a": 0.25, "feature_b": 0.75}
     assert stored["style_engine_version"] == "original-layer7-style-v1"
     assert stored["style_threshold_version"].startswith("thresholds-sha256:")
+    assert stored["authorship_probability"] == 0.82
+    assert stored["recommended_action"] == stored["verdict"] == "monitor"
+    assert stored["baseline_count"] == 0
+    assert stored["baseline_words"] == 0
 
 
 def test_seal_replay_retries_server_score_for_the_existing_submission(live_client, monkeypatch):
@@ -221,8 +295,36 @@ def test_seal_replay_retries_server_score_for_the_existing_submission(live_clien
     first = _seal(live_client, student, exam["id"], submission_uuid="retry-score")
     second = _seal(live_client, student, exam["id"], submission_uuid="retry-score")
     assert second == first
-    assert calls == [first, first]
+    assert calls == [first]
     assert get_repository().get_bluebook_study_submission(first)["style_score"] == 0.31
+
+
+def test_seal_queues_scoring_after_response_and_suppresses_scorer_errors(live_client, monkeypatch):
+    from fastapi import BackgroundTasks
+
+    from original.routers import students_scoring
+
+    staff, course, exam = _workspace(live_client)
+    student = _student(live_client, staff, course)
+    queued = []
+    calls = []
+
+    def capture_task(self, func, *args, **kwargs):
+        queued.append((func, args, kwargs))
+
+    def broken_score(*args, **kwargs):
+        calls.append("started")
+        raise RuntimeError("dummy scorer failure")
+
+    monkeypatch.setattr(BackgroundTasks, "add_task", capture_task)
+    monkeypatch.setattr(students_scoring, "score_submission", broken_score)
+    submission_id = _seal(live_client, student, exam["id"])
+    assert calls == []  # the HTTP response arrived without running scoring
+    assert len(queued) == 1
+    func, args, kwargs = queued[0]
+    func(*args, **kwargs)  # background failure is contained
+    assert calls == ["started"]
+    assert get_repository().get_bluebook_study_submission(submission_id)["style_score"] is None
 
 
 @pytest.mark.parametrize(
@@ -276,6 +378,35 @@ def test_staff_rescore_is_idempotent_and_scopes_to_exam(live_client, monkeypatch
     assert get_repository().get_bluebook_study_submission(submission_id)["style_score"] == 0.41
 
 
+def test_shadow_rescore_uses_the_claimed_students_baseline(live_client, monkeypatch):
+    from original.routers import students_scoring
+
+    staff, course, exam = _workspace(live_client)
+    writer = _student(live_client, staff, course, email="shadow-writer@school.edu")
+    claimed = _student(live_client, staff, course, email="shadow-claimed@school.edu")
+    calls = []
+
+    def score(student_id, req, request=None):
+        calls.append(student_id)
+        return _fake_score(0.22)
+
+    monkeypatch.setattr(students_scoring, "score_submission", score)
+    submission_id = _seal(live_client, writer, exam["id"])
+    assert calls == [writer["student_id"]]
+    calls.clear()
+    labeled = live_client.post(
+        f"/bluebook/submissions/{submission_id}/study-label",
+        headers=_auth(staff["token"]),
+        json={"study_label": "shadow", "imitated_student_id": claimed["student_id"]},
+    )
+    assert labeled.status_code == 200, labeled.text
+    rescored = live_client.post(
+        f"/bluebook/exams/{exam['id']}/rescore", headers=_auth(staff["token"])
+    )
+    assert rescored.status_code == 200, rescored.text
+    assert calls == [claimed["student_id"]]
+
+
 def test_study_export_endpoint_uses_salt_and_never_returns_raw_student_ids(
     live_client, monkeypatch
 ):
@@ -285,19 +416,36 @@ def test_study_export_endpoint_uses_salt_and_never_returns_raw_student_ids(
     live_client.patch(
         f"/bluebook/submissions/{submission_id}/study-label",
         headers=_auth(staff["token"]),
-        json={"study_label": "human"},
+        json={"study_label": "natural"},
     )
     monkeypatch.setenv("STUDY_EXPORT_SALT", "dummy-study-export-salt")
+    monkeypatch.setenv("STUDY_ID", "study-2026-01")
+    repo = get_repository()
+    repo.set_bluebook_style_score(
+        submission_id,
+        0.21,
+        {"tier_1": 0.5},
+        "engine-v1",
+        "threshold-v1",
+        0.8,
+        "monitor",
+        "monitor",
+        3,
+        300,
+    )
     response = live_client.get(
-        f"/bluebook/exams/{exam['id']}/study-export.csv", headers=_auth(staff["token"])
+        f"/bluebook/exams/{exam['id']}/study-export.csv?study_id=query-study",
+        headers=_auth(staff["token"]),
     )
     assert response.status_code == 200, response.text
     assert response.headers["content-type"].startswith("text/csv")
     assert student["student_id"] not in response.text
     rows = list(csv.DictReader(io.StringIO(response.text)))
-    assert rows[0]["study_label"] == "human"
+    assert rows[0]["study_id"] == "query-study"
+    assert rows[0]["study_label"] == "natural"
     assert rows[0]["submission_id"] == submission_id
-    assert rows[0]["student_hash"].startswith("hmac-sha256:")
+    assert rows[0]["writer_key"].startswith("hmac-sha256:")
+    assert rows[0]["f_tier_1"] == "0.5"
 
 
 def test_study_routes_are_tenant_scoped_and_require_original_product(live_client):
@@ -309,7 +457,7 @@ def test_study_routes_are_tenant_scoped_and_require_original_product(live_client
     denied = live_client.patch(
         f"/bluebook/submissions/{sub}/study-label",
         headers=_auth(staff_b["token"]),
-        json={"study_label": "human"},
+        json={"study_label": "natural"},
     )
     assert denied.status_code == 404
     no_original, _, no_original_exam = _workspace(

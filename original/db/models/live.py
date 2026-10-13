@@ -579,6 +579,11 @@ class BluebookSubmission(LiveBase):
     style_engine_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     style_threshold_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     style_scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    authorship_probability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    recommended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baseline_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    baseline_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class BluebookSession(LiveBase):

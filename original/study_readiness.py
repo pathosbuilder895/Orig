@@ -19,18 +19,21 @@ def study_readiness(exam_ids: list[str], repo=None) -> dict:
         rows = repo.list_bluebook_study_submissions([exam_id], exam.get("tenant_id"))
         students: dict[str, dict] = {}
         for row in rows:
-            student_id = row.get("student_id")
-            if not student_id or student_id in students:
+            writer_id = row.get("student_id")
+            label = (row.get("study_label") or "").strip().casefold()
+            claimed_id = row.get("imitated_student_id")
+            baseline_student_id = claimed_id if label == "shadow" else writer_id
+            if not baseline_student_id or baseline_student_id in students:
                 continue
-            state = repo.get(student_id)
+            state = repo.get(baseline_student_id)
             samples = [
                 sample
                 for sample in (getattr(state, "samples", []) if state is not None else [])
                 if getattr(sample, "provenance", None) in _TRUSTED_PROVENANCE
             ]
             words = sum(len((getattr(sample, "text", "") or "").split()) for sample in samples)
-            students[student_id] = {
-                "student_id": student_id,
+            students[baseline_student_id] = {
+                "student_id": baseline_student_id,
                 "baseline_papers": len(samples),
                 "baseline_words": words,
                 "minimum_papers": MIN_BASELINE_PAPERS,
@@ -48,6 +51,24 @@ def study_readiness(exam_ids: list[str], repo=None) -> dict:
             if (row.get("study_label") or "").strip().casefold() == "shadow"
             and not (row.get("imitated_student_id") or "").strip()
         ]
+        shadow_claims_writer = [
+            row["id"]
+            for row in rows
+            if (row.get("study_label") or "").strip().casefold() == "shadow"
+            and row.get("imitated_student_id") == row.get("student_id")
+        ]
+        natural_writers = {
+            row.get("student_id")
+            for row in rows
+            if row.get("student_id")
+            and (row.get("study_label") or "").strip().casefold() == "natural"
+        }
+        shadow_writers = {
+            row.get("student_id")
+            for row in rows
+            if row.get("student_id")
+            and (row.get("study_label") or "").strip().casefold() == "shadow"
+        }
         exams.append(
             {
                 "exam_id": exam_id,
@@ -56,6 +77,8 @@ def study_readiness(exam_ids: list[str], repo=None) -> dict:
                 "missing_labels": missing_labels,
                 "unscored_submissions": unscored,
                 "shadow_without_imitated_student": shadow_without_imitation,
+                "shadow_imitated_student_is_writer": shadow_claims_writer,
+                "students_with_natural_and_shadow": sorted(natural_writers & shadow_writers),
             }
         )
     return {

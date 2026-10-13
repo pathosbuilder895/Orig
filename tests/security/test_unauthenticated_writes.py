@@ -137,6 +137,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("PATCH", "/bluebook/exams/{exam_id}"),
     ("PATCH", "/bluebook/submissions/{submission_id}/feedback"),
     ("PATCH", "/bluebook/submissions/{submission_id}/study-label"),
+    ("POST", "/bluebook/submissions/{submission_id}/study-label"),
     ("PATCH", "/tenants/{tenant_id}"),
     ("POST", "/admin/calibration/run"),
     ("POST", "/admin/calibration/runs/{run_id}/apply"),

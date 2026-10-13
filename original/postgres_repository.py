@@ -2225,6 +2225,11 @@ class PostgresRepository:
             "style_engine_version": row.style_engine_version,
             "style_threshold_version": row.style_threshold_version,
             "style_scored_at": _iso_or_none(row.style_scored_at),
+            "authorship_probability": row.authorship_probability,
+            "recommended_action": row.recommended_action,
+            "verdict": row.verdict,
+            "baseline_count": row.baseline_count,
+            "baseline_words": row.baseline_words,
             "created_at": row.created_at.isoformat(),
         }
 
@@ -2261,10 +2266,30 @@ class PostgresRepository:
             if changed:
                 row.study_label = study_label
                 row.imitated_student_id = imitated_student_id
+                row.style_score = None
+                row.style_features_json = {}
+                row.style_engine_version = None
+                row.style_threshold_version = None
+                row.style_scored_at = None
+                row.authorship_probability = None
+                row.recommended_action = None
+                row.verdict = None
+                row.baseline_count = None
+                row.baseline_words = None
             return {"previous": previous, "changed": changed}
 
     def set_bluebook_style_score(
-        self, submission_id, score, features, engine_version, threshold_version
+        self,
+        submission_id,
+        score,
+        features,
+        engine_version,
+        threshold_version,
+        authorship_probability,
+        recommended_action,
+        verdict,
+        baseline_count,
+        baseline_words,
     ):
         with session_scope() as session:
             result = session.execute(
@@ -2276,6 +2301,11 @@ class PostgresRepository:
                     style_engine_version=engine_version,
                     style_threshold_version=threshold_version,
                     style_scored_at=datetime.now(UTC),
+                    authorship_probability=float(authorship_probability),
+                    recommended_action=recommended_action,
+                    verdict=verdict,
+                    baseline_count=int(baseline_count),
+                    baseline_words=int(baseline_words),
                 )
             )
             return result.rowcount == 1

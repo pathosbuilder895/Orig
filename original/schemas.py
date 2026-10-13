@@ -237,10 +237,23 @@ class SubmissionFeedbackRequest(BaseModel):
 
 
 class StudyLabelsRequest(BaseModel):
-    """PATCH /bluebook/submissions/{id}/study-label; null/empty clears a field."""
+    """Staff study label update; null/empty clears the label."""
 
     study_label: str | None = Field(None, max_length=120)
     imitated_student_id: str | None = Field(None, max_length=128)
+
+    @model_validator(mode="after")
+    def normalize_study_label(self):
+        if "study_label" in self.model_fields_set:
+            label = (self.study_label or "").strip().casefold()
+            if label not in {"", "natural", "shadow"}:
+                raise ValueError("study_label must be natural, shadow, or null")
+            self.study_label = label or None
+            if self.study_label == "shadow" and not (self.imitated_student_id or "").strip():
+                raise ValueError("imitated_student_id is required for a shadow label")
+            if self.study_label != "shadow":
+                self.imitated_student_id = None
+        return self
 
 
 class SendEmailRequest(BaseModel):
