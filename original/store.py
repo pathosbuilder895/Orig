@@ -450,7 +450,19 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             status        TEXT NOT NULL DEFAULT 'SUBMITTED',
             created_at    TEXT NOT NULL,
             submission_uuid TEXT,
-            late          INTEGER DEFAULT 0
+            late          INTEGER DEFAULT 0,
+            study_label   TEXT,
+            imitated_student_id TEXT,
+            style_score   REAL,
+            style_features_json TEXT NOT NULL DEFAULT '{}',
+            style_engine_version TEXT,
+            style_threshold_version TEXT,
+            style_scored_at TEXT,
+            authorship_probability REAL,
+            recommended_action TEXT,
+            verdict TEXT,
+            baseline_count INTEGER,
+            baseline_words INTEGER
         )
     """)
     conn.execute("""
@@ -464,6 +476,22 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN submission_uuid TEXT")
     if "late" not in _sub_cols:
         conn.execute("ALTER TABLE bluebook_submissions ADD COLUMN late INTEGER DEFAULT 0")
+    for _col, _ddl in (
+        ("study_label", "TEXT"),
+        ("imitated_student_id", "TEXT"),
+        ("style_score", "REAL"),
+        ("style_features_json", "TEXT NOT NULL DEFAULT '{}'"),
+        ("style_engine_version", "TEXT"),
+        ("style_threshold_version", "TEXT"),
+        ("style_scored_at", "TEXT"),
+        ("authorship_probability", "REAL"),
+        ("recommended_action", "TEXT"),
+        ("verdict", "TEXT"),
+        ("baseline_count", "INTEGER"),
+        ("baseline_words", "INTEGER"),
+    ):
+        if _col not in _sub_cols:
+            conn.execute(f"ALTER TABLE bluebook_submissions ADD COLUMN {_col} {_ddl}")
     # Partial unique index (ADD COLUMN can't carry UNIQUE): seal replays with
     # the same client submission_uuid must not create a second row.
     conn.execute("""
@@ -3019,6 +3047,140 @@ def list_bluebook_submissions_for_exam(exam_id: str) -> list[dict]:
         d["answers"] = json.loads(r[21] or "[]")
         out.append(d)
     return out
+
+
+_STUDY_SUBMISSION_COLS = (
+    "submission_id, exam_id, tenant_id, student_id, study_label, "
+    "imitated_student_id, word_count, status, text, style_score, "
+    "style_features_json, style_engine_version, style_threshold_version, "
+    "style_scored_at, authorship_probability, recommended_action, verdict, "
+    "baseline_count, baseline_words, created_at"
+)
+
+
+def _study_submission_to_dict(row) -> dict:
+    return {
+        "id": row[0],
+        "exam_id": row[1],
+        "tenant_id": row[2],
+        "student_id": row[3],
+        "study_label": row[4],
+        "imitated_student_id": row[5],
+        "word_count": row[6] or 0,
+        "status": row[7],
+        "text": row[8],
+        "style_score": row[9],
+        "style_features": json.loads(row[10] or "{}"),
+        "style_engine_version": row[11],
+        "style_threshold_version": row[12],
+        "style_scored_at": row[13],
+        "authorship_probability": row[14],
+        "recommended_action": row[15],
+        "verdict": row[16],
+        "baseline_count": row[17],
+        "baseline_words": row[18],
+        "created_at": row[19],
+    }
+
+
+def get_bluebook_study_submission(submission_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_STUDY_SUBMISSION_COLS} FROM bluebook_submissions WHERE submission_id = ?",
+            (submission_id,),
+        ).fetchone()
+    return _study_submission_to_dict(row) if row else None
+
+
+def list_bluebook_study_submissions(
+    exam_ids: list[str], tenant_id: str | None = None
+) -> list[dict]:
+    if not exam_ids:
+        return []
+    placeholders = ", ".join("?" for _ in exam_ids)
+    sql = (
+        f"SELECT {_STUDY_SUBMISSION_COLS} FROM bluebook_submissions "
+        f"WHERE exam_id IN ({placeholders})"
+    )
+    params: list[str] = list(exam_ids)
+    if tenant_id is not None:
+        sql += " AND tenant_id = ?"
+        params.append(tenant_id)
+    sql += " ORDER BY created_at, submission_id"
+    with _get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [_study_submission_to_dict(row) for row in rows]
+
+
+def set_bluebook_study_fields(
+    submission_id: str, study_label: str | None, imitated_student_id: str | None
+) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT study_label, imitated_student_id FROM bluebook_submissions "
+            "WHERE submission_id = ?",
+            (submission_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        previous = {
+            "study_label": row[0],
+            "imitated_student_id": row[1],
+        }
+        changed = previous != {
+            "study_label": study_label,
+            "imitated_student_id": imitated_student_id,
+        }
+        if changed:
+            conn.execute(
+                "UPDATE bluebook_submissions SET study_label = ?, imitated_student_id = ?, "
+                "style_score = NULL, style_features_json = '{}', "
+                "style_engine_version = NULL, style_threshold_version = NULL, "
+                "style_scored_at = NULL, authorship_probability = NULL, "
+                "recommended_action = NULL, verdict = NULL, baseline_count = NULL, "
+                "baseline_words = NULL "
+                "WHERE submission_id = ?",
+                (study_label, imitated_student_id, submission_id),
+            )
+            conn.commit()
+    return {"previous": previous, "changed": changed}
+
+
+def set_bluebook_style_score(
+    submission_id: str,
+    score: float,
+    features: dict[str, float],
+    engine_version: str,
+    threshold_version: str,
+    authorship_probability: float,
+    recommended_action: str,
+    verdict: str,
+    baseline_count: int,
+    baseline_words: int,
+) -> bool:
+    with _get_conn() as conn:
+        cursor = conn.execute(
+            "UPDATE bluebook_submissions SET style_score = ?, style_features_json = ?, "
+            "style_engine_version = ?, style_threshold_version = ?, style_scored_at = ?, "
+            "authorship_probability = ?, recommended_action = ?, verdict = ?, "
+            "baseline_count = ?, baseline_words = ? "
+            "WHERE submission_id = ?",
+            (
+                float(score),
+                json.dumps(features, sort_keys=True, separators=(",", ":")),
+                engine_version,
+                threshold_version,
+                datetime.now(UTC).isoformat(),
+                float(authorship_probability),
+                recommended_action,
+                verdict,
+                int(baseline_count),
+                int(baseline_words),
+                submission_id,
+            ),
+        )
+        conn.commit()
+        return cursor.rowcount == 1
 
 
 def set_bluebook_submission_feedback(

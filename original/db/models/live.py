@@ -121,6 +121,7 @@ from sqlalchemy import (
     Text,
     text,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -567,6 +568,22 @@ class BluebookSubmission(LiveBase):
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     graded_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Evaluation-only fields: intentionally omitted by the general submission
+    # serializers, so student and ordinary API responses never expose labels.
+    study_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    imitated_student_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    style_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    style_features_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=sql_text("'{}'")
+    )
+    style_engine_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    style_threshold_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    style_scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    authorship_probability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    recommended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verdict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baseline_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    baseline_words: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class BluebookSession(LiveBase):

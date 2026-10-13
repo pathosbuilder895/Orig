@@ -571,7 +571,10 @@ def score_submission(
     # ── Email notification stub for escalate/schedule_conversation actions ────
     action = result.recommendation.action
     overall_score = result.authorship.authorship_probability
-    if action in ("escalate", "schedule_conversation"):
+    # Seal-time scoring and rescore jobs run without a request. Keep those
+    # idempotent operations free of repeated staff notification side effects;
+    # interactive student scoring retains the existing notification behavior.
+    if request is not None and action in ("escalate", "schedule_conversation"):
         _send_notification_email(student_name=student_id, action=action, score=overall_score)
 
     # ── Audit log — best-effort, never raises ─────────────────────────────────

@@ -26,6 +26,11 @@ EXPECTED_ROUTES = [
     ("/bluebook/exams/{exam_id}/session", "POST"),
     ("/bluebook/submissions", "POST"),
     ("/bluebook/submissions", "GET"),
+    ("/bluebook/submissions/{submission_id}/study-label", "PATCH"),
+    ("/bluebook/submissions/{submission_id}/study-label", "POST"),
+    ("/bluebook/study-labels.csv", "POST"),
+    ("/bluebook/exams/{exam_id}/study-export.csv", "GET"),
+    ("/bluebook/exams/{exam_id}/rescore", "POST"),
     ("/bluebook/courses", "POST"),
     ("/bluebook/courses", "GET"),
     ("/students", "GET"),
@@ -345,9 +350,7 @@ def test_record_submission_rejects_a_session_for_a_different_student(
     assert r.status_code == 403, r.text
 
 
-def test_record_submission_accepts_the_students_own_session(
-    real_deploy, live_client, store_reset
-):
+def test_record_submission_accepts_the_students_own_session(real_deploy, live_client, store_reset):
     from original import student_auth
 
     token = student_auth.mint_session("bbcrud:alice")

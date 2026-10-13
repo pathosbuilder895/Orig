@@ -1,0 +1,2 @@
+study_id,exam_id,submission_id,writer_key,study_label,claimed_student_key,word_count,authorship_probability,recommended_action,verdict,baseline_count,baseline_words,engine_version,threshold_version,scored_at,f_feature_a,f_feature_z
+study-2026-01,exam-1,sub-1,hmac-sha256:370819afa5eef501ad17ba115212da30390b8a883065b3ecf3c19f8da633f53b,natural,,321,0.82,monitor,monitor,3,421,original-layer7-style-v1,thresholds-sha256:abc123,2026-10-13T12:00:00+00:00,0.2,0.9

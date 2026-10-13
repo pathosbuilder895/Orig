@@ -255,6 +255,26 @@ class Repository(Protocol):
     def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
+    def get_bluebook_study_submission(self, submission_id: str) -> dict | None: ...
+    def list_bluebook_study_submissions(
+        self, exam_ids: list[str], tenant_id: str | None = None
+    ) -> list[dict]: ...
+    def set_bluebook_study_fields(
+        self, submission_id: str, study_label: str | None, imitated_student_id: str | None
+    ) -> dict | None: ...
+    def set_bluebook_style_score(
+        self,
+        submission_id: str,
+        score: float,
+        features: dict[str, float],
+        engine_version: str,
+        threshold_version: str,
+        authorship_probability: float,
+        recommended_action: str,
+        verdict: str,
+        baseline_count: int,
+        baseline_words: int,
+    ) -> bool: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
     def put_enrollment(self, course_id: str, student_id: str, tenant_id: str) -> None: ...
@@ -737,6 +757,45 @@ class SqliteRepository:
 
     def get_bluebook_submission(self, submission_id: str) -> dict | None:
         return store.get_bluebook_submission(submission_id)
+
+    def get_bluebook_study_submission(self, submission_id: str) -> dict | None:
+        return store.get_bluebook_study_submission(submission_id)
+
+    def list_bluebook_study_submissions(
+        self, exam_ids: list[str], tenant_id: str | None = None
+    ) -> list[dict]:
+        return store.list_bluebook_study_submissions(exam_ids, tenant_id)
+
+    def set_bluebook_study_fields(
+        self, submission_id: str, study_label: str | None, imitated_student_id: str | None
+    ) -> dict | None:
+        return store.set_bluebook_study_fields(submission_id, study_label, imitated_student_id)
+
+    def set_bluebook_style_score(
+        self,
+        submission_id: str,
+        score: float,
+        features: dict[str, float],
+        engine_version: str,
+        threshold_version: str,
+        authorship_probability: float,
+        recommended_action: str,
+        verdict: str,
+        baseline_count: int,
+        baseline_words: int,
+    ) -> bool:
+        return store.set_bluebook_style_score(
+            submission_id,
+            score,
+            features,
+            engine_version,
+            threshold_version,
+            authorship_probability,
+            recommended_action,
+            verdict,
+            baseline_count,
+            baseline_words,
+        )
 
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_student(student_id)
