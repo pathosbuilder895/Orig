@@ -21,7 +21,7 @@
 #   When today != expect a `::warning::` names the gap-register id.
 #
 # Outcomes:
-#   up      /health answered 200 within the timeout
+#   up      /livez answered 200 within the timeout
 #   refuse  the process exited non-zero AND its log contains --log-fragment
 #           (a deliberate, named refusal — not a crash)
 #   down    anything else that is not up (crash, hang, silent exit)
@@ -147,7 +147,7 @@ SERVER_PID=$!
 OBSERVED=""
 EXIT_CODE=""
 for _ in $(seq 1 "$TIMEOUT"); do
-    if curl -sf "http://127.0.0.1:$PORT/health" > "$WORKDIR/health.json" 2>/dev/null; then
+    if curl -sf "http://127.0.0.1:$PORT/livez" > "$WORKDIR/health.json" 2>/dev/null; then
         OBSERVED="up"
         break
     fi
@@ -174,7 +174,7 @@ fi
 # ── Report ───────────────────────────────────────────────────────────────────
 echo "── observed: $OBSERVED${EXIT_CODE:+ (exit $EXIT_CODE)}"
 if [ "$OBSERVED" = "up" ]; then
-    echo "   /health: $(cat "$WORKDIR/health.json")"
+    echo "   /livez: $(cat "$WORKDIR/health.json")"
 fi
 echo "── server log (tail) ────────────────────────────────────────────────"
 tail -n 40 "$LOG" || true
