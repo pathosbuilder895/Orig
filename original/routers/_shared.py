@@ -331,6 +331,30 @@ def _record_login_failure(request: Request, email: str = "", scope: str = "login
         _login_attempts.clear()
 
 
+# The launch page and its error page share one look. Named "Collections" only:
+# a launch can come from a Collections-only workspace, which never shows
+# Original's name.
+_LAUNCH_BODY = (
+    '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
+    'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px">'
+)
+_LAUNCH_TEXT = "font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem;max-width:32ch;text-align:center;line-height:1.5"
+
+
+def _render_launch_error(message: str) -> HTMLResponse:
+    """A launch link is opened by a browser, so a link that cannot be used
+    gets a short page the student can read, not a JSON error body."""
+    import html as _html
+
+    page = (
+        "<!doctype html><meta charset=utf-8>"
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>Collections</title>"
+        f'{_LAUNCH_BODY}<main><p style="{_LAUNCH_TEXT}">{_html.escape(message)}</p></main></body>'
+    )
+    return HTMLResponse(page, status_code=400)
+
+
 def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     """Server-render a page that seeds ``ls`` into localStorage then redirects.
 
@@ -340,10 +364,8 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     """
     sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
     html = (
-        "<!doctype html><meta charset=utf-8><title>Collections · Original</title>"
-        '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
-        'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
-        "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
+        "<!doctype html><meta charset=utf-8><title>Collections</title>"
+        f'{_LAUNCH_BODY}<div style="{_LAUNCH_TEXT}">Opening your exam…</div>'
         f"<script>try{{{sets}}}catch(e){{}}"
         f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
         "</script></body>"

@@ -480,10 +480,13 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         )
     else:
         headline = "Some passages here read differently from your voice."
+        # No "revisit" nudge back toward the baseline (NORTH_STAR rule 5), and no
+        # pathway this page does not offer.
         summary = (
-            "Parts of this piece diverge from your established voice. That is worth "
-            "revisiting: not a verdict, an invitation to look again. A guided "
-            "pathway is available if you would like a structured way through it."
+            "Parts of this piece read differently from the writing in your profile. "
+            "That often happens when a writer tries something new, and it is not a "
+            "judgement about you. If you would like to talk it through, your teacher "
+            "is the person to ask."
         )
 
     # Map the constructive (steady) features up into voice-dimension language so

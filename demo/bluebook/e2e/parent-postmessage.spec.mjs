@@ -52,7 +52,7 @@ test.describe('postMessage containment', () => {
     `)
 
     const app = page.frameLocator('#app')
-    await expect(app.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(app.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
 
     // Briefing → exam. Navigation is the moment the leak fired.
     await app.locator('button', { hasText: /begin|continue|enter|start/i }).first().click()

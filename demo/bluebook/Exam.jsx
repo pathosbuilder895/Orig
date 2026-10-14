@@ -65,8 +65,43 @@ export function examToConfig(detail, extra = {}) {
 }
 
 // The on-device draft for one exam (see ExamScreen's draft persistence).
-function bbDraftKey(cfg) {
-  return 'bb_draft_' + ((cfg && (cfg.id || cfg.title)) || 'exam');
+// It belongs to the student who wrote it: on a shared computer, an unsent
+// draft left by one student must never open in another student's booklet,
+// where it could be sealed as theirs. A teacher previewing an exam has no
+// student id, so the exam alone names that draft.
+function bbDraftOwner() {
+  try {
+    const launch = localStorage.getItem('bluebook_student_id');
+    if (launch) return launch;
+    if (localStorage.getItem('original_role') === 'student') return localStorage.getItem('original_student_id') || '';
+  } catch (e) {}
+  return '';
+}
+export function bbDraftKey(cfg) {
+  const exam = (cfg && (cfg.id || cfg.title)) || 'exam';
+  const owner = bbDraftOwner();
+  return 'bb_draft_' + (owner ? owner + '|' : '') + exam;
+}
+
+// Drafts were once keyed by the exam alone. A sitting in progress when the
+// per-student key shipped would otherwise refresh into an empty booklet, so
+// a recent draft under the old key is moved to this student's key, once.
+// "Recent" is an exam day (12 hours): an older one is left alone, since on a
+// shared computer it may be someone else's. The student's own draft always
+// wins.
+const BB_LEGACY_DRAFT_MAX_AGE_MS = 12 * 3600 * 1000;
+export function bbAdoptLegacyDraft(cfg, now = Date.now()) {
+  try {
+    const key = bbDraftKey(cfg);
+    const legacy = 'bb_draft_' + ((cfg && (cfg.id || cfg.title)) || 'exam');
+    if (key === legacy || localStorage.getItem(key) != null) return;
+    const raw = localStorage.getItem(legacy);
+    if (raw == null) return;
+    const d = JSON.parse(raw);
+    if (!d || typeof d.savedAt !== 'number' || now - d.savedAt > BB_LEGACY_DRAFT_MAX_AGE_MS) return;
+    localStorage.setItem(key, raw);
+    localStorage.removeItem(legacy);
+  } catch (e) {}
 }
 
 // Whether this sitting's submission goes to Original. Original can be
@@ -78,6 +113,7 @@ function bbDraftKey(cfg) {
 // sitting has started (no draft, or a draft from an older page without the
 // decision), the workspace's current products answer.
 export function bbOriginalForSitting(cfg) {
+  bbAdoptLegacyDraft(cfg);
   try {
     const d = JSON.parse(localStorage.getItem(bbDraftKey(cfg)) || 'null');
     if (d && d.seal && typeof d.seal.withOriginal === 'boolean') return d.seal.withOriginal;
@@ -95,6 +131,7 @@ export function bbOriginalForSitting(cfg) {
 // briefing. Returns the decision the draft now holds, or null if storage
 // could not be written.
 export function bbLockOriginalDecision(cfg, withOriginal) {
+  bbAdoptLegacyDraft(cfg);
   const key = bbDraftKey(cfg);
   try {
     let d = null;
@@ -121,22 +158,102 @@ export function bbLockOriginalDecision(cfg, withOriginal) {
 // list and the value saved at Begin cannot differ.
 function buildConditions(cfg, withOriginal) {
   return [
-    cfg.blockAI   && 'AI assistants and other writing tools are not permitted',
-    cfg.blockWeb  && 'The examination runs full-screen; leaving it or switching tabs is recorded for your teacher',
-    cfg.blockCopy && 'Copy and paste are disabled in the answer box',
-    withOriginal  && 'Session duration and coarse writing information are noted as context for your teacher',
-    cfg.phoneBlk  && 'Devices must be silenced for the duration',
-    withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work',
-    withOriginal  && 'Your teacher may choose to add your sealed booklet to your writing profile, and can undo that',
+    cfg.blockAI   && 'Please write on your own, without AI assistants or other writing tools.',
+    cfg.blockWeb  && 'The exam opens full screen. If you leave it or switch tabs, your teacher sees a short note with the time.',
+    cfg.blockCopy && 'Copy and paste are turned off in the answer box.',
+    withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
+    cfg.phoneBlk  && 'Please silence your phone and other devices.',
+    withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
+    withOriginal  && 'Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.',
   ].filter(Boolean);
-}
-
-function fmt(s) {
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
 function wordCount(text) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+// ─── Timer, word count and seal helpers ───────────────────────────────────────
+// Pure, so unit/exam-access.test.mjs can pin exactly what is shown and said.
+
+// The visible clock: mm:ss, with hours once a sitting is an hour or longer.
+export function bbClock(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  const two = n => String(n).padStart(2, '0');
+  return h ? `${h}:${two(m)}:${two(r)}` : `${two(m)}:${two(r)}`;
+}
+
+const bbPlural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+// The same time as words a screen reader can say. Seconds only count in
+// the last five minutes.
+export function bbSpokenTime(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  const parts = [];
+  if (h) parts.push(bbPlural(h, 'hour'));
+  if (m) parts.push(bbPlural(m, 'minute'));
+  if (s < 300 && r) parts.push(bbPlural(r, 'second'));
+  return parts.length ? parts.join(' ') : '0 seconds';
+}
+
+// Announced once each, politely, as the clock crosses them.
+const BB_TIME_MILESTONES = [1800, 900, 600, 300, 60];
+
+// The announcement for a tick that took the clock from prevLeft to left, or
+// null. A clock that skipped several milestones at once (a throttled
+// background tab) announces the time actually left, not a stale milestone.
+export function bbTimeMilestone(prevLeft, left) {
+  const crossed = BB_TIME_MILESTONES.filter(t => prevLeft > t && left <= t);
+  if (!crossed.length) return null;
+  const t = crossed[crossed.length - 1];
+  return `${bbSpokenTime(t - left < 5 ? t : left)} remaining.`;
+}
+
+const bbN = n => Number(n).toLocaleString('en-US');
+
+// The answer box's description: where the student stands on length.
+export function bbWordSummary(words, min, max) {
+  const parts = [`${bbN(words)} word${words === 1 ? '' : 's'} written.`];
+  if (max && words > max) {
+    parts.push(`You are over the ${bbN(max)}-word limit.`);
+    return parts.join(' ');
+  }
+  if (min) parts.push(words >= min ? `You have reached the ${bbN(min)}-word minimum.` : `Write at least ${bbN(min)} words to submit.`);
+  if (max) parts.push(`The limit is ${bbN(max)} words.`);
+  return parts.join(' ');
+}
+
+// Announced politely when the count crosses the minimum or the limit
+// upwards; never on every word.
+export function bbWordMilestone(prev, words, min, max) {
+  if (max && prev <= max && words > max) return `You are now over the ${bbN(max)}-word limit.`;
+  if (min && prev < min && words >= min) return `You have reached the ${bbN(min)}-word minimum.`;
+  return null;
+}
+
+// Why the seal button is not available yet, or null when it is.
+export function bbSealHint(words, min) {
+  if (min && words < min) {
+    const left = min - words;
+    return `Write ${bbN(left)} more word${left === 1 ? '' : 's'} to submit.`;
+  }
+  return words ? null : 'Write your answer to submit.';
+}
+
+// Waits between seal attempts: about 37 seconds in all, long enough to ride
+// out a brief outage or a redeploy before the student is told.
+export const BB_SEAL_BACKOFF = [2000, 5000, 10000, 20000];
+
+// Whether a failed seal attempt is worth repeating. Network failures carry
+// no status and are retried, as are server errors and "slow down". A
+// refusal (any other 4xx) will not change on retry, so the seal stops and
+// the student is told at once; the draft stays on the device either way.
+export function bbSealRetryable(err) {
+  const s = err && err.status;
+  if (!s) return true;
+  if (s === 408 || s === 425 || s === 429) return true;
+  return !(s >= 400 && s < 500);
 }
 
 // ─── Lockdown helpers (browser-level enforcement) ─────────────────────────────
@@ -245,6 +362,13 @@ function bbAuthHeaders() {
 // { deadlineMs, offsetMs } (offset = serverNow - clientNow, so deadline math
 // runs on server time), or null when the backend is unreachable — the caller
 // then degrades open to the local countdown rather than stranding a student.
+// The server's answer when this student has already submitted this exam
+// (routers/bluebook.py _ALREADY_SUBMITTED, and the dashboard start route):
+// from another tab or device, or earlier. A 409 with those words.
+export function bbAlreadySubmitted(status, detail) {
+  return status === 409 && /already submitted/i.test(String(detail || ''));
+}
+
 async function bbStartSession(cfg, studentId) {
   if (!cfg.id) return null;
   // A student loaded this exam through /bluebook/me: start there, so the
@@ -261,7 +385,7 @@ async function bbStartSession(cfg, studentId) {
       const deadlineMs = Date.parse(d.deadline_at);
       if (!deadlineMs) return null;
       return { deadlineMs, offsetMs: Date.parse(d.server_now) - Date.now() };
-    } catch (e) { return null; }
+    } catch (e) { return bbAlreadySubmitted(e && e.status, e && e.message) ? { alreadySubmitted: true } : null; }
   }
   try {
     const r = await fetch(`${BB_API_BASE}/bluebook/exams/${encodeURIComponent(cfg.id)}/session`, {
@@ -271,7 +395,11 @@ async function bbStartSession(cfg, studentId) {
         candidate: cfg.candidateEmail || cfg.candidate || '',
       }),
     });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.json()).detail || ''; } catch (e) {}
+      return bbAlreadySubmitted(r.status, detail) ? { alreadySubmitted: true } : null;
+    }
     const d = await r.json();
     const deadlineMs = Date.parse(d.deadline_at);
     if (!deadlineMs) return null;
@@ -356,7 +484,13 @@ export function BriefingScreen({ onNavigate }) {
         });
         setLoadState('ready');
       })
-      .catch(err => { if (live) { setLoadError(err.message || 'This examination could not be loaded.'); setLoadState('error'); } });
+      .catch(err => {
+        if (!live) return;
+        setLoadError(err && err.status === 401
+          ? 'Your sign-in has expired. Please sign in again to open this exam.'
+          : 'We could not open this exam just now. Please refresh the page, or ask your teacher for a new link.');
+        setLoadState('error');
+      });
     return () => { live = false; };
   }, []);
 
@@ -377,7 +511,7 @@ export function BriefingScreen({ onNavigate }) {
               <span className="bk-exam-lbl">Examination Booklet</span>
               <h1>Collections</h1>
               <p role={loadState === 'error' ? 'alert' : 'status'} className="bk-cover-note state">
-                {loadState === 'error' ? loadError : 'Loading your examination…'}
+                {loadState === 'error' ? loadError : 'Opening your exam…'}
               </p>
             </div>
           </div>
@@ -406,7 +540,7 @@ export function BriefingScreen({ onNavigate }) {
           )}
 
           <div className="bk-cover-inner">
-            <span className="bk-exam-lbl">Preliminary Instructions</span>
+            <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />
 
@@ -419,29 +553,38 @@ export function BriefingScreen({ onNavigate }) {
 
             <p className="bk-meta">
               <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
-              {limits && ` ${limits}`} Your work saves itself as you write. When you open this booklet, the clock starts, and everything you write here is yours, in your own hand.
+              {limits && ` ${limits}`} Your work saves itself on this device as you write. The clock starts when you open the booklet.
             </p>
             {cfg.closesAt && (
               <p className="bk-closes">Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             )}
 
             <div className="bk-conditions">
-              <h2>Enforced Conditions</h2>
+              <h2>How this exam works</h2>
               <ul>
                 {conditions.map(rule => <li key={rule}>{rule}</li>)}
               </ul>
+              {(cfg.blockWeb || cfg.blockCopy) && (
+                <p className="bk-conditions-note">These notes help your teacher understand the session. Short moments away are normal.</p>
+              )}
+              {/* Before the clock starts, so reading it costs no exam time. */}
+              <p className="bk-conditions-note">
+                <a href="../legal/student-notice.html" target="_blank" rel="noopener">What Collections keeps, and what it does not</a>
+              </p>
             </div>
 
             {cannotBegin ? (
               <p role="status" className="bk-cover-note state">
-                {cfg.state === 'upcoming' ? 'This examination has not opened yet.' : 'This examination is closed.'}
+                {cfg.state === 'upcoming'
+                  ? 'This exam is not open yet. Please come back at the time your teacher gave you.'
+                  : 'This exam has closed. If you think that is a mistake, please talk to your teacher.'}
               </p>
             ) : (
               <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
                 {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
               </button>
             )}
-            <p className="bk-cover-note">Once begun, this examination cannot be paused</p>
+            <p className="bk-cover-note">Once you begin, the clock keeps running, even if you close this page</p>
             <p className="bk-cover-note">{withOriginal ? 'Original · Collections · quiet by design' : 'Collections · quiet by design'}</p>
           </div>
         </div>
@@ -451,19 +594,44 @@ export function BriefingScreen({ onNavigate }) {
 }
 
 // ─── Active Examination Screen ────────────────────────────────────────────────
+// The answers joined as the teacher reads them. A single-question (or legacy
+// prompt-only) exam is a list of one, so everything downstream reads the
+// joined text exactly as it read the single answer before.
+function bbJoinAnswers(answers, multi) {
+  return multi ? answers.map((a, i) => `Question ${i + 1}.\n${a}`).join('\n\n') : answers[0];
+}
+
+function bbNewSealId() {
+  return (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'uu-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+// What the student is shown when the page notes something for the teacher.
+// Plain statements of what happened: never a warning, a rule restated as a
+// threat, or a guess about why. Only the event's type and time go to the
+// teacher (see recordWarning), never these words.
+export const BB_NOTICE = {
+  focus_lost:      'You moved away from the exam window.',
+  tab_hidden:      'The exam tab was in the background for a moment.',
+  fullscreen_exit: 'Full screen was turned off. You can turn it back on with the button at the top.',
+  print_or_save:   'Printing and saving are turned off during this exam.',
+  paste_blocked:   'Pasting is turned off for this exam, so nothing was added.',
+};
+
 export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
   const candidateLabel = bbCandidateLabel(cfg);
-  // Draft persistence: an exam must survive a crash, reload, or accidental
-  // exit. Keyed per exam, restored on mount, cleared on successful seal.
+  // Draft persistence: a sitting must survive a crash, a refresh, a dropped
+  // connection or an accidental exit. The draft is keyed per exam and per
+  // student (bbDraftKey), written as the student types, restored on mount,
+  // and removed only once the seal has been delivered.
   const draftKey = bbDraftKey(cfg);
+  bbAdoptLegacyDraft(cfg);
   const restored = (() => {
     try { return JSON.parse(localStorage.getItem(draftKey) || 'null'); }
     catch (e) { return null; }
   })();
-  // One answer per question. A single-question (or legacy prompt-only) exam
-  // is just a list of one, so everything downstream reads `content`, the
-  // answers joined, exactly as it read the single answer before.
   const questions = (cfg.questions && cfg.questions.length) ? cfg.questions : [cfg.prompt];
   const multi = questions.length > 1;
   const [answers,     setAnswers]     = useExState(() => {
@@ -473,27 +641,26 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   });
   const [qIndex,      setQIndex]      = useExState(0);
   const [promptOpen,  setPromptOpen]  = useExState(true);
-  const content = multi
-    ? answers.map((a, i) => `Question ${i + 1}.\n${a}`).join('\n\n')
-    : answers[0];
+  const content = bbJoinAnswers(answers, multi);
   const words = answers.reduce((n, a) => n + wordCount(a), 0);
   // timeLeft is display state DERIVED from the server deadline each tick
-  // (see the countdown effect); it is deliberately NOT restored from the
-  // draft — persisting a countdown remainder let closing the tab pause the
-  // clock. Degrade-open fallback (no session) restarts the local countdown.
+  // (see the countdown effect). It is deliberately not restored from the
+  // draft: persisting a countdown remainder let closing the tab pause the
+  // clock. With no session (degrade-open) the local countdown restarts.
   const [timeLeft,    setTimeLeft]    = useExState(cfg.duration);
   const [saving,      setSaving]      = useExState(false);
-  const [warnings,    setWarnings]    = useExState(0);
-  const [warnLog,     setWarnLog]     = useExState([]); // [{ id, msg }] — persists for the session, never auto-dismissed
-  const [warnLogOpen,  setWarnLogOpen] = useExState(true);
+  const [warnLog,     setWarnLog]     = useExState([]); // [{ id, msg }] for this page; never auto-dismissed
+  const [warnLogOpen, setWarnLogOpen] = useExState(true);
   const [submitting,  setSubmitting]  = useExState(false);
+  const [sealNote,    setSealNote]    = useExState('');   // visible progress while sealing
   const [fsLost,      setFsLost]      = useExState(false);
-  const [liveMsg,     setLiveMsg]     = useExState(''); // polite announcements: autosave + timer milestones
+  const [liveMsg,     setLiveMsg]     = useExState('');   // the one polite live region
+  const [storageOk,   setStorageOk]   = useExState(true);
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
   const deadlineRef = useExRef(null);   // { deadlineMs, offsetMs } once the session lands
-  // Seal progress survives refreshes so a retried seal is idempotent
-  // end-to-end: same uuid, completed steps never re-run.
+  // Seal progress survives refreshes so a retried seal is idempotent end to
+  // end: the same uuid, and completed steps never re-run.
   const sealRef     = useExRef((restored && restored.seal) || { uuid: null, aiScore: undefined, baselineData: null });
   // Whether this sitting goes to Original is decided here, once, on first
   // entry, and kept in the draft (see bbOriginalForSitting). A restored
@@ -504,14 +671,39 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     decidedNowRef.current = true;
   }
   const [offline, setOffline] = useExState(typeof navigator !== 'undefined' && navigator.onLine === false);
-  // Live refs so interval/debounce callbacks always persist current values.
+  // Live refs so event, interval and retry callbacks always see current values.
   const contentRef  = useExRef(content);
   contentRef.current  = content;
   const answersRef  = useExRef(answers);
   answersRef.current  = answers;
-  // "Anything written at all" — the joined content always contains the
+  // "Anything written at all": the joined content always contains the
   // question headers for a multi-question exam, so test the answers.
   const hasWriting = () => answersRef.current.some(a => a.trim());
+  // Once the student confirms the seal (or time runs out) the answers are
+  // final. A draft that was already final when this screen mounted (a
+  // refresh mid-seal, or "Try again" after a failed one) is not reopened
+  // for editing: the same seal is finished instead. Editing it would be
+  // lost anyway if the first attempt had in fact reached the server, which
+  // keeps the first copy of a submission id.
+  const resumeRef   = useExRef(!!sealRef.current.confirmedAt && answers.some(a => a.trim()));
+  const [locked, setLocked] = useExState(resumeRef.current);
+  const lockedRef   = useExRef(resumeRef.current);
+  // One seal at a time. State updates land a render late, so a synchronous
+  // ref (not `submitting`) stops a double press, or time expiry racing a
+  // press, from starting two seal loops.
+  const sealingRef  = useExRef(false);
+  // This student has already submitted this exam (another tab or device, or
+  // earlier): the booklet stays closed and nothing is sent.
+  const [alreadySubmitted, setAlreadySubmitted] = useExState(false);
+  const alreadySubmittedRef = useExRef(false);
+  const announcedSaveRef = useExRef(false);
+  // Session facts carried across a refresh: when writing started, and how
+  // many pastes were attempted. No per-key data is kept (NORTH_STAR rule 6).
+  const startedAtRef = useExRef((restored && restored.startedAt) || null);
+  const pastesRef    = useExRef((restored && restored.pastes) || 0);
+  // Every notice also goes to the teacher with the seal: its type and time
+  // only, never the message text or anything about the page.
+  const warnEventsRef = useExRef((restored && restored.warnings) || []);
 
   function writeDraftNow() {
     try {
@@ -520,54 +712,51 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         answers: answersRef.current,
         seal: sealRef.current,
         warnings: warnEventsRef.current,
+        startedAt: startedAtRef.current,
+        pastes: pastesRef.current,
         savedAt: Date.now(),
       }));
+      setStorageOk(true);
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      // Private browsing, a full disk or blocked storage. Say so (see the
+      // banner) rather than let the student believe a copy is being kept.
+      setStorageOk(false);
+      return false;
+    }
   }
 
-  // One warning per real event: blur + visibilitychange fire together for a
-  // single tab switch, so repeats inside 1.5s collapse into one notice.
+  // One notice per real event: blur and visibilitychange fire together for
+  // a single tab switch, so repeats inside 1.5s collapse into one.
   const lastWarnRef = useExRef(0);
   // True only while the seal confirmation is open. The browser may blur the
   // window for its own dialog; that is not the student leaving the exam, so
   // nothing is recorded (or sent to the teacher) while it is up.
   const sealPromptRef = useExRef(false);
-  // Every warning also goes to the teacher with the seal: its type and time
-  // only, never the message text or anything about the page.
-  const warnEventsRef = useExRef((restored && restored.warnings) || []);
   function recordWarning(msg, type = 'other') {
-    if (sealPromptRef.current) return;
+    // Nothing is noted once the answers are final: what a student does while
+    // the seal is on its way is not part of the sitting, and the notes sent
+    // with every retry stay exactly those of the sitting.
+    if (sealPromptRef.current || lockedRef.current) return;
     const now = Date.now();
     if (now - lastWarnRef.current < 1500) return;
     lastWarnRef.current = now;
     warnEventsRef.current = [...warnEventsRef.current, { type, at: new Date(now).toISOString() }].slice(-500);
-    setWarnings(n => n + 1);
+    writeDraftNow();
     setWarnLog(log => [...log, { id: now, msg }]);
     setWarnLogOpen(true);
-  }
-
-  // ── Composition-timing capture (macro-only, ADR-010 — fed to Original's
-  // Tier 17 via composition_summary; no per-key counts are kept) ──
-  const revsRef     = useExRef([]);    // [{ type:'paste' }]
-  const startRef    = useExRef(null);  // performance.now() at first key
-  const startWallRef = useExRef(null); // Date.now() wall-clock at first key
-
-  function handleKeyDown(e) {
-    if (startRef.current == null) {
-      startRef.current = performance.now();
-      startWallRef.current = Date.now();
-    }
+    // Polite: a notice is information for later, not an interruption.
+    setLiveMsg(`Noted for your teacher. ${msg}`);
   }
 
   function buildCompositionSummary() {
-    const durSec = startRef.current != null ? (performance.now() - startRef.current) / 1000 : 0;
+    const started = startedAtRef.current;
     return {
-      session_seconds: Math.round(durSec),
-      word_count:      wordCount(content),
-      paste_attempts:  revsRef.current.filter(r => r.type === 'paste').length,
-      focus_losses:    warnings,
-      started_at:      startWallRef.current != null ? new Date(startWallRef.current).toISOString() : '',
+      session_seconds: started ? Math.max(0, Math.round((Date.now() - started) / 1000)) : 0,
+      word_count:      wordCount(contentRef.current),
+      paste_attempts:  pastesRef.current,
+      focus_losses:    warnEventsRef.current.length,
+      started_at:      started ? new Date(started).toISOString() : '',
       ended_at:        new Date().toISOString(),
       exam_config: {
         block_copy:   !!cfg.blockCopy,
@@ -578,11 +767,13 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   }
 
   async function handleSubmit(opts = {}) {
-    // opts.force: time expiry seals whatever exists, bypassing the word
-    // minimum — a student must never be stranded at a dead 00:00.
-    if (submitting || (!opts.force && words < cfg.minWords)) return;
+    // opts.force: time expiry (or finishing a seal already confirmed) seals
+    // whatever exists, bypassing the word minimum. A student must never be
+    // stranded at a dead 00:00.
+    if (sealingRef.current || alreadySubmittedRef.current) return;
+    if (!opts.force && (words < cfg.minWords || !hasWriting())) return;
     if (opts.force && !hasWriting()) {
-      // Nothing written when time ran out — don't record an empty submission.
+      // Nothing written when time ran out: don't record an empty submission.
       // The draft holds only this sitting's Original decision (no writing),
       // so clear it: the next person to sit this exam on this browser must
       // decide afresh, not inherit it. Nothing below reads the draft.
@@ -591,22 +782,30 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         words: 0, title: cfg.title, courseTitle: cfg.courseTitle,
         candidate: candidateLabel, studentId: null,
         ok: false, error: 'No text was written before time expired',
-        expired: true,
+        expired: true, empty: true,
       };
       onNavigate('submitted');
       return;
     }
+    sealingRef.current = true;
+    lockedRef.current = true;
+    setLocked(true);
     setSubmitting(true);
     // Idempotent, retryable sealing (robustness spec §2): one uuid per seal,
     // persisted in the draft with per-step results, so a refresh-and-reseal
-    // or network retry never repeats a completed step.
+    // or network retry never repeats a completed step. Everything a retry
+    // sends is fixed at the moment the answers became final.
     const seal = sealRef.current;
-    if (!seal.uuid) {
-      seal.uuid = (window.crypto && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : 'uu-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    if (!seal.uuid) seal.uuid = bbNewSealId();
+    if (!seal.confirmedAt) {
+      seal.confirmedAt = new Date().toISOString();
+      seal.expired = !!opts.expired;
+      seal.timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
+      seal.summary = buildCompositionSummary();
     }
-    writeDraftNow();   // draft (content + seal state) survives a failed seal
+    writeDraftNow();   // the draft (answers + seal state) survives a failed seal
+    const finalText = contentRef.current;
+    const finalAnswers = answersRef.current;
 
     const waitOnline = () => new Promise((res) => {
       if (navigator.onLine !== false) return res();
@@ -624,13 +823,17 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     let withOriginal = typeof seal.withOriginal === 'boolean' ? seal.withOriginal : BB_API.hasOriginal();
     let result = null;
     let lastError = null;
-    const BACKOFF = [2000, 5000, 10000];
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const attempts = BB_SEAL_BACKOFF.length + 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        await waitOnline();
+        if (navigator.onLine === false) {
+          setSealNote('Waiting for the connection. Your answers will be submitted when the connection returns.');
+          await waitOnline();
+        }
+        setSealNote(attempt ? `Still submitting (try ${attempt + 1} of ${attempts}). Your answers are saved on this device.` : 'Submitting your answers…');
         // 1) Score against the EXISTING baseline (skipped on retry once known).
         if (withOriginal && seal.aiScore === undefined) {
-          const scored = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid, buildCompositionSummary());
+          const scored = await bbScoreWithOriginal(studentId, finalText, cfg.title, seal.uuid, seal.summary);
           if (scored === BB_ORIGINAL_OFF) {
             // The workspace no longer holds Original (switched off since this
             // page loaded). A 403 will not change on retry, so seal exactly as
@@ -647,15 +850,11 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           }
           writeDraftNow();
         }
-        // 2) Record the sealed submission (server dedupes by submission_uuid).
-        // Compare-only (plan Phase 7): the seal never adds to the student's
-        // baseline; a professor approves which sealed exams become baseline
-        // samples. A workspace switched off Original since this sitting began
-        // answers the score call with 403 (handled in step 1), so the exam is
-        // recorded exactly like a Bluebook-only one.
-        const stylometric = null;
+        // 2) Record the sealed submission (the server dedupes by
+        // submission_uuid). Compare-only (plan Phase 7): the seal never adds
+        // to the student's baseline; a professor approves which sealed exams
+        // become baseline samples.
         const status = bbSealStatus(withOriginal, seal);
-        const timeMin = Math.max(0, Math.round(((cfg.duration || 0) - timeLeft) / 60));
         // Throws on failure, so a lost submission row retries like any other
         // step instead of reporting "sealed" and deleting the draft.
         await BB_API.recordSubmission({
@@ -664,34 +863,35 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           candidate:   cfg.candidateEmail || cfg.candidate,
           exam_title:  cfg.title,
           course:      cfg.course,
-          word_count:  wordCount(content),
-          time_min:    timeMin,
-          stylometric,
+          word_count:  wordCount(finalText),
+          time_min:    seal.timeMin,
+          stylometric: null,
           ai_score:    withOriginal ? seal.aiScore : null,
           status,
           submission_uuid: seal.uuid,
-          text:        content,
-          answers:     answersRef.current,
+          text:        finalText,
+          answers:     finalAnswers,
           warnings:    warnEventsRef.current,
         });
         result = { ok: true, studentId };
         break;
       } catch (e) {
         lastError = e;
-        setLiveMsg(`Sealing attempt ${attempt + 1} failed — retrying.`);
-        if (attempt < 2) await new Promise(res => setTimeout(res, BACKOFF[attempt]));
+        if (!bbSealRetryable(e) || attempt === attempts - 1) break;
+        const wait = BB_SEAL_BACKOFF[attempt];
+        const msg = `The server did not answer. Trying again in ${Math.round(wait / 1000)} seconds. Your answers are saved on this device.`;
+        setSealNote(msg);
+        setLiveMsg(msg);
+        await new Promise(res => setTimeout(res, wait));
       }
     }
 
     if (result && result.ok) {
-      // Sealed and delivered — the on-device draft has served its purpose.
+      // Sealed and delivered: the on-device draft has served its purpose.
       try { localStorage.removeItem(draftKey); } catch (e) {}
-    } else {
-      // Final failure: the draft stays on this device. Never strand the UI.
-      setLiveMsg('Sealing failed. Your work is saved on this device — please tell your proctor.');
     }
     window.BB_LAST_SUBMISSION = {
-      words: wordCount(content),
+      words: wordCount(finalText),
       title: cfg.title,
       courseTitle: cfg.courseTitle,
       candidate: candidateLabel,
@@ -700,27 +900,45 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       error: (result && result.ok) ? null : String((lastError && lastError.message) || lastError || 'seal failed'),
       aiScore: seal.aiScore,
       withOriginal,
-      expired: !!opts.expired,
+      expired: !!seal.expired,
+      alreadySubmitted: !(result && result.ok) && bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message),
       draftKey,
     };
+    sealingRef.current = false;
     setSubmitting(false);
     onNavigate('submitted');
   }
 
   // Server-pinned deadline (robustness spec §1): first call pins it, later
-  // calls (any refresh) get the same one back.
+  // calls (any refresh) get the same one back. clockReady marks the moment
+  // the clock is worth announcing: the server answered, or it could not.
+  const clockReadyRef = useExRef(false);
   useExEffect(() => {
     let cancelled = false;
     (async () => {
       const sid = await bbResolveStudentId(cfg);
       const sess = await bbStartSession(cfg, sid);
-      if (!cancelled && sess) deadlineRef.current = sess;
+      if (cancelled) return;
+      if (sess && sess.alreadySubmitted) {
+        // A seal this tab is finishing may be the very submission the server
+        // already holds (its reply was lost): let it finish, and the server
+        // returns that row. Otherwise the booklet stays closed.
+        if (!resumeRef.current) {
+          alreadySubmittedRef.current = true;
+          lockedRef.current = true;
+          setLocked(true);
+          setAlreadySubmitted(true);   // the banner is a status: it is announced
+        }
+      } else if (sess) {
+        deadlineRef.current = sess;
+      }
+      clockReadyRef.current = true;
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // Countdown — derived from the server deadline when we have one, so a
-  // reload can't pause the clock; plain local countdown otherwise.
+  // Countdown: derived from the server deadline when there is one, so a
+  // reload can't pause the clock; a plain local countdown otherwise.
   useExEffect(() => {
     const id = setInterval(() => {
       const sess = deadlineRef.current;
@@ -733,10 +951,27 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     return () => clearInterval(id);
   }, []);
 
-  // Offline awareness (robustness spec §3): a persistent, polite banner; the
-  // seal retry loop parks on the matching 'online' event.
+  // Polite time announcements: the time left once the clock is known, then
+  // each milestone as it is crossed. Never every tick.
+  const prevLeftRef = useExRef(null);
+  const announcedStartRef = useExRef(false);
   useExEffect(() => {
-    const goOff = () => { setOffline(true);  setLiveMsg('Connection lost — your writing is safe on this device.'); };
+    const prev = prevLeftRef.current;
+    prevLeftRef.current = timeLeft;
+    if (!cfg.duration || prev == null || !clockReadyRef.current || timeLeft <= 0) return;
+    if (!announcedStartRef.current) {
+      announcedStartRef.current = true;
+      setLiveMsg(`${bbSpokenTime(timeLeft)} remaining.`);
+      return;
+    }
+    const msg = bbTimeMilestone(prev, timeLeft);
+    if (msg) setLiveMsg(msg);
+  }, [timeLeft]);
+
+  // Offline awareness (robustness spec §3): a persistent banner; the seal
+  // retry loop parks on the matching 'online' event.
+  useExEffect(() => {
+    const goOff = () => { setOffline(true);  setLiveMsg('Connection lost. Your writing is still saved on this device.'); };
     const goOn  = () => { setOffline(false); setLiveMsg('Connection restored.'); };
     window.addEventListener('offline', goOff);
     window.addEventListener('online', goOn);
@@ -745,72 +980,99 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
 
   // Time expiry: seal whatever is written. Without this the countdown died
   // silently at 00:00 with the seal button still disabled below the word
-  // minimum — the student was stranded forever.
+  // minimum, and the student was stranded.
   useExEffect(() => {
-    if (timeLeft > 0 || !cfg.duration || submitting) return;
+    if (timeLeft > 0 || !cfg.duration) return;
     handleSubmit({ force: true, expired: true });
   }, [timeLeft]);
 
   // Persist a sitting decision taken on this mount at once, so a reload keeps
   // it before the student has written anything. Silent: with no writing
-  // there is no "Draft saved" to announce.
+  // there is nothing to announce.
   useExEffect(() => {
     if (decidedNowRef.current) writeDraftNow();
   }, []);
 
-  // Autosave: the dot appears only after a REAL write. A 2s typing debounce
-  // captures active work; the 30s interval keeps the draft fresh even
-  // while idle.
+  // On entry: finish a seal that was already final, or put the student in
+  // the answer box so they can start writing straight away.
+  useExEffect(() => {
+    if (resumeRef.current) {
+      setLiveMsg('Your answers were already final. Finishing your submission now.');
+      handleSubmit({ force: true });
+    } else if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+
+  // The "saved" mark appears after a pause in typing. The draft itself is
+  // written on every change (handleChange); the 30s interval keeps the
+  // saved time fresh while idle, and pagehide/hidden flush it once more.
   useExEffect(() => {
     if (!hasWriting()) return;
     const deb = setTimeout(() => {
       if (writeDraftNow()) {
         setSaving(true);
-        setLiveMsg('Draft saved.');
         setTimeout(() => setSaving(false), 1800);
       }
-    }, 2000);
+    }, 1500);
     return () => clearTimeout(deb);
   }, [content]);
   useExEffect(() => {
     saveTimer.current = setInterval(() => {
       if (hasWriting()) writeDraftNow();
     }, 30000);
-    return () => clearInterval(saveTimer.current);
+    const flush = () => { if (hasWriting()) writeDraftNow(); };
+    const onHidden = () => { if (document.hidden) flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      clearInterval(saveTimer.current);
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHidden);
+    };
   }, []);
 
-  // Focus monitoring — active when the browser is locked to the exam
+  // Polite word-count milestones: the minimum reached, the limit passed.
+  const prevWordsRef = useExRef(words);
+  useExEffect(() => {
+    const msg = bbWordMilestone(prevWordsRef.current, words, cfg.minWords, cfg.maxWords);
+    prevWordsRef.current = words;
+    if (msg) setLiveMsg(msg);
+  }, [words]);
+
+  // Focus monitoring: active when the browser is locked to the exam.
   useExEffect(() => {
     if (!cfg.blockWeb) return;
     function onBlur() {
-      recordWarning('Focus left the exam window — please return to the exam. Brief interruptions are noted for context, not held against you.', 'focus_lost');
+      recordWarning(BB_NOTICE.focus_lost, 'focus_lost');
     }
     window.addEventListener('blur', onBlur);
     return () => window.removeEventListener('blur', onBlur);
   }, []);
 
-  // Browser-level lockdown: full-screen + tab-visibility + right-click + unload
-  // guard + print/save keys. (A web page can enforce these in-page; a hard
-  // "no AI / no web" guarantee still requires a native lockdown browser.)
+  // Browser-level lockdown: full screen, tab visibility, right-click, an
+  // unload guard and the print/save keys. A web page can enforce these
+  // in-page; a hard "no AI / no web" guarantee would need a native lockdown
+  // browser.
   useExEffect(() => {
     const off = [];
     const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); off.push([target, type, fn, opts]); };
     const warn = recordWarning;
     if (cfg.blockWeb) {
       on(document, 'visibilitychange', () => {
-        if (document.hidden) warn('The exam window was hidden — please keep this tab in front until you seal your work.', 'tab_hidden');
+        if (document.hidden) warn(BB_NOTICE.tab_hidden, 'tab_hidden');
       });
       on(document, 'fullscreenchange', () => {
         const fs = bbIsFullscreen();
         setFsLost(!fs);
-        if (!fs) warn('You left full-screen — please return to full-screen to continue.', 'fullscreen_exit');
+        if (!fs) warn(BB_NOTICE.fullscreen_exit, 'fullscreen_exit');
       });
-      on(window, 'beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; return ''; });
+      on(window, 'beforeunload', (e) => { writeDraftNow(); e.preventDefault(); e.returnValue = ''; return ''; });
       on(document, 'keydown', (e) => {
         const k = (e.key || '').toLowerCase();
         if ((e.ctrlKey || e.metaKey) && (k === 'p' || k === 's')) {
           e.preventDefault();
-          warn('Printing and saving are disabled during the examination.', 'print_or_save');
+          warn(BB_NOTICE.print_or_save, 'print_or_save');
         }
       });
     }
@@ -825,8 +1087,18 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   }, []);
 
   function handleChange(e) {
+    if (lockedRef.current) return;
     const val = e.target.value;
-    setAnswers(prev => prev.map((a, i) => (i === qIndex ? val : a)));
+    if (startedAtRef.current == null) startedAtRef.current = Date.now();
+    const next = answersRef.current.map((a, i) => (i === qIndex ? val : a));
+    answersRef.current = next;
+    contentRef.current = bbJoinAnswers(next, multi);
+    setAnswers(next);
+    // Written now, not after a pause: a refresh one keystroke later keeps it.
+    if (writeDraftNow() && !announcedSaveRef.current) {
+      announcedSaveRef.current = true;
+      setLiveMsg('Your writing is saved on this device as you type.');
+    }
   }
   function goToQuestion(i) {
     setQIndex(i);
@@ -838,19 +1110,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const isVeryLow = timeLeft <= 60;
   const overMax   = cfg.maxWords && words > cfg.maxWords;
   const atMin     = words >= cfg.minWords;
-
-  // Polite timer milestones — announced once per transition, not every tick.
-  const lowAnnouncedRef = useExRef(false);
-  const veryLowAnnouncedRef = useExRef(false);
-  useExEffect(() => {
-    if (isVeryLow && !veryLowAnnouncedRef.current) {
-      veryLowAnnouncedRef.current = true;
-      setLiveMsg('One minute remaining.');
-    } else if (isLow && !lowAnnouncedRef.current) {
-      lowAnnouncedRef.current = true;
-      setLiveMsg('Five minutes remaining.');
-    }
-  }, [isLow, isVeryLow]);
+  const sealHint  = submitting || locked ? null : bbSealHint(words, cfg.minWords);
 
   // The paper keeps the design's cream unless a shade other than the old
   // default was picked in the dev-only Tweaks panel.
@@ -860,9 +1120,11 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const fillPct = wantsMin ? Math.min(100, (words / cfg.minWords) * 100) : 0;
 
   return (
-    <div className="bk-stage">
+    <main className="bk-stage">
       <MockupFonts hand />
-      {/* Polite live region: autosave + timer milestones, never interrupts */}
+      <h1 className="bk-sr">{cfg.title || 'Examination'}</h1>
+      {/* The one polite live region: time and word-count milestones, saving,
+          connection and notices. Never interrupts the student. */}
       <div role="status" aria-live="polite" className="bk-sr">{liveMsg}</div>
 
       {/* The Blue Book */}
@@ -873,12 +1135,12 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           <div className="bk-bar">
             <span className="bk-crs">{crsLabel}</span>
             {/* Instructor-preview exit. Hidden for real student launches: one
-                stray click must never cost a student their essay. The draft +
-                remaining time are persisted, so re-entry restores both. */}
+                stray click must never cost a student their essay. The draft
+                is kept on this device, so re-entry restores it. */}
             {!bbIsStudent() && (
               <button type="button" className="bk-exit" onClick={() => {
                 writeDraftNow();
-                if (confirm('Leave the exam? Your draft and remaining time are saved on this device and will be restored when you re-enter.')) {
+                if (confirm('Leave the preview? Your draft is saved on this device and will be restored when you come back.')) {
                   onNavigate('briefing');
                 }
               }}>
@@ -891,9 +1153,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 {questions.map((_, i) => (
                   <button key={i} type="button" onClick={() => goToQuestion(i)}
                     aria-current={i === qIndex ? 'step' : undefined}
+                    aria-label={`Question ${i + 1}${answers[i].trim() ? ', answered' : ''}`}
                     className="bk-qtab">
                     {`Q${i + 1}`}
-                    {answers[i].trim() && <><span aria-hidden="true"> ✓</span><span className="bk-sr">, answered</span></>}
+                    {answers[i].trim() && <span aria-hidden="true"> ✓</span>}
                   </button>
                 ))}
               </div>
@@ -901,63 +1164,89 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             <div className="bk-bar-right">
               <span className="bk-cand">{candidateLabel}</span>
               {cfg.blockWeb && fsLost && (
-                <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>↺ Restore full-screen</button>
+                <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>
+                  <span aria-hidden="true">↺ </span>Restore full-screen
+                </button>
               )}
               <span className={'bk-saved' + (saving ? ' show' : '')} aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>saved
               </span>
-              <span role="timer" aria-label={'Time remaining ' + fmt(timeLeft)} className={'bk-timer' + (isVeryLow ? ' vlow' : isLow ? ' low' : '')}>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>{fmt(timeLeft)}
+              <span className={'bk-timer' + (isVeryLow ? ' vlow' : isLow ? ' low' : '')}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>
+                <span className="bk-timer-lbl" aria-hidden="true">Time left</span>
+                <span role="timer" aria-label={`Time remaining: ${bbSpokenTime(timeLeft)}`}>{bbClock(timeLeft)}</span>
               </span>
             </div>
           </div>
 
-          {/* Offline banner (robustness spec §3): persistent while disconnected;
-              the seal retry loop parks until the matching 'online' event. In
-              flow, so it never covers the seal button. */}
+          {/* Connection and storage state (robustness spec §3): persistent
+              while they last, in flow, so they never cover the seal button. */}
           {offline && (
             <div role="status" className="bk-offline">
-              Connection lost. Your writing is safe on this device.
-              {submitting ? ' Your seal will submit when reconnected.' : ''}
+              {submitting
+                ? 'You are offline. Your answers are saved on this device.'
+                : 'You are offline. Your writing is saved on this device, and you can keep writing.'}
+            </div>
+          )}
+          {alreadySubmitted && (
+            <div role="status" className="bk-offline">
+              You have already submitted this exam, so this booklet cannot be sent again. Your teacher has the work you submitted. If you need to change something, please talk to your teacher.
+            </div>
+          )}
+          {!storageOk && (
+            <div role="status" className="bk-offline">
+              This browser cannot keep a copy of your writing on this device. Please keep this window open until you have submitted.
             </div>
           )}
 
-          {/* Examiner's warning notices: recorded proctoring events. Assertive
-              and persistent: a candidate must hear every one, and it must not
-              vanish before they can review it. In flow under the bar, so the
-              timer, question tabs and full-screen button are never covered. */}
+          {/* Notes for the teacher: what the page recorded (leaving the
+              window, a blocked paste). In flow under the bar, so the timer,
+              question tabs and full-screen button are never covered.
+              Announced politely through the live region above. */}
           {warnLog.length > 0 && (
-            <div role="alert" className="bk-notices">
+            <section className="bk-notices" aria-labelledby="bbNoticesHead">
               <div className="bk-notices-head">
-                <span>Recorded Notices ({warnLog.length})</span>
-                <button type="button" onClick={() => setWarnLogOpen(o => !o)}>{warnLogOpen ? 'Hide' : 'Show'}</button>
+                <h2 id="bbNoticesHead">Notes for your teacher ({warnLog.length})</h2>
+                <button type="button" aria-expanded={warnLogOpen} aria-controls="bbNoticesList"
+                  onClick={() => setWarnLogOpen(o => !o)}>{warnLogOpen ? 'Hide' : 'Show'}</button>
               </div>
-              {warnLogOpen && (
+              <div id="bbNoticesList" hidden={!warnLogOpen}>
+                <p className="bk-notices-note">Your teacher sees these with the time, as context. They are not a judgement about you or your work.</p>
                 <ul>
-                  {warnLog.map(w => <li key={w.id}>{w.msg}</li>)}
+                  {warnLog.map(w => (
+                    <li key={w.id}>
+                      <span className="bk-notices-time">{new Date(w.id).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span>{' '}
+                      <span>{w.msg}</span>
+                    </li>
+                  ))}
                 </ul>
-              )}
-            </div>
+              </div>
+            </section>
           )}
 
           {/* ── Sheet: the current question and the ruled writing area ── */}
           <div className="bk-sheet">
             <div className="bk-sheet-inner">
-              <div className="bk-qhead">
+              <section className="bk-qhead" aria-labelledby="bbQn">
                 <div className="bk-qtop">
-                  <span className="bk-qn">{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Examination prompt'}</span>
-                  <button type="button" className="bk-qlink" onClick={() => setPromptOpen(o => !o)} aria-expanded={promptOpen}>
+                  <h2 className="bk-qn" id="bbQn">{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Examination prompt'}</h2>
+                  <button type="button" className="bk-qlink" onClick={() => setPromptOpen(o => !o)}
+                    aria-expanded={promptOpen} aria-controls="bbQuestionText">
                     {promptOpen ? 'Hide question' : 'Show question'}
                   </button>
                 </div>
-                {promptOpen && <p className="bk-qtext">{questions[qIndex]}</p>}
+                <p className="bk-qtext" id="bbQuestionText" hidden={!promptOpen}>{questions[qIndex]}</p>
                 {multi && (
                   <div className="bk-qnav">
-                    <button type="button" className="bk-qlink" disabled={qIndex === 0} onClick={() => goToQuestion(qIndex - 1)}>← Previous</button>
-                    <button type="button" className="bk-qlink" disabled={qIndex === questions.length - 1} onClick={() => goToQuestion(qIndex + 1)}>Next →</button>
+                    <button type="button" className="bk-qlink" disabled={qIndex === 0} onClick={() => goToQuestion(qIndex - 1)}>
+                      <span aria-hidden="true">← </span>Previous
+                    </button>
+                    <button type="button" className="bk-qlink" disabled={qIndex === questions.length - 1} onClick={() => goToQuestion(qIndex + 1)}>
+                      Next<span aria-hidden="true"> →</span>
+                    </button>
                   </div>
                 )}
-              </div>
+              </section>
 
               <div className="bk-writing" style={{ '--bk-fs': `${writingSize}px`, '--bk-lh': `${writingSize + 16}px` }}>
                 <textarea
@@ -965,12 +1254,15 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                   ref={textareaRef}
                   value={answers[qIndex]}
                   onChange={handleChange}
-                  onKeyDown={handleKeyDown}
+                  readOnly={locked}
                   onPaste={e => {
-                    revsRef.current.push({ type: 'paste' });   // record the attempt as a session fact
+                    if (locked) return;
+                    pastesRef.current += 1;   // the attempt is a session fact
                     if (cfg.blockCopy) {
                       e.preventDefault();
-                      recordWarning('Pasting is disabled. Your work must be composed here.', 'paste_blocked');
+                      recordWarning(BB_NOTICE.paste_blocked, 'paste_blocked');
+                    } else {
+                      writeDraftNow();
                     }
                   }}
                   onCopy={e => { if (cfg.blockCopy) e.preventDefault(); }}
@@ -980,7 +1272,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                   autoCorrect="off"
                   placeholder="Begin writing here…"
                   aria-label={multi ? `Your answer to question ${qIndex + 1}` : 'Your examination answer'}
-                  aria-describedby="bbWordCount"
+                  aria-describedby="bbQuestionText bbWordSummary"
                 />
               </div>
             </div>
@@ -990,44 +1282,50 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           <div className="bk-foot">
             <div className="bk-wc">
               {wantsMin && (
-                <div className="bk-wc-track"><div className={'bk-wc-fill' + (atMin ? ' met' : '')} style={{ width: `${fillPct}%` }} /></div>
+                <div className="bk-wc-track" aria-hidden="true"><div className={'bk-wc-fill' + (atMin ? ' met' : '')} style={{ width: `${fillPct}%` }} /></div>
               )}
-              <span className={'bk-wc-n' + (overMax ? ' over' : '')}>
-                <b id="bbWordCount">{words.toLocaleString()}</b>
-                {wantsMin ? ` / ${cfg.minWords.toLocaleString()} words` : ' words'}
-                {overMax ? ' · Word limit reached' : ''}
+              <span className={'bk-wc-n' + (overMax ? ' over' : '')} aria-hidden="true">
+                <b>{words.toLocaleString()}</b>
+                {wantsMin ? ` of ${cfg.minWords.toLocaleString()} words` : ` word${words === 1 ? '' : 's'}`}
+                {overMax ? ' · over the limit' : ''}
               </span>
+              <span id="bbWordSummary" className="bk-sr">{bbWordSummary(words, cfg.minWords, cfg.maxWords)}</span>
             </div>
             <span className="bk-capture">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
               Collections saves your words and a few session facts (time, word count, pastes, print or save attempts, leaving the window). Your screen is never watched.
             </span>
-            <button
-              type="button"
-              className="bk-finish"
-              onClick={() => {
-                // A stray tap must not end the exam. Time expiry seals via
-                // handleSubmit({ force: true }) and never reaches this.
-                sealPromptRef.current = true;
-                let ok = false;
-                try { ok = window.confirm('Seal and submit now? You cannot change your answers after sealing.'); }
-                finally {
-                  sealPromptRef.current = false;
-                  // A blur or visibility event can arrive just after the
-                  // dialog closes: let the 1.5s dedupe window absorb it.
-                  lastWarnRef.current = Date.now();
-                }
-                if (ok) handleSubmit();
-              }}
-              disabled={words < cfg.minWords || submitting}
-            >{submitting ? 'Sealing…' : 'Seal & Submit'}</button>
+            <div className="bk-seal">
+              <button
+                type="button"
+                className="bk-finish"
+                onClick={() => {
+                  // A stray tap must not end the exam. Time expiry seals via
+                  // handleSubmit({ force: true }) and never reaches this.
+                  sealPromptRef.current = true;
+                  let ok = false;
+                  try { ok = window.confirm('Ready to submit? Once your booklet is sealed, your answers cannot be changed.'); }
+                  finally {
+                    sealPromptRef.current = false;
+                    // A blur or visibility event can arrive just after the
+                    // dialog closes: let the 1.5s dedupe window absorb it.
+                    lastWarnRef.current = Date.now();
+                  }
+                  if (ok) handleSubmit();
+                }}
+                disabled={words < cfg.minWords || !words || submitting || locked}
+                aria-describedby={sealHint ? 'bbSealHint' : (sealNote ? 'bbSealNote' : undefined)}
+              >{alreadySubmitted ? 'Already submitted' : (submitting || locked ? 'Submitting…' : 'Seal & Submit')}</button>
+              {sealHint && <span id="bbSealHint" className="bk-seal-hint">{sealHint}</span>}
+              {(submitting || locked) && sealNote && <span id="bbSealNote" className="bk-seal-hint">{sealNote}</span>}
+            </div>
           </div>
         </div>
 
         {/* The cover swings open over the page as the booklet is entered. */}
         <div className="bk-cover bk-cover-open" aria-hidden="true" />
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -1045,8 +1343,12 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const isStudent = bbIsStudent();
   const studentAccount = BB_API.isStudentAccount();
   const compared = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
+  // Focus the result, so a keyboard or screen-reader user arriving from the
+  // seal button (now gone) starts here rather than at the top of the page.
+  const headRef = useExRef(null);
+  useExEffect(() => { if (headRef.current) headRef.current.focus(); }, []);
   return (
-    <div className="bk-stage bb-screen">
+    <main className="bk-stage bb-screen">
       <div className="bk-booklet compact">
         <div className="bk-page">
           <div className="bk-done">
@@ -1058,23 +1360,43 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             {transmitFailed ? (
               <React.Fragment>
-                <h1>We could not deliver your examination</h1>
-                <p>
-                  Your writing is saved on this device, so nothing is lost.
-                  Please try again, and if it still fails, tell your instructor
-                  before closing this window.
-                </p>
-                <p className="state err">{sub.error || 'The server could not be reached.'}</p>
+                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : sub.alreadySubmitted ? 'This exam was already submitted' : 'Your exam has not been submitted yet'}</h1>
+                {sub.alreadySubmitted ? (
+                  <p>
+                    Your account already has a submission for this exam, perhaps
+                    from another tab or device, so this copy was not sent. Your
+                    writing is still saved on this device. If you meant to change
+                    your answers, please talk to your teacher.
+                  </p>
+                ) : sub.empty ? (
+                  <p>
+                    Nothing was written in this booklet, so there was nothing to
+                    submit. If that is not right, please talk to your teacher.
+                  </p>
+                ) : (
+                  <React.Fragment>
+                    <p>
+                      Your writing is saved on this device, so nothing is lost.
+                      Please try again. If it still does not go through, let your
+                      teacher know before you close this window.
+                    </p>
+                    {/* The server's own words, kept for the teacher rather than put in the student's way. */}
+                    <details className="state-details">
+                      <summary>Details for your teacher</summary>
+                      <p className="state err">{sub.error || 'The server could not be reached.'}</p>
+                    </details>
+                  </React.Fragment>
+                )}
               </React.Fragment>
             ) : (
               <React.Fragment>
-                <h1>Examination Sealed</h1>
+                <h1 ref={headRef} tabIndex={-1}>Examination Sealed</h1>
                 <p>
                   Your examination has been received, sealed, and submitted
-                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this to your writing profile, and can undo that.'}
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.'}
                 </p>
                 {sub.expired && (
-                  <p>Time expired — your work was sealed as written.</p>
+                  <p>Time ran out, so your booklet was sealed with everything you had written.</p>
                 )}
                 {transmitted && (
                   <p className="state ok">✓ Delivered to your teacher</p>
@@ -1084,10 +1406,10 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             <div className="gist">
               {[
-                { label: 'Examination',  value: examTitle             },
+                { label: 'Exam',         value: examTitle             },
                 { label: 'Course',       value: courseT               },
-                { label: 'Candidate',    value: candidate             },
-                { label: 'Word Count',   value: `${finalWords} words` },
+                { label: 'Name',         value: candidate             },
+                { label: 'Words',        value: `${finalWords} words` },
               ].filter(({ value }) => value).map(({ label, value }) => (
                 <div key={label}>
                   <b>{label}</b>
@@ -1097,28 +1419,30 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
             </div>
 
             <div className="acts">
-              {transmitFailed && (
-                <button type="button" className="go" onClick={() => onNavigate('exam')}>Try Again</button>
+              {transmitFailed && !sub.empty && !sub.alreadySubmitted && (
+                <button type="button" className="go" onClick={() => onNavigate('exam')}>Try again</button>
               )}
               {!isStudent && (
                 <button type="button" className="back" onClick={() => onNavigate('dashboard')}>Return to Dashboard</button>
               )}
-              {studentAccount && !transmitFailed && (
+              {studentAccount && (
                 <button type="button" className="back" onClick={() => onNavigate('student-home')}>Back to my exams</button>
               )}
             </div>
 
             {isStudent && !transmitFailed && (
               <p>
-                Your teacher can now read it and will follow up with you.
+                Your teacher can now read it.
                 {!studentAccount && ' You may close this window.'}
               </p>
             )}
 
-            <p className="closed-on">Session closed · {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+            {!transmitFailed && (
+              <p className="closed-on">Sealed on {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+            )}
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

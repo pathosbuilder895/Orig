@@ -237,17 +237,21 @@ def delete_student(student_id: str, request: Request):
     X-Guard-Token header matching MAINTENANCE_TOKEN. Demo mode is open.
     """
     _require_guard(request)
-    remote = getattr(request.client, "host", "unknown") if request.client else "unknown"
+    # Who acted, never where from: the audit log holds no network addresses
+    # (the privacy policy says so). The staff account on a real deploy; the
+    # anonymous demo principal off one.
+    p = getattr(request.state, "principal", None)
+    actor = (p.user_id if p is not None and not p.is_demo else None) or "demo"
     deleted = _repo().delete_student(student_id)
     if not deleted:
         _repo().log_audit(
-            action="student_delete", student_id=student_id, actor=remote, result="not_found"
+            action="student_delete", student_id=student_id, actor=actor, result="not_found"
         )
         raise HTTPException(
             status_code=404,
             detail=f"Student '{student_id}' not found — nothing to delete.",
         )
-    _repo().log_audit(action="student_delete", student_id=student_id, actor=remote, result="ok")
+    _repo().log_audit(action="student_delete", student_id=student_id, actor=actor, result="ok")
     # The CHARACTERISTIC_WEIGHTS=shadow pool cache (original/quantum/
     # impostor_cache.py) is keyed by tenant and can outlive an erased
     # student by up to TTL_SECONDS otherwise — every peer's shadow preview
@@ -264,7 +268,7 @@ def delete_student(student_id: str, request: Request):
             "(baseline profile, fidelity scores, AI-likelihood scores, "
             "manifests, corrections, stored display name, and audit history). "
             "A single audit entry recording this deletion is retained. "
-            "Copies age out of rotating on-disk backups within ~24 hours."
+            "Copies remain in encrypted backups until those backups expire."
         ),
     }
 

@@ -83,12 +83,12 @@ export function LandingScreen({ onNavigate }) {
             fontFamily: fontDisplay, fontWeight: 300, fontStyle: 'normal',
             fontSize: 'clamp(3rem, 8vw, 7rem)', lineHeight: 0.9,
             color: BB.cream, letterSpacing: '-0.01em', margin: 0,
-          }}>Academic integrity,</h1>
+          }}>Your own words,</h1>
           <h1 style={{
             fontFamily: fontDisplay, fontWeight: 300, fontStyle: 'italic',
             fontSize: 'clamp(3rem, 8vw, 7rem)', lineHeight: 0.9,
             color: BB.gold, letterSpacing: '-0.01em', margin: 0,
-          }}>examined.</h1>
+          }}>kept safe.</h1>
         </div>
 
         <GoldRule />
@@ -130,8 +130,8 @@ export function LandingScreen({ onNavigate }) {
           </div>
           <GoldRule faint />
           {[
-            { num: 'I',   title: 'Timed Sittings',      desc: 'A server-held clock that a reload cannot pause' },
-            { num: 'II',  title: 'Full-Screen Mode',    desc: 'Leaving it or switching tabs is recorded' },
+            { num: 'I',   title: 'Timed Sittings',      desc: 'A clock that keeps time, even if the page reloads' },
+            { num: 'II',  title: 'Full-Screen Mode',    desc: 'Leaving it or switching tabs leaves a short note for the teacher' },
             { num: 'III', title: 'Rosters & Invites',   desc: 'Add students by email; they set their own password' },
             { num: 'IV',  title: 'Read & Export',       desc: 'Every answer in one place, and as a spreadsheet' },
           ].map(({ num, title, desc }) => (
@@ -188,6 +188,10 @@ export function LandingScreen({ onNavigate }) {
             fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
           }}>Terms</a>
+          <a href="../legal/student-notice.html" style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
+          }}>Student notice</a>
         </div>
       </footer>
     </div>
@@ -212,7 +216,7 @@ export function LoginScreen({ onNavigate }) {
       const data = await BB_API.login(email, pass);
       onNavigate(homeFor(data));
     } catch (err) {
-      setError(err && err.message ? err.message : 'Sign-in failed');
+      setError(err && err.message ? err.message : 'We could not sign you in. Please try again.');
       setLoading(false);
     }
   }
@@ -240,7 +244,7 @@ export function LoginScreen({ onNavigate }) {
         fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
         textTransform: 'uppercase', color: BB.fade,
         background: 'none', border: 'none', cursor: 'pointer',
-      }}>← Return</button>
+      }}>← Back</button>
 
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
@@ -287,7 +291,7 @@ export function LoginScreen({ onNavigate }) {
               }}>{error}</p>
             )}
             <BtnPrimary full style={{ padding: '14px 0', fontSize: 17 }}>
-              {loading ? 'Verifying…' : 'Enter'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </BtnPrimary>
           </form>
 
@@ -310,7 +314,7 @@ export function LoginScreen({ onNavigate }) {
               textAlign: 'center', fontFamily: fontBody, fontSize: 16,
               color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
             }}>
-              Teachers join Collections by invitation during the pilot.
+              Teachers join Collections by invitation for now.
             </p>
           )}
           <p style={{

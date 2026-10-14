@@ -27,8 +27,8 @@ import { createCourse, provisionStaff, provisionTenantWithStaff } from './fixtur
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
-const COMPARED_LINE = 'After you submit, your writing is compared with your own past work'
-const CONTEXT_LINE = 'Session duration and coarse writing information are noted as context for your teacher'
+const COMPARED_LINE = 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.'
+const CONTEXT_LINE = 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.'
 
 // A workspace (the fixture creates it with both products), its operator, and
 // an open exam with one invited student.
@@ -127,7 +127,7 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
   const storedProducts = () => storedProductsOf(student)
   expect((await storedProducts()).sort()).toEqual(['bluebook', 'original'])
   await student.getByRole('button', { name: 'Open' }).click()
-  await expect(student.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+  await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
   await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
   const box = student.getByLabel('Your examination answer')
   await expect(box).toBeVisible({ timeout: 10_000 })
@@ -184,8 +184,8 @@ test('a sitting begun without Original is not compared when Original is switched
   await redeemInvite(student, ws.invitePath, examTitle)
   expect(await storedProductsOf(student)).toEqual(['bluebook'])
   await student.getByRole('button', { name: 'Open' }).click()
-  await expect(student.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
-  await expect(student.getByText('Enforced Conditions')).toBeVisible()
+  await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
+  await expect(student.getByText('How this exam works')).toBeVisible()
   await expect(student.getByText(COMPARED_LINE)).toHaveCount(0)
   await expect(student.getByText(CONTEXT_LINE)).toHaveCount(0)
   await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
@@ -245,7 +245,7 @@ test('the decision is locked when the student clicks Begin, before the exam scre
   await redeemInvite(student, ws.invitePath, examTitle)
   expect(await storedProductsOf(student)).toEqual(['bluebook'])
   await student.getByRole('button', { name: 'Open' }).click()
-  await expect(student.getByText('Enforced Conditions')).toBeVisible({ timeout: 10_000 })
+  await expect(student.getByText('How this exam works')).toBeVisible({ timeout: 10_000 })
   await expect(student.getByText(COMPARED_LINE)).toHaveCount(0)
 
   // Another tab refreshes the stored products after the briefing has shown
