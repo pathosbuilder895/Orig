@@ -298,11 +298,18 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         r = {rename.get(k.strip(), k.strip()): v for k, v in raw_row.items() if k is not None}
         where = f"line {line_no}"
         row_problems: list[str] = []
+        extra = raw_row.get(None)
+        if extra:
+            # More fields than the header: a stray unquoted comma shifts every
+            # value after it, so nothing on this row can be trusted.
+            problems.append(f"{where}: {len(extra)} more field(s) than the header")
+            continue
 
         sid = (r.get("submission_id") or "").strip()
         if not sid:
-            row_problems.append(f"{where}: blank submission_id")
-        elif sid in seen_ids:
+            problems.append(f"{where}: blank submission_id")
+            continue
+        if sid in seen_ids:
             row_problems.append(f"{where}: duplicate submission_id {sid!r}")
         seen_ids.add(sid)
 
@@ -355,6 +362,10 @@ def parse_study_csv(raw: bytes, source_name: str = "<memory>") -> StudyData:
         if verdict == VERDICT_INCONCLUSIVE and score is not None:
             warnings.append(f"{where}: INCONCLUSIVE row carries a score; the score is ignored")
             score = None
+        elif verdict == VERDICT_FLAGGED and score is None and not row_problems:
+            warnings.append(
+                f"{where}: FLAGGED with no {SCORE_COLUMN}; counted as unscored, so it is in no rate"
+            )
 
         try:
             baseline_count = _int(r.get("baseline_count"))

@@ -204,6 +204,20 @@ class TestContract:
         with pytest.raises(StudyContractError, match="no labelled rows"):
             parse_study_csv(_csv("b,s2,,,SUBMITTED,0.3,5,400"))
 
+    def test_a_row_with_more_fields_than_the_header_is_refused(self):
+        with pytest.raises(StudyContractError, match="line 2: 1 more field"):
+            parse_study_csv(_csv("a,s1,natural,,SUBMITTED,0.2,5,400,stray"))
+
+    def test_a_blank_submission_id_is_one_problem(self):
+        with pytest.raises(StudyContractError) as exc:
+            parse_study_csv(_csv(",s1,,,,,,"))
+        assert exc.value.problems == ["line 2: blank submission_id"]
+
+    def test_flagged_without_a_score_is_warned_about(self):
+        data = parse_study_csv(_csv("a,s1,natural,,FLAGGED,,5,400"))
+        assert data.rows[0].unscored
+        assert any("FLAGGED with no deviation_score" in w for w in data.warnings)
+
     def test_authorship_probability_is_range_checked(self):
         header = HEADER + ",authorship_probability"
         with pytest.raises(StudyContractError, match="authorship_probability 1.2 is outside"):
@@ -342,7 +356,9 @@ class TestEvaluation:
     def test_roc_area_is_the_reported_auc(self, report):
         pts = [(p["false_flag_rate"], p["catch_rate"]) for p in report["roc"]]
         assert pts[0] == (0.0, 0.0) and pts[-1] == (1.0, 1.0)
-        area = sum((x1 - x0) * (y0 + y1) / 2 for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False))
+        area = sum(
+            (x1 - x0) * (y0 + y1) / 2 for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False)
+        )
         assert area == pytest.approx(report["auc"]["value"], abs=2e-3)
 
     def test_breakdowns_partition_the_attempts(self, report):

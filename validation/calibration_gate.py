@@ -2342,6 +2342,11 @@ _GS1_CRITERION = (
 )
 STUDY_CANDIDATE_DEFAULT = "validation/study/candidates/candidate_operating_point.json"
 STUDY_CURRENT_OPERATING_POINT = "validation/study/current_operating_point.json"
+# What scripts/propose_thresholds.py writes today (contract study-csv-v2). A
+# candidate from older tooling left at the git-ignored default path is
+# reported, not fed to the gate under argument names it no longer takes.
+_GS1_CANDIDATE_SCORE_FIELD = "deviation_score"
+_GS1_CANDIDATE_EVAL_SCHEMA = "study-eval-v2"
 
 
 def _gs1_wilson(k: int, n: int, units: int | None) -> tuple[float, float, int]:
@@ -2474,6 +2479,16 @@ def _compute_g_s1_study_gate(path: str | os.PathLike | None = None) -> GateResul
     inputs = candidate.get("gate_inputs")
     if candidate.get("kind") != "candidate" or not isinstance(inputs, dict):
         raise ValueError(f"{candidate_path} is not a study candidate written by scripts/propose_thresholds.py")
+    made_by = (candidate.get("score_field"), (candidate.get("derived_from") or {}).get("eval_schema"))
+    if made_by != (_GS1_CANDIDATE_SCORE_FIELD, _GS1_CANDIDATE_EVAL_SCHEMA):
+        reason = (
+            f"{candidate_path} was written by older study tooling (score field {made_by[0]!r}, "
+            f"eval schema {made_by[1]!r}); re-run validation/study_eval.py and "
+            "scripts/propose_thresholds.py on a study-csv-v2 export"
+        )
+        return GateResult(name="G-S1", passed=False, criterion=_GS1_CRITERION, current_value=reason,
+                          detail={"reason": "stale candidate", "path": str(candidate_path)},
+                          verdict="uninformative")
     current = json.loads((_ROOT / STUDY_CURRENT_OPERATING_POINT).read_text())
     inputs = dict(inputs)
     if candidate.get("tier_weights") != current["tier_weights"]:

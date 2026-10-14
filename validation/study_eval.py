@@ -855,7 +855,8 @@ def render_markdown(report: dict, chart_files: dict[str, str]) -> str:
         f"student bootstrap {_ci_text(c['false_flag_rate_conclusive'].get('student_bootstrap95'))}.",
         f"- Shadow attempts caught (conclusive): {_rate_text(c['catch_rate_conclusive'])}; "
         f"student bootstrap {_ci_text(c['catch_rate_conclusive'].get('student_bootstrap95'))}.",
-        f"- Over all attempts (an inconclusive or unscored attempt is never flagged): false flags "
+        f"- Over all scored attempts (an inconclusive attempt counts as not flagged; unscored "
+        f"attempts are left out): false flags "
         f"{_rate_text(c['false_flag_rate_all_attempts'])}, catches {_rate_text(c['catch_rate_all_attempts'])}.",
     ]
     vc = c["verdict_check"]

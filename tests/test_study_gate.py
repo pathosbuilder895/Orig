@@ -185,6 +185,30 @@ class TestBatteryWiring:
         assert r.verdict == "uninformative"
         assert "STUDY_PROTOCOL_2026-10.md" in r.current_value
 
+    def test_a_candidate_from_the_v1_tooling_is_reported_not_crashed_on(self, tmp_path):
+        # v1 candidates read consistency_score and carry gate inputs under
+        # names the gate no longer takes (candidate_above_folds).
+        p = tmp_path / "old.json"
+        p.write_text(
+            json.dumps(
+                {
+                    "kind": "candidate",
+                    "score_field": "consistency_score",
+                    "derived_from": {"eval_schema": "study-eval-v1"},
+                    "gate_inputs": {
+                        "oos_false_flags": 0,
+                        "oos_natural": 40,
+                        "oos_caught": 30,
+                        "oos_shadow": 40,
+                        "candidate_above_folds": False,
+                    },
+                }
+            )
+        )
+        r = _compute_g_s1_study_gate(p)
+        assert r.verdict == "uninformative" and r.detail["reason"] == "stale candidate"
+        assert "re-run" in r.current_value
+
     def test_a_file_that_is_not_a_candidate_raises(self, tmp_path):
         p = tmp_path / "current.json"
         p.write_text(SNAPSHOT.read_text())  # the live snapshot is kind "current"
