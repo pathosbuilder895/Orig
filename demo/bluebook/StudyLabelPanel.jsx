@@ -18,7 +18,7 @@ import { Btn, ErrorText, LinkBtn, Notice, Panel, Select } from './forms.jsx';
 //  (the same rule the server scores study submissions by): otherwise it is
 //  not rendered at all.
 // ════════════════════════════════════════════════════════════════
-const { useState } = React;
+const { useEffect, useState } = React;
 
 export const STUDY_PANEL_TITLE = 'Study label (research, staff only)';
 export const STUDY_LABELS = ['natural', 'shadow'];
@@ -44,16 +44,29 @@ export function studyPanelVisible(exam, api = BB_API) {
     && api.hasOriginal() && examHasOriginal(exam);
 }
 
-// The classmates a shadow submission may imitate: everyone else who sat this
-// exam, once each, by name.
-export function imitationChoices(subs, writerId) {
+// The classmates a shadow submission may imitate, once each, by name:
+// everyone else who sat this exam, then the rest of the course roster. The
+// roster matters because the study's shadow sitting is its own exam: a target
+// who missed it never submitted to it, yet their imitator must name them.
+// Two classmates with one name are told apart by email (or id), since a
+// wrong pick silently mislabels the study row.
+export function imitationChoices(subs, writerId, roster) {
   const seen = new Map();
+  const email = new Map();
+  (roster || []).forEach(r => { if (r && r.student_id && r.email) email.set(r.student_id, r.email); });
   (subs || []).forEach(s => {
     const id = s && s.student_id;
     if (id && id !== writerId && !seen.has(id)) seen.set(id, s.student || id);
   });
-  return [...seen].map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  (roster || []).forEach(r => {
+    const id = r && r.student_id;
+    if (id && id !== writerId && !seen.has(id)) seen.set(id, r.name || r.email || id);
+  });
+  const uses = new Map();
+  seen.forEach(name => uses.set(name, (uses.get(name) || 0) + 1));
+  return [...seen].map(([id, name]) => ({
+    id, name: uses.get(name) > 1 ? `${name} (${email.get(id) || id})` : name,
+  })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
 }
 
 // Why a label cannot be saved as chosen, or '' when it can.
@@ -123,14 +136,14 @@ export function initialStudyLabel(sub, known) {
   return { label: (sub && sub.study_label) || '', imitated: (sub && sub.imitated_student_id) || '' };
 }
 
-function StudyLabelRow({ sub, subs, known, onSaved, onRouteMissing }) {
+function StudyLabelRow({ sub, subs, roster, known, onSaved, onRouteMissing }) {
   const start = initialStudyLabel(sub, known);
   const [label, setLabel] = useState(start.label);
   const [imitated, setImitated] = useState(start.imitated);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState('');
   const [error, setError] = useState('');
-  const choices = imitationChoices(subs, sub.student_id);
+  const choices = imitationChoices(subs, sub.student_id, roster);
   const problem = studyLabelProblem(sub, label, imitated);
 
   async function save() {
@@ -177,7 +190,21 @@ export function StudyLabelPanel({ exam, subs, api = BB_API }) {
   // "Not labelled" on Show, where a second staff member checks the labels
   // (docs/research/STUDY_PROTOCOL_2026-10.md, step 7).
   const [savedLabels, setSavedLabels] = useState({});
-  if (!studyPanelVisible(exam, api)) return null;
+  // The course roster, fetched the first time the panel opens. Without it
+  // (no course, or the call fails) the picker offers this exam's submitters.
+  const [roster, setRoster] = useState(null);
+  const visible = studyPanelVisible(exam, api);
+  const courseId = exam && exam.course_id;
+  useEffect(() => {
+    if (!open || roster !== null) return undefined;
+    if (!visible || !courseId) { setRoster([]); return undefined; }
+    let live = true;
+    api.rosterList(courseId)
+      .then(r => { if (live) setRoster(r || []); })
+      .catch(() => { if (live) setRoster([]); });
+    return () => { live = false; };
+  }, [open, visible, courseId]);
+  if (!visible) return null;
   const list = subs || [];
   return (
     <Panel style={{ marginTop: '1.5rem' }}>
@@ -198,7 +225,7 @@ export function StudyLabelPanel({ exam, subs, api = BB_API }) {
           {list.length === 0
             ? <p className="bb-hint">Nobody has submitted yet.</p>
             : list.map(s => (
-              <StudyLabelRow key={s.id} sub={s} subs={list} known={savedLabels[s.id]}
+              <StudyLabelRow key={s.id} sub={s} subs={list} roster={roster || []} known={savedLabels[s.id]}
                 onSaved={v => setSavedLabels(m => ({ ...m, [s.id]: v }))}
                 onRouteMissing={() => setRouteMissing(true)} />
             ))}

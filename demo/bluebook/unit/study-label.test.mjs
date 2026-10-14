@@ -91,6 +91,27 @@ test('the imitated-student picker offers each other student once, by name', () =
   assert.deepEqual(imitationChoices(subs, 's1'), [{ id: 's3', name: 'Ben' }, { id: 's2', name: 'Zoe' }]);
 });
 
+test('the picker adds the course roster, so a target absent from the shadow sitting can be named', () => {
+  const subs = [{ student_id: 's1', student: 'Ann' }, { student_id: 's2', student: 'Zoe' }];
+  const roster = [
+    { student_id: 's2', name: 'Zoe Z.' },  // already a submitter: the submission's name stays
+    { student_id: 's3', name: 'Ben' },  // missed this sitting
+    { student_id: 's4', name: '', email: 'cy@x.test' },
+    { student_id: 's1', name: 'Ann' },  // the writer is never offered
+    { name: 'no id' },
+  ];
+  assert.deepEqual(imitationChoices(subs, 's1', roster), [
+    { id: 's3', name: 'Ben' }, { id: 's4', name: 'cy@x.test' }, { id: 's2', name: 'Zoe' },
+  ]);
+  assert.deepEqual(imitationChoices(subs, 's1'), [{ id: 's2', name: 'Zoe' }]);
+});
+
+test('two classmates with one name are told apart', () => {
+  const subs = [{ student_id: 's1', student: 'Ann' }, { student_id: 's2', student: 'Sam Lee' }];
+  const roster = [{ student_id: 's2', name: 'Sam Lee', email: 'sam1@x.test' }, { student_id: 's3', name: 'Sam Lee' }];
+  assert.deepEqual(imitationChoices(subs, 's1', roster).map(c => c.name), ['Sam Lee (s3)', 'Sam Lee (sam1@x.test)']);
+});
+
 test('a label must be natural, or shadow with someone else named', () => {
   const sub = { student_id: 's1' };
   assert.equal(studyLabelProblem(sub, 'natural', ''), '');

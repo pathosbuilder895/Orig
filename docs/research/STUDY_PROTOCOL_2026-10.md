@@ -162,8 +162,10 @@ panel:
 
 6. Label every submission from the assignment sheet, never from memory:
    *natural* for every submission in exam N, *shadow* plus the target for
-   every submission in exam S. A submission left unlabelled is left out of
-   the analysis (the loader counts and names it).
+   every submission in exam S. The target picker offers everyone on the
+   course roster, so a target who missed sitting 2 can still be named. A
+   submission left unlabelled is left out of the analysis (the loader counts
+   and names it).
 7. A second staff member checks every label against the sheet and against
    the exam it sits in.
 8. Do not approve any study submission as a baseline sample.
@@ -310,7 +312,7 @@ proposal: `--fresh-cohort-eval validation/study/out/cohort2/study_eval.json`.
   counterbalanced, sitting order is not.
 - **Labels are human.** A mislabelled row moves both rates; the second-person
   check exists for that.
-- **Baseline quality varies.** Baseline size is recorded and broken down, but
+- **Baseline quality varies.** Baseline count is recorded and broken down, but
   genre match and sample length are not controlled beyond the preparation
   rules.
 - **The score studied is `deviation_score`**, not the number the live
