@@ -41,7 +41,7 @@ test.describe('Staff login / logout @smoke', () => {
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
   })
 
@@ -50,7 +50,7 @@ test.describe('Staff login / logout @smoke', () => {
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, 'definitely-the-wrong-password')
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByText('Invalid email or password')).toBeVisible({ timeout: 10_000 })
   })
 
@@ -59,11 +59,11 @@ test.describe('Staff login / logout @smoke', () => {
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
 
     await page.getByRole('button', { name: 'Sign Out' }).click()
-    await expect(page.getByText('Academic integrity,')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     expect(await page.evaluate(() => localStorage.getItem('original_principal_token'))).toBeNull()
   })
 })
@@ -79,10 +79,10 @@ test.describe('Bound student launch (magic-link / LTI launch consequence)', () =
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    // BriefingScreen renders the exam title + "Preliminary Instructions" —
+    // BriefingScreen renders the exam title + "Before you begin" —
     // never the sign-in form — confirming isStudentLaunch() short-circuited
     // routing straight past login/landing (app.jsx: BB_API.isStudentLaunch()).
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByPlaceholder('you@school.edu')).toHaveCount(0)
   })
 
@@ -158,7 +158,7 @@ test.describe('Login throttle lockout @serial-lockout', () => {
     // _LOGIN_MAX_ATTEMPTS = 10 (original/api.py) — drive it past the limit.
     for (let i = 0; i < 11; i++) {
       await page.getByPlaceholder('••••••••••').fill(`still-wrong-${i}`)
-      await page.getByRole('button', { name: /^Enter$|^Verifying…$/ }).click()
+      await page.getByRole('button', { name: /^Sign in$|^Signing in…$/ }).click()
       await page.waitForTimeout(200)
     }
     await expect(page.getByText('Too many sign-in attempts. Try again in a few minutes.'))

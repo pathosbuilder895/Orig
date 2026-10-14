@@ -32,7 +32,7 @@ def test_launch_missing_token_400(live_client, store_reset):
     rejects it immediately (`"." not in token`)."""
     r = live_client.get("/bluebook/launch")
     assert r.status_code == 400, r.text
-    assert "invalid or has expired" in r.json()["detail"]
+    assert "has expired or is not valid" in r.json()["detail"]
 
 
 def test_launch_expired_token_400(live_client, store_reset):
@@ -71,7 +71,7 @@ def test_launch_missing_sid_400(live_client, store_reset):
     token = student_auth.mint_launch_token("", _TENANT, exam="exam-1", name="")
     r = live_client.get("/bluebook/launch", params={"t": token})
     assert r.status_code == 400, r.text
-    assert "missing its student binding" in r.json()["detail"]
+    assert "This exam link is incomplete." in r.json()["detail"]
 
 
 # ── Valid tokens → 200, localStorage-seed + redirect ───────────────────────

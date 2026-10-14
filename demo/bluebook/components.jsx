@@ -66,7 +66,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
   const interactiveProps = onClick ? {
     onClick,
     type: 'button',
-    'aria-label': 'Collections — go to dashboard',
+    'aria-label': 'Collections home',
   } : {};
   return (
     <Tag
@@ -85,12 +85,12 @@ export function Logotype({ size = 22, onClick, light = false }) {
         padding: 0,
       }}
     >
-      B<span style={{
+      C<span style={{
         fontVariant: 'small-caps',
         letterSpacing: '0.15em',
         fontSize: size * 0.88,
         color: light ? BB.fadedCream : BB.gold,
-      }}>luebook</span>
+      }}>ollections</span>
     </Tag>
   );
 }
@@ -129,7 +129,7 @@ export function Seal({ size = 22, verified = true, glow = false }) {
         fill={BB.gold}
         fontStyle="italic"
         opacity={a}
-      >B</text>
+      >C</text>
     </svg>
   );
 }
@@ -336,21 +336,41 @@ const BB_SESSION_KEYS = [
   'bluebook_proctor_token',
 ];
 
+// What a person is shown when a request fails: the server's own sentence when
+// it sent one, otherwise a plain sentence for that kind of failure. Never a
+// bare status line such as "Unprocessable Entity" or "Internal Server Error".
 async function bbDetail(r, fallback) {
-  let detail = fallback || r.statusText;
-  try { detail = (await r.json()).detail || detail; } catch (e) {}
-  return typeof detail === 'string' ? detail : fallback || r.statusText;
+  let detail = null;
+  try { detail = (await r.json()).detail; } catch (e) {}
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (fallback) return fallback;
+  if (r.status === 429) return 'Too many tries in a short time. Please wait a minute and try again.';
+  if (r.status >= 500) return 'Something went wrong on our side. Please try again in a moment.';
+  return 'That did not go through. Please check what you entered and try again.';
 }
+
+// A 401 that only means "no valid sign-in" is said in plain words. A 401 that
+// says something specific (a wrong current password, a removed account) is
+// passed on as the server wrote it.
+const BB_SIGNED_OUT = 'Your sign-in has expired. Please sign in again.';
+const BB_GENERIC_401 = /^(not authenticated|not signed in\.?|expired|invalid token)$/i;
 
 export const BB_API = {
   base: window.BB_API_BASE || '',
-  // JSON request that throws Error(detail) on any non-2xx.
+  // JSON request that throws Error(detail) on any non-2xx. The error carries
+  // the HTTP status, so a caller can tell a refusal (which will not change on
+  // retry) from a server that is briefly unavailable.
   async _json(method, path, body) {
     const r = await fetch(this.base + path, {
       method, headers: this._headers(),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!r.ok) throw new Error(r.status === 401 ? 'Please sign out and sign in again to load your workspace.' : await bbDetail(r));
+    if (!r.ok) {
+      const said = await bbDetail(r, r.status === 401 ? BB_SIGNED_OUT : undefined);
+      const err = new Error(r.status === 401 && BB_GENERIC_401.test(said) ? BB_SIGNED_OUT : said);
+      err.status = r.status;
+      throw err;
+    }
     return r.json();
   },
   _headers() {
@@ -590,7 +610,7 @@ export const BB_API = {
     return this._storeSession(await r.json());
   },
   login(email, password) {
-    return this._auth('/auth/login', { email, password }, 'Invalid email or passphrase');
+    return this._auth('/auth/login', { email, password }, 'Invalid email or password');
   },
   signup(name, email, password, acceptTerms = false) {
     return this._auth('/auth/signup', { name, email, password, accept_terms: acceptTerms }, 'Could not create the workspace');
@@ -601,13 +621,13 @@ export const BB_API = {
     const r = await fetch(this.base + '/auth/password-reset/request', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
     });
-    if (!r.ok) throw new Error(await bbDetail(r, 'Could not send the reset email'));
+    if (!r.ok) throw new Error(await bbDetail(r, 'We could not send the reset email just now. Please try again in a few minutes.'));
     return r.json();
   },
   // An invited professor's first password also accepts the terms; students
   // and password resets send false and the server ignores it.
   redeemInvite(token, password, acceptTerms = false) {
-    return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This invite link could not be used');
+    return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
   },
   changePassword(currentPassword, newPassword) {
     return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });

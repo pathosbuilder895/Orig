@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { BB_API } from './components.jsx';
 import {
   Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, Select, Stat, Table, TextArea,
@@ -12,7 +13,7 @@ import { StudyLabelPanel } from './StudyLabelPanel.jsx';
 //  Examinations · Manage exam (grading, release, export) · Courses ·
 //  Roster & invitations · Students · Submissions · Proctor (live)
 // ════════════════════════════════════════════════════════════════
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useLayoutEffect, useRef } = React;
 
 const WARNING_LABEL = {
   focus_lost: 'Left the window',
@@ -22,6 +23,98 @@ const WARNING_LABEL = {
   paste_blocked: 'Tried to paste',
   other: 'Other',
 };
+
+// The session notes on one line: "Left the window × 2 · Tried to paste × 1".
+function notesSummary(warnings) {
+  const counts = {};
+  (warnings || []).forEach(w => { const t = (w && w.type) || 'other'; counts[t] = (counts[t] || 0) + 1; });
+  const parts = Object.entries(counts).map(([t, n]) => `${WARNING_LABEL[t] || t} × ${n}`);
+  return parts.length ? parts.join(' · ') : 'none';
+}
+
+// "13 Oct 2026, 09:30 · 412 words · 47 min · after the deadline"
+function submittedLine(sub) {
+  return [
+    sub.created_at ? when(sub.created_at) : null,
+    sub.words != null ? `${sub.words} words` : null,
+    sub.timeMin != null ? `${sub.timeMin} min` : null,
+    sub.late ? 'after the deadline' : null,
+  ].filter(Boolean).join(' · ');
+}
+
+// One sealed submission as plain text, for the reader's "Download as text".
+// Only what the stored record holds and the reader shows: never a score.
+export function submissionAsText(sub) {
+  const s = sub || {};
+  const lines = [s.exam || 'Examination', '', `Student: ${s.student || 'Student'}`];
+  if (s.course) lines.push(`Course: ${s.course}`);
+  const submitted = submittedLine(s);
+  if (submitted) lines.push(`Submitted: ${submitted}`);
+  lines.push(`Session notes: ${notesSummary(s.warnings)}`);
+  if (s.mark) lines.push(`Mark: ${s.mark}`);
+  if (s.feedback) lines.push(`Feedback: ${s.feedback}`);
+  const answers = Array.isArray(s.answers) && s.answers.length ? s.answers : null;
+  const questions = s.questions || [];
+  if (answers) {
+    answers.forEach((a, i) => {
+      lines.push('', `Question ${i + 1}${questions[i] ? `: ${questions[i]}` : ''}`, a || '(No answer.)');
+    });
+  } else {
+    lines.push('', s.text || 'The text of this submission is not available.');
+  }
+  return lines.join('\n') + '\n';
+}
+
+const fileSlug = v => String(v || '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+
+export function submissionFilename(sub) {
+  const s = sub || {};
+  const parts = [fileSlug(s.exam), fileSlug(s.student) || (fileSlug(s.exam) ? 'submission' : '')].filter(Boolean);
+  return (parts.join('-') || 'submission') + '.txt';
+}
+
+// The printed copy of the open submission. It lives outside the app root
+// (a portal on <body>), so print CSS can show it alone: no navigation, no
+// form fields, no dark page. It is on the page only while printing (see
+// usePrinting), so the screen never holds a second copy of the text.
+function PrintSheet({ sub }) {
+  const [host] = useState(() => {
+    const d = document.createElement('div');
+    d.className = 'bb-print-root';
+    return d;
+  });
+  // Layout effect: in place before the browser lays out the printed page.
+  useLayoutEffect(() => {
+    document.body.appendChild(host);
+    document.body.classList.add('bb-has-print-sheet');
+    return () => { host.remove(); document.body.classList.remove('bb-has-print-sheet'); };
+  }, []);
+  const answers = Array.isArray(sub.answers) && sub.answers.length ? sub.answers : null;
+  const questions = sub.questions || [];
+  return createPortal(
+    <article className="bb-print-sheet">
+      <p className="bb-print-kicker">Collections · sealed submission</p>
+      <h1>{sub.exam || 'Examination'}</h1>
+      <dl>
+        <dt>Student</dt><dd>{sub.student || 'Student'}</dd>
+        {sub.course && <><dt>Course</dt><dd>{sub.course}</dd></>}
+        <dt>Submitted</dt><dd>{submittedLine(sub) || 'Not recorded'}</dd>
+        <dt>Session notes</dt><dd>{notesSummary(sub.warnings)}</dd>
+        {sub.mark && <><dt>Mark</dt><dd>{sub.mark}</dd></>}
+        {sub.feedback && <><dt>Feedback</dt><dd className="bb-print-text">{sub.feedback}</dd></>}
+      </dl>
+      {answers ? answers.map((a, i) => (
+        <section key={i}>
+          <h2>Question {i + 1}</h2>
+          {questions[i] && <p className="bb-print-q">{questions[i]}</p>}
+          <div className="bb-print-text">{a || 'No answer.'}</div>
+        </section>
+      )) : <div className="bb-print-text">{sub.text || 'The text of this submission is not available.'}</div>}
+      <p className="bb-print-foot">Session notes are context, not evidence.</p>
+    </article>,
+    host,
+  );
+}
 
 export function examState(e) {
   const status = String(e.status || 'DRAFT').toUpperCase();
@@ -154,9 +247,34 @@ function BaselineControl({ sub }) {
 }
 
 // ─── Reading one submission (with grading) ───────────────────────────────────
+// Whether the page is being printed. The browser's own Print fires
+// beforeprint, and the change is flushed at once so the sheet is in place
+// before the page is laid out for printing; print() asks the same way.
+function usePrinting() {
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+  const print = () => {
+    flushSync(() => setPrinting(true));
+    try { window.print(); } finally { setPrinting(false); }
+  };
+  return [printing, print];
+}
+
 export function SubmissionReader({ submissionId, onClose, onSaved }) {
+  const [printing, print] = usePrinting();
   const [sub, setSub] = useState(null);
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState(null);   // null: no failure
+  const [attempt, setAttempt] = useState(0);
   const [mark, setMark] = useState('');
   const [feedback, setFeedback] = useState('');
   const [saved, setSaved] = useState('');
@@ -165,14 +283,14 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
 
   useEffect(() => {
     let live = true;
-    setSub(null); setError(''); setSaved('');
+    setSub(null); setError(''); setLoadError(null); setSaved('');
     BB_API.getSubmission(submissionId).then(s => {
       if (!live) return;
       setSub(s); setMark(s.mark || ''); setFeedback(s.feedback || '');
       setTimeout(() => headingRef.current && headingRef.current.focus(), 0);
-    }).catch(err => { if (live) setError(err.message || 'Could not load the submission.'); });
+    }).catch(err => { if (live) setLoadError((err && err.message) || ''); });
     return () => { live = false; };
-  }, [submissionId]);
+  }, [submissionId, attempt]);
 
   async function save(e) {
     e.preventDefault();
@@ -186,8 +304,6 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
     setBusy(false);
   }
 
-  const counts = {};
-  ((sub && sub.warnings) || []).forEach(w => { counts[w.type] = (counts[w.type] || 0) + 1; });
   const answers = (sub && sub.answers && sub.answers.length) ? sub.answers : null;
   const questions = (sub && sub.questions) || [];
 
@@ -195,20 +311,31 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
     <Panel className="bb-reader">
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h2 ref={headingRef} tabIndex={-1}>{sub ? (sub.student || 'Candidate') : 'Loading…'}</h2>
-          {sub && <p className="bb-meta">{[when(sub.created_at), `${sub.words} words`, `${sub.timeMin} min`, sub.late ? 'late' : null].filter(Boolean).join(' · ')}</p>}
+          <h2 ref={headingRef} tabIndex={-1}>{sub ? (sub.student || 'Candidate') : 'Submission'}</h2>
+          {sub && <p className="bb-meta">{submittedLine(sub)}</p>}
         </div>
-        <LinkBtn muted onClick={onClose}>Close</LinkBtn>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          {sub && <LinkBtn onClick={print}>Print</LinkBtn>}
+          {sub && <LinkBtn onClick={() => downloadText(submissionFilename(sub), submissionAsText(sub), 'text/plain')}>Download as text</LinkBtn>}
+          <LinkBtn muted onClick={onClose}>Close</LinkBtn>
+        </div>
       </div>
+      {!sub && loadError === null && <p role="status" className="bb-meta">Loading the submission…</p>}
+      {!sub && loadError !== null && (
+        <div>
+          <ErrorText>{`We could not load this submission. ${loadError}`.trim()}</ErrorText>
+          <Btn onClick={() => setAttempt(n => n + 1)}>Try again</Btn>
+        </div>
+      )}
       <ErrorText>{error}</ErrorText>
       {sub && (
         <>
+          {printing && <PrintSheet sub={sub} />}
           <p style={{ margin: '1rem 0 .3rem' }}>
-            <strong>Lockdown warnings ({(sub.warnings || []).length}):</strong>{' '}
-            {(sub.warnings || []).length === 0 ? 'none recorded.'
-              : Object.entries(counts).map(([t, n]) => `${WARNING_LABEL[t] || t} × ${n}`).join(' · ')}
+            <strong>Session notes ({(sub.warnings || []).length}):</strong>{' '}
+            {(sub.warnings || []).length === 0 ? 'none.' : notesSummary(sub.warnings)}
           </p>
-          <p className="bb-hint" style={{ marginBottom: '1rem' }}>Warnings are context, not evidence. A student may leave full-screen by accident.</p>
+          <p className="bb-hint" style={{ marginBottom: '1rem' }}>Notes are context, not evidence. A student may leave full screen by accident.</p>
           <div className="bb-paper">
             {answers ? answers.map((a, i) => (
               <div key={i} className="bb-answer">
@@ -235,14 +362,14 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
 }
 
 // ─── Submissions table (shared) ──────────────────────────────────────────────
-export function SubmissionsTable({ subs, showExam = false, empty = 'No submissions yet.', onChanged }) {
+export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed exams yet. They appear here as students submit them.', onChanged }) {
   const [open, setOpen] = useState('');
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
     showExam && { key: 'exam', label: 'Examination' },
     { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
-    { key: 'warnings', label: 'Warnings', num: true, render: s => (s.warnings || []).length },
+    { key: 'warnings', label: 'Notes', num: true, render: s => (s.warnings || []).length },
     { key: 'mark', label: 'Mark', render: s => s.mark || '—' },
     { key: 'read', label: 'Read', actions: true, render: s => (
       <LinkBtn onClick={() => setOpen(open === s.id ? '' : s.id)} aria-expanded={open === s.id}>
@@ -250,6 +377,8 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No submissio
       </LinkBtn>
     ) },
   ].filter(Boolean);
+  // null: the list has not arrived yet, which is not the same as empty.
+  if (subs === null) return <p role="status" className="bb-empty">Loading submissions…</p>;
   return (
     <>
       <Table columns={columns} rows={subs} rowKey={s => s.id} empty={empty} caption="Submissions" />
@@ -311,7 +440,7 @@ export function ExamsListScreen({ onNavigate }) {
 export function ManageExamScreen({ onNavigate, onPreview }) {
   const examId = window.BB_MANAGE_EXAM;
   const [exam, setExam] = useState(null);
-  const [subs, setSubs] = useState([]);
+  const [subs, setSubs] = useState(null);   // null until the list arrives
   const [courses, setCourses] = useState([]);
   const [form, setForm] = useState(null);
   const [error, setError] = useState('');
@@ -320,6 +449,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   const [bulkBusy, setBulkBusy] = useState(false);
 
   async function load() {
+    setError('');
     try {
       const [e, all, cs] = await Promise.all([
         BB_API.getExam(examId), BB_API.listSubmissions(), BB_API.listCourses(),
@@ -386,12 +516,13 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
     finally { setBulkBusy(false); }
   }
 
-  const graded = subs.filter(s => s.mark || s.feedback).length;
+  const subList = subs || [];
+  const graded = subList.filter(s => s.mark || s.feedback).length;
   return (
     <Page
       eyebrow="Examination"
       title={exam ? exam.title : 'Examination'}
-      meta={exam ? [exam.course, `${subs.length} submission${subs.length === 1 ? '' : 's'}`, `${graded} marked`].filter(Boolean).join(' · ') : 'Loading…'}
+      meta={exam ? [exam.course, subs === null ? null : `${subList.length} submission${subList.length === 1 ? '' : 's'}`, subs === null ? null : `${graded} marked`].filter(Boolean).join(' · ') : 'Loading…'}
       actions={exam && <>
         <Btn onClick={() => onNavigate('exams')}>← Examinations</Btn>
         <Btn onClick={() => { window.BB_PROCTOR_EXAM = examId; onNavigate('proctor'); }}>Watch live</Btn>
@@ -420,7 +551,9 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
         </Panel>
       )}
       <Section title="Submissions">
-        <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet." />
+        {subs === null && error
+          ? <Btn onClick={load}>Try again</Btn>
+          : <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet. Sealed exams appear here as students submit them." />}
       </Section>
       <StudyLabelPanel exam={exam} subs={subs} />
       {form && (
@@ -454,10 +587,10 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
             {form.questions.length < 20 && (
               <LinkBtn onClick={() => setForm(f => ({ ...f, questions: [...f.questions, ''] }))}>+ Add a question</LinkBtn>
             )}
-            {subs.length > 0 && <p className="bb-hint">Students have already submitted. Changing questions now changes what later students see, not earlier answers.</p>}
+            {subList.length > 0 && <p className="bb-hint">Students have already submitted. Changing questions now changes what later students see, not earlier answers.</p>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-              <LinkBtn danger onClick={remove} disabled={subs.length > 0}>
-                {subs.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete examination'}
+              <LinkBtn danger onClick={remove} disabled={subs === null || subList.length > 0}>
+                {subList.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete examination'}
               </LinkBtn>
               <Btn primary onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Btn>
             </div>

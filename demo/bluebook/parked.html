@@ -350,7 +350,7 @@
   function onVisibilityChange() {
     if (stopped) { return; }
     if (document.hidden) {
-      setStatus('Away', true);
+      setStatus('Hidden', true);
       beat('foreground_lost', true);
     } else {
       acquireWakeLock();
