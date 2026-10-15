@@ -34,6 +34,9 @@ async function createExam(request, workerTenant, title) {
     data: {
       title, course: 'PHIL 301A', duration: 120, minWords: 12, maxWords: 5000,
       prompt: 'Discuss.', status: 'PUBLISHED',
+      // The server only lets a student score during a sitting whose exam has
+      // writing consistency enabled, so enable it on the exam itself.
+      conditions: { aiDetect: true },
     },
   })
   expect(res.ok()).toBe(true)

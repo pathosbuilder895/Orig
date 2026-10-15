@@ -62,6 +62,35 @@ def _throttle_score(request: Request | None) -> None:
         _score_calls.clear()
 
 
+def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
+    """Students may score only their own work during an enabled exam sitting.
+
+    Staff batch scoring uses a staff token and is unaffected. In particular,
+    a student cannot bypass an exam's disabled writing-consistency setting by
+    calling the Original scoring API directly.
+    """
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is None or principal.role != "student":
+        return
+    if principal.user_id != student_id:
+        raise HTTPException(status_code=403, detail="Students may score only their own work.")
+    repo = _repo()
+    exams = repo.list_bluebook_exams(principal.tenant_id)
+    # Preserve the standalone scoring API for tenants that have not created an
+    # exam. Once exams exist, a student score must be tied to an enabled sitting.
+    if not exams:
+        return
+    for exam in exams:
+        if not (exam.get("conditions") or {}).get("aiDetect"):
+            continue
+        if repo.get_bluebook_session(exam["id"], student_id):
+            return
+    raise HTTPException(
+        status_code=403,
+        detail="Writing consistency scoring is unavailable for this exam.",
+    )
+
+
 # ── Score submission ──────────────────────────────────────────────────────────
 
 
@@ -73,6 +102,7 @@ def score_submission(
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
     _throttle_score(request)
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -604,7 +634,7 @@ def score_submission(
     "/students/{student_id}/score/blend",
     response_model=BlendResultOut,
 )
-def score_blend(student_id: str, req: BlendDetectionRequest):
+def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = None):
     """
     Detect mid-document fingerprint shifts (collaboration / AI insertion /
     advisor edits) by scoring overlapping token windows separately.
@@ -612,6 +642,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
