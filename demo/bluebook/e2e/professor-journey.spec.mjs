@@ -118,7 +118,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       ['Block copy & paste', 'true'],
       ['Allow spell check', 'false'],
       ['Phone blocker', 'true'],
-      ['Authorship comparison (Original)', 'true'],
+      ['Writing consistency (in testing)', 'false'],
     ]
     for (const [name, checked] of SWITCH_DEFAULTS) {
       await expect(staffPage.getByRole('switch', { name })).toHaveAttribute('aria-checked', checked)
@@ -128,6 +128,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByRole('switch', { name: 'Allow spell check' })).toHaveAttribute('aria-checked', 'true')
     await staffPage.getByRole('switch', { name: 'Phone blocker' }).click()
     await expect(staffPage.getByRole('switch', { name: 'Phone blocker' })).toHaveAttribute('aria-checked', 'false')
+    // Writing consistency starts OFF; switch it on so the later steps score.
+    await staffPage.getByRole('switch', { name: 'Writing consistency (in testing)' }).click()
+    await expect(staffPage.getByRole('switch', { name: 'Writing consistency (in testing)' })).toHaveAttribute('aria-checked', 'true')
 
     await staffPage.locator('#neTitle').fill(examTitle)
     // #neCourse defaults to HARDCODED_COURSE_CODE already — leave as-is.
@@ -240,6 +243,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
         blockWeb: true,
         blockCopy: true,
         spellChk: true,
+        aiDetect: true, // the exam above switched writing consistency on
       }
     }, [journey.exam, workerTenant.student.student_id, candidateName])
 

@@ -181,7 +181,7 @@ export function NewExamScreen({ onNavigate }) {
   // ── Secondary conditions ──
   const [spellChk,  setSpellChk]  = useNEState(false);
   const [phoneBlk,  setPhoneBlk]  = useNEState(true);
-  const [aiDetect,  setAiDetect]  = useNEState(true);
+  const [aiDetect,  setAiDetect]  = useNEState(false);
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
   const [saveError, setSaveError] = useNEState('');
@@ -528,7 +528,7 @@ export function NewExamScreen({ onNavigate }) {
             <GoldRule faint />
             {BB_API.hasOriginal() && (
               <>
-                <ToggleRow label="Authorship comparison (Original)" desc="Compare each submission with the student's own past writing" value={aiDetect} onChange={setAiDetect} />
+                <ToggleRow label="Writing consistency (in testing)" desc="Compare each submission with the student's own past writing" value={aiDetect} onChange={setAiDetect} />
                 <GoldRule faint />
               </>
             )}

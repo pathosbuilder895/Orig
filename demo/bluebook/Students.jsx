@@ -64,7 +64,10 @@ export function StudentsScreen({ onNavigate }) {
   }, [subs]);
 
   const students = (roster && roster.length) ? roster : (BB_API.isAuthed() ? [] : MOCK_STUDENTS);
-  const filtered = filter === 'flagged' ? students.filter(s => s.flagged) : students;
+  // Original's mark only appears on exams with writing consistency switched
+  // on; with none marked, hide its count, filter and note.
+  const showMark = students.some(s => s.flagged);
+  const filtered = filter === 'flagged' && showMark ? students.filter(s => s.flagged) : students;
 
   if (loadError) return <div role="alert" style={{ padding: '2rem' }}>{loadError}</div>;
   return (
@@ -75,15 +78,16 @@ export function StudentsScreen({ onNavigate }) {
             Students
           </h1>
           <MetaLabel>
-            {students.length} enrolled ·{' '}
-            <span style={{ color:students.filter(s=>s.flagged).length > 0 ? '#C47A6B' : BB.fade }}>
+            {students.length} enrolled
+            {showMark && <>{' · '}
+            <span style={{ color:'#C47A6B' }}>
               {students.filter(s=>s.flagged).length} worth a look
-            </span>
+            </span></>}
           </MetaLabel>
         </div>
         {/* Filter pills */}
         <div style={{ display:'flex', gap:2, border:'1px solid rgba(201,169,97,0.22)' }}>
-          {[['all','All Students'],['flagged','Worth a look']].map(([val, label]) => (
+          {[['all','All Students'],...(showMark ? [['flagged','Worth a look']] : [])].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)} style={{
               fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
               textTransform:'uppercase', padding:'8px 18px',
@@ -97,7 +101,7 @@ export function StudentsScreen({ onNavigate }) {
       </div>
       <GoldRule double style={{ margin:'20px 0 20px' }} />
       {/* The "worth a look" count, filter and badge are Original's mark: say what it is, once. */}
-      <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:14, lineHeight:1.5 }} />
+      {showMark && <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:14, lineHeight:1.5 }} />}
 
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 120px 80px 120px 80px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>

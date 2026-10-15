@@ -81,7 +81,11 @@ def test_every_local_asset_the_page_loads_exists():
         parts = urlsplit(ref)
         if parts.scheme or parts.netloc or not parts.path:
             continue  # external link, mailto:, or a same-page #anchor
-        target = DEMO / parts.path.lstrip("/")
+        path = parts.path.lstrip("/")
+        # /collections/ is served from demo/bluebook/ (run.py mounts it).
+        if path == "collections" or path.startswith("collections/"):
+            path = "bluebook" + path[len("collections"):]
+        target = DEMO / path
         if parts.path.endswith("/"):
             target = target / "index.html"
         if not target.exists():

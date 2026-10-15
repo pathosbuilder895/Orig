@@ -58,6 +58,7 @@ async function sealAsNewStudent({ browser, request, workerTenant }, samples, tit
       id: examArg.id, title: examArg.title, course: examArg.course,
       courseTitle: examArg.course, candidate: cand, duration: 7200,
       minWords: 12, maxWords: null, blockWeb: false, blockCopy: false, spellChk: true,
+      aiDetect: true, // writing consistency is off by default
     }
   }, [exam, student.student_id, candidate])
   await page.goto('/bluebook/')

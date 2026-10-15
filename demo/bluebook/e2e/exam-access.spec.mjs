@@ -138,25 +138,22 @@ test.describe('Exam screen access @a11y', () => {
     studentPage, testTenant, request,
   }) => {
     const exam = await createExam(request, testTenant, 'Access words exam')
-    const session = studentPage.waitForResponse(r => r.url().includes(`/bluebook/exams/${exam.id}/session`) && r.ok())
     await boot(studentPage, exam, testTenant)
     await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
-    await session
-    // The one polite live region first says how much time is left, once the
-    // clock is known (after the session response). Wait for it: on a slow
-    // runner it otherwise lands after the typing below and replaces the
-    // word milestone this test listens for.
-    const live = studentPage.locator('.bk-sr[role="status"][aria-live="polite"]')
-    await expect(live).toHaveText(/remaining\.$/)
     const box = studentPage.locator(BOX)
     await expect(box).toHaveAccessibleDescription(/0 words written\. Write at least 12 words to submit\./)
     const seal = studentPage.getByRole('button', { name: 'Seal & Submit' })
     await expect(seal).toBeDisabled()
     await expect(seal).toHaveAccessibleDescription('Write 12 more words to submit.')
+    // The one-off start announcement ("N remaining.") waits for the server
+    // clock; let it land first so it cannot overwrite the milestone below.
+    await expect(studentPage.locator('.bk-sr[role="status"][aria-live="polite"]'))
+      .toHaveText(/remaining\./)
 
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
     await expect(box).toHaveAccessibleDescription(/You have reached the 12-word minimum\./)
-    await expect(live).toHaveText('You have reached the 12-word minimum.')
+    await expect(studentPage.locator('.bk-sr[role="status"][aria-live="polite"]'))
+      .toHaveText('You have reached the 12-word minimum.')
     await expect(seal).toBeEnabled()
   })
 
