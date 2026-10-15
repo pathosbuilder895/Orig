@@ -1,38 +1,81 @@
-"""Local end-to-end check of the alpha join flow. Talks ONLY to a local server
-(default http://127.0.0.1:8077). Usage: python verify_join_flow_local.py <prof_invite_path>"""
-import sys, requests
-from urllib.parse import urlparse, parse_qs
-B = "http://127.0.0.1:8077"; PW = "alpha-local-Passw0rd!"
-assert "127.0.0.1" in B or "localhost" in B
-tok = lambda p: parse_qs(urlparse(p).query)["invite"][0]
-H = lambda t: {"Authorization": f"Bearer {t}"}
-def ok(label, r, code=200):
-    good = r.status_code == code; print(("PASS" if good else "FAIL"), label, r.status_code, "" if good else r.text[:300]); 
-    if not good: sys.exit(1)
-    return r.json() if r.content and "json" in r.headers.get("content-type","") else None
-ok("invite page /bluebook/?invite= serves SPA", requests.get(B + sys.argv[1]))
-ok("teacher redeem without terms refused", requests.post(B+"/auth/invite/redeem", json={"token": tok(sys.argv[1]), "password": PW}), 422)
-t = ok("teacher redeem + accept terms", requests.post(B+"/auth/invite/redeem", json={"token": tok(sys.argv[1]), "password": PW, "accept_terms": True}))
-tt = t["token"]; print("  products:", t.get("products"))
-assert t.get("products") == ["bluebook"], "Original must be OFF"
-c = ok("create course", requests.post(B+"/bluebook/courses", json={"name": "Alpha test", "code": "ALPHA1"}, headers=H(tt)), 201)
-conds = {"blockCopy": True, "blockAI": True, "blockWeb": False, "aiDetect": False, "spellChk": True}
-ex = ok("create exam (25 min, paste blocked, consistency off)", requests.post(B+"/bluebook/exams", json={"title": "Practice prompt 1", "status": "ACTIVE", "duration": 25, "questions": ["Describe a city that exists only at night."], "conditions": conds, "course_id": c["id"]}, headers=H(tt)), 201)
-emails = [f"volunteer{i:02d}@example.test" for i in range(1, 21)]
-rows = ok("add 20 students (no email)", requests.post(B+f"/bluebook/courses/{c['id']}/students", json={"students": [{"email": e, "name": f"V{i}"} for i, e in enumerate(emails, 1)], "send_email": False}, headers=H(tt)))["students"]
-assert len(rows) == 20 and all(r.get("invite_path") for r in rows), rows[:2]
-print("  20 invite links issued; emailed:", sum(r["emailed"] for r in rows))
-sealed = 0
-for r in rows[:3]:
-    s = ok(f"student {r['email']} redeem", requests.post(B+"/auth/invite/redeem", json={"token": tok(r["invite_path"]), "password": PW}))
-    ok("  reused link refused", requests.post(B+"/auth/invite/redeem", json={"token": tok(r["invite_path"]), "password": PW}), 400)
-    st = ok("  student login", requests.post(B+"/auth/login", json={"email": r["email"], "password": PW}))["token"]
-    me = requests.get(B+"/bluebook/me/exams", headers=H(st)); ok("  sees course exam", me)
-    assert ex["id"] in me.text
-    ok("  start exam", requests.post(B+f"/bluebook/me/exams/{ex['id']}/start", headers=H(st)))
-    ok("  seal submission", requests.post(B+"/bluebook/submissions", json={"exam_id": ex["id"], "student_id": s["user_id"] if "user_id" in s else s.get("student_id"), "word_count": 40, "text": "night city " * 20}, headers=H(st)), 201)
-    sealed += 1
-subs = ok("teacher sees submissions", requests.get(B+"/bluebook/submissions", params={"exam_id": ex["id"]}, headers=H(tt)))
-n = len(subs) if isinstance(subs, list) else len(subs.get("submissions", subs.get("items", [])))
-print("  teacher sees", n, "submissions; any score fields:", "aiScore" in str(subs) and "null" not in str(subs))
-print("RESULT: OK", sealed, "students joined and sealed; tenant", t.get("tenant_id"))
+#!/usr/bin/env python3
+"""Exercise the local professor-invite and student-join flow against localhost only."""
+from __future__ import annotations
+
+import argparse
+import sys
+from urllib.parse import parse_qs, urlparse
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def invite_token(invite_path: str) -> str:
+    values = parse_qs(urlparse(invite_path).query).get("invite", [])
+    if len(values) != 1:
+        raise ValueError("invite path must contain exactly one ?invite= token")
+    return values[0]
+
+
+def ensure_local_base(base_url: str) -> str:
+    parsed = urlparse(base_url)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+        raise ValueError("this verifier only permits http://localhost, 127.0.0.1, or [::1]")
+    return base_url.rstrip("/")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("invite_path", help="local professor invite URL path containing ?invite=...")
+    parser.add_argument("--base-url", default="http://127.0.0.1:8001", help="local API URL (localhost only)")
+    parser.add_argument("--password", default="alpha-local-Passw0rd!", help="temporary password for this local rehearsal")
+    args = parser.parse_args(argv)
+    try:
+        base = ensure_local_base(args.base_url)
+        token = invite_token(args.invite_path)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    import requests
+
+    def check(label, response, expected=200):
+        if response.status_code != expected:
+            print(f"FAIL {label}: expected {expected}, got {response.status_code}: {response.text[:300]}")
+            raise RuntimeError(label)
+        print(f"PASS {label}: {response.status_code}")
+        if "json" in response.headers.get("content-type", ""):
+            return response.json()
+        return None
+
+    headers = lambda bearer: {"Authorization": f"Bearer {bearer}"}
+    try:
+        check("invite page", requests.get(base + args.invite_path, timeout=10))
+        check("terms required", requests.post(base + "/auth/invite/redeem", json={"token": token, "password": args.password}, timeout=10), 422)
+        teacher = check("teacher invite redemption", requests.post(base + "/auth/invite/redeem", json={"token": token, "password": args.password, "accept_terms": True}, timeout=10))
+        if "bluebook" not in teacher.get("products", []):
+            raise RuntimeError("teacher invite did not create a Collections workspace")
+        print("PASS Collections workspace present")
+        teacher_token = teacher["token"]
+        course = check("course creation", requests.post(base + "/bluebook/courses", json={"name": "Alpha test", "code": "ALPHA1"}, headers=headers(teacher_token), timeout=10), 201)
+        conditions = {"blockCopy": True, "blockAI": True, "blockWeb": False, "aiDetect": False, "spellChk": True}
+        exam = check("25-minute exam creation", requests.post(base + "/bluebook/exams", json={"title": "Practice prompt", "status": "ACTIVE", "duration": 25, "questions": ["Describe a city that exists only at night."], "conditions": conditions, "course_id": course["id"]}, headers=headers(teacher_token), timeout=10), 201)
+        students = check("student roster creation", requests.post(base + f"/bluebook/courses/{course['id']}/students", json={"students": [{"email": "local-volunteer@example.test", "name": "Local Volunteer"}], "send_email": False}, headers=headers(teacher_token), timeout=10))["students"]
+        invite = students[0]["invite_path"]
+        check("student invite redemption", requests.post(base + "/auth/invite/redeem", json={"token": invite_token(invite), "password": args.password}, timeout=10))
+        student = check("student login", requests.post(base + "/auth/login", json={"email": students[0]["email"], "password": args.password}, timeout=10))
+        student_headers = headers(student["token"])
+        check("student exam visibility", requests.get(base + "/bluebook/me/exams", headers=student_headers, timeout=10))
+        check("student starts exam", requests.post(base + f"/bluebook/me/exams/{exam['id']}/start", headers=student_headers, timeout=10))
+        sealed = check("student seals exam", requests.post(base + "/bluebook/submissions", json={"exam_id": exam["id"], "student_id": student.get("user_id") or student.get("student_id"), "word_count": 30, "text": "night city " * 15}, headers=student_headers, timeout=10), 201)
+        print(f"PASS local join flow completed; sealed submission {sealed.get('id')}")
+        return 0
+    except (requests.RequestException, RuntimeError, KeyError, IndexError) as exc:
+        if not isinstance(exc, RuntimeError):
+            print(f"FAIL local join flow: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,26 +1,25 @@
 # Join-flow check
 
-## On the pilot (dry run, using 2–3 of Andrew's own test emails)
-1. Teacher set-password link opens the set-password screen → set password + accept terms → lands on the dashboard. The Products list shows no Original.
-2. Add 2 test emails → an invite link appears for each, and "emailed" stays false while SendGrid is down.
-3. In a private window, open link 1 → set a password → the student sees the `Alpha test` course exam.
-4. Open the same link again → it must be refused ("invalid, expired, or already used").
-5. Sign out → sign back in with email + password → the exam is still listed.
-6. Start the exam → paste is blocked → timer shows 25 min → write → submit → you see the submitted confirmation.
-7. Teacher → exam → the submission appears with **no score or consistency status**.
-8. Delete the test students afterwards (`delete_alpha_tenant.py` dry run first, or remove them from the roster).
+## Live pilot limits
 
-## Local verification (done 2026-10-15, ~9:20 AM ET)
-Local server on the box (`run.py --demo`, `ORIGINAL_ENV=pilot`, SQLite, consent-mvp branch merged with main @271e044), so nothing touched the pilot. The script is `verify_join_flow_local.py` and the full output is in `join_flow_local_result.txt`.
+For this alpha rehearsal, do not open invite links or submit forms on the live pilot. Live checks are limited to unauthenticated GET requests for `/health`, public pages, and their static assets. Run the scripted GET-only check with:
 
-| Step | Result |
-|---|---|
-| `invite_professor.py` → workspace with `Products: bluebook` | PASS |
-| Invite page `/bluebook/?invite=…` serves the app | PASS |
-| Teacher redeem without accepting terms is refused (422); with terms it signs in | PASS |
-| Course + 25-min exam with paste blocked, consistency off | PASS |
-| Add 20 students without email → 20 invite links, 0 emailed | PASS |
-| 3 students: redeem, reused link refused (400), log in, see exam, start, submit | PASS ×3 |
-| Teacher sees the 3 submissions, no scores | PASS |
+```sh
+python scripts/alpha/live_smoke.py --base-url https://original-pilot.onrender.com
+```
 
-Not covered locally: the browser UI clicks (covered by CI `bundle-e2e`), Postgres, and the live pilot build. The pilot runs older code until it's redeployed.
+## Local verification
+
+The local verification CLI validates its input and prints the exact invite redemption and login steps against a local server only:
+
+```sh
+python scripts/alpha/verify_join_flow_local.py --help
+python run.py --demo --port 8001
+python scripts/alpha/verify_join_flow_local.py '/bluebook/?invite=LOCAL_INVITE_TOKEN' --base-url http://127.0.0.1:8001
+```
+
+The first command starts the local server; run the verifier in a second terminal after creating a local professor invite. Replace `LOCAL_INVITE_TOKEN` with that throwaway invite token. The verifier rejects non-local hosts so the check cannot accidentally be aimed at the pilot.
+
+## End-to-end rehearsal
+
+`tests/alpha/test_alpha_scripts.py::test_local_runbook_rehearsal_twenty_concurrent_students_full_delete` runs `invite_professor.py --with-original`, creates the course and two 25-minute exams with paste blocked and writing consistency off, enrolls 20 students, adds three baselines each, seals both exams concurrently, checks invite reuse and student score privacy, exports and labels work, runs batch scoring and the report, then deletes the tenant. It uses a temporary SQLite database and synthetic text. It makes no requests to the live pilot.

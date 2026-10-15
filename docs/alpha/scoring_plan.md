@@ -19,21 +19,34 @@ On main, `POST /bluebook/submissions` doesn't score. The only scoring is the **s
 - `labels.csv` (staff only): `submission_id,label,true_author`. It's built from the two exam exports, and injected files use their filename stem as the id.
 
 ## Running it
+From Render → `original-pilot` → **Shell** → **Connect**, enter the teacher token without echo or shell history, then run the repo-root CLI:
+
+```sh
+read -s -p 'Teacher bearer token: ' ALPHA_TOKEN; printf '\n'; export ALPHA_TOKEN
+python scripts/alpha/batch_score_alpha.py \
+  --base-url https://original-pilot.onrender.com --exam "$EXAM_A_ID" --exam "$EXAM_B_ID" \
+  --labels /tmp/alpha-labels.csv --repo "$PWD" --out /tmp/alpha-score-report \
+  --throttle-seconds 2
+unset ALPHA_TOKEN
 ```
-ALPHA_TOKEN=<Andrew's teacher bearer token> python batch_score_alpha.py \
-  --base-url https://original-pilot.onrender.com --exam <examA> --exam <examB> \
-  --labels labels.csv --repo /path/to/Orig --out alpha_scores/
-# add injected texts to alpha_scores/export/<student>/submission/, then re-score offline:
-python batch_score_alpha.py --from-dir alpha_scores/export --labels labels.csv --repo /path/to/Orig --out alpha_scores/
+
+Set `EXAM_A_ID` and `EXAM_B_ID` to the two staff-visible exam ids first. Put the exact-header `labels.csv` at the given path using Andrew's approved secure transfer method. Never put the token in the command text, a shell history entry, or a report. Local-only rescoring uses:
+
+```sh
+python scripts/alpha/batch_score_alpha.py --from-dir /path/to/export \
+  --labels /path/to/labels.csv --repo "$PWD" --out /path/to/report \
+  --throttle-seconds 0
 ```
 - **Export (read-only, tenant-scoped):** `GET /bluebook/exams/{id}/export` (CSV with the text), `GET /students` (roster and sample counts) and `GET /students/{id}/samples/{i}/text`.
-- **Scoring:** for each student, a subprocess of `score_documents.py` runs on a throwaway SQLite database, with `DATABASE_URL`/`REPO_BACKEND` stripped and `ORIGINAL_ENV=demo`. It never writes to the pilot.
-- **Output:** `report.md` and `per_submission.csv`, with opaque ids only. Exit codes: 0 = pass or no labels given, 1 = criteria failed, 2 = NaN, out-of-range or non-deterministic results.
+- **Scoring:** for each student, a subprocess of `score_documents.py` runs on a throwaway SQLite database, with `DATABASE_URL`/`REPO_BACKEND` stripped and `ORIGINAL_ENV=demo`. It never writes to the pilot. `--throttle-seconds` pauses between every scoring subprocess (including reruns and first-three-baseline checks), not only between students.
+- **Output:** `report.md` and `per_submission.csv`; these are staff-only. Exit codes: 0 = pass or no labels given, 1 = criteria failed, 2 = invalid labels/input, missing/non-finite/out-of-range scores, or nondeterministic results.
 - **Checks:** deviation and probability are within [0,1] with no NaN or inf, a second run matches, timing per paper and per student is recorded, and the baseline-size effect compares all samples against the first 3 only.
 - **Report contents:** false-flag rate, catch rate, the strict confusion matrix, the lenient rates, a sweep from 0.05 to 0.95, the INCONCLUSIVE rate, Wilson and student-bootstrap 95% CIs, and PASS/FAIL.
 
-## Local end-to-end test (2026-10-15, about 10:30 AM ET, synthetic data, not real writing)
+## Previous local scoring rehearsal (2026-10-15, synthetic data, not real writing)
 - **Setup:** a local server (pilot mode, SQLite, consent-mvp + main). `invite_professor --with-original` gave products bluebook and original. There were 5 students, the teacher uploaded 3–5 synthetic reference papers each, and every student sealed papers for Exam A and Exam B. Scripts: `local_setup_original.py` and `local_setup_second_exam.py`.
 - **Batch run:** 10 out of 10 scored, with no NaN or out-of-range values, and 10 of 10 matched on rerun. Each paper took up to about 4 s and each student run about 10 s, so 20 students take about 10 min with the rerun.
 - **Results:** 0 of 4 natural papers were falsely flagged and 6 of 6 not-own papers were caught. The baseline-size effect averaged 0.04 (max 0.16). See `sample_report_synthetic.md`. **The texts are synthetic and have very different styles, so this proves only that the pipeline works, not that it's accurate.**
-- **Deletion:** a dry run, then `--allow-original --execute`, removed the profiles/samples, score tables, submissions, enrollments and student logins (all 0 afterwards); only the teacher remained.
+- **Deletion:** that earlier script version used `--allow-original`; the current scoped CLI accepts only the tenant named `Andrew (Alpha test)'s workspace` and requires `--execute --confirm-name "Andrew (Alpha test)'s workspace"`. See `deletion_plan.md`.
+
+The current 20-student, two-exam local rehearsal is `tests/alpha/test_alpha_scripts.py::test_local_runbook_rehearsal_twenty_concurrent_students_full_delete`; it uses a throwaway SQLite database and synthetic text. Its results are in CI/PR evidence, not accuracy evidence.
