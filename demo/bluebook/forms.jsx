@@ -157,7 +157,7 @@ export function AuthShell({ title, onBack, children, footer }) {
           fontFamily: fontMono, fontSize: 11, letterSpacing: '0.18em',
           textTransform: 'uppercase', color: BB.fade,
           background: 'none', border: 'none', cursor: 'pointer', padding: 10,
-        }}>← Return</button>
+        }}>← Back</button>
       )}
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>

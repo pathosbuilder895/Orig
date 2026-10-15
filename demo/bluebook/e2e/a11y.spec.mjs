@@ -33,7 +33,7 @@
 
 import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { test as tenancyTest } from './fixtures/tenancy.mjs'
+import { test as tenancyTest, isolatedTest } from './fixtures/tenancy.mjs'
 import { createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 
 /**
@@ -100,6 +100,11 @@ function logViolations(results, label) {
  * silently dropping its blocking gate — `MIGRATED_SCREENS` would name a screen
  * that no longer exists, and this file would refuse to load.
  */
+const WRITING_SCREENS = [
+  'Exam (one answer)', 'Exam (one answer, 200% zoom)', 'Exam (notes and offline)',
+  'Sealed', 'Seal not delivered',
+]
+
 const ALL_SCREENS = [
   'Landing', 'Login', 'Briefing', 'Parked phone page',
   'Dashboard', 'Examinations', 'Courses', 'Students', 'Results',
@@ -110,6 +115,9 @@ const ALL_SCREENS = [
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
     'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
     .flatMap(l => [l, `${l} (375px)`]),
+  // The student writing screen in each state a student can meet it in
+  // (exam-access.spec.mjs checks what axe cannot: keyboard, focus, zoom).
+  ...WRITING_SCREENS,
 ]
 
 /**
@@ -172,6 +180,9 @@ const MIGRATED_SCREENS = [
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
     'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
     .flatMap(l => [l, `${l} (375px)`]),
+  // Measured at zero violations on 2026-10-13, when the writing screen got
+  // its accessibility and reliability pass.
+  ...WRITING_SCREENS,
 ]
 
 for (const label of MIGRATED_SCREENS) {
@@ -218,7 +229,7 @@ base.describe('Axe scan — public screens @a11y', () => {
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
     checkA11y(results, 'Briefing')
   })
@@ -481,3 +492,78 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
     })
   })
 }
+
+// The student writing screen, booted the way a launch link boots it (a real
+// exam, a bound student), in each state a student can meet: writing, writing
+// at 200% zoom (640x400 CSS pixels), writing with notes for the teacher and
+// the offline banner showing, sealed, and a seal that could not be delivered.
+isolatedTest.describe('Axe scan: student writing screen @a11y', () => {
+  async function bootWriting(page, request, testTenant, label) {
+    const res = await request.post('/bluebook/exams', {
+      headers: { Authorization: `Bearer ${testTenant.staff.token}` },
+      data: { title: `A11y ${label} ${Date.now()}`, course: 'PHIL 101', duration: 60, minWords: 5, maxWords: 300, prompt: 'Describe a good argument.', status: 'PUBLISHED' },
+    })
+    const exam = await res.json()
+    await page.addInitScript(([e, sid]) => {
+      localStorage.setItem('bluebook_student_id', sid)
+      window.BB_EXAM_CONFIG = {
+        id: e.id, title: e.title, course: e.course, courseTitle: e.course, candidate: 'A11y Candidate',
+        duration: 60, minWords: 5, maxWords: 300, prompt: e.prompt, blockWeb: true, blockCopy: true, spellChk: false,
+      }
+      Element.prototype.requestFullscreen = function () { return Promise.resolve() }
+    }, [exam, testTenant.student.student_id])
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Begin Examination' }).click()
+    await expect(page.getByLabel('Your examination answer')).toBeFocused()
+    await page.keyboard.type('A good argument names its premises and shows why they hold.', { delay: 1 })
+  }
+
+  isolatedTest('Exam (one answer)', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'one answer')
+    checkA11y(await runAxe(studentPage), 'Exam (one answer)')
+  })
+
+  isolatedTest('Exam (one answer, 200% zoom)', async ({ browser, request, testTenant }) => {
+    const context = await browser.newContext({
+      viewport: { width: 640, height: 400 },
+      storageState: studentAccountState(testTenant.baseURL, testTenant.student),
+    })
+    const page = await context.newPage()
+    await bootWriting(page, request, testTenant, 'zoom')
+    checkA11y(await runAxe(page), 'Exam (one answer, 200% zoom)')
+    await context.close()
+  })
+
+  isolatedTest('Exam (notes and offline)', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'notes')
+    await studentPage.evaluate(() => {
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    await studentPage.context().setOffline(true)
+    await expect(studentPage.getByRole('region', { name: /Notes for your teacher/ })).toBeVisible()
+    await expect(studentPage.getByText(/You are offline/)).toBeVisible()
+    checkA11y(await runAxe(studentPage), 'Exam (notes and offline)')
+    await studentPage.context().setOffline(false)
+  })
+
+  isolatedTest('Sealed', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'sealed')
+    studentPage.once('dialog', d => d.accept())
+    await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
+    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+    checkA11y(await runAxe(studentPage), 'Sealed')
+  })
+
+  isolatedTest('Seal not delivered', async ({ studentPage, request, testTenant }) => {
+    await studentPage.route('**/bluebook/submissions', route => (route.request().method() === 'POST'
+      ? route.fulfill({ status: 422, contentType: 'application/json', body: '{"detail":"Not accepted."}' })
+      : route.continue()))
+    await bootWriting(studentPage, request, testTenant, 'not delivered')
+    studentPage.once('dialog', d => d.accept())
+    await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
+    await expect(studentPage.getByRole('button', { name: /Try again/i })).toBeVisible({ timeout: 10_000 })
+    checkA11y(await runAxe(studentPage), 'Seal not delivered')
+  })
+})

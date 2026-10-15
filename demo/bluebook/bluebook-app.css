@@ -192,3 +192,24 @@ select.bb-input option{color:#111}
   .bb-land-foot{flex-wrap:wrap;gap:12px 20px;padding:18px 16px!important}
   .bb-land-footlinks{flex-wrap:wrap;gap:12px 20px!important}
 }
+
+/* Print: an open submission prints as a clean sheet of what was sealed
+   (Teacher.jsx PrintSheet, a portal on <body>). Nothing else is printed:
+   no navigation, no form fields, no dark page. */
+.bb-print-root{display:none}
+@media print{
+  body.bb-has-print-sheet{background:#fff!important;color:#000!important}
+  body.bb-has-print-sheet::after{display:none!important}
+  body.bb-has-print-sheet>*:not(.bb-print-root){display:none!important}
+  body.bb-has-print-sheet>.bb-print-root{display:block!important}
+}
+.bb-print-sheet{max-width:42rem;margin:0 auto;font:12pt/1.55 'EB Garamond',Georgia,serif;color:#000}
+.bb-print-sheet h1{font:600 18pt/1.25 'Playfair Display',Georgia,serif;margin:.2rem 0 .8rem}
+.bb-print-sheet h2{font:600 10pt/1.3 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin:1.4rem 0 .3rem;break-after:avoid}
+.bb-print-kicker{font:9pt 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;margin:0}
+.bb-print-sheet dl{display:grid;grid-template-columns:max-content 1fr;gap:.2rem 1rem;margin:0 0 1rem;padding:.6rem 0;border-top:1px solid #999;border-bottom:1px solid #999}
+.bb-print-sheet dt{font-weight:600}
+.bb-print-sheet dd{margin:0}
+.bb-print-q{font-style:italic;margin:0 0 .4rem}
+.bb-print-text{white-space:pre-wrap}
+.bb-print-foot{margin-top:1.6rem;font-size:9pt;font-style:italic}

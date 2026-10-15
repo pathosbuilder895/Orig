@@ -3,55 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Collections Privacy Policy</title>
+<title>Original Collections Privacy Policy</title>
 <link rel="stylesheet" href="legal.css">
 </head>
 <body>
 <main>
+<p class="draft" role="note">DRAFT &mdash; pending counsel review. Not yet in force. Text in highlighted brackets is for counsel or the owner to complete or confirm.</p>
 <nav><a href="/bluebook/">← Collections</a><a href="terms.html">Terms</a><a href="student-notice.html">Student notice</a></nav>
-<p class="draft" role="note">DRAFT — needs legal review before public launch. Version 2026-10-01-draft. Text in highlighted brackets must be completed by counsel.</p>
 <h1>Privacy policy</h1>
 <p class="meta">Version 2026-10-01-draft</p>
-<p class="meta">Applies to Original Collections, the online written-examination service (a digital replacement for the blue book exam), used through a free self-serve workspace.</p>
+<p class="meta">Draft last revised 13 October 2026. Applies to Original Collections, the online written-exam service (a digital replacement for the blue book exam), and to Original, its optional writing-consistency engine.</p>
 
 <h2>Who we are</h2>
-<p>Collections is operated by <span class="fill">[company legal name and address]</span> (“we”). Questions about this policy: <a href="mailto:hello@originalvoice.io">hello@originalvoice.io</a>.</p>
+<p>Original Collections is operated by <span class="fill">[company legal name and address]</span> (“we”). Questions about this policy: <a href="mailto:hello@originalvoice.io">hello@originalvoice.io</a>.</p>
 
-<h2>What Collections is for</h2>
-<p>A teacher creates a workspace, adds students by email, and sets timed written examinations. Students write their answers in the browser and submit them; the teacher reads, marks, and returns them. When a teacher uses Collections for a school, we process student information on the school's and teacher's behalf and only to provide the service.</p>
+<h2>What the service is for</h2>
+<p>A teacher creates a private workspace, adds students by email, and sets timed written exams. Students write their answers in the browser and submit them; the teacher reads, marks and returns them. Each workspace is kept separate from every other. We process student information on the teacher’s behalf (and, where there is one, the school’s), and only to provide the service.</p>
 
 <h2>What we collect</h2>
 <table>
-<tr><th>Who</th><th>What</th><th>Why</th></tr>
-<tr><td>Teachers</td><td>Name, email address, a one-way hash of the password, the date you accepted these terms</td><td>To run your account and workspace</td></tr>
-<tr><td>Students</td><td>Name and email address (entered by the teacher), a one-way hash of the password once set, which courses they are on</td><td>To let students sign in and see their own exams</td></tr>
-<tr><td>Exams</td><td>Questions, timing, and settings the teacher enters</td><td>To deliver the exam</td></tr>
-<tr><td>Submissions</td><td>The answers a student writes; word count; start, deadline and submission times; whether it was late; a list of exam-mode events (for example “left full-screen” or “switched tab”) with their times</td><td>So the teacher can read the work and see its context</td></tr>
-<tr><td>Marks</td><td>Any mark and written feedback the teacher records</td><td>To return results to the student when the teacher releases them</td></tr>
-<tr><td>Security records</td><td>An audit log of account and data actions (for example sign-ins, exports, deletions)</td><td>To keep the service secure and accountable</td></tr>
+<tr><th>Who or what</th><th>What we keep</th><th>Why</th></tr>
+<tr><td>Teachers</td><td>Name, email address, the password as a salted one-way hash, and which version of the terms was accepted and when</td><td>To run the account and workspace</td></tr>
+<tr><td>Students</td><td>Name and email address (entered by the teacher), the password as a salted one-way hash once the student sets one, and which courses they are on</td><td>So students can sign in and see their own exams and results</td></tr>
+<tr><td>Exams</td><td>The questions, timing and settings the teacher enters</td><td>To deliver the exam</td></tr>
+<tr><td>Each exam sitting</td><td>See the next section</td><td>So the teacher can read the work and see its context</td></tr>
+<tr><td>Marks</td><td>Any mark and written feedback the teacher records</td><td>To return results once the teacher releases them</td></tr>
+<tr><td>Phone parking (only if the teacher uses it)</td><td>The name or initials a student types on the phone page, whether that page is open, and the times it changed</td><td>So the teacher can see that phones are put away</td></tr>
+<tr><td>Security records</td><td>An audit log of account and data actions (for example sign-ins, including the email address used, submissions, exports and deletions), naming the account involved</td><td>To keep the service secure and accountable</td></tr>
 </table>
-<p>We do <strong>not</strong> record keystrokes, screens, cameras, microphones, or location, and Collections does not analyse a student's writing style or compare it with earlier work. Exam-mode events are context for the teacher, not evidence of misconduct.</p>
 
-<h2>Where it is stored and who processes it</h2>
+<h2>What is kept from each exam sitting</h2>
 <ul>
-<li>Hosting and database: Render, in the United States <span class="fill">[confirm region]</span>.</li>
-<li>Email (invitations and password resets only): SendGrid (Twilio), when enabled.</li>
-<li>Error reports (technical errors without request bodies): Sentry, when enabled.</li>
-<li>Encrypted off-site backups: <span class="fill">[object-storage provider]</span>.</li>
+<li><strong>The answers</strong> the student submits: the full text, one answer per question.</li>
+<li><strong>Times and length:</strong> when the sitting started and its deadline, when it was submitted, whether it arrived more than 5 minutes after the deadline, how many minutes it took, and its word count.</li>
+<li><strong>Notes for the teacher.</strong> A short note is made each time the student moved away from the exam window, the exam tab went into the background, full screen was turned off, printing or saving was tried, or a paste was tried while pasting was turned off for that exam. Only the kind of note and its time are kept, at most 500 notes per sitting: never what was on screen and never what was pasted. Notes are context for the teacher, not evidence of anything.</li>
+<li><strong>Paste counts.</strong> Blocked paste attempts are kept as notes, as above. The student’s browser also counts paste attempts on the device; that count is sent to Original only when Original is switched on for the workspace, and it is not stored.</li>
+<li><strong>A draft on the student’s own device.</strong> While a student writes, their browser keeps a copy of the answers on that device, so that a refresh or a dropped connection loses nothing. That copy is removed once the exam has been delivered.</li>
 </ul>
-<p>We do not sell personal information, show advertising, or use student work to train models.</p>
+
+<h2>What we do not collect</h2>
+<ul>
+<li>We do not record keystrokes, typing rhythm or any other keystroke data, and we do not record screens, cameras, microphones or location.</li>
+<li>An IP address is not stored in our database. (Request logs are described below.)</li>
+<li>We use no cookies. Signing in is remembered in the browser’s own local storage and cleared on sign-out.</li>
+<li>We use no analytics and no advertising. The exam app and these pages load no fonts, scripts or trackers from other companies.</li>
+</ul>
+
+<h2>Original, the writing-consistency engine</h2>
+<p>Original is <strong>off by default</strong>. It is switched on only for a teacher who asks for it, with their informed consent. It is in its <strong>testing phase</strong>: it has not yet been validated on real student writing. Its results are a reason for a conversation between teacher and student, never proof of anything, and they never change a grade or start a misconduct process on their own.</p>
+<p>Where Original is on, a submitted exam is compared with earlier writing that the teacher has approved as reference writing for that student (their “writing profile”). Sealing an exam never adds it to the profile by itself; only the teacher’s approval does, and the teacher can undo it. We then also keep the reference writing the teacher approved and measurements of it, a consistency reading for each comparison with a record of it in the audit log, and a 0 to 100 reading on the submission. Teachers see these with a testing-phase label. Students never see a score in Collections.</p>
+
+<h2>Request logs</h2>
+<p>Our server writes a short log line for each request it handles: the time, the method and page path, the result and how long it took, the network (IP) address the request came from and the browser’s description of itself (user agent). On our host that address is usually the host’s own proxy rather than the student’s. These logs are kept by our hosting provider, not in our database, are used only to run and secure the service, and are kept for <span class="fill">[owner: Render’s log retention for the pilot plan]</span>. Error reports, if switched on, carry no request bodies, no IP address and no personal data.</p>
+
+<h2>Who processes it for us</h2>
+<table>
+<tr><th>Provider</th><th>What it does</th><th>What it receives</th></tr>
+<tr><td>Render (Render Services, Inc.)</td><td>Hosts the service, the database, the request logs and the daily backup job, in Oregon, United States</td><td>Everything above, as our host</td></tr>
+<tr><td>Cloudflare R2 (Cloudflare, Inc.)</td><td>Stores the daily backups</td><td>Only backups that are encrypted with a key we hold before they leave our servers; Cloudflare cannot read them. <span class="fill">[owner: confirm R2 and its location once off-site backups are set up]</span></td></tr>
+<tr><td>SendGrid (Twilio Inc.)</td><td>Sends invitation and password-reset emails only, when email is switched on</td><td>The recipient’s email address and the one-time link; for an invitation, also the course name and the teacher’s name. Never exam answers or marks.</td></tr>
+</table>
+<p>If error reporting is switched on, Sentry (Functional Software, Inc.) receives technical error details with personal data and request bodies removed. <span class="fill">[owner: is error reporting switched on for the pilot?]</span></p>
+<p>We do not sell personal information and do not use student work to train models.</p>
 
 <h2>How long we keep it</h2>
-<p>Data is kept while the workspace uses it. A teacher can permanently delete a student and all their work at any time from the course roster or the Students page; that also removes the student's login. We do not yet delete data automatically after a fixed period. Deleted data can remain in backups for up to <span class="fill">[30]</span> days before those backups expire.</p>
+<ul>
+<li><strong>Our defaults:</strong> student work (submissions with their notes and marks) is kept for 365 days after it is submitted, and backups for 35 days.</li>
+<li><strong>What happens today:</strong> automatic deletion after 365 days is not switched on yet. Until it is, work is kept until the teacher deletes the student, or asks us to delete the workspace. <span class="fill">[owner: build the 365-day deletion before launch, or change this default]</span></li>
+<li><strong>Backups</strong> are made daily, encrypted, and set to expire after 35 days by a rule on the backup storage. <span class="fill">[owner: confirm the 35-day rule is set on the bucket]</span> Our host also keeps its own database snapshots for a period set by its plan. <span class="fill">[owner: confirm]</span></li>
+<li><strong>Phone-parking entries</strong> are removed once they are 24 hours old, the next time a teacher opens phone parking.</li>
+<li><strong>Invitation and password-reset links</strong> work once and expire after 14 days.</li>
+</ul>
+
+<h2>Deleting data</h2>
+<p>A teacher can permanently delete a student from the course roster or the Students page. That removes the student’s submissions, sittings, notes, marks and login, and, where Original is on, their writing profile (if Original holds approved reference writing, the teacher removes those approvals first). What remains: one audit entry recording the deletion, sign-in records that hold the email address used, and copies in backups until those expire.</p>
+<p>To close a workspace or delete a teacher account, write to us and we will do it by hand; there is no button for it yet.</p>
 
 <h2>Your choices and rights</h2>
-<p>Students: ask your teacher to correct or delete your information, or write to us. Teachers: you can change your password, delete students and courses, and ask us to close your workspace and delete its data. Depending on where you live (for example under FERPA, state student-privacy laws, or the GDPR) you may have further rights; contact us and we will help.</p>
+<p>Students can see their own submitted work and, once released, their marks and feedback under “My submissions”. To correct or delete information, ask your teacher or write to us. Teachers can change their password, delete students, and ask us to close their workspace and delete its data. Depending on where you live (for example under FERPA, state student-privacy laws or the GDPR) you may have further rights; contact us and we will help.</p>
 
 <h2>Children</h2>
-<p>Collections is intended for students aged 13 and over. A school or teacher that uses it with younger students is responsible for obtaining any consent the law requires before adding them.</p>
+<p>Original Collections is intended for students aged 13 and over. A teacher or school that uses it with younger students is responsible for obtaining any consent the law requires before adding them. The service itself does not check ages. <span class="fill">[owner and counsel: confirm the student age range for this pilot; younger students bring COPPA duties]</span></p>
 
 <h2>Security</h2>
-<p>Connections are encrypted in transit (HTTPS). Passwords are stored only as salted hashes. Invitation and reset links work once and expire after 14 days. Each teacher's workspace is isolated from every other workspace.</p>
+<p>Connections are encrypted (HTTPS), and browsers are told to use HTTPS only. Passwords are stored only as salted hashes (PBKDF2 with SHA-256, 240,000 rounds). Backups are encrypted before they are uploaded. Student sign-ins last up to 7 days (12 hours from an exam link) and teacher sign-ins 8 hours. Each teacher’s workspace is isolated from every other workspace.</p>
 
 <h2>Changes</h2>
 <p>If we change this policy materially we will say so in the app before the change takes effect.</p>
