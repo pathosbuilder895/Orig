@@ -832,15 +832,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         }
         setSealNote(attempt ? `Still submitting (try ${attempt + 1} of ${attempts}). Your answers are saved on this device.` : 'Submitting your answers…');
         // 1) Score against the EXISTING baseline (skipped on retry once known).
-<<<<<<< HEAD
         // Only when the teacher switched writing consistency on for this exam
         // (conditions.aiDetect, off by default).
         if (withOriginal && cfg.aiDetect && seal.aiScore === undefined) {
-          const scored = await bbScoreWithOriginal(studentId, content, cfg.title, seal.uuid, buildCompositionSummary());
-=======
-        if (withOriginal && seal.aiScore === undefined) {
           const scored = await bbScoreWithOriginal(studentId, finalText, cfg.title, seal.uuid, seal.summary);
->>>>>>> origin/main
           if (scored === BB_ORIGINAL_OFF) {
             // The workspace no longer holds Original (switched off since this
             // page loaded). A 403 will not change on retry, so seal exactly as
