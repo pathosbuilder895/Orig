@@ -26,7 +26,9 @@ phone, UTC timestamps, and state transitions. That is all of it.
 **No IP address, no user-agent, no location, no device fingerprint, no roster
 identifier.** Note what these handlers do NOT do with the ``Request`` objects
 they receive: nothing is read off them but the principal (for the staff gate)
-and ``base_url`` (to build the QR link). No handler logs a request, and the
+and ``base_url`` (to build the QR link). No handler here logs anything of its
+own (the app-wide request log in original/core/logging.py still records each
+request's path, client address and user agent, outside the database), and the
 persistence layer has no column that could hold one — see ``store.py``'s
 ``park_*`` block and the ``ParkSession``/``ParkBeat`` models.
 

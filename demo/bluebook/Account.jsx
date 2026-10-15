@@ -157,7 +157,7 @@ export function InviteScreen({ onNavigate }) {
       onNavigate(homeFor(data));
     } catch (err) {
       if (err.message === TERMS_REFUSAL) setNeedTerms(true);
-      setError(err.message || 'This link could not be used.');
+      setError(err.message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
       setBusy(false);
     }
   }
@@ -195,9 +195,9 @@ export function ForgotPasswordScreen({ onNavigate }) {
     try {
       const r = await BB_API.requestPasswordReset(email.trim());
       setDone(r && r.mail === false
-        ? 'Email is not set up on this site yet. Students: ask your teacher for a new link. Teachers: contact support.'
+        ? 'Password reset emails are not available here yet. Students: please ask your teacher for a new link. Teachers: please contact support.'
         : 'If that address has a Collections account, a reset link is on its way. Check your inbox and spam folder.');
-    } catch (err) { setError(err.message || 'Could not send the reset email.'); }
+    } catch (err) { setError(err.message || 'We could not send the reset email just now. Please try again in a few minutes.'); }
     setBusy(false);
   }
 
@@ -236,7 +236,7 @@ export function PasswordForm() {
       setCurrent(''); setPw(''); setConfirm('');
       setDone('Password changed.');
     } catch (err) {
-      setError(err.message || 'Could not change the password.');
+      setError(err.message || 'Your password was not changed. Please try again.');
     }
     setBusy(false);
   }
@@ -321,6 +321,17 @@ export async function openStudentExam(examId, onNavigate) {
   onNavigate('briefing');
 }
 
+// What a student is told when one of their own requests fails: plain words
+// for "not there" and "not yours", the fallback for anything the server did
+// not explain, and never a bare "exam not found".
+function bbStudentError(err, fallback) {
+  const s = err && err.status;
+  if (s === 404) return 'That is no longer available. Please check with your teacher.';
+  if (s === 403) return 'That is not available to your account. Please check with your teacher.';
+  if (s && s >= 500) return fallback;
+  return (err && err.message) || fallback;
+}
+
 export function StudentHomeScreen({ onNavigate }) {
   const [me, setMe] = useState(null);
   const [exams, setExams] = useState(null);
@@ -334,10 +345,10 @@ export function StudentHomeScreen({ onNavigate }) {
       .then(([m, e, s]) => { if (live) { setMe(m); setExams(e); setSubs(s); } })
       .catch(err => {
         if (!live) return;
-        if (/sign in|not authenticated/i.test(err.message || '')) {
+        if (err.status === 401 || /sign in|not authenticated/i.test(err.message || '')) {
           BB_API.logout(); onNavigate('login'); return;
         }
-        setError(err.message || 'Could not load your exams.');
+        setError(bbStudentError(err, 'We could not load your exams just now. Please refresh the page to try again.'));
         setExams([]);
       });
     return () => { live = false; };
@@ -346,7 +357,7 @@ export function StudentHomeScreen({ onNavigate }) {
   async function open(e) {
     setOpening(e.exam_id); setError('');
     try { await openStudentExam(e.exam_id, onNavigate); }
-    catch (err) { setError(err.message || 'Could not open that exam.'); setOpening(''); }
+    catch (err) { setError(bbStudentError(err, 'We could not open that exam just now. Please try again.')); setOpening(''); }
   }
 
   const courses = (me && me.courses) || [];
@@ -375,8 +386,8 @@ export function StudentHomeScreen({ onNavigate }) {
   return (
     <StudentShell onNavigate={onNavigate} active="student-home">
       <Page eyebrow="Collections"
-        title={me ? `Welcome, ${me.name || 'student'}.` : 'My exams'}
-        meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'Not enrolled in any course yet')}>
+        title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My exams'}
+        meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'You are not in a course yet. Your teacher will add you.')}>
         <ErrorText>{error}</ErrorText>
         <Section title="Examinations">
           <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your examinations"
@@ -396,14 +407,14 @@ export function StudentSubmissionScreen({ onNavigate }) {
   useEffect(() => {
     const id = window.BB_VIEW_SUBMISSION;
     if (!id) { onNavigate('student-home'); return; }
-    BB_API.mySubmission(id).then(setSub).catch(err => setError(err.message || 'Could not load it.'));
+    BB_API.mySubmission(id).then(setSub).catch(err => setError(bbStudentError(err, 'We could not load this submission just now. Please try again.')));
   }, []);
   const answers = sub && sub.answers && sub.answers.length ? sub.answers : null;
   return (
     <StudentShell onNavigate={onNavigate} active="student-home">
       <Page eyebrow="Your submission"
         title={sub ? (sub.exam || 'Submission') : 'Submission'}
-        meta={sub ? `${when(sub.created_at)} · ${sub.words} words${sub.late ? ' · late' : ''}` : ''}
+        meta={sub ? `${when(sub.created_at)} · ${sub.words} words${sub.late ? ' · after the deadline' : ''}` : ''}
         actions={<Btn onClick={() => onNavigate('student-home')}>← My exams</Btn>}>
         <ErrorText>{error}</ErrorText>
         {sub && (
@@ -425,7 +436,7 @@ export function StudentSubmissionScreen({ onNavigate }) {
                   <h3>Question {i + 1}</h3>
                   <div>{a || <em>No answer.</em>}</div>
                 </div>
-              )) : (sub.text || 'The text of this submission was not stored.')}
+              )) : (sub.text || 'The text of this submission is not available here.')}
             </div>
           </>
         )}

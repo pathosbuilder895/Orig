@@ -322,10 +322,17 @@ _STAFF_ONLY_PREFIXES = (
 # admin-context.html is internal tooling with no access control of its own
 # (same Research-nav family as the already-gated lab.html/playground.html);
 # onboard.html has zero inbound links from the rest of the demo (dead page).
-# NOT gated: student-coach.html (student.html actively window.open()s it) and
-# operator.html (index.html redirects operator-role sign-ins there, so a real
-# deploy needs it reachable; its data comes from /admin/* and /tenants/*
-# endpoints that the staff-only middleware already protects).
+# student.html and the Focus Coach it opens (student-coach.html) are the
+# classic Original student pages: their wording ("diverges from your
+# established voice", "monitored environment") is not for students, and
+# they load Google Fonts (NORTH_STAR rules 1 and 7). Students on a real deploy
+# use Collections (/bluebook/) and the navy Original pages (/original/), and
+# nothing there links to these; index.html's student pill is already hidden
+# off the demo. The one other pointer is the dormant LTI launch's redirect
+# (original/lti.py), which needs a new target if LTI is ever switched on.
+# NOT gated: operator.html (index.html redirects operator-role sign-ins
+# there, so a real deploy needs it reachable; its data comes from /admin/*
+# and /tenants/* endpoints that the staff-only middleware already protects).
 _DEMO_ONLY_STATICS = frozenset(
     {
         "/seed.db",
@@ -333,6 +340,8 @@ _DEMO_ONLY_STATICS = frozenset(
         "/playground.html",
         "/admin-context.html",
         "/onboard.html",
+        "/student.html",
+        "/student-coach.html",
         "/validation_report.json",
         "/validation_similarity.json",
         "/validation_thresholds.json",
@@ -539,8 +548,8 @@ async def maintenance_write_freeze(request: Request, call_next):
             status_code=503,
             content={
                 "detail": (
-                    "Maintenance in progress — writes are temporarily frozen while the "
-                    "service completes a scheduled migration. Please retry shortly."
+                    "Maintenance in progress. Collections is being updated, so changes "
+                    "are paused for a moment. Please try again in a few minutes."
                 )
             },
             headers={"Retry-After": "120"},

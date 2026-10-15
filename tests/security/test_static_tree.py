@@ -176,3 +176,29 @@ def test_collections_path_serves_the_app(mounted_pilot_client):
 
 def test_collections_sourcemap_404_in_pilot(mounted_pilot_client):
     assert mounted_pilot_client.get("/collections/bluebook.bundle.js.map").status_code == 404
+
+
+# The classic Original student pages (demo/student.html and the Focus Coach it
+# opens) use wording students should not meet ("diverges from your
+# established voice", "monitored environment", "Verification Session") and
+# load Google Fonts. Students on a real deploy use Collections and the navy
+# Original pages (demo/original/voice.html, my-work.html), so these stay in
+# the demo only. Served from the real demo/ tree, so a 404 here is the gate,
+# not a missing file.
+CLASSIC_STUDENT_PAGES = ("/student.html", "/student-coach.html")
+
+
+@pytest.mark.parametrize("url", CLASSIC_STUDENT_PAGES)
+def test_classic_student_pages_404_in_pilot(mounted_pilot_client, url):
+    r = mounted_pilot_client.get(url)
+    assert r.status_code == 404, f"{url} -> {r.status_code}"
+
+
+@pytest.mark.parametrize("url", CLASSIC_STUDENT_PAGES)
+def test_classic_student_pages_served_in_demo(mounted_client, url):
+    assert mounted_client.get(url).status_code == 200
+
+
+def test_the_pages_students_use_stay_reachable_in_pilot(mounted_pilot_client):
+    for url in ("/bluebook/", "/original/voice.html", "/original/my-work.html", "/legal/student-notice.html"):
+        assert mounted_pilot_client.get(url).status_code == 200, url
