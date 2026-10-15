@@ -14,6 +14,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
 from .. import principal as principal_mod
+from ..consent import policy as consent_policy
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
@@ -120,6 +121,8 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
 
+    # Consent gate: opted-out writing never becomes a baseline.
+    consent_policy.require_original(student_id)
     # Gate high-trust provenance behind staff/attestation (see _authorize_provenance).
     provenance, provenance_downgraded = _authorize_provenance(request, student_id, req.provenance)
     auth_weight = AUTH_WEIGHTS[provenance]
@@ -345,6 +348,7 @@ def request_proctored_baseline(student_id: str, req: RequestBaselineRequest, req
     Requires BBOOK_API_URL and BBOOK_EXTERNAL_SECRET in the environment.
     Returns 503 if Bbook integration is not configured, 502 on Bbook errors.
     """
+    consent_policy.require_original(student_id)
     _require_staff(request)
 
     if not bbook_client.is_enabled():
@@ -470,6 +474,7 @@ def upload_baseline_batch(
     a downgrade); always-present is the deliberate convention here because a
     batch has one effective provenance for every file it admitted.
     """
+    consent_policy.require_original(student_id)
     if provenance not in AUTH_WEIGHTS:
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"

@@ -11,6 +11,7 @@ import logging
 import anyio
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
+from ..consent import policy as consent_policy
 from ..constants import AUTH_WEIGHTS
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
@@ -165,6 +166,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
     from ..canvas import live_import as canvas_live
 
     _require_non_demo_staff(request)
+    consent_policy.require_original(student_id)
     body = req or {}
     canvas_url, access_token = canvas_live.resolve_canvas_config(
         body.get("canvas_url"), body.get("access_token")

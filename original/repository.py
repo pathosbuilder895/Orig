@@ -268,6 +268,13 @@ class Repository(Protocol):
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
     def void_invites_for_user(self, user_id: str) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
+
+    # ── Student consent MVP (2026-10) ───────────────────────────────────────
+    def append_consent_record(self, rec: dict) -> None: ...
+    def list_consent_records(self, tenant_id: str, student_id: str | None = None) -> list[dict]: ...
+    def put_pilot_agreement(self, rec: dict) -> None: ...
+    def list_pilot_agreements(self, tenant_id: str) -> list[dict]: ...
+    def set_course_original(self, course_id: str, enabled: bool) -> bool: ...
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
@@ -783,6 +790,21 @@ class SqliteRepository:
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
 
+    def append_consent_record(self, rec: dict) -> None:
+        store.append_consent_record(rec)
+
+    def list_consent_records(self, tenant_id: str, student_id: str | None = None) -> list[dict]:
+        return store.list_consent_records(tenant_id, student_id)
+
+    def put_pilot_agreement(self, rec: dict) -> None:
+        store.put_pilot_agreement(rec)
+
+    def list_pilot_agreements(self, tenant_id: str) -> list[dict]:
+        return store.list_pilot_agreements(tenant_id)
+
+    def set_course_original(self, course_id: str, enabled: bool) -> bool:
+        return store.set_course_original(course_id, enabled)
+
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool:
@@ -932,6 +954,9 @@ _WRITE_METHODS = frozenset(
         "park_beat",
         "park_delete",
         "park_purge",
+        "append_consent_record",
+        "put_pilot_agreement",
+        "set_course_original",
     }
 )
 

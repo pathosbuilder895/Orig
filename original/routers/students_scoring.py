@@ -14,6 +14,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, Request
 
+from ..consent import policy as consent_policy
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -73,6 +74,9 @@ def score_submission(
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
     _throttle_score(request)
+    # Consent gate (one policy, original/consent/policy.py). Covers
+    # /students/{id}/score and /me/work, which both come through here.
+    consent_policy.require_original(student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -158,7 +162,10 @@ def score_submission(
     def _all_states() -> list:
         nonlocal _all_states_cache
         if _all_states_cache is None:
-            _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
+            # Non-consenting students never serve as anyone's reference.
+            _all_states_cache = consent_policy.filter_pool(
+                _repo().all_states(tenant_id=tenant_of(student_id))
+            )
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -234,7 +241,13 @@ def score_submission(
     # to before on every existing deployment.
     _tuned_action_thresholds = _repo().get_active_tuned_thresholds()
     _genre_stats = None
-    if _scoring_config_env.bayesian_prior_enabled and state.sample_count < 10:
+    if (
+        _scoring_config_env.bayesian_prior_enabled
+        and state.sample_count < 10
+        # The SQL-aggregated genre/cohort prior cannot apply the per-student
+        # consent filter, so a consent-regime tenant never uses it.
+        and not consent_policy.consent_regime(tenant_of(student_id))
+    ):
         _genre = (
             state.samples[-1].genre
             if state.samples and getattr(state.samples[-1], "genre", None)
@@ -612,6 +625,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    consent_policy.require_original(student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(

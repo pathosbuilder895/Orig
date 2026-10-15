@@ -20,6 +20,7 @@ from fastapi.responses import Response
 from .. import bluebook_rules as rules
 from .. import principal as principal_mod
 from .. import student_auth
+from ..consent import policy as consent_policy
 from ..schemas import (
     BluebookCreateCourseRequest,
     BluebookCreateExamRequest,
@@ -430,6 +431,11 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     # A tenant without Original never stores Original's readings, whatever a
     # client sends: self-serve workspaces stay out of stylometric profiling.
     has_original = "original" in principal_mod.tenant_products(tenant)
+    # Consent gate: a reading is stored only when the one policy allows it.
+    if has_original and body.student_id:
+        has_original = consent_policy.original_allowed(
+            body.student_id[:128], tenant, (stored_exam or {}).get("course_id")
+        )
     # A client that omits the exam's title or course (a launch link with only
     # an id, an older client) still gets a readable row: take them from the
     # stored exam when it belongs to this workspace.
@@ -732,6 +738,9 @@ def bluebook_update_course(course_id: str, body: BluebookUpdateCourseRequest, re
     if "status" in sent:
         rec["status"] = (body.status or "ACTIVE").upper()[:20]
     _repo().put_bluebook_course(rec)
+    if "original_enabled" in sent:
+        # The teacher's half of the Original gate (consent/policy.py).
+        _repo().set_course_original(course_id, bool(body.original_enabled))
     _repo().log_audit(
         action="bluebook_course_update",
         tenant_id=rec.get("tenant_id"),

@@ -55,6 +55,7 @@ from .routers import (
     bluebook,
     bluebook_accounts,
     bluebook_baselines,
+    consent,
     health,
     imports,
     lti_routes,
@@ -527,7 +528,40 @@ async def tenant_isolation(request: Request, call_next):
                 status_code=403,
                 content={"detail": "Cross-tenant access denied."},
             )
+    blocked = _consent_block(principal, request.url.path, request.method)
+    if blocked is not None:
+        return blocked
     return await call_next(request)
+
+
+# ── Student consent gate (consent MVP, 2026-10) ───────────────────────────────
+# One choke point for every student request: in a consent-regime tenant
+# (original/consent/policy.py), a student who has not answered the current
+# consent screen, is under 18, or declined class use reaches only the
+# consent routes and the /bluebook/me profile. New student routes are
+# covered automatically. Staff and non-regime tenants are untouched.
+_CONSENT_EXEMPT_EXACT = frozenset({"/bluebook/me", "/auth/me", "/auth/logout"})
+_CONSENT_EXEMPT_PREFIXES = ("/bluebook/me/consent", "/consent/")
+_CONSENT_GATED_PREFIXES = ("/bluebook/", "/me/", "/proctor/", "/students/")
+
+
+def _consent_block(principal, path: str, method: str) -> JSONResponse | None:
+    if principal.role != "student" or principal.is_demo:
+        return None
+    p = path.rstrip("/") or "/"
+    if p in _CONSENT_EXEMPT_EXACT or path.startswith(_CONSENT_EXEMPT_PREFIXES):
+        return None
+    if not path.startswith(_CONSENT_GATED_PREFIXES) or _is_bluebook_static(p):
+        return None
+    from .consent import policy as consent_policy
+
+    reason = consent_policy.student_block_reason(principal.tenant_id, principal.user_id)
+    if reason is None:
+        return None
+    return JSONResponse(
+        status_code=403,
+        content={"detail": {"code": reason, "message": consent_policy.BLOCK_MESSAGES[reason]}},
+    )
 
 
 # ── Maintenance-mode write freeze (WS-6 P5 cutover) ───────────────────────────
@@ -639,6 +673,7 @@ app.router.routes.extend(tenants.router.routes)
 app.router.routes.extend(me.router.routes)
 app.router.routes.extend(imports.router.routes)
 app.router.routes.extend(admin.router.routes)
+app.router.routes.extend(consent.router.routes)
 # T8 QR phone-park. Additive and inert until a professor calls
 # /proctor/park/open — no flag, no startup cost, no effect on any other route.
 app.router.routes.extend(proctor.router.routes)

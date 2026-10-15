@@ -22,6 +22,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
 
 from .. import principal as principal_mod
+from ..consent import policy as consent_policy
 from ..schemas import AddSampleRequest
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
 from ._shared import _exam_submissions, _persist_or_503, _repo, _require_staff
@@ -157,6 +158,8 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
     if not text or not rec.get("student_id"):
         return _row(rec, "nothing_written", NOTHING_WRITTEN)
     _require_student_in_workspace(rec, request)
+    if not consent_policy.original_allowed(rec["student_id"], rec.get("tenant_id")):
+        return _row(rec, "skipped_no_consent", consent_policy.NOT_AVAILABLE["message"])
     # "In baseline" is the same test the status route uses, so a sample the
     # old seal stored with "Question N." headings is not added a second time.
     state = _repo().get(rec["student_id"])
@@ -218,6 +221,8 @@ def approve_submission_baseline(submission_id: str, request: Request):
     result = _add(rec, request)
     if result["status"] == "nothing_written":
         raise HTTPException(status_code=422, detail=NOTHING_WRITTEN)
+    if result["status"] == "skipped_no_consent":
+        raise HTTPException(status_code=403, detail=consent_policy.NOT_AVAILABLE)
     _repo().log_audit(
         action="baseline_approve",
         student_id=rec["student_id"],
@@ -277,6 +282,7 @@ def approve_exam_baselines(exam_id: str, request: Request):
             "held",
             "needs_review",
             "nothing_written",
+            "skipped_no_consent",
             "error",
         )
     }

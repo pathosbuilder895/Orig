@@ -2728,6 +2728,14 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
         "jti-t08", tenant_id, "exam-t08", scoped_id
     )
     repo.put_enrollment("course-t08", scoped_id, tenant_id)     # bluebook_enrollments
+    repo.append_consent_record(                                 # consent_records
+        {
+            "record_id": "consent-t08", "tenant_id": tenant_id, "student_id": scoped_id,
+            "scope": "consistency", "decision": "granted", "doc_version": "v1",
+            "body_sha256": "0" * 64, "typed_name": "Tess Eight",
+            "created_at": "2026-10-12T00:00:00+00:00",
+        }
+    )
 
 
 def _count_student_rows(repo, table_names: list[str], scoped_id: str) -> dict[str, int]:
@@ -3200,3 +3208,62 @@ class TestBluebookRound2Contract:
         assert (listed["mark"], listed["feedback"]) == ("B+", "Good.")
         assert "answers" not in listed  # list views stay light
         assert repo.set_bluebook_submission_feedback("missing", "A", None, "p") is False
+
+
+class TestConsentStorage:
+    """Student consent MVP: same contract on both backends."""
+
+    def test_consent_records_append_and_list(self, repo):
+        repo.put_tenant("cs-u", "U", environment="pilot")
+        for i, decision in enumerate(("granted", "withdrawn")):
+            repo.append_consent_record(
+                {
+                    "record_id": f"r{i}",
+                    "tenant_id": "cs-u",
+                    "student_id": "cs-u:ann",
+                    "scope": "consistency",
+                    "decision": decision,
+                    "doc_version": "v1",
+                    "body_sha256": "0" * 64,
+                    "typed_name": "Ann",
+                    "age_attested": False,
+                    "created_at": f"2026-10-12T00:00:0{i}+00:00",
+                }
+            )
+        rows = repo.list_consent_records("cs-u", "cs-u:ann")
+        assert [r["decision"] for r in rows] == ["granted", "withdrawn"]
+        assert rows[0]["age_attested"] is False and rows[0]["course_id"] is None
+        assert len(repo.list_consent_records("cs-u")) == 2
+        assert repo.list_consent_records("other") == []
+
+    def test_pilot_agreements_supersede(self, repo):
+        repo.put_tenant("cs-a", "A", environment="pilot")
+        for i in range(2):
+            repo.put_pilot_agreement(
+                {
+                    "agreement_id": f"a{i}",
+                    "tenant_id": "cs-a",
+                    "entity_name": "Dept",
+                    "signer_name": "Dean",
+                    "doc_version": f"v{i}",
+                    "doc_sha256": "0" * 64,
+                    "signed_on": "2026-10-12",
+                    "recorded_by": "op",
+                    "recorded_at": f"2026-10-12T00:00:0{i}+00:00",
+                    "breach_contacts": ["d@x.edu"],
+                }
+            )
+        rows = repo.list_pilot_agreements("cs-a")
+        assert [r["doc_version"] for r in rows] == ["v0", "v1"]
+        assert rows[0]["superseded_at"] is not None and rows[1]["superseded_at"] is None
+        assert rows[1]["breach_contacts"] == ["d@x.edu"]
+
+    def test_course_original_switch(self, repo):
+        repo.put_tenant("cs-c", "C", environment="pilot")
+        repo.put_bluebook_course({"id": "cs-c1", "tenant_id": "cs-c", "name": "Ethics"})
+        assert repo.get_bluebook_course("cs-c1")["original_enabled"] is False
+        assert repo.set_course_original("cs-c1", True) is True
+        repo.put_bluebook_course({"id": "cs-c1", "tenant_id": "cs-c", "name": "Ethics 2"})
+        assert repo.get_bluebook_course("cs-c1")["original_enabled"] is True  # upsert keeps it
+        assert repo.list_bluebook_courses("cs-c")[0]["original_enabled"] is True
+        assert repo.set_course_original("missing", True) is False

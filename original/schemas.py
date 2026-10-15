@@ -279,6 +279,36 @@ class BluebookUpdateCourseRequest(BaseModel):
     code: str | None = None
     term: str | None = None
     status: str | None = None
+    # Teacher's per-course Original switch (consent MVP). Off by default.
+    original_enabled: bool | None = None
+
+
+class ConsentSubmitRequest(BaseModel):
+    """POST /bluebook/me/consent. Optional scopes default to off."""
+
+    typed_name: str = Field(..., min_length=1, max_length=200)
+    over_18: bool = False
+    class_use: bool = False
+    consistency: bool = False
+
+
+class ConsentWithdrawRequest(BaseModel):
+    """POST /bluebook/me/consent/withdraw. Mode is always exclude in the MVP."""
+
+    scope: str = Field(..., pattern="^(class_use|consistency)$")
+
+
+class PilotAgreementRequest(BaseModel):
+    """POST /tenants/{id}/agreements (operator). Signed offline; recorded here."""
+
+    entity_name: str = Field(..., min_length=1, max_length=200)
+    signer_name: str = Field(..., min_length=1, max_length=200)
+    signer_title: str = Field("", max_length=200)
+    signer_email: str = Field("", max_length=254)
+    doc_version: str = Field(..., min_length=1, max_length=80)
+    doc_sha256: str = Field(..., pattern="^[0-9a-f]{64}$")
+    signed_on: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")
+    breach_contacts: list[str] = Field(default_factory=list, max_length=10)
 
 
 class RosterStudent(BaseModel):

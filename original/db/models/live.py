@@ -462,6 +462,11 @@ class BluebookCourse(LiveBase):
     term: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="ACTIVE")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Student consent MVP (2026-10): the teacher's per-course switch for
+    # Original. Off by default; in a consent-regime tenant Original runs for
+    # a student only when this, the tenant product, and the student's own
+    # ``consistency`` consent all hold (original/consent/policy.py).
+    original_enabled: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
 
 class BluebookExam(LiveBase):
@@ -620,6 +625,57 @@ class BluebookInvite(LiveBase):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ── Student consent & pilot agreements (consent MVP, 2026-10) ────────────────
+
+
+class ConsentRecord(LiveBase):
+    """One student consent decision (``consent_records``). Append-only: the
+    current state of a scope is its newest row. No IP address and no user
+    agent are ever stored. See original/consent/policy.py."""
+
+    __tablename__ = "consent_records"
+    __table_args__ = (
+        Index("idx_consent_records_student", "tenant_id", "student_id", "scope", "created_at"),
+    )
+
+    record_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False)
+    course_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scope: Mapped[str] = mapped_column(Text, nullable=False)
+    decision: Mapped[str] = mapped_column(Text, nullable=False)
+    doc_version: Mapped[str] = mapped_column(Text, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    typed_name: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    age_attested: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PilotAgreement(LiveBase):
+    """A school/department pilot agreement on file (``pilot_agreements``).
+    Signed offline; an operator records it. Student invites in a
+    consent-regime tenant are refused until a current one exists."""
+
+    __tablename__ = "pilot_agreements"
+    __table_args__ = (Index("idx_pilot_agreements_tenant", "tenant_id", "recorded_at"),)
+
+    agreement_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_name: Mapped[str] = mapped_column(Text, nullable=False)
+    signer_name: Mapped[str] = mapped_column(Text, nullable=False)
+    signer_title: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    signer_email: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    doc_version: Mapped[str] = mapped_column(Text, nullable=False)
+    doc_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    signed_on: Mapped[str] = mapped_column(Text, nullable=False)
+    recorded_by: Mapped[str] = mapped_column(Text, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    breach_contacts_json: Mapped[list[Any]] = mapped_column(
+        JSONDoc, nullable=False, server_default=text("'[]'")
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # ── Formation, requests, audit ────────────────────────────────────────────────
@@ -806,6 +862,8 @@ LIVE_MODELS = [
     BluebookInvite,
     AuditLogEntry,
     ConsumedAttestation,
+    ConsentRecord,
+    PilotAgreement,
     FormationPathway,
     BaselineRequest,
     ParkSession,

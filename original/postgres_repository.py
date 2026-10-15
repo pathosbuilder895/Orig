@@ -42,6 +42,7 @@ from .db.models.live import (
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
+    ConsentRecord,
     ConsumedAttestation,
     Correction,
     FidelityScore,
@@ -49,6 +50,7 @@ from .db.models.live import (
     FusedScore,
     ParkBeat,
     ParkSession,
+    PilotAgreement,
     StaffUser,
     StudentName,
     StudentProfile,
@@ -506,6 +508,11 @@ class PostgresRepository:
                     ConsumedAttestation.__table__.delete().where(
                         ConsumedAttestation.student_id == student_id,
                     )
+                )
+                # Consent MVP: FERPA erasure removes the student's consent
+                # records too (full scoped id, like the ledger above).
+                session.execute(
+                    ConsentRecord.__table__.delete().where(ConsentRecord.student_id == student_id)
                 )
                 # Bluebook self-serve (2026-09): roster rows, set-password
                 # links, and the student's own login row. All three key on
@@ -2071,6 +2078,7 @@ class PostgresRepository:
             "students": 0,
             "exams": 0,
             "created_at": row.created_at.isoformat(),
+            "original_enabled": bool(row.original_enabled),
         }
 
     def put_bluebook_course(self, rec):
@@ -2822,6 +2830,117 @@ class PostgresRepository:
                 ParkSession.__table__.delete().where(ParkSession.created_at < before)
             ).rowcount
             return int(beats) + int(sessions)
+
+    # ── Student consent MVP (2026-10) ─────────────────────────────────────
+    # Same contracts as the store.py functions of the same names.
+
+    def append_consent_record(self, rec):
+        with session_scope() as session:
+            session.add(
+                ConsentRecord(
+                    record_id=rec["record_id"],
+                    tenant_id=rec["tenant_id"],
+                    student_id=rec["student_id"],
+                    course_id=rec.get("course_id"),
+                    scope=rec["scope"],
+                    decision=rec["decision"],
+                    doc_version=rec["doc_version"],
+                    body_sha256=rec["body_sha256"],
+                    typed_name=rec.get("typed_name") or "",
+                    age_attested=1 if rec.get("age_attested") else 0,
+                    created_at=datetime.fromisoformat(rec["created_at"]),
+                )
+            )
+
+    def list_consent_records(self, tenant_id, student_id=None):
+        with session_scope() as session:
+            stmt = select(ConsentRecord).where(ConsentRecord.tenant_id == tenant_id)
+            if student_id is not None:
+                stmt = stmt.where(ConsentRecord.student_id == student_id)
+            rows = session.execute(stmt.order_by(ConsentRecord.created_at)).scalars().all()
+            return [
+                {
+                    "record_id": r.record_id,
+                    "tenant_id": r.tenant_id,
+                    "student_id": r.student_id,
+                    "course_id": r.course_id,
+                    "scope": r.scope,
+                    "decision": r.decision,
+                    "doc_version": r.doc_version,
+                    "body_sha256": r.body_sha256,
+                    "typed_name": r.typed_name,
+                    "age_attested": bool(r.age_attested),
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in rows
+            ]
+
+    def put_pilot_agreement(self, rec):
+        recorded_at = datetime.fromisoformat(rec["recorded_at"])
+        with session_scope() as session:
+            session.execute(
+                update(PilotAgreement)
+                .where(
+                    PilotAgreement.tenant_id == rec["tenant_id"],
+                    PilotAgreement.superseded_at.is_(None),
+                )
+                .values(superseded_at=recorded_at)
+            )
+            session.add(
+                PilotAgreement(
+                    agreement_id=rec["agreement_id"],
+                    tenant_id=rec["tenant_id"],
+                    entity_name=rec["entity_name"],
+                    signer_name=rec["signer_name"],
+                    signer_title=rec.get("signer_title") or "",
+                    signer_email=rec.get("signer_email") or "",
+                    doc_version=rec["doc_version"],
+                    doc_sha256=rec["doc_sha256"],
+                    signed_on=rec["signed_on"],
+                    recorded_by=rec["recorded_by"],
+                    recorded_at=recorded_at,
+                    breach_contacts_json=list(rec.get("breach_contacts") or []),
+                )
+            )
+
+    def list_pilot_agreements(self, tenant_id):
+        with session_scope() as session:
+            rows = (
+                session.execute(
+                    select(PilotAgreement)
+                    .where(PilotAgreement.tenant_id == tenant_id)
+                    .order_by(PilotAgreement.recorded_at)
+                )
+                .scalars()
+                .all()
+            )
+            return [
+                {
+                    "agreement_id": r.agreement_id,
+                    "tenant_id": r.tenant_id,
+                    "entity_name": r.entity_name,
+                    "signer_name": r.signer_name,
+                    "signer_title": r.signer_title,
+                    "signer_email": r.signer_email,
+                    "doc_version": r.doc_version,
+                    "doc_sha256": r.doc_sha256,
+                    "signed_on": r.signed_on,
+                    "recorded_by": r.recorded_by,
+                    "recorded_at": r.recorded_at.isoformat(),
+                    "breach_contacts": list(r.breach_contacts_json or []),
+                    "superseded_at": r.superseded_at.isoformat() if r.superseded_at else None,
+                }
+                for r in rows
+            ]
+
+    def set_course_original(self, course_id, enabled):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookCourse)
+                .where(BluebookCourse.course_id == course_id)
+                .values(original_enabled=1 if enabled else 0)
+            )
+            return result.rowcount == 1
 
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):
