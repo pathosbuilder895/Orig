@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB_API, ORIGINAL_TESTING_NOTICE, WorthALookNote, rowKeyDown } from './components.jsx';
 import { Badge, Btn, Page, Stat } from './forms.jsx';
-import { AllSubmissionsScreen } from './Teacher.jsx';
+import { AllSubmissionsScreen, openManageExam } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK: Results screen (a workspace that holds Original)
@@ -61,7 +61,7 @@ function CorrectionNote() {
 }
 
 // ─── Expanded row detail ──────────────────────────────────────────────────────
-function ExpandedRow({ result, onClose }) {
+function ExpandedRow({ result, onClose, onNavigate }) {
   return (
     <div className="bb-rdetail">
       <div className="bb-rdetail-grid">
@@ -78,7 +78,7 @@ function ExpandedRow({ result, onClose }) {
             {[
               { label:'Word count',  value:`${result.words.toLocaleString()} words` },
               { label:'Time spent',  value:`${result.timeMin} minutes` },
-              { label:'Candidate',   value:`No. ${result.candidateId}` },
+              { label:'Student no.', value:`No. ${result.candidateId}` },
             ].map(({ label, value }) => (
               <div key={label}>
                 <span className="bb-label">{label}</span>
@@ -91,6 +91,12 @@ function ExpandedRow({ result, onClose }) {
         {/* Right: where corrections are made, and Close */}
         <div>
           <CorrectionNote />
+          {/* The writing itself, with marking and feedback, is read in its examination. */}
+          {result.exam_id && onNavigate && (
+            <div style={{ marginTop: '.8rem' }}>
+              <Btn primary onClick={() => openManageExam(result.exam_id, onNavigate)} style={{ width: '100%', justifyContent: 'center' }}>Read and mark in the examination →</Btn>
+            </div>
+          )}
           <div style={{ marginTop: '.8rem' }}>
             <Btn onClick={onClose} style={{ width: '100%', justifyContent: 'center' }}>Close</Btn>
           </div>
@@ -137,14 +143,15 @@ function ScoredResultsScreen({ onNavigate }) {
     reviewed:  results.filter(FILTERS.REVIEWED).length,
   };
 
-  if (loadError) return <div role="alert" className="bb-error">{loadError}</div>;
+  const nSubs = `${counts.total} submission${counts.total === 1 ? '' : 's'}`;
+  if (loadError) return <Page eyebrow="Your workspace" title="Submissions"><div role="alert" className="bb-error">{loadError}</div></Page>;
   return (
     <Page
       eyebrow="Your workspace"
-      title="Results"
-      meta={showMark
-        ? `${counts.total} submissions · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`
-        : `${counts.total} submissions · ${counts.reviewed} reviewed`}
+      title="Submissions"
+      meta={serverResults === null && BB_API.isAuthed() ? 'Loading…' : showMark
+        ? `${nSubs} · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`
+        : `${nSubs} · ${counts.reviewed} reviewed`}
     >
       <div className={showMark ? 'bb-grid cols-3' : 'bb-grid cols-2'} style={{ marginBottom: '1.5rem' }}>
         <Stat value={counts.submitted} label="Submitted" />
@@ -164,11 +171,17 @@ function ScoredResultsScreen({ onNavigate }) {
 
       <div className="bb-results">
         <div className="bb-rgrid bb-rhead">
-          {['Candidate', 'Examination', 'Words', 'Time', 'Status'].map(h => (
+          {['Student', 'Examination', 'Words', 'Time', 'Status'].map(h => (
             <span key={h}>{h}</span>
           ))}
         </div>
 
+        {filtered.length === 0 && (
+          <p role="status" className="bb-empty" style={{ padding: '1rem' }}>
+            {serverResults === null && BB_API.isAuthed() ? 'Loading submissions…'
+              : results.length ? 'Nothing matches this filter.' : 'No sealed exams yet. They appear here as students submit them.'}
+          </p>
+        )}
         {filtered.map(result => (
           <div key={result.id}>
             <div
@@ -191,7 +204,7 @@ function ScoredResultsScreen({ onNavigate }) {
               <span><StatusPill result={result} /></span>
             </div>
             {expanded === result.id && (
-              <ExpandedRow result={result} onClose={() => setExpanded(null)} />
+              <ExpandedRow result={result} onClose={() => setExpanded(null)} onNavigate={onNavigate} />
             )}
           </div>
         ))}

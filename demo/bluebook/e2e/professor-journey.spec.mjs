@@ -313,7 +313,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission\b/)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(candidateName)).toBeVisible()
     // The teacher's Results screen no longer shows Original's score: the
     // percentage the API reported at seal time must not be rendered anywhere.
@@ -371,7 +371,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // having graded the exam (graded_at), the rule the Original suite uses too.
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
 
     const graded = await request.patch(`/bluebook/submissions/${encodeURIComponent(journey.submission.id)}/feedback`, {
       headers: staffAuth(workerTenant),
@@ -380,7 +380,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     expect(graded.ok()).toBe(true)
 
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
     await staffPage.getByRole('button', { name: 'Reviewed', exact: true }).click()
     await expect(staffPage.getByText(candidateName)).toBeVisible()
     await staffPage.getByRole('button', { name: 'Submitted', exact: true }).click()
