@@ -87,7 +87,7 @@ pygments==2.20.0
     #   pytest
     #   rich
     #   textual
-pyparsing==3.3.2
+pyparsing==3.3.3
     # via matplotlib
 pytest==8.4.2
     # via
