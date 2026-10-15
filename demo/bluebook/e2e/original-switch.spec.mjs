@@ -44,6 +44,8 @@ async function provisionExam(request, { examTitle, question, id }) {
     data: {
       title: examTitle, course: course.code, course_id: course.id,
       duration: 30, minWords: 5, prompt: question, status: 'ACTIVE',
+      // Writing consistency is off by default; these specs exercise it on.
+      conditions: { aiDetect: true },
     },
   })
   expect(exam.status(), await exam.text()).toBe(201)

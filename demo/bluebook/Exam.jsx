@@ -22,7 +22,7 @@ const EXAM_META = {
   blockCopy: true,
   spellChk:  false,
   phoneBlk:  true,
-  aiDetect:  true,
+  aiDetect:  false,
 };
 
 // Merge any instructor-configured settings saved from the New Examination form.
@@ -832,7 +832,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         }
         setSealNote(attempt ? `Still submitting (try ${attempt + 1} of ${attempts}). Your answers are saved on this device.` : 'Submitting your answers…');
         // 1) Score against the EXISTING baseline (skipped on retry once known).
-        if (withOriginal && seal.aiScore === undefined) {
+        // Only when the teacher switched writing consistency on for this exam
+        // (conditions.aiDetect, off by default).
+        if (withOriginal && cfg.aiDetect && seal.aiScore === undefined) {
           const scored = await bbScoreWithOriginal(studentId, finalText, cfg.title, seal.uuid, seal.summary);
           if (scored === BB_ORIGINAL_OFF) {
             // The workspace no longer holds Original (switched off since this

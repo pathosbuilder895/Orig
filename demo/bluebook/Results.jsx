@@ -125,6 +125,11 @@ function ScoredResultsScreen({ onNavigate }) {
 
   const filtered = results.filter(FILTERS[statusFilter] || FILTERS.all);
 
+  // Original's mark (Worth a look / inconclusive) only exists on exams where
+  // the teacher switched writing consistency on; hide its count, filter and
+  // note when nothing here carries one.
+  const showMark = results.some(r => stored(r) === 'FLAGGED' || stored(r) === 'INCONCLUSIVE');
+
   const counts = {
     total:     results.length,
     submitted: results.filter(FILTERS.SUBMITTED).length,
@@ -137,20 +142,22 @@ function ScoredResultsScreen({ onNavigate }) {
     <Page
       eyebrow="Your workspace"
       title="Results"
-      meta={`${counts.total} submissions · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`}
+      meta={showMark
+        ? `${counts.total} submissions · ${counts.flagged} worth a look · ${counts.reviewed} reviewed`
+        : `${counts.total} submissions · ${counts.reviewed} reviewed`}
     >
-      <div className="bb-grid cols-3" style={{ marginBottom: '1.5rem' }}>
+      <div className={showMark ? 'bb-grid cols-3' : 'bb-grid cols-2'} style={{ marginBottom: '1.5rem' }}>
         <Stat value={counts.submitted} label="Submitted" />
-        <Stat value={counts.flagged} label="Worth a look" />
+        {showMark && <Stat value={counts.flagged} label="Worth a look" />}
         <Stat value={counts.reviewed} label="Reviewed" />
       </div>
 
       {/* This screen shows Original's mark (a count, a filter, a status), so it
           always says what the mark is and that Original is in testing. */}
-      <WorthALookNote />
+      {showMark && <WorthALookNote />}
 
       <div className="bb-filter" role="group" aria-label="Show submissions">
-        {[['all','All'],['SUBMITTED','Submitted'],['FLAGGED','Worth a look'],['REVIEWED','Reviewed']].map(([val,label]) => (
+        {[['all','All'],['SUBMITTED','Submitted'],...(showMark ? [['FLAGGED','Worth a look']] : []),['REVIEWED','Reviewed']].map(([val,label]) => (
           <button key={val} type="button" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
         ))}
       </div>

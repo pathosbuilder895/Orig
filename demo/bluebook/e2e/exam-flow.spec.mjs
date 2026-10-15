@@ -93,6 +93,7 @@ async function bootInExam(page, { minWords = 12 } = {}) {
       blockWeb: true,
       blockCopy: true,
       spellChk: false,
+      aiDetect: true, // writing consistency is off by default; this flow scores
       id: 'e2e-exam-1',
     }
   }, [TEST_STUDENT_ID, TEST_STUDENT_NAME, minWords, proctorToken, sessionToken])
