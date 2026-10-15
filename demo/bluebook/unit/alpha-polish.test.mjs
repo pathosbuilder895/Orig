@@ -13,12 +13,12 @@ const built = await build({
     contents: `
       import React from 'react';
       import { renderToStaticMarkup } from 'react-dom/server';
-      import { InviteScreen, inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_MISSING, sortStudentExams } from './Account.jsx';
+      import { InviteScreen, inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams } from './Account.jsx';
       import { SubmittedScreen, rememberSitting, takeSittingToResume, REFERENCE_WRITING_LINE } from './Exam.jsx';
       import { linksAsText, linksAsCsv, chooseLiveExam } from './Teacher.jsx';
       import { avatarInitials, ORIGINAL_NAV_LABEL } from './TeacherWorkspace.jsx';
       export {
-        inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_MISSING, sortStudentExams,
+        inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams,
         rememberSitting, takeSittingToResume, REFERENCE_WRITING_LINE,
         linksAsText, linksAsCsv, chooseLiveExam, avatarInitials, ORIGINAL_NAV_LABEL,
       };
@@ -61,6 +61,12 @@ test('a used or expired link is explained with what to do next', () => {
   assert.match(said, /already been used, or it has expired/);
   assert.match(said, /sign in with your email and password/);
   assert.match(said, /ask your teacher for a new link/);
+  // A teacher's (or a reset) link was not sent by a teacher.
+  for (const kind of ['teacher', 'reset']) {
+    const staff = m.inviteErrorText('This invite link is invalid, expired, or already used.', kind);
+    assert.equal(staff, m.INVITE_LINK_USED_STAFF);
+    assert.doesNotMatch(staff, /your teacher/);
+  }
   // Anything else the server says is passed on as it is.
   assert.equal(m.inviteErrorText('Password must be at least 8 characters.'), 'Password must be at least 8 characters.');
 });

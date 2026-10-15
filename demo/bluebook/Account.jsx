@@ -148,12 +148,16 @@ export function inviteKind(search) {
 const LINK_REFUSED = /invalid, expired, or already used/i;
 export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
   + 'If you have already set your password, sign in with your email and password. If not, ask your teacher for a new link.';
+// A teacher's own invitation or reset link was not sent by a teacher.
+export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+  + 'If you have already set your password, sign in with your email and password. If not, use “Forgot your password?” on the sign-in page, '
+  + 'or ask the person who invited you for a new link.';
 export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be used. Please open the whole link from your invitation, '
   + 'or ask your teacher for a new one. If you have already set your password, sign in instead.';
 
-// What the set-password screen says when the server refuses a link.
-export function inviteErrorText(message) {
-  if (LINK_REFUSED.test(String(message || ''))) return INVITE_LINK_USED;
+// What the set-password screen says when the server refuses a link of this kind.
+export function inviteErrorText(message, kind = 'student') {
+  if (LINK_REFUSED.test(String(message || ''))) return kind === 'student' ? INVITE_LINK_USED : INVITE_LINK_USED_STAFF;
   return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.';
 }
 
@@ -214,7 +218,7 @@ export function InviteScreen({ onNavigate }) {
     } catch (err) {
       if (err.message === TERMS_REFUSAL) setNeedTerms(true);
       if (LINK_REFUSED.test(err.message || '')) setLinkDead(true);
-      setError(inviteErrorText(err.message));
+      setError(inviteErrorText(err.message, kind));
       setBusy(false);
     }
   }
@@ -232,7 +236,9 @@ export function InviteScreen({ onNavigate }) {
         <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{token ? (error || INVITE_LINK_USED) : INVITE_LINK_MISSING}</p>
         <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: 17 }}>Go to sign in</BtnPrimary>
         <p className="bb-hint" style={{ marginTop: 16 }}>
-          Forgot your password? Use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.
+          {kind === 'student'
+            ? 'Forgot your password? Use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.'
+            : 'Forgot your password? Use “Forgot your password?” on the sign-in page.'}
         </p>
       </AuthShell>
     );
