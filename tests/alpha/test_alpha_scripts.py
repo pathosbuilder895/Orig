@@ -69,6 +69,9 @@ def test_local_join_verifier_cli_runs_against_a_temporary_database(live_app):
 
     # `run.py` adds the same static mount after the API routers; the test app
     # fixture intentionally contains only the API routes.
+    # live_app is session-scoped, so remove the mount afterwards or later
+    # route-inspection tests see a Mount without `.methods`.
+    routes_before = list(live_app.router.routes)
     live_app.mount("/", StaticFiles(directory=str(ROOT / "demo"), html=True), name="alpha_frontend")
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -104,6 +107,7 @@ def test_local_join_verifier_cli_runs_against_a_temporary_database(live_app):
         server.should_exit = True
         thread.join(timeout=10)
         listener.close()
+        live_app.router.routes[:] = routes_before
 
 
 def test_label_csv_validation_and_threshold_sweep_are_deterministic(tmp_path):
