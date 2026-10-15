@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB_API, ORIGINAL_TESTING_NOTICE, WorthALookNote, rowKeyDown } from './components.jsx';
 import { Badge, Btn, Page, Stat } from './forms.jsx';
-import { AllSubmissionsScreen, openManageExam } from './Teacher.jsx';
+import { AllSubmissionsScreen, ExportByExam, openManageExam } from './Teacher.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK: Results screen (a workspace that holds Original)
@@ -158,6 +158,8 @@ function ScoredResultsScreen({ onNavigate }) {
         {showMark && <Stat value={counts.flagged} label="Worth a look" />}
         <Stat value={counts.reviewed} label="Reviewed" />
       </div>
+
+      {BB_API.isAuthed() && <ExportByExam />}
 
       {/* This screen shows Original's mark (a count, a filter, a status), so it
           always says what the mark is and that Original is in testing. */}

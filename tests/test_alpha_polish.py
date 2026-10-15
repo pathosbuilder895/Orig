@@ -172,3 +172,14 @@ def test_the_reference_page_shows_the_minimum_per_student_and_for_one_student():
     # One student: a row in the stats card and a note above the add-writing forms.
     assert 'id="s-min"' in page and 'id="add-min"' in page
     assert "Minimum for a reading" in page
+
+
+def test_the_reference_page_uses_the_runbooks_import_words():
+    # docs/alpha/setup_runbook.md: "click Import papers, select the files, and click Import".
+    page = (DEMO / "original" / "baseline.html").read_text(encoding="utf-8")
+    assert '<button type="button" data-tab="files" aria-pressed="false">Import papers</button>' in page
+    assert '<button class="btn" id="files-go" type="button" disabled>Import</button>' in page
+    runbook = ROOT / "docs" / "alpha" / "setup_runbook.md"
+    if runbook.is_file():
+        text = runbook.read_text(encoding="utf-8")
+        assert "**Import papers**" in text and "**Import**" in text

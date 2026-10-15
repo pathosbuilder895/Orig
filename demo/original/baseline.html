@@ -415,7 +415,7 @@
                 <div class="min-note" id="add-min" role="status" hidden></div>
                 <div class="seg" role="group" aria-label="How to add writing">
                   <button type="button" data-tab="paste" aria-pressed="true">Paste text</button>
-                  <button type="button" data-tab="files" aria-pressed="false">Upload files</button>
+                  <button type="button" data-tab="files" aria-pressed="false">Import papers</button>
                 </div>
 
                 <div class="fld" id="prov-wrap">
@@ -448,7 +448,7 @@
                   </label>
                   <div class="queue" id="queue"></div>
                   <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
-                  <button class="btn" id="files-go" type="button" disabled>Add files to baseline</button>
+                  <button class="btn" id="files-go" type="button" disabled>Import</button>
                 </div>
 
                 <div class="save-note" id="save-note-add" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
@@ -897,7 +897,7 @@
     const on=!!S.saving;
     const pg=$('paste-go'), fg=$('files-go');
     pg.disabled=on; pg.textContent=S.saving==='paste'?'Saving...':'Add to baseline';
-    fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Add files to baseline';
+    fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Import';
     $('file-in').disabled=on;
     ['save-note-add','save-note-sealed'].forEach(id=>{ $(id).hidden=!on; });
     renderQueue();

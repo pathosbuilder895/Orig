@@ -98,10 +98,13 @@ test.describe('Alpha journey @alpha', () => {
       for (const [, , link] of links) expect(link).toMatch(/^https?:\/\/[^/]+\/bluebook\/\?invite=[A-Za-z0-9_-]+$/)
     })
 
+    let examIds = {}
+    const examIdOf = title => examIds[title]
     await test.step('exams A and B: 25 minutes, paste blocked, writing consistency off', async () => {
       await createExamThroughTheForm(teacher, `Practice prompt 1 ${tag}`, 'Describe one stall in a market that opens only at night.')
       await createExamThroughTheForm(teacher, `Practice prompt 2 ${tag}`, 'Reply to a letter from 2076 in your partner\'s voice.')
       const exams = (await (await request.get('/bluebook/exams', { headers: staffAuth })).json()).exams
+      examIds = Object.fromEntries(exams.map(e => [e.title, e.id]))
       for (const e of exams) {
         expect(e.duration).toBe(25)
         expect(e.conditions.blockCopy).toBe(true)
@@ -206,6 +209,14 @@ test.describe('Alpha journey @alpha', () => {
       expect(csv.split('\n')[0]).toContain('name,email')
       expect(csv).toContain(people[0].email)
       expect(csv).toContain('The stall at the end of the lane')
+      // The runbook exports each exam from the Submissions screen.
+      await teacher.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Submissions', exact: true }).click()
+      await expect(teacher.locator('#exportExam')).toHaveValue(examIdOf(`Practice prompt 1 ${tag}`), { timeout: 10_000 })
+      const [again] = await Promise.all([
+        teacher.waitForEvent('download'),
+        teacher.locator('.bb-export').getByRole('button', { name: 'Export CSV' }).click(),
+      ])
+      expect(readFileSync(await again.path(), 'utf8')).toContain(people[0].email)
     })
 
     await test.step('back on the roster, fresh links for whoever has not joined', async () => {
@@ -236,6 +247,14 @@ test.describe('Alpha journey @alpha', () => {
       await teacher.getByRole('link', { name: 'Alpha Cy' }).click()
       await expect(teacher.locator('#s-min')).toHaveText('No papers', { timeout: 15_000 })
       await expect(teacher.locator('#add-min')).toContainText('Add at least 3 papers and 300 words in all.')
+      // The runbook's way in: Import papers, choose the files, Import.
+      await teacher.getByRole('button', { name: 'Import papers' }).click()
+      await teacher.locator('#file-in').setInputFiles([1, 2, 3].map(n => ({
+        name: `cy-paper-${n}.txt`, mimeType: 'text/plain', buffer: Buffer.from(paper(n).replace('river', `river ${n} times`)),
+      })))
+      await teacher.getByRole('button', { name: 'Import', exact: true }).click()
+      await expect(teacher.locator('#add-msg')).toContainText('Added 3', { timeout: 60_000 })
+      await expect(teacher.locator('#s-min')).toHaveText('Met', { timeout: 15_000 })
     })
   })
 

@@ -386,6 +386,49 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   );
 }
 
+// Export one examination's sealed submissions as a CSV, from the Submissions
+// screen: the alpha runbook exports Exam A and Exam B separately from here.
+// The same export is on each examination's own page. Only examinations with
+// something submitted are offered; the oldest is chosen first.
+export function ExportByExam() {
+  const [exams, setExams] = useState(null);
+  const [examId, setExamId] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    BB_API._json('GET', '/bluebook/exams').then(d => {
+      if (!live) return;
+      const list = (d.exams || []).filter(e => (Number(e.submissions) || 0) > 0);
+      setExams(list);
+      if (list.length) setExamId(list[list.length - 1].id);
+    }).catch(() => { if (live) setExams([]); });
+    return () => { live = false; };
+  }, []);
+  async function run() {
+    const exam = (exams || []).find(e => e.id === examId);
+    if (!exam) return;
+    setBusy(true); setError('');
+    try { await BB_API.downloadExport(exam.id, exam.title); }
+    catch (err) { setError(err.message || 'The export did not go through. Please try again.'); }
+    setBusy(false);
+  }
+  if (!exams || !exams.length) return null;
+  return (
+    <Panel className="bb-export" style={{ marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
+          <Select id="exportExam" label="Export one examination's submissions (CSV)" value={examId} onChange={setExamId}>
+            {exams.map(e => <option key={e.id} value={e.id}>{e.title} ({e.submissions} submitted)</option>)}
+          </Select>
+        </div>
+        <Btn primary onClick={run} disabled={busy || !examId} style={{ marginBottom: '1rem' }}>{busy ? 'Exporting…' : 'Export CSV'}</Btn>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </Panel>
+  );
+}
+
 export function AllSubmissionsScreen() {
   const [subs, setSubs] = useState(null);
   const [error, setError] = useState('');
@@ -397,6 +440,7 @@ export function AllSubmissionsScreen() {
   return (
     <Page eyebrow="Your workspace" title="Submissions" meta={error ? 'Submissions unavailable' : subs === null ? 'Loading…' : `${subs.length} sealed`}>
       <ErrorText>{error}</ErrorText>
+      {!error && <ExportByExam />}
       {error ? <Btn onClick={load}>Try again</Btn> : subs === null ? <p role="status">Loading submissions…</p> : <SubmissionsTable subs={subs} showExam onChanged={load} />}
     </Page>
   );
