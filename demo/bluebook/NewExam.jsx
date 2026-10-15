@@ -175,7 +175,7 @@ export function NewExamScreen({ onNavigate }) {
   const [maxWords,  setMaxWords]  = useNEState(1200);
   const [prompts,   setPrompts]   = useNEState(['']);
   // ── Lockdown (default ON — the secure baseline) ──
-  const [blockAI,    setBlockAI]    = useNEState(false);
+  const [blockAI,    setBlockAI]    = useNEState(true);
   const [blockWeb,   setBlockWeb]   = useNEState(true);
   const [blockCopy,  setBlockCopy]  = useNEState(true);
   // ── Secondary conditions ──
