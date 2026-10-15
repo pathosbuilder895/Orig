@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-15.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-15.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -231,6 +231,23 @@
   .add-msg.err{color:var(--flag);font-style:normal;}
   .add-msg div+div{margin-top:.25rem;}
   .pick-card{padding:1.2rem 1.4rem;max-width:30rem;pointer-events:auto;}
+  /* Reference papers by student (no student chosen) */
+  .ref-card{padding:1.1rem 1.3rem;background:rgba(9,15,36,0.5);}
+  .ref-table{width:100%;border-collapse:collapse;font-size:.92rem;}
+  .ref-table th{font-family:var(--mono);font-weight:400;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--line-soft);}
+  .ref-table td{padding:.6rem .5rem;border-bottom:1px solid var(--line-soft);vertical-align:top;}
+  .ref-table td.n,.ref-table th.n{text-align:right;font-family:var(--mono);}
+  .ref-table a{color:var(--cream);}
+  .ref-table .em{display:block;color:var(--dim-2);font-size:.78rem;word-break:break-all;}
+  .ref-table .why{display:block;color:var(--dim);font-size:.78rem;margin-top:.2rem;white-space:normal;}
+  .ref-table .st{white-space:nowrap;}
+  .min-note{font-size:.84rem;line-height:1.5;margin:.6rem 0 1rem;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--line-soft);color:var(--dim);}
+  .min-note.warn,.min-note.bad{color:var(--warn);border-color:rgba(216,176,74,0.35);background:rgba(216,176,74,0.06);}
+  .min-note.ok{color:var(--ok);border-color:rgba(107,191,138,0.3);}
+  @media (max-width:600px){
+    .ref-table th.w,.ref-table td.w{display:none;}
+    .ref-card{padding:.9rem .8rem;}
+  }
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
@@ -280,6 +297,7 @@
         <div class="side-links">
           <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
           <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
+          <a class="side-link" id="all-link" href="baseline.html" hidden>All students</a>
         </div>
       </div>
 
@@ -295,6 +313,10 @@
         <div class="row">
           <div class="lab">Baseline<b id="s-verdict-sub">from the readiness check</b></div>
           <div class="val txt" id="s-verdict">-</div>
+        </div>
+        <div class="row">
+          <div class="lab">Minimum for a reading<b id="s-min-sub">3 papers and 300 words in all</b></div>
+          <div class="val txt" id="s-min">-</div>
         </div>
       </div>
 
@@ -340,6 +362,14 @@
           </div>
         </div>
 
+        <div id="ref-overview" hidden>
+          <div class="sec-h"><b>Reference papers by student</b><span id="ref-sum"></span></div>
+          <div class="card ref-card">
+            <div class="rule-note" id="ref-rule"></div>
+            <div id="ref-list"><div class="live-empty">Loading</div></div>
+          </div>
+        </div>
+
         <div id="sections">
           <div>
             <div class="sec-h"><b>The short version</b><span>what the baseline holds, in plain words</span></div>
@@ -382,6 +412,7 @@
               <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
+                <div class="min-note" id="add-min" role="status" hidden></div>
                 <div class="seg" role="group" aria-label="How to add writing">
                   <button type="button" data-tab="paste" aria-pressed="true">Paste text</button>
                   <button type="button" data-tab="files" aria-pressed="false">Upload files</button>
@@ -430,9 +461,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-10-11.1"></script>
-<script src="js/feature-data.js?v=2026-10-11.1"></script>
-<script src="live.js?v=2026-10-11.1"></script>
+<script src="js/fingerprint.js?v=2026-10-15.1"></script>
+<script src="js/feature-data.js?v=2026-10-15.1"></script>
+<script src="live.js?v=2026-10-15.1"></script>
 <script>
 (function(){
   'use strict';
@@ -571,6 +602,7 @@
     $('analyse-link').href='writing-state.html?student='+enc(ID);
     $('analyse-link').hidden=!(isOpen()&&(S.known||S.status==='ok'));
     $('add-link').hidden=!canAdd();
+    $('all-link').hidden=false;
   }
 
   function renderStats(){
@@ -583,6 +615,44 @@
     vv.className='val txt'+(v?' '+VERDICT[v].cls:'');
     vv.textContent=Live.verdictWord(v);
     $('s-verdict-sub').textContent=v?VERDICT[v].sub:'from the readiness check';
+    renderMinimum(n);
+  }
+
+  // Where the student stands against the minimum for a reading (Live.referenceStatus):
+  // a short value in the stats card and, above the add-writing forms, what to add.
+  function renderMinimum(n){
+    const r=S.ready;
+    const papers=n!==null?n:(S.status==='none'?0:null);
+    const words=r?Live.referenceWords(r):(S.status==='none'?0:null);
+    const m=Live.referenceStatus(papers,words);
+    const mv=$('s-min');
+    mv.className='val txt'+(m.tone==='ok'?' ok':m.tone==='off'?'':' warn');
+    mv.textContent=m.met===true?'Met':papers===0?'No papers':m.met===false?'Below':'-';
+    $('s-min-sub').textContent=papers===null?'3 papers and 300 words in all':
+      papers+' of 3 papers · '+(words===null?'words not known':words+' of 300 words');
+    const note=$('add-min');
+    note.hidden=!(ID&&isOpen()&&papers!==null);
+    note.className='min-note '+m.tone;
+    note.textContent=(nm()&&nm()!==ID?nm()+': ':'')+m.text;
+  }
+
+  // ── reference papers by student (no student chosen) ──
+  function renderOverview(list){
+    $('ref-overview').hidden=false;
+    $('ref-rule').textContent='Each student needs '+Live.REFERENCE_MINIMUM+' before Original compares new writing with theirs; below that, its reading is inconclusive. Choose a name to add or read their papers.';
+    const rows=list.map(s=>({s:s,m:Live.referenceStatus(s.samples,s.words)}));
+    const met=rows.filter(x=>x.m.met===true).length;
+    $('ref-sum').textContent=met+' of '+plural(list.length,'student')+' meet the minimum';
+    const cls={ok:'in',warn:'wait',bad:'wait',off:'off'};
+    $('ref-list').innerHTML='<table class="ref-table" aria-label="Reference papers by student"><thead><tr>'+
+      '<th scope="col">Student</th><th scope="col" class="n">Papers</th><th scope="col" class="n w">Words</th><th scope="col">Minimum</th>'+
+      '</tr></thead><tbody>'+rows.map(x=>{
+        const s=x.s, m=x.m;
+        return '<tr><td><a href="baseline.html?student='+esc(enc(s.id))+'">'+esc(String(s.name))+'</a>'+(s.email?'<span class="em">'+esc(s.email)+'</span>':'')+'</td>'+
+          '<td class="n">'+(num(s.samples)===null?'-':esc(s.samples))+'</td>'+
+          '<td class="n w">'+(num(s.words)===null?'-':esc(s.words))+'</td>'+
+          '<td><span class="st '+cls[m.tone]+'"><span class="d"></span>'+esc(m.short)+'</span>'+(m.need?'<span class="why">'+esc(m.need)+'</span>':'')+'</td></tr>';
+      }).join('')+'</tbody></table>';
   }
 
   function renderPurity(){
@@ -1205,6 +1275,7 @@
     const list=ro.students.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||(a.id<b.id?-1:a.id>b.id?1:0));
     sel.innerHTML='<option value="">Choose a student</option>'+list.map(s=>'<option value="'+esc(s.id)+'">'+esc(String(s.name))+'</option>').join('');
     sel.disabled=false;
+    renderOverview(list);
     sel.addEventListener('change',()=>{ if(sel.value) location.href='baseline.html?student='+enc(sel.value); });
   }
 
