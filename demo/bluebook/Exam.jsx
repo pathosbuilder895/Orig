@@ -64,6 +64,26 @@ export function examToConfig(detail, extra = {}) {
   };
 }
 
+// A refresh (or a crash) during a sitting reloads the app on the student's
+// home. The exam screen remembers, for this tab only, which exam is being
+// written, so the home takes the student straight back to its briefing,
+// where "Resume Examination" continues with the writing saved on the device.
+// The memory is used once: a student who then chooses "My exams" stays there.
+const BB_RESUME_KEY = 'bb_resume_exam';
+export function rememberSitting(examId) {
+  try {
+    if (examId) sessionStorage.setItem(BB_RESUME_KEY, String(examId));
+    else sessionStorage.removeItem(BB_RESUME_KEY);
+  } catch (e) {}
+}
+export function takeSittingToResume(exams) {
+  let id = '';
+  try { id = sessionStorage.getItem(BB_RESUME_KEY) || ''; sessionStorage.removeItem(BB_RESUME_KEY); } catch (e) {}
+  if (!id) return null;
+  const e = (exams || []).find(x => x && x.exam_id === id);
+  return e && e.session && !e.submitted ? e : null;
+}
+
 // The on-device draft for one exam (see ExamScreen's draft persistence).
 // It belongs to the student who wrote it: on a shared computer, an unsent
 // draft left by one student must never open in another student's booklet,
@@ -150,6 +170,12 @@ export function bbLockOriginalDecision(cfg, withOriginal) {
   } catch (e) { return null; }
 }
 
+// What a student in a workspace that holds Original is told about their
+// sealed booklet (NORTH_STAR rule 10): it may become reference writing. Said
+// without scoring words; whether this exam compares anything is a separate
+// line, shown only when the teacher switched writing consistency on.
+export const REFERENCE_WRITING_LINE = 'Your teacher may choose to keep this booklet as reference writing, a sample of your own writing, and can undo that.';
+
 // Build the enforced-conditions list from a config object. Each line says
 // what this page actually does. A web page cannot block other applications
 // or AI tools, so it says what is not permitted and what is recorded,
@@ -164,7 +190,7 @@ function buildConditions(cfg, withOriginal) {
     withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
     cfg.phoneBlk  && 'Please silence your phone and other devices.',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
-    withOriginal  && 'Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.',
+    withOriginal  && REFERENCE_WRITING_LINE,
   ].filter(Boolean);
 }
 
@@ -555,6 +581,11 @@ export function BriefingScreen({ onNavigate }) {
               <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
               {limits && ` ${limits}`} Your work saves itself on this device as you write. The clock starts when you open the booklet.
             </p>
+            {cfg.inProgress && (
+              <p role="status" className="bk-cover-note state">
+                You have already started this exam. Your writing is saved on this device, and the clock has kept running. Choose Resume to carry on.
+              </p>
+            )}
             {cfg.closesAt && (
               <p className="bk-closes">Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             )}
@@ -585,7 +616,7 @@ export function BriefingScreen({ onNavigate }) {
               </button>
             )}
             <p className="bk-cover-note">Once you begin, the clock keeps running, even if you close this page</p>
-            <p className="bk-cover-note">{withOriginal ? 'Original · Collections · quiet by design' : 'Collections · quiet by design'}</p>
+            <p className="bk-cover-note">Collections · quiet by design</p>
           </div>
         </div>
       </div>
@@ -892,6 +923,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       // Sealed and delivered: the on-device draft has served its purpose.
       try { localStorage.removeItem(draftKey); } catch (e) {}
     }
+    // Sealed, or refused for good (already submitted): nothing to come back to.
+    if ((result && result.ok) || bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message)) rememberSitting(null);
     window.BB_LAST_SUBMISSION = {
       words: wordCount(finalText),
       title: cfg.title,
@@ -902,6 +935,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       error: (result && result.ok) ? null : String((lastError && lastError.message) || lastError || 'seal failed'),
       aiScore: seal.aiScore,
       withOriginal,
+      // Whether this sitting was compared at all: only when the teacher
+      // switched writing consistency on for the exam.
+      compared: !!(withOriginal && cfg.aiDetect),
       expired: !!seal.expired,
       alreadySubmitted: !(result && result.ok) && bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message),
       draftKey,
@@ -987,6 +1023,12 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     if (timeLeft > 0 || !cfg.duration) return;
     handleSubmit({ force: true, expired: true });
   }, [timeLeft]);
+
+  // A student's refresh reloads the app on their home screen, which brings
+  // them back to this exam's briefing (Account.jsx, takeSittingToResume).
+  useExEffect(() => {
+    if (bbIsStudent() && cfg.id) rememberSitting(cfg.id);
+  }, []);
 
   // Persist a sitting decision taken on this mount at once, so a reload keeps
   // it before the student has written anything. Silent: with no writing
@@ -1082,7 +1124,16 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       on(document, 'contextmenu', (e) => e.preventDefault());
       on(document, 'keydown', (e) => {
         const k = (e.key || '').toLowerCase();
-        if ((e.ctrlKey || e.metaKey) && (k === 'c' || k === 'x' || k === 'v')) e.preventDefault();
+        if ((e.ctrlKey || e.metaKey) && (k === 'c' || k === 'x' || k === 'v')) {
+          e.preventDefault();
+          // A paste stopped at the key press never reaches the answer box's
+          // onPaste, so the student would press Ctrl/Cmd+V and see nothing
+          // happen. Say why and note the attempt, exactly as onPaste does.
+          if (k === 'v' && !e.repeat && !lockedRef.current) {
+            pastesRef.current += 1;
+            recordWarning(BB_NOTICE.paste_blocked, 'paste_blocked');
+          }
+        }
       });
     }
     return () => off.forEach(([t, ty, fn, o]) => t.removeEventListener(ty, fn, o));
@@ -1344,7 +1395,11 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const transmitFailed = sub.ok === false;
   const isStudent = bbIsStudent();
   const studentAccount = BB_API.isStudentAccount();
-  const compared = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
+  // A booklet is compared only when the teacher switched writing consistency
+  // on for the exam; in any workspace that holds Original it may become
+  // reference writing. Neither is said in a Bluebook-only workspace.
+  const withOriginal = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
+  const compared = withOriginal && sub.compared === true;
   // Focus the result, so a keyboard or screen-reader user arriving from the
   // seal button (now gone) starts here rather than at the top of the page.
   const headRef = useExRef(null);
@@ -1395,7 +1450,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                 <h1 ref={headRef} tabIndex={-1}>Examination Sealed</h1>
                 <p>
                   Your examination has been received, sealed, and submitted
-                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.'}
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work, as a starting point for your teacher, never proof of anything.'}{withOriginal && ` ${REFERENCE_WRITING_LINE}`}
                 </p>
                 {sub.expired && (
                   <p>Time ran out, so your booklet was sealed with everything you had written.</p>

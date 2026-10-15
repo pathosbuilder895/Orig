@@ -1,9 +1,9 @@
 import React from 'react';
-import { BB, BB_API, fontBody } from './components.jsx';
+import { BB, BB_API, BtnPrimary, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, when,
 } from './forms.jsx';
-import { examToConfig } from './Exam.jsx';
+import { examToConfig, takeSittingToResume } from './Exam.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Self-serve accounts
@@ -46,13 +46,20 @@ export function LegalLinks() {
 }
 
 // The terms checkbox a teacher ticks at signup, and an invited professor
-// ticks when setting their first password.
-function TermsCheckbox({ id, checked, onChange }) {
+// ticks when setting their first password. A student's invitation asks them
+// to read the student notice as well (`student`).
+function TermsCheckbox({ id, checked, onChange, student = false }) {
   return (
     <label className="bb-check" style={{ marginBottom: 16 }}>
       <input id={id} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span>I agree to the <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>terms of service</a> and
-        {' '}<a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>privacy policy</a>.</span>
+      {student ? (
+        <span>I have read the <a href="../legal/student-notice.html" target="_blank" rel="noopener" style={legalLink}>student notice</a> and
+          agree to the <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>terms of service</a> and
+          {' '}<a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>privacy policy</a>.</span>
+      ) : (
+        <span>I agree to the <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>terms of service</a> and
+          {' '}<a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>privacy policy</a>.</span>
+      )}
     </label>
   );
 }
@@ -122,6 +129,34 @@ function inviteNeedsTermsFromUrl() {
   try { return new URLSearchParams(window.location.search).get('terms') === '1'; } catch (e) { return false; }
 }
 
+// What kind of link opened the set-password screen: a professor's invitation
+// ('teacher', it ends in &terms=1), a password reset from the reset email
+// ('reset', ?reset=), or a student's invitation from a course roster
+// ('student', every other ?invite= link).
+export function inviteKind(search) {
+  try {
+    const q = new URLSearchParams(search || '');
+    if (q.get('terms') === '1') return 'teacher';
+    if (q.has('reset') && !q.has('invite')) return 'reset';
+    return 'student';
+  } catch (e) { return 'student'; }
+}
+
+// The server gives one answer for every link it will not take (unknown,
+// expired, voided or already used), so the route cannot be used to probe
+// tokens (original/routers/auth.py). The screen says what to do next instead.
+const LINK_REFUSED = /invalid, expired, or already used/i;
+export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+  + 'If you have already set your password, sign in with your email and password. If not, ask your teacher for a new link.';
+export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be used. Please open the whole link from your invitation, '
+  + 'or ask your teacher for a new one. If you have already set your password, sign in instead.';
+
+// What the set-password screen says when the server refuses a link.
+export function inviteErrorText(message) {
+  if (LINK_REFUSED.test(String(message || ''))) return INVITE_LINK_USED;
+  return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.';
+}
+
 function clearInviteFromUrl() {
   try {
     const url = new URL(window.location.href);
@@ -132,48 +167,92 @@ function clearInviteFromUrl() {
   } catch (e) {}
 }
 
+// Leave the set-password screen for the sign-in page, dropping the link's
+// code from the address bar so the sign-in page does not reopen this one.
+function toSignIn(onNavigate) {
+  clearInviteFromUrl();
+  onNavigate('login');
+}
+
 export function InviteScreen({ onNavigate }) {
   const [token] = useState(inviteTokenFromUrl);
+  const [kind] = useState(() => inviteKind(window.location.search));
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
   // Shown for a professor's invitation, or once the server asks for it (a
   // link that lost its terms=1, or a reset link before the first password).
   const [needTerms, setNeedTerms] = useState(inviteNeedsTermsFromUrl);
+  // A student's invitation asks them to read the student notice and accept
+  // the terms before their first sign-in. The server records a teacher's
+  // acceptance (original/routers/auth.py); for a student this step is the
+  // screen's own, and the request carries accept_terms like a teacher's.
+  const studentTerms = kind === 'student' && !needTerms;
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(token ? '' : 'This link is missing its code. Ask your teacher for a new one, or use “Forgot password”.');
+  const [error, setError] = useState('');
+  // The link itself cannot be used (no code, or the server refused it): the
+  // form gives way to what to do next.
+  const [linkDead, setLinkDead] = useState(!token);
 
   async function submit(e) {
     e.preventDefault();
     if (busy || !token) return;
     const problem = passwordProblem(pw, confirm);
     if (problem) { setError(problem); return; }
-    if (needTerms && !agree) { setError('Please accept the terms and privacy policy to continue.'); return; }
+    if ((needTerms || studentTerms) && !agree) {
+      setError(studentTerms
+        ? 'Please tick the box to say you have read the student notice and accept the terms.'
+        : 'Please accept the terms and privacy policy to continue.');
+      return;
+    }
     setError('');
     setBusy(true);
     try {
-      const data = await BB_API.redeemInvite(token, pw, needTerms && agree);
+      const data = await BB_API.redeemInvite(token, pw, (needTerms || studentTerms) && agree);
       clearInviteFromUrl();
       onNavigate(homeFor(data));
     } catch (err) {
       if (err.message === TERMS_REFUSAL) setNeedTerms(true);
-      setError(err.message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
+      if (LINK_REFUSED.test(err.message || '')) setLinkDead(true);
+      setError(inviteErrorText(err.message));
       setBusy(false);
     }
   }
 
+  const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
+  const signInLine = (
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+      Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
+    </p>
+  );
+
+  if (linkDead) {
+    return (
+      <AuthShell title={title} footer={<LegalLinks />}>
+        <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{token ? (error || INVITE_LINK_USED) : INVITE_LINK_MISSING}</p>
+        <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: 17 }}>Go to sign in</BtnPrimary>
+        <p className="bb-hint" style={{ marginTop: 16 }}>
+          Forgot your password? Use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.
+        </p>
+      </AuthShell>
+    );
+  }
+
   return (
-    <AuthShell title="Set your password" footer={<LegalLinks />}>
+    <AuthShell title={title} footer={<>{signInLine}<LegalLinks /></>}>
       <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
-        Choose a password for your Collections account. You will use it with your
-        email address to sign in from now on.
+        {kind === 'reset'
+          ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
+          : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
       </p>
       <form onSubmit={submit}>
         <Field id="bbInvitePass" label="New password" type="password" value={pw} onChange={setPw}
           autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
         <Field id="bbInviteConfirm" label="Confirm password" type="password" value={confirm}
           onChange={setConfirm} autoComplete="new-password" />
-        {needTerms && <TermsCheckbox id="bbInviteTerms" checked={agree} onChange={setAgree} />}
+        {(needTerms || studentTerms) && (
+          <TermsCheckbox id="bbInviteTerms" checked={agree} onChange={setAgree} student={studentTerms} />
+        )}
         <ErrorText>{error}</ErrorText>
         <SubmitButton busy={busy} busyLabel="Saving…">Save and continue</SubmitButton>
       </form>
@@ -272,10 +351,16 @@ export function AccountScreen() {
 // refreshed by every student-home load), and a Bluebook-only workspace sees
 // the shell it always had. The pages check the session themselves.
 export const STUDENT_ORIGINAL_LINKS = [['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']];
+// Not offered to students in this pilot phase, even where the workspace holds
+// Original: "My work" shows Original's reading of a pasted piece, and during
+// the pilot a student never sees a comparison of their writing (NORTH_STAR
+// "Not doing now" defers the "My Voice" pages). The pages themselves are
+// unchanged; set this to true to offer them again.
+export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
-  const studentOriginalLinks = BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
+  const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
   const tab = (key, label) => (
     <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
   );
@@ -321,6 +406,24 @@ export async function openStudentExam(examId, onNavigate) {
   onNavigate('briefing');
 }
 
+// The order a student's exams are listed in: a sitting in progress first,
+// then open, upcoming and closed exams, then what they have submitted. The
+// server lists exams newest first; inside each group the oldest comes first,
+// so the first exam a teacher set ("Practice prompt 1") sits above the next.
+const EXAM_STATE_ORDER = { open: 0, upcoming: 1, closed: 2 };
+export function sortStudentExams(exams) {
+  const rank = e => [
+    e.submitted ? 1 : 0,
+    e.session && !e.submitted ? 0 : 1,
+    EXAM_STATE_ORDER[e.state] ?? 3,
+  ];
+  return (exams || []).map((e, i) => ({ e, i })).sort((a, b) => {
+    const ra = rank(a.e), rb = rank(b.e);
+    for (let k = 0; k < ra.length; k++) if (ra[k] !== rb[k]) return ra[k] - rb[k];
+    return b.i - a.i;
+  }).map(x => x.e);
+}
+
 // What a student is told when one of their own requests fails: plain words
 // for "not there" and "not yours", the fallback for anything the server did
 // not explain, and never a bare "exam not found".
@@ -342,7 +445,12 @@ export function StudentHomeScreen({ onNavigate }) {
   useEffect(() => {
     let live = true;
     Promise.all([BB_API.me(), BB_API.myExams(), BB_API.mySubmissions()])
-      .then(([m, e, s]) => { if (live) { setMe(m); setExams(e); setSubs(s); } })
+      .then(([m, e, s]) => {
+        if (!live) return;
+        setMe(m); setExams(e); setSubs(s);
+        const resume = takeSittingToResume(e);
+        if (resume) open(resume);
+      })
       .catch(err => {
         if (!live) return;
         if (err.status === 401 || /sign in|not authenticated/i.test(err.message || '')) {
@@ -362,9 +470,7 @@ export function StudentHomeScreen({ onNavigate }) {
 
   const courses = (me && me.courses) || [];
   const loading = exams === null;
-  const order = { open: 0, upcoming: 1, closed: 2 };
-  const sorted = (exams || []).slice().sort((a, b) =>
-    (a.submitted - b.submitted) || (order[a.state] - order[b.state]));
+  const sorted = sortStudentExams(exams);
 
   const examColumns = [
     { key: 'title', label: 'Examination', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.duration ? `${e.duration} min` : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
