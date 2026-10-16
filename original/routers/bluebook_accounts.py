@@ -180,6 +180,10 @@ def roster_remove(course_id: str, student_id: str, request: Request):
     course = _owned_course(course_id, request)
     if not _repo().delete_enrollment(course_id, student_id):
         raise HTTPException(status_code=404, detail="student is not on this course")
+    # An unused set-password link would re-enrol the student on redemption;
+    # void it so removal also revokes the link (matters when links never
+    # expire, INVITE_NO_EXPIRY=1). Accounts already set up are unaffected.
+    _repo().void_invites_for_user(student_id)
     _repo().log_audit(
         action="bluebook_roster_remove",
         tenant_id=course["tenant_id"],

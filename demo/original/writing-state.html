@@ -1018,7 +1018,7 @@
     const a=bc?num(bc.authenticated_count):null, e=bc?num(bc.effective_sample_count):null;
     if(a==null||e==null) return null;
     if(a>=5&&e>=3) return 'ready';
-    if(a>=2) return 'developing';
+    if(a>=3) return 'developing';
     return 'insufficient';
   }
   const verdictNow=()=>S.verdict||(S.result?resultVerdict():null);

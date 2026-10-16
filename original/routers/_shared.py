@@ -687,3 +687,18 @@ def _audit_maintenance_access(username: str, remote: str) -> None:
         remote,
         datetime.datetime.utcnow().isoformat() + "Z",
     )
+
+
+DEFAULT_MIN_BASELINE_SAMPLES = 3
+
+
+def min_baseline_samples() -> int:
+    """Approved baseline papers required before Original scores a student.
+
+    Default 3. ``MIN_BASELINE_SAMPLES`` may raise it (or lower it for research
+    harnesses); values below 1 fall back to 1."""
+    raw = os.environ.get("MIN_BASELINE_SAMPLES", "").strip()
+    try:
+        return max(1, int(raw)) if raw else DEFAULT_MIN_BASELINE_SAMPLES
+    except ValueError:
+        return DEFAULT_MIN_BASELINE_SAMPLES
