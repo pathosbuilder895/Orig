@@ -17,6 +17,9 @@ import os
 # this line deleted (Settings just falls back to its "development" default), so
 # it is belt-and-braces for the dormant config, not a live-stack requirement.
 os.environ.setdefault("ENVIRONMENT", "testing")
+# Existing /me/voice tests exercise the read-model; the pilot default (off) is
+# covered by tests/test_alpha_followups.py.
+os.environ.setdefault("STUDENT_ORIGINAL_PAGES", "1")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-" * 5)
 # Safety default for the LIVE-schema engine (original/db/postgres_session.py
 # reads DATABASE_URL from the environment): any stray, unguarded engine build
