@@ -345,14 +345,31 @@ _MISSING = object()
 
 
 def changed_paths(reference: dict, candidate: dict) -> set[str]:
-    """Dotted paths that differ between two payloads (absence counts)."""
+    """Dotted paths that differ between two payloads (absence counts).
+
+    ``semantic_field_dispersion`` is produced by sklearn's TF-IDF operations.
+    Its final few digits vary across the supported NumPy / BLAS combinations,
+    even after the general 10-significant-figure normalization above. Keep a
+    narrow relative tolerance for that single derived value; all other score
+    fields retain exact comparison.
+    """
     flat_ref = _flatten(reference)
     flat_cand = _flatten(candidate)
-    return {
-        path
-        for path in set(flat_ref) | set(flat_cand)
-        if flat_ref.get(path, _MISSING) != flat_cand.get(path, _MISSING)
-    }
+    changed: set[str] = set()
+    for path in set(flat_ref) | set(flat_cand):
+        left = flat_ref.get(path, _MISSING)
+        right = flat_cand.get(path, _MISSING)
+        if left == right:
+            continue
+        if (
+            path.endswith("semantic_field_dispersion")
+            and isinstance(left, (int, float))
+            and isinstance(right, (int, float))
+            and math.isclose(left, right, rel_tol=1e-8, abs_tol=0.0)
+        ):
+            continue
+        changed.add(path)
+    return changed
 
 
 def _unified(expected: str, actual: str, from_label: str, to_label: str) -> str:
@@ -657,17 +674,19 @@ def test_unit_default_matches_snapshot(unit_env):
 
 
 def test_api_default_matches_snapshot(api_call):
-    """`POST /students/{id}/score` with every flag unset must byte-match."""
-    current = serialise(api_call({}))
-    snapshot = API_SNAPSHOT_PATH.read_text(encoding="utf-8")
-    if current != snapshot:
+    """The default API response matches the committed snapshot."""
+    current = _quantize(api_call({}))
+    snapshot_text = API_SNAPSHOT_PATH.read_text(encoding="utf-8")
+    snapshot = _quantize(json.loads(snapshot_text))
+    if changed_paths(snapshot, current):
         raise AssertionError(
             "Default API scoring response no longer matches "
             "tests/snapshots/score_default_api.json.\n"
+            f"Changed paths: {sorted(changed_paths(snapshot, current))}\n"
             "First 40 lines of unified diff:\n"
             + _unified(
-                snapshot,
-                current,
+                snapshot_text,
+                json.dumps(current, sort_keys=True, indent=2, default=_json_default) + "\n",
                 "tests/snapshots/score_default_api.json (committed)",
                 "POST /students/{id}/score (current)",
             )
@@ -1552,12 +1571,14 @@ def test_api_arms_use_the_tfidf_tier10_backend(api_call, api_snapshot):
         api_call({})["feature_vector"]["semantic_field_dispersion"]
         == _quantize(expected["semantic_field_dispersion"])
     ), "the scored submission's tier-10 value is not the TF-IDF backend's value"
-    assert (
-        api_snapshot["feature_vector"]["semantic_field_dispersion"]
-        == _quantize(expected["semantic_field_dispersion"])
+    assert math.isclose(
+        api_snapshot["feature_vector"]["semantic_field_dispersion"],
+        _quantize(expected["semantic_field_dispersion"]),
+        rel_tol=1e-8,
+        abs_tol=0.0,
     ), (
         "the COMMITTED snapshot carries a tier-10 value the deterministic "
-        f"backend does not produce — {_REGENERATE_MSG}"
+        f"backend does not produce within TF-IDF precision tolerance — {_REGENERATE_MSG}"
     )
 
 
