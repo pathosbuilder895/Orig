@@ -185,10 +185,13 @@ def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
     token = body.token.strip()
     pending = invites_mod.find_redeemable(token)
     pending_user = _repo().get_user(pending["user_id"]) if pending else None
-    needs_terms = bool(
-        pending_user
-        and pending_user["role"] != "student"
-        and not users_mod.is_activated(pending_user)
+    first_activation = bool(pending_user and not users_mod.is_activated(pending_user))
+    needs_terms = bool(first_activation and pending_user["role"] != "student")
+    # A student ticks the student notice in the browser; record that the server
+    # saw it, in the same audit row staff acceptance uses. Not yet required, so
+    # an older client without the box still works (consent proper is #286).
+    student_terms = bool(
+        first_activation and pending_user["role"] == "student" and body.accept_terms
     )
     if needs_terms and not body.accept_terms:
         raise HTTPException(status_code=422, detail=_TERMS_REQUIRED)
@@ -209,7 +212,7 @@ def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
         tenant_id=user["tenant_id"],
         actor=user["email"],
         result="ok",
-        details={"terms_version": TERMS_VERSION} if needs_terms else None,
+        details={"terms_version": TERMS_VERSION} if (needs_terms or student_terms) else None,
     )
     return _session_payload(user)
 

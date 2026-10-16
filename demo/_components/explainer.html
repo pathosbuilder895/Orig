@@ -144,7 +144,7 @@
 
 <h3>Jump to</h3>
 <ul class="anchor-list">
-  <li><a href="#fingerprint">Voice portrait</a></li>
+  <li><a href="#portrait">Voice portrait</a></li>
   <li><a href="#arc">Voice arc</a></li>
   <li><a href="#voiceNotes">Voice notes</a></li>
   <li><a href="#milestones">Milestones</a></li>
@@ -160,7 +160,7 @@
 
 <hr>
 
-<h2 id="fingerprint">Voice portrait</h2>
+<h2 id="portrait">Voice portrait</h2>
 <p>Your writing is summarised into <strong>seven blended dimensions</strong> — Cadence, Diction, Texture, Register, Restraint, Architecture, and Resonance. Each one is a blend of underlying measurements, so a single number on the chart does not correspond to a single feature. The blends are the same for every student.</p>
 <p>The radar you see on the student dashboard is a picture of those seven dimensions. The shape itself is not a grade; it is a recognisable outline of how you write.</p>
 
@@ -176,7 +176,7 @@
 <ul>
   <li><strong>Voice Sampled</strong> — your first piece is on file.</li>
   <li><strong>Voice Established</strong> — enough is on file that the system recognises your patterns.</li>
-  <li><strong>Voice Affirmed</strong> — at least one verified piece confirms the voice is genuinely yours.</li>
+  <li><strong>Voice Affirmed</strong> — at least one verified piece is on file that your instructor confirmed as yours.</li>
 </ul>
 
 <h2 id="formation">Formation pathway</h2>
@@ -196,9 +196,10 @@
 <h2 id="review">Worth a conversation</h2>
 <p>When part of a submission reads differently from your established voice, the system surfaces it as an invitation to look at the piece together. <strong>It is not a score. It is not a verdict. It is not an action.</strong> The intent is formation, not surveillance.</p>
 
-<h2 id="deviation">How the score is computed</h2>
-<p>Each submission is compared with the established voice across <strong>many stylometric features, grouped in tiers</strong>: sentence rhythm, character habits, function-word patterns, citation style, and so on — all measured from the text itself. The comparison produces a <em>deviation</em> in [0, 1].</p>
-<p>We present that as <strong>authenticity = (1 − deviation) × 100</strong>, expressed as a percentage. A 90% authenticity reading means the submission stays very close to the established voice; a 30% reading means the system is having trouble recognising it.</p>
+<h2 id="deviation">What the reading means</h2>
+<p><strong>Writing consistency is in testing.</strong> Each submission is compared with the established voice across many stylometric features, grouped in tiers: sentence rhythm, character habits, function-word patterns, citation style, and so on, all measured from the text itself. The comparison produces a <em>deviation</em> in [0, 1].</p>
+<p>The result is a <strong>writing-consistency reading</strong>: how closely this piece follows the writing already on file. It is not a judgement about who wrote the piece, and it is not a probability. A high reading means the piece stays close to the established voice; a low reading means it reads differently, which has many ordinary causes, such as a new genre, a different prompt, heavy revision, or too little writing on file.</p>
+<p><strong>Inconclusive is a valid result.</strong> When there isn't enough writing on file, or the piece is too short to compare, the system says so instead of guessing. Every reading is a prompt for a conversation, never a decision on its own.</p>
 
 <h2 id="tiers">Tier breakdown</h2>
 <p>The tiers group the features by what they measure. Some are highly resistant to editing — character n-grams, error patterns, citation habits — and those tiers weight a little more heavily when something unusual appears. The instructor view shows the full tier breakdown; the student view stays at the seven blended dimensions.</p>
