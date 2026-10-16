@@ -458,6 +458,12 @@ export async function bbScoreWithOriginal(studentId, text, assignment, submissio
       }),
     });
     if (r.status === 403) return BB_ORIGINAL_OFF;
+    if (r.status === 422) {
+      // Fewer than 3 approved baseline papers: Original returns no score.
+      const err = await r.json().catch(() => null);
+      if (err && err.detail && err.detail.code === 'insufficient_baseline') return BB_NOT_ENOUGH_REFERENCE;
+      return null;
+    }
     if (!r.ok) return null;
     const data = await r.json();
     const a = data && data.authorship;
