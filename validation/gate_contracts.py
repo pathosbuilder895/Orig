@@ -43,6 +43,7 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g_s1_study_operating_point,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
@@ -61,6 +62,29 @@ class GateContract:
 
 
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_s1_study_operating_point": GateContract(
+        gate="G-S1",
+        claims="study operating point, out of sample: natural false flags <= 5%, "
+               "AUC above chance, shadow catch > 5%",
+        # 6/40 natural attempts flagged (15%) at an otherwise strong operating
+        # point: leg A fails on the observed rate, so the gate fails even
+        # though B and C would pass. A false alarm on an honest student is the
+        # failure this gate exists to catch (NORTH_STAR rule 4).
+        failure_witness=lambda: evaluate_g_s1_study_operating_point(
+            6, 40, 30, 40, auc=0.85, auc_ci95=(0.75, 0.93), n_students=40,
+        ),
+        # Shuffled natural/shadow labels: the score no longer tells the two
+        # apart, so AUC sits at chance and the flag fires on both kinds at
+        # the same rate. Leg B fails on AUC <= 0.5 whatever the rates are.
+        label_destruction=lambda: evaluate_g_s1_study_operating_point(
+            2, 40, 2, 40, auc=0.5, auc_ci95=(0.38, 0.62), n_students=40,
+        ),
+        notes=(
+            "The gate reads only out-of-sample evidence (leave-one-student-out "
+            "or a fresh cohort); in-sample numbers make it uninformative, because "
+            "a threshold chosen on the same rows meets its cap by construction."
+        ),
+    ),
     "evaluate_g_t1_honest_term": GateContract(
         gate="T-1", claims="honest-term action budget",
         failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),
