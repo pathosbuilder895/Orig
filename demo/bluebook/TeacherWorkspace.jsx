@@ -47,21 +47,34 @@ function usePillFade(ref, deps) {
   }, deps);
 }
 
+// The avatar's letters: the first letter of the first two words of the
+// teacher's name, letters and digits only ("Andrew (Alpha test)" is "AA",
+// never "A("). "T" when there is no name to read.
+export function avatarInitials(name) {
+  const words = String(name || '').split(/\s+/).map(w => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean);
+  return words.slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'T';
+}
+
+// The way from Collections into Original, labelled as in testing wherever it
+// is offered (NORTH_STAR rule 10).
+export const ORIGINAL_NAV_LABEL = 'Original (in testing) ↗';
+
 export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
   const pills = useRef(null);
   usePillFade(pills, [active, demo]);
   const identity = demo ? {name: 'Professor · demonstration'} : BB_API.identity();
-  const initials = (identity.name || 'Teacher').split(/\s+/).slice(0, 2).map(n => n[0]).join('');
+  const initials = avatarInitials(identity.name);
   const items = demo
     ? [['Overview','overview'],['Students','students'],['Submissions','submissions'],['Collections','sessions'],['Reports','reports']]
-    : [['Overview','dashboard'],['Collections','sessions'],['Examinations','exams'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
+    : [['Overview','dashboard'],['Sessions','sessions'],['Examinations','exams'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
   const withOriginal = !demo && BB_API.hasOriginal();
   return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame">
     <nav className="teacher-nav" aria-label="Teacher navigation">
-      <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo || BB_API.hasOriginal() ? 'Original' : 'Collections'}</div>
+      {/* The app is Collections; Original is the link below when the workspace holds it. */}
+      <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo ? 'Original' : 'Collections'}</div>
       <div ref={pills} className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
         {items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
-        {withOriginal && <button onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>Original Analysis ↗</button>}
+        {withOriginal && <button title="Original is in its testing phase and is not yet validated on real student writing." onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>{ORIGINAL_NAV_LABEL}</button>}
       </div>
       <div className="teacher-nav-right">
         {!demo && <>
@@ -207,7 +220,7 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
         <Stat value={open.length} label="Open now" note={open.length ? 'students can sit these' : undefined} />
         <Stat value={subs === null ? '…' : unmarked.length} label="Waiting to be marked" />
         <Stat value={unreleased.length} label="Results not yet released" />
-        <Stat value={students === null ? '…' : (students.length - invited)} label="Students signed in" note={invited ? `${invited} still invited` : undefined} />
+        <Stat value={students === null ? '…' : (students.length - invited)} label="Students who have joined" note={invited ? `${invited} not joined yet` : undefined} />
       </div>
       {!courses.length && <div className="teacher-card teacher-list" style={{ marginBottom: '1.5rem' }}>
         <h2>Start here</h2>

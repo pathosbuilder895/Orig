@@ -700,7 +700,7 @@ body::after {
 <div class="page">
 
   <!-- ── Left: Login card ── -->
-  <div class="login-panel">
+  <div class="login-panel" id="loginPanel">
     <div class="login-inner">
 
       <div class="logo">
@@ -709,19 +709,19 @@ body::after {
         </div>
         <div class="logo-text">
           <h1>Original</h1>
-          <span>Authorship Verification</span>
+          <span>Writing consistency · in testing</span>
         </div>
       </div>
 
       <div class="card-heading">
         <h2>Welcome back</h2>
-        <p>Sign in to your institution account</p>
+        <p>Sign in to your account</p>
       </div>
 
       <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="field">
           <label for="email">Email address</label>
-          <input type="email" id="email" placeholder="you@seminary.edu" autocomplete="email" required>
+          <input type="email" id="email" placeholder="you@school.edu" autocomplete="email" required>
         </div>
         <div class="field">
           <label for="password">Password</label>
@@ -750,7 +750,7 @@ body::after {
         </a>
       </div>
 
-      <div class="card-footer">
+      <div class="card-footer" id="trustBadges">
         <div class="trust-badge">
           <div class="trust-dot" style="background:var(--green)"></div>
           Built for school use
@@ -769,7 +769,7 @@ body::after {
   </div>
 
   <!-- ── Right: 3D Visual ── -->
-  <div class="visual-panel">
+  <div class="visual-panel" id="demoVisual">
 
     <!-- Floating stat cards — ILLUSTRATIVE sample data, labeled as such.
          Real seminary names and unverifiable accuracy claims must never
@@ -779,9 +779,9 @@ body::after {
 
       <!-- Top-left: Detection accuracy -->
       <div class="float-card fc1">
-        <div class="fc-label">Writing Features Compared</div>
-        <div class="fc-value">103</div>
-        <div class="fc-sub">On every submission, against the student's own past work</div>
+        <div class="fc-label">Compared with</div>
+        <div class="fc-value">Their own work</div>
+        <div class="fc-sub">Each new piece sits beside the student's own past writing</div>
         <div class="fc-bar"><div class="fc-bar-fill" style="width:100%;background:var(--blue)"></div></div>
       </div>
 
@@ -890,7 +890,7 @@ body::after {
         <div class="ped-disk ped-disk-3"></div>
       </div>
 
-      <div class="q-label">Voice Fingerprint</div>
+      <div class="q-label">Voice portrait</div>
     </div><!-- /q-stage -->
 
     <!-- Tagline beneath sphere -->
@@ -960,14 +960,20 @@ async function handleLogin(e) {
 // exist: the role pills bypass login entirely, which is fine on a demo but a
 // foot-gun on the page a seminary professor signs in from. The server's
 // /health reports its environment; anything other than demo hides them.
+// The illustrative panel (sample institutions, figures and results) and the
+// badges go too: a teacher signing out of Original lands here, and fictional
+// numbers have no place on a real deploy (NORTH_STAR rule 2). The sign-in
+// form then takes the whole page.
 (async () => {
   try {
     const h = await fetch(`${API}/health`).then(r => r.json());
     if (h.environment && h.environment !== 'demo') {
-      for (const id of ['demoDivider', 'demoLabel', 'demoRolePills']) {
+      for (const id of ['demoDivider', 'demoLabel', 'demoRolePills', 'demoVisual', 'trustBadges']) {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
       }
+      const panel = document.getElementById('loginPanel');
+      if (panel) panel.style.width = '100%';
     }
   } catch { /* health unreachable — leave the page as-is */ }
 })();

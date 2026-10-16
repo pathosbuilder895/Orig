@@ -263,7 +263,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     { label: 'Examinations', navLabel: 'Examinations', heading: 'Examinations' },
     { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
     { label: 'Students', navLabel: 'Students', heading: 'Students' },
-    { label: 'Results', navLabel: 'Submissions', heading: 'Results' },
+    { label: 'Results', navLabel: 'Submissions', heading: 'Submissions' },
     { label: 'Proctor', navLabel: 'Proctor', heading: 'Live examination' },
     { label: 'Account', navLabel: 'Account', heading: 'Your account' },
   ]

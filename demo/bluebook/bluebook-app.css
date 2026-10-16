@@ -193,6 +193,17 @@ select.bb-input option{color:#111}
   .bb-land-footlinks{flex-wrap:wrap;gap:12px 20px!important}
 }
 
+/* New examination (NewExam.jsx). Desktop layout is inline; on phones the
+   48px bar gutters, the three-column time row and the two date-time fields
+   were wider than the screen (the page scrolled sideways at 375px). */
+@media(max-width:600px){
+  .bb-ne-bar{padding:12px 16px!important}
+  .bb-ne-bar>div:first-child>*:not(button){display:none!important}
+  .bb-ne-grid{grid-template-columns:1fr!important;gap:20px!important}
+  .bb-ne-actions{flex-wrap:wrap}
+  .bb-ne-actions>button{flex:1 1 100%;padding:12px 16px!important}
+}
+
 /* Print: an open submission prints as a clean sheet of what was sealed
    (Teacher.jsx PrintSheet, a portal on <body>). Nothing else is printed:
    no navigation, no form fields, no dark page. */

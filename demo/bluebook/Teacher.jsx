@@ -387,6 +387,49 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   );
 }
 
+// Export one examination's sealed submissions as a CSV, from the Submissions
+// screen: the alpha runbook exports Exam A and Exam B separately from here.
+// The same export is on each examination's own page. Only examinations with
+// something submitted are offered; the oldest is chosen first.
+export function ExportByExam() {
+  const [exams, setExams] = useState(null);
+  const [examId, setExamId] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    BB_API._json('GET', '/bluebook/exams').then(d => {
+      if (!live) return;
+      const list = (d.exams || []).filter(e => (Number(e.submissions) || 0) > 0);
+      setExams(list);
+      if (list.length) setExamId(list[list.length - 1].id);
+    }).catch(() => { if (live) setExams([]); });
+    return () => { live = false; };
+  }, []);
+  async function run() {
+    const exam = (exams || []).find(e => e.id === examId);
+    if (!exam) return;
+    setBusy(true); setError('');
+    try { await BB_API.downloadExport(exam.id, exam.title); }
+    catch (err) { setError(err.message || 'The export did not go through. Please try again.'); }
+    setBusy(false);
+  }
+  if (!exams || !exams.length) return null;
+  return (
+    <Panel className="bb-export" style={{ marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
+          <Select id="exportExam" label="Export one examination's submissions (CSV)" value={examId} onChange={setExamId}>
+            {exams.map(e => <option key={e.id} value={e.id}>{e.title} ({e.submissions} submitted)</option>)}
+          </Select>
+        </div>
+        <Btn primary onClick={run} disabled={busy || !examId} style={{ marginBottom: '1rem' }}>{busy ? 'Exporting…' : 'Export CSV'}</Btn>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </Panel>
+  );
+}
+
 export function AllSubmissionsScreen() {
   const [subs, setSubs] = useState(null);
   const [error, setError] = useState('');
@@ -398,6 +441,7 @@ export function AllSubmissionsScreen() {
   return (
     <Page eyebrow="Your workspace" title="Submissions" meta={error ? 'Submissions unavailable' : subs === null ? 'Loading…' : `${subs.length} sealed`}>
       <ErrorText>{error}</ErrorText>
+      {!error && <ExportByExam />}
       {error ? <Btn onClick={load}>Try again</Btn> : subs === null ? <p role="status">Loading submissions…</p> : <SubmissionsTable subs={subs} showExam onChanged={load} />}
     </Page>
   );
@@ -683,14 +727,23 @@ export function parseRosterInput(text) {
   return out;
 }
 
-function linksAsText(rows) {
-  return rows.filter(r => r.invite_path)
+// "Copy all invite links": one line per student, name, email and link,
+// separated by tabs, so the list reads as three columns when it is pasted
+// into a spreadsheet and as one line per person anywhere else.
+// Sorted by name, then email ("Volunteer 2" before "Volunteer 10"), so the
+// list reads like the roster whatever order the server made the links in.
+const byNameThenEmail = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+  || String(a.email || '').localeCompare(String(b.email || ''));
+const withLinks = rows => rows.filter(r => r.invite_path).slice().sort(byNameThenEmail);
+
+export function linksAsText(rows) {
+  return withLinks(rows)
     .map(r => `${r.name || ''}\t${r.email || ''}\t${absoluteLink(r.invite_path)}`).join('\n');
 }
 
-function linksAsCsv(rows) {
+export function linksAsCsv(rows) {
   const lines = [['name', 'email', 'invite_link', 'expires'].join(',')];
-  rows.filter(r => r.invite_path).forEach(r => lines.push([
+  withLinks(rows).forEach(r => lines.push([
     csvCell(r.name), csvCell(r.email), csvCell(absoluteLink(r.invite_path)), csvCell(r.invite_expires_at),
   ].join(',')));
   return lines.join('\n') + '\n';
@@ -721,6 +774,7 @@ export function RosterScreen({ onNavigate }) {
   const [busy, setBusy] = useState(false);
   const [mail, setMail] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
+  const [copied, setCopied] = useState(0);   // how many links the last copy put on the clipboard
 
   async function load() {
     try { setRows(await BB_API.rosterList(course.id)); }
@@ -793,6 +847,17 @@ export function RosterScreen({ onNavigate }) {
     catch (err) { setError(err.message || 'Could not delete the course.'); }
   }
 
+  async function copyAll() {
+    const n = linkRows.filter(r => r.invite_path).length;
+    if (await copyText(linksAsText(linkRows))) {
+      setCopied(n);
+      setNotice(`${n} invite link${n === 1 ? '' : 's'} copied: one line per student with their name, email and link.`);
+      setTimeout(() => setCopied(0), 2500);
+    } else {
+      setNotice('Your browser did not allow copying. Use “Download links (CSV)” instead, or copy each link from the table below.');
+    }
+  }
+
   if (!course) return null;
   const linkRows = Object.values(links);
   const invited = (rows || []).filter(r => r.state === 'invited').length;
@@ -830,18 +895,37 @@ export function RosterScreen({ onNavigate }) {
         {errors.map(r => <ErrorText key={r.email}>{r.email}: {r.error}</ErrorText>)}
       </Panel>
 
-      {linkRows.length > 0 && (
-        <Panel style={{ marginBottom: '1.5rem' }}>
-          <h2>New links ({linkRows.length})</h2>
-          <p className="bb-meta" style={{ marginBottom: '.8rem' }}>Links are shown once. Paste them into your class email or LMS, or download them.</p>
-          <div className="bb-actions">
-            <Btn onClick={async () => setNotice(await copyText(linksAsText(linkRows)) ? 'All links copied (name, email, link per line).' : 'Copy failed. Use the download instead.')}>Copy all links</Btn>
-            <Btn onClick={() => downloadText(`${(course.code || course.name || 'course').replace(/[^A-Za-z0-9]+/g, '-')}-invites.csv`, linksAsCsv(linkRows))}>Download links (CSV)</Btn>
-          </div>
+      {(linkRows.length > 0 || invited > 0) && (
+        <Panel className="bb-invite-links" style={{ marginBottom: '1.5rem' }}>
+          <h2>Invite links{linkRows.length > 0 ? ` (${linkRows.length})` : ''}</h2>
+          {linkRows.length > 0 ? (
+            <>
+              <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+                Each link works once and lasts 14 days. Links are shown only now, so copy or download them before you leave this page.
+                Send each student their own link.
+              </p>
+              <div className="bb-actions">
+                <Btn primary onClick={copyAll}>{copied ? `Copied ${copied} link${copied === 1 ? '' : 's'}` : 'Copy all invite links'}</Btn>
+                <Btn onClick={() => downloadText(`${(course.code || course.name || 'course').replace(/[^A-Za-z0-9]+/g, '-')}-invites.csv`, linksAsCsv(linkRows))}>Download links (CSV)</Btn>
+                {invited > 0 && <LinkBtn muted onClick={reissueAll} disabled={busy}>Fresh links for all {invited} waiting</LinkBtn>}
+              </div>
+              <p className="bb-hint" style={{ marginTop: '.6rem' }}>Copying gives one line per student: name, email and link, separated by tabs, so it also pastes into a spreadsheet as three columns.</p>
+            </>
+          ) : (
+            <>
+              <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+                {invited} student{invited === 1 ? ' has' : 's have'} not set a password yet. Links are shown only once, when they are made, so
+                to copy them all again, get fresh links. Each student’s earlier link then stops working.
+              </p>
+              <div className="bb-actions">
+                <Btn primary onClick={reissueAll} disabled={busy}>{busy ? 'Making links…' : `Get fresh links for all ${invited} waiting`}</Btn>
+              </div>
+            </>
+          )}
         </Panel>
       )}
 
-      <Section title="Students" actions={invited > 0 && <Btn onClick={reissueAll} disabled={busy}>Fresh links for all {invited} waiting</Btn>}>
+      <Section title="Students">
         <Table columns={columns} rows={rows || []} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />
       </Section>
       <div style={{ textAlign: 'right' }}><LinkBtn danger onClick={deleteCourse}>Delete course</LinkBtn></div>
@@ -893,6 +977,18 @@ export function StudentsScreen({ onNavigate }) {
 // ─── Proctor: live view of one exam ──────────────────────────────────────────
 const LIVE_STATUS = { not_started: 'not started', writing: 'writing', submitted: 'submitted', time_up: 'time up' };
 
+// Which open exam the live view opens on when none was chosen: the one with
+// the most students writing now, then the one with the most still to start
+// (the next sitting, during a break), then the first one the teacher set.
+// `candidates` are [{ id, counts }] in the server's order (newest first).
+export function chooseLiveExam(candidates) {
+  const list = (candidates || []).map((c, i) => ({ ...c, i }));
+  if (!list.length) return '';
+  const n = (c, k) => Number((c.counts || {})[k]) || 0;
+  list.sort((a, b) => (n(b, 'writing') - n(a, 'writing')) || (n(b, 'not_started') - n(a, 'not_started')) || (b.i - a.i));
+  return list[0].id;
+}
+
 export function ProctorLiveScreen() {
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState(window.BB_PROCTOR_EXAM || '');
@@ -900,19 +996,38 @@ export function ProctorLiveScreen() {
   const [tab, setTab] = useState('live');
   const [error, setError] = useState('');
 
+  // "Watch live" and a #live/<id> link name the exam once; the next visit
+  // from the navigation chooses afresh (the exam being written now).
+  useEffect(() => { window.BB_PROCTOR_EXAM = ''; }, []);
+  const [tick, setTick] = useState(0);   // "Refresh now"
+  // The tab, read by the exam choice below after its requests come back.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+
   useEffect(() => {
-    BB_API._json('GET', '/bluebook/exams').then(d => {
+    BB_API._json('GET', '/bluebook/exams').then(async d => {
       // Drafts are left out, except the exam this screen was opened for (a
       // deep link, deep-link.jsx), so the picker never shows another title.
       const list = (d.exams || []).filter(e => examState(e) !== 'draft' || e.id === examId);
       setExams(list);
-      if (!examId && list.length) setExamId((list.find(e => examState(e) === 'open') || list[0]).id);
+      if (examId || !list.length) return;
+      const open = list.filter(e => examState(e) === 'open').slice(0, 6);
+      // At once, so the screen never waits on an exam: the first open one the
+      // teacher set (or the newest exam when none is open).
+      const first = open.length ? chooseLiveExam(open.map(e => ({ id: e.id }))) : list[0].id;
+      setExamId(first);
+      if (open.length < 2) return;
+      // Several are open: look at each and move to the one being written, but
+      // only if the teacher has not chosen an exam or opened the phone park
+      // meanwhile (the park is kept per exam, so moving would close it).
+      const counts = await Promise.all(open.map(e => BB_API.examLive(e.id).then(l => l.counts).catch(() => null)));
+      const best = chooseLiveExam(open.map((e, i) => ({ id: e.id, counts: counts[i] })));
+      setExamId(id => (id === first && tabRef.current === 'live' ? best : id));
     }).catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
   }, []);
 
   useEffect(() => {
     if (!examId) return undefined;
-    window.BB_PROCTOR_EXAM = examId;
     let alive = true;
     const poll = () => BB_API.examLive(examId)
       .then(d => { if (alive) { setLive(d); setError(''); } })
@@ -920,7 +1035,7 @@ export function ProctorLiveScreen() {
     poll();
     const id = setInterval(poll, 15000);
     return () => { alive = false; clearInterval(id); };
-  }, [examId]);
+  }, [examId, tick]);
 
   const counts = (live && live.counts) || {};
   const columns = [
@@ -934,7 +1049,8 @@ export function ProctorLiveScreen() {
   if (tab === 'phones') window.BB_EXAM_CONFIG = { ...(window.BB_EXAM_CONFIG || {}), id: examId };
   return (
     <Page eyebrow="Proctor" title="Live examination"
-      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : 'Choose an examination to watch.'}>
+      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : (examId ? 'Loading the live view…' : 'Choose an examination to watch.')}
+      actions={examId && <Btn onClick={() => setTick(t => t + 1)}>Refresh now</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div className="bb-grid cols-2" style={{ alignItems: 'end' }}>
         <Select id="proctorExam" label="Examination" value={examId} onChange={v => { setLive(null); setExamId(v); }}>

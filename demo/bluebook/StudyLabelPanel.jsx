@@ -222,7 +222,11 @@ export function StudyLabelPanel({ exam, subs, api = BB_API }) {
       {open && (
         <>
           {routeMissing && <p role="alert" className="bb-error">{STUDY_ROUTE_MISSING}</p>}
-          {list.length === 0
+          {/* The exam view passes null until its submissions list loads (or
+              when that load failed): not the same as nobody having submitted. */}
+          {subs == null
+            ? <p className="bb-hint">The submissions have not loaded, so there is nothing to label yet.</p>
+            : list.length === 0
             ? <p className="bb-hint">Nobody has submitted yet.</p>
             : list.map(s => (
               <StudyLabelRow key={s.id} sub={s} subs={list} roster={roster || []} known={savedLabels[s.id]}
