@@ -13,17 +13,19 @@ const built = await build({
     contents: `
       import React from 'react';
       import { renderToStaticMarkup } from 'react-dom/server';
-      import { InviteScreen, inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams } from './Account.jsx';
+      import { InviteScreen, StudentReferenceScreen, StudentShell, inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams, referenceProgress, STUDENT_REFERENCE_UPLOAD } from './Account.jsx';
       import { SubmittedScreen, rememberSitting, takeSittingToResume, REFERENCE_WRITING_LINE } from './Exam.jsx';
       import { linksAsText, linksAsCsv, chooseLiveExam } from './Teacher.jsx';
       import { avatarInitials, ORIGINAL_NAV_LABEL } from './TeacherWorkspace.jsx';
       export {
-        inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams,
+        inviteKind, inviteErrorText, INVITE_LINK_USED, INVITE_LINK_USED_STAFF, INVITE_LINK_MISSING, sortStudentExams, referenceProgress, STUDENT_REFERENCE_UPLOAD,
         rememberSitting, takeSittingToResume, REFERENCE_WRITING_LINE,
         linksAsText, linksAsCsv, chooseLiveExam, avatarInitials, ORIGINAL_NAV_LABEL,
       };
       export const invite = () => renderToStaticMarkup(React.createElement(InviteScreen, { onNavigate() {} }));
       export const sealed = () => renderToStaticMarkup(React.createElement(SubmittedScreen, { onNavigate() {} }));
+      export const reference = () => renderToStaticMarkup(React.createElement(StudentReferenceScreen, { onNavigate() {} }));
+      export const shell = () => renderToStaticMarkup(React.createElement(StudentShell, { onNavigate() {}, active: 'student-home' }, null));
     `,
     resolveDir: new URL('..', import.meta.url).pathname,
     loader: 'jsx',
@@ -198,4 +200,38 @@ test('it says the writing will be compared only when the exam had writing consis
 test('the reference-writing line uses no scoring words', () => {
   assert.doesNotMatch(m.REFERENCE_WRITING_LINE, /compar|score|profile|consisten/i);
   assert.match(m.REFERENCE_WRITING_LINE, /reference writing/);
+});
+
+// ── A student's own reference papers (alpha only) ────────────────────────────
+test("a student is told how many reference papers they still need, in plain words", () => {
+  assert.equal(m.referenceProgress(0, 0).met, false);
+  assert.match(m.referenceProgress(0, 0).text, /not added any papers yet\. Please add at least 3 papers, 300 words or more in all\./);
+  assert.equal(m.referenceProgress(1, 76).text, 'You have added 1 paper (76 words). Please add 2 more papers and at least 224 more words.');
+  assert.equal(m.referenceProgress(3, 250).text, 'You have added 3 papers (250 words). Please add at least 50 more words.');
+  assert.equal(m.referenceProgress(2, 900).text, 'You have added 2 papers (900 words). Please add 1 more paper.');
+  const met = m.referenceProgress(3, 392);
+  assert.equal(met.met, true);
+  assert.match(met.text, /That is enough\. Thank you\./);
+  // Nothing about scores, comparison or consistency.
+  for (const [c, w] of [[0, 0], [1, 76], [3, 392]]) assert.doesNotMatch(m.referenceProgress(c, w).text, /score|compar|consisten|Original/i);
+});
+
+test("the Reference papers tab is offered only where the workspace holds Original", () => {
+  assert.equal(m.STUDENT_REFERENCE_UPLOAD, true);
+  localStorage.setItem('original_products', JSON.stringify(['bluebook', 'original']));
+  assert.match(m.shell(), />Reference papers</);
+  localStorage.setItem('original_products', JSON.stringify(['bluebook']));
+  assert.doesNotMatch(m.shell(), /Reference papers/);
+});
+
+test("the reference-papers screen asks for the student's own earlier writing and says what happens to it", () => {
+  localStorage.setItem('original_products', JSON.stringify(['bluebook', 'original']));
+  const t = text(m.reference());
+  assert.match(t, /My reference papers/);
+  assert.match(t, /papers you wrote yourself, on your own, before this course/);
+  assert.match(t, /at least 3 papers, 300 words or more in all/);
+  assert.match(t, /Your teacher can read every paper you add here/);
+  assert.match(t, /cannot be taken out here once it is added: if you add the wrong one, tell your teacher/);
+  assert.match(t, /PDF, Word \.docx or \.txt/);
+  assert.doesNotMatch(t, /score|compar|consisten/i);
 });

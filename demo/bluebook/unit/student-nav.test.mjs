@@ -41,7 +41,8 @@ test('a student whose workspace holds Original is not offered My voice or My wor
   assert.equal(SHOW_STUDENT_ORIGINAL_PAGES, false);
   products(['bluebook', 'original']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Account', 'Sign out']);
+  // The alpha's own reference-papers screen is a button in the app, not an Original page.
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Reference papers', 'Account', 'Sign out']);
   assert.deepEqual(links(html), []);
   assert.doesNotMatch(html, /My voice|My work|original\//);
 });

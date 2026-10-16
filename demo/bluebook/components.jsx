@@ -571,6 +571,54 @@ export const BB_API = {
   async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
   mySubmission(id)       { return this._json('GET', `/bluebook/me/submissions/${encodeURIComponent(id)}`); },
 
+  // ── Student: their own reference papers (alpha; Account.jsx) ──
+  // The signed-in student's own id; the reference routes accept no other.
+  studentId() { try { return localStorage.getItem('original_student_id') || ''; } catch (e) { return ''; } },
+  // { papers: [{ title, byStudent }], count, words } from the student's own
+  // profile and readiness. A student with nothing added yet is a 404 on the
+  // profile, which is just "no papers".
+  async myReferencePapers() {
+    const sid = encodeURIComponent(this.studentId());
+    let profile = null;
+    try { profile = await this._json('GET', `/students/${sid}`); }
+    catch (err) { if (err.status !== 404) throw err; }
+    let ready = null;
+    try { ready = await this._json('GET', `/students/${sid}/readiness`); } catch (e) { ready = null; }
+    const samples = (profile && Array.isArray(profile.samples)) ? profile.samples : [];
+    const count = samples.length;
+    const ws = ready && ready.word_stats;
+    const words = count === 0 ? 0 : (ws && typeof ws.mean === 'number' ? Math.round(ws.mean * count) : null);
+    return {
+      count, words,
+      papers: samples.map(s => ({ title: String((s && s.assignment) || '').trim(), byStudent: !!s && s.provenance === 'unverified' })),
+    };
+  },
+  // Files (PDF, DOCX, TXT) into the student's own baseline. A student's
+  // upload is always stored as their own ("unverified"); the server says so.
+  async uploadMyPapers(files) {
+    const fd = new FormData();
+    Array.from(files).forEach(f => fd.append('files', f));
+    fd.append('provenance', 'unverified');
+    const h = {};
+    const tok = localStorage.getItem('original_session_token') || localStorage.getItem('original_principal_token');
+    if (tok) h['Authorization'] = 'Bearer ' + tok;
+    const r = await fetch(this.base + `/students/${encodeURIComponent(this.studentId())}/baseline/upload-batch`, {
+      method: 'POST', headers: h, body: fd,
+    });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, r.status === 413 ? 'Those files are too large to send at once. Try fewer files, or smaller ones.' : undefined));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
+  // One pasted paper into the student's own baseline.
+  addMyPaper(text, title) {
+    return this._json('POST', `/students/${encodeURIComponent(this.studentId())}/baseline`, {
+      text, provenance: 'unverified', assignment: title || '',
+    });
+  },
+
   // ── Auth / session ──
   // Store whatever a sign-in returned. Staff get a principal token; students
   // get a session token and their student id. Everything else is cleared.

@@ -134,6 +134,10 @@ select.bb-input option{color:#111}
   .bb-rdetail{padding:1rem}
 }
 
+/* Student reference papers (Account.jsx StudentReferenceScreen) */
+.bb-ref-files{margin:.2rem 0 1rem;padding-left:1.2rem;font-size:.95rem}
+.bb-ref-files li{word-break:break-word}
+
 /* Copyable link row */
 .bb-linkrow{display:flex;gap:.5rem;align-items:center;min-width:0}
 .bb-linkrow input{flex:1;min-width:0;font:12px ui-monospace,monospace}

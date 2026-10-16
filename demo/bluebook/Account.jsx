@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnPrimary, fontBody } from './components.jsx';
 import {
-  AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, when,
+  AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 
@@ -364,6 +364,37 @@ export const STUDENT_ORIGINAL_LINKS = [['../original/voice.html', 'My voice'], [
 // unchanged; set this to true to offer them again.
 export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 
+// Alpha only (Andrew's decision, 2026-10-15): students add their own earlier
+// papers as reference writing themselves. The alpha's volunteers write for no
+// grade, so they have no reason to alter what they send. The papers go
+// straight into the student's baseline, stored and labelled on the teacher's
+// side as a "Student upload" (the server's own rule for a student's write),
+// with no teacher approval first: an exception to NORTH_STAR rule 8 for the
+// alpha. Offered only where the workspace holds Original. Set to false to
+// take the screen away after the alpha.
+export const STUDENT_REFERENCE_UPLOAD = true;
+export const studentReferenceUpload = () => STUDENT_REFERENCE_UPLOAD && BB_API.hasOriginal();
+
+// The least a student is asked for: 3 papers and 300 words in all (the same
+// minimum the teacher's reference-papers page counts against).
+export const REFERENCE_MIN_PAPERS = 3;
+export const REFERENCE_MIN_WORDS = 300;
+const nWords = n => `${n.toLocaleString('en-US')} word${n === 1 ? '' : 's'}`;
+const nPapers = n => `${n} paper${n === 1 ? '' : 's'}`;
+export function referenceProgress(count, words) {
+  const c = Number(count) || 0;
+  const w = typeof words === 'number' ? words : null;
+  if (c === 0) return { met: false, text: `You have not added any papers yet. Please add at least ${REFERENCE_MIN_PAPERS} papers, ${REFERENCE_MIN_WORDS} words or more in all.` };
+  const have = `You have added ${nPapers(c)}${w === null ? '' : ` (${nWords(w)})`}.`;
+  const needP = Math.max(0, REFERENCE_MIN_PAPERS - c);
+  const needW = w === null ? 0 : Math.max(0, REFERENCE_MIN_WORDS - w);
+  if (!needP && !needW) return { met: true, text: `${have} That is enough. Thank you. You can add more if you like.` };
+  const asks = [];
+  if (needP) asks.push(`${needP} more paper${needP === 1 ? '' : 's'}`);
+  if (needW) asks.push(`at least ${needW.toLocaleString('en-US')} more word${needW === 1 ? '' : 's'}`);
+  return { met: false, text: `${have} Please add ${asks.join(' and ')}.` };
+}
+
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
   const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
@@ -376,6 +407,7 @@ export function StudentShell({ onNavigate, active, children }) {
         <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
         <div className="tabs">
           {tab('student-home', 'My exams')}
+          {studentReferenceUpload() && tab('student-reference', 'Reference papers')}
           {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
           {tab('student-account', 'Account')}
           <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
@@ -441,6 +473,28 @@ function bbStudentError(err, fallback) {
   return (err && err.message) || fallback;
 }
 
+// On the student home, while reference papers are still wanted: where they stand,
+// and the way to add them. Nothing at all once the minimum is met.
+function ReferencePrompt({ onNavigate }) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    if (!studentReferenceUpload()) return undefined;
+    let live = true;
+    BB_API.myReferencePapers().then(i => { if (live) setInfo(i); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  if (!info) return null;
+  const progress = referenceProgress(info.count, info.words);
+  if (progress.met) return null;
+  return (
+    <Panel className="bb-ref-prompt" style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ marginTop: 0 }}>Reference papers</h2>
+      <p style={{ margin: '0 0 .8rem' }}>{progress.text}</p>
+      <Btn primary onClick={() => onNavigate('student-reference')}>Add my papers</Btn>
+    </Panel>
+  );
+}
+
 export function StudentHomeScreen({ onNavigate }) {
   const [me, setMe] = useState(null);
   const [exams, setExams] = useState(null);
@@ -501,6 +555,7 @@ export function StudentHomeScreen({ onNavigate }) {
         title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My exams'}
         meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'You are not in a course yet. Your teacher will add you.')}>
         <ErrorText>{error}</ErrorText>
+        <ReferencePrompt onNavigate={onNavigate} />
         <Section title="Examinations">
           <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your examinations"
             empty={loading ? 'Loading…' : 'No examinations yet. Your teacher will add them to your course.'} />
@@ -552,6 +607,146 @@ export function StudentSubmissionScreen({ onNavigate }) {
             </div>
           </>
         )}
+      </Page>
+    </StudentShell>
+  );
+}
+
+// ─── Student: their own reference papers (alpha only) ────────────────────────
+const PASTE_MIN_WORDS = 50;
+const wordsIn = t => (String(t || '').trim() ? String(t).trim().split(/\s+/).length : 0);
+
+export function StudentReferenceScreen({ onNavigate }) {
+  const [info, setInfo] = useState(null);          // { count, words, papers }
+  const [loadError, setLoadError] = useState('');
+  const [files, setFiles] = useState([]);
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState('');            // '' | 'files' | 'paste'
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [said, setSaid] = useState('');            // which form the message belongs to
+  const fileInput = React.useRef(null);
+
+  function load() {
+    setLoadError('');
+    return BB_API.myReferencePapers().then(setInfo)
+      .catch(err => setLoadError(bbStudentError(err, 'We could not load your papers just now. Please refresh the page to try again.')));
+  }
+  useEffect(() => {
+    if (!studentReferenceUpload()) { onNavigate('student-home'); return; }
+    load();
+  }, []);
+
+  function pick(list) {
+    const ok = Array.from(list || []).filter(f => /\.(pdf|docx|txt)$/i.test(f.name));
+    setFiles(ok); setMessage(''); setSaid('files');
+    setError(ok.length < (list || []).length ? 'Only PDF, Word (.docx) and plain text (.txt) files can be added. Other files were left out.' : '');
+  }
+
+  async function uploadFiles() {
+    if (!files.length || busy) return;
+    setBusy('files'); setError(''); setMessage(''); setSaid('files');
+    try {
+      const r = await BB_API.uploadMyPapers(files);
+      const added = Number(r.imported) || 0;
+      const copies = Number(r.skipped_duplicates) || 0;
+      const notRead = Array.isArray(r.errors) ? r.errors.length : 0;
+      const held = Array.isArray(r.drift_holds) ? r.drift_holds.length : 0;
+      const parts = [added ? `Added ${nPapers(added)}.` : 'No papers were added.'];
+      if (copies) parts.push(`${nPapers(copies)} ${copies === 1 ? 'was' : 'were'} already here, so ${copies === 1 ? 'it was' : 'they were'} not added again.`);
+      if (notRead) parts.push(`${nPapers(notRead)} could not be read. Try saving ${notRead === 1 ? 'it' : 'them'} as a .txt or .docx file, or paste the text below.`);
+      if (held) parts.push(`${nPapers(held)} could not be added here. Please send ${held === 1 ? 'it' : 'them'} to your teacher instead.`);
+      (added ? setMessage : setError)(parts.join(' '));
+      setFiles([]);
+      if (fileInput.current) fileInput.current.value = '';
+      await load();
+    } catch (err) {
+      setError(bbStudentError(err, 'Your files were not added just now. Please try again in a moment.'));
+    }
+    setBusy('');
+  }
+
+  async function addPasted(e) {
+    e.preventDefault();
+    if (busy) return;
+    setSaid('paste');
+    if (wordsIn(text) < PASTE_MIN_WORDS) { setMessage(''); setError(`Please paste the whole paper: at least ${PASTE_MIN_WORDS} words.`); return; }
+    setBusy('paste'); setError(''); setMessage('');
+    try {
+      const r = await BB_API.addMyPaper(text.trim(), title.trim());
+      if (r && r.skipped) setMessage('That paper is already here, so it was not added again.');
+      else if (r && r.detail && r.detail.status) setError('This paper could not be added here. Please send it to your teacher instead.');
+      else { setMessage('Paper added.'); setText(''); setTitle(''); }
+      await load();
+    } catch (err) {
+      setError(err && err.status === 409
+        ? 'This paper could not be added here. Please send it to your teacher instead.'
+        : bbStudentError(err, 'Your paper was not added just now. Please try again in a moment.'));
+    }
+    setBusy('');
+  }
+
+  const progress = info ? referenceProgress(info.count, info.words) : null;
+  return (
+    <StudentShell onNavigate={onNavigate} active="student-reference">
+      <Page eyebrow="Collections" title="My reference papers"
+        meta={info ? `${nPapers(info.count)}${info.words != null ? ` · ${nWords(info.words)}` : ''}` : (loadError ? '' : 'Loading…')}>
+        <Panel style={{ marginBottom: '1.5rem' }}>
+          <p style={{ marginTop: 0 }}>
+            Your teacher has asked for some of your earlier writing: papers you wrote yourself, on your own,
+            before this course. Please add at least {REFERENCE_MIN_PAPERS} papers, {REFERENCE_MIN_WORDS} words or more in all.
+            Your teacher can read every paper you add here and keeps them as reference writing for you.
+          </p>
+          <p className="bb-hint" style={{ margin: 0 }}>
+            Only add writing that is entirely your own. A paper cannot be taken out here once it is added: if you add the wrong one, tell your teacher.
+            {' '}<a href="../legal/student-notice.html" target="_blank" rel="noopener" style={legalLink}>What Collections keeps, and what it does not</a>
+          </p>
+        </Panel>
+        <ErrorText>{loadError}</ErrorText>
+        {progress && <p role="status" className={progress.met ? 'bb-notice' : 'bb-meta'} style={{ marginBottom: '1.2rem' }}>{progress.text}</p>}
+
+        <Section title="Upload files">
+          <Panel>
+            <div className="bb-field">
+              <label htmlFor="refFiles">Choose your papers (PDF, Word .docx or .txt; up to 10 MB at a time)</label>
+              <input id="refFiles" ref={fileInput} className="bb-input" type="file" multiple accept=".pdf,.docx,.txt"
+                disabled={!!busy} onChange={e => pick(e.target.files)} />
+            </div>
+            {files.length > 0 && (
+              <ul className="bb-ref-files">
+                {files.map(f => <li key={f.name + f.size}>{f.name}</li>)}
+              </ul>
+            )}
+            <Btn primary onClick={uploadFiles} disabled={!files.length || !!busy}>
+              {busy === 'files' ? 'Uploading…' : files.length ? `Upload ${nPapers(files.length)}` : 'Upload papers'}
+            </Btn>
+            {said === 'files' && <><Notice>{message}</Notice><ErrorText>{error}</ErrorText></>}
+          </Panel>
+        </Section>
+
+        <Section title="Or paste a paper">
+          <Panel>
+            <form onSubmit={addPasted}>
+              <Field id="refTitle" label="Title (optional)" value={title} onChange={setTitle} required={false} maxLength={200}
+                placeholder="e.g. History essay, spring 2025" />
+              <TextArea id="refText" label="The paper" value={text} onChange={setText} rows={8} maxLength={200000}
+                hint={`${nWords(wordsIn(text))}. Paste the whole paper, at least ${PASTE_MIN_WORDS} words.`} />
+              <Btn primary type="submit" disabled={!!busy}>{busy === 'paste' ? 'Adding…' : 'Add this paper'}</Btn>
+              {said === 'paste' && <><Notice>{message}</Notice><ErrorText>{error}</ErrorText></>}
+            </form>
+          </Panel>
+        </Section>
+
+        <Section title="Papers added">
+          <Table caption="Your reference papers" rowKey={p => p.key}
+            rows={(info ? info.papers : []).map((p, i) => ({ ...p, key: i, n: i + 1 }))}
+            empty={info ? 'No papers yet.' : 'Loading…'}
+            columns={[
+              { key: 'title', label: 'Paper', lead: true, render: p => p.title || `Paper ${p.n}` },
+              { key: 'by', label: 'Added by', render: p => (p.byStudent ? 'You' : 'Your teacher') },
+            ]} />
+        </Section>
       </Page>
     </StudentShell>
   );

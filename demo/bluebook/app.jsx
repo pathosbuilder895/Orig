@@ -9,7 +9,7 @@ import { ResultsScreen } from './Results.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {
   AccountScreen, InviteScreen, SignupScreen, StudentAccountScreen,
-  StudentHomeScreen, StudentSubmissionScreen, ForgotPasswordScreen,
+  StudentHomeScreen, StudentSubmissionScreen, StudentReferenceScreen, ForgotPasswordScreen,
 } from './Account.jsx';
 import {
   CoursesListScreen, ExamsListScreen, ManageExamScreen, ProctorLiveScreen, RosterScreen, StudentsScreen,
@@ -233,6 +233,9 @@ function App() {
       break;
     case 'student-account':
       content = <StudentAccountScreen onNavigate={navigate} />;
+      break;
+    case 'student-reference':
+      content = <StudentReferenceScreen onNavigate={navigate} />;
       break;
     case 'submitted':
       content = <SubmittedScreen onNavigate={navigate} />;

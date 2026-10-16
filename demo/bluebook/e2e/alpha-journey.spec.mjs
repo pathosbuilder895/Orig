@@ -15,6 +15,7 @@
  */
 
 import { readFileSync } from 'node:fs'
+import AxeBuilder from '@axe-core/playwright'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { staffStorageState } from './fixtures/api-setup.mjs'
 
@@ -256,6 +257,62 @@ test.describe('Alpha journey @alpha', () => {
       await expect(teacher.locator('#add-msg')).toContainText('Added 3', { timeout: 60_000 })
       await expect(teacher.locator('#s-min')).toHaveText('Met', { timeout: 15_000 })
     })
+  })
+
+  test('a student adds their own reference papers, and the teacher sees them counted', async ({ browser, testTenant }) => {
+    test.setTimeout(120_000)
+    const T = testTenant
+    const S = T.student
+    // The browser state a student sign-in leaves (components.jsx _storeSession).
+    const student = await newPage(browser, T.baseURL, {
+      storageState: {
+        cookies: [],
+        origins: [{
+          origin: T.baseURL,
+          localStorage: [
+            { name: 'original_session_token', value: S.token },
+            { name: 'original_student_id', value: S.student_id },
+            { name: 'original_role', value: 'student' },
+            { name: 'original_tenant', value: S.tenant_id },
+            { name: 'original_name', value: S.name || '' },
+            { name: 'original_products', value: JSON.stringify(S.products) },
+          ],
+        }],
+      },
+    })
+    const paper = (n, topic) => `Paper ${n}. ` + `I remember the ${topic} more clearly than almost anything else from that year, and I still think about it often. `.repeat(6)
+    await student.goto('/bluebook/')
+    const prompt = student.locator('.bb-ref-prompt')
+    await expect(prompt).toContainText('You have not added any papers yet.', { timeout: 10_000 })
+    await prompt.getByRole('button', { name: 'Add my papers' }).click()
+    await expect(student.getByRole('heading', { name: 'My reference papers' })).toBeVisible()
+    await student.locator('#refFiles').setInputFiles([
+      { name: 'flood.txt', mimeType: 'text/plain', buffer: Buffer.from(paper(1, 'flood')) },
+      { name: 'move.txt', mimeType: 'text/plain', buffer: Buffer.from(paper(2, 'move to the city')) },
+    ])
+    await student.getByRole('button', { name: 'Upload 2 papers' }).click()
+    await expect(student.getByText('Added 2 papers.')).toBeVisible({ timeout: 30_000 })
+    await student.locator('#refTitle').fill('My first job')
+    await student.locator('#refText').fill(paper(3, 'first job'))
+    await student.getByRole('button', { name: 'Add this paper' }).click()
+    await expect(student.getByText('Paper added.')).toBeVisible({ timeout: 30_000 })
+    await expect(student.getByText(/You have added 3 papers \(\d+ words\)\. That is enough\./)).toBeVisible()
+    await expect(student.getByRole('table', { name: 'Your reference papers' })).toContainText('My first job')
+    // The new screen meets WCAG 2 A and AA (the same tags a11y.spec.mjs scans with).
+    await student.waitForTimeout(800)   // the screen's fade-in, so contrast is read at rest
+    const axe = await new AxeBuilder({ page: student }).withTags(['wcag2a', 'wcag2aa']).analyze()
+    expect(axe.violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`)).toEqual([])
+    expect(await student.evaluate(() => document.body.innerText)).not.toMatch(/score|compar|consisten/i)
+    // Back home, the prompt is gone once the minimum is met.
+    await student.getByRole('navigation', { name: 'Student navigation' }).getByRole('button', { name: 'My exams' }).click()
+    await expect(student.getByRole('heading', { name: /Welcome/ })).toBeVisible()
+    await expect(student.locator('.bb-ref-prompt')).toHaveCount(0)
+
+    const teacher = await newPage(browser, T.baseURL, { storageState: staffStorageState(T.baseURL, T.staff) })
+    await teacher.goto('/original/baseline.html')
+    const row = teacher.locator('.ref-table tbody tr').filter({ has: teacher.getByRole('link') }).first()
+    await expect(row).toContainText('Meets the minimum', { timeout: 15_000 })
+    await expect(row.locator('td.n').first()).toHaveText('3')
   })
 
   test('an invite link with no code says so and offers sign-in', async ({ browser, testTenant }) => {
