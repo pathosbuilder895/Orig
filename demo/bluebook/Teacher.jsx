@@ -758,7 +758,7 @@ function InviteLink({ path, expires, emailed }) {
         <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Invite link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
         <LinkBtn onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</LinkBtn>
       </div>
-      <p className="bb-hint">{emailed ? 'Emailed. ' : ''}Works once{expires ? `, until ${new Date(expires).toLocaleDateString()}` : ''}.</p>
+      <p className="bb-hint">{emailed ? 'Emailed. ' : ''}Works once{expires ? (new Date(expires).getUTCFullYear() >= 9999 ? ', until you replace it' : `, until ${new Date(expires).toLocaleDateString()}`) : ''}.</p>
     </div>
   );
 }

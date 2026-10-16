@@ -48,7 +48,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="give a NEW workspace Original as well as Bluebook (off by default)",
     )
+    parser.add_argument(
+        "--no-expiry",
+        action="store_true",
+        help="the set-password link stays valid until used or reissued (closed alpha); "
+        "student links follow the server's INVITE_NO_EXPIRY setting",
+    )
     args = parser.parse_args(argv)
+    if args.no_expiry:
+        import os
+
+        os.environ["INVITE_NO_EXPIRY"] = "1"
     print(f"Database backend: {backend_name()}")
     try:
         out = invite_professor(
@@ -85,7 +95,10 @@ def main(argv: list[str] | None = None) -> int:
         print("Invitation emailed.")
     else:
         print("Email NOT sent (mail not configured or rejected): send this link yourself.")
-    print(f"Set-password link (single use, expires {out['expires_at']}):")
+    from original.invites import no_expiry
+
+    when = "no expiry; reissue to revoke" if no_expiry() else f"expires {out['expires_at']}"
+    print(f"Set-password link (single use, {when}):")
     print(out["invite_link"])
     return 0
 

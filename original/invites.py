@@ -10,6 +10,7 @@ hash, expiry, and single use, then sets the password.
 from __future__ import annotations
 
 import hashlib
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -17,6 +18,17 @@ from datetime import UTC, datetime, timedelta
 from .repository import get_repository
 
 INVITE_TTL = timedelta(days=14)
+# INVITE_NO_EXPIRY=1 (e.g. for a closed alpha) issues links that stay valid
+# until they are used or revoked. Revoke a link by reissuing it (voids the
+# old one), removing the student from the course, or deleting the tenant.
+# Stored as a far-future timestamp so no schema or redeem change is needed.
+NO_EXPIRY_AT = datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)
+
+
+def no_expiry() -> bool:
+    return os.environ.get("INVITE_NO_EXPIRY", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 # The Bluebook SPA reads ?invite= and shows its set-password screen.
 INVITE_PATH = "/bluebook/?invite="
 
@@ -33,7 +45,7 @@ def issue(tenant_id: str, user_id: str, created_by: str, course_id: str | None =
     repo.void_invites_for_user(user_id)
     token = secrets.token_urlsafe(32)
     now = datetime.now(UTC)
-    expires = now + INVITE_TTL
+    expires = NO_EXPIRY_AT if no_expiry() else now + INVITE_TTL
     invite_id = uuid.uuid4().hex
     repo.put_invite(
         {

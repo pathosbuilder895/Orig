@@ -29,6 +29,7 @@ DROP_ENV = ("DATABASE_URL", "REPO_BACKEND", "REPO_SHADOW", "ORIGINAL_DB", "SHADO
 STRICT = {"schedule_conversation", "escalate"}
 LENIENT = STRICT | {"monitor"}
 LABELS = {"natural", "not_own"}
+MIN_BASELINES = 3  # matches the server's insufficient-baseline gate
 
 
 def export(base: str, token: str, exams: list[str], dest: Path) -> Path:
@@ -187,6 +188,8 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
     lines = ["# Alpha batch scoring report (internal; never shown to students)", "",
              f"- submissions: {len(rows)}; scored: {len(scored)}; errors: {sum(bool(row.get('error')) for row in rows)}",
              f"- INCONCLUSIVE (baseline below minimum): {rate(sum(bool(row.get('inconclusive')) for row in rows), len(rows))}",
+             "- insufficient baseline (fewer than " + str(MIN_BASELINES) + " papers, not scored): "
+             + (", ".join(sorted({row['student'] for row in rows if row.get('insufficient_baseline')})) or "none"),
              (f"- deviation min/median/max: {min(deviations):.3f} / {statistics.median(deviations):.3f} / {max(deviations):.3f}" if deviations else "- no scores"),
              f"- deterministic on rerun: {sum(row.get('deterministic') is True for row in scored)}/{len(scored)}" + (" (rerun skipped)" if no_rerun else ""),
              f"- scoring time: per paper max {max((row.get('score_ms') or 0 for row in scored), default=0):.0f} ms; per student run max {max(timings, default=0):.1f} s",
@@ -223,7 +226,7 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
     for row in rows:
         value = row.get("deviation")
         lines.append(f"| {row['student'][-8:]} | {row['submission_id'][:10]} | {row.get('label', '')} | {row['n_baselines']} | {row['baseline_words']} | "
-                     f"{'-' if bad(value) else f'{value:.3f}'} | {'INCONCLUSIVE' if row.get('inconclusive') else row.get('action', row.get('error', '-'))} | "
+                     f"{'-' if bad(value) else f'{value:.3f}'} | {'INSUFFICIENT BASELINE' if row.get('insufficient_baseline') else 'INCONCLUSIVE' if row.get('inconclusive') else row.get('action', row.get('error', '-'))} | "
                      f"{row.get('strict_flag', '-')} | {row.get('deterministic', '-')} |")
     hard_error = any(any(marker in item for marker in ("non-finite", "rerun differs", "outside [0,1]")) for item in problems)
     return "\n".join(lines) + "\n", 2 if hard_error else (0 if passed in (None, True) else 1)
@@ -255,14 +258,18 @@ def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | N
         submission_dir = student_dir / "submission"
         baseline_files = sorted(baseline_dir.glob("*.txt")) if baseline_dir.is_dir() else []
         baseline_words = sum(len(path.read_text(encoding="utf-8", errors="replace").split()) for path in baseline_files)
-        enough = len(baseline_files) >= 3 and baseline_words >= 300
+        enough = len(baseline_files) >= MIN_BASELINES and baseline_words >= 300
         relevant = [(sid, path) for sid, (directory, _, _) in files.items() if directory == student_dir
                     for path in [submission_dir / f"{sid}.txt"]]
         base = {"student": student_dir.name, "n_baselines": len(baseline_files), "baseline_words": baseline_words}
-        if not baseline_files:
+        if len(baseline_files) < MIN_BASELINES:
+            # Not scored at all: Original returns "insufficient baseline", not a number.
             for sid, _ in relevant:
                 label, author = labels.get(sid, ("", ""))
-                rows.append({**base, "submission_id": sid, "label": label, "true_author": author, "error": "no baselines", "inconclusive": True})
+                rows.append({**base, "submission_id": sid, "label": label, "true_author": author,
+                             "error": f"insufficient baseline ({len(baseline_files)} of {MIN_BASELINES} papers)",
+                             "inconclusive": True, "insufficient_baseline": True})
+            problems.append(f"{student_dir.name}: INSUFFICIENT BASELINE ({len(baseline_files)} of {MIN_BASELINES} papers) -> not scored")
             continue
         result, elapsed, error = run_scorer(baseline_dir, submission_dir, student_dir.name)
         timings.append(elapsed)

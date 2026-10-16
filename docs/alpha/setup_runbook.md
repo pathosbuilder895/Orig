@@ -183,3 +183,16 @@ The local join-flow helper is restricted to localhost and accepts `--help`; it n
 .venv/bin/python scripts/alpha/batch_score_alpha.py --help
 .venv/bin/python scripts/alpha/delete_alpha_tenant.py --help
 ```
+
+## Alpha-ready settings (alpha-ready-prep)
+
+**Invite links that don't expire.** By default a set-password invite link works once and expires after 14 days (`original/invites.py::INVITE_TTL`). For the alpha:
+
+1. In Render → original-pilot → Environment, set `INVITE_NO_EXPIRY=1` and redeploy. Student links the teacher creates from the roster then stay valid until they are used or revoked. The teacher roster shows "Works once, until you replace it".
+2. Create the teacher workspace with `python scripts/invite_professor.py <email> --with-original --no-expiry`.
+3. **Revoking a link:** issue a new link for that student ("New invite link" on the roster, which voids the old one), remove the student from the course (this now voids their unused link too), or delete the whole alpha tenant with `scripts/alpha/delete_alpha_tenant.py`. When the alpha ends, remove `INVITE_NO_EXPIRY` so later links expire after 14 days again.
+4. `scripts/roster_links.py --no-expiry` makes signed launch links last 100 years. You can't revoke those one at a time (only by rotating `SECRET_KEY` or deleting the tenant), so prefer roster invites for the alpha.
+
+**Three-paper minimum.** Original won't score a student who has fewer than 3 approved baseline papers (`MIN_BASELINE_SAMPLES`, default 3). The score API returns 422 with `detail.code = "insufficient_baseline"`, and readiness reports "Needs more". `batch_score_alpha.py` skips those students and lists them on an "insufficient baseline" line in the report. Check each volunteer has at least 3 papers on `/original/baseline.html` before exam day. The import screen can hold a file that looks very different from the others ("drift hold"), so confirm the count it reports afterwards.
+
+**Seven comparison features stay neutral (on purpose, for now).** The 2 `COMPARISON_CODES` and 5 `MUSICAL_COMPARISON_CODES` compare a text against the student's baseline. They're only computed by `compute_full_features`, which the live scoring path doesn't call. So they're 0.5 for every baseline and submission, and the active-feature mask drops them, which means they have no effect on scores. To turn them on, each baseline paper would need a leave-one-out comparison value. With 3 to 5 papers that estimate is noisy and would change every student's z-scores, so it should wait for calibration on alpha data instead of going in a week before the test.

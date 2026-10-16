@@ -94,6 +94,30 @@ def _require_student_exam_scoring(request: Request | None, student_id: str) -> N
 # ── Score submission ──────────────────────────────────────────────────────────
 
 
+from ._shared import min_baseline_samples  # noqa: E402
+
+
+def _require_min_baseline(state) -> None:
+    _min_baseline = min_baseline_samples()
+    if state.authenticated_count < _min_baseline:
+        # Too few approved papers to know this student's normal range: return
+        # a clear "insufficient baseline" state instead of a number. With two
+        # papers the false-flag rate roughly triples in simulation.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "insufficient_baseline",
+                "message": (
+                    f"Original needs at least {_min_baseline} approved baseline papers "
+                    f"before it can compare new writing; this student has "
+                    f"{state.authenticated_count}."
+                ),
+                "required": _min_baseline,
+                "have": state.authenticated_count,
+            },
+        )
+
+
 @router.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
 def score_submission(
     student_id: str,
@@ -114,6 +138,7 @@ def score_submission(
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+    _require_min_baseline(state)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -655,6 +680,8 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+
+    _require_min_baseline(state)
 
     from ..context.blend import detect_blend
 
