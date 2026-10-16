@@ -21,6 +21,11 @@ os.environ.setdefault("ENVIRONMENT", "testing")
 # covered by tests/test_alpha_followups.py.
 os.environ.setdefault("STUDENT_ORIGINAL_PAGES", "1")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-" * 5)
+# Production requires 3 approved baseline papers before scoring (see
+# original/routers/_shared.py::min_baseline_samples). Most legacy scoring
+# tests build 1-2 sample fixtures to exercise unrelated branches, so the
+# suite defaults to 1; tests/test_min_baseline_gate.py pins the real gate.
+os.environ.setdefault("MIN_BASELINE_SAMPLES", "1")
 # Safety default for the LIVE-schema engine (original/db/postgres_session.py
 # reads DATABASE_URL from the environment): any stray, unguarded engine build
 # in a test lands on a throwaway in-memory SQLite, never a real Postgres. The

@@ -2970,7 +2970,8 @@ def _scored(authenticated, effective, **state) -> dict:
         (5, 2.9, "developing"),  # five samples that barely count are still building
         (9, 2.0, "developing"),
         (4, 10, "developing"),
-        (2, 0, "developing"),
+        (3, 0, "developing"),
+        (2, 0, "insufficient"),  # below the 3-paper minimum Original does not compare
         (1, 1, "insufficient"),
         (0, 0, "insufficient"),
         (None, 3, None),  # a missing field is no verdict, never "fine"
@@ -3154,12 +3155,12 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
         ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 2, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 3, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
         ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
         ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
         ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
-    ids=["ready", "five-barely-counting", "two-samples", "one-sample", "no-effective-count", "no-counts"],
+    ids=["ready", "five-barely-counting", "three-samples", "one-sample", "no-effective-count", "no-counts"],
 )
 def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
     out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500

@@ -98,12 +98,18 @@ def send(to: str, subject: str, text: str) -> bool:
     return ok
 
 
+def _validity() -> str:
+    from .invites import no_expiry
+
+    return "stays valid until it is used or replaced" if no_expiry() else "expires in 14 days"
+
+
 def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool:
     who = teacher or "Your teacher"
     where = f" for {course}" if course else ""
     text = (
         f"{who} has added you to Original Collections{where}.\n\n"
-        f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
+        f"Set your password here (this link works once and {_validity()}):\n{link}\n\n"
         "Then sign in with this email address to see your examinations.\n\n"
         "If you were not expecting this, you can ignore this email."
     )
@@ -125,7 +131,7 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
     text = (
         "You have been invited to Original Collections, the online written-examination "
         "service, with a private workspace of your own.\n\n"
-        f"Set your password here (this link works once and expires in 14 days):\n{link}\n\n"
+        f"Set your password here (this link works once and {_validity()}):\n{link}\n\n"
         "Then sign in with this email address to create a course, invite your "
         "students and set an examination.\n\n"
         f"{original}"
@@ -137,7 +143,7 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
 def send_reset(to: str, link: str) -> bool:
     text = (
         "Someone asked to reset the password for this Original Collections account.\n\n"
-        f"Choose a new password here (this link works once and expires in 14 days):\n{link}\n\n"
+        f"Choose a new password here (this link works once and {_validity()}):\n{link}\n\n"
         "If you did not ask for this, you can ignore this email; your password is unchanged."
     )
     return send(to, "Reset your Original Collections password", text)
