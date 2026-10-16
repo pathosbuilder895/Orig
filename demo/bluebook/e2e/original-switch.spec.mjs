@@ -122,10 +122,14 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
   // ── Student: sign in, open the exam while the workspace holds Original ──
   const ctx = await browser.newContext()
   const student = await newStudentPage(ctx)
+  // Original calls made after the switch. While the workspace still holds
+  // Original the student home may read the student's own reference papers
+  // (Account.jsx ReferencePrompt); those are allowed and not what this checks.
   const originalCalls = []
+  let switched = false
   student.on('response', r => {
     const path = new URL(r.url()).pathname
-    if (/^\/students\//.test(path)) originalCalls.push({ path, status: r.status() })
+    if (switched && /^\/students\//.test(path)) originalCalls.push({ path, status: r.status() })
   })
   await redeemInvite(student, ws.invitePath, examTitle)
   const storedProducts = () => storedProductsOf(student)
@@ -138,6 +142,7 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
 
   // ── Operator: switch the workspace to Bluebook only ─────────────────────
   await setProducts(request, ws, ['bluebook'])
+  switched = true
 
   // ── Student: write and seal; the page still believes Original is on ────
   const sealRes = await sealAnswer(student, answer)
