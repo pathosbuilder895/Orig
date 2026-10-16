@@ -120,18 +120,19 @@ def test_writing_state_keeps_the_analysis_for_this_tab_as_soon_as_it_exists():
     assert "sessionStorage.getItem('original_last_result')" in script
 
 
-# ── A student can reach My voice and My work ──────────────────────────────────
+# ── My voice and My work are not offered to students in the pilot ─────────────
 
 
-def test_the_student_navigation_links_to_the_original_student_pages_when_original_is_on():
+def test_the_student_navigation_does_not_offer_the_original_student_pages_in_the_pilot():
+    # During the pilot a student never sees a comparison of their writing
+    # (2026-10-15 alpha polish): the links stay named behind one switch, off.
     account = (DEMO / "bluebook" / "Account.jsx").read_text(encoding="utf-8")
     assert "[['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']]" in account
-    assert "BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : []" in account
-    # The pages exist, and the committed bundle production serves carries the links.
+    assert "export const SHOW_STUDENT_ORIGINAL_PAGES = false;" in account
+    assert "SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : []" in account
+    # The pages themselves are unchanged and still exist.
     for page in ("voice.html", "my-work.html"):
         assert (SUITE / page).is_file()
-    bundle = (DEMO / "bluebook" / "bluebook.bundle.js").read_text(encoding="utf-8")
-    assert "../original/voice.html" in bundle and "../original/my-work.html" in bundle
 
 
 # ── Voice Baseline: pasting the same paper twice ──────────────────────────────
@@ -692,7 +693,10 @@ const handleLogin = run(document, localStorage, window, fetch);
 (async () => {
   await new Promise((r) => setTimeout(r, 20));   // the health check has answered
   await handleLogin({ preventDefault() {} });
-  process.stdout.write(JSON.stringify({ msg: el('errorMsg').textContent, shown: !!el('errorMsg').classList.on, pills: el('demoRolePills').style.display || '' }));
+  process.stdout.write(JSON.stringify({
+    msg: el('errorMsg').textContent, shown: !!el('errorMsg').classList.on, pills: el('demoRolePills').style.display || '',
+    visual: el('demoVisual').style.display || '', badges: el('trustBadges').style.display || '', panelWidth: el('loginPanel').style.width || '',
+  }));
 })();
 """
 
@@ -713,10 +717,13 @@ def _sign_in_failure(environment: str) -> dict:
 def test_the_sign_in_error_names_the_demo_buttons_only_where_they_are_shown():
     demo = _sign_in_failure("demo")
     assert demo["pills"] == "" and demo["msg"] == "Invalid email or password. Try the demo buttons below."
+    assert demo["visual"] == "" and demo["badges"] == ""
     for real in ("pilot", "staging", "production"):
         out = _sign_in_failure(real)
         assert out["pills"] == "none"  # a real deploy hides them ...
         assert out["msg"] == "Invalid email or password." and out["shown"] is True  # ... and the message does not point at them
+        # A teacher signing out of Original lands here: no illustrative figures on a real deploy.
+        assert out["visual"] == "none" and out["badges"] == "none" and out["panelWidth"] == "100%"
     # Markup default: no sentence about buttons before the script has decided.
     assert '<div class="error-msg" id="errorMsg">Invalid email or password.</div>' in SIGN_IN.read_text(encoding="utf-8")
 

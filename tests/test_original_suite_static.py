@@ -2703,8 +2703,11 @@ def test_writing_state_cleans_the_label_it_keeps_on_this_computer():
 
 def test_writing_state_calls_its_picture_decorative_and_names_no_symbol_that_is_not_drawn():
     page = _writing_state()
-    assert "Writing fingerprint \u00b7 decorative" in page
-    assert "The fingerprint above is decorative, not drawn from \u03c1: it is the same print for every student." in page
+    assert "Writing pattern \u00b7 decorative" in page
+    assert "The pattern above is decorative, not drawn from \u03c1: it is the same pattern for every student." in page
+    # "fingerprint" is not a word the product uses for a student's writing.
+    visible = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>|<[^>]+>", " ", page)
+    assert "fingerprint" not in visible.lower()
     for symbol in ("|\u03c8\u1d62|", "|\u03be\u1d62|"):
         assert symbol not in page, f"the legend names {symbol}, which nothing draws"
 

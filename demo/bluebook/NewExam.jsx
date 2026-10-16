@@ -171,8 +171,10 @@ export function NewExamScreen({ onNavigate }) {
   const [title,     setTitle]     = useNEState('');
   const [course,    setCourse]    = useNEState('');
   const [duration,  setDuration]  = useNEState(90);
-  const [minWords,  setMinWords]  = useNEState(600);
-  const [maxWords,  setMaxWords]  = useNEState(1200);
+  // Optional, so empty by default: a word minimum the teacher did not ask for
+  // would hold back a student's submit button for the whole sitting.
+  const [minWords,  setMinWords]  = useNEState('');
+  const [maxWords,  setMaxWords]  = useNEState('');
   const [prompts,   setPrompts]   = useNEState(['']);
   // ── Lockdown (default ON — the secure baseline) ──
   const [blockAI,    setBlockAI]    = useNEState(true);
@@ -318,7 +320,7 @@ export function NewExamScreen({ onNavigate }) {
       fontFamily: fontBody,
     }}>
       {/* Top bar */}
-      <div style={{
+      <div className="bb-ne-bar" style={{
         position: 'sticky', top: 0, zIndex: 10,
         background: BB.oxford,
         padding: '14px 48px',
@@ -353,7 +355,7 @@ export function NewExamScreen({ onNavigate }) {
           margin: '0 0 4px',
         }}>New Examination</h1>
         <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade, margin: '0 0 36px' }}>
-          {BB_API.identity().name || 'Draft it now; publish when it is ready.'}
+          Draft it now; publish when it is ready. Students see a published examination in their course.
         </p>
 
         <GoldRule double style={{ marginBottom: 40 }} />
@@ -421,18 +423,18 @@ export function NewExamScreen({ onNavigate }) {
         {/* ── Section II: Constraints ── */}
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 20 }}>II. Time & Length</MetaLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28 }}>
+          <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28 }}>
             <FormField label="Duration" hint="minutes" id="neDuration">
               <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
             </FormField>
             <FormField label="Minimum Words" hint="optional" id="neMinWords">
-              <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="600" />
+              <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="None" />
             </FormField>
             <FormField label="Maximum Words" hint="optional" id="neMaxWords">
-              <NumberInput id="neMaxWords" value={maxWords} onChange={setMaxWords} placeholder="1200" />
+              <NumberInput id="neMaxWords" value={maxWords} onChange={setMaxWords} placeholder="None" />
             </FormField>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 28 }}>
+          <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 28 }}>
             <FormField label="Opens" hint="optional · your local time" id="neOpens">
               <TextInput id="neOpens" type="datetime-local" value={opensAt} onChange={setOpensAt} />
             </FormField>
@@ -503,8 +505,8 @@ export function NewExamScreen({ onNavigate }) {
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 8 }}>IV. Secure Lockdown</MetaLabel>
           <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 15, color: BB.fade, margin: '0 0 16px' }}>
-            The secure baseline. Enabled conditions are enforced for the duration of the examination
-            and disclosed to candidates before they begin.
+            The conditions you switch on apply for the whole examination, and students are told
+            about them before they begin.
           </p>
           <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: BB.oxford }}>
             <ToggleRow label="No AI assistants"          desc="Students are told AI tools are not permitted (a browser cannot block other apps)" value={blockAI}  onChange={setBlockAI} />
@@ -538,7 +540,7 @@ export function NewExamScreen({ onNavigate }) {
         {/* ── Submit ── */}
         <GoldRule double style={{ marginBottom: 28 }} />
         <div style={{ textAlign: 'right' }}><ErrorText>{saveError}</ErrorText></div>
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'flex-end' }}>
+        <div className="bb-ne-actions" style={{ display: 'flex', gap: 14, justifyContent: 'flex-end' }}>
           <BtnGhost onClick={() => handleSave(false)} disabled={!canSubmit || saving} style={{ padding: '11px 32px' }}>
             {saving ? 'Saving…' : 'Save as Draft'}
           </BtnGhost>

@@ -51,7 +51,7 @@ test.describe('Public self-serve journey', () => {
     await teacher.getByRole('button', { name: 'Create workspace' }).click()
     await expect(teacher.getByRole('button', { name: 'Overview', exact: true })).toBeVisible({ timeout: 10_000 })
     // A Bluebook-only workspace has no Original cross-link.
-    await expect(teacher.getByRole('button', { name: /Original Analysis/ })).toHaveCount(0)
+    await expect(teacher.getByRole('button', { name: /^Original/ })).toHaveCount(0)
 
     // ── Teacher: course (creating it opens its roster) ─────────────────
     await teacher.getByRole('button', { name: 'Courses', exact: true }).click()
@@ -102,6 +102,9 @@ test.describe('Public self-serve journey', () => {
     await student.goto(new URL(inviteUrl).pathname + new URL(inviteUrl).search)
     await student.getByLabel('New password').fill('e2e-student-pass-1')
     await student.getByLabel('Confirm password').fill('e2e-student-pass-1')
+    // A student's invitation asks them to read the student notice and accept the terms.
+    await expect(student.getByText(/I have read the student notice/)).toBeVisible()
+    await student.getByRole('checkbox').check()
     await student.getByRole('button', { name: 'Save and continue' }).click()
     await expect(student.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     await expect(student).not.toHaveURL(/invite=/)

@@ -2,16 +2,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 
-// The student screens' navigation (Account.jsx StudentShell): "My voice" and
-// "My work" open the Original student pages, and only when the student's
-// workspace holds Original (the products sign-in stored, BB_API.hasOriginal).
-// Rendered for real with react-dom/server; no browser needed.
+// The student screens' navigation (Account.jsx StudentShell). "My voice" and
+// "My work" (the Original student pages) are not offered during the pilot,
+// even where the workspace holds Original: a student never sees a comparison
+// of their writing (SHOW_STUDENT_ORIGINAL_PAGES). Rendered for real with
+// react-dom/server; no browser needed.
 const built = await build({
   stdin: {
     contents: `
       import React from 'react';
       import { renderToStaticMarkup } from 'react-dom/server';
-      import { StudentShell } from './Account.jsx';
+      import { StudentShell, SHOW_STUDENT_ORIGINAL_PAGES, STUDENT_ORIGINAL_LINKS } from './Account.jsx';
+      export { SHOW_STUDENT_ORIGINAL_PAGES, STUDENT_ORIGINAL_LINKS };
       export const nav = () => renderToStaticMarkup(React.createElement(StudentShell, { onNavigate() {}, active: 'student-home' }, null));
     `,
     resolveDir: new URL('..', import.meta.url).pathname,
@@ -29,17 +31,19 @@ globalThis.localStorage = {
   setItem: (k, v) => { store.set(k, String(v)); },
   removeItem: k => { store.delete(k); },
 };
-const { nav } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
+const { nav, SHOW_STUDENT_ORIGINAL_PAGES, STUDENT_ORIGINAL_LINKS } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
 const labels = html => [...html.matchAll(/<(?:button|a)[^>]*>([^<]*)<\/(?:button|a)>/g)].map(m => m[1]);
 const links = html => [...html.matchAll(/<a href="([^"]*)"[^>]*>([^<]*)<\/a>/g)].map(m => [m[1], m[2]]);
 const products = list => store.set('original_products', JSON.stringify(list));
 
-test('a student whose workspace holds Original can reach My voice and My work', () => {
+test('a student whose workspace holds Original is not offered My voice or My work in the pilot', () => {
+  assert.equal(SHOW_STUDENT_ORIGINAL_PAGES, false);
   products(['bluebook', 'original']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My exams', 'My voice', 'My work', 'Account', 'Sign out']);
-  assert.deepEqual(links(html), [['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']]);
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Account', 'Sign out']);
+  assert.deepEqual(links(html), []);
+  assert.doesNotMatch(html, /My voice|My work|original\//);
 });
 
 test('a Bluebook-only workspace keeps the shell it always had', () => {
@@ -49,7 +53,6 @@ test('a Bluebook-only workspace keeps the shell it always had', () => {
   assert.deepEqual(links(html), []);
 });
 
-test('the links are real links, so they can be opened in a new tab', () => {
-  products(['original', 'bluebook']);
-  assert.match(nav(), /<a href="\.\.\/original\/voice\.html">My voice<\/a>/);
+test('the pages stay named, so offering them again is the one switch', () => {
+  assert.deepEqual(STUDENT_ORIGINAL_LINKS, [['../original/voice.html', 'My voice'], ['../original/my-work.html', 'My work']]);
 });

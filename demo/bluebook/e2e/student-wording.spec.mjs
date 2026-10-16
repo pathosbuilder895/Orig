@@ -155,8 +155,10 @@ test.describe('Student-facing wording', () => {
     await page.goto('/bluebook/?invite=not-a-real-code')
     await page.getByLabel('New password').fill('a-new-password-1')
     await page.getByLabel('Confirm password').fill('a-new-password-1')
+    await page.getByRole('checkbox').check()
     await page.getByRole('button', { name: 'Save and continue' }).click()
     await expect(page.getByText(/link/i).last()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Go to sign in' })).toBeVisible()
     expect(unkindIn(await visibleText(page))).toEqual([])
 
     await page.goto('/bluebook/parked.html')
