@@ -3,7 +3,11 @@
 
 Use ``--from-dir`` for a local export or provide ``--base-url`` and repeated
 ``--exam`` values with ``ALPHA_TOKEN`` set. Label files have the exact header
-``submission_id,label,true_author`` and one unique row per exported submission.
+``submission_id,label,author_true,writer_true`` (label ``natural``/``shadow``;
+legacy ``true_author``/``not_own`` accepted) and one unique row per exported
+submission. An optional ``baselines.csv`` in the export root tags split-derived
+baselines (see ``load_baseline_sources``); without it all baselines are tagged
+``independent`` and the report says so.
 """
 from __future__ import annotations
 
@@ -28,7 +32,9 @@ if str(ROOT) not in sys.path:
 DROP_ENV = ("DATABASE_URL", "REPO_BACKEND", "REPO_SHADOW", "ORIGINAL_DB", "SHADOW_DATABASE_URL")
 STRICT = {"schedule_conversation", "escalate"}
 LENIENT = STRICT | {"monitor"}
-LABELS = {"natural", "not_own"}
+LABELS = {"natural", "shadow"}
+LABEL_ALIASES = {"not_own": "shadow"}
+BASELINE_SOURCES = {"independent", "split"}
 MIN_BASELINES = 3  # matches the server's insufficient-baseline gate
 
 
@@ -87,24 +93,66 @@ def bad(value) -> bool:
     return value is None or (isinstance(value, (int, float)) and not math.isfinite(value))
 
 
-def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, tuple[str, str]]:
-    """Validate the complete label CSV before any scoring starts."""
+SHADOW_KINDS = {"human_partner", "ai_staff", "injected_other", "public_domain"}
+LABEL_METADATA_FIELDS = ["shadow_kind", "imitated_student_id", "prompt_id",
+                         "paired_submission_id", "shadow_source_paper_id", "generator_tool"]
+
+
+def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, dict[str, str]]:
+    """Validate the complete label CSV before any scoring starts.
+
+    EVALUATION-ONLY / BLIND: this file is read only by this batch process to
+    compute rates *after* scores exist. It is never passed to the scoring
+    subprocess (``score()`` forwards only baseline/submission directories) and
+    never becomes an engine feature or part of any scored text.
+
+    Canonical v2 header:
+    ``submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool``
+    ``label`` is ``natural`` or ``shadow``. For a shadow row: ``author_true``
+    is the student whose baseline/voice is imitated, ``writer_true`` is who
+    actually wrote/generated it (never that same student), ``shadow_kind`` is
+    one of ``human_partner|ai_staff|injected_other|public_domain``,
+    ``prompt_id`` + ``paired_submission_id`` identify the same-prompt genuine
+    paper it pairs with, ``shadow_source_paper_id`` is the one sample paper the
+    writer/generator was shown, and ``generator_tool`` is required for
+    ``ai_staff``. ``writer_true`` may be blank on natural rows.
+    Legacy headers (``true_author`` and/or no metadata columns) and the legacy
+    label ``not_own`` are accepted and normalised, with metadata blank.
+    """
     with path.open(newline="", encoding="utf-8-sig") as source:
         reader = csv.DictReader(source)
-        required = ["submission_id", "label", "true_author"]
-        if reader.fieldnames != required:
-            raise ValueError(f"labels CSV header must be exactly: {','.join(required)}")
-        result = {}
+        v2 = ["submission_id", "label", "author_true", "writer_true"] + LABEL_METADATA_FIELDS
+        legacy = reader.fieldnames in (["submission_id", "label", "true_author"],
+                                       ["submission_id", "label", "author_true"],
+                                       ["submission_id", "label", "author_true", "writer_true"])
+        if not legacy and reader.fieldnames != v2:
+            raise ValueError(f"labels CSV header must be exactly: {','.join(v2)} (legacy submission_id,label,true_author also accepted)")
+        author_col = "true_author" if (reader.fieldnames and "true_author" in reader.fieldnames) else "author_true"
+        result: dict[str, dict[str, str]] = {}
         for line, row in enumerate(reader, start=2):
             submission_id = (row.get("submission_id") or "").strip()
-            label = (row.get("label") or "").strip().lower()
+            label = LABEL_ALIASES.get((row.get("label") or "").strip().lower(), (row.get("label") or "").strip().lower())
             if not submission_id:
                 raise ValueError(f"labels CSV line {line}: submission_id is required")
             if submission_id in result:
                 raise ValueError(f"labels CSV line {line}: duplicate submission_id {submission_id!r}")
             if label not in LABELS:
-                raise ValueError(f"labels CSV line {line}: label must be natural or not_own")
-            result[submission_id] = (label, (row.get("true_author") or "").strip())
+                raise ValueError(f"labels CSV line {line}: label must be natural or shadow")
+            entry = {"label": label, "author_true": (row.get(author_col) or "").strip(),
+                     "writer_true": (row.get("writer_true") or "").strip(),
+                     **{f: (row.get(f) or "").strip() for f in LABEL_METADATA_FIELDS}}
+            if not legacy and label == "shadow":
+                if entry["shadow_kind"] not in SHADOW_KINDS:
+                    raise ValueError(f"labels CSV line {line}: shadow row needs shadow_kind in {sorted(SHADOW_KINDS)}")
+                for field in ("author_true", "writer_true", "imitated_student_id", "prompt_id", "paired_submission_id"):
+                    if not entry[field]:
+                        raise ValueError(f"labels CSV line {line}: shadow row needs {field}")
+                if entry["writer_true"] == entry["author_true"]:
+                    raise ValueError(f"labels CSV line {line}: shadow writer must not be the imitated student")
+                if entry["shadow_kind"] == "ai_staff" and not entry["generator_tool"]:
+                    raise ValueError(f"labels CSV line {line}: ai_staff shadow needs generator_tool")
+            entry["shadow"] = "true" if label == "shadow" else "false"
+            result[submission_id] = entry
     unknown = sorted(set(result) - exported_ids)
     missing = sorted(exported_ids - set(result))
     if unknown:
@@ -112,6 +160,63 @@ def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, tuple[str, 
     if missing:
         raise ValueError(f"labels CSV is missing submission ids: {', '.join(missing[:5])}")
     return result
+
+
+def load_baseline_sources(export_dir: Path, student_names: set[str]) -> tuple[dict[str, dict[str, tuple[str, str]]], bool]:
+    """Load optional split-baseline tagging from ``<export>/baselines.csv``.
+
+    Header exactly ``student,baseline_file,baseline_source,parent_paper_id``.
+    ``student`` is the export folder name, ``baseline_file`` a basename inside
+    that student's ``baseline/`` folder, ``baseline_source`` is ``independent``
+    or ``split``. Split-derived files must name their ``parent_paper_id`` (the
+    single long paper they were cut from); sections of one paper are correlated
+    and must never be silently pooled with genuinely independent papers.
+    Returns ``(mapping, present)``; absent file -> ``({}, False)`` and callers
+    tag everything ``independent`` and say so in the report.
+    """
+    path = export_dir / "baselines.csv"
+    if not path.is_file():
+        return {}, False
+    required = ["student", "baseline_file", "baseline_source", "parent_paper_id"]
+    mapping: dict[str, dict[str, tuple[str, str]]] = {}
+    with path.open(newline="", encoding="utf-8-sig") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames != required:
+            raise ValueError(f"baselines CSV header must be exactly: {','.join(required)}")
+        for line, row in enumerate(reader, start=2):
+            student = (row.get("student") or "").strip()
+            filename = Path((row.get("baseline_file") or "").strip()).name
+            source_name = (row.get("baseline_source") or "").strip().lower()
+            parent = (row.get("parent_paper_id") or "").strip()
+            if not student or not filename:
+                raise ValueError(f"baselines CSV line {line}: student and baseline_file are required")
+            if student not in student_names:
+                raise ValueError(f"baselines CSV line {line}: unknown student folder {student!r}")
+            if source_name not in BASELINE_SOURCES:
+                raise ValueError(f"baselines CSV line {line}: baseline_source must be independent or split")
+            if source_name == "split" and not parent:
+                raise ValueError(f"baselines CSV line {line}: split-derived baseline needs parent_paper_id")
+            if not (export_dir / student / "baseline" / filename).is_file():
+                raise ValueError(f"baselines CSV line {line}: no such baseline file {student}/baseline/{filename}")
+            per_student = mapping.setdefault(student, {})
+            if filename in per_student:
+                raise ValueError(f"baselines CSV line {line}: duplicate baseline {student}/{filename}")
+            per_student[filename] = (source_name, parent)
+    return mapping, True
+
+
+def baseline_tagging(student_name: str, baseline_files: list[Path],
+                     sources: dict[str, dict[str, tuple[str, str]]], tags_present: bool) -> dict:
+    """Per-student split/independent counts; the gate counts papers, this does not hide splits."""
+    per_student = sources.get(student_name, {})
+    n_split = sum(1 for f in baseline_files if per_student.get(f.name, ("independent", ""))[0] == "split")
+    parents = sorted({per_student[f.name][1] for f in baseline_files
+                      if per_student.get(f.name, ("independent", ""))[0] == "split" and per_student[f.name][1]})
+    group = "independent" if n_split == 0 else ("split" if n_split == len(baseline_files) else "mixed")
+    return {"baseline_source": group, "n_split_baselines": n_split,
+            "n_independent_baselines": len(baseline_files) - n_split,
+            "baseline_parent_ids": ";".join(parents),
+            "baseline_tags": "baselines.csv" if tags_present else "default-independent"}
 
 
 def find_submissions(export_dir: Path) -> dict[str, tuple[Path, Path, str]]:
@@ -131,11 +236,11 @@ def find_submissions(export_dir: Path) -> dict[str, tuple[Path, Path, str]]:
 
 def threshold_sweep(rows: list[dict]) -> list[dict]:
     natural = [row for row in rows if row.get("label") == "natural" and not row.get("inconclusive") and not bad(row.get("deviation"))]
-    not_own = [row for row in rows if row.get("label") == "not_own" and not row.get("inconclusive") and not bad(row.get("deviation"))]
+    not_own = [row for row in rows if row.get("label") == "shadow" and not row.get("inconclusive") and not bad(row.get("deviation"))]
     return [{
         "threshold": step / 20,
         "caught": sum(row["deviation"] >= step / 20 for row in not_own),
-        "not_own_total": len(not_own),
+        "not_own_total": len(not_own), "shadow_total": len(not_own),
         "false_flags": sum(row["deviation"] >= step / 20 for row in natural),
         "natural_total": len(natural),
     } for step in range(1, 20)]
@@ -180,6 +285,20 @@ def boot_ci(items: dict[str, list[dict]], stat: Callable[[list[dict]], float | N
     return values[int(.025 * len(values))], values[max(0, int(.975 * len(values)) - 1)]
 
 
+def _baseline_source_summary(rows: list[dict]) -> str:
+    per_student = {}
+    for row in rows:  # one entry per student (rows repeat baselines per submission)
+        per_student[row["student"]] = row
+    parts = []
+    for group in ("independent", "split", "mixed"):
+        members = [r for r in per_student.values() if r.get("baseline_source", "independent") == group]
+        if members:
+            parts.append(f"{group}: {len(members)} student(s), {sum(r.get('n_split_baselines', 0) for r in members)} split paper(s)")
+    tagged = any(r.get("baseline_tags") == "baselines.csv" for r in rows)
+    return "; ".join(parts or ["independent: 0 student(s), 0 split paper(s)"]) + (
+        " [tagged in baselines.csv]" if tagged else " [no baselines.csv: all tagged independent by staff attestation]")
+
+
 def build_report(rows: list[dict], problems: list[str], timings: list[float], *, has_labels: bool,
                  no_rerun: bool, max_false_flag_rate: float, min_catch_rate: float) -> tuple[str, int]:
     scored = [row for row in rows if not bad(row.get("deviation"))]
@@ -190,6 +309,7 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
              f"- INCONCLUSIVE (baseline below minimum): {rate(sum(bool(row.get('inconclusive')) for row in rows), len(rows))}",
              "- insufficient baseline (fewer than " + str(MIN_BASELINES) + " papers, not scored): "
              + (", ".join(sorted({row['student'] for row in rows if row.get('insufficient_baseline')})) or "none"),
+             "- baseline sources (gate counts papers; splits shown separately, never silently pooled): " + _baseline_source_summary(rows),
              (f"- deviation min/median/max: {min(deviations):.3f} / {statistics.median(deviations):.3f} / {max(deviations):.3f}" if deviations else "- no scores"),
              f"- deterministic on rerun: {sum(row.get('deterministic') is True for row in scored)}/{len(scored)}" + (" (rerun skipped)" if no_rerun else ""),
              f"- scoring time: per paper max {max((row.get('score_ms') or 0 for row in scored), default=0):.0f} ms; per student run max {max(timings, default=0):.1f} s",
@@ -198,7 +318,7 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
     if has_labels:
         labeled = [row for row in scored if row.get("label") and not row.get("inconclusive")]
         natural = [row for row in labeled if row["label"] == "natural"]
-        not_own = [row for row in labeled if row["label"] == "not_own"]
+        not_own = [row for row in labeled if row["label"] == "shadow"]
         false_flags = sum(bool(row["strict_flag"]) for row in natural)
         caught = sum(bool(row["strict_flag"]) for row in not_own)
         groups = {}
@@ -208,24 +328,34 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
             subset = [row for row in sample if row["label"] == label]
             return sum(bool(row["strict_flag"]) for row in subset) / len(subset) if subset else None
         f_lo, f_hi = boot_ci(groups, lambda sample: fraction(sample, "natural"))
-        c_lo, c_hi = boot_ci(groups, lambda sample: fraction(sample, "not_own"))
+        c_lo, c_hi = boot_ci(groups, lambda sample: fraction(sample, "shadow"))
         passed = bool(natural and not_own and false_flags / len(natural) <= max_false_flag_rate and caught / len(not_own) >= min_catch_rate)
         f_wilson = wilson(false_flags, len(natural)); c_wilson = wilson(caught, len(not_own))
         lines += ["", "## Accuracy against labels (strict = schedule_conversation/escalate; INCONCLUSIVE excluded)",
                   f"- False flags on natural work: {rate(false_flags, len(natural))}; Wilson {format_interval(f_wilson)}; student-bootstrap {format_interval((f_lo, f_hi))}",
-                  f"- Caught not-own work: {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
+                  f"- Caught shadow work: {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
                   "", "### Deviation threshold sweep (flag if deviation >= t)", "| t | caught | false flags |", "|---|---|---|"]
         for row in threshold_sweep(labeled):
             lines.append(f"| {row['threshold']:.2f} | {rate(row['caught'], row['not_own_total'])} | {rate(row['false_flags'], row['natural_total'])} |")
+        lines += ["", "### Baseline-source breakout (split-derived never pooled silently)",
+                  "> Sections cut from one long paper are correlated, not independent papers. Compare these rows before trusting the pooled rates above; a different false-flag rate for split-derived baselines is a calibration finding, not a student finding.",
+                  "| baseline source | students | natural | false flags | shadow | caught |", "|---|---:|---:|---:|---:|---:|"]
+        for group in ("independent", "split", "mixed"):
+            grows = [row for row in labeled if row.get("baseline_source", "independent") == group]
+            if not grows:
+                continue
+            gn = [row for row in grows if row["label"] == "natural"]
+            gs = [row for row in grows if row["label"] == "shadow"]
+            lines.append(f"| {group} | {len({row['student'] for row in grows})} | {len(gn)} | {rate(sum(bool(r['strict_flag']) for r in gn), len(gn))} | {len(gs)} | {rate(sum(bool(r['strict_flag']) for r in gs), len(gs))} |")
         lines += ["", f"Pre-registered criteria: false-flag rate <= {max_false_flag_rate:.0%} and catch rate >= {min_catch_rate:.0%}",
                   f"**{'PASS' if passed else 'FAIL'}** on point estimates.",
                   "", "> Small-sample results are not validation. Do not tune thresholds against this same set and re-score it."]
     lines += ["", "## Problems", *(f"- {item}" for item in problems or ["none"]), "",
-              "| student | submission | label | baselines | words | deviation | action | strict flag | deterministic |",
-              "|---|---|---|---:|---:|---:|---|---|---|"]
+              "| student | submission | label | baselines | split baselines | baseline source | words | deviation | action | strict flag | deterministic |",
+              "|---|---|---|---:|---:|---|---:|---:|---|---|---|"]
     for row in rows:
         value = row.get("deviation")
-        lines.append(f"| {row['student'][-8:]} | {row['submission_id'][:10]} | {row.get('label', '')} | {row['n_baselines']} | {row['baseline_words']} | "
+        lines.append(f"| {row['student'][-8:]} | {row['submission_id'][:10]} | {row.get('label', '')} | {row['n_baselines']} | {row.get('n_split_baselines', 0)} | {row.get('baseline_source', 'independent')} | {row['baseline_words']} | "
                      f"{'-' if bad(value) else f'{value:.3f}'} | {'INSUFFICIENT BASELINE' if row.get('insufficient_baseline') else 'INCONCLUSIVE' if row.get('inconclusive') else row.get('action', row.get('error', '-'))} | "
                      f"{row.get('strict_flag', '-')} | {row.get('deterministic', '-')} |")
     hard_error = any(any(marker in item for marker in ("non-finite", "rerun differs", "outside [0,1]")) for item in problems)
@@ -239,6 +369,7 @@ def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | N
         raise ValueError("--throttle-seconds must be >= 0")
     files = find_submissions(export_dir)
     labels = validate_labels(labels_path, set(files)) if labels_path else {}
+    sources, tags_present = load_baseline_sources(export_dir, {d.name for d, _, _ in files.values()})
     out_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     problems: list[str] = []
@@ -261,12 +392,13 @@ def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | N
         enough = len(baseline_files) >= MIN_BASELINES and baseline_words >= 300
         relevant = [(sid, path) for sid, (directory, _, _) in files.items() if directory == student_dir
                     for path in [submission_dir / f"{sid}.txt"]]
-        base = {"student": student_dir.name, "n_baselines": len(baseline_files), "baseline_words": baseline_words}
+        base = {"student": student_dir.name, "n_baselines": len(baseline_files), "baseline_words": baseline_words,
+                **baseline_tagging(student_dir.name, baseline_files, sources, tags_present)}
         if len(baseline_files) < MIN_BASELINES:
             # Not scored at all: Original returns "insufficient baseline", not a number.
             for sid, _ in relevant:
-                label, author = labels.get(sid, ("", ""))
-                rows.append({**base, "submission_id": sid, "label": label, "true_author": author,
+                meta = labels.get(sid, {})
+                rows.append({**base, "submission_id": sid, "label": meta.get("label", ""), "true_author": meta.get("author_true", ""), **{k: meta.get(k, "") for k in ("author_true", "writer_true", "shadow", *LABEL_METADATA_FIELDS)},
                              "error": f"insufficient baseline ({len(baseline_files)} of {MIN_BASELINES} papers)",
                              "inconclusive": True, "insufficient_baseline": True})
             problems.append(f"{student_dir.name}: INSUFFICIENT BASELINE ({len(baseline_files)} of {MIN_BASELINES} papers) -> not scored")
@@ -289,9 +421,9 @@ def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | N
         rerun_scores, first3_scores = scores_by_id(rerun), scores_by_id(first3)
         for sid, path in relevant:
             item = scored.get(path.stem, {})
-            label, author = labels.get(sid, ("", ""))
+            meta = labels.get(sid, {})
             deviation, probability = item.get("deviation_score"), item.get("authorship_probability")
-            row = {**base, "submission_id": sid, "label": label, "true_author": author,
+            row = {**base, "submission_id": sid, "label": meta.get("label", ""), "true_author": meta.get("author_true", ""), **{k: meta.get(k, "") for k in ("author_true", "writer_true", "shadow", *LABEL_METADATA_FIELDS)},
                    "deviation": deviation, "authorship_probability": probability,
                    "action": item.get("recommended_action"), "score_ms": item.get("scoring_time_ms"),
                    "inconclusive": not enough, "error": item.get("error") or (error if not result else "")}
@@ -338,7 +470,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", help="staff API base URL for an export")
     parser.add_argument("--exam", action="append", default=[], help="exam id to export; may be repeated")
     parser.add_argument("--from-dir", type=Path, help="score an existing local export")
-    parser.add_argument("--labels", type=Path, help="CSV with submission_id,label,true_author")
+    parser.add_argument("--labels", type=Path, help="evaluation-only CSV: submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool")
     parser.add_argument("--repo", type=Path, default=ROOT, help="repository root (default: detected from this script)")
     parser.add_argument("--out", type=Path, default=Path("alpha_scores"))
     parser.add_argument("--max-false-flag-rate", type=float, default=1 / 20)
