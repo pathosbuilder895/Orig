@@ -227,4 +227,44 @@ has no cache path, and baseline-dependent comparison dimensions are always recom
     # produced the committed report above.
     .venv/bin/python -m validation.public_authors.run
 
+## Natural/shadow study (gate G-S1)
+
+A classroom study in which students write once as themselves (*natural*) and
+once as a named classmate (*shadow*); protocol and pre-registered criteria in
+`docs/research/STUDY_PROTOCOL_2026-10.md`. Three pieces, built against the CSV
+contract in `validation/study_contract.py` (`study-csv-v2`: `student_id` is the
+writer, `verdict` the live Collections outcome against the claimed student's
+baseline, `deviation_score` the score, higher = less consistent;
+`tests/test_study_eval_on_export.py` pins the header and checks
+`original.study_export` against it):
+
+    # report: AUC on deviation_score with a student bootstrap, confusion at
+    # the live rule (the exported verdict), a 0.01 sweep with the action
+    # bands marked, INCONCLUSIVE rate, baseline-count and word-count
+    # breakdowns, per-student gaps, feature separation; Markdown + JSON + PNG
+    .venv/bin/python -m validation.study_eval --csv study.csv --out-dir validation/study/out/cohort1
+    # candidate deviation_score cut-off within a 5% natural false-flag cap,
+    # its trade-off, a leave-one-student-out re-run, and a diff against the
+    # current snapshot
+    .venv/bin/python scripts/propose_thresholds.py --eval validation/study/out/cohort1/study_eval.json
+    # G-S1 on that candidate (leg S of the battery)
+    STUDY_CANDIDATE=validation/study/candidates/candidate_operating_point.json \
+        .venv/bin/python -m validation.calibration_gate --strict --only S
+
+G-S1 reads only out-of-sample evidence (leave-one-student-out, or a fresh
+cohort of different students via `--fresh-cohort-eval`; the proposal refuses a
+"fresh" cohort that shares a student or a submission): a cut-off chosen on the
+same rows meets its cap by construction. A cut-off chosen at a cap other than
+the pre-registered 5%, a candidate that changes tier weights (checked against
+the snapshot), or a candidate that flags more than every fold cannot pass; only a
+fresh-cohort pass is adoption evidence. With no candidate present (every fresh
+checkout) it is `uninformative`. About 20 students cannot demonstrate a 5%
+false-flag rate (that needs 73 students' conclusive natural attempts with none
+flagged; repeat attempts by one student count once), so `uninformative` is the
+expected verdict for a first cohort, not a pass. The
+proposal never writes `validation/study/current_operating_point.json`, which
+mirrors the live rule and is pinned to the code by `tests/test_study_gate.py`.
+Study outputs under `validation/study/out/` and `validation/study/candidates/`
+are git-ignored.
+
 Weights remain HELD: nothing here writes to `original/constants.py`.

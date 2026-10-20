@@ -6,6 +6,7 @@ import {
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { StudyLabelPanel } from './StudyLabelPanel.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
@@ -607,6 +608,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
           ? <Btn onClick={load}>Try again</Btn>
           : <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet. Sealed exams appear here as students submit them." />}
       </Section>
+      <StudyLabelPanel exam={exam} subs={subs} />
       {form && (
         <Section title="Settings">
           <Panel>

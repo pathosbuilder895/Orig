@@ -1,0 +1,43 @@
+{
+  "schema": "study-operating-point-v1",
+  "kind": "current",
+  "description": "Snapshot of the live operating point the natural/shadow study measures. It mirrors code and is not read by any live path: tests/test_study_operating_point.py fails if it drifts from demo/bluebook/Exam.jsx or original/constants.py. scripts/propose_thresholds.py diffs candidates against it and refuses to write over it.",
+  "score_field": "consistency_score",
+  "flag_rule": {
+    "flag_if_score_below": 70,
+    "status_when_flagged": "FLAGGED",
+    "source": "demo/bluebook/Exam.jsx bbSealStatus: seal.aiScore < 70"
+  },
+  "inconclusive_rule": {
+    "min_approved_reference_samples": 3,
+    "source": "original/baseline_integrity.py readiness (MIN_BASELINES) read by demo/bluebook/Exam.jsx bbScoreWithOriginal"
+  },
+  "action_thresholds": {
+    "no_action": [0.0, 0.4],
+    "monitor": [0.4, 0.6],
+    "schedule_conversation": [0.6, 0.75],
+    "escalate": [0.75, 1.0]
+  },
+  "tier_weights": {
+    "0": 1.2,
+    "1": 1.0,
+    "2": 0.6,
+    "3": 0.8,
+    "4": 1.3,
+    "5": 1.2,
+    "6": 1.4,
+    "7": 1.1,
+    "8": 1.1,
+    "9": 0.9,
+    "10": 1.0,
+    "11": 1.4,
+    "12": 1.2,
+    "13": 1.3,
+    "14": 1.3,
+    "15": 1.2,
+    "16": 1.4,
+    "17": 1.5,
+    "18": 1.3
+  },
+  "disabled_tiers": [17, 18]
+}
