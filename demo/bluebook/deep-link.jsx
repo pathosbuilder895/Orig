@@ -25,7 +25,7 @@
 // dashes. Anything else is not a deep link and is ignored.
 const DEEP_LINK = /^#(exam|live)\/([A-Za-z0-9_-]{1,64})$/;
 // A link to a whole screen: no id, nothing to check on the server.
-const SCREEN_LINK = /^#(students|courses)$/;
+const SCREEN_LINK = /^#(students|courses|exams|results)$/;
 
 // The screen each kind of link opens, and the global that screen reads its
 // exam id from (Teacher.jsx: ManageExamScreen, ProctorLiveScreen).
@@ -52,6 +52,15 @@ export function deepLinkScreen(link, exam) {
 // (the sign-in page's "Forgot your password?" link). It is not a deep link into a signed-in
 // workspace: app.jsx reads it only to pick the first screen.
 export const FORGOT_HASH = '#forgot';
+
+// Teacher screens that keep their place across a reload: navigating to one
+// writes its hash, so a refresh reopens it instead of the dashboard (alpha
+// bug 2026-10-20: a refresh on Students dropped the teacher elsewhere).
+export const RELOADABLE_SCREENS = ['students', 'courses', 'exams', 'results'];
+export function rememberScreen(screen) {
+  if (!RELOADABLE_SCREENS.includes(screen)) return;
+  try { window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#' + screen); } catch (e) {}
+}
 
 // Drops a deep-link hash from the address bar, keeping the path and query,
 // so a reload after the teacher has moved on opens the dashboard rather

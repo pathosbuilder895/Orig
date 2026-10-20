@@ -668,6 +668,14 @@ export const BB_API = {
     this._clearSession();
     bbClearKeptPapers();
   },
+  // Which account this browser is signed in as, for noticing a switch made
+  // in another tab. Token-based, so a re-login as a different user counts.
+  sessionSignature() {
+    try {
+      const tok = localStorage.getItem('original_principal_token') || localStorage.getItem('original_session_token') || '';
+      return tok ? tok + '|' + (localStorage.getItem('original_role') || '') : '';
+    } catch (e) { return ''; }
+  },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },
   // A student who signed in with an account (not a launch link).

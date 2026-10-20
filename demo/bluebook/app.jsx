@@ -16,7 +16,7 @@ import {
 } from './Teacher.jsx';
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
-import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink } from './deep-link.jsx';
+import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, rememberScreen } from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -34,6 +34,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 // The screens a visitor sees before they have signed in (or while they are signing in or up).
 const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot'];
+const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -47,8 +48,25 @@ function App() {
   const navigate = (next) => {
     clearDeepLink();
     if (BB_API.isAuthed() && !PRE_AUTH_SCREENS.includes(screen)) setDeepLink(null);
+    if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) rememberScreen(next);
     setTweak('currentScreen', next);
   };
+  // One browser holds one sign-in (localStorage is shared by every tab). If
+  // another tab signs in as someone else (typically the teacher testing a
+  // student invite), this tab's token is gone and every request would come
+  // back empty or refused. Say so plainly instead of showing empty pages.
+  // The account this tab last rendered with (its own sign-ins do not fire
+  // storage events, so this follows them; another tab's change does not).
+  const shownSession = React.useRef(BB_API.sessionSignature());
+  const [switched, setSwitched] = useState(false);
+  React.useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== null && !BB_SESSION_WATCH.includes(e.key)) return;
+      if (shownSession.current && BB_API.sessionSignature() !== shownSession.current) setSwitched(true);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
   // on a signed-in teacher's dashboard: straight away for a teacher who is
   // already signed in, after sign-in for one who is not, and never for a
@@ -239,6 +257,19 @@ function App() {
       break;
     default:
       content = <LandingScreen onNavigate={navigate} />;
+  }
+
+  if (!switched) shownSession.current = BB_API.sessionSignature();
+  if (switched) {
+    const who = BB_API.identity();
+    return (
+      <div role="alert" data-testid="session-switched" style={{ maxWidth: 560, margin: '15vh auto', padding: '0 1.5rem', fontFamily: 'Georgia, serif', lineHeight: 1.55 }}>
+        <h1 style={{ fontWeight: 400 }}>You were signed out in this tab</h1>
+        <p>Another tab in this browser signed in{who.email ? <> as <strong>{who.email}</strong></> : null}{who.role ? ` (${who.role})` : ''}. A browser holds one sign-in at a time, so this tab's account was signed out. Nothing you or your students submitted was lost.</p>
+        <p>To use a teacher and a student account at the same time, open the student's link in a private (incognito) window or a different browser.</p>
+        <button onClick={() => window.location.reload()}>Reload this tab</button>
+      </div>
+    );
   }
 
   return (
