@@ -39,11 +39,11 @@
   content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(rgba(22,36,79,.5),rgba(22,36,79,.5)),url('../assets/codrington-library.jpeg') center 42%/cover no-repeat;
   background-blend-mode:color,normal;
-  filter:saturate(.55) brightness(.52) contrast(1.12) hue-rotate(184deg);opacity:.78;
+  filter:saturate(.8) brightness(.85) contrast(1.08) hue-rotate(184deg);opacity:1;
 }
 .teacher-frame::after{
   content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(9,14,34,.36) 0%,rgba(8,12,30,.72) 42%,rgba(7,11,26,.93) 100%),
+  background:linear-gradient(180deg,rgba(9,14,34,.12) 0%,rgba(8,12,30,.45) 30%,rgba(8,12,30,.82) 55%,rgba(7,11,26,.93) 100%),
              radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,.09),transparent 72%);
 }
 
