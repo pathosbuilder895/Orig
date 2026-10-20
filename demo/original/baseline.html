@@ -370,6 +370,14 @@
           </div>
         </div>
 
+        <div id="shared-sec" style="margin-top:1.3rem;" hidden>
+          <div class="sec-h"><b>Papers students shared</b><span id="shared-sub"></span></div>
+          <div class="card ex-card">
+            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
+            <div id="shared-list"><div class="live-empty">Loading</div></div>
+          </div>
+        </div>
+
         <div id="sections">
           <div>
             <div class="sec-h"><b>The short version</b><span>what the baseline holds, in plain words</span></div>
@@ -1285,6 +1293,55 @@
     window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
   }
 
+  // ── papers students shared (2026-10 alpha) ──
+  // Pending papers a student shared from their Collections account. Approve adds the paper
+  // as a student upload through the server's baseline write; Decline leaves it out. With a
+  // student chosen, only theirs; on the all-students view, everyone's.
+  const SH={rows:[],busy:'',msg:{}};
+  const SHARED_STATUS={pending:'Waiting for approval',approved:'In the baseline',declined:'Declined',held:'Held back'};
+  function renderShared(){
+    const sec=$('shared-sec'), el=$('shared-list');
+    const rows=ID?SH.rows.filter(r=>r.student_id===ID):SH.rows;
+    sec.hidden=false;
+    const waiting=rows.filter(r=>r.status==='pending').length;
+    $('shared-sub').textContent=waiting?plural(waiting,'paper')+' waiting for your approval':'none waiting for your approval';
+    if(!rows.length){ Live.empty(el,'No shared papers yet.'); return; }
+    const dis=SH.busy?' disabled':'';
+    el.innerHTML=rows.map(r=>{
+      const src=r.baseline_source==='split'?('Section of a longer paper'+(r.parent_title?': '+r.parent_title:'')+' (split-derived)'):'Whole paper (independent)';
+      const meta=[ID?'':(r.student||'Student'), fmtDate(r.shared_at), plural(num(r.word_count)||0,'word'), src].filter(Boolean).join(' · ');
+      const st='<span class="st '+(r.status==='approved'?'in':r.status==='pending'?'wait':'off')+'"><span class="d"></span>'+esc(SHARED_STATUS[r.status]||r.status)+'</span>';
+      const btns=(r.status==='pending'||r.status==='held')?('<div class="ex-btns">'+
+        (r.status==='pending'?'<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(SH.busy===r.paper_id?'Saving...':'Approve')+'</button>':'')+
+        '<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button></div>'):'';
+      const m=SH.msg[r.paper_id];
+      return '<div class="ex" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
+        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div></div>';
+    }).join('');
+  }
+  async function loadShared(){
+    const res=await Live.api('/bluebook/past-papers');
+    if(!res.ok||!res.data||!Array.isArray(res.data.papers)){ $('shared-sec').hidden=true; return; }
+    SH.rows=res.data.papers; renderShared();
+  }
+  $('shared-list').addEventListener('click',async e=>{
+    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled||SH.busy) return;
+    const id=b.getAttribute('data-id'), act=b.getAttribute('data-sact');
+    const r=SH.rows.find(x=>x.paper_id===id); if(!r) return;
+    SH.busy=id; renderShared();
+    try{
+      const res=await Live.api('/bluebook/past-papers/'+enc(id)+'/'+act,{method:'POST'});
+      if(res.ok&&res.data&&typeof res.data.status==='string'){
+        r.status=res.data.status;
+        SH.msg[id]=r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
+          r.status==='held'?{text:'Not added: this paper differs strongly from the student’s existing samples. Approval does not override this check.',kind:'err'}:
+          {text:'Declined. It is not used.',kind:'ok'};
+        if(r.status==='approved'&&ID&&r.student_id===ID) await refreshStudent();
+      } else if(res.status===401){ SH.msg[id]={text:'Your sign-in has ended. Sign in again, then try once more.',kind:'err'}; }
+      else { SH.msg[id]={text:detailText(res.data)||'That did not go through, so nothing changed.',kind:'err'}; }
+    }finally{ SH.busy=''; renderShared(); }
+  });
+
   // ── go ──
   Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
@@ -1292,6 +1349,7 @@
     startFingerprint();
     $('paste-date').value=today();
     setTab('paste');
+    loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }
     renderAll();
     // The roster and the sealed exams are slower (the sealed list is three requests,

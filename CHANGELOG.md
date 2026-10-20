@@ -14,6 +14,8 @@ merge/commit that shipped the change, not necessarily the PR-open date.
 
 ## [Unreleased]
 
+- **Students can share past papers from their Collections account (alpha).** `POST/GET /bluebook/me/papers` stores a PDF/DOCX/TXT or pasted paper as *pending* (never scored; the student sees only titles and review status). Teachers approve or decline on `/original/baseline.html` → *Papers students shared*; approval adds it as a student upload (`unverified`) through the existing baseline write and drift gate, so only approved papers count toward the 3-paper minimum. A "section of a longer paper" tag (`baseline_source=split`) flows into `scripts/alpha/batch_score_alpha.py`'s export `baselines.csv`. New table `student_past_papers` (alembic `b5e1f7c3a9d2`), erased with the student.
+
 Work merged after the 1.3.0 model-card entry, not yet reflected in a new
 model-card version line (this reflects operational/docs/hygiene work, not a
 new scoring-behavior change — no version bump is implied):

@@ -54,6 +54,7 @@ def export(base: str, token: str, exams: list[str], dest: Path) -> Path:
     roster_response = requests.get(f"{base.rstrip('/')}/students", headers=headers, timeout=60)
     roster_response.raise_for_status()
     counts = {row["id"]: int(row.get("sample_count", 0)) for row in roster_response.json().get("roster", [])}
+    baseline_texts: dict[str, dict[str, str]] = {}
     for row in rows:
         sid = row["student_id"]
         student_dir = dest / sid.replace(":", "_")
@@ -65,9 +66,46 @@ def export(base: str, token: str, exams: list[str], dest: Path) -> Path:
         for index in range(counts.get(sid, 0)):
             response = requests.get(f"{base.rstrip('/')}/students/{sid}/samples/{index}/text", headers=headers, timeout=60)
             response.raise_for_status()
-            (baseline_dir / f"{index:02d}.txt").write_text(response.json().get("text", ""), encoding="utf-8")
+            sample_text = response.json().get("text", "")
+            (baseline_dir / f"{index:02d}.txt").write_text(sample_text, encoding="utf-8")
+            baseline_texts.setdefault(student_dir.name, {})[f"{index:02d}.txt"] = sample_text
+    papers_response = requests.get(f"{base.rstrip('/')}/bluebook/past-papers", headers=headers, timeout=60)
+    papers_response.raise_for_status()
+    write_baseline_sources(dest, baseline_texts, papers_response.json().get("papers", []))
     (dest / "manifest.json").write_text(json.dumps({"exams": exams, "submissions": len(rows)}, indent=2), encoding="utf-8")
     return dest
+
+
+def write_baseline_sources(dest: Path, baseline_texts: dict[str, dict[str, str]],
+                           shared_papers: list[dict]) -> Path | None:
+    """Write ``<export>/baselines.csv`` from the papers students shared in the app.
+
+    A baseline file whose text is an approved shared paper takes that paper's
+    tag (``split`` with ``parent_paper_id`` = the student folder plus the
+    longer paper's title, so sections of one paper group together); every
+    other file is ``independent``. A ``baselines.csv`` already in the export
+    (Andrew's hand-tagged imports) is left alone. Returns the path written.
+    """
+    import hashlib
+
+    path = dest / "baselines.csv"
+    if path.exists() or not baseline_texts:
+        return None
+    tags = {p.get("text_sha256"): p for p in shared_papers
+            if p.get("status") == "approved" and p.get("text_sha256")}
+    with path.open("w", newline="", encoding="utf-8") as out:
+        writer = csv.writer(out)
+        writer.writerow(["student", "baseline_file", "baseline_source", "parent_paper_id"])
+        for student in sorted(baseline_texts):
+            for filename in sorted(baseline_texts[student]):
+                digest = hashlib.sha256(baseline_texts[student][filename].encode()).hexdigest()
+                paper = tags.get(digest) or {}
+                if paper.get("baseline_source") == "split":
+                    parent = " ".join(str(paper.get("parent_title") or paper.get("title") or "").lower().split())
+                    writer.writerow([student, filename, "split", f"{student}:{parent}"])
+                else:
+                    writer.writerow([student, filename, "independent", ""])
+    return path
 
 
 def score(repo: Path, baseline_dir: Path, submission_dir: Path, student_id: str):
