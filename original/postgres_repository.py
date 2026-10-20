@@ -51,6 +51,7 @@ from .db.models.live import (
     ParkSession,
     StaffUser,
     StudentName,
+    StudentPastPaper,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -515,6 +516,13 @@ class PostgresRepository:
                 session.execute(
                     BluebookEnrollment.__table__.delete().where(
                         BluebookEnrollment.student_id == student_id,
+                    )
+                )
+                # Past papers the student shared (2026-10): full scoped id
+                # verbatim, like the roster rows above.
+                session.execute(
+                    StudentPastPaper.__table__.delete().where(
+                        StudentPastPaper.student_id == student_id,
                     )
                 )
                 session.execute(
@@ -2826,3 +2834,78 @@ class PostgresRepository:
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):
         self._todo("db_path")
+
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+
+    def put_past_paper(self, rec):
+        with session_scope() as session:
+            session.add(
+                StudentPastPaper(
+                    paper_id=rec["paper_id"],
+                    tenant_id=rec["tenant_id"],
+                    student_id=rec["student_id"],
+                    title=rec["title"],
+                    text=rec["text"],
+                    word_count=int(rec["word_count"]),
+                    filename=rec.get("filename"),
+                    baseline_source=rec.get("baseline_source") or "independent",
+                    parent_title=rec.get("parent_title"),
+                    status=rec.get("status") or "pending",
+                    created_at=datetime.now(UTC),
+                )
+            )
+
+    def get_past_paper(self, paper_id):
+        with session_scope() as session:
+            row = session.get(StudentPastPaper, paper_id)
+            return _past_paper_to_dict(row) if row else None
+
+    def list_past_papers(self, tenant_id, student_id=None):
+        with session_scope() as session:
+            stmt = select(StudentPastPaper).where(StudentPastPaper.tenant_id == tenant_id)
+            if student_id is not None:
+                stmt = stmt.where(StudentPastPaper.student_id == student_id)
+            rows = session.execute(stmt.order_by(StudentPastPaper.created_at.desc())).scalars()
+            return [_past_paper_to_dict(r) for r in rows]
+
+    def count_past_papers_since(self, student_id, since_iso):
+        since = datetime.fromisoformat(since_iso)
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+        with session_scope() as session:
+            return int(
+                session.execute(
+                    select(func.count())
+                    .select_from(StudentPastPaper)
+                    .where(
+                        StudentPastPaper.student_id == student_id,
+                        StudentPastPaper.created_at >= since,
+                    )
+                ).scalar_one()
+            )
+
+    def set_past_paper_status(self, paper_id, status, reviewed_by):
+        with session_scope() as session:
+            session.execute(
+                update(StudentPastPaper)
+                .where(StudentPastPaper.paper_id == paper_id)
+                .values(status=status, reviewed_at=datetime.now(UTC), reviewed_by=reviewed_by)
+            )
+
+
+def _past_paper_to_dict(row) -> dict:
+    return {
+        "paper_id": row.paper_id,
+        "tenant_id": row.tenant_id,
+        "student_id": row.student_id,
+        "title": row.title,
+        "text": row.text,
+        "word_count": row.word_count,
+        "filename": row.filename,
+        "baseline_source": row.baseline_source,
+        "parent_title": row.parent_title,
+        "status": row.status,
+        "created_at": _iso_or_none(row.created_at),
+        "reviewed_at": _iso_or_none(row.reviewed_at),
+        "reviewed_by": row.reviewed_by,
+    }

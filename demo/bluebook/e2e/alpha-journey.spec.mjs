@@ -182,6 +182,24 @@ test.describe('Alpha journey @alpha', () => {
       await expect(student.getByRole('row', { name: new RegExp(`Practice prompt 1 ${tag}`) }).locator('.bb-badge')).toHaveText('submitted')
     })
 
+    const sharedText = 'When I was twelve I kept a notebook of every bird on our street, and the habit of looking twice has stayed with me. '.repeat(4)
+    await test.step('the student shares a past paper from their account; it waits for the teacher, with no reading shown', async () => {
+      const sec = student.getByRole('form', { name: 'Share a past paper' })
+      await expect(sec).toBeVisible()
+      await sec.getByLabel('Or paste the text').fill(sharedText)
+      await sec.getByLabel('Title (optional)').fill('Birds on our street')
+      await sec.getByLabel('This is a section of a longer paper').check()
+      await sec.getByLabel('Title of the longer paper').fill('My nature journal')
+      await sec.getByRole('button', { name: 'Share paper' }).click()
+      await expect(sec.getByRole('status')).toHaveText('Received — your teacher will review it.', { timeout: 15_000 })
+      const row = student.getByRole('table', { name: 'Papers you have shared' }).getByRole('row', { name: /Birds on our street/ })
+      await expect(row).toContainText('Section of My nature journal')
+      await expect(row.locator('.bb-badge')).toHaveText('waiting for review')
+      const page = await student.evaluate(() => document.body.innerText)
+      expect(page).not.toMatch(/score|consisten|deviation|Original/i)
+      expect(await student.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE.width)
+    })
+
     await test.step('the live view opens on the exam being written, even when a newer one is open', async () => {
       const token = new URL(links[1][2]).searchParams.get('invite')
       const ben = await (await request.post('/auth/invite/redeem', { data: { token, password: PASSWORD } })).json()
@@ -255,6 +273,20 @@ test.describe('Alpha journey @alpha', () => {
       await teacher.getByRole('button', { name: 'Import', exact: true }).click()
       await expect(teacher.locator('#add-msg')).toContainText('Added 3', { timeout: 60_000 })
       await expect(teacher.locator('#s-min')).toHaveText('Met', { timeout: 15_000 })
+    })
+
+    await test.step('the teacher approves the shared paper on the reference-papers page; the student sees it accepted', async () => {
+      await teacher.goto('/original/baseline.html')
+      const shared = teacher.locator('#shared-sec')
+      await expect(shared.locator('.ex', { hasText: 'Birds on our street' })).toContainText('Alpha Ada', { timeout: 15_000 })
+      await expect(shared.locator('.ex', { hasText: 'Birds on our street' })).toContainText('split-derived')
+      await shared.locator('.ex', { hasText: 'Birds on our street' }).getByRole('button', { name: 'Approve' }).click()
+      await expect(shared.locator('.ex', { hasText: 'Birds on our street' })).toContainText('In the baseline', { timeout: 30_000 })
+      const tagged = (await (await request.get('/bluebook/past-papers', { headers: staffAuth })).json()).papers
+      expect(tagged.find(p => p.title === 'Birds on our street')).toMatchObject({ status: 'approved', baseline_source: 'split', parent_title: 'My nature journal' })
+      await student.reload()
+      const row = student.getByRole('table', { name: 'Papers you have shared' }).getByRole('row', { name: /Birds on our street/ })
+      await expect(row.locator('.bb-badge')).toHaveText('accepted', { timeout: 15_000 })
     })
   })
 

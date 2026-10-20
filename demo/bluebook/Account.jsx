@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnPrimary, fontBody } from './components.jsx';
 import {
-  AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, when,
+  AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 
@@ -451,6 +451,92 @@ function bbStudentError(err, fallback) {
   return (err && err.message) || fallback;
 }
 
+// "Share a past paper": a student sends their teacher writing they did
+// before, as a file or pasted text. It waits for the teacher, who decides
+// whether it is used as reference writing. The student sees titles and
+// whether the teacher has reviewed them, never any reading of the paper.
+const PAPER_STATUS = { pending: 'waiting for review', approved: 'accepted', declined: 'not used' };
+export function SharePastPaper() {
+  const [enabled, setEnabled] = useState(false);
+  const [papers, setPapers] = useState(null);
+  const [file, setFile] = useState(null);
+  const [text, setText] = useState('');
+  const [title, setTitle] = useState('');
+  const [isSection, setIsSection] = useState(false);
+  const [parent, setParent] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const fileRef = React.useRef(null);
+
+  useEffect(() => {
+    let live = true;
+    BB_API.myPapers().then(r => { if (live) { setEnabled(!!r.enabled); setPapers(r.papers || []); } })
+      .catch(() => { if (live) setPapers([]); });
+    return () => { live = false; };
+  }, []);
+  if (!enabled) return null;
+
+  async function share(ev) {
+    ev.preventDefault();
+    setError(''); setNotice('');
+    if (!file && !text.trim()) { setError('Choose a file or paste the text of your paper.'); return; }
+    if (file && text.trim()) { setError('Choose a file or paste the text, not both.'); return; }
+    if (isSection && !parent.trim()) { setError('Name the longer paper this section comes from.'); return; }
+    const form = new FormData();
+    if (file) form.append('file', file);
+    if (text.trim()) form.append('text', text);
+    form.append('title', title);
+    if (isSection) { form.append('is_section', '1'); form.append('parent_title', parent); }
+    setBusy(true);
+    try {
+      const r = await BB_API.sharePaper(form);
+      setPapers(r.papers || []);
+      setNotice(r.message || 'Received — your teacher will review it.');
+      setFile(null); setText(''); setTitle(''); setIsSection(false); setParent('');
+      if (fileRef.current) fileRef.current.value = '';
+    } catch (err) {
+      setError(bbStudentError(err, 'We could not send that paper just now. Please try again.'));
+    } finally { setBusy(false); }
+  }
+
+  const columns = [
+    { key: 'title', label: 'Paper', lead: true, render: p => <>{p.title}{p.is_section && p.section_of ? <span className="sub">{`Section of ${p.section_of}`}</span> : null}</> },
+    { key: 'shared_at', label: 'Shared', render: p => when(p.shared_at) },
+    { key: 'status', label: 'Status', render: p => <Badge>{PAPER_STATUS[p.status] || PAPER_STATUS.pending}</Badge> },
+  ];
+  return (
+    <Section title="Share a past paper">
+      <Panel style={{ marginBottom: '1rem' }}>
+        <p className="bb-meta" style={{ marginTop: 0 }}>
+          Share writing you did yourself before this course, such as an old essay. Your teacher reviews each paper before it is used. Upload a PDF, Word (.docx) or text file, or paste the text.
+        </p>
+        <form onSubmit={share} aria-label="Share a past paper">
+          <div className="bb-field">
+            <label htmlFor="ppFile">File (PDF, DOCX or TXT)</label>
+            <input id="ppFile" ref={fileRef} className="bb-input" type="file" accept=".pdf,.docx,.txt"
+              onChange={e => setFile((e.target.files && e.target.files[0]) || null)} />
+          </div>
+          <TextArea id="ppText" label="Or paste the text" rows={6} value={text} onChange={setText} />
+          <Field id="ppTitle" label="Title (optional)" value={title} onChange={setTitle} required={false} />
+          <div className="bb-field">
+            <label htmlFor="ppSection" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input id="ppSection" type="checkbox" checked={isSection} onChange={e => setIsSection(e.target.checked)} />
+              This is a section of a longer paper
+            </label>
+          </div>
+          {isSection && <Field id="ppParent" label="Title of the longer paper" value={parent} onChange={setParent} />}
+          <ErrorText>{error}</ErrorText>
+          <Notice>{notice}</Notice>
+          <Btn primary type="submit" disabled={busy}>{busy ? 'Sending…' : 'Share paper'}</Btn>
+        </form>
+      </Panel>
+      <Table columns={columns} rows={papers || []} rowKey={p => p.paper_id} caption="Papers you have shared"
+        empty={papers === null ? 'Loading…' : 'No papers shared yet.'} />
+    </Section>
+  );
+}
+
 export function StudentHomeScreen({ onNavigate }) {
   const [me, setMe] = useState(null);
   const [exams, setExams] = useState(null);
@@ -518,6 +604,7 @@ export function StudentHomeScreen({ onNavigate }) {
         <Section title="My submissions">
           <Table columns={subColumns} rows={subs} rowKey={s => s.id} caption="Your submissions" empty="Nothing submitted yet." />
         </Section>
+        <SharePastPaper />
       </Page>
     </StudentShell>
   );

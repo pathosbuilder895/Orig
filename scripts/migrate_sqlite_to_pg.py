@@ -79,6 +79,7 @@ from original.db.models.live import (
     ParkSession,
     StaffUser,
     StudentName,
+    StudentPastPaper,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1426,6 +1427,46 @@ class _ParkBeatMigrator(_Migrator):
 # student or tenant at all, see ParkBeat's docstring -- but it must still
 # flush after park_sessions since a phone-park session logically precedes its
 # beats even without a DB-level FK enforcing it.)
+class _StudentPastPaperMigrator(_Migrator):
+    """Past papers students shared for teacher approval (2026-10 alpha). No
+    tenant FK; student_id is the full scoped string in both schemas, like
+    consumed_attestations, so no _split_local here."""
+
+    name = "student_past_papers"
+    model = StudentPastPaper
+    pk = "paper_id"
+    _COLS = (
+        "paper_id", "tenant_id", "student_id", "title", "text", "word_count", "filename",
+        "baseline_source", "parent_title", "status", "created_at", "reviewed_at", "reviewed_by",
+    )  # fmt: skip
+    _TS = ("created_at", "reviewed_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM student_past_papers").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            for k in self._TS:
+                row[k] = _canon_ts(row[k]) if row[k] is not None else None
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        for k in self._TS:
+            kwargs[k] = _parse_ts(row[k]) if row[k] is not None else None
+        return StudentPastPaper(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(StudentPastPaper).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            for k in self._TS:
+                row[k] = _canon_ts(row[k]) if row[k] is not None else None
+            out.append(row)
+        return out
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1450,6 +1491,7 @@ MIGRATORS: list[_Migrator] = [
     _BaselineRequestMigrator(),
     _ParkSessionMigrator(),
     _ParkBeatMigrator(),
+    _StudentPastPaperMigrator(),
 ]
 
 

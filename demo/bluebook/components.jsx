@@ -589,6 +589,21 @@ export const BB_API = {
   myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
   startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
   async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
+  // Past papers the student shares for their teacher to review (titles and
+  // review status only; nothing here is ever scored).
+  async myPapers()       { return this._json('GET', '/bluebook/me/papers'); },
+  // multipart: a file and/or pasted text. No Content-Type header, so the
+  // browser sets the multipart boundary itself.
+  async sharePaper(form) {
+    const h = this._headers(); delete h['Content-Type'];
+    const r = await fetch(this.base + '/bluebook/me/papers', { method: 'POST', headers: h, body: form });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, r.status === 401 ? BB_SIGNED_OUT : undefined));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
   mySubmission(id)       { return this._json('GET', `/bluebook/me/submissions/${encodeURIComponent(id)}`); },
 
   // ── Auth / session ──

@@ -49,6 +49,7 @@ from original.db.models.live import (
     ParkSession,
     StaffUser,
     StudentName,
+    StudentPastPaper,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -80,6 +81,7 @@ EXPECTED_TABLES = {
     # T8 phone-park — authored against this schema, not ported from SQLite.
     "park_sessions",
     "park_beats",
+    "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -387,6 +389,19 @@ REPRESENTATIVE_ROWS = {
         first_seen_at=NOW,
         last_seen_at=NOW,
         transitions_json=[{"state": "parked", "at": "2026-07-08T12:00:00.000000+00:00"}],
+    ),
+    StudentPastPaper: dict(
+        paper_id="p" * 16,
+        tenant_id=TENANT_ID,
+        student_id=f"{TENANT_ID}:marcus",
+        title="An old essay",
+        text="Writing the student shared for review.",
+        word_count=6,
+        filename="essay.docx",
+        baseline_source="split",
+        parent_title="A longer paper",
+        status="pending",
+        created_at=NOW,
     ),
 }
 

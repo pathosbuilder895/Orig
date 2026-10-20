@@ -1196,6 +1196,44 @@
         "title": "Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
         "type": "object"
       },
+      "Body_share_past_paper_bluebook_me_papers_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "is_section": {
+            "default": "",
+            "title": "Is Section",
+            "type": "string"
+          },
+          "parent_title": {
+            "default": "",
+            "title": "Parent Title",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "Body_share_past_paper_bluebook_me_papers_post",
+        "type": "object"
+      },
       "Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post": {
         "properties": {
           "assignment": {
@@ -6553,6 +6591,57 @@
         "summary": "My Exam Start"
       }
     },
+    "/bluebook/me/papers": {
+      "get": {
+        "description": "The signed-in student's own shared papers: title and review status only.",
+        "operationId": "my_past_papers_bluebook_me_papers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Past Papers"
+      },
+      "post": {
+        "description": "Share one past paper (a PDF, DOCX or TXT file, or pasted text) for the\nteacher to review. Stored as pending; never scored.",
+        "operationId": "share_past_paper_bluebook_me_papers_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_share_past_paper_bluebook_me_papers_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Share Past Paper"
+      }
+    },
     "/bluebook/me/submissions": {
       "get": {
         "operationId": "my_submissions_bluebook_me_submissions_get",
@@ -6604,6 +6693,169 @@
           }
         },
         "summary": "My Submission"
+      }
+    },
+    "/bluebook/past-papers": {
+      "get": {
+        "description": "Every paper students in this workspace have shared, newest first.",
+        "operationId": "list_shared_papers_bluebook_past_papers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Shared Papers"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}": {
+      "get": {
+        "description": "One shared paper with its text, for the teacher to read before deciding.",
+        "operationId": "read_shared_paper_bluebook_past_papers__paper_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/approve": {
+      "post": {
+        "description": "Add the paper to the student's baseline (as a self-upload).",
+        "operationId": "approve_shared_paper_bluebook_past_papers__paper_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/decline": {
+      "post": {
+        "description": "Leave the paper out of the baseline.",
+        "operationId": "decline_shared_paper_bluebook_past_papers__paper_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Shared Paper"
       }
     },
     "/bluebook/students": {

@@ -90,6 +90,7 @@ ROUTE_ROUTER: dict[str, str] = {
     "POST /import/courses/{A}-course1/turnitin-csv": "imports",
     "GET /lti/jwks": "lti_routes",
     "GET /me/voice": "me",
+    "GET /bluebook/me/papers": "past_papers",
     "GET /proctor/park/status?exam_session_id=nonexistent": "proctor",
     "GET /students/{A_student}": "students",
     "GET /baseline-requests/pending": "students_baseline",

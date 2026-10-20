@@ -59,6 +59,7 @@ from .routers import (
     imports,
     lti_routes,
     me,
+    past_papers,
     proctor,
     students,
     students_baseline,
@@ -633,6 +634,7 @@ app.router.routes.extend(lti_routes.router.routes)
 app.router.routes.extend(bluebook.router.routes)
 app.router.routes.extend(bluebook_accounts.router.routes)
 app.router.routes.extend(bluebook_baselines.router.routes)
+app.router.routes.extend(past_papers.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)
