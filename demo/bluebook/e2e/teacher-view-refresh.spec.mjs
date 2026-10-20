@@ -100,3 +100,51 @@ test('same browser: student invite warns, teacher tab reports the sign-out inste
   await expect(teacher.getByTestId('session-switched')).toBeVisible({ timeout: 10_000 })
   await expect(teacher.getByText(/private \(incognito\) window/)).toBeVisible()
 })
+
+test('a lapsed teacher sign-in goes to sign-in, never to empty lists', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { teacher } = await setup(browser)
+  for (const screen of ['exams', 'students']) {
+    await teacher.goto(`/bluebook/#${screen}`)
+    await expect(teacher.getByRole('heading', { name: screen === 'exams' ? 'Examinations' : 'Students' })).toBeVisible({ timeout: 10_000 })
+  }
+  // An 8-hour token that has lapsed: on a real deploy the server answers
+  // every staff list with this 401 (original/routers/_shared.py
+  // _require_staff). The demo server would fall back to its demo principal,
+  // so the answer is pinned here.
+  await teacher.route(/\/bluebook\/(exams|students|submissions|courses)(\?.*)?$/, route => route.fulfill({
+    status: 401, contentType: 'application/json',
+    body: JSON.stringify({ detail: 'Authentication required — sign in with a staff account.' }),
+  }))
+  await teacher.goto('/bluebook/#exams')
+  await expect(teacher.getByTestId('signin-expired')).toBeVisible({ timeout: 10_000 })
+  await expect(teacher.getByText(/No examinations yet/)).toHaveCount(0)
+  await expect(teacher.getByText(/No students yet/)).toHaveCount(0)
+})
+
+test('Students lists the class roster (not just hand-ins) and hand-ins show the real name and course', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { teacher, invite, title } = await setup(browser)
+  // Invited, has not submitted: still on the Students page.
+  await teacher.getByRole('button', { name: 'Students', exact: true }).click()
+  await expect(teacher.getByText('Ann Student')).toBeVisible({ timeout: 10_000 })
+  const sctx = await browser.newContext()
+  const student = await sctx.newPage()
+  await student.addInitScript(() => { Element.prototype.requestFullscreen = () => Promise.resolve() })
+  await student.goto(invite)
+  await redeem(student)
+  await student.getByRole('button', { name: 'Open' }).click()
+  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await student.getByLabel('Your examination answer').focus()
+  await student.keyboard.type('Names belong on hand-ins.', { delay: 1 })
+  student.once('dialog', d => d.accept())
+  await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  // The student never sees a score.
+  await expect(student.getByText(/stylometric|worth a look|consistency score/i)).toHaveCount(0)
+  await teacher.reload()
+  await teacher.getByRole('button', { name: 'View work' }).click()
+  const work = teacher.getByRole('region', { name: /Work by Ann Student/ })
+  await expect(work.getByText(title)).toBeVisible({ timeout: 10_000 })
+  await expect(work.getByText('Candidate', { exact: true })).toHaveCount(0)
+})

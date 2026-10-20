@@ -45,3 +45,37 @@ def test_teacher_still_sees_work_after_student_signs_in(live_client):
     student = _auth(s["token"])
     for path in ("/bluebook/students", "/bluebook/submissions"):
         assert live_client.get(path, headers=student).status_code == 403, path
+
+
+def test_rows_show_student_name_and_course_not_candidate(live_client):
+    t = _signup(live_client)
+    course = _course(
+        live_client, t["token"], "Alpha Writing"
+    )  # code ETH101, no course text on exam
+    e = _exam(live_client, t["token"], course_id=course)
+    s = _student(live_client, t["token"], course, "ana@x.edu")
+    r = live_client.post(
+        "/bluebook/submissions",
+        json={"exam_id": e["id"], "student_id": s["student_id"], "text": "words"},
+        headers=_auth(s["token"]),
+    )
+    assert r.status_code == 201, r.text
+    teacher = _auth(t["token"])
+    row = live_client.get("/bluebook/submissions", headers=teacher).json()["submissions"][0]
+    assert row["student"] not in ("", "Candidate")
+    assert row["student"] == "ana"
+    assert row["course"] == "ETH101"
+    one = live_client.get(f"/bluebook/submissions/{row['id']}", headers=teacher).json()
+    assert (one["student"], one["course"]) == ("ana", "ETH101")
+    # The student's own view still carries no score fields.
+    mine = live_client.get("/bluebook/me/submissions", headers=_auth(s["token"])).json()
+    for sub in mine["submissions"]:
+        assert "stylometric" not in sub and "aiScore" not in sub and "ai_score" not in sub
+
+
+def test_roster_lists_students_who_have_not_submitted(live_client):
+    t = _signup(live_client)
+    course = _course(live_client, t["token"])
+    _student(live_client, t["token"], course, "quiet@x.edu")
+    rows = live_client.get("/bluebook/students", headers=_auth(t["token"])).json()["students"]
+    assert [(r["email"], r["submissions"]) for r in rows] == [("quiet@x.edu", 0)]

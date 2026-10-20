@@ -452,7 +452,7 @@ export function ExamsListScreen({ onNavigate }) {
   const [error, setError] = useState('');
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
-      .catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
+      .catch(err => { setError(err.message || 'Could not load examinations.'); });
   }, []);
   const columns = [
     { key: 'title', label: 'Examination', lead: true, render: e => (
@@ -467,14 +467,16 @@ export function ExamsListScreen({ onNavigate }) {
   ];
   return (
     <Page eyebrow="Your workspace" title="Examinations"
-      meta={exams === null ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'}`}
+      meta={error ? 'Examinations unavailable' : exams === null ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'}`}
       actions={<>
         <Btn onClick={() => onNavigate('sessions')}>Quick session</Btn>
         <Btn primary onClick={() => onNavigate('new-exam')}>+ New examination</Btn>
       </>}>
       <ErrorText>{error}</ErrorText>
-      <Table columns={columns} rows={exams || []} rowKey={e => e.id} caption="Examinations"
-        empty="No examinations yet. Start a quick session or create a full examination." />
+      {/* A failed load is an error, never "no examinations" (alpha bug 2026-10-20). */}
+      {error ? null : exams === null ? <p role="status">Loading examinations…</p> : (
+      <Table columns={columns} rows={exams} rowKey={e => e.id} caption="Examinations"
+        empty="No examinations yet. Start a quick session or create a full examination." />)}
     </Page>
   );
 }
@@ -942,7 +944,8 @@ export function StudentsScreen({ onNavigate }) {
   const [viewing, setViewing] = useState('');
   const load = () => {
     BB_API.listSubmissions().then(setSubs).catch(() => setSubs([]));
-    return BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); setRows([]); });
+    setError('');
+    return BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); });
   };
   useEffect(() => { load(); }, []);
 
@@ -974,14 +977,15 @@ export function StudentsScreen({ onNavigate }) {
   const viewedSubs = (subs || []).filter(x => x.student_id === viewing);
   return (
     <Page eyebrow="Your workspace" title="Students"
-      meta={rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
+      meta={error ? 'Students unavailable' : rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
       actions={<Btn onClick={() => onNavigate('courses')}>Add students via a course</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div style={{ maxWidth: 420 }}>
         <Field id="studentSearch" label="Search by name or email" value={query} onChange={setQuery} required={false} type="search" />
       </div>
+      {error ? <Btn onClick={load}>Try again</Btn> : rows === null ? <p role="status">Loading students…</p> : (
       <Table columns={columns} rows={shown} rowKey={r => r.student_id} caption="Students"
-        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />
+        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />)}
       {viewed && (
         <section aria-label={`Work by ${viewed.name || viewed.email || 'student'}`} style={{ marginTop: '2rem' }}>
           <h2 className="bb-h2">Work by {viewed.name || viewed.email || 'this student'}</h2>

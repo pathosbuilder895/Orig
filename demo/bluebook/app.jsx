@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BB_API, devToolsEnabled } from './components.jsx';
+import { BB_API, BB_SIGNED_OUT_EVENT, devToolsEnabled } from './components.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
@@ -66,6 +66,19 @@ function App() {
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  // A lapsed teacher sign-in (401) goes to the sign-in page with a reason,
+  // never to empty lists. The current screen is kept in the hash, so signing
+  // back in returns there.
+  const [expired, setExpired] = useState(false);
+  React.useEffect(() => {
+    const onExpired = () => {
+      BB_API._clearSession();
+      setExpired(true);
+      setTweak('currentScreen', 'login');
+    };
+    window.addEventListener(BB_SIGNED_OUT_EVENT, onExpired);
+    return () => window.removeEventListener(BB_SIGNED_OUT_EVENT, onExpired);
   }, []);
   // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
   // on a signed-in teacher's dashboard: straight away for a teacher who is
@@ -142,7 +155,10 @@ function App() {
   let content;
   switch (screen) {
     case 'login':
-      content = <LoginScreen onNavigate={navigate} />;
+      content = <>
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>Your sign-in has expired. Please sign in again. Nothing was lost.</p>}
+        <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
+      </>;
       break;
     case 'sessions':
     case 'dashboard':
