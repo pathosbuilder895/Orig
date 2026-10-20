@@ -89,6 +89,14 @@ def _self_serve(tenant: str) -> bool:
     return rules.is_self_serve(_repo().get_tenant(tenant))
 
 
+def _options(conditions, min_words, max_words) -> tuple[dict, int, int]:
+    """Collection options (timed, setting, size) checked, preset applied."""
+    try:
+        return rules.collection_options(conditions, min_words, max_words)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
 def _window(opens_raw, closes_raw) -> tuple[str | None, str | None]:
     """Validate and normalise an exam window to UTC ISO strings."""
     try:
@@ -224,7 +232,13 @@ def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
             status_code=403,
             detail=f"Free workspaces can hold {rules.MAX_EXAMS} exams. Delete one to add another.",
         )
+    conditions, min_words, max_words = _options(
+        body.conditions, _int_or(body.minWords, 0), _int_or(body.maxWords, 0)
+    )
     rec = {
+        "minWords": min_words,
+        "maxWords": max_words,
+        "conditions": conditions,
         "id": uuid.uuid4().hex[:16],
         "tenant_id": tenant,
         "course_id": body.course_id or None,
@@ -233,11 +247,8 @@ def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
         "title": title[:200],
         "course": body.course[:80],
         "duration": _int_or(body.duration, 90),
-        "minWords": _int_or(body.minWords, 0),
-        "maxWords": _int_or(body.maxWords, 0),
         "prompt": (rules.joined_prompt(questions) if questions else body.prompt)[:8000],
         "questions": questions,
-        "conditions": body.conditions if isinstance(body.conditions, dict) else {},
         "status": (body.status or "DRAFT").upper()[:20],
     }
     _repo().put_bluebook_exam(rec)
@@ -335,11 +346,19 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
     sid = (body.student_id or session.get("sid") or "") if session else ""
     if sid and _student_already_submitted(exam_id, sid):
         raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
-    duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
+    if rules.is_timed(exam):
+        duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
+    else:
+        duration_seconds = rules.session_seconds(exam, datetime.now(UTC))
     student_key = _student_key(body)
     if not student_key.strip():
         raise HTTPException(status_code=422, detail="student_id or candidate is required")
-    s = _repo().get_or_create_bluebook_session(exam_id, student_key, tenant, duration_seconds)
+    if duration_seconds is None:
+        # Untimed and never closes: no deadline to pin, so no session row
+        # (a seal with no session is never judged late).
+        s = {"started_at": datetime.now(UTC).isoformat(), "deadline_at": None}
+    else:
+        s = _repo().get_or_create_bluebook_session(exam_id, student_key, tenant, duration_seconds)
     return BluebookSessionResponse(
         exam_id=exam_id,
         started_at=s["started_at"],
@@ -639,6 +658,10 @@ def bluebook_update_exam(exam_id: str, body: BluebookUpdateExamRequest, request:
         rec["conditions"] = body.conditions if isinstance(body.conditions, dict) else {}
     if "status" in sent:
         rec["status"] = (body.status or "DRAFT").upper()[:20]
+    if sent & {"conditions", "minWords", "maxWords"}:
+        rec["conditions"], rec["minWords"], rec["maxWords"] = _options(
+            rec.get("conditions"), rec.get("minWords"), rec.get("maxWords")
+        )
     if "course_id" in sent:
         if body.course_id:
             course = _repo().get_bluebook_course(body.course_id)

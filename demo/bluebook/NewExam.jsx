@@ -1,6 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { ErrorText, fromLocalInput } from './forms.jsx';
+import { SMALLS_GREATS_CUTOFF, applySizePreset, optionConditions, settingDefaults } from './collection-options.jsx';
 
 // Every non-empty question, in order. One question is saved as-is; several
 // are numbered into the exam's single prompt, so none is silently dropped.
@@ -184,6 +185,11 @@ export function NewExamScreen({ onNavigate }) {
   const [spellChk,  setSpellChk]  = useNEState(false);
   const [phoneBlk,  setPhoneBlk]  = useNEState(true);
   const [aiDetect,  setAiDetect]  = useNEState(false);
+  // ── Collection type (More options): in class + timed + no size by default,
+  // which is how every collection before the merge reads.
+  const [setting,   setSetting]   = useNEState('in_class');
+  const [timed,     setTimed]     = useNEState(true);
+  const [size,      setSize]      = useNEState('');
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
   const [saveError, setSaveError] = useNEState('');
@@ -225,7 +231,21 @@ export function NewExamScreen({ onNavigate }) {
     ? course : (courses.length ? courseKey(courses[0]) : course);
   const pickedCourse = courses.find(c => courseKey(c) === selectedCourse) || null;
 
-  const canSubmit = title.trim() && duration && prompts.some(p => p.trim());
+  const canSubmit = title.trim() && (duration || !timed) && prompts.some(p => p.trim());
+
+  function chooseSetting(next) {
+    setSetting(next);
+    const d = settingDefaults(next);
+    setTimed(d.timed);
+    setBlockWeb(d.blockWeb);
+    if (d.blockCopy !== undefined) setBlockCopy(d.blockCopy);
+  }
+  function chooseSize(next) {
+    setSize(next);
+    const r = applySizePreset(next, minWords, maxWords);
+    setMinWords(r.minWords);
+    setMaxWords(r.maxWords);
+  }
 
   function addPrompt() {
     setPrompts(ps => [...ps, '']);
@@ -241,7 +261,7 @@ export function NewExamScreen({ onNavigate }) {
 
   async function handleSave(publish = false) {
     if (!canSubmit || saving) return;
-    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect };
+    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, ...optionConditions({ timed, setting, size }) };
     const courseCode = pickedCourse ? (pickedCourse.code || pickedCourse.name) : (selectedCourse || '').trim();
     const prompt = combinePrompts(prompts);
     const opensIso = fromLocalInput(opensAt);
@@ -424,8 +444,10 @@ export function NewExamScreen({ onNavigate }) {
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 20 }}>II. Time & Length</MetaLabel>
           <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 28 }}>
-            <FormField label="Duration" hint="minutes" id="neDuration">
-              <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
+            <FormField label="Duration" hint={timed ? 'minutes' : 'untimed'} id="neDuration">
+              {timed
+                ? <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
+                : <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '8px 0 0' }}>No time limit</p>}
             </FormField>
             <FormField label="Minimum Words" hint="optional" id="neMinWords">
               <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="None" />
@@ -498,6 +520,37 @@ export function NewExamScreen({ onNavigate }) {
             textTransform: 'uppercase', color: BB.gold, cursor: 'pointer',
             marginBottom: 24,
           }}>More options</summary>
+
+        {/* ── Collection type ── */}
+        <div style={{ marginBottom: 40 }}>
+          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Collection Type</MetaLabel>
+          <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 12 }}>
+            <FormField label="Where it is written" id="neSetting">
+              <SelectInput id="neSetting" value={setting} onChange={chooseSetting} options={[
+                { value: 'in_class', label: 'In class' },
+                { value: 'take_home', label: 'Take-home' },
+              ]} />
+            </FormField>
+            <FormField label="Size" hint="optional" id="neSize">
+              <SelectInput id="neSize" value={size} onChange={chooseSize} options={[
+                { value: '', label: 'Any length' },
+                { value: 'small', label: `Small (under ${SMALLS_GREATS_CUTOFF.toLocaleString()} words)` },
+                { value: 'great', label: `Great (${SMALLS_GREATS_CUTOFF.toLocaleString()} words or more)` },
+              ]} />
+            </FormField>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <ToggleRow label="Timed" desc="Off: no time limit; the sitting stays open until the collection closes" value={timed} onChange={setTimed} />
+          </div>
+          {setting === 'take_home' && (
+            <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '8px 0 0' }}>
+              Take-home work is not supervised. It never counts as an in-class sample; you can approve a paper one at a
+              time to extend a student's existing reference writing, and only if it is close to what is already there.
+            </p>
+          )}
+        </div>
+
+        <GoldRule faint style={{ marginBottom: 36 }} />
 
         {/* ── Availability window ── */}
         <div style={{ marginBottom: 40 }}>

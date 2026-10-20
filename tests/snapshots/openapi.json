@@ -939,12 +939,26 @@
       "BluebookSessionResponse": {
         "properties": {
           "deadline_at": {
-            "title": "Deadline At",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
           },
           "duration_seconds": {
-            "title": "Duration Seconds",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
           },
           "exam_id": {
             "title": "Exam Id",
@@ -6208,7 +6222,7 @@
         "summary": "Exam Baseline Status"
       },
       "post": {
-        "description": "Add every sealed submission of an examination to its student's baseline, except late or warned sittings, which are set aside for the professor's review.",
+        "description": "Add every sealed submission of an examination to its student's baseline, except late, warned or take-home sittings, which are set aside for the professor's review.",
         "operationId": "approve_exam_baselines_bluebook_exams__exam_id__baseline_post",
         "parameters": [
           {
