@@ -8,6 +8,8 @@
 //   /bluebook/#live/<id>   the live (proctor) view of that exam
 //   /bluebook/#students    the teacher's Students screen (the roster)
 //   /bluebook/#courses     the teacher's Courses screen
+//   /bluebook/#collection/<id>      same as #exam/<id>
+//   /bluebook/#collections, #exams, #sessions   the Collections list
 //
 // The Original suite links here: its Bluebook Sessions page (demo/original/
 // bluebook.html), the Submissions rows (#exam), Add student and Voice Baseline
@@ -23,14 +25,17 @@
 // Exam ids are short hex strings today (uuid4().hex[:16] in
 // original/routers/bluebook.py); seeded demo ids use letters, digits and
 // dashes. Anything else is not a deep link and is ignored.
-const DEEP_LINK = /^#(exam|live)\/([A-Za-z0-9_-]{1,64})$/;
+const DEEP_LINK = /^#(exam|collection|live)\/([A-Za-z0-9_-]{1,64})$/;
 // A link to a whole screen: no id, nothing to check on the server.
-const SCREEN_LINK = /^#(students|courses|exams|results)$/;
+const SCREEN_LINK = /^#(students|courses|results|collections|exams|sessions)$/;
+// The old Examinations and Sessions links open the one Collections list
+// (screen 'sessions'), so links saved before the merge keep working.
+const SCREEN_ALIAS = { collections: 'sessions', exams: 'sessions', sessions: 'sessions' };
 
 // The screen each kind of link opens, and the global that screen reads its
 // exam id from (Teacher.jsx: ManageExamScreen, ProctorLiveScreen).
-export const DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' };
-const DEEP_LINK_GLOBAL = { exam: 'BB_MANAGE_EXAM', live: 'BB_PROCTOR_EXAM' };
+export const DEEP_LINK_SCREEN = { exam: 'manage-exam', collection: 'manage-exam', live: 'proctor' };
+const DEEP_LINK_GLOBAL = { exam: 'BB_MANAGE_EXAM', collection: 'BB_MANAGE_EXAM', live: 'BB_PROCTOR_EXAM' };
 
 // '#exam/<id>' or '#live/<id>' -> {kind, id}; '#students' or '#courses' ->
 // {kind: 'screen', screen}; anything else -> null.
@@ -39,7 +44,7 @@ export function parseDeepLink(hash) {
   const m = DEEP_LINK.exec(h);
   if (m) return { kind: m[1], id: m[2] };
   const s = SCREEN_LINK.exec(h);
-  return s ? { kind: 'screen', screen: s[1] } : null;
+  return s ? { kind: 'screen', screen: SCREEN_ALIAS[s[1]] || s[1] } : null;
 }
 
 // Points the target screen at the exam and returns the screen to show.
@@ -56,10 +61,13 @@ export const FORGOT_HASH = '#forgot';
 // Teacher screens that keep their place across a reload: navigating to one
 // writes its hash, so a refresh reopens it instead of the dashboard (alpha
 // bug 2026-10-20: a refresh on Students dropped the teacher elsewhere).
-export const RELOADABLE_SCREENS = ['students', 'courses', 'exams', 'results'];
+export const RELOADABLE_SCREENS = ['students', 'courses', 'sessions', 'collections', 'exams', 'results'];
+// The one Collections list (screen 'sessions', and its old names) is kept as #collections.
+const SCREEN_HASH = { sessions: 'collections', exams: 'collections', collections: 'collections' };
 export function rememberScreen(screen) {
   if (!RELOADABLE_SCREENS.includes(screen)) return;
-  try { window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#' + screen); } catch (e) {}
+  const hash = SCREEN_HASH[screen] || screen;
+  try { window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#' + hash); } catch (e) {}
 }
 
 // Drops a deep-link hash from the address bar, keeping the path and query,

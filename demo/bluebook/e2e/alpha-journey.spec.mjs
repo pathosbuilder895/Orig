@@ -42,18 +42,20 @@ async function newPage(browser, baseURL, { viewport = LAPTOP, storageState } = {
 }
 
 async function createExamThroughTheForm(teacher, title, question) {
-  await teacher.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Examinations', exact: true }).click()
-  await teacher.getByRole('button', { name: '+ New examination' }).click()
+  await teacher.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Collections', exact: true }).click()
+  await teacher.getByRole('button', { name: '+ New collection' }).click()
   // Optional word limits start empty: a minimum nobody asked for would hold back the submit button.
   await expect(teacher.locator('#neMinWords')).toHaveValue('')
   await expect(teacher.locator('#neMaxWords')).toHaveValue('')
   await teacher.locator('#neTitle').fill(title)
   await teacher.locator('#neDuration').fill('25')
   await teacher.locator('#nePrompt0').fill(question)
+  // Paste blocking and writing consistency live under More options.
+  await teacher.locator('#neMore summary').click()
   await expect(teacher.getByRole('switch', { name: 'Block copy & paste' })).toHaveAttribute('aria-checked', 'true')
   await expect(teacher.getByRole('switch', { name: /Writing consistency \(in testing\)/ })).toHaveAttribute('aria-checked', 'false')
-  await teacher.getByRole('button', { name: 'Publish Examination' }).click()
-  await expect(teacher.getByRole('heading', { name: 'Examinations' })).toBeVisible({ timeout: 10_000 })
+  await teacher.getByRole('button', { name: 'Publish Collection' }).click()
+  await expect(teacher.getByRole('heading', { name: 'Collections' })).toBeVisible({ timeout: 10_000 })
 }
 
 test.describe('Alpha journey @alpha', () => {
@@ -70,7 +72,7 @@ test.describe('Alpha journey @alpha', () => {
     await test.step('the teacher frame says Collections and labels Original as in testing', async () => {
       await teacher.goto('/bluebook/')
       const nav = teacher.getByRole('navigation', { name: 'Teacher navigation' })
-      await expect(nav.getByRole('button', { name: 'Sessions', exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(nav.getByRole('button', { name: 'Collections', exact: true })).toBeVisible({ timeout: 10_000 })
       await expect(nav.locator('.teacher-brand')).toHaveText('Collections')
       await expect(nav.getByRole('button', { name: 'Original (in testing) ↗' })).toBeVisible()
     })
@@ -216,7 +218,7 @@ test.describe('Alpha journey @alpha', () => {
     })
 
     await test.step('submissions list and export', async () => {
-      await teacher.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Examinations', exact: true }).click()
+      await teacher.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Collections', exact: true }).click()
       await teacher.getByRole('button', { name: `Practice prompt 1 ${tag}`, exact: true }).click()
       await expect(teacher.getByText('1 submission', { exact: false }).first()).toBeVisible({ timeout: 10_000 })
       const [download] = await Promise.all([
@@ -304,8 +306,8 @@ test.describe('Alpha journey @alpha', () => {
       viewport: PHONE, storageState: staffStorageState(testTenant.baseURL, testTenant.staff),
     })
     await page.goto('/bluebook/')
-    await page.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Examinations', exact: true }).click()
-    await page.getByRole('button', { name: '+ New examination' }).click()
+    await page.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Collections', exact: true }).click()
+    await page.getByRole('button', { name: '+ New collection' }).click()
     await expect(page.locator('#neTitle')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE.width)
   })

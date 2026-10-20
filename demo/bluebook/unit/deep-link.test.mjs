@@ -56,11 +56,24 @@ test('anything else is not a deep link', () => {
 });
 
 test('each link opens its own screen and points it at the exam', () => {
-  assert.deepEqual(DEEP_LINK_SCREEN, { exam: 'manage-exam', live: 'proctor' });
+  assert.deepEqual(DEEP_LINK_SCREEN, { exam: 'manage-exam', collection: 'manage-exam', live: 'proctor' });
   assert.equal(deepLinkScreen({ kind: 'exam', id: 'e1' }, { id: 'e1' }), 'manage-exam');
   assert.equal(globalThis.window.BB_MANAGE_EXAM, 'e1');
   assert.equal(deepLinkScreen({ kind: 'live', id: 'e2' }, { id: 'e2' }), 'proctor');
   assert.equal(globalThis.window.BB_PROCTOR_EXAM, 'e2');
+});
+
+test('#collection/<id> is the same deep link as #exam/<id>', () => {
+  assert.deepEqual(parseDeepLink('#collection/3f2a9c01d4e5b6a7'), { kind: 'collection', id: '3f2a9c01d4e5b6a7' });
+  assert.equal(deepLinkScreen({ kind: 'collection', id: 'c1' }, { id: 'c1' }), 'manage-exam');
+  assert.equal(globalThis.window.BB_MANAGE_EXAM, 'c1');
+});
+
+test('#collections, and the old #exams and #sessions links, open the one Collections list', () => {
+  for (const h of ['#collections', '#exams', '#sessions']) {
+    assert.deepEqual(parseDeepLink(h), { kind: 'screen', screen: 'sessions' }, h);
+  }
+  assert.equal(parseDeepLink('#collection'), null);
 });
 
 test('clearing drops only a deep-link hash and keeps the path and query', () => {

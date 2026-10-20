@@ -37,14 +37,14 @@ async function setup(browser) {
   await expect(linkBox).toBeVisible({ timeout: 10_000 })
   const invite = new URL(await linkBox.inputValue())
   const title = `Refresh exam ${id}`
-  await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
-  await teacher.getByRole('button', { name: '+ New examination' }).click()
+  await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
+  await teacher.getByRole('button', { name: '+ New collection' }).click()
   await teacher.locator('#neTitle').fill(title)
   await teacher.locator('#neDuration').fill('30')
   await teacher.locator('#neMinWords').fill('3')
   await teacher.locator('#nePrompt0').fill('Say something.')
-  await teacher.getByRole('button', { name: 'Publish Examination' }).click()
-  await expect(teacher.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+  await teacher.getByRole('button', { name: 'Publish Collection' }).click()
+  await expect(teacher.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
   return { tctx, teacher, invite: invite.pathname + invite.search, title }
 }
 
@@ -83,7 +83,7 @@ test('separate browsers: teacher refresh keeps Students and shows the student\'s
   await teacher.getByRole('button', { name: 'Read & mark' }).click()
   await expect(teacher.getByText(answer)).toBeVisible({ timeout: 10_000 })
   // The exams list survives a refresh too.
-  await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
+  await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
   await teacher.reload()
   await expect(teacher.getByText(title)).toBeVisible({ timeout: 10_000 })
 })
@@ -106,7 +106,7 @@ test('a lapsed teacher sign-in goes to sign-in, never to empty lists', async ({ 
   const { teacher } = await setup(browser)
   for (const screen of ['exams', 'students']) {
     await teacher.goto(`/bluebook/#${screen}`)
-    await expect(teacher.getByRole('heading', { name: screen === 'exams' ? 'Examinations' : 'Students' })).toBeVisible({ timeout: 10_000 })
+    await expect(teacher.getByRole('heading', { name: screen === 'exams' ? 'Collections' : 'Students' })).toBeVisible({ timeout: 10_000 })
   }
   // An 8-hour token that has lapsed: on a real deploy the server answers
   // every staff list with this 401 (original/routers/_shared.py
@@ -118,7 +118,7 @@ test('a lapsed teacher sign-in goes to sign-in, never to empty lists', async ({ 
   }))
   await teacher.goto('/bluebook/#exams')
   await expect(teacher.getByTestId('signin-expired')).toBeVisible({ timeout: 10_000 })
-  await expect(teacher.getByText(/No examinations yet/)).toHaveCount(0)
+  await expect(teacher.getByText(/No collections yet/)).toHaveCount(0)
   await expect(teacher.getByText(/No students yet/)).toHaveCount(0)
 })
 

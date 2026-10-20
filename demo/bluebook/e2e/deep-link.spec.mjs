@@ -37,7 +37,7 @@ async function examFor(request, workerTenant, title) {
 async function expectDashboard(page) {
   await expect(page.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('alert')).toHaveCount(0)
-  await expect(page.getByText('Opening the examination…')).toHaveCount(0)
+  await expect(page.getByText('Opening the collection…')).toHaveCount(0)
   expect(new URL(page.url()).hash).toBe('')
 }
 
@@ -61,15 +61,15 @@ test.describe('Deep links into one exam', () => {
     await expect(staffPage.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
     // Leaving the exam drops its id; the list it returns to keeps its own
     // place across a reload (alpha bug 2026-10-20).
-    await staffPage.getByRole('button', { name: '← Examinations' }).click()
-    await expect.poll(() => new URL(staffPage.url()).hash).toBe('#exams')
+    await staffPage.getByRole('button', { name: '← Collections' }).click()
+    await expect.poll(() => new URL(staffPage.url()).hash).toBe('#collections')
   })
 
   test('#live/<id> opens the live view of that exam', async ({ staffPage, workerTenant, request }) => {
     const title = `Deep link live ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
     await staffPage.goto(`/bluebook/#live/${exam.id}`)
-    await expect(staffPage.getByRole('heading', { name: 'Live examination' })).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByRole('heading', { name: 'Live sitting' })).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.locator('#proctorExam')).toHaveValue(exam.id)
     await expect(staffPage.getByText('Updated ')).toBeVisible({ timeout: 10_000 })
   })
@@ -91,7 +91,7 @@ test.describe('Deep links into one exam', () => {
     const held = new Promise(resolve => { release = resolve })
     await staffPage.route(`**/bluebook/exams/${exam.id}`, async route => { await held; await route.continue() })
     await staffPage.goto(`/bluebook/#exam/${exam.id}`)
-    await expect(staffPage.getByText('Opening the examination…')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Opening the collection…')).toBeVisible({ timeout: 10_000 })
     await staffPage.getByRole('button', { name: 'Courses' }).click()
     await expect(staffPage.getByRole('heading', { name: 'Courses' })).toBeVisible({ timeout: 10_000 })
     // Back on the overview: the dropped link does not come back.
@@ -194,7 +194,7 @@ test.describe('Deep links into one exam', () => {
       await expect(page.getByRole('heading', { name: 'My submissions' })).toBeVisible()
     }
     await expect(page.getByRole('button', { name: 'Watch live' })).toHaveCount(0)
-    await expect(page.getByText('Opening the examination…')).toHaveCount(0)
+    await expect(page.getByText('Opening the collection…')).toHaveCount(0)
     await context.close()
   })
 })
