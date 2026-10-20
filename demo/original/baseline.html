@@ -1336,7 +1336,7 @@
         SH.msg[id]=r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
           r.status==='held'?{text:'Not added: this paper differs strongly from the student’s existing samples. Approval does not override this check.',kind:'err'}:
           {text:'Declined. It is not used.',kind:'ok'};
-        if(r.status==='approved'&&ID&&r.student_id===ID) await refreshStudent();
+        if(r.status==='approved'&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
       } else if(res.status===401){ SH.msg[id]={text:'Your sign-in has ended. Sign in again, then try once more.',kind:'err'}; }
       else { SH.msg[id]={text:detailText(res.data)||'That did not go through, so nothing changed.',kind:'err'}; }
     }finally{ SH.busy=''; renderShared(); }
