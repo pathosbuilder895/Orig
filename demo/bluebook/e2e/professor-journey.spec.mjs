@@ -106,8 +106,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
+    // The window, lockdown and extra conditions live under More options.
+    await staffPage.locator('#neMore summary').click()
 
     // The ToggleRow states the WS-9 doc calls out explicitly. Defaults
     // first: the lockdown trio is the secure baseline (ON), spell check
@@ -140,7 +142,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const [createExamResponse] = await Promise.all([
       staffPage.waitForResponse(r => r.url().includes('/bluebook/exams') && r.request().method() === 'POST'),
-      staffPage.getByRole('button', { name: 'Publish Examination' }).click(),
+      staffPage.getByRole('button', { name: 'Publish Collection' }).click(),
     ])
     const createdExam = await createExamResponse.json()
     expect(createdExam.id).toBeTruthy()
@@ -150,7 +152,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       blockAI: true, blockWeb: true, blockCopy: true,
       spellChk: true, phoneBlk: false, aiDetect: true,
     })
-    await expect(staffPage.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     journey.exam = createdExam
   })
@@ -160,8 +162,8 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant, request,
   }) => {
     const { draftTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
     await staffPage.locator('#neTitle').fill(draftTitle)
     await staffPage.locator('#nePrompt0').fill('Outline the sources of constitutional authority.')
 
@@ -171,7 +173,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     ])
     const draftExam = await draftResponse.json()
     expect(draftExam.status).toBe('DRAFT')
-    await expect(staffPage.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(draftTitle)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText('draft', { exact: true })).toBeVisible()
 
@@ -188,7 +190,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
+    await openScreen(staffPage, 'Collections')
     // Clicking the row opens the exam's manage screen (Teacher.jsx); its
     // Preview button loads the exam's config and enters the briefing — the
     // same screen a candidate sees (Dashboard.jsx openExam()).
@@ -412,7 +414,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
+    await openScreen(staffPage, 'Collections')
     const row = staffPage.getByRole('button', { name: examTitle })
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.focus()
@@ -567,10 +569,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
 test.describe('New Examination form gating', () => {
   test('Publish and Save as Draft stay gated until a title and a prompt exist', async ({ staffPage }) => {
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
 
-    const publish = staffPage.getByRole('button', { name: 'Publish Examination' })
+    const publish = staffPage.getByRole('button', { name: 'Publish Collection' })
     const draft = staffPage.getByRole('button', { name: 'Save as Draft' })
     await expect(publish).toBeDisabled()
     await expect(draft).toBeDisabled()
@@ -587,8 +589,8 @@ test.describe('New Examination form gating', () => {
   })
 
   test('prompt questions can be added and removed', async ({ staffPage }) => {
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
 
     await expect(staffPage.getByText('Question I', { exact: true })).toBeVisible()
     await expect(staffPage.getByRole('button', { name: 'Remove' })).toHaveCount(0)

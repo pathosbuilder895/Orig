@@ -3555,8 +3555,8 @@ def test_bluebook_page_links_into_the_app_by_its_deep_links():
     assert "/bluebook/#live/'+id+'\">Open the live room</a>" in page
     assert "/bluebook/#exam/'+id+'\">Manage it in Collections</a>" in page
     deep = (DEMO / "bluebook" / "deep-link.jsx").read_text(encoding="utf-8")
-    assert "const DEEP_LINK = /^#(exam|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
-    assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' }" in deep
+    assert "const DEEP_LINK = /^#(exam|collection|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
+    assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', collection: 'manage-exam', live: 'proctor' }" in deep
 
 
 BLUEBOOK_TAIL = r"""
