@@ -59,9 +59,10 @@ test.describe('Deep links into one exam', () => {
     expect(new URL(staffPage.url()).hash).toBe(`#exam/${exam.id}`)
     await staffPage.reload()
     await expect(staffPage.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
-    // Leaving the exam drops the hash.
+    // Leaving the exam drops its id; the list it returns to keeps its own
+    // place across a reload (alpha bug 2026-10-20).
     await staffPage.getByRole('button', { name: '← Examinations' }).click()
-    await expect.poll(() => new URL(staffPage.url()).hash).toBe('')
+    await expect.poll(() => new URL(staffPage.url()).hash).toBe('#exams')
   })
 
   test('#live/<id> opens the live view of that exam', async ({ staffPage, workerTenant, request }) => {
@@ -107,10 +108,10 @@ test.describe('Deep links into one exam', () => {
     await expect(staffPage.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText('Opening…')).toHaveCount(0)
     expect(new URL(staffPage.url()).hash).toBe('#students')
-    // Moving on drops the hash, as it does for an exam.
+    // Moving on names the new screen, so a reload stays there.
     await staffPage.getByRole('button', { name: 'Courses' }).click()
     await expect(staffPage.getByRole('heading', { name: 'Courses' })).toBeVisible({ timeout: 10_000 })
-    await expect.poll(() => new URL(staffPage.url()).hash).toBe('')
+    await expect.poll(() => new URL(staffPage.url()).hash).toBe('#courses')
     await staffPage.goto('/bluebook/#courses')
     await expect(staffPage.getByRole('heading', { name: 'Courses' })).toBeVisible({ timeout: 10_000 })
     // A link followed while the app is open works too.
