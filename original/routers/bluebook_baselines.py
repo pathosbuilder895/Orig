@@ -21,10 +21,17 @@ import sys
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
 
+from .. import bluebook_rules as rules
 from .. import principal as principal_mod
 from ..schemas import AddSampleRequest
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _exam_submissions, _persist_or_503, _repo, _require_staff
+from ._shared import (
+    _exam_submissions,
+    _persist_or_503,
+    _repo,
+    _require_staff,
+    min_baseline_samples,
+)
 from .bluebook import _can_touch, _owned_exam
 from .students_baseline import _hashes_from_samples, add_baseline
 
@@ -35,6 +42,11 @@ NO_ORIGINAL = "This workspace's plan does not include Original."
 NOTHING_WRITTEN = "Nothing written to add."
 NOT_ADDED = "Could not be added."
 TOO_LONG = "This exam is too long to add as a baseline sample."
+TAKE_HOME_DETAIL = "take-home: approve it on its own"
+NEEDS_BASELINE_DETAIL = (
+    "Take-home work can only extend a baseline. Approve at least {n} in-class "
+    "papers for this student first."
+)
 HELD_DETAIL = (
     "Not added: this exam differs strongly from the student's existing samples. "
     "Approval does not override this check."
@@ -162,14 +174,27 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
     state = _repo().get(rec["student_id"])
     if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
         return _row(rec, "already_in_baseline")
+    # Take-home work was not written under supervision: it joins a baseline
+    # only as an extension of one that already exists, one paper at a time,
+    # at the self-upload provenance (never proctored). The drift gate below
+    # decides whether it is substantially different, exactly as for a
+    # shared past paper (routers/past_papers.py).
+    take_home = _is_take_home(rec)
     if set_aside_flagged:
-        reason = _review_reason(rec)
+        reason = ", ".join(
+            r for r in (TAKE_HOME_DETAIL if take_home else "", _review_reason(rec)) if r
+        )
         if reason:
             return _row(rec, "needs_review", reason)
+    if take_home:
+        needed = min_baseline_samples()
+        have = 0 if state is None else state.sample_count
+        if have < needed:
+            return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
     try:
         req = AddSampleRequest(
             text=text,
-            provenance="proctored",
+            provenance="unverified" if take_home else "proctored",
             assignment=rec.get("exam") or "",
             submitted_at=_submitted_at(rec),
             submission_uuid=rec.get("submission_uuid") or rec["id"],
@@ -185,6 +210,11 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
             return _row(rec, "held", HELD_DETAIL)
         raise
     return _row(rec, "already_in_baseline" if out.get("skipped") else "added")
+
+
+def _is_take_home(rec: dict) -> bool:
+    exam = _repo().get_bluebook_exam(rec["exam_id"]) if rec.get("exam_id") else None
+    return exam is not None and rules.setting(exam) == rules.TAKE_HOME
 
 
 def _matching_indices(state, fingerprints: set[str]) -> list[int]:
@@ -267,7 +297,7 @@ def remove_submission_baseline(submission_id: str, request: Request):
 
 @router.post("/bluebook/exams/{exam_id}/baseline")
 def approve_exam_baselines(exam_id: str, request: Request):
-    """Add every sealed submission of an examination to its student's baseline, except late or warned sittings, which are set aside for the professor's review."""
+    """Add every sealed submission of an examination to its student's baseline, except late, warned or take-home sittings, which are set aside for the professor's review."""
     exam = _owned_original_exam(exam_id, request)
     ids: dict[str, list[str]] = {
         status: []

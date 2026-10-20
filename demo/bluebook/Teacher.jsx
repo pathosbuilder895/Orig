@@ -447,6 +447,15 @@ export function AllSubmissionsScreen() {
   );
 }
 
+// "In class" / "Take-home", plus "Small" / "Great" when a size was chosen
+// (Smalls < 1,000 words, Greats >= 1,000). Old rows read as in class.
+export function collectionType(e) {
+  const c = (e && e.conditions) || {};
+  const where = c.setting === 'take_home' ? 'Take-home' : 'In class';
+  const size = c.size === 'small' ? 'Small' : c.size === 'great' ? 'Great' : '';
+  return size ? `${where} · ${size}` : where;
+}
+
 // ─── Collections list (the one list of every assignment) ───────────────────────────────────────────────────────
 export function ExamsListScreen({ onNavigate }) {
   const [exams, setExams] = useState(null);
@@ -462,7 +471,8 @@ export function ExamsListScreen({ onNavigate }) {
     { key: 'course', label: 'Course', render: e => e.course || '—' },
     { key: 'state', label: 'Status', render: e => <Badge>{examState(e)}</Badge> },
     { key: 'window', label: 'Closes', render: e => e.closes_at ? when(e.closes_at) : '—' },
-    { key: 'duration', label: 'Minutes', num: true },
+    { key: 'type', label: 'Type', render: e => collectionType(e) },
+    { key: 'duration', label: 'Minutes', num: true, render: e => (e.conditions && e.conditions.timed === false) ? 'untimed' : e.duration },
     { key: 'submissions', label: 'Submitted', num: true },
     { key: 'released', label: 'Results', render: e => e.results_released_at ? <Badge>released</Badge> : '—' },
   ];

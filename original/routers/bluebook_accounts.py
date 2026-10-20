@@ -467,6 +467,8 @@ def _exam_summary(exam: dict, state: str, session: dict | None, submitted: bool)
         "course": exam.get("course"),
         "course_id": exam.get("course_id"),
         "duration": exam.get("duration"),
+        "timed": rules.is_timed(exam),
+        "setting": rules.setting(exam),
         "min_words": exam.get("minWords"),
         "max_words": exam.get("maxWords"),
         "opens_at": exam.get("opens_at"),
@@ -579,7 +581,11 @@ def my_exam_start(exam_id: str, request: Request):
         )
         raise HTTPException(status_code=409, detail=detail)
     seconds = rules.session_seconds(exam, now)
-    s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
+    if seconds is None:
+        # Untimed and never closes: nothing to pin (see rules.session_seconds).
+        s = {"started_at": now.isoformat(), "deadline_at": None, "created": existing is None}
+    else:
+        s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
     proctor_token = None
     if "original" in p.products:
         proctor_token = student_auth.mint_proctor_attestation(p.user_id, exam_id)
@@ -590,7 +596,7 @@ def my_exam_start(exam_id: str, request: Request):
         details={"exam_id": exam_id, "resumed": not s.get("created", True)},
     )
     return {
-        "exam": _exam_detail(exam, rules.OPEN, s, False),
+        "exam": _exam_detail(exam, rules.OPEN, s if s.get("deadline_at") else existing, False),
         "started_at": s["started_at"],
         "deadline_at": s["deadline_at"],
         "server_now": datetime.now(UTC).isoformat(),

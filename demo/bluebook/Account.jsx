@@ -575,7 +575,7 @@ export function StudentHomeScreen({ onNavigate }) {
   const sorted = sortStudentExams(exams);
 
   const examColumns = [
-    { key: 'title', label: 'Examination', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.duration ? `${e.duration} min` : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
+    { key: 'title', label: 'Examination', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.timed === false ? 'no time limit' : (e.duration ? `${e.duration} min` : null), e.setting === 'take_home' ? 'take-home' : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
     { key: 'state', label: 'Status', render: e => <Badge>{e.submitted ? 'submitted' : e.state}</Badge> },
     { key: 'when', label: 'When', render: e => examWindowText(e) || '—' },
     { key: 'go', label: 'Action', actions: true, render: e => {

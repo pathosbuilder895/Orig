@@ -151,6 +151,8 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
       spellChk: true, phoneBlk: false, aiDetect: true,
+      // Collection options: the in-class, timed default (no size chosen).
+      timed: true, setting: 'in_class',
     })
     await expect(staffPage.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
