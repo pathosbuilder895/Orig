@@ -258,9 +258,10 @@ class BluebookStartSessionRequest(BaseModel):
 class BluebookSessionResponse(BaseModel):
     exam_id: str
     started_at: str
-    deadline_at: str
+    # None for an untimed collection that never closes: no deadline.
+    deadline_at: str | None
     server_now: str
-    duration_seconds: int
+    duration_seconds: int | None
 
 
 class BluebookCreateCourseRequest(BaseModel):

@@ -31,7 +31,9 @@ function getExamConfig() {
   return {
     ...EXAM_META,
     ...cfg,
-    duration: (cfg.duration ? cfg.duration * 60 : EXAM_META.duration),
+    // An untimed collection (conditions.timed === false) has no local clock:
+    // 0 here; a close time, when set, still arrives as the server deadline.
+    duration: cfg.timed === false ? 0 : (cfg.duration ? cfg.duration * 60 : EXAM_META.duration),
     minWords: cfg.minWords != null ? cfg.minWords : EXAM_META.minWords,
     maxWords: cfg.maxWords != null ? cfg.maxWords : EXAM_META.maxWords,
     prompt:   cfg.prompt || EXAM_META.prompt,
@@ -584,7 +586,7 @@ export function BriefingScreen({ onNavigate }) {
             </div>
 
             <p className="bk-meta">
-              <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
+              <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration ? `${cfg.duration / 60} minutes` : 'no time limit'}.</b>
               {limits && ` ${limits}`} Your work saves itself on this device as you write. The clock starts when you open the booklet.
             </p>
             {cfg.inProgress && (
@@ -696,6 +698,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
   const deadlineRef = useExRef(null);   // { deadlineMs, offsetMs } once the session lands
+  // An untimed collection shows a clock only when the server pinned a
+  // deadline (its close time); with neither there is no time limit.
+  const [hasDeadline, setHasDeadline] = useExState(false);
+  const untimed = !cfg.duration && !hasDeadline;
   // Seal progress survives refreshes so a retried seal is idempotent end to
   // end: the same uuid, and completed steps never re-run.
   const sealRef     = useExRef((restored && restored.seal) || { uuid: null, aiScore: undefined, baselineData: null });
@@ -975,6 +981,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         }
       } else if (sess) {
         deadlineRef.current = sess;
+        setHasDeadline(true);
       }
       clockReadyRef.current = true;
     })();
@@ -1026,7 +1033,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // silently at 00:00 with the seal button still disabled below the word
   // minimum, and the student was stranded.
   useExEffect(() => {
-    if (timeLeft > 0 || !cfg.duration) return;
+    if (timeLeft > 0 || (!cfg.duration && !deadlineRef.current)) return;
     handleSubmit({ force: true, expired: true });
   }, [timeLeft]);
 
@@ -1165,8 +1172,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     setTimeout(() => textareaRef.current && textareaRef.current.focus(), 0);
   }
 
-  const isLow     = timeLeft <= 300;
-  const isVeryLow = timeLeft <= 60;
+  const isLow     = !untimed && timeLeft <= 300;
+  const isVeryLow = !untimed && timeLeft <= 60;
   const overMax   = cfg.maxWords && words > cfg.maxWords;
   const atMin     = words >= cfg.minWords;
   const sealHint  = submitting || locked ? null : bbSealHint(words, cfg.minWords);
@@ -1232,8 +1239,12 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
               </span>
               <span className={'bk-timer' + (isVeryLow ? ' vlow' : isLow ? ' low' : '')}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>
-                <span className="bk-timer-lbl" aria-hidden="true">Time left</span>
-                <span role="timer" aria-label={`Time remaining: ${bbSpokenTime(timeLeft)}`}>{bbClock(timeLeft)}</span>
+                {untimed
+                  ? <span className="bk-timer-lbl">No time limit</span>
+                  : <>
+                    <span className="bk-timer-lbl" aria-hidden="true">Time left</span>
+                    <span role="timer" aria-label={`Time remaining: ${bbSpokenTime(timeLeft)}`}>{bbClock(timeLeft)}</span>
+                  </>}
               </span>
             </div>
           </div>
