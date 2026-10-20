@@ -1,29 +1,24 @@
-# Dry run (day before) and day-of plan
+# Launch-day smoke test and rolling checks (async alpha — replaces the single test-day plan)
 
-## Dry run, about 1 hour, day before
-- [x] Pilot redeployed to current main with #287; `/health` shows commit `59173fd` (identical to `main` tip as of 2026-10-15 ~11:50 ET). #286 (consent MVP) is still open and is not required for the independent-teacher alpha path.
-- [ ] Alpha workspace exists, products = bluebook + original.
-- [ ] Every volunteer has 3+ reference papers (300+ words) uploaded; partners assigned only among people who said Yes to partner sharing; excerpts sent.
-- [ ] `labels.csv` template ready; pass criteria written down (scoring_plan.md).
-- [ ] Dry-run batch scoring on the 2–3 test accounts (`batch_score_alpha.py`), then delete them.
-- [ ] Exam A (natural) and Exam B (partner's style) published: 25 min, paste blocked, writing consistency OFF.
-- [ ] 2–3 test accounts on Andrew's own emails: run every step in `join_link_check.md`, on Chrome and Safari, plus one phone.
-- [ ] Delete the test accounts, or keep them as spares.
-- [ ] Consent form live; all 20 volunteers have submitted it before they get their links.
-- [ ] 20 invite links generated and sent privately (they expire after 14 days, so send at most a few days ahead).
-- [ ] Feedback form link ready to paste.
+The alpha is open-ended and asynchronous (starts 2026-10-19, no fixed end date). There is no single test day or dry-run day. Instead: a **launch-day smoke test** before the first real invite goes out, then **rolling checks** as volunteers arrive.
 
-## Day of
-- **T-30 min:** open Render dashboard (metrics + logs), the teacher dashboard, and a spreadsheet to track who's joined. Wake the service with `/health`.
-- **T-10:** post the start message: "Open your link or sign in, open Practice prompt 1, start when told."
-- **T0:** everyone starts Exam A together (load test #1). **T+35:** 10-min break, then Exam B together (load test #2). Watch the live view for who's writing.
-- **During:** Andrew answers questions in a group chat/DM. Note the time of any slowness or error.
-- **Common fixes:**
-  - **Link says used or expired:** Students → reissue invite for that person.
-  - **Forgot password:** reissue the invite. The reset link works without email.
-  - **Page frozen:** reload. Drafts are saved on the device and resume.
-  - **Site down:** check Render logs; pause and tell everyone their drafts are saved locally.
-- **T+30:** confirm all submissions are in, send the feedback form, thank everyone.
-- **Same day:** note peak response times and errors from Render metrics, and any student issues.
-- **Within ~3 days:** export, label, run `batch_score_alpha.py`, share the report with Andrew only.
-- **Within 14 days:** run `deletion_plan.md`.
+## Launch-day smoke test (about 1 hour, before first invite)
+- [ ] Pilot on the expected commit: `live_smoke.py` PASS; `/health` shows `backend: postgres`, `signup_open: false`. (A transient disconnect was seen 2026-10-19 — rerun until a clean PASS; do not claim PASS from a partial run.)
+- [ ] `INVITE_NO_EXPIRY=1` re-confirmed in the Render dashboard (it is not in `render.yaml`), and alpha teacher workspace created with `--no-expiry` (see `setup_runbook.md` §2).
+- [ ] Consent + feedback Google Forms built from `google_forms_spec.md`, contact arclark555@gmail.com, tested with a dummy response that is then deleted.
+- [ ] 2–3 test accounts on Andrew's own emails: run every step in `join_link_check.md` on Chrome and Safari, plus one phone; import 3 test papers; write both timed writings; batch-score them; confirm no score is visible to the student account.
+- [ ] One split-derived test baseline: split a long test paper, tag it in `baselines.csv`, confirm the report's baseline-source breakout shows it separately.
+- [ ] Delete the test accounts (or keep clearly-named spares), then generate the first real invite links.
+
+## Rolling checks (each time a volunteer finishes, and a weekly sweep)
+- [ ] Consent response received **before** that person's join link is sent; partners only among Q11=Yes; shadow use only per Q12/Q13.
+- [ ] Baseline count after import: 3+ papers (drift hold can hold one back — confirm the count the screen reports). Record independent vs split-derived in `baselines.csv`.
+- [ ] Both writings sealed, no score visible to the student; staff batch-score as submissions arrive (see `scoring_plan.md`).
+- [ ] Feedback form sent to that volunteer; note any slowness/errors with date/time (ET).
+- [ ] Withdrawals: delete that person's data within 14 days of withdrawal (see `deletion_plan.md`); Andrew closes a participation the same way.
+
+## If something goes wrong for a volunteer
+- **Link says used or expired:** Students → reissue invite for that person (links do not expire while `INVITE_NO_EXPIRY=1`; a used link is single-use by design).
+- **Forgot password:** reissue the invite; the reset link works without email.
+- **Page frozen:** reload — drafts are saved on the device and resume.
+- **Site down:** check Render logs, tell the volunteer their draft is saved locally, and resume later; async means no session is lost.

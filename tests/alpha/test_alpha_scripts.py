@@ -122,19 +122,41 @@ def test_label_csv_validation_and_threshold_sweep_are_deterministic(tmp_path):
     labels_path = tmp_path / "labels.csv"
     with labels_path.open("w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["submission_id", "label", "true_author"])
-        writer.writerow(["natural", "natural", "self"])
-        writer.writerow(["other", "not_own", "partner"])
+        writer.writerow(["submission_id", "label", "author_true", "writer_true"])
+        writer.writerow(["natural", "natural", "self", "self"])
+        writer.writerow(["other", "shadow", "partner", "other-writer"])
 
     assert batch.validate_labels(labels_path, {"natural", "other"}) == {
-        "natural": ("natural", "self"), "other": ("not_own", "partner")
+        "natural": {"label": "natural", "author_true": "self", "writer_true": "self", "shadow": "false",
+                    "shadow_kind": "", "imitated_student_id": "", "prompt_id": "",
+                    "paired_submission_id": "", "shadow_source_paper_id": "", "generator_tool": ""},
+        "other": {"label": "shadow", "author_true": "partner", "writer_true": "other-writer", "shadow": "true",
+                  "shadow_kind": "", "imitated_student_id": "", "prompt_id": "",
+                  "paired_submission_id": "", "shadow_source_paper_id": "", "generator_tool": ""},
     }
+    # Legacy header + legacy not_own label still normalise to the canonical schema.
+    labels_path.write_text("submission_id,label,true_author\nnatural,natural,self\nother,not_own,partner\n")
+    legacy = batch.validate_labels(labels_path, {"natural", "other"})
+    assert legacy["other"]["label"] == "shadow" and legacy["other"]["author_true"] == "partner"
     with pytest.raises(ValueError, match="unknown submission ids"):
         batch.validate_labels(labels_path, {"natural"})
     labels_path.write_text("submission_id,label\nother,maybe\n")
     with pytest.raises(ValueError, match="header must be exactly"):
         batch.validate_labels(labels_path, {"other"})
-    labels_path.write_text("submission_id,label,true_author\nnatural,natural,self\nother,not_own,partner\n")
+    labels_path.write_text("submission_id,label,author_true,writer_true\nnatural,natural,self,self\nother,shadow,partner,other-writer\n")
+
+    # Canonical v2: shadow metadata lives outside the scored text and is validated.
+    v2 = tmp_path / "labels_v2.csv"
+    v2.write_text(
+        "submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool\n"
+        "natural,natural,self,self,,,,,,\n"
+        "other,shadow,partner,writer-7,ai_staff,partner,prompt-a,natural,sample-1,staff-tool-x\n")
+    parsed = batch.validate_labels(v2, {"natural", "other"})
+    assert parsed["other"]["shadow"] == "true" and parsed["other"]["generator_tool"] == "staff-tool-x"
+    assert parsed["other"]["paired_submission_id"] == "natural"
+    v2.write_text(v2.read_text().replace("writer-7", "partner"))
+    with pytest.raises(ValueError, match="must not be the imitated student"):
+        batch.validate_labels(v2, {"natural", "other"})
 
     calls = []
     def deterministic_score(repo, baseline_dir, submission_dir, student_id):
@@ -156,6 +178,69 @@ def test_label_csv_validation_and_threshold_sweep_are_deterministic(tmp_path):
     assert "deviation threshold sweep" in report
     assert sum(line.startswith("| 0.") for line in report.splitlines()) == 19
     assert "nan" not in report
+
+
+def _write_baselines(student_dir, count=3):
+    (student_dir / "baseline").mkdir(parents=True, exist_ok=True)
+    (student_dir / "submission").mkdir(exist_ok=True)
+    for i in range(count):
+        (student_dir / "baseline" / f"{i:02d}.txt").write_text(_text(f"baseline{i}"))
+
+
+def test_split_baseline_tagging_and_report_breakout(tmp_path):
+    export_dir = tmp_path / "export"
+    ind = export_dir / "stud_ind"; spl = export_dir / "stud_split"
+    _write_baselines(ind); _write_baselines(spl)
+    (ind / "submission" / "ind_natural.txt").write_text(_text("ind natural"))
+    (spl / "submission" / "split_natural.txt").write_text(_text("split natural"))
+    (export_dir / "baselines.csv").write_text(
+        "student,baseline_file,baseline_source,parent_paper_id\n"
+        + "".join(f"stud_ind,{i:02d}.txt,independent,\n" for i in range(3))
+        + "".join(f"stud_split,{i:02d}.txt,split,long-paper-1\n" for i in range(3)))
+    labels_path = tmp_path / "labels.csv"
+    labels_path.write_text("submission_id,label,author_true,writer_true\n"
+                           "ind_natural,natural,stud_ind,stud_ind\n"
+                           "split_natural,natural,stud_split,stud_split\n")
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        flagged = "split" in student_id
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .9 if flagged else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if flagged else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score)
+    assert not problems
+    by_id = {row["submission_id"]: row for row in rows}
+    # Gate counts papers (3 each), but split-derived count is reported separately.
+    assert by_id["ind_natural"]["baseline_source"] == "independent"
+    assert by_id["ind_natural"]["n_split_baselines"] == 0
+    assert by_id["split_natural"]["baseline_source"] == "split"
+    assert by_id["split_natural"]["n_split_baselines"] == 3
+    assert by_id["split_natural"]["baseline_parent_ids"] == "long-paper-1"
+    report = (tmp_path / "out/report.md").read_text()
+    assert "Baseline-source breakout" in report and "never pooled silently" in report
+    assert "| independent | 1 | 1 | 0/1 (0%) |" in report
+    assert "| split | 1 | 1 | 1/1 (100%) |" in report
+    csv_text = (tmp_path / "out/per_submission.csv").read_text()
+    assert "baseline_source" in csv_text and "n_split_baselines" in csv_text
+
+
+def test_baselines_csv_rejects_split_without_parent_and_unknown_files(tmp_path):
+    export_dir = tmp_path / "export"
+    student_dir = export_dir / "stud_a"
+    _write_baselines(student_dir)
+    (student_dir / "submission" / "paper.txt").write_text(_text("paper"))
+    bad = export_dir / "baselines.csv"
+    bad.write_text("student,baseline_file,baseline_source,parent_paper_id\nstud_a,00.txt,split,\n")
+    with pytest.raises(ValueError, match="parent_paper_id"):
+        batch.load_baseline_sources(export_dir, {"stud_a"})
+    bad.write_text("student,baseline_file,baseline_source,parent_paper_id\nstud_a,99.txt,independent,\n")
+    with pytest.raises(ValueError, match="no such baseline file"):
+        batch.load_baseline_sources(export_dir, {"stud_a"})
+    assert batch.load_baseline_sources(tmp_path / "empty", {"stud_a"}) == ({}, False)
 
 
 def test_batch_scoring_rejects_non_finite_scores_and_never_writes_nan(tmp_path):

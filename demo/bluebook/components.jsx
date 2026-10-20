@@ -353,7 +353,21 @@ async function bbDetail(r, fallback) {
 // says something specific (a wrong current password, a removed account) is
 // passed on as the server wrote it.
 const BB_SIGNED_OUT = 'Your sign-in has expired. Please sign in again.';
+// What the server says for a missing or lapsed staff token (original/api.py).
+const BB_STAFF_401 = /^(authentication required|this account no longer exists)/i;
 const BB_GENERIC_401 = /^(not authenticated|not signed in\.?|expired|invalid token)$/i;
+
+// A teacher's sign-in lasts 8 hours (original/principal.py). When it has
+// lapsed, every teacher list answers 401; those screens used to show that as
+// "No examinations yet". Announce it once so the app can send the teacher to
+// sign in instead (alpha bug 2026-10-20). Students are not affected.
+export const BB_SIGNED_OUT_EVENT = 'bb-staff-signed-out';
+function bbStaffSignedOut() {
+  try {
+    if (!localStorage.getItem('original_principal_token')) return;
+    window.dispatchEvent(new Event(BB_SIGNED_OUT_EVENT));
+  } catch (e) {}
+}
 
 export const BB_API = {
   base: window.BB_API_BASE || '',
@@ -367,7 +381,11 @@ export const BB_API = {
     });
     if (!r.ok) {
       const said = await bbDetail(r, r.status === 401 ? BB_SIGNED_OUT : undefined);
-      const err = new Error(r.status === 401 && BB_GENERIC_401.test(said) ? BB_SIGNED_OUT : said);
+      const lapsed = r.status === 401 && (said === BB_SIGNED_OUT || BB_GENERIC_401.test(said) || BB_STAFF_401.test(said));
+      // Only a lapsed sign-in signs the teacher out; a specific 401 (a wrong
+      // current password) stays on its own form.
+      if (lapsed) bbStaffSignedOut();
+      const err = new Error(lapsed ? BB_SIGNED_OUT : said);
       err.status = r.status;
       throw err;
     }
@@ -383,6 +401,7 @@ export const BB_API = {
   async listExams() {
     try {
       const r = await fetch(this.base + '/bluebook/exams', { headers: this._headers() });
+      if (r.status === 401) bbStaffSignedOut();
       if (!r.ok) return null;
       return (await r.json()).exams || [];
     } catch (e) { return null; }
@@ -410,6 +429,7 @@ export const BB_API = {
   async listCourses() {
     try {
       const r = await fetch(this.base + '/bluebook/courses', { headers: this._headers() });
+      if (r.status === 401) bbStaffSignedOut();
       if (!r.ok) return null;
       return (await r.json()).courses || [];
     } catch (e) { return null; }
@@ -667,6 +687,14 @@ export const BB_API = {
   logout() {
     this._clearSession();
     bbClearKeptPapers();
+  },
+  // Which account this browser is signed in as, for noticing a switch made
+  // in another tab. Token-based, so a re-login as a different user counts.
+  sessionSignature() {
+    try {
+      const tok = localStorage.getItem('original_principal_token') || localStorage.getItem('original_session_token') || '';
+      return tok ? tok + '|' + (localStorage.getItem('original_role') || '') : '';
+    } catch (e) { return ''; }
   },
   isAuthed()        { try { return !!localStorage.getItem('original_principal_token'); } catch (e) { return false; } },
   isStudentLaunch() { try { return !!localStorage.getItem('bluebook_student_id'); }      catch (e) { return false; } },
