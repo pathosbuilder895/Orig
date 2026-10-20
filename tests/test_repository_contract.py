@@ -2728,6 +2728,17 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
         "jti-t08", tenant_id, "exam-t08", scoped_id
     )
     repo.put_enrollment("course-t08", scoped_id, tenant_id)     # bluebook_enrollments
+    repo.put_past_paper(                                        # student_past_papers
+        {
+            "paper_id": "paper-t08",
+            "tenant_id": tenant_id,
+            "student_id": scoped_id,
+            "title": "t-08 shared paper",
+            "text": "t-08 completeness seed paper text",
+            "word_count": 5,
+            "baseline_source": "independent",
+        }
+    )
 
 
 def _count_student_rows(repo, table_names: list[str], scoped_id: str) -> dict[str, int]:

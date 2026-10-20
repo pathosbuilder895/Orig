@@ -785,7 +785,39 @@ class ParkBeat(LiveBase):
     )
 
 
-#: All 23 live models in store-DDL order, for tests and the P3 repository.
+class StudentPastPaper(LiveBase):
+    """A past paper a student shared from their Collections account
+    (``student_past_papers``, 2026-10 alpha).
+
+    It waits here for the teacher: nothing reaches the student's baseline
+    until a teacher approves it, and it is never scored on upload.
+    ``student_id`` is the full scoped id verbatim (like ``users.user_id``);
+    ``baseline_source`` is ``independent`` or ``split`` (a section of a longer
+    paper, with ``parent_title`` naming that paper) so calibration can keep
+    split-derived baselines apart. ``status``: pending | approved | declined |
+    held (the drift gate kept an approved paper out). No tenant FK, mirroring
+    ``ConsumedAttestation``.
+    """
+
+    __tablename__ = "student_past_papers"
+    __table_args__ = (Index("idx_student_past_papers_student", "tenant_id", "student_id"),)
+
+    paper_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baseline_source: Mapped[str] = mapped_column(Text, nullable=False, server_default="independent")
+    parent_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+#: All 24 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -810,4 +842,5 @@ LIVE_MODELS = [
     BaselineRequest,
     ParkSession,
     ParkBeat,
+    StudentPastPaper,
 ]

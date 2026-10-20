@@ -272,6 +272,13 @@ class Repository(Protocol):
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
 
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+    def put_past_paper(self, rec: dict) -> None: ...
+    def get_past_paper(self, paper_id: str) -> dict | None: ...
+    def list_past_papers(self, tenant_id: str, student_id: str | None = None) -> list[dict]: ...
+    def count_past_papers_since(self, student_id: str, since_iso: str) -> int: ...
+    def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -788,6 +795,22 @@ class SqliteRepository:
     ) -> bool:
         return store.set_bluebook_submission_feedback(submission_id, mark, feedback, graded_by)
 
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+    def put_past_paper(self, rec: dict) -> None:
+        store.put_past_paper(rec)
+
+    def get_past_paper(self, paper_id: str) -> dict | None:
+        return store.get_past_paper(paper_id)
+
+    def list_past_papers(self, tenant_id: str, student_id: str | None = None) -> list[dict]:
+        return store.list_past_papers(tenant_id, student_id)
+
+    def count_past_papers_since(self, student_id: str, since_iso: str) -> int:
+        return store.count_past_papers_since(student_id, since_iso)
+
+    def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None:
+        store.set_past_paper_status(paper_id, status, reviewed_by)
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -905,6 +928,8 @@ _WRITE_METHODS = frozenset(
         "put",
         "clear",
         "delete_student",
+        "put_past_paper",
+        "set_past_paper_status",
         "delete_tenant_students",
         "set_display_name",
         "put_manifest",

@@ -612,6 +612,29 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             used_at     TEXT NOT NULL
         )
     """)
+    # Past papers a student shared from their Collections account, waiting
+    # for the teacher (2026-10 alpha) — mirrors alembic revision b5e1f7c3a9d2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS student_past_papers (
+            paper_id        TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            student_id      TEXT NOT NULL,
+            title           TEXT NOT NULL,
+            text            TEXT NOT NULL,
+            word_count      INTEGER NOT NULL,
+            filename        TEXT,
+            baseline_source TEXT NOT NULL DEFAULT 'independent',
+            parent_title    TEXT,
+            status          TEXT NOT NULL DEFAULT 'pending',
+            created_at      TEXT NOT NULL,
+            reviewed_at     TEXT,
+            reviewed_by     TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_student_past_papers_student
+            ON student_past_papers(tenant_id, student_id)
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -1778,6 +1801,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM bluebook_enrollments WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_invites WHERE user_id = ? LIMIT 1",
     "SELECT 1 FROM users WHERE user_id = ? AND role = 'student' LIMIT 1",
+    "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
 )
 
 
@@ -1818,6 +1842,8 @@ def delete_student(student_id: str) -> bool:
     - bluebook_invites      (SQLite — set-password links, by user_id)
     - users                 (SQLite — the student's own login row, role
                              'student' only)
+    - student_past_papers   (SQLite — past papers the student shared for
+                             teacher approval, 2026-10)
 
     A student with no Original profile still counts as found when they hold
     any Bluebook row (a Bluebook-only workspace never creates a profile);
@@ -1877,6 +1903,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_enrollments WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM bluebook_invites WHERE user_id = ?", (student_id,))
             conn.execute("DELETE FROM users WHERE user_id = ? AND role = 'student'", (student_id,))
+            # Past papers the student shared (2026-10): their own text.
+            conn.execute("DELETE FROM student_past_papers WHERE student_id = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -4162,3 +4190,77 @@ def park_purge(before: datetime) -> int:
         ).rowcount
         conn.commit()
     return int(beats) + int(sessions)
+
+
+# ── Student-shared past papers (2026-10 alpha) ────────────────────────────────
+
+_PAST_PAPER_COLS = (
+    "paper_id, tenant_id, student_id, title, text, word_count, filename, "
+    "baseline_source, parent_title, status, created_at, reviewed_at, reviewed_by"
+)
+
+
+def _past_paper_row(row) -> dict:
+    keys = [k.strip() for k in _PAST_PAPER_COLS.split(",")]
+    return dict(zip(keys, row, strict=True))
+
+
+def put_past_paper(rec: dict) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO student_past_papers ({_PAST_PAPER_COLS}) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)",
+            (
+                rec["paper_id"],
+                rec["tenant_id"],
+                rec["student_id"],
+                rec["title"],
+                rec["text"],
+                int(rec["word_count"]),
+                rec.get("filename"),
+                rec.get("baseline_source") or "independent",
+                rec.get("parent_title"),
+                rec.get("status") or "pending",
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        conn.commit()
+
+
+def get_past_paper(paper_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_PAST_PAPER_COLS} FROM student_past_papers WHERE paper_id = ?",
+            (paper_id,),
+        ).fetchone()
+    return _past_paper_row(row) if row else None
+
+
+def list_past_papers(tenant_id: str, student_id: str | None = None) -> list[dict]:
+    sql = f"SELECT {_PAST_PAPER_COLS} FROM student_past_papers WHERE tenant_id = ?"
+    args: list = [tenant_id]
+    if student_id is not None:
+        sql += " AND student_id = ?"
+        args.append(student_id)
+    with _get_conn() as conn:
+        rows = conn.execute(sql + " ORDER BY created_at DESC", args).fetchall()
+    return [_past_paper_row(r) for r in rows]
+
+
+def count_past_papers_since(student_id: str, since_iso: str) -> int:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM student_past_papers WHERE student_id = ? AND created_at >= ?",
+            (student_id, since_iso),
+        ).fetchone()
+    return int(row[0] if row else 0)
+
+
+def set_past_paper_status(paper_id: str, status: str, reviewed_by: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "UPDATE student_past_papers SET status = ?, reviewed_at = ?, reviewed_by = ? "
+            "WHERE paper_id = ?",
+            (status, datetime.now(UTC).isoformat(), reviewed_by, paper_id),
+        )
+        conn.commit()

@@ -141,5 +141,15 @@
     "tampered": 401,
     "expired": 401,
     "_note": "Approval status route: staff-only (students 403); a nonexistent exam id is 404 for every staff role, so the cross-tenant case reads the same as a missing one."
+  },
+  "GET /bluebook/me/papers": {
+    "anonymous": 401,
+    "student_own": 200,
+    "student_other": 200,
+    "professor_own": 403,
+    "professor_other": 403,
+    "operator": 403,
+    "tampered": 401,
+    "expired": 401
   }
 }
