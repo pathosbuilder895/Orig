@@ -244,8 +244,18 @@ export function InviteScreen({ onNavigate }) {
     );
   }
 
+  // A teacher opening a student's link in their own browser (alpha bug
+  // 2026-10-20): setting the password signs the teacher out of this browser,
+  // in every tab. Say so before they do it.
+  const staffHere = kind === 'student' && BB_API.isAuthed();
   return (
     <AuthShell title={title} footer={<>{signInLine}<LegalLinks /></>}>
+      {staffHere && (
+        <p role="note" data-testid="invite-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
+          This browser is signed in as {BB_API.identity().email || 'a teacher'}. Setting this student's password signs that account out here, in every tab.
+          To try the student side yourself, open this link in a private (incognito) window or a different browser.
+        </p>
+      )}
       <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'

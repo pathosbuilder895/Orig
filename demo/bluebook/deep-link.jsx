@@ -27,7 +27,7 @@
 // dashes. Anything else is not a deep link and is ignored.
 const DEEP_LINK = /^#(exam|collection|live)\/([A-Za-z0-9_-]{1,64})$/;
 // A link to a whole screen: no id, nothing to check on the server.
-const SCREEN_LINK = /^#(students|courses|collections|exams|sessions)$/;
+const SCREEN_LINK = /^#(students|courses|results|collections|exams|sessions)$/;
 // The old Examinations and Sessions links open the one Collections list
 // (screen 'sessions'), so links saved before the merge keep working.
 const SCREEN_ALIAS = { collections: 'sessions', exams: 'sessions', sessions: 'sessions' };
@@ -57,6 +57,18 @@ export function deepLinkScreen(link, exam) {
 // (the sign-in page's "Forgot your password?" link). It is not a deep link into a signed-in
 // workspace: app.jsx reads it only to pick the first screen.
 export const FORGOT_HASH = '#forgot';
+
+// Teacher screens that keep their place across a reload: navigating to one
+// writes its hash, so a refresh reopens it instead of the dashboard (alpha
+// bug 2026-10-20: a refresh on Students dropped the teacher elsewhere).
+export const RELOADABLE_SCREENS = ['students', 'courses', 'sessions', 'collections', 'exams', 'results'];
+// The one Collections list (screen 'sessions', and its old names) is kept as #collections.
+const SCREEN_HASH = { sessions: 'collections', exams: 'collections', collections: 'collections' };
+export function rememberScreen(screen) {
+  if (!RELOADABLE_SCREENS.includes(screen)) return;
+  const hash = SCREEN_HASH[screen] || screen;
+  try { window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + '#' + hash); } catch (e) {}
+}
 
 // Drops a deep-link hash from the address bar, keeping the path and query,
 // so a reload after the teacher has moved on opens the dashboard rather

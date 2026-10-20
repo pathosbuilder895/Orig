@@ -452,7 +452,7 @@ export function ExamsListScreen({ onNavigate }) {
   const [error, setError] = useState('');
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
-      .catch(err => { setError(err.message || 'Could not load your collections.'); setExams([]); });
+      .catch(err => { setError(err.message || 'Could not load your collections.'); });
   }, []);
   const columns = [
     { key: 'title', label: 'Collection', lead: true, render: e => (
@@ -467,11 +467,13 @@ export function ExamsListScreen({ onNavigate }) {
   ];
   return (
     <Page eyebrow="Your workspace" title="Collections"
-      meta={exams === null ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'}`}
+      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'}`}
       actions={<Btn primary onClick={() => onNavigate('new-exam')}>+ New collection</Btn>}>
       <ErrorText>{error}</ErrorText>
-      <Table columns={columns} rows={exams || []} rowKey={e => e.id} caption="Collections"
-        empty="No collections yet. Choose + New collection to set the first one." />
+      {/* A failed load is an error, never "no collections" (alpha bug 2026-10-20). */}
+      {error ? null : exams === null ? <p role="status">Loading collections…</p> : (
+      <Table columns={columns} rows={exams} rowKey={e => e.id} caption="Collections"
+        empty="No collections yet. Choose + New collection to set the first one." />)}
     </Page>
   );
 }
@@ -933,7 +935,15 @@ export function StudentsScreen({ onNavigate }) {
   const [rows, setRows] = useState(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const load = () => BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); setRows([]); });
+  // A teacher reads a student's sealed work from here (alpha bug 2026-10-20:
+  // the Students page listed counts but offered no way to open the work).
+  const [subs, setSubs] = useState(null);
+  const [viewing, setViewing] = useState('');
+  const load = () => {
+    BB_API.listSubmissions().then(setSubs).catch(() => setSubs([]));
+    setError('');
+    return BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); });
+  };
   useEffect(() => { load(); }, []);
 
   async function erase(r) {
@@ -953,18 +963,33 @@ export function StudentsScreen({ onNavigate }) {
     { key: 'state', label: 'Status', render: r => <Badge>{r.state}</Badge> },
     { key: 'submissions', label: 'Submitted', num: true },
     { key: 'last', label: 'Last submission', render: r => when(r.last_submitted_at) },
-    { key: 'actions', label: 'Actions', actions: true, render: r => <LinkBtn danger onClick={() => erase(r)}>Delete student</LinkBtn> },
+    { key: 'actions', label: 'Actions', actions: true, render: r => <>
+      {r.submissions > 0 && <LinkBtn onClick={() => setViewing(viewing === r.student_id ? '' : r.student_id)} aria-expanded={viewing === r.student_id}>
+        {viewing === r.student_id ? 'Hide work' : 'View work'}
+      </LinkBtn>}
+      <LinkBtn danger onClick={() => erase(r)}>Delete student</LinkBtn>
+    </> },
   ];
+  const viewed = (rows || []).find(r => r.student_id === viewing);
+  const viewedSubs = (subs || []).filter(x => x.student_id === viewing);
   return (
     <Page eyebrow="Your workspace" title="Students"
-      meta={rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
+      meta={error ? 'Students unavailable' : rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
       actions={<Btn onClick={() => onNavigate('courses')}>Add students via a course</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div style={{ maxWidth: 420 }}>
         <Field id="studentSearch" label="Search by name or email" value={query} onChange={setQuery} required={false} type="search" />
       </div>
+      {error ? <Btn onClick={load}>Try again</Btn> : rows === null ? <p role="status">Loading students…</p> : (
       <Table columns={columns} rows={shown} rowKey={r => r.student_id} caption="Students"
-        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />
+        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />)}
+      {viewed && (
+        <section aria-label={`Work by ${viewed.name || viewed.email || 'student'}`} style={{ marginTop: '2rem' }}>
+          <h2 className="bb-h2">Work by {viewed.name || viewed.email || 'this student'}</h2>
+          {subs === null ? <p role="status">Loading submissions…</p>
+            : <SubmissionsTable subs={viewedSubs} showExam onChanged={load} empty="Nothing sealed by this student yet." />}
+        </section>
+      )}
     </Page>
   );
 }
