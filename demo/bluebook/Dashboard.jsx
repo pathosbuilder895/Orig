@@ -18,7 +18,7 @@ const MOCK_EXAMS = [
 
 const NAV_ITEMS = [
   { label: 'Overview',      screen: 'dashboard' },
-  { label: 'Examinations',  screen: 'exams'     },
+  { label: 'Collections',   screen: 'sessions'  },
   { label: 'Courses',       screen: 'courses'   },
   { label: 'Students',      screen: 'students'  },
   { label: 'Results',       screen: 'results'   },
@@ -196,11 +196,11 @@ export function ExamsScreen({ onNavigate }) {
             fontFamily: fontDisplay, fontSize: 34,
             color: BB.cream, fontWeight: 400,
             letterSpacing: '0.01em', margin: '0 0 6px',
-          }}>Examinations</h1>
-          <MetaLabel>{loading ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'} on record`}</MetaLabel>
+          }}>Collections</h1>
+          <MetaLabel>{loading ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'} on record`}</MetaLabel>
         </div>
         <BtnPrimary onClick={() => onNavigate('new-exam')} style={{ padding: '10px 28px', fontSize: 16 }}>
-          + New Examination
+          + New Collection
         </BtnPrimary>
       </div>
       <GoldRule double style={{ margin: '20px 0 36px' }} />

@@ -286,14 +286,14 @@ export function NewExamScreen({ onNavigate }) {
       // usable from the live config above.
       if (BB_API.isAuthed()) {
         setSaving(false);
-        setSaveError(`The examination was not saved: ${(e && e.message) || 'unknown error'}.`);
+        setSaveError(`The collection was not saved: ${(e && e.message) || 'unknown error'}.`);
         return;
       }
       console.warn('Collections exam persistence failed:', e && e.message);
     }
     setSaving(false);
     setSaved(true);
-    setTimeout(() => onNavigate('exams'), 900);
+    setTimeout(() => onNavigate('sessions'), 900);
   }
 
   if (saved) return (
@@ -306,9 +306,9 @@ export function NewExamScreen({ onNavigate }) {
         <p style={{
           fontFamily: fontDisplay, fontSize: 28, color: BB.cream,
           margin: '20px 0 8px', fontWeight: 400,
-        }}>Examination Created</p>
+        }}>Collection Created</p>
         <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade }}>
-          Returning to examinations…
+          Returning to Collections…
         </p>
       </div>
     </div>
@@ -328,7 +328,7 @@ export function NewExamScreen({ onNavigate }) {
         borderBottom: '1px solid rgba(201,169,97,0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-          <button onClick={() => onNavigate('exams')} style={{
+          <button onClick={() => onNavigate('sessions')} style={{
             fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
             textTransform: 'uppercase', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
@@ -336,10 +336,10 @@ export function NewExamScreen({ onNavigate }) {
           }}
             onMouseEnter={e => e.currentTarget.style.color = BB.gold}
             onMouseLeave={e => e.currentTarget.style.color = BB.fade}
-          >← Examinations</button>
+          >← Collections</button>
           <GoldRule style={{ width: 1, height: 16, borderTop: 'none', borderLeft: '1px solid rgba(201,169,97,0.3)' }} />
           <p style={{ fontFamily: fontBody, fontVariant: 'small-caps', fontSize: 16, color: BB.fade, letterSpacing: '0.1em', margin: 0 }}>
-            New Examination
+            New Collection
           </p>
         </div>
         <Logotype size={18} onClick={() => onNavigate('dashboard')} />
@@ -353,9 +353,9 @@ export function NewExamScreen({ onNavigate }) {
           fontFamily: fontDisplay, fontSize: 32, fontWeight: 400,
           color: BB.cream, letterSpacing: '0.01em',
           margin: '0 0 4px',
-        }}>New Examination</h1>
+        }}>New Collection</h1>
         <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade, margin: '0 0 36px' }}>
-          Draft it now; publish when it is ready. Students see a published examination in their course.
+          Every assignment is a collection. Fill in the basics; open More options for timing windows, lockdown and other settings. Students see a published collection in their course.
         </p>
 
         <GoldRule double style={{ marginBottom: 40 }} />
@@ -364,7 +364,7 @@ export function NewExamScreen({ onNavigate }) {
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 20 }}>I. Identity</MetaLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-            <FormField label="Examination Title" id="neTitle">
+            <FormField label="Collection Title" id="neTitle">
               <TextInput
                 id="neTitle"
                 value={title} onChange={setTitle}
@@ -402,7 +402,7 @@ export function NewExamScreen({ onNavigate }) {
                     color: BB.fade, margin: '2px 0 0',
                   }}>
                     {coursesFailed
-                      ? 'Your courses could not be loaded just now. Type the course code to carry on — the examination will still be saved.'
+                      ? 'Your courses could not be loaded just now. Type the course code to carry on — the collection will still be saved.'
                       : 'No courses yet. Type a code to carry on, or '}
                     {!coursesFailed && (
                       <button onClick={() => onNavigate('courses')} style={{
@@ -434,25 +434,13 @@ export function NewExamScreen({ onNavigate }) {
               <NumberInput id="neMaxWords" value={maxWords} onChange={setMaxWords} placeholder="None" />
             </FormField>
           </div>
-          <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 28 }}>
-            <FormField label="Opens" hint="optional · your local time" id="neOpens">
-              <TextInput id="neOpens" type="datetime-local" value={opensAt} onChange={setOpensAt} />
-            </FormField>
-            <FormField label="Closes" hint="optional · your local time" id="neCloses">
-              <TextInput id="neCloses" type="datetime-local" value={closesAt} onChange={setClosesAt} />
-            </FormField>
-          </div>
-          <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '12px 0 0' }}>
-            Students can start only while the exam is open. A sitting that starts
-            near the closing time is shortened so it ends when the exam closes.
-          </p>
         </div>
 
         <GoldRule faint style={{ marginBottom: 36 }} />
 
         {/* ── Section III: Prompts ── */}
         <div style={{ marginBottom: 40 }}>
-          <MetaLabel style={{ display: 'block', marginBottom: 20 }}>III. Examination Prompts</MetaLabel>
+          <MetaLabel style={{ display: 'block', marginBottom: 20 }}>III. Prompts</MetaLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {prompts.map((prompt, i) => (
               <div key={i}>
@@ -470,7 +458,7 @@ export function NewExamScreen({ onNavigate }) {
                   id={`nePrompt${i}`}
                   value={prompt}
                   onChange={e => updatePrompt(i, e.target.value)}
-                  placeholder="Write the examination question here…"
+                  placeholder="Write the question here…"
                   rows={4}
                   style={{
                     ...fieldBase,
@@ -501,11 +489,40 @@ export function NewExamScreen({ onNavigate }) {
 
         <GoldRule faint style={{ marginBottom: 36 }} />
 
+        {/* ── More options: everything past the basics, closed by default so the
+            short form is the whole setup for most collections. Nothing here is
+            hidden from the server: the defaults below are what is saved. ── */}
+        <details id="neMore" className="bb-ne-more" style={{ marginBottom: 40 }}>
+          <summary style={{
+            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: BB.gold, cursor: 'pointer',
+            marginBottom: 24,
+          }}>More options</summary>
+
+        {/* ── Availability window ── */}
+        <div style={{ marginBottom: 40 }}>
+          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Window</MetaLabel>
+          <div className="bb-ne-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 12 }}>
+            <FormField label="Opens" hint="optional · your local time" id="neOpens">
+              <TextInput id="neOpens" type="datetime-local" value={opensAt} onChange={setOpensAt} />
+            </FormField>
+            <FormField label="Closes" hint="optional · your local time" id="neCloses">
+              <TextInput id="neCloses" type="datetime-local" value={closesAt} onChange={setClosesAt} />
+            </FormField>
+          </div>
+          <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '12px 0 0' }}>
+            Students can start only while the exam is open. A sitting that starts
+            near the closing time is shortened so it ends when the exam closes.
+          </p>
+        </div>
+
+        <GoldRule faint style={{ marginBottom: 36 }} />
+
         {/* ── Section IV: Lockdown ── */}
         <div style={{ marginBottom: 40 }}>
-          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>IV. Secure Lockdown</MetaLabel>
+          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Secure Lockdown</MetaLabel>
           <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 15, color: BB.fade, margin: '0 0 16px' }}>
-            The conditions you switch on apply for the whole examination, and students are told
+            The conditions you switch on apply for the whole sitting, and students are told
             about them before they begin.
           </p>
           <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: BB.oxford }}>
@@ -521,7 +538,7 @@ export function NewExamScreen({ onNavigate }) {
 
         {/* ── Section V: Additional conditions ── */}
         <div style={{ marginBottom: 48 }}>
-          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>V. Additional Conditions</MetaLabel>
+          <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Additional Conditions</MetaLabel>
           <div>
             <GoldRule faint />
             <ToggleRow label="Allow spell check"    desc="Browser spell-check is permitted" value={spellChk}  onChange={setSpellChk} />
@@ -537,6 +554,8 @@ export function NewExamScreen({ onNavigate }) {
           </div>
         </div>
 
+        </details>
+
         {/* ── Submit ── */}
         <GoldRule double style={{ marginBottom: 28 }} />
         <div style={{ textAlign: 'right' }}><ErrorText>{saveError}</ErrorText></div>
@@ -545,7 +564,7 @@ export function NewExamScreen({ onNavigate }) {
             {saving ? 'Saving…' : 'Save as Draft'}
           </BtnGhost>
           <BtnPrimary onClick={() => handleSave(true)} disabled={!canSubmit || saving} style={{ padding: '11px 36px' }}>
-            {saving ? 'Creating…' : 'Publish Examination'}
+            {saving ? 'Creating…' : 'Publish Collection'}
           </BtnPrimary>
         </div>
         {/* The one thing on this screen that says why both buttons are dead,

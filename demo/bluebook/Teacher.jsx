@@ -9,7 +9,7 @@ import { ProctorScreen } from './ProctorTiles.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
-//  Examinations · Manage exam (grading, release, export) · Courses ·
+//  Collections · Manage collection (grading, release, export) · Courses ·
 //  Roster & invitations · Students · Submissions · Proctor (live)
 // ════════════════════════════════════════════════════════════════
 const { useState, useEffect, useLayoutEffect, useRef } = React;
@@ -365,7 +365,7 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   const [open, setOpen] = useState('');
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
-    showExam && { key: 'exam', label: 'Examination' },
+    showExam && { key: 'exam', label: 'Collection' },
     { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'warnings', label: 'Notes', num: true, render: s => (s.warnings || []).length },
@@ -418,7 +418,7 @@ export function ExportByExam() {
     <Panel className="bb-export" style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
-          <Select id="exportExam" label="Export one examination's submissions (CSV)" value={examId} onChange={setExamId}>
+          <Select id="exportExam" label="Export one collection's submissions (CSV)" value={examId} onChange={setExamId}>
             {exams.map(e => <option key={e.id} value={e.id}>{e.title} ({e.submissions} submitted)</option>)}
           </Select>
         </div>
@@ -446,16 +446,16 @@ export function AllSubmissionsScreen() {
   );
 }
 
-// ─── Examinations list ───────────────────────────────────────────────────────
+// ─── Collections list (the one list of every assignment) ───────────────────────────────────────────────────────
 export function ExamsListScreen({ onNavigate }) {
   const [exams, setExams] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
-      .catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
+      .catch(err => { setError(err.message || 'Could not load your collections.'); setExams([]); });
   }, []);
   const columns = [
-    { key: 'title', label: 'Examination', lead: true, render: e => (
+    { key: 'title', label: 'Collection', lead: true, render: e => (
       <LinkBtn onClick={() => openManageExam(e.id, onNavigate)} style={{ textAlign: 'left', padding: 0 }}>{e.title}</LinkBtn>
     ) },
     { key: 'course', label: 'Course', render: e => e.course || '—' },
@@ -466,15 +466,12 @@ export function ExamsListScreen({ onNavigate }) {
     { key: 'released', label: 'Results', render: e => e.results_released_at ? <Badge>released</Badge> : '—' },
   ];
   return (
-    <Page eyebrow="Your workspace" title="Examinations"
-      meta={exams === null ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'}`}
-      actions={<>
-        <Btn onClick={() => onNavigate('sessions')}>Quick session</Btn>
-        <Btn primary onClick={() => onNavigate('new-exam')}>+ New examination</Btn>
-      </>}>
+    <Page eyebrow="Your workspace" title="Collections"
+      meta={exams === null ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'}`}
+      actions={<Btn primary onClick={() => onNavigate('new-exam')}>+ New collection</Btn>}>
       <ErrorText>{error}</ErrorText>
-      <Table columns={columns} rows={exams || []} rowKey={e => e.id} caption="Examinations"
-        empty="No examinations yet. Start a quick session or create a full examination." />
+      <Table columns={columns} rows={exams || []} rowKey={e => e.id} caption="Collections"
+        empty="No collections yet. Choose + New collection to set the first one." />
     </Page>
   );
 }
@@ -540,7 +537,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function remove() {
-    if (!confirm('Delete this examination? This cannot be undone.')) return;
+    if (!confirm('Delete this collection? This cannot be undone.')) return;
     try { await BB_API.deleteExam(examId); onNavigate('exams'); }
     catch (err) { setError(err.message || 'Could not delete.'); }
   }
@@ -552,7 +549,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function addAllToBaselines() {
-    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Late sittings and sittings with lockdown warnings are set aside for you to review one at a time, and exams that differ strongly from a student’s existing samples are not added.')) return;
+    if (!confirm('Add every sealed submission of this collection to the students’ writing baselines? Late sittings and sittings with lockdown warnings are set aside for you to review one at a time, and exams that differ strongly from a student’s existing samples are not added.')) return;
     setBulkBusy(true); setError(''); setNotice('');
     try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
     catch (err) { setError(err.message || 'Could not add to baselines.'); }
@@ -563,11 +560,11 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   const graded = subList.filter(s => s.mark || s.feedback).length;
   return (
     <Page
-      eyebrow="Examination"
-      title={exam ? exam.title : 'Examination'}
+      eyebrow="Collection"
+      title={exam ? exam.title : 'Collection'}
       meta={exam ? [exam.course, subs === null ? null : `${subList.length} submission${subList.length === 1 ? '' : 's'}`, subs === null ? null : `${graded} marked`].filter(Boolean).join(' · ') : 'Loading…'}
       actions={exam && <>
-        <Btn onClick={() => onNavigate('exams')}>← Examinations</Btn>
+        <Btn onClick={() => onNavigate('sessions')}>← Collections</Btn>
         <Btn onClick={() => { window.BB_PROCTOR_EXAM = examId; onNavigate('proctor'); }}>Watch live</Btn>
         <Btn onClick={() => onPreview(exam)}>Preview</Btn>
         <Btn onClick={exportCsv}>Export CSV</Btn>
@@ -632,7 +629,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
             {subList.length > 0 && <p className="bb-hint">Students have already submitted. Changing questions now changes what later students see, not earlier answers.</p>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
               <LinkBtn danger onClick={remove} disabled={subs === null || subList.length > 0}>
-                {subList.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete examination'}
+                {subList.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete collection'}
               </LinkBtn>
               <Btn primary onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Btn>
             </div>
@@ -1021,7 +1018,7 @@ export function ProctorLiveScreen() {
       const counts = await Promise.all(open.map(e => BB_API.examLive(e.id).then(l => l.counts).catch(() => null)));
       const best = chooseLiveExam(open.map((e, i) => ({ id: e.id, counts: counts[i] })));
       setExamId(id => (id === first && tabRef.current === 'live' ? best : id));
-    }).catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
+    }).catch(err => { setError(err.message || 'Could not load your collections.'); setExams([]); });
   }, []);
 
   useEffect(() => {
@@ -1046,12 +1043,12 @@ export function ProctorLiveScreen() {
   ];
   if (tab === 'phones') window.BB_EXAM_CONFIG = { ...(window.BB_EXAM_CONFIG || {}), id: examId };
   return (
-    <Page eyebrow="Proctor" title="Live examination"
-      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : (examId ? 'Loading the live view…' : 'Choose an examination to watch.')}
+    <Page eyebrow="Proctor" title="Live sitting"
+      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : (examId ? 'Loading the live view…' : 'Choose a collection to watch.')}
       actions={examId && <Btn onClick={() => setTick(t => t + 1)}>Refresh now</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div className="bb-grid cols-2" style={{ alignItems: 'end' }}>
-        <Select id="proctorExam" label="Examination" value={examId} onChange={v => { setLive(null); setExamId(v); }}>
+        <Select id="proctorExam" label="Collection" value={examId} onChange={v => { setLive(null); setExamId(v); }}>
           {!examId && <option value="">Choose…</option>}
           {(exams || []).map(e => <option key={e.id} value={e.id}>{e.title} ({examState(e)})</option>)}
         </Select>
@@ -1069,7 +1066,7 @@ export function ProctorLiveScreen() {
             <Stat value={counts.not_started ?? '—'} label="Not started" />
           </div>
           <Table columns={columns} rows={(live && live.students) || []} rowKey={r => r.student_id} caption="Live sitting"
-            empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose an examination above.'} />
+            empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose a collection above.'} />
           <p className="bb-hint">Warnings arrive when a student seals their exam, so they show for submitted students only.</p>
         </>
       ) : (

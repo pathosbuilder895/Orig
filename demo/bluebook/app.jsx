@@ -126,28 +126,31 @@ function App() {
     case 'login':
       content = <LoginScreen onNavigate={navigate} />;
       break;
-    case 'sessions':
     case 'dashboard':
       // While a deep link is being checked, say so instead of flashing the
       // dashboard first.
       if (deepLink && teacherHome) {
         const toScreen = deepLink.kind === 'screen';
         content = (
-          <DashboardLayout activeScreen={toScreen ? deepLink.screen : (DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'exams')} onNavigate={navigate}>
-            <div className="bb-page"><p role="status" className="bb-meta">{toScreen ? 'Opening…' : 'Opening the examination…'}</p></div>
+          <DashboardLayout activeScreen={toScreen ? deepLink.screen : (DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'sessions')} onNavigate={navigate}>
+            <div className="bb-page"><p role="status" className="bb-meta">{toScreen ? 'Opening…' : 'Opening the collection…'}</p></div>
           </DashboardLayout>
         );
         break;
       }
       content = (
         <DashboardLayout activeScreen={screen} onNavigate={navigate}>
-          <LiveTeacherSessions onNavigate={navigate} overview={screen === 'dashboard'} />
+          <LiveTeacherSessions onNavigate={navigate} overview />
         </DashboardLayout>
       );
       break;
+    // One Collections area: the old Sessions and Examinations screens (and
+    // the 'collections' alias) all open the same list.
+    case 'sessions':
+    case 'collections':
     case 'exams':
       content = (
-        <DashboardLayout activeScreen="exams" onNavigate={navigate}>
+        <DashboardLayout activeScreen="sessions" onNavigate={navigate}>
           <ExamsListScreen onNavigate={navigate} />
         </DashboardLayout>
       );
@@ -197,7 +200,7 @@ function App() {
       break;
     case 'manage-exam':
       content = (
-        <DashboardLayout activeScreen="exams" onNavigate={navigate}>
+        <DashboardLayout activeScreen="sessions" onNavigate={navigate}>
           <ManageExamScreen onNavigate={navigate} onPreview={exam => openExam(exam, navigate)} />
         </DashboardLayout>
       );
@@ -257,13 +260,13 @@ function App() {
             { label: '① Landing',              value: 'landing'   },
             { label: '② Sign In',               value: 'login'     },
             { label: '③ Dashboard',             value: 'dashboard' },
-            { label: '④ Examinations',          value: 'exams'     },
+            { label: '④ Collections',           value: 'sessions'  },
             { label: '④b Courses',              value: 'courses'   },
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
             { label: '⑤ Exam Briefing',         value: 'briefing'  },
-            { label: '⑥ New Examination',        value: 'new-exam'  },
+            { label: '⑥ New Collection',         value: 'new-exam'  },
             { label: '⑦ Active Examination',    value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}

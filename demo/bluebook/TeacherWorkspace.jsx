@@ -59,6 +59,9 @@ export function avatarInitials(name) {
 // is offered (NORTH_STAR rule 10).
 export const ORIGINAL_NAV_LABEL = 'Original (in testing) ↗';
 
+// Screens that belong to the one Collections area (nav key 'sessions').
+export const COLLECTIONS_SCREENS = ['sessions', 'collections', 'exams', 'manage-exam', 'new-exam'];
+
 export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
   const pills = useRef(null);
   usePillFade(pills, [active, demo]);
@@ -66,14 +69,17 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   const initials = avatarInitials(identity.name);
   const items = demo
     ? [['Overview','overview'],['Students','students'],['Submissions','submissions'],['Collections','sessions'],['Reports','reports']]
-    : [['Overview','dashboard'],['Sessions','sessions'],['Examinations','exams'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
+    : [['Overview','dashboard'],['Collections','sessions'],['Courses','courses'],['Students','students'],['Submissions','results'],['Proctor','proctor']];
+  // One Collections area: the old Examinations list, the exam pages and the
+  // collection aliases all light the Collections pill.
+  const here = COLLECTIONS_SCREENS.includes(active) ? 'sessions' : active;
   const withOriginal = !demo && BB_API.hasOriginal();
   return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame">
     <nav className="teacher-nav" aria-label="Teacher navigation">
       {/* The app is Collections; Original is the link below when the workspace holds it. */}
       <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo ? 'Original' : 'Collections'}</div>
       <div ref={pills} className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
-        {items.map(([label,key]) => <button key={key} className={active===key?'on':''} aria-current={active===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
+        {items.map(([label,key]) => <button key={key} className={here===key?'on':''} aria-current={here===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
         {withOriginal && <button title="Original is in its testing phase and is not yet validated on real student writing." onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>{ORIGINAL_NAV_LABEL}</button>}
       </div>
       <div className="teacher-nav-right">
@@ -212,7 +218,7 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
   const manage = id => { window.BB_MANAGE_EXAM = id; onNavigate('manage-exam'); };
   const name = (BB_API.identity().name || '').trim();
   return <div className="bb-page">
-    <header className="teacher-head"><div className="eyebrow">Your teaching workspace</div><h1>{name ? `Welcome back, ${name}.` : 'Begin with the writing.'}</h1><p>Set a session, invite your class, and give their words a thoughtful reading.</p></header>
+    <header className="teacher-head"><div className="eyebrow">Your teaching workspace</div><h1>{name ? `Welcome back, ${name}.` : 'Begin with the writing.'}</h1><p>Set a collection, invite your class, and give their words a thoughtful reading.</p></header>
     {error && <div role="alert" className="teacher-error">{error} <button onClick={onRetry}>Try again</button></div>}
     {detailError && !error && <div role="alert" className="teacher-error">{detailError} <button onClick={loadDetails}>Try again</button></div>}
     {loading ? <p role="status">Loading your workspace…</p> : !error && !detailError && <>
@@ -228,12 +234,12 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
         <button className="teacher-primary" onClick={() => onNavigate('courses')}>Create your first course →</button>
       </div>}
       {!!courses.length && <div className="bb-actions" style={{ marginBottom: '1.5rem' }}>
-        <button className="teacher-primary" onClick={() => onNavigate('sessions')}>Start a Collections session →</button>
+        <button className="teacher-primary" onClick={() => onNavigate('new-exam')}>New collection →</button>
         <button className="quiet-button" onClick={() => onNavigate('courses')}>Manage courses and invitations</button>
       </div>}
       {unreleased.length > 0 && <Section title="Ready to release">
-        <Table rowKey={e => e.id} rows={unreleased} caption="Exams with unreleased results" columns={[
-          { key: 'title', label: 'Examination', lead: true },
+        <Table rowKey={e => e.id} rows={unreleased} caption="Collections with unreleased results" columns={[
+          { key: 'title', label: 'Collection', lead: true },
           { key: 'submissions', label: 'Submitted', num: true },
           { key: 'go', label: 'Open', actions: true, render: e => <LinkBtn onClick={() => manage(e.id)}>Mark and release →</LinkBtn> },
         ]} />
@@ -241,7 +247,7 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
       <Section title="Recent submissions">
         <Table rowKey={s => s.id} rows={(subs || []).slice(0, 8)} caption="Recent submissions" empty={subs === null ? 'Loading…' : 'Nothing submitted yet.'} columns={[
           { key: 'student', label: 'Student', lead: true },
-          { key: 'exam', label: 'Examination' },
+          { key: 'exam', label: 'Collection' },
           { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
           { key: 'mark', label: 'Mark', render: s => s.mark ? s.mark : <Badge tone="warn">to mark</Badge> },
           { key: 'go', label: 'Open', actions: true, render: s => s.exam_id ? <LinkBtn onClick={() => manage(s.exam_id)}>Read →</LinkBtn> : '—' },

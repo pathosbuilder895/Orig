@@ -78,8 +78,8 @@ test.describe('Public self-serve journey', () => {
     expect(linksCsv).toContain(inviteUrl)
 
     // ── Teacher: exam with two questions, linked to the course ─────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await teacher.getByRole('button', { name: '+ New examination' }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
+    await teacher.getByRole('button', { name: '+ New collection' }).click()
     await teacher.locator('#neTitle').fill(examTitle)
     await teacher.locator('#neDuration').fill('30')
     await teacher.locator('#neMinWords').fill('5')
@@ -88,10 +88,10 @@ test.describe('Public self-serve journey', () => {
     await teacher.locator('#nePrompt1').fill(q2)
     const [createRes] = await Promise.all([
       teacher.waitForResponse(r => r.url().endsWith('/bluebook/exams') && r.request().method() === 'POST'),
-      teacher.getByRole('button', { name: 'Publish Examination' }).click(),
+      teacher.getByRole('button', { name: 'Publish Collection' }).click(),
     ])
     expect((await createRes.json()).questions).toEqual([q1, q2])
-    await expect(teacher.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(teacher.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
 
     // ── Student: redeem, see the exam, sit it ───────────────────────────
     const sctx = await browser.newContext()
@@ -163,7 +163,7 @@ test.describe('Public self-serve journey', () => {
     await expect(student.getByText('Not yet released')).toBeVisible({ timeout: 10_000 })
 
     // ── Teacher: read each answer and the warning, mark, release ────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
     await teacher.getByRole('button', { name: examTitle, exact: true }).click()
     await expect(teacher.getByRole('button', { name: 'Export CSV' })).toBeVisible({ timeout: 10_000 })
     await teacher.getByRole('button', { name: 'Read & mark' }).click()
