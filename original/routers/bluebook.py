@@ -125,6 +125,45 @@ def _shape(rec: dict) -> dict:
     return rules.shape_for_products(rec, principal_mod.tenant_products(rec.get("tenant_id")))
 
 
+def _with_names(recs: list[dict]) -> list[dict]:
+    """Fill a row's display name and course on read (alpha bug 2026-10-20).
+
+    An account student's seal carries no ``candidate`` and an exam linked to a
+    course by id carries no ``course`` text, so rows showed "Candidate" and no
+    course. Nothing is written: existing rows display correctly as they are.
+    """
+    need_user = {
+        r["student_id"] for r in recs if r.get("student_id") and not (r.get("candidate") or "")
+    }
+    users = (
+        {u["user_id"]: u for u in _repo().list_users_by_ids(list(need_user))} if need_user else {}
+    )
+    exams: dict[str, dict | None] = {}
+    courses: dict[str, dict | None] = {}
+    for r in recs:
+        u = users.get(r.get("student_id"))
+        if u:
+            r["student"] = u.get("name") or u.get("email") or r.get("student")
+            r["candidate"] = r["student"]
+        if not r.get("course") and r.get("exam_id"):
+            eid = r["exam_id"]
+            if eid not in exams:
+                exams[eid] = _repo().get_bluebook_exam(eid)
+            exam = exams[eid]
+            if exam and exam.get("tenant_id") == r.get("tenant_id"):
+                course = exam.get("course") or ""
+                cid = exam.get("course_id")
+                if not course and cid:
+                    if cid not in courses:
+                        courses[cid] = _repo().get_bluebook_course(cid)
+                    c = courses[cid] or {}
+                    course = c.get("code") or c.get("name") or ""
+                r["course"] = course
+                if not r.get("exam"):
+                    r["exam"] = exam.get("title") or ""
+    return recs
+
+
 # ── Bluebook magic-link launch (no-Canvas fallback) ───────────────────────────
 # The offline roster_links.py builds one signed launch token per student. This
 # endpoint redeems it: it authenticates the bound student (a short session) AND
@@ -534,7 +573,7 @@ def bluebook_list_submissions(request: Request):
     # submissions and integrity scores from this list.
     _require_staff(request)
     subs = _repo().list_bluebook_submissions(_list_scope(request))
-    return {"submissions": [_shape(s) for s in subs]}
+    return {"submissions": [_shape(s) for s in _with_names(subs)]}
 
 
 @router.get("/bluebook/submissions/{submission_id}")
@@ -546,7 +585,7 @@ def bluebook_get_submission(submission_id: str, request: Request):
         raise HTTPException(status_code=404, detail="submission not found")
     exam = _repo().get_bluebook_exam(rec["exam_id"]) if rec.get("exam_id") else None
     rec["questions"] = (exam or {}).get("questions") or []
-    return _shape(rec)
+    return _shape(_with_names([rec])[0])
 
 
 @router.patch("/bluebook/submissions/{submission_id}/feedback")
