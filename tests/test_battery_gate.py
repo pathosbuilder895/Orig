@@ -240,7 +240,10 @@ def test_cli_unknown_leg_is_a_usage_error(tmp_path):
 def _legs(tmp_path, overrides=None, drop=(), error=None):
     """One report per CI matrix leg group, as the workflow's merge job sees them."""
     overrides = overrides or {}
-    groups = [("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "T")]
+    groups = [
+        ("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "T"),
+        ("G-A1", "G-A2", "G-A3", "G-A4", "G-A5", "G-A6"),
+    ]
     paths = []
     for i, legs in enumerate(groups):
         names = [n for leg in legs if leg not in drop for n in LEG_GATES[leg]]

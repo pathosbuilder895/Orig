@@ -56,3 +56,12 @@ def test_summary_lists_every_gate_and_missing_legs(tmp_path, capsys):
     assert main(["--summary", str(f)]) == 0
     out = capsys.readouterr().out
     assert "G1    [PASS" in out and "current: v" in out and "missing legs:" in out
+
+
+def test_leg_gates_mirror_the_batterys_legs():
+    """LEG_GATES is a hand-kept mirror of calibration_gate.GATE_LEGS; a leg
+    added to one and not the other is either never merged or reported
+    missing every week."""
+    from validation.calibration_gate import GATE_LEGS
+
+    assert tuple(LEG_GATES) == GATE_LEGS
