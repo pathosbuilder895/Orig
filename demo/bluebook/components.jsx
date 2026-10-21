@@ -423,6 +423,25 @@ export const BB_API = {
   async recordSubmission(payload) {
     return this._json('POST', '/bluebook/submissions', payload);
   },
+  // The signed-in student's own unsealed draft kept on the server, so a
+  // sitting resumes from any browser. Never throws: a draft that cannot be
+  // read or saved leaves the on-device copy in charge. keepalive lets the
+  // save on page close still go out.
+  async getExamDraft(examId) {
+    try {
+      const r = await fetch(this.base + `/bluebook/exams/${encodeURIComponent(examId)}/draft`, { headers: this._headers() });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) { return null; }
+  },
+  async putExamDraft(examId, draft, { keepalive = false } = {}) {
+    try {
+      const r = await fetch(this.base + `/bluebook/exams/${encodeURIComponent(examId)}/draft`, {
+        method: 'PUT', headers: this._headers(), body: JSON.stringify(draft), keepalive,
+      });
+      return r.status;
+    } catch (e) { return 0; }
+  },
   async listSubmissions() {
     return (await this._json('GET', '/bluebook/submissions')).submissions || [];
   },

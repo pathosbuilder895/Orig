@@ -80,6 +80,7 @@ from original.db.models.live import (
     StaffUser,
     StudentName,
     StudentPastPaper,
+    BluebookExamDraft,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1467,6 +1468,45 @@ class _StudentPastPaperMigrator(_Migrator):
         return out
 
 
+class _BluebookExamDraftMigrator(_Migrator):
+    """A student's unsealed exam drafts (2026-10). No tenant FK; student_key
+    is the full scoped string in both schemas, like student_past_papers."""
+
+    name = "bluebook_exam_drafts"
+    model = BluebookExamDraft
+    # Composite key, like bluebook_sessions: a canonical-form-only sort key.
+    pk = "draft_key"
+    _COLS = (
+        "exam_id", "student_key", "tenant_id", "content", "answers", "client_saved_at", "updated_at",
+    )  # fmt: skip
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_exam_drafts").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            row["client_saved_at"] = int(row["client_saved_at"] or 0)
+            row["draft_key"] = f"{row['exam_id']}:{row['student_key']}"
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return BluebookExamDraft(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(BluebookExamDraft).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            row["client_saved_at"] = int(row["client_saved_at"] or 0)
+            row["draft_key"] = f"{row['exam_id']}:{row['student_key']}"
+            out.append(row)
+        return out
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1492,6 +1532,7 @@ MIGRATORS: list[_Migrator] = [
     _ParkSessionMigrator(),
     _ParkBeatMigrator(),
     _StudentPastPaperMigrator(),
+    _BluebookExamDraftMigrator(),
 ]
 
 

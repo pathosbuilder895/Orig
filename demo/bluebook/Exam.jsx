@@ -284,6 +284,27 @@ export function bbSealRetryable(err) {
   return !(s >= 400 && s < 500);
 }
 
+// Server-kept drafts (resume from any browser). Which copy a resuming page
+// should use: the server's only when it is strictly newer than the one on
+// this device and the local one is not already final (a confirmed seal is
+// finished as it stands). Returns the server draft to adopt, or null.
+export function bbPickServerDraft(local, server) {
+  if (!server || typeof server !== 'object') return null;
+  const answers = Array.isArray(server.answers) ? server.answers : [];
+  if (!answers.some(a => typeof a === 'string' && a.trim()) && !(server.content || '').trim()) return null;
+  if (local && local.seal && local.seal.confirmedAt) return null;
+  const localAt = (local && Number(local.savedAt)) || 0;
+  const hasLocal = !!(local && Array.isArray(local.answers) && local.answers.some(a => (a || '').trim()));
+  if (hasLocal && Number(server.client_saved_at || 0) <= localAt) return null;
+  return server;
+}
+
+// Only a signed-in student account with a stored exam keeps a server draft.
+export function bbServerDraftsOn(cfg, isStudentAccount) {
+  return !!(cfg && cfg.id && isStudentAccount);
+}
+export const BB_SERVER_DRAFT_MS = 30000;
+
 // A seal refused because the sign-in lapsed (401) for a student account.
 export function bbSealNeedsSignIn(err, result, isStudentAccount) {
   return !(result && result.ok) && !!isStudentAccount && !!err && err.status === 401;
@@ -1101,6 +1122,57 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onHidden);
     };
+  }, []);
+
+  // Server-kept draft (signed-in students, stored exams): about every 30s
+  // and when the page is hidden or closed, the answers also go to the
+  // server, so the sitting can resume from another browser. The copy on
+  // this device stays in charge; the server copy is used only when it is
+  // newer (bbPickServerDraft). Nothing is sent once the answers are final.
+  const serverDrafts = bbServerDraftsOn(cfg, BB_API.isStudentAccount());
+  const lastPushedRef = useExRef('');
+  const initialAnswersRef = useExRef(JSON.stringify(answers));
+  function pushServerDraft(keepalive) {
+    if (!serverDrafts || lockedRef.current || alreadySubmittedRef.current || !hasWriting()) return;
+    const sig = JSON.stringify(answersRef.current);
+    if (sig === lastPushedRef.current) return;
+    lastPushedRef.current = sig;
+    BB_API.putExamDraft(cfg.id, {
+      content: contentRef.current, answers: answersRef.current, client_saved_at: Date.now(),
+    }, { keepalive }).then(st => { if (st !== 200) lastPushedRef.current = ''; });
+  }
+  useExEffect(() => {
+    if (!serverDrafts) return;
+    const id = setInterval(() => pushServerDraft(false), BB_SERVER_DRAFT_MS);
+    const onHide = () => { if (document.hidden) pushServerDraft(true); };
+    const onClose = () => pushServerDraft(true);
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onClose);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onClose);
+    };
+  }, []);
+  useExEffect(() => {
+    if (!serverDrafts || resumeRef.current) return;
+    let live = true;
+    BB_API.getExamDraft(cfg.id).then(res => {
+      if (!live || !res || !res.draft || lockedRef.current) return;
+      // The student has typed since this page opened: what is on screen wins.
+      if (JSON.stringify(answersRef.current) !== initialAnswersRef.current) return;
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch (e) {}
+      const pick = bbPickServerDraft(local, res.draft);
+      if (!pick) return;
+      const saved = (pick.answers && pick.answers.length) ? pick.answers : [pick.content || ''];
+      const next = questions.map((_, i) => saved[i] || '');
+      answersRef.current = next;
+      lastPushedRef.current = JSON.stringify(next);
+      setAnswers(next);
+      setLiveMsg('Your writing from your last session was restored.');
+    });
+    return () => { live = false; };
   }, []);
 
   // Polite word-count milestones: the minimum reached, the limit passed.

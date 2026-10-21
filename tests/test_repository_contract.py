@@ -3211,3 +3211,28 @@ class TestBluebookRound2Contract:
         assert (listed["mark"], listed["feedback"]) == ("B+", "Good.")
         assert "answers" not in listed  # list views stay light
         assert repo.set_bluebook_submission_feedback("missing", "A", None, "p") is False
+
+
+class TestExamDrafts:
+    """Unsealed exam drafts (2026-10): upsert per (exam, student), read back,
+    delete, and erased by delete_student — on every backend."""
+
+    def test_put_get_upsert_delete(self, repo):
+        tenant = "tenant-drafts"
+        sid = f"{tenant}:ann"
+        assert repo.get_exam_draft("exam-d", sid) is None
+        repo.put_exam_draft("exam-d", sid, tenant, "one", '["one"]', 1792589233313)
+        repo.put_exam_draft("exam-d", sid, tenant, "one two", '["one two"]', 1792589233999)
+        d = repo.get_exam_draft("exam-d", sid)
+        assert d["content"] == "one two" and d["answers"] == '["one two"]'
+        assert d["client_saved_at"] == 1792589233999 and d["updated_at"]
+        assert repo.get_exam_draft("exam-d", f"{tenant}:ben") is None
+        repo.delete_exam_draft("exam-d", sid)
+        assert repo.get_exam_draft("exam-d", sid) is None
+
+    def test_delete_student_erases_drafts(self, repo):
+        tenant = "tenant-drafts2"
+        sid = f"{tenant}:cy"
+        repo.put_exam_draft("exam-e", sid, tenant, "words", '["words"]', 1)
+        repo.delete_student(sid)
+        assert repo.get_exam_draft("exam-e", sid) is None
