@@ -41,6 +41,10 @@
   background-blend-mode:color,normal;
   filter:saturate(.8) brightness(.85) contrast(1.08) hue-rotate(184deg);opacity:1;
 }
+.teacher-frame[data-photo="night"]::before{background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('../original/assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;background-blend-mode:color,normal;}
+.teacher-frame[data-photo="quad"]::before{background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('../original/assets/st-andrews-quad.jpg') center 58%/cover no-repeat;background-blend-mode:color,normal;}
+.teacher-frame[data-photo="interior"]::before{background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('../original/assets/radcliffe-interior.avif') center 34%/cover no-repeat;background-blend-mode:color,normal;}
+.teacher-frame[data-photo="caius"]::before{background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('../original/assets/gonville-caius-facade.jpg') center 46%/cover no-repeat;background-blend-mode:color,normal;}
 .teacher-frame::after{
   content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(180deg,rgba(9,14,34,.12) 0%,rgba(8,12,30,.45) 30%,rgba(8,12,30,.82) 55%,rgba(7,11,26,.93) 100%),

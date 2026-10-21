@@ -18,7 +18,7 @@ const here = (f) => fileURLToPath(new URL(f, import.meta.url));
 await build({
   entryPoints: [here('app.jsx')],
   bundle: true,
-  external: ['../assets/*'],
+  external: ['../assets/*', '../original/assets/*'],
   jsx: 'automatic',
   format: 'iife',
   target: ['es2019'],
@@ -30,7 +30,7 @@ await build({
 
 console.log('✓ Built bluebook.bundle.js');
 
-await build({ entryPoints: [here('teacher-demo.jsx')], bundle: true, jsx: 'automatic', format: 'iife', target: ['es2019'], minify: true, legalComments: 'none', external: ['../assets/*'], outfile: here('teacher-demo.bundle.js') });
+await build({ entryPoints: [here('teacher-demo.jsx')], bundle: true, jsx: 'automatic', format: 'iife', target: ['es2019'], minify: true, legalComments: 'none', external: ['../assets/*', '../original/assets/*'], outfile: here('teacher-demo.bundle.js') });
 console.log('✓ Built isolated teacher demo');
 
 // Serve the same scholarly typography without contacting Google from class.
