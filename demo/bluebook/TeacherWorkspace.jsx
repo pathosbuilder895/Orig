@@ -62,6 +62,10 @@ export const ORIGINAL_NAV_LABEL = 'Original (in testing) ↗';
 // Screens that belong to the one Collections area (nav key 'sessions').
 export const COLLECTIONS_SCREENS = ['sessions', 'collections', 'exams', 'manage-exam', 'new-exam'];
 
+// Each teacher screen shows the photograph its 2026-10 mockup used
+// (demo/original/assets/CREDITS.md); the Collections screens keep the library.
+const TEACHER_PHOTO = { overview: 'night', dashboard: 'night', students: 'quad', submissions: 'interior', results: 'interior', reports: 'caius' };
+
 export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
   const pills = useRef(null);
   usePillFade(pills, [active, demo]);
@@ -74,7 +78,7 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   // collection aliases all light the Collections pill.
   const here = COLLECTIONS_SCREENS.includes(active) ? 'sessions' : active;
   const withOriginal = !demo && BB_API.hasOriginal();
-  return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame">
+  return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame" data-photo={TEACHER_PHOTO[here] || 'library'}>
     <nav className="teacher-nav" aria-label="Teacher navigation">
       {/* The app is Collections; Original is the link below when the workspace holds it. */}
       <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo ? 'Original' : 'Collections'}</div>

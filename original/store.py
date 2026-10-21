@@ -635,6 +635,20 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_student_past_papers_student
             ON student_past_papers(tenant_id, student_id)
     """)
+    # A student's unsealed exam draft, kept so a sitting resumes from any
+    # browser (2026-10) — mirrors alembic revision c9f2a4e6b8d1.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_exam_drafts (
+            exam_id         TEXT NOT NULL,
+            student_key     TEXT NOT NULL,
+            tenant_id       TEXT NOT NULL,
+            content         TEXT NOT NULL DEFAULT '',
+            answers         TEXT NOT NULL DEFAULT '[]',
+            client_saved_at INTEGER NOT NULL DEFAULT 0,
+            updated_at      TEXT NOT NULL,
+            PRIMARY KEY (exam_id, student_key)
+        )
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -1802,6 +1816,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM bluebook_invites WHERE user_id = ? LIMIT 1",
     "SELECT 1 FROM users WHERE user_id = ? AND role = 'student' LIMIT 1",
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
 )
 
 
@@ -1905,6 +1920,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM users WHERE user_id = ? AND role = 'student'", (student_id,))
             # Past papers the student shared (2026-10): their own text.
             conn.execute("DELETE FROM student_past_papers WHERE student_id = ?", (student_id,))
+            # Unsealed exam drafts kept on the server (2026-10).
+            conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -4262,5 +4279,56 @@ def set_past_paper_status(paper_id: str, status: str, reviewed_by: str) -> None:
             "UPDATE student_past_papers SET status = ?, reviewed_at = ?, reviewed_by = ? "
             "WHERE paper_id = ?",
             (status, datetime.now(UTC).isoformat(), reviewed_by, paper_id),
+        )
+        conn.commit()
+
+
+# ── Unsealed exam drafts (2026-10) ─────────────────────────────────────────────
+
+
+def put_exam_draft(
+    exam_id: str, student_key: str, tenant_id: str, content: str, answers: str, client_saved_at: int
+) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO bluebook_exam_drafts "
+            "(exam_id, student_key, tenant_id, content, answers, client_saved_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(exam_id, student_key) DO UPDATE SET content = excluded.content, "
+            "answers = excluded.answers, client_saved_at = excluded.client_saved_at, "
+            "updated_at = excluded.updated_at, tenant_id = excluded.tenant_id",
+            (exam_id, student_key, tenant_id, content, answers, int(client_saved_at), now),
+        )
+        conn.commit()
+    return get_exam_draft(exam_id, student_key) or {}
+
+
+def get_exam_draft(exam_id: str, student_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT exam_id, student_key, tenant_id, content, answers, client_saved_at, updated_at "
+            "FROM bluebook_exam_drafts WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        ).fetchone()
+    if not row:
+        return None
+    keys = (
+        "exam_id",
+        "student_key",
+        "tenant_id",
+        "content",
+        "answers",
+        "client_saved_at",
+        "updated_at",
+    )
+    return dict(zip(keys, row, strict=True))
+
+
+def delete_exam_draft(exam_id: str, student_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "DELETE FROM bluebook_exam_drafts WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
         )
         conn.commit()

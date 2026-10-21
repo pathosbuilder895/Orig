@@ -82,6 +82,10 @@ def test_build_publishes_only_the_demo_allowlist(tmp_path):
         "bluebook/teacher-demo.bundle.css",
         "bluebook/fonts.css",
         "assets/codrington-library.jpeg",
+        "original/assets/radcliffe-night-stars.jpeg",
+        "original/assets/st-andrews-quad.jpg",
+        "original/assets/radcliffe-interior.avif",
+        "original/assets/gonville-caius-facade.jpg",
     }
     suite = {f for f in files if f.startswith("prototypes/navy/")}
     expected = {

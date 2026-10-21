@@ -12,6 +12,11 @@ for f in teacher-demo.html teacher-demo.bundle.js teacher-demo.bundle.css fonts.
   cp "$root/demo/bluebook/$f" "$out/bluebook/$f"
 done
 cp "$root/demo/assets/codrington-library.jpeg" "$out/assets/"
+# The teacher screens' per-page photographs (demo/original/assets/CREDITS.md).
+mkdir -p "$out/original/assets"
+for f in radcliffe-night-stars.jpeg st-andrews-quad.jpg radcliffe-interior.avif gonville-caius-facade.jpg; do
+  cp "$root/demo/original/assets/$f" "$out/original/assets/$f"
+done
 cp "$root"/demo/assets/fonts/* "$out/assets/fonts/"
 # Same relative path as in demo/, so the suite's ../../assets/fonts links hold.
 cp -R "$root/demo/prototypes/navy" "$out/prototypes/navy"

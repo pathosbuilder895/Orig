@@ -2247,6 +2247,30 @@
         "title": "EntanglementAnomalyOut",
         "type": "object"
       },
+      "ExamDraftBody": {
+        "description": "The student's unsealed writing for one exam, as the booklet holds it.",
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "client_saved_at": {
+            "default": 0,
+            "title": "Client Saved At",
+            "type": "integer"
+          },
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "title": "ExamDraftBody",
+        "type": "object"
+      },
       "FeatureContributionOut": {
         "properties": {
           "baseline_value": {
@@ -6256,6 +6280,90 @@
           }
         },
         "summary": "Approve Exam Baselines"
+      }
+    },
+    "/bluebook/exams/{exam_id}/draft": {
+      "get": {
+        "description": "The signed-in student's own unsealed draft of this exam, or null.\n\nLets a sitting resume from another browser. Once the exam is sealed the\ndraft is gone (and any left over is deleted here), so a sealed exam\nnever reopens with text.",
+        "operationId": "bluebook_get_draft_bluebook_exams__exam_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Get Draft"
+      },
+      "put": {
+        "description": "Save the signed-in student's unsealed draft (about every 30 seconds and\nwhen the page is hidden or closed). Refused once the exam is sealed. The\ndraft is never scored, never shown to staff and never becomes part of a\nbaseline; the sealed submission is the only record that counts.",
+        "operationId": "bluebook_put_draft_bluebook_exams__exam_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamDraftBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Put Draft"
       }
     },
     "/bluebook/exams/{exam_id}/export": {
