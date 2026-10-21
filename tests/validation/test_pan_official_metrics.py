@@ -63,6 +63,20 @@ def test_evaluate_all_rounds_and_averages_like_the_evaluator():
     }
 
 
+def test_rounding_follows_the_type_the_evaluator_rounds():
+    # AUC 0.7875 (63 of 80 orderings) is the double just below 0.7875. The
+    # evaluator rounds sklearn's np.float64 with numpy's half-to-even scaling
+    # (0.788); Python's exact round of a float would give 0.787.
+    # Discordant orderings: 7 x 2 (0.9 under 0.95) + 3 (0.3 under 0.95, 0.95, 0.4) = 17.
+    truth = [1] * 8 + [0] * 10
+    positives = [0.9] * 7 + [0.3]
+    negatives = [0.95, 0.95, 0.4] + [0.2] * 7
+    pred = positives + negatives
+    assert auc(truth, pred) == pytest.approx(63 / 80)
+    assert round(63 / 80, 3) == 0.787
+    assert evaluate_all(truth, pred)["auc"] == 0.788
+
+
 def test_all_unanswered_scores_quarter_overall():
     result = evaluate_all([1, 0, 1, 0], [0.5] * 4)
     assert result["auc"] == 0.5

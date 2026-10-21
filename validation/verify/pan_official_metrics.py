@@ -19,7 +19,8 @@ Conventions copied from the evaluator, including its quirks:
 * The Brier measure is ``1 - brier_score_loss``, so higher is better; a
   ``ValueError`` (for example a score outside [0, 1]) becomes 0.0.
 * ``overall`` is the unrounded mean; every reported value is then rounded to
-  three decimals, as the evaluator prints them.
+  three decimals, as the evaluator prints them, with numpy's rounding for the
+  values it receives as ``np.float64`` (see ``_round_like_evaluator``).
 
 One deliberate difference: non-finite scores are rejected here. The evaluator
 masks them (``np.ma.fix_invalid``), and a masked value then compares falsy, so
@@ -40,6 +41,7 @@ from sklearn.metrics import brier_score_loss, f1_score, roc_auc_score
 UNANSWERED = 0.5
 MEASURES = ("auc", "c@1", "f_05_u", "F1", "brier")
 PAN20_MASTER_MEASURES = ("auc", "c@1", "f_05_u", "F1")
+NUMPY_ROUNDED = frozenset({"auc", "brier", "overall", "overall_pan20_master"})
 
 
 def binarize(y: Sequence[float], threshold: float = 0.5, triple_valued: bool = False) -> np.ndarray:
@@ -115,8 +117,23 @@ def evaluate_all(
         np.mean([results[name] for name in PAN20_MASTER_MEASURES])
     )
     if digits is not None:
-        results = {name: round(value, digits) for name, value in results.items()}
+        results = {name: _round_like_evaluator(name, value, digits) for name, value in results.items()}
     return results
+
+
+def _round_like_evaluator(name: str, value: float, digits: int) -> float:
+    """``round(v, 3)`` as the evaluator sees ``v``.
+
+    scikit-learn's AUC and Brier loss, and the evaluator's ``np.mean``, come
+    back as ``np.float64``, whose ``round`` scales and rounds half to even;
+    c@1, F0.5u and F1 come back as Python floats, whose ``round`` is exact.
+    The two disagree when a value sits on a half-thousandth (0.7875 rounds to
+    0.788 one way and 0.787 the other).
+    """
+
+    if name in NUMPY_ROUNDED:
+        return float(round(np.float64(value), digits))
+    return round(float(value), digits)
 
 
 def evaluate_answers(

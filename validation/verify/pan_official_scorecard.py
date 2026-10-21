@@ -14,7 +14,7 @@ Verifiers, and how each becomes a PAN score in [0, 1] (above 0.5 = same author):
     manifest and adaptive weights off). PAN score = 1 - deviation_score. A
     second row moves the decision point to the live ``no_action`` boundary
     (deviation 0.40) with a monotone piecewise-linear map, which leaves AUC
-    unchanged and changes only the thresholded measures.
+    unchanged; every other measure, Brier included, can move.
 ``fused_score_v1``
     The committed artifact ``original/data/fused_score_v1.json`` through the
     production entry point ``predict_fused_score_with_reason``. PAN score =
@@ -129,7 +129,7 @@ SPLITS = 3
 N_REFERENCE_AUTHORS = 99
 LUAR_VARIANT = "cross_channel_interactions"
 LUAR_COLUMNS = tuple(range(14))
-REPRODUCTION_TOLERANCE = 0.005
+REPRODUCTION_TOLERANCE = 0.001
 BOOTSTRAP_B = 1000
 NO_ACTION_UPPER = 0.40  # ACTION_THRESHOLDS["no_action"][1]; checked at score time
 
@@ -962,9 +962,11 @@ def _evaluated_pairs(
         kept, report = exclusions(dataset, pairs, groups, partitions)
         if dataset == "pan21":
             raws = {raw for names in groups.values() for raw in names}
-            report["pan21_authors_in_any_pan20_group"] = sum(
-                1 for pair in pairs for author in set(pair.authors) if author in raws
+            report["pan21_distinct_authors_in_any_pan20_group"] = len(
+                {author for pair in pairs for author in pair.authors} & raws
             )
+        if not kept:
+            raise RuntimeError(f"{dataset}: no official pairs left to score")
         kept = sample_order(kept)
         if sample is not None and sample < len(kept):
             kept = kept[:sample]
