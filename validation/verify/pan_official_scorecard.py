@@ -131,6 +131,7 @@ LUAR_VARIANT = "cross_channel_interactions"
 LUAR_COLUMNS = tuple(range(14))
 REPRODUCTION_TOLERANCE = 0.001
 BOOTSTRAP_B = 1000
+LUAR_BATCH = 1000
 NO_ACTION_UPPER = 0.40  # ACTION_THRESHOLDS["no_action"][1]; checked at score time
 
 DATASETS = {
@@ -803,18 +804,31 @@ def strict_protocol(dataset: str, pairs: Sequence[OfficialPair], verifiers: Orig
 
 def split3_protocol(
     dataset: str,
-    pairs: Sequence[OfficialPair],
+    all_pairs: Sequence[OfficialPair],
     *,
+    sample: int | None,
+    luar_all_pairs: bool,
     references: Sequence[StyleAuthor],
     reference_embedded: dict,
     fusion: LuarFusion,
     pair_cache: EmbeddingCache,
     verifiers: OriginalVerifiers,
-) -> dict:
-    labels = [pair.label for pair in pairs]
-    ids = [pair.pair_id for pair in pairs]
-    chunks = [split_known(pair.known) for pair in pairs]
-    probe_texts = [pair.unknown for pair in pairs]
+) -> dict[str, dict]:
+    """``pair_split3`` for every verifier on the fixed pseudo-random prefix
+    ``all_pairs[:sample]``; with ``luar_all_pairs``, LUAR on every kept pair too.
+
+    LUAR on the sample against LUAR on every pair shows how representative the
+    sample is. It is opt-in because on a loaded machine the all-pairs pass is
+    the slowest step of the run.
+    """
+
+    n_kept = len(all_pairs)
+    if not luar_all_pairs and sample is not None:
+        all_pairs = all_pairs[:sample]
+    labels = [pair.label for pair in all_pairs]
+    ids = [pair.pair_id for pair in all_pairs]
+    chunks = [split_known(pair.known) for pair in all_pairs]
+    probe_texts = [pair.unknown for pair in all_pairs]
 
     def embedding(episode):
         vector = pair_cache.get(episode)
@@ -822,19 +836,40 @@ def split3_protocol(
             _cache_only_embedder(episode)
         return vector
 
-    luar_probability = fusion.calibrator.predict_proba(
-        pair_luar_signals(
-            fusion,
-            claimed_episode=np.stack([embedding(parts) for parts in chunks]),
-            claimed_documents=np.stack([[embedding((part,)) for part in parts] for parts in chunks]),
-            probes=np.stack([embedding((text,)) for text in probe_texts]),
-            claimed_texts=chunks,
-            probe_texts=probe_texts,
-            reference_episode=np.asarray(reference_embedded["baseline"]),
-            reference_documents=np.asarray(reference_embedded["baseline_documents"]),
-            reference_texts=[author.baselines for author in references],
-        )[:, LUAR_COLUMNS]
-    )[:, 1]
+    # Rows are independent, so batching only bounds memory: one call over
+    # 20k pairs would hold a multi-GB character n-gram matrix.
+    signals = []
+    for start in range(0, len(all_pairs), LUAR_BATCH):
+        batch = slice(start, start + LUAR_BATCH)
+        signals.append(
+            pair_luar_signals(
+                fusion,
+                claimed_episode=np.stack([embedding(parts) for parts in chunks[batch]]),
+                claimed_documents=np.stack(
+                    [[embedding((part,)) for part in parts] for parts in chunks[batch]]
+                ),
+                probes=np.stack([embedding((text,)) for text in probe_texts[batch]]),
+                claimed_texts=chunks[batch],
+                probe_texts=probe_texts[batch],
+                reference_episode=np.asarray(reference_embedded["baseline"]),
+                reference_documents=np.asarray(reference_embedded["baseline_documents"]),
+                reference_texts=[author.baselines for author in references],
+            )
+        )
+    luar_probability = fusion.calibrator.predict_proba(np.concatenate(signals)[:, LUAR_COLUMNS])[:, 1]
+
+    pairs = list(all_pairs[:sample]) if sample is not None else list(all_pairs)
+    blocks = {}
+    if len(pairs) < len(all_pairs):
+        write_truth(dataset, "pair_split3_luar_all_pairs", ids, labels)
+        write_answers(dataset, "pair_split3_luar_all_pairs", "luar_style_fusion", ids, luar_probability)
+        blocks["pair_split3_luar_all_pairs"] = {
+            "n_pairs": len(all_pairs),
+            "reference_pool": f"PAN 2020 calibration authors 1-{len(references)}",
+            "models": {"luar_style_fusion": summarize(labels, luar_probability)},
+        }
+    labels, ids = labels[: len(pairs)], ids[: len(pairs)]
+    luar_probability = luar_probability[: len(pairs)]
 
     peer_states = [
         verifiers.state(author.author_id, author.baselines, author.baseline_fandom)
@@ -843,7 +878,7 @@ def split3_protocol(
     deviation, fused = [], []
     verifiers.fused_reasons.clear()
     started = time.perf_counter()
-    for index, (pair, parts) in enumerate(zip(pairs, chunks)):
+    for index, (pair, parts) in enumerate(zip(pairs, chunks[: len(pairs)])):
         state = verifiers.state(f"pan-known-{pair.pair_id}", parts, "known")
         deviation.append(verifiers.deviation(state, pair.unknown, pair.pair_id))
         fused.append(verifiers.fused(state, pair.unknown, peer_states))
@@ -863,11 +898,17 @@ def split3_protocol(
         write_answers(dataset, "pair_split3", model, ids, values)
         extra = {"fused_outcomes": dict(sorted(verifiers.fused_reasons.items()))} if model == "fused_score_v1" else None
         models[model] = summarize(labels, values, extra=extra)
-    return {
+    blocks["pair_split3"] = {
         "n_pairs": len(pairs),
+        "sample": (
+            f"first {len(pairs)} of {n_kept} kept pairs in sha256('pan-official-sample:' + id) order"
+            if len(pairs) < n_kept
+            else "all kept pairs"
+        ),
         "reference_pool": f"PAN 2020 calibration authors 1-{len(references)}",
         "models": models,
     }
+    return dict(sorted(blocks.items(), key=lambda item: item[0] != "pair_split3"))
 
 
 def lock_protocol(
@@ -952,9 +993,7 @@ def sample_order(pairs: Sequence[OfficialPair]) -> list[OfficialPair]:
     return sorted(pairs, key=lambda pair: _digest(f"pan-official-sample:{pair.pair_id}"))
 
 
-def _evaluated_pairs(
-    limit: int | None, partitions, sample: int | None = None
-) -> tuple[dict[str, list[OfficialPair]], dict]:
+def _evaluated_pairs(limit: int | None, partitions) -> tuple[dict[str, list[OfficialPair]], dict]:
     groups = pan20_author_groups()
     evaluated, reports = {}, {}
     for dataset, spec in DATASETS.items():
@@ -967,11 +1006,7 @@ def _evaluated_pairs(
             )
         if not kept:
             raise RuntimeError(f"{dataset}: no official pairs left to score")
-        kept = sample_order(kept)
-        if sample is not None and sample < len(kept):
-            kept = kept[:sample]
-            report["sampled_pairs"] = sample
-        evaluated[dataset], reports[dataset] = kept, report
+        evaluated[dataset], reports[dataset] = sample_order(kept), report
         print(f"[{dataset}] {report['evaluated_pairs']}/{report['official_pairs']} pairs kept", file=sys.stderr)
     return evaluated, reports
 
@@ -1027,9 +1062,9 @@ def stage_features(limit: int | None, workers: int | None, sample: int | None = 
     from validation.verify.feature_cache import extract_many
 
     partitions = load_partitions()
-    evaluated, _ = _evaluated_pairs(limit, partitions, sample)
+    evaluated, _ = _evaluated_pairs(limit, partitions)
     extract_many(
-        _feature_texts(partitions, evaluated),
+        _feature_texts(partitions, {name: pairs[:sample] for name, pairs in evaluated.items()}),
         cache_path=FEATURE_CACHE,
         max_workers=workers,
         save_every=2000,
@@ -1041,18 +1076,25 @@ def _git(*args: str) -> str:
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
-def stage_score(limit: int | None, output: Path, sample: int | None = None) -> dict:
+def stage_score(
+    limit: int | None,
+    output: Path,
+    sample: int | None = None,
+    workers: int | None = None,
+    luar_all_pairs: bool = False,
+) -> dict:
     import sklearn
     import spacy
 
     from validation.verify.feature_cache import FeatureCache, extract_many
 
     partitions = load_partitions()
-    evaluated, exclusion_reports = _evaluated_pairs(limit, partitions, sample)
+    evaluated, exclusion_reports = _evaluated_pairs(limit, partitions)
     vectors = extract_many(
-        _feature_texts(partitions, evaluated),
+        _feature_texts(partitions, {name: pairs[:sample] for name, pairs in evaluated.items()}),
         cache=FeatureCache(FEATURE_CACHE),
         cache_path=FEATURE_CACHE,
+        max_workers=workers,
         save_every=2000,
         progress_label="pan-official",
     )
@@ -1083,9 +1125,11 @@ def stage_score(limit: int | None, output: Path, sample: int | None = None) -> d
             "exclusions": exclusion_reports[dataset],
             "protocols": {
                 "pair_strict": strict_protocol(dataset, pairs, verifiers),
-                "pair_split3": split3_protocol(
+                **split3_protocol(
                     dataset,
                     pairs,
+                    sample=sample,
+                    luar_all_pairs=luar_all_pairs,
                     references=references,
                     reference_embedded=reference_embedded,
                     fusion=fusion,
@@ -1102,8 +1146,10 @@ def stage_score(limit: int | None, output: Path, sample: int | None = None) -> d
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "commit": _git("rev-parse", "HEAD"),
+        "uncommitted_changes": _git("status", "--porcelain", "--untracked-files=no").splitlines(),
         "limit": limit,
         "sample": sample,
+        "luar_all_pairs": luar_all_pairs,
         "environment": {
             "python": platform.python_version(),
             "numpy": np.__version__,
@@ -1190,6 +1236,9 @@ def main() -> None:
     parser.add_argument(
         "--sample", type=int, help="score a fixed pseudo-random N of the kept pairs per dataset"
     )
+    parser.add_argument(
+        "--luar-all-pairs", action="store_true", help="also score LUAR on every kept pair"
+    )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
     if args.stage == "embed":
@@ -1199,7 +1248,7 @@ def main() -> None:
     elif args.stage == "report":
         print(markdown_tables(json.loads(args.output.read_text())))
     else:
-        result = stage_score(args.limit, args.output, args.sample)
+        result = stage_score(args.limit, args.output, args.sample, args.workers, args.luar_all_pairs)
         for dataset, block in result["datasets"].items():
             for protocol, rows in block["protocols"].items():
                 for model, row in rows["models"].items():
