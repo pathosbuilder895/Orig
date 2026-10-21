@@ -4,6 +4,7 @@ import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Self-serve accounts
@@ -455,15 +456,19 @@ function bbStudentError(err, fallback) {
 // before, as a file or pasted text. It waits for the teacher, who decides
 // whether it is used as reference writing. The student sees titles and
 // whether the teacher has reviewed them, never any reading of the paper.
+export const PAST_PAPER_DRAFT = 'past-paper';
 const PAPER_STATUS = { pending: 'waiting for review', approved: 'accepted', declined: 'not used' };
 export function SharePastPaper() {
   const [enabled, setEnabled] = useState(false);
   const [papers, setPapers] = useState(null);
   const [file, setFile] = useState(null);
-  const [text, setText] = useState('');
-  const [title, setTitle] = useState('');
-  const [isSection, setIsSection] = useState(false);
-  const [parent, setParent] = useState('');
+  // Typed text is kept on this browser for this student until it is sent
+  // (form-drafts.jsx). A chosen file cannot be kept, only its fields.
+  const [draft0] = useState(() => loadFormDraft(PAST_PAPER_DRAFT) || {});
+  const [text, setText] = useState(draft0.text || '');
+  const [title, setTitle] = useState(draft0.title || '');
+  const [isSection, setIsSection] = useState(!!draft0.isSection);
+  const [parent, setParent] = useState(draft0.parent || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -475,6 +480,9 @@ export function SharePastPaper() {
       .catch(() => { if (live) setPapers([]); });
     return () => { live = false; };
   }, []);
+  useEffect(() => {
+    saveFormDraft(PAST_PAPER_DRAFT, { text, title, isSection, parent }, !text.trim() && !title.trim() && !parent.trim());
+  }, [text, title, isSection, parent]);
   if (!enabled) return null;
 
   async function share(ev) {
@@ -493,6 +501,7 @@ export function SharePastPaper() {
       const r = await BB_API.sharePaper(form);
       setPapers(r.papers || []);
       setNotice(r.message || 'Received — your teacher will review it.');
+      clearFormDraft(PAST_PAPER_DRAFT);
       setFile(null); setText(''); setTitle(''); setIsSection(false); setParent('');
       if (fileRef.current) fileRef.current.value = '';
     } catch (err) {
