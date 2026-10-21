@@ -190,7 +190,8 @@ export function NewExamScreen({ onNavigate }) {
   // ── Secondary conditions ──
   const [spellChk,  setSpellChk]  = useNEState(pick('spellChk', false));
   const [phoneBlk,  setPhoneBlk]  = useNEState(pick('phoneBlk', true));
-  const [aiDetect,  setAiDetect]  = useNEState(pick('aiDetect', false));
+  // Writing consistency is never restored from a draft: it starts off every time.
+  const [aiDetect,  setAiDetect]  = useNEState(false);
   // ── Collection type (More options): in class + timed + no size by default,
   // which is how every collection before the merge reads.
   const [setting,   setSetting]   = useNEState(pick('setting', 'in_class'));
