@@ -1,6 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { ErrorText, fromLocalInput } from './forms.jsx';
+import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
 import { SMALLS_GREATS_CUTOFF, applySizePreset, optionConditions, settingDefaults } from './collection-options.jsx';
 
 // Every non-empty question, in order. One question is saved as-is; several
@@ -17,6 +18,7 @@ export function combinePrompts(prompts) {
 //  Create and configure a new examination
 // ════════════════════════════════════════════════════════════════
 const { useState: useNEState } = React;
+export const NEW_COLLECTION_DRAFT = 'new-collection';
 
 // Demo fallback only. An unauthenticated visitor walking the demo still sees a
 // populated picker; a signed-in professor never does — they get their own
@@ -169,33 +171,38 @@ function ToggleRow({ label, desc, value, onChange }) {
 
 // ─── New Exam Screen ──────────────────────────────────────────────────────────
 export function NewExamScreen({ onNavigate }) {
-  const [title,     setTitle]     = useNEState('');
-  const [course,    setCourse]    = useNEState('');
-  const [duration,  setDuration]  = useNEState(90);
+  // An unsent form is kept on this browser for this teacher (form-drafts.jsx),
+  // so closing the tab or a lapsed sign-in never loses what was typed.
+  const [draft0] = useNEState(() => loadFormDraft(NEW_COLLECTION_DRAFT) || {});
+  const pick = (k, dflt) => (draft0[k] !== undefined ? draft0[k] : dflt);
+  const [title,     setTitle]     = useNEState(pick('title', ''));
+  const [course,    setCourse]    = useNEState(pick('course', ''));
+  const [duration,  setDuration]  = useNEState(pick('duration', 90));
   // Optional, so empty by default: a word minimum the teacher did not ask for
   // would hold back a student's submit button for the whole sitting.
-  const [minWords,  setMinWords]  = useNEState('');
-  const [maxWords,  setMaxWords]  = useNEState('');
-  const [prompts,   setPrompts]   = useNEState(['']);
+  const [minWords,  setMinWords]  = useNEState(pick('minWords', ''));
+  const [maxWords,  setMaxWords]  = useNEState(pick('maxWords', ''));
+  const [prompts,   setPrompts]   = useNEState(pick('prompts', ['']));
   // ── Lockdown (default ON — the secure baseline) ──
-  const [blockAI,    setBlockAI]    = useNEState(true);
-  const [blockWeb,   setBlockWeb]   = useNEState(true);
-  const [blockCopy,  setBlockCopy]  = useNEState(true);
+  const [blockAI,    setBlockAI]    = useNEState(pick('blockAI', true));
+  const [blockWeb,   setBlockWeb]   = useNEState(pick('blockWeb', true));
+  const [blockCopy,  setBlockCopy]  = useNEState(pick('blockCopy', true));
   // ── Secondary conditions ──
-  const [spellChk,  setSpellChk]  = useNEState(false);
-  const [phoneBlk,  setPhoneBlk]  = useNEState(true);
+  const [spellChk,  setSpellChk]  = useNEState(pick('spellChk', false));
+  const [phoneBlk,  setPhoneBlk]  = useNEState(pick('phoneBlk', true));
+  // Writing consistency is never restored from a draft: it starts off every time.
   const [aiDetect,  setAiDetect]  = useNEState(false);
   // ── Collection type (More options): in class + timed + no size by default,
   // which is how every collection before the merge reads.
-  const [setting,   setSetting]   = useNEState('in_class');
-  const [timed,     setTimed]     = useNEState(true);
-  const [size,      setSize]      = useNEState('');
+  const [setting,   setSetting]   = useNEState(pick('setting', 'in_class'));
+  const [timed,     setTimed]     = useNEState(pick('timed', true));
+  const [size,      setSize]      = useNEState(pick('size', ''));
   const [saving,    setSaving]    = useNEState(false);
   const [saved,     setSaved]     = useNEState(false);
   const [saveError, setSaveError] = useNEState('');
   // Optional availability window (local time in the inputs, UTC on the wire).
-  const [opensAt,   setOpensAt]   = useNEState('');
-  const [closesAt,  setClosesAt]  = useNEState('');
+  const [opensAt,   setOpensAt]   = useNEState(pick('opensAt', ''));
+  const [closesAt,  setClosesAt]  = useNEState(pick('closesAt', ''));
   // ── Course picker (GET /bluebook/courses) ──
   // `null` means the first fetch has not answered yet, which is a third state
   // distinct from "answered, and you have none" — the screen says something
@@ -217,6 +224,14 @@ export function NewExamScreen({ onNavigate }) {
     });
     return () => { live = false; };
   }, []);
+
+  const restoredDraft = Object.keys(draft0).length > 0;
+  const draftValues = { title, course, duration, minWords, maxWords, prompts, blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, setting, timed, size, opensAt, closesAt };
+  React.useEffect(() => {
+    if (saved) return;
+    const empty = !title.trim() && !prompts.some(p => p.trim()) && !String(minWords).trim() && !String(maxWords).trim() && !opensAt && !closesAt;
+    saveFormDraft(NEW_COLLECTION_DRAFT, draftValues, empty);
+  }, [JSON.stringify(draftValues), saved]);
 
   const loadingCourses = serverCourses === null;
   const courses = (serverCourses && serverCourses.length)
@@ -311,6 +326,7 @@ export function NewExamScreen({ onNavigate }) {
       }
       console.warn('Collections exam persistence failed:', e && e.message);
     }
+    clearFormDraft(NEW_COLLECTION_DRAFT);
     setSaving(false);
     setSaved(true);
     setTimeout(() => onNavigate('sessions'), 900);
@@ -377,6 +393,11 @@ export function NewExamScreen({ onNavigate }) {
         <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade, margin: '0 0 36px' }}>
           Every assignment is a collection. Fill in the basics; open More options for timing windows, lockdown and other settings. Students see a published collection in their course.
         </p>
+        {restoredDraft && (
+          <p role="status" data-testid="draft-restored" style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 15, color: BB.fade, margin: '0 0 16px' }}>
+            Your unsaved form was kept on this computer and has been restored.
+          </p>
+        )}
 
         <GoldRule double style={{ marginBottom: 40 }} />
 
