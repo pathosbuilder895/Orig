@@ -360,3 +360,11 @@ def test_summarize_reports_the_collections_mark_on_ready_baselines_only():
                 holdout_probabilities=[0.1])
     entry = report.summarize([ready, thin])["public_authors/clean/N=3"]
     assert entry["holdout"]["collections_mark_rate"] == 0.5
+
+
+def test_dumps_report_is_json_with_one_line_per_row():
+    rep = {"meta": {"seed": 1}, "gates": [], "rows": [_row("clean"), _row("clean", victim="w")]}
+    text = report.dumps_report(rep)
+    assert json.loads(text) == json.loads(json.dumps(rep))
+    row_lines = [line for line in text.splitlines() if line.startswith('    {"baseline_integrity"')]
+    assert len(row_lines) == 2

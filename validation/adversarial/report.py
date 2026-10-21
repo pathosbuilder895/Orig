@@ -829,9 +829,24 @@ def merge_reports(reports: list[dict]) -> dict:
     return {"meta": meta, "rows": rows}
 
 
+def dumps_report(report: dict) -> str:
+    """JSON with everything but the rows indented and one compact line per
+    row: a full run has hundreds of rows, and indenting them pushes a report
+    past the repository's 700 KB limit for added files while making every
+    diff unreadable."""
+    head = json.dumps(
+        {k: v for k, v in report.items() if k != "rows"}, indent=2, sort_keys=True, default=str
+    )
+    rows = ",\n".join(
+        "    " + json.dumps(row, sort_keys=True, separators=(",", ":"), default=str)
+        for row in report.get("rows", [])
+    )
+    return head[: -len("\n}")] + ',\n  "rows": [\n' + rows + "\n  ]\n}\n"
+
+
 def _write(path: Path, report: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(report, indent=2, sort_keys=True, default=str) + "\n")
+    path.write_text(dumps_report(report))
 
 
 def main(argv=None) -> int:
