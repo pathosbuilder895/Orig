@@ -8,7 +8,7 @@
 
 -r requirements-demo.txt
 
-pydantic-settings==2.14.2
+pydantic-settings==2.15.0
 email-validator==2.3.0
 sqlalchemy==2.0.51
 alembic==1.18.5
