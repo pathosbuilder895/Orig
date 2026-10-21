@@ -1,5 +1,7 @@
 # Alpha batch scoring report (internal, never shown to students)
 
+> **Synthetic sample, not a measurement.** This report was produced from 10 synthetic papers during the 2026-10-15 local rehearsal, and its layout predates the committed `scripts/alpha/batch_score_alpha.py`. It proves the pipeline runs; it says nothing about accuracy. Its "95% CI" lines are wrong: they show a single point (0%-0% and 100%-100%). The script now prints a Wilson interval next to the student bootstrap, and the Wilson intervals for these counts are 0%-49% (0/4 false flags) and 61%-100% (6/6 caught). Where the caveat below says "real writing", it refers to the live alpha session, not to these papers.
+
 - submissions: 10; scored: 10; errors: 0
 - INCONCLUSIVE (baseline below minimum): 0/10 (0%)
 - deviation min/median/max: 0.277 / 0.793 / 0.848
