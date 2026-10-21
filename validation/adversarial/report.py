@@ -496,6 +496,9 @@ def run_harness(
         kinds = kinds_for_legs(legs) if legs else ALL_KINDS
     workers = default_workers() if workers is None else workers
     started = time.monotonic()
+    # Snapshot corpus status before building cells, so the metadata describes
+    # what the cells were built from even if a corpus lands mid-run.
+    llm_status, rj_status = llm_cache_status(), riddell_juola_status()
     cells = build_cells(kinds, ns, seed)
     rows = run_cells(cells, path=path, workers=workers)
     texts = sorted(
@@ -519,8 +522,8 @@ def run_harness(
             "n_cells": len(cells),
             "runtime_seconds": round(time.monotonic() - started, 1),
             "live_scoring_env": dict(LIVE_SCORING_ENV),
-            "llm_attacks": llm_cache_status(),
-            "riddell_juola": riddell_juola_status(),
+            "llm_attacks": llm_status,
+            "riddell_juola": rj_status,
         },
         "rows": rows,
     }
