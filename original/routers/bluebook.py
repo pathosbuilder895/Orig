@@ -8,6 +8,7 @@ added here directly (exam-day robustness).
 from __future__ import annotations
 
 import contextlib
+import json
 import sqlite3
 import threading
 import urllib.parse
@@ -16,10 +17,12 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from .. import bluebook_rules as rules
 from .. import principal as principal_mod
 from .. import student_auth
+from ..core.logging import get_logger
 from ..schemas import (
     BluebookCreateCourseRequest,
     BluebookCreateExamRequest,
@@ -44,6 +47,7 @@ from ._shared import (
 )
 
 router = APIRouter()
+log = get_logger(__name__)
 
 
 # ── Shared helpers (self-serve, 2026-09) ──────────────────────────────────────
@@ -407,6 +411,102 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
     )
 
 
+class ExamDraftBody(BaseModel):
+    """The student's unsealed writing for one exam, as the booklet holds it."""
+
+    content: str = ""
+    answers: list[str] = Field(default_factory=list)
+    #: The browser's own save time (ms since the epoch), so a resuming page
+    #: can keep whichever copy is newer: this one or the one on the device.
+    client_saved_at: int = 0
+
+
+def _draft_owner(request: Request, exam_id: str) -> tuple[str, str]:
+    """(student id, tenant) for the signed-in student's own draft of a stored
+    exam in their workspace. Staff are refused: a draft is the student's
+    unsealed writing and is never shown to a teacher."""
+    try:
+        _require_staff(request)
+    except HTTPException:
+        pass
+    else:
+        raise HTTPException(status_code=403, detail="Drafts are visible only to the student.")
+    session = _require_student_session(request)
+    sid = str(session.get("sid") or "")[:128]
+    if not sid:
+        raise HTTPException(status_code=401, detail="Not signed in.")
+    tenant = _bluebook_tenant(request)
+    exam = _repo().get_bluebook_exam(exam_id)
+    if exam is None or exam.get("tenant_id") not in (tenant, None):
+        raise HTTPException(status_code=404, detail="exam not found")
+    return sid, tenant
+
+
+def _draft_out(d: dict | None) -> dict | None:
+    if not d:
+        return None
+    try:
+        answers = json.loads(d.get("answers") or "[]")
+    except ValueError:
+        answers = []
+    return {
+        "content": d.get("content") or "",
+        "answers": [a for a in answers if isinstance(a, str)],
+        "client_saved_at": int(d.get("client_saved_at") or 0),
+        "updated_at": d.get("updated_at"),
+    }
+
+
+@router.get("/bluebook/exams/{exam_id}/draft")
+def bluebook_get_draft(exam_id: str, request: Request):
+    """The signed-in student's own unsealed draft of this exam, or null.
+
+    Lets a sitting resume from another browser. Once the exam is sealed the
+    draft is gone (and any left over is deleted here), so a sealed exam
+    never reopens with text."""
+    sid, _tenant = _draft_owner(request, exam_id)
+    if _student_already_submitted(exam_id, sid):
+        _repo().delete_exam_draft(exam_id, sid)
+        return {"draft": None, "submitted": True}
+    return {"draft": _draft_out(_repo().get_exam_draft(exam_id, sid)), "submitted": False}
+
+
+@router.put("/bluebook/exams/{exam_id}/draft")
+def bluebook_put_draft(exam_id: str, body: ExamDraftBody, request: Request):
+    """Save the signed-in student's unsealed draft (about every 30 seconds and
+    when the page is hidden or closed). Refused once the exam is sealed. The
+    draft is never scored, never shown to staff and never becomes part of a
+    baseline; the sealed submission is the only record that counts."""
+    sid, tenant = _draft_owner(request, exam_id)
+    if _student_already_submitted(exam_id, sid):
+        _repo().delete_exam_draft(exam_id, sid)
+        raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
+    try:
+        answers = rules.clean_answers(body.answers)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+    if (
+        len(body.content) > rules.MAX_TEXT_CHARS
+        or sum(len(a) for a in answers) > rules.MAX_TEXT_CHARS
+    ):
+        raise HTTPException(status_code=413, detail="Draft is too long.")
+    saved = _repo().put_exam_draft(
+        exam_id, sid, tenant, body.content, json.dumps(answers), max(0, int(body.client_saved_at))
+    )
+    return {"saved": True, "updated_at": saved.get("updated_at")}
+
+
+def _drop_draft_after_seal(exam_id: str | None, student_id: str | None) -> None:
+    """A sealed exam keeps no draft. Best effort: a failure here never fails
+    the seal, and the next draft read deletes what is left."""
+    if not exam_id or not student_id:
+        return
+    try:
+        _repo().delete_exam_draft(str(exam_id), str(student_id)[:128])
+    except Exception:
+        log.exception("could not delete the draft after sealing %s", exam_id)
+
+
 @router.post("/bluebook/submissions", status_code=201)
 def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: Request):
     """Record one sat examination (the integrity reading for the Results view).
@@ -453,6 +553,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
     if body.submission_uuid:
         prior = _repo().get_bluebook_submission_by_uuid(body.submission_uuid[:64])
         if prior is not None:
+            _drop_draft_after_seal(prior.get("exam_id"), prior.get("student_id"))
             return {
                 "id": prior["id"],
                 "status": prior["status"],
@@ -554,6 +655,7 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
                         "duplicate": True,
                     }
             raise
+    _drop_draft_after_seal(rec["exam_id"], rec["student_id"])
     _repo().log_audit(
         action="bluebook_submission",
         tenant_id=tenant,

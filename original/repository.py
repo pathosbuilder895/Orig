@@ -279,6 +279,19 @@ class Repository(Protocol):
     def count_past_papers_since(self, student_id: str, since_iso: str) -> int: ...
     def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None: ...
 
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+    def put_exam_draft(
+        self,
+        exam_id: str,
+        student_key: str,
+        tenant_id: str,
+        content: str,
+        answers: str,
+        client_saved_at: int,
+    ) -> dict: ...
+    def get_exam_draft(self, exam_id: str, student_key: str) -> dict | None: ...
+    def delete_exam_draft(self, exam_id: str, student_key: str) -> None: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -811,6 +824,26 @@ class SqliteRepository:
     def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None:
         store.set_past_paper_status(paper_id, status, reviewed_by)
 
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+    def put_exam_draft(
+        self,
+        exam_id: str,
+        student_key: str,
+        tenant_id: str,
+        content: str,
+        answers: str,
+        client_saved_at: int,
+    ) -> dict:
+        return store.put_exam_draft(
+            exam_id, student_key, tenant_id, content, answers, client_saved_at
+        )
+
+    def get_exam_draft(self, exam_id: str, student_key: str) -> dict | None:
+        return store.get_exam_draft(exam_id, student_key)
+
+    def delete_exam_draft(self, exam_id: str, student_key: str) -> None:
+        store.delete_exam_draft(exam_id, student_key)
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -929,6 +962,8 @@ _WRITE_METHODS = frozenset(
         "clear",
         "delete_student",
         "put_past_paper",
+        "put_exam_draft",
+        "delete_exam_draft",
         "set_past_paper_status",
         "delete_tenant_students",
         "set_display_name",

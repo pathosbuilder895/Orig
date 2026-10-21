@@ -110,6 +110,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -817,7 +818,28 @@ class StudentPastPaper(LiveBase):
     reviewed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-#: All 24 live models in store-DDL order, for tests and the P3 repository.
+class BluebookExamDraft(LiveBase):
+    """A student's unsealed exam draft kept on the server
+    (``bluebook_exam_drafts``, 2026-10) so a sitting can resume from any
+    browser. One row per (exam, student); visible only to that student,
+    never to staff; deleted when the exam is sealed and with the student's
+    data on withdrawal. Never scored, never part of a baseline.
+    ``answers`` is a JSON list of strings. No tenant FK, mirroring
+    ``StudentPastPaper``.
+    """
+
+    __tablename__ = "bluebook_exam_drafts"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    answers: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
+    client_saved_at: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+#: All 25 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -843,4 +865,5 @@ LIVE_MODELS = [
     ParkSession,
     ParkBeat,
     StudentPastPaper,
+    BluebookExamDraft,
 ]

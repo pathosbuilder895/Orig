@@ -50,6 +50,7 @@ from original.db.models.live import (
     StaffUser,
     StudentName,
     StudentPastPaper,
+    BluebookExamDraft,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -82,6 +83,7 @@ EXPECTED_TABLES = {
     "park_sessions",
     "park_beats",
     "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
+    "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -402,6 +404,15 @@ REPRESENTATIVE_ROWS = {
         parent_title="A longer paper",
         status="pending",
         created_at=NOW,
+    ),
+    BluebookExamDraft: dict(
+        exam_id="e" * 16,
+        student_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        content="Unsealed words.",
+        answers='["Unsealed words."]',
+        client_saved_at=1792589233313,
+        updated_at=NOW,
     ),
 }
 
