@@ -38,6 +38,7 @@ from .db.models.live import (
     BluebookCourse,
     BluebookEnrollment,
     BluebookExam,
+    BluebookExamDraft,
     BluebookInvite,
     BluebookSession,
     BluebookSubmission,
@@ -363,6 +364,9 @@ class PostgresRepository:
                 BluebookSubmission.student_id == student_id
             ),
             select(BluebookSession.student_key).where(BluebookSession.student_key == student_id),
+            select(BluebookExamDraft.student_key).where(
+                BluebookExamDraft.student_key == student_id
+            ),
             select(BluebookEnrollment.student_id).where(
                 BluebookEnrollment.student_id == student_id
             ),
@@ -523,6 +527,12 @@ class PostgresRepository:
                 session.execute(
                     StudentPastPaper.__table__.delete().where(
                         StudentPastPaper.student_id == student_id,
+                    )
+                )
+                # Unsealed exam drafts kept on the server (2026-10).
+                session.execute(
+                    BluebookExamDraft.__table__.delete().where(
+                        BluebookExamDraft.student_key == student_id,
                     )
                 )
                 session.execute(
@@ -2890,6 +2900,49 @@ class PostgresRepository:
                 update(StudentPastPaper)
                 .where(StudentPastPaper.paper_id == paper_id)
                 .values(status=status, reviewed_at=datetime.now(UTC), reviewed_by=reviewed_by)
+            )
+
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+
+    def put_exam_draft(self, exam_id, student_key, tenant_id, content, answers, client_saved_at):
+        now = datetime.now(UTC)
+        values = dict(
+            tenant_id=tenant_id,
+            content=content,
+            answers=answers,
+            client_saved_at=int(client_saved_at),
+            updated_at=now,
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(BluebookExamDraft)
+                .values(exam_id=exam_id, student_key=student_key, **values)
+                .on_conflict_do_update(index_elements=["exam_id", "student_key"], set_=values)
+            )
+        return self.get_exam_draft(exam_id, student_key) or {}
+
+    def get_exam_draft(self, exam_id, student_key):
+        with session_scope() as session:
+            row = session.get(BluebookExamDraft, (exam_id, student_key))
+            if row is None:
+                return None
+            return {
+                "exam_id": row.exam_id,
+                "student_key": row.student_key,
+                "tenant_id": row.tenant_id,
+                "content": row.content,
+                "answers": row.answers,
+                "client_saved_at": int(row.client_saved_at or 0),
+                "updated_at": _iso_or_none(row.updated_at),
+            }
+
+    def delete_exam_draft(self, exam_id, student_key):
+        with session_scope() as session:
+            session.execute(
+                BluebookExamDraft.__table__.delete().where(
+                    BluebookExamDraft.exam_id == exam_id,
+                    BluebookExamDraft.student_key == student_key,
+                )
             )
 
 
