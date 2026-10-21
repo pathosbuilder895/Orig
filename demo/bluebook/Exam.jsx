@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE } from './components.jsx';
+import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -282,6 +282,11 @@ export function bbSealRetryable(err) {
   if (!s) return true;
   if (s === 408 || s === 425 || s === 429) return true;
   return !(s >= 400 && s < 500);
+}
+
+// A seal refused because the sign-in lapsed (401) for a student account.
+export function bbSealNeedsSignIn(err, result, isStudentAccount) {
+  return !(result && result.ok) && !!isStudentAccount && !!err && err.status === 401;
 }
 
 // ─── Lockdown helpers (browser-level enforcement) ─────────────────────────────
@@ -956,6 +961,15 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     };
     sealingRef.current = false;
     setSubmitting(false);
+    // A signed-in student whose sign-in lapsed: the seal was refused (401)
+    // and will not succeed on retry. The answers are final in the draft on
+    // this device, so send them to sign in; after signing in, their home
+    // reopens this exam and the confirmed seal finishes on entry.
+    if (bbSealNeedsSignIn(lastError, result, BB_API.isStudentAccount())) {
+      rememberSitting(cfg.id || null);
+      window.dispatchEvent(new CustomEvent(BB_SIGNED_OUT_EVENT, { detail: { student: true } }));
+      return;
+    }
     onNavigate('submitted');
   }
 

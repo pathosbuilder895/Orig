@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BB_API, BB_SIGNED_OUT_EVENT, devToolsEnabled } from './components.jsx';
+import { expiryWarnDelay, tokenExpiryMs } from './form-drafts.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
@@ -71,8 +72,10 @@ function App() {
   // never to empty lists. The current screen is kept in the hash, so signing
   // back in returns there.
   const [expired, setExpired] = useState(false);
+  const [expiredStudent, setExpiredStudent] = useState(false);
   React.useEffect(() => {
-    const onExpired = () => {
+    const onExpired = (e) => {
+      setExpiredStudent(!!(e && e.detail && e.detail.student));
       BB_API._clearSession();
       setExpired(true);
       setTweak('currentScreen', 'login');
@@ -80,6 +83,19 @@ function App() {
     window.addEventListener(BB_SIGNED_OUT_EVENT, onExpired);
     return () => window.removeEventListener(BB_SIGNED_OUT_EVENT, onExpired);
   }, []);
+  // A teacher's sign-in lasts 8 hours. About 10 minutes before it ends, say
+  // so, so nothing is typed into a form that will be refused. Form drafts
+  // (form-drafts.jsx) are kept on this computer either way.
+  const [expirySoon, setExpirySoon] = useState(false);
+  React.useEffect(() => {
+    let tok = '';
+    try { tok = localStorage.getItem('original_principal_token') || ''; } catch (e) {}
+    const delay = expiryWarnDelay(tokenExpiryMs(tok), Date.now());
+    if (delay === null) { setExpirySoon(false); return; }
+    const id = setTimeout(() => setExpirySoon(true), delay);
+    return () => clearTimeout(id);
+  }, [t.currentScreen]);
+
   // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
   // on a signed-in teacher's dashboard: straight away for a teacher who is
   // already signed in, after sign-in for one who is not, and never for a
@@ -156,7 +172,7 @@ function App() {
   switch (screen) {
     case 'login':
       content = <>
-        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>Your sign-in has expired. Please sign in again. Nothing was lost.</p>}
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your exam. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
         <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
       </>;
       break;
@@ -293,6 +309,12 @@ function App() {
 
   return (
     <>
+      {expirySoon && screen !== 'login' && BB_API.isAuthed() && !BB_API.isStudentAccount() && (
+        <div role="status" data-testid="signin-expiring" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, background: '#1b2347', color: '#F3EBD8', borderBottom: '1px solid #C9A028', padding: '0.6rem 1rem', textAlign: 'center', fontFamily: 'Georgia, serif' }}>
+          Your sign-in ends in about 10 minutes. Anything typed in the New collection form is kept on this computer.{' '}
+          <button onClick={() => { BB_API._clearSession(); setExpirySoon(false); setTweak('currentScreen', 'login'); }} style={{ marginLeft: 8 }}>Sign in again now</button>
+        </div>
+      )}
       <div key={screen} style={{ animation: 'bbFadeIn 0.65s ease both' }}>
         {content}
       </div>
