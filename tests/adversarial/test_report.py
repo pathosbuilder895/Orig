@@ -191,7 +191,7 @@ def test_default_workers_honours_the_env(monkeypatch):
 def _row(kind, n=3, victim="v", corpus="public_authors", **over):
     row = {
         "corpus": corpus, "kind": kind, "n": n, "victim_id": victim,
-        "injected_indices": [], "n_baseline_docs": n,
+        "injected_indices": [], "impostor_in_baseline": [], "n_baseline_docs": n,
         "holdout_actions": ["no_action"], "holdout_scores": [0.2],
         "impostor_actions": ["monitor", "no_action"], "impostor_scores": [0.7, 0.3],
         "held_baseline_indices": [], "baseline_integrity": None,
@@ -368,3 +368,44 @@ def test_dumps_report_is_json_with_one_line_per_row():
     assert json.loads(text) == json.loads(json.dumps(rep))
     row_lines = [line for line in text.splitlines() if line.startswith('    {"baseline_integrity"')]
     assert len(row_lines) == 2
+
+
+def test_sigma_inflation_cells_mark_the_donor_document_when_it_is_also_a_peer():
+    cells = report.build_cells(
+        kinds=("clean", "sigma_inflation"), ns=(3,), seed=report.HARNESS_SEED
+    )
+    leaks = {
+        c.profile.victim_id: c.impostor_in_baseline for c in cells if c.kind == "sigma_inflation"
+    }
+    assert any(leaks.values())  # the donor pool and the peer pool overlap
+    for cell in cells:
+        if cell.kind == "clean":
+            assert cell.impostor_in_baseline == ()
+
+
+def test_ga5_drops_leaked_documents_on_both_sides_of_the_pair():
+    rows = [
+        _row("clean", impostor_actions=["monitor", "monitor"], impostor_scores=[0.7, 0.7]),
+        _row("sigma_inflation", impostor_actions=["no_action", "monitor"],
+             impostor_scores=[0.1, 0.7], injected_indices=[1], impostor_in_baseline=[0],
+             mean_baseline_std=0.2),
+    ]
+    (cell,) = report.ga5_inputs(rows)["cells"]
+    assert cell["n_leaked_docs"] == 1
+    assert (cell["clean_caught"], cell["clean_n"]) == (1, 1)
+    assert (cell["inflated_caught"], cell["inflated_n"]) == (1, 1)
+    assert cell["inflated_impostor_scores"] == [0.7]
+
+
+def test_attach_cell_metadata_rederives_and_checks_rows():
+    cells = report.build_cells(kinds=("sigma_inflation",), ns=(3,), seed=report.HARNESS_SEED)
+    cell = cells[0]
+    row = _row("sigma_inflation", victim=cell.profile.victim_id,
+               injected_indices=list(cell.injected_indices))
+    del row["impostor_in_baseline"]
+    assert report.attach_cell_metadata([row], report.HARNESS_SEED, (3,)) == 1
+    assert row["impostor_in_baseline"] == list(cell.impostor_in_baseline)
+    bad = _row("sigma_inflation", victim=cell.profile.victim_id, injected_indices=[99])
+    del bad["impostor_in_baseline"]
+    with pytest.raises(ValueError):
+        report.attach_cell_metadata([bad], report.HARNESS_SEED, (3,))

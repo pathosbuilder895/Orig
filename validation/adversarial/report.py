@@ -155,6 +155,13 @@ class Cell:
     scored against that are NOT the victim's own writing (empty for a
     clean baseline); G-A6 counts a detection only when the drift gate or
     the integrity block points at one of them.
+
+    `impostor_in_baseline` are the positions in `impostor_docs` whose text
+    is one of the baselines actually scored against. A poisoning donor is
+    drawn from the same pool as the victim's peer documents, so the exact
+    document injected into the baseline can come back as an "impostor";
+    scoring a document against a baseline that contains it is a leak, and
+    every reducer drops those positions (on both sides of a pair).
     """
 
     corpus: str
@@ -163,6 +170,7 @@ class Cell:
     attack: str
     profile: VictimProfile
     injected_indices: tuple[int, ...] = ()
+    impostor_in_baseline: tuple[int, ...] = ()
 
 
 def _digest(value: str) -> str:
@@ -174,6 +182,11 @@ def _digest(value: str) -> str:
 
 def _injected(original: list[str], poisoned: list[str]) -> tuple[int, ...]:
     return tuple(i for i, (a, b) in enumerate(zip(original, poisoned, strict=True)) if a != b)
+
+
+def _impostor_in_baseline(impostor_docs: list[str], baselines: list[str]) -> tuple[int, ...]:
+    scored = set(baselines)
+    return tuple(i for i, doc in enumerate(impostor_docs) if doc in scored)
 
 
 def _public_author_cells(ns, seed, kinds) -> tuple[list[Cell], dict[int, list[VictimProfile]]]:
@@ -189,10 +202,10 @@ def _public_author_cells(ns, seed, kinds) -> tuple[list[Cell], dict[int, list[Vi
                 if kind not in PUBLIC_AUTHOR_KINDS:
                     continue
                 injected: tuple[int, ...] = ()
+                scored_baselines = profile.baselines
                 if kind in ("obfuscated_baselines", "outsourced_baselines", "sigma_inflation"):
-                    injected = _injected(
-                        profile.baselines, poison_profile(profile, kind).baselines
-                    )
+                    scored_baselines = poison_profile(profile, kind).baselines
+                    injected = _injected(profile.baselines, scored_baselines)
                 cells.append(
                     Cell(
                         corpus="public_authors",
@@ -201,6 +214,9 @@ def _public_author_cells(ns, seed, kinds) -> tuple[list[Cell], dict[int, list[Vi
                         attack=_ATTACK_FOR_KIND.get(kind, "none"),
                         profile=profile,
                         injected_indices=injected,
+                        impostor_in_baseline=_impostor_in_baseline(
+                            profile.impostor_docs, scored_baselines
+                        ),
                     )
                 )
     return cells, profiles_by_n
@@ -415,6 +431,7 @@ def _row(cell: Cell, path: str) -> dict:
         "kind": cell.kind,
         "n": cell.n,
         "injected_indices": list(cell.injected_indices),
+        "impostor_in_baseline": list(cell.impostor_in_baseline),
         "n_baseline_docs": len(cell.profile.baselines),
     }
     row.update(json.loads(json.dumps(asdict(result))))
@@ -567,13 +584,20 @@ def ga1_inputs(rows: list[dict]) -> dict:
     return {"holdout_actions_by_n": by_n, "by_corpus_n": by_corpus, "refused_by_n": refused}
 
 
+def kept_impostors(row: dict, field: str, drop=()) -> list:
+    """`row[field]` (an impostor_* list) without the positions listed in
+    `impostor_in_baseline` (see Cell) or in `drop`."""
+    leaked = set(row.get("impostor_in_baseline") or []) | set(drop)
+    return [v for i, v in enumerate(row.get(field) or []) if i not in leaked]
+
+
 def _population(name, family, n, attack_rows, genuine_scores, coverage=None) -> dict:
     return {
         "name": f"{name} N={n}",
         "family": family,
         "n": n,
-        "attack_actions": [a for r in attack_rows for a in r["impostor_actions"]],
-        "attack_scores": [s for r in attack_rows for s in r["impostor_scores"]],
+        "attack_actions": [a for r in attack_rows for a in kept_impostors(r, "impostor_actions")],
+        "attack_scores": [s for r in attack_rows for s in kept_impostors(r, "impostor_scores")],
         "genuine_scores": genuine_scores,
         "n_refused": sum(1 for r in attack_rows if r["scoring_refused"]),
         "coverage": coverage,
@@ -633,6 +657,10 @@ def ga5_inputs(rows: list[dict]) -> dict:
     spread (`mean_baseline_std`), and the inflated cells' impostor and
     genuine scores for the separation leg.
 
+    Impostor documents that are themselves in the inflated baseline (the
+    donor's own document, see Cell.impostor_in_baseline) are dropped from
+    both sides of the pair and counted as `n_leaked_docs`.
+
     Only pairs whose injected document actually reached the scored baseline
     are compared. A pair where the drift gate held every injected document
     is the ingestion defence working, not a test of "catch as sigma grows",
@@ -654,23 +682,32 @@ def ga5_inputs(rows: list[dict]) -> dict:
         ]
         c_rows = [clean[k] for k in fired]
         s_rows = [inflated[k] for k in fired]
+        leaks = [inflated[k].get("impostor_in_baseline") or [] for k in fired]
+        c_actions = [
+            kept_impostors(r, "impostor_actions", leak)
+            for r, leak in zip(c_rows, leaks, strict=True)
+        ]
+        s_actions = [kept_impostors(r, "impostor_actions") for r in s_rows]
         cells.append(
             {
                 "n": n,
                 "n_pairs": len(fired),
                 "n_held": len(live) - len(fired),
                 "n_refused": len(refused),
-                "clean_caught": sum(_caught(r["impostor_actions"]) for r in c_rows),
-                "clean_n": sum(len(r["impostor_actions"]) for r in c_rows),
-                "inflated_caught": sum(_caught(r["impostor_actions"]) for r in s_rows),
-                "inflated_n": sum(len(r["impostor_actions"]) for r in s_rows),
+                "n_leaked_docs": sum(len(leak) for leak in leaks),
+                "clean_caught": sum(_caught(a) for a in c_actions),
+                "clean_n": sum(len(a) for a in c_actions),
+                "inflated_caught": sum(_caught(a) for a in s_actions),
+                "inflated_n": sum(len(a) for a in s_actions),
                 "clean_mean_sigma": _mean(
                     [r["mean_baseline_std"] for r in c_rows if r["mean_baseline_std"] is not None]
                 ),
                 "inflated_mean_sigma": _mean(
                     [r["mean_baseline_std"] for r in s_rows if r["mean_baseline_std"] is not None]
                 ),
-                "inflated_impostor_scores": [x for r in s_rows for x in r["impostor_scores"]],
+                "inflated_impostor_scores": [
+                    x for r in s_rows for x in kept_impostors(r, "impostor_scores")
+                ],
                 "inflated_genuine_scores": [x for r in s_rows for x in r["holdout_scores"]],
             }
         )
@@ -761,7 +798,11 @@ def _collections_mark_rate(group: list[dict], side: str) -> float | None:
         math.floor(p * 100 + 0.5) < COLLECTIONS_MARK_BELOW  # JS Math.round, as Exam.jsx
         for r in group
         if ((r.get("baseline_integrity") or {}).get("readiness") == "ready")
-        for p in r.get(f"{side}_probabilities") or []
+        for p in (
+            kept_impostors(r, "impostor_probabilities")
+            if side == "impostor"
+            else r.get("holdout_probabilities") or []
+        )
     ]
     return sum(marks) / len(marks) if marks else None
 
@@ -787,8 +828,12 @@ def summarize(rows: list[dict]) -> dict:
     for (corpus, kind, n), group in sorted(groups.items()):
         entry = {"profiles": len(group), "refused": sum(r["scoring_refused"] for r in group)}
         for side in ("holdout", "impostor"):
-            actions = [a for r in group for a in r[f"{side}_actions"]]
-            scores = [s for r in group for s in r[f"{side}_scores"]]
+            if side == "impostor":
+                actions = [a for r in group for a in kept_impostors(r, "impostor_actions")]
+                scores = [s for r in group for s in kept_impostors(r, "impostor_scores")]
+            else:
+                actions = [a for r in group for a in r["holdout_actions"]]
+                scores = [s for r in group for s in r["holdout_scores"]]
             if not actions:
                 continue
             entry[side] = {
@@ -799,6 +844,29 @@ def summarize(rows: list[dict]) -> dict:
             }
         out[f"{corpus}/{kind}/N={n}"] = entry
     return out
+
+
+def attach_cell_metadata(rows: list[dict], seed: int, ns) -> int:
+    """Re-derive cell metadata that rows scored by an older harness lack
+    (today: `impostor_in_baseline`) by rebuilding the same cells from the
+    committed corpora and code. Nothing is re-scored. Each rebuilt cell's
+    `injected_indices` must equal the row's, so a corpus that changed since
+    the scoring run raises instead of mislabelling rows. Returns how many
+    rows were filled in."""
+    missing = [r for r in rows if "impostor_in_baseline" not in r]
+    if not missing:
+        return 0
+    kinds = tuple(sorted({r["kind"] for r in missing}))
+    cells = {
+        (c.corpus, c.kind, c.n, c.profile.victim_id): c for c in build_cells(kinds, tuple(ns), seed)
+    }
+    for row in missing:
+        key = (row["corpus"], row["kind"], row["n"], row["victim_id"])
+        cell = cells.get(key)
+        if cell is None or list(cell.injected_indices) != list(row["injected_indices"]):
+            raise ValueError(f"cannot rebuild cell {key}: the corpus or harness changed")
+        row["impostor_in_baseline"] = list(cell.impostor_in_baseline)
+    return len(missing)
 
 
 def merge_reports(reports: list[dict]) -> dict:
@@ -869,6 +937,11 @@ def main(argv=None) -> int:
     if args.reuse:
         report = merge_reports([json.loads(p.read_text()) for p in args.reuse])
         report["meta"]["reused_from"] = [str(p) for p in args.reuse]
+        filled = attach_cell_metadata(
+            report["rows"], report["meta"].get("seed", HARNESS_SEED), report["meta"].get("ns", NS)
+        )
+        if filled:
+            report["meta"]["cell_metadata_rederived"] = filled
     else:
         kinds = tuple(k.strip() for k in args.kinds.split(",")) if args.kinds else ALL_KINDS
         report = run_harness(kinds=kinds, workers=args.workers)
