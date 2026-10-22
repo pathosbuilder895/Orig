@@ -297,6 +297,13 @@ class Repository(Protocol):
     def get_last_location(self, account_key: str) -> dict | None: ...
     def delete_last_location(self, account_key: str) -> None: ...
 
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+    def put_phone_park(
+        self, exam_id: str, student_key: str, tenant_id: str, fields: dict
+    ) -> dict: ...
+    def get_phone_park(self, exam_id: str, student_key: str) -> dict | None: ...
+    def list_phone_parks(self, exam_id: str) -> list[dict]: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -859,6 +866,16 @@ class SqliteRepository:
     def delete_last_location(self, account_key: str) -> None:
         store.delete_last_location(account_key)
 
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+    def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
+        return store.put_phone_park(exam_id, student_key, tenant_id, fields)
+
+    def get_phone_park(self, exam_id: str, student_key: str) -> dict | None:
+        return store.get_phone_park(exam_id, student_key)
+
+    def list_phone_parks(self, exam_id: str) -> list[dict]:
+        return store.list_phone_parks(exam_id)
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -981,6 +998,7 @@ _WRITE_METHODS = frozenset(
         "delete_exam_draft",
         "put_last_location",
         "delete_last_location",
+        "put_phone_park",
         "set_past_paper_status",
         "delete_tenant_students",
         "set_display_name",

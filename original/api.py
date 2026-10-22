@@ -60,6 +60,7 @@ from .routers import (
     lti_routes,
     me,
     past_papers,
+    phone_park,
     proctor,
     students,
     students_baseline,
@@ -645,3 +646,6 @@ app.router.routes.extend(admin.router.routes)
 # T8 QR phone-park. Additive and inert until a professor calls
 # /proctor/park/open — no flag, no startup cost, no effect on any other route.
 app.router.routes.extend(proctor.router.routes)
+# Phone parking tied to the student's account (2026-10). Off unless a
+# teacher switches it on for a collection (conditions.phonePark).
+app.router.routes.extend(phone_park.router.routes)

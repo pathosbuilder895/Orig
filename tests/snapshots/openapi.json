@@ -3169,6 +3169,48 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PhoneBeatBody": {
+        "properties": {
+          "beat_token": {
+            "title": "Beat Token",
+            "type": "string"
+          },
+          "state": {
+            "default": "parked",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "beat_token"
+        ],
+        "title": "PhoneBeatBody",
+        "type": "object"
+      },
+      "PhoneOverrideBody": {
+        "properties": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "PhoneOverrideBody",
+        "type": "object"
+      },
+      "PhoneScanBody": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PhoneScanBody",
+        "type": "object"
+      },
       "ReadinessResponse": {
         "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
         "properties": {
@@ -6442,6 +6484,101 @@
         "summary": "Exam Live"
       }
     },
+    "/bluebook/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "One entry per student who has parked a phone or been let through.",
+        "operationId": "exam_phone_parks_bluebook_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exam Phone Parks"
+      }
+    },
+    "/bluebook/exams/{exam_id}/phone-park/{student_id}/override": {
+      "post": {
+        "description": "Let one student begin without a parked phone (for example, they have\nnone with them). Recorded on their row with who and when, and in the\naudit log. It says nothing about the student and changes no score.",
+        "operationId": "override_phone_park_bluebook_exams__exam_id__phone_park__student_id__override_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneOverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Override Phone Park"
+      }
+    },
     "/bluebook/exams/{exam_id}/release": {
       "post": {
         "description": "Show students their marks and feedback for this exam.",
@@ -6673,6 +6810,54 @@
           }
         },
         "summary": "My Exam"
+      }
+    },
+    "/bluebook/me/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "Whether this collection asks the student to park their phone, whether\nthey have, and (``code=1``) a fresh QR code that parks it for them alone.\nPolling with ``code=0`` reads the status without minting a code.",
+        "operationId": "my_phone_park_bluebook_me_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Code",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Phone Park"
       }
     },
     "/bluebook/me/exams/{exam_id}/start": {
@@ -7038,6 +7223,80 @@
           }
         },
         "summary": "Decline Shared Paper"
+      }
+    },
+    "/bluebook/phone-park/beat": {
+      "post": {
+        "description": "\"This page is still open\" from a parked phone.",
+        "operationId": "phone_beat_bluebook_phone_park_beat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneBeatBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Beat"
+      }
+    },
+    "/bluebook/phone-park/scan": {
+      "post": {
+        "description": "A phone opened a student's QR code. The signed code names the student\nand the collection; nothing about the phone is read or kept. Returns the\ngrant the page uses to say it is still open.",
+        "operationId": "phone_scan_bluebook_phone_park_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Scan"
       }
     },
     "/bluebook/students": {

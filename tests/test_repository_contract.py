@@ -3266,3 +3266,30 @@ class TestLastLocation:
         repo.put_last_location(sid, tenant, "student", {"screen": "student-account"})
         repo.delete_student(sid)
         assert repo.get_last_location(sid) is None
+
+
+class TestPhoneParks:
+    """A student's own parked phone per collection (2026-10): upserted field
+    by field, listed per exam, and erased by delete_student — on every backend."""
+
+    def test_put_get_list_and_delete_student(self, repo):
+        tenant = "tenant-pp"
+        sid, other = f"{tenant}:ann", f"{tenant}:ben"
+        assert repo.get_phone_park("exam-p", sid) is None
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "parked",
+                            "parked_at": "2026-10-22T13:00:00+00:00",
+                            "last_seen_at": "2026-10-22T13:00:00+00:00"})
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "foreground_lost",
+                            "last_seen_at": "2026-10-22T13:00:10+00:00"})
+        repo.put_phone_park("exam-p", other, tenant, {"override_by": "prof",
+                            "override_at": "2026-10-22T13:01:00+00:00", "override_note": "no phone"})
+        row = repo.get_phone_park("exam-p", sid)
+        assert row["state"] == "foreground_lost" and row["parked_at"].startswith("2026-10-22T13:00:00")
+        assert row["last_seen_at"].startswith("2026-10-22T13:00:10") and row["override_at"] is None
+        ov = repo.get_phone_park("exam-p", other)
+        assert ov["override_by"] == "prof" and ov["override_note"] == "no phone" and ov["parked_at"] is None
+        assert [r["student_key"] for r in repo.list_phone_parks("exam-p")] == [sid, other]
+        assert repo.list_phone_parks("exam-q") == []
+        repo.delete_student(sid)
+        assert repo.get_phone_park("exam-p", sid) is None
+        assert repo.get_phone_park("exam-p", other) is not None
