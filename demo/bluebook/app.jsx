@@ -17,6 +17,7 @@ import {
 } from './Teacher.jsx';
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
+import { installResumeTracking, trackScreen } from './resume-location.jsx';
 import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, rememberScreen } from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
@@ -158,6 +159,10 @@ function App() {
     });
     return () => { live = false; };
   }, [deepLink, teacherHome]);
+  // Where this account is, saved for resuming on another device
+  // (resume-location.jsx). Only kept screens are saved; the rest are ignored.
+  React.useEffect(() => { installResumeTracking(); }, []);
+  React.useEffect(() => { trackScreen(screen); }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';

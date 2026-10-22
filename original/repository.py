@@ -292,6 +292,11 @@ class Repository(Protocol):
     def get_exam_draft(self, exam_id: str, student_key: str) -> dict | None: ...
     def delete_exam_draft(self, exam_id: str, student_key: str) -> None: ...
 
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+    def put_last_location(self, account_key: str, tenant_id: str, role: str, loc: dict) -> dict: ...
+    def get_last_location(self, account_key: str) -> dict | None: ...
+    def delete_last_location(self, account_key: str) -> None: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -844,6 +849,16 @@ class SqliteRepository:
     def delete_exam_draft(self, exam_id: str, student_key: str) -> None:
         store.delete_exam_draft(exam_id, student_key)
 
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+    def put_last_location(self, account_key: str, tenant_id: str, role: str, loc: dict) -> dict:
+        return store.put_last_location(account_key, tenant_id, role, loc)
+
+    def get_last_location(self, account_key: str) -> dict | None:
+        return store.get_last_location(account_key)
+
+    def delete_last_location(self, account_key: str) -> None:
+        store.delete_last_location(account_key)
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -964,6 +979,8 @@ _WRITE_METHODS = frozenset(
         "put_past_paper",
         "put_exam_draft",
         "delete_exam_draft",
+        "put_last_location",
+        "delete_last_location",
         "set_past_paper_status",
         "delete_tenant_students",
         "set_display_name",

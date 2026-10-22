@@ -5,6 +5,7 @@ import {
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
+import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Self-serve accounts
@@ -214,8 +215,9 @@ export function InviteScreen({ onNavigate }) {
     setBusy(true);
     try {
       const data = await BB_API.redeemInvite(token, pw, (needTerms || studentTerms) && agree);
+      // The link's code leaves the address bar before anything is saved.
       clearInviteFromUrl();
-      onNavigate(homeFor(data));
+      await resumeOrHome(onNavigate, homeFor(data), { openExam: openStudentExam });
     } catch (err) {
       if (err.message === TERMS_REFUSAL) setNeedTerms(true);
       if (LINK_REFUSED.test(err.message || '')) setLinkDead(true);

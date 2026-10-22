@@ -7,6 +7,7 @@ import {
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
 import { sizeOf } from './collection-options.jsx';
+import { noteView, takeResumed } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
@@ -1056,7 +1057,9 @@ export function StudentsScreen({ onNavigate }) {
   // A teacher reads a student's sealed work from here (alpha bug 2026-10-20:
   // the Students page listed counts but offered no way to open the work).
   const [subs, setSubs] = useState(null);
-  const [viewing, setViewing] = useState('');
+  // Resumed on another device (resume-location.jsx): the student whose work was open.
+  const [viewing, setViewing] = useState(() => takeResumed('student') || '');
+  useEffect(() => { noteView({ student: viewing }); }, [viewing]);
   const load = () => {
     BB_API.listSubmissions().then(setSubs).catch(() => setSubs([]));
     setError('');
@@ -1102,7 +1105,7 @@ export function StudentsScreen({ onNavigate }) {
       <Table columns={columns} rows={shown} rowKey={r => r.student_id} caption="Students"
         empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />)}
       {viewed && (
-        <section aria-label={`Work by ${viewed.name || viewed.email || 'student'}`} style={{ marginTop: '2rem' }}>
+        <section aria-label={`Work by ${viewed.name || viewed.email || 'student'}`} data-resume-anchor={`work-${viewed.student_id}`} style={{ marginTop: '2rem' }}>
           <h2 className="bb-h2">Work by {viewed.name || viewed.email || 'this student'}</h2>
           {subs === null ? <p role="status">Loading submissions…</p>
             : <SubmissionsTable subs={viewedSubs} showExam onChanged={load} empty="Nothing sealed by this student yet." />}
@@ -1131,12 +1134,14 @@ export function ProctorLiveScreen() {
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState(window.BB_PROCTOR_EXAM || '');
   const [live, setLive] = useState(null);
-  const [tab, setTab] = useState('live');
+  const [tab, setTab] = useState(() => (takeResumed('tab') === 'phones' ? 'phones' : 'live'));
   const [error, setError] = useState('');
 
   // "Watch live" and a #live/<id> link name the exam once; the next visit
   // from the navigation chooses afresh (the exam being written now).
   useEffect(() => { window.BB_PROCTOR_EXAM = ''; }, []);
+  // The exam and tab shown, for resuming on another device (resume-location.jsx).
+  useEffect(() => { noteView({ exam: examId, tab }); }, [examId, tab]);
   const [tick, setTick] = useState(0);   // "Refresh now"
   // The tab, read by the exam choice below after its requests come back.
   const tabRef = useRef(tab);

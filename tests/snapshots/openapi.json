@@ -6713,6 +6713,66 @@
         "summary": "My Exam Start"
       }
     },
+    "/bluebook/me/location": {
+      "get": {
+        "description": "Where the signed-in account last was, if it may still go there; null\nsends the app to its home screen. Only the caller's own row is read.",
+        "operationId": "get_last_location_bluebook_me_location_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Last Location"
+      },
+      "put": {
+        "description": "Save where the signed-in account is now (one row per account). The\nsign-in is checked before the body, so a caller who is not signed in\nlearns nothing about the shape.",
+        "operationId": "put_last_location_bluebook_me_location_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Last Location"
+      }
+    },
     "/bluebook/me/papers": {
       "get": {
         "description": "The signed-in student's own shared papers: title and review status only.",
