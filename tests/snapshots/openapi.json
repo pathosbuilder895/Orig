@@ -6486,7 +6486,7 @@
     },
     "/bluebook/exams/{exam_id}/phone-park": {
       "get": {
-        "description": "One entry per student who has parked a phone or been let through.",
+        "description": "One entry per student who may sit this collection (its course roster,\nor every rostered student for a collection with no course), plus anyone\nwho has already parked, so the teacher can see who is still waiting and\nlet a student without a phone begin.",
         "operationId": "exam_phone_parks_bluebook_exams__exam_id__phone_park_get",
         "parameters": [
           {

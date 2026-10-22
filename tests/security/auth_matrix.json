@@ -151,5 +151,16 @@
     "operator": 403,
     "tampered": 401,
     "expired": 401
+  },
+  "GET /bluebook/exams/nonexistent/phone-park": {
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
+    "professor_own": 404,
+    "professor_other": 404,
+    "operator": 404,
+    "tampered": 401,
+    "expired": 401,
+    "_note": "Phone parking for one collection (2026-10): staff-only (students 403); a nonexistent exam id is 404 for every staff role."
   }
 }
