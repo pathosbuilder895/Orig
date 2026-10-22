@@ -98,7 +98,7 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
       <span>DEMONSTRATION · FICTIONAL RECORDS · NO DATA IS SAVED</span>
       <button onClick={()=>onNavigate('reset')}>Reset demo</button>
     </div>}
-    <main className="teacher-body">{children}</main>
+    <main className="teacher-body" data-resume-scroll>{children}</main>
   </div></div>;
 }
 

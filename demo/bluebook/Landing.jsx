@@ -1,6 +1,7 @@
 import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
-import { homeFor, LegalLinks } from './Account.jsx';
+import { homeFor, LegalLinks, openStudentExam } from './Account.jsx';
+import { resumeOrHome } from './resume-location.jsx';
 
 // "Explore the demo" opens the mock dashboard. It belongs on the public demo
 // deploy only; on a real deploy it would show a visitor fabricated data.
@@ -214,7 +215,8 @@ export function LoginScreen({ onNavigate }) {
     setLoading(true);
     try {
       const data = await BB_API.login(email, pass);
-      onNavigate(homeFor(data));
+      // Back to where this account last was, on any device, if it still may go there.
+      await resumeOrHome(onNavigate, homeFor(data), { openExam: openStudentExam });
     } catch (err) {
       setError(err && err.message ? err.message : 'We could not sign you in. Please try again.');
       setLoading(false);
