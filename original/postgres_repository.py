@@ -57,6 +57,7 @@ from .db.models.live import (
     SubmissionManifest,
     Tenant,
     TunedThresholds,
+    UserLastLocation,
 )
 from .db.postgres_session import session_scope
 from .db.tenancy_shim import _LEGACY_FLAT_TENANT, join_scoped_id, split_scoped_id
@@ -367,6 +368,7 @@ class PostgresRepository:
             select(BluebookExamDraft.student_key).where(
                 BluebookExamDraft.student_key == student_id
             ),
+            select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
             select(BluebookEnrollment.student_id).where(
                 BluebookEnrollment.student_id == student_id
             ),
@@ -533,6 +535,12 @@ class PostgresRepository:
                 session.execute(
                     BluebookExamDraft.__table__.delete().where(
                         BluebookExamDraft.student_key == student_id,
+                    )
+                )
+                # Where the student last was in the app (2026-10).
+                session.execute(
+                    UserLastLocation.__table__.delete().where(
+                        UserLastLocation.account_key == student_id,
                     )
                 )
                 session.execute(
@@ -2942,6 +2950,54 @@ class PostgresRepository:
                 BluebookExamDraft.__table__.delete().where(
                     BluebookExamDraft.exam_id == exam_id,
                     BluebookExamDraft.student_key == student_key,
+                )
+            )
+
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+
+    def put_last_location(self, account_key, tenant_id, role, loc):
+        values = dict(
+            tenant_id=tenant_id,
+            role=role,
+            screen=loc["screen"],
+            entity_kind=loc.get("entity_kind", ""),
+            entity_id=loc.get("entity_id", ""),
+            tab=loc.get("tab", ""),
+            scroll_fraction=float(loc.get("scroll_fraction", 0.0)),
+            scroll_anchor=loc.get("scroll_anchor", ""),
+            updated_at=datetime.now(UTC),
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserLastLocation)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_last_location(account_key) or {}
+
+    def get_last_location(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserLastLocation, account_key)
+            if row is None:
+                return None
+            return {
+                "account_key": row.account_key,
+                "tenant_id": row.tenant_id,
+                "role": row.role,
+                "screen": row.screen,
+                "entity_kind": row.entity_kind,
+                "entity_id": row.entity_id,
+                "tab": row.tab,
+                "scroll_fraction": float(row.scroll_fraction or 0.0),
+                "scroll_anchor": row.scroll_anchor,
+                "updated_at": _iso_or_none(row.updated_at),
+            }
+
+    def delete_last_location(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserLastLocation.__table__.delete().where(
+                    UserLastLocation.account_key == account_key
                 )
             )
 

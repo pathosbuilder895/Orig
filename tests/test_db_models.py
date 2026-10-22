@@ -51,6 +51,7 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserLastLocation,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -84,6 +85,7 @@ EXPECTED_TABLES = {
     "park_beats",
     "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
     "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
+    "user_last_location",  # where each account last was, for cross-device resume (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -412,6 +414,18 @@ REPRESENTATIVE_ROWS = {
         content="Unsealed words.",
         answers='["Unsealed words."]',
         client_saved_at=1792589233313,
+        updated_at=NOW,
+    ),
+    UserLastLocation: dict(
+        account_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        role="student",
+        screen="student-submission",
+        entity_kind="submission",
+        entity_id="s" * 16,
+        tab="",
+        scroll_fraction=0.42,
+        scroll_anchor="",
         updated_at=NOW,
     ),
 }
