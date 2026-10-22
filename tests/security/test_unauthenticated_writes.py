@@ -151,6 +151,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/exams/{exam_id}/unrelease"),
     ("POST", "/bluebook/me/exams/{exam_id}/start"),
     ("PUT", "/bluebook/exams/{exam_id}/draft"),
+    ("PUT", "/bluebook/me/location"),
     ("POST", "/bluebook/me/papers"),
     ("POST", "/bluebook/past-papers/{paper_id}/approve"),
     ("POST", "/bluebook/past-papers/{paper_id}/decline"),

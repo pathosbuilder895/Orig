@@ -839,7 +839,29 @@ class BluebookExamDraft(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-#: All 25 live models in store-DDL order, for tests and the P3 repository.
+class UserLastLocation(LiveBase):
+    """Where a signed-in account last was in Collections
+    (``user_last_location``, 2026-10), so signing in on another device
+    resumes there. One row per account (teacher or student); readable only
+    by that account; checked against current access when read back; deleted
+    with the student's data on withdrawal. Holds no text and no link token.
+    """
+
+    __tablename__ = "user_last_location"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    screen: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_kind: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    entity_id: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    tab: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    scroll_fraction: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    scroll_anchor: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+#: All 26 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -866,4 +888,5 @@ LIVE_MODELS = [
     ParkBeat,
     StudentPastPaper,
     BluebookExamDraft,
+    UserLastLocation,
 ]

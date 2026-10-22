@@ -442,6 +442,24 @@ export const BB_API = {
       return r.status;
     } catch (e) { return 0; }
   },
+  // Where this account last was (resume-location.jsx), kept on the server so
+  // signing in on another device returns there. Never throws: a place that
+  // cannot be read or saved just means the home screen.
+  async getLastLocation() {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/location', { headers: this._headers() });
+      if (!r.ok) return null;
+      return (await r.json()).location || null;
+    } catch (e) { return null; }
+  },
+  async putLastLocation(loc, { keepalive = false } = {}) {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/location', {
+        method: 'PUT', headers: this._headers(), body: JSON.stringify(loc), keepalive,
+      });
+      return r.status;
+    } catch (e) { return 0; }
+  },
   async listSubmissions() {
     return (await this._json('GET', '/bluebook/submissions')).submissions || [];
   },

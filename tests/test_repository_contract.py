@@ -3236,3 +3236,33 @@ class TestExamDrafts:
         repo.put_exam_draft("exam-e", sid, tenant, "words", '["words"]', 1)
         repo.delete_student(sid)
         assert repo.get_exam_draft("exam-e", sid) is None
+
+
+class TestLastLocation:
+    """Where an account last was (2026-10): one row per account, upserted,
+    read back, deleted, and erased by delete_student — on every backend."""
+
+    def test_put_get_upsert_delete(self, repo):
+        tenant = "tenant-loc"
+        key = f"{tenant}:ann"
+        assert repo.get_last_location(key) is None
+        repo.put_last_location(key, tenant, "student", {"screen": "student-home"})
+        repo.put_last_location(
+            key, tenant, "student",
+            {"screen": "student-submission", "entity_kind": "submission", "entity_id": "sub-1",
+             "tab": "", "scroll_fraction": 0.25, "scroll_anchor": "row-sub-1"},
+        )
+        loc = repo.get_last_location(key)
+        assert loc["screen"] == "student-submission" and loc["entity_id"] == "sub-1"
+        assert loc["scroll_fraction"] == 0.25 and loc["scroll_anchor"] == "row-sub-1"
+        assert loc["role"] == "student" and loc["tenant_id"] == tenant and loc["updated_at"]
+        assert repo.get_last_location(f"{tenant}:ben") is None
+        repo.delete_last_location(key)
+        assert repo.get_last_location(key) is None
+
+    def test_delete_student_erases_location(self, repo):
+        tenant = "tenant-loc2"
+        sid = f"{tenant}:cy"
+        repo.put_last_location(sid, tenant, "student", {"screen": "student-account"})
+        repo.delete_student(sid)
+        assert repo.get_last_location(sid) is None

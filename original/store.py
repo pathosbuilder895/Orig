@@ -649,6 +649,22 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (exam_id, student_key)
         )
     """)
+    # Where each signed-in account last was, for cross-device resume
+    # (2026-10) — mirrors alembic revision d4b8e2f6a1c3.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_last_location (
+            account_key     TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            role            TEXT NOT NULL,
+            screen          TEXT NOT NULL,
+            entity_kind     TEXT NOT NULL DEFAULT '',
+            entity_id       TEXT NOT NULL DEFAULT '',
+            tab             TEXT NOT NULL DEFAULT '',
+            scroll_fraction REAL NOT NULL DEFAULT 0,
+            scroll_anchor   TEXT NOT NULL DEFAULT '',
+            updated_at      TEXT NOT NULL
+        )
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -1817,6 +1833,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM users WHERE user_id = ? AND role = 'student' LIMIT 1",
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
+    "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
 )
 
 
@@ -1922,6 +1939,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM student_past_papers WHERE student_id = ?", (student_id,))
             # Unsealed exam drafts kept on the server (2026-10).
             conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
+            # Where the student last was in the app (2026-10).
+            conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -4331,4 +4350,60 @@ def delete_exam_draft(exam_id: str, student_key: str) -> None:
             "DELETE FROM bluebook_exam_drafts WHERE exam_id = ? AND student_key = ?",
             (exam_id, student_key),
         )
+        conn.commit()
+
+
+# ── Last location, for cross-device resume (2026-10) ──────────────────────────
+
+LAST_LOCATION_FIELDS = (
+    "account_key",
+    "tenant_id",
+    "role",
+    "screen",
+    "entity_kind",
+    "entity_id",
+    "tab",
+    "scroll_fraction",
+    "scroll_anchor",
+    "updated_at",
+)
+
+
+def put_last_location(account_key: str, tenant_id: str, role: str, loc: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    row = (
+        account_key,
+        tenant_id,
+        role,
+        loc["screen"],
+        loc.get("entity_kind", ""),
+        loc.get("entity_id", ""),
+        loc.get("tab", ""),
+        float(loc.get("scroll_fraction", 0.0)),
+        loc.get("scroll_anchor", ""),
+        now,
+    )
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT OR REPLACE INTO user_last_location ({', '.join(LAST_LOCATION_FIELDS)}) "
+            f"VALUES ({', '.join('?' * len(LAST_LOCATION_FIELDS))})",
+            row,
+        )
+        conn.commit()
+    return get_last_location(account_key) or {}
+
+
+def get_last_location(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(LAST_LOCATION_FIELDS)} FROM user_last_location "
+            "WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return dict(zip(LAST_LOCATION_FIELDS, row, strict=True)) if row else None
+
+
+def delete_last_location(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
         conn.commit()
