@@ -1,0 +1,691 @@
+{
+  "generated_at": "2026-10-21T23:30:12.376793+00:00",
+  "commit": "bb3b98c5da764ef0872ef54b33beddad96225229",
+  "uncommitted_changes": [
+    "M docs/STATUS.md"
+  ],
+  "limit": null,
+  "sample": 1000,
+  "luar_all_pairs": false,
+  "environment": {
+    "python": "3.11.15",
+    "numpy": "2.2.6",
+    "scikit_learn": "1.6.1",
+    "spacy": "3.8.14",
+    "scoring_flags": {
+      "ADAPTIVE_WEIGHTS_ENABLED": "0",
+      "AMPLITUDE_SCORING_ENABLED": "0",
+      "BAYESIAN_PRIOR_ENABLED": "0",
+      "CONTEXT_MANIFEST_ENABLED": "0",
+      "IDENTITY_AXIS": "0",
+      "LENGTH_ADAPTIVE_WEIGHTS": "0",
+      "NULL_MODEL": "none",
+      "RANK_REMEDIATION": "none",
+      "STYLE_AUTHORSHIP_ENABLED": "0"
+    },
+    "model_hub_offline": true,
+    "luar_embedding": {
+      "model_id": "rrivera1849/LUAR-MUD",
+      "model_revision": "1c11d29789851d629e42455570780ec3cec89e6a",
+      "max_tokens": 512,
+      "torch": "2.14.1",
+      "transformers": "4.57.1",
+      "device": "mps"
+    }
+  },
+  "preprocessing": {
+    "window": "pan_corpus._fixed_window(text, 2500, sha256(text)) on every document",
+    "pair_known_text": "PAN pair[0]; pair[1] is the unknown text",
+    "pair_split3": "known window split into 3 contiguous near-equal word runs"
+  },
+  "score_mapping": {
+    "deviation_score": "1 - deviation_score",
+    "deviation_score_no_action_boundary": "piecewise-linear, monotone; deviation 0.4 (live no_action upper bound) maps to 0.5",
+    "fused_score_v1": "1 - probability_different_author; abstention = 0.5",
+    "luar_style_fusion": "calibrated logistic P(same author)"
+  },
+  "luar_reproduction": {
+    "tolerance": 0.001,
+    "max_abs_difference": 2.2e-05,
+    "checks": {
+      "pan20_calibration": {
+        "committed_auc": 0.915944,
+        "reproduced_auc": 0.915933
+      },
+      "pan20_locked": {
+        "committed_auc": 0.922128,
+        "reproduced_auc": 0.922106
+      },
+      "pan21_calibration": {
+        "committed_auc": 0.915944,
+        "reproduced_auc": 0.915933
+      },
+      "pan21_locked": {
+        "committed_auc": 0.9379,
+        "reproduced_auc": 0.9379
+      }
+    }
+  },
+  "published_targets": {
+    "pan20": {
+      "system": "boenninghoff20-large (PAN 2020 winner)",
+      "auc": 0.969,
+      "c@1": 0.928,
+      "f_05_u": 0.907,
+      "F1": 0.936,
+      "overall": 0.935,
+      "overall_measures": 4
+    },
+    "pan21": {
+      "system": "boenninghoff21-large (PAN 2021 task page, preliminary)",
+      "auc": 0.9869,
+      "c@1": 0.9502,
+      "F1": 0.9524,
+      "f_05_u": 0.9378,
+      "brier": 0.9452,
+      "overall": 0.9545,
+      "overall_measures": 5
+    },
+    "pan23": {
+      "system": "Ibrahim et al. (PAN 2023 cross-discourse winner); cngdist baseline",
+      "source": "as quoted in the task brief; the PAN 2023 task page hides its results table",
+      "auc": 0.616,
+      "overall": 0.623,
+      "baseline_cngdist_auc": 0.516,
+      "baseline_cngdist_overall": 0.595
+    }
+  },
+  "datasets": {
+    "pan20": {
+      "source": {
+        "zenodo_doi": "10.5281/zenodo.5106099",
+        "archive": "pan20-authorship-verification-test.zip",
+        "archive_md5": "655f365ab7b736036bbbee717168012b",
+        "description": "PAN 2020 closed-set test (authors and fandoms seen in PAN's training set)"
+      },
+      "exclusions": {
+        "rule": "exclude a pair if either text's author is in the PAN 2020 development split (fits the LUAR fusion, its PLDA/LDA/style representations and fused_score_v1) or the calibration split (selects the LUAR variant and threshold; fused_score_v1 held-out; the pair_split3 peer pool)",
+        "official_pairs": 14311,
+        "excluded_pairs": 2073,
+        "excluded_by_split": {
+          "calibration": 975,
+          "calibration+development": 1,
+          "development": 1097
+        },
+        "evaluated_pairs": 12238,
+        "evaluated_same_author": 5941,
+        "kept_pairs_touching_evaluation_only_authors": {
+          "local_threshold_43": 379,
+          "lock_100": 978,
+          "pan21_lock_tail_author": 15,
+          "post_calibration_skipped_120": 1116,
+          "prior_lock_12": 124
+        },
+        "kept_pairs_reusing_a_fitting_text": 0
+      },
+      "protocols": {
+        "pair_strict": {
+          "n_pairs": 12238,
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 12238,
+              "n_same_author": 5941,
+              "n_unanswered": 12238,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "the live score route returns insufficient_baseline below 3 approved baselines; a PAN pair gives one"
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 12238,
+              "n_same_author": 5941,
+              "n_unanswered": 12238,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "needs 3 baselines and 8 same-tenant peers; live entry point on one known text returned ['baseline_below_min']"
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 12238,
+              "n_same_author": 5941,
+              "n_unanswered": 12238,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "its baseline-cohesion signals need at least two baseline documents and its peer-margin signals need an enrolled pool; a PAN pair gives neither"
+            }
+          }
+        },
+        "pair_split3": {
+          "n_pairs": 1000,
+          "sample": "first 1000 of 12238 kept pairs in sha256('pan-official-sample:' + id) order",
+          "reference_pool": "PAN 2020 calibration authors 1-99",
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.757,
+                "c@1": 0.69,
+                "f_05_u": 0.666,
+                "F1": 0.697,
+                "brier": 0.778,
+                "overall": 0.718,
+                "overall_pan20_master": 0.702
+              },
+              "n": 1000,
+              "n_same_author": 472,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.727,
+                  0.787
+                ],
+                "overall": [
+                  0.693,
+                  0.743
+                ]
+              }
+            },
+            "deviation_score_no_action_boundary": {
+              "metrics": {
+                "auc": 0.757,
+                "c@1": 0.618,
+                "f_05_u": 0.554,
+                "F1": 0.365,
+                "brier": 0.774,
+                "overall": 0.614,
+                "overall_pan20_master": 0.574
+              },
+              "n": 1000,
+              "n_same_author": 472,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.727,
+                  0.787
+                ],
+                "overall": [
+                  0.586,
+                  0.641
+                ]
+              }
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.888,
+                "c@1": 0.663,
+                "f_05_u": 0.666,
+                "F1": 0.448,
+                "brier": 0.783,
+                "overall": 0.69,
+                "overall_pan20_master": 0.666
+              },
+              "n": 1000,
+              "n_same_author": 472,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.868,
+                  0.907
+                ],
+                "overall": [
+                  0.663,
+                  0.715
+                ]
+              },
+              "fused_outcomes": {
+                "hit": 1000
+              }
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.854,
+                "c@1": 0.773,
+                "f_05_u": 0.811,
+                "F1": 0.709,
+                "brier": 0.81,
+                "overall": 0.791,
+                "overall_pan20_master": 0.787
+              },
+              "n": 1000,
+              "n_same_author": 472,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.829,
+                  0.876
+                ],
+                "overall": [
+                  0.766,
+                  0.815
+                ]
+              }
+            }
+          }
+        },
+        "lock_3baseline": {
+          "n_trials": 600,
+          "n_authors": 100,
+          "probes_per_author": [
+            3
+          ],
+          "peer_pool": "the other lock authors (closed set; fused_score_v1 takes 8 by sha256(author id))",
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.708,
+                "c@1": 0.642,
+                "f_05_u": 0.641,
+                "F1": 0.652,
+                "brier": 0.774,
+                "overall": 0.683,
+                "overall_pan20_master": 0.661
+              },
+              "n": 600,
+              "n_same_author": 300,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.667,
+                  0.749
+                ],
+                "overall": [
+                  0.65,
+                  0.714
+                ]
+              }
+            },
+            "deviation_score_no_action_boundary": {
+              "metrics": {
+                "auc": 0.708,
+                "c@1": 0.615,
+                "f_05_u": 0.606,
+                "F1": 0.449,
+                "brier": 0.768,
+                "overall": 0.629,
+                "overall_pan20_master": 0.594
+              },
+              "n": 600,
+              "n_same_author": 300,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.667,
+                  0.749
+                ],
+                "overall": [
+                  0.592,
+                  0.665
+                ]
+              }
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.85,
+                "c@1": 0.77,
+                "f_05_u": 0.772,
+                "F1": 0.768,
+                "brier": 0.842,
+                "overall": 0.8,
+                "overall_pan20_master": 0.79
+              },
+              "n": 600,
+              "n_same_author": 300,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.819,
+                  0.88
+                ],
+                "overall": [
+                  0.77,
+                  0.83
+                ]
+              },
+              "fused_outcomes": {
+                "hit": 600
+              }
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.922,
+                "c@1": 0.825,
+                "f_05_u": 0.87,
+                "F1": 0.802,
+                "brier": 0.863,
+                "overall": 0.856,
+                "overall_pan20_master": 0.855
+              },
+              "n": 600,
+              "n_same_author": 300,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.899,
+                  0.942
+                ],
+                "overall": [
+                  0.831,
+                  0.881
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "pan21": {
+      "source": {
+        "zenodo_doi": "10.5281/zenodo.5106099",
+        "archive": "pan21-authorship-verification-test.zip",
+        "archive_md5": "117a355b5ef649a02f15334d63564103",
+        "description": "PAN 2021 open-set test (authors and fandoms unseen in PAN's training set)"
+      },
+      "exclusions": {
+        "rule": "exclude a pair if either text's author is in the PAN 2020 development split (fits the LUAR fusion, its PLDA/LDA/style representations and fused_score_v1) or the calibration split (selects the LUAR variant and threshold; fused_score_v1 held-out; the pair_split3 peer pool)",
+        "official_pairs": 19999,
+        "excluded_pairs": 0,
+        "excluded_by_split": {},
+        "evaluated_pairs": 19999,
+        "evaluated_same_author": 10000,
+        "kept_pairs_touching_evaluation_only_authors": {},
+        "kept_pairs_reusing_a_fitting_text": 0,
+        "pan21_distinct_authors_in_any_pan20_group": 0
+      },
+      "protocols": {
+        "pair_strict": {
+          "n_pairs": 19999,
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 19999,
+              "n_same_author": 10000,
+              "n_unanswered": 19999,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "the live score route returns insufficient_baseline below 3 approved baselines; a PAN pair gives one"
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 19999,
+              "n_same_author": 10000,
+              "n_unanswered": 19999,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "needs 3 baselines and 8 same-tenant peers; live entry point on one known text returned ['baseline_below_min']"
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.5,
+                "c@1": 0.0,
+                "f_05_u": 0.0,
+                "F1": 0.0,
+                "brier": 0.75,
+                "overall": 0.25,
+                "overall_pan20_master": 0.125
+              },
+              "n": 19999,
+              "n_same_author": 10000,
+              "n_unanswered": 19999,
+              "ci95_trial_bootstrap": null,
+              "abstain_reason": "its baseline-cohesion signals need at least two baseline documents and its peer-margin signals need an enrolled pool; a PAN pair gives neither"
+            }
+          }
+        },
+        "pair_split3": {
+          "n_pairs": 1000,
+          "sample": "first 1000 of 19999 kept pairs in sha256('pan-official-sample:' + id) order",
+          "reference_pool": "PAN 2020 calibration authors 1-99",
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.776,
+                "c@1": 0.71,
+                "f_05_u": 0.705,
+                "F1": 0.715,
+                "brier": 0.783,
+                "overall": 0.738,
+                "overall_pan20_master": 0.726
+              },
+              "n": 1000,
+              "n_same_author": 497,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.748,
+                  0.803
+                ],
+                "overall": [
+                  0.715,
+                  0.76
+                ]
+              }
+            },
+            "deviation_score_no_action_boundary": {
+              "metrics": {
+                "auc": 0.776,
+                "c@1": 0.609,
+                "f_05_u": 0.582,
+                "F1": 0.388,
+                "brier": 0.774,
+                "overall": 0.626,
+                "overall_pan20_master": 0.589
+              },
+              "n": 1000,
+              "n_same_author": 497,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.748,
+                  0.803
+                ],
+                "overall": [
+                  0.599,
+                  0.653
+                ]
+              }
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.88,
+                "c@1": 0.642,
+                "f_05_u": 0.659,
+                "F1": 0.442,
+                "brier": 0.77,
+                "overall": 0.679,
+                "overall_pan20_master": 0.656
+              },
+              "n": 1000,
+              "n_same_author": 497,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.858,
+                  0.902
+                ],
+                "overall": [
+                  0.652,
+                  0.706
+                ]
+              },
+              "fused_outcomes": {
+                "hit": 1000
+              }
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.886,
+                "c@1": 0.763,
+                "f_05_u": 0.807,
+                "F1": 0.718,
+                "brier": 0.818,
+                "overall": 0.798,
+                "overall_pan20_master": 0.793
+              },
+              "n": 1000,
+              "n_same_author": 497,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.866,
+                  0.905
+                ],
+                "overall": [
+                  0.775,
+                  0.822
+                ]
+              }
+            }
+          }
+        },
+        "lock_3baseline": {
+          "n_trials": 200,
+          "n_authors": 100,
+          "probes_per_author": [
+            1
+          ],
+          "peer_pool": "the other lock authors (closed set; fused_score_v1 takes 8 by sha256(author id))",
+          "models": {
+            "deviation_score": {
+              "metrics": {
+                "auc": 0.747,
+                "c@1": 0.695,
+                "f_05_u": 0.698,
+                "F1": 0.687,
+                "brier": 0.783,
+                "overall": 0.722,
+                "overall_pan20_master": 0.707
+              },
+              "n": 200,
+              "n_same_author": 100,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.678,
+                  0.814
+                ],
+                "overall": [
+                  0.666,
+                  0.777
+                ]
+              }
+            },
+            "deviation_score_no_action_boundary": {
+              "metrics": {
+                "auc": 0.747,
+                "c@1": 0.595,
+                "f_05_u": 0.558,
+                "F1": 0.382,
+                "brier": 0.773,
+                "overall": 0.611,
+                "overall_pan20_master": 0.57
+              },
+              "n": 200,
+              "n_same_author": 100,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.678,
+                  0.814
+                ],
+                "overall": [
+                  0.547,
+                  0.672
+                ]
+              }
+            },
+            "fused_score_v1": {
+              "metrics": {
+                "auc": 0.881,
+                "c@1": 0.735,
+                "f_05_u": 0.797,
+                "F1": 0.658,
+                "brier": 0.827,
+                "overall": 0.78,
+                "overall_pan20_master": 0.768
+              },
+              "n": 200,
+              "n_same_author": 100,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.832,
+                  0.926
+                ],
+                "overall": [
+                  0.724,
+                  0.829
+                ]
+              },
+              "fused_outcomes": {
+                "hit": 200
+              }
+            },
+            "luar_style_fusion": {
+              "metrics": {
+                "auc": 0.938,
+                "c@1": 0.835,
+                "f_05_u": 0.851,
+                "F1": 0.827,
+                "brier": 0.882,
+                "overall": 0.867,
+                "overall_pan20_master": 0.863
+              },
+              "n": 200,
+              "n_same_author": 100,
+              "n_unanswered": 0,
+              "ci95_trial_bootstrap": {
+                "auc": [
+                  0.909,
+                  0.966
+                ],
+                "overall": [
+                  0.824,
+                  0.91
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "pan23": {
+    "status": "not obtained",
+    "reason": "PAN 2023 cross-discourse data (Aston 100 Idiolects) is released only through a FoLD account and a per-user 'Request Item' data request; PAN 2022's Zenodo record 6337151 is restricted. Requires an owner decision and an account."
+  }
+}
