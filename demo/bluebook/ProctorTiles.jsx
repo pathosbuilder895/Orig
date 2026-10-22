@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB, BB_API, MetaLabel, fontBody, fontMono, rowKeyDown } from './components.jsx';
 import { Btn } from './forms.jsx';
-import { qrEncode, qrPath } from './vendor/qr.js';
+import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Proctor tiles (QR phone park)
@@ -235,44 +235,6 @@ export function ProctorTiles({ examSessionId }) {
         change as a reason to walk over and have a quiet word, never as a finding.
       </p>
     </section>
-  );
-}
-
-// ─── QR code ─────────────────────────────────────────────────────────────────
-// Encoded in-process (see vendor/qr.js) — never a CDN or an image service,
-// which would mean posting the park URL to a third party and would leave an
-// offline exam room with a blank square where the code should be.
-//
-// Rendered dark-on-white regardless of the surrounding theme: scanners expect
-// dark modules on a light field, and the quiet zone is part of the symbol.
-function QrCode({ value, px = 300 }) {
-  const encoded = React.useMemo(() => {
-    try {
-      return qrEncode(value);
-    } catch (e) {
-      return null;   // over capacity — the caller shows the URL instead
-    }
-  }, [value]);
-
-  const d = React.useMemo(() => (encoded ? qrPath(encoded.modules) : ''), [encoded]);
-  if (!encoded) return null;
-
-  const quiet = 4;
-  const total = encoded.size + quiet * 2;
-  return (
-    <svg
-      width={px} height={px}
-      viewBox={`0 0 ${total} ${total}`}
-      shapeRendering="crispEdges"
-      role="img"
-      aria-label="QR code for the phone park page. The same link is printed below."
-      style={{ display: 'block' }}
-    >
-      <rect width={total} height={total} fill="#FFFFFF" />
-      <g transform={`translate(${quiet} ${quiet})`} fill="#000000">
-        <path d={d} />
-      </g>
-    </svg>
   );
 }
 

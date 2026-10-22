@@ -33,6 +33,7 @@ from ..schemas import (
     BluebookUpdateExamRequest,
     SubmissionFeedbackRequest,
 )
+from . import phone_park
 from ._shared import (
     _MAGIC_SESSION_TTL,
     _bluebook_tenant,
@@ -389,6 +390,14 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
     sid = (body.student_id or session.get("sid") or "") if session else ""
     if sid and _student_already_submitted(exam_id, sid):
         raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
+    # Phone parking (only if the teacher switched it on): a student's NEW
+    # sitting waits for their phone; staff previews and resumed sittings don't.
+    if (
+        sid
+        and rules.phone_park_required(exam)
+        and _repo().get_bluebook_session(exam_id, sid) is None
+    ):
+        phone_park.require_cleared(exam, exam_id, sid)
     if rules.is_timed(exam):
         duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
     else:

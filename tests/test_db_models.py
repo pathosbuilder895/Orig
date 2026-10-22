@@ -52,6 +52,7 @@ from original.db.models.live import (
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    BluebookPhonePark,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -86,6 +87,7 @@ EXPECTED_TABLES = {
     "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
     "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
     "user_last_location",  # where each account last was, for cross-device resume (2026-10)
+    "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -427,6 +429,17 @@ REPRESENTATIVE_ROWS = {
         scroll_fraction=0.42,
         scroll_anchor="",
         updated_at=NOW,
+    ),
+    BluebookPhonePark: dict(
+        exam_id="exam-1",
+        student_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        state="parked",
+        parked_at=NOW,
+        last_seen_at=NOW,
+        override_by="",
+        override_at=None,
+        override_note="",
     ),
 }
 

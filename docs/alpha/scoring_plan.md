@@ -14,7 +14,8 @@ submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prom
 ```
 - `label`: `natural` or `shadow` (legacy `not_own` and the old `true_author` header are accepted and normalised).
 - `author_true`: the student whose baseline/voice a paper is compared against (for shadow: the student imitated). `writer_true`: who actually wrote/generated it — **for a shadow this must not be the imitated student** (validated).
-- `shadow_kind`: `human_partner` | `ai_staff` | `injected_other` | `public_domain`. `ai_staff` requires `generator_tool` (staff-created only; a volunteer never generates their own shadow).
+- `shadow_kind`: `human_partner` | `ai_staff` | `injected_other` | `public_domain`. `ai_staff` requires `generator_tool` (staff-created only; a volunteer never generates an `ai_staff` shadow of themselves).
+  - `ai_own` (optional **Exam C**): the volunteer pasted an AI rewrite of **their own** writing. Requires `generator_tool`; `imitated_student_id` must equal `author_true` (the volunteer), and `writer_true` may be the volunteer. It is **reported as its own category** in the report's *Catch by shadow kind* table and is **excluded** from the pre-registered shadow catch rate, the threshold sweep and the baseline-source breakout (those cover the Exam B kinds), so Exam C never moves the A/B numbers.
 - `imitated_student_id`, `prompt_id`, `paired_submission_id` (the same-prompt genuine paper, where the paired design is used), `shadow_source_paper_id` (the one sample the writer/generator saw).
 - Current Exam A/B use different prompts (`night-market` vs `letter-2076`): record both `prompt_id`s honestly; do not call them a same-prompt pair. The same-prompt paired wording in `prompts.md` needs Andrew's approval.
 

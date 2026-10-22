@@ -53,6 +53,17 @@ phone is present and its screen is on (foreground/heartbeat) — it collects no
 content, no location, and no identifiers beyond the exam session you typed in.
 That information is discarded once the session ends.
 
+If your teacher turns on **phone parking** for a collection, the exam's first
+page shows a QR code that is yours alone (it lasts a few minutes and is
+refreshed while the page is open). Scanning it with your phone's camera opens
+the parked page with no app and no sign-in, and links the parked phone to your
+account for that exam; you cannot begin until it is parked. Put the phone where
+your teacher asks. The page reports only whether it is open. Nothing about the
+phone itself (number, device details, location) is collected. If you have no
+phone with you, your teacher can let you begin without one; that is recorded
+with their name and the time, and it is not an accusation. These records are
+deleted with the rest of your data if you withdraw.
+
 ## Your rights
 
 - Under FERPA you may inspect your education records and request correction

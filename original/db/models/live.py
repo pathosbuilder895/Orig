@@ -861,7 +861,30 @@ class UserLastLocation(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-#: All 26 live models in store-DDL order, for tests and the P3 repository.
+class BluebookPhonePark(LiveBase):
+    """A student's own parked phone for one collection
+    (``bluebook_phone_parks``, 2026-10). Only for collections where the
+    teacher switched phone parking on. One row per (exam, student): when the
+    phone was parked (scanned from the student's own briefing QR code), the
+    phone page's last reported state and time, and any proctor override for
+    a missing phone (who, when, an optional note). No device details. Deleted
+    with the student's data on withdrawal.
+    """
+
+    __tablename__ = "bluebook_phone_parks"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    parked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_by: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+
+#: All 27 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -889,4 +912,5 @@ LIVE_MODELS = [
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    BluebookPhonePark,
 ]

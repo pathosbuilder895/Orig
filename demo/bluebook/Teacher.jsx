@@ -598,6 +598,63 @@ export function ExamsListScreen({ onNavigate }) {
 }
 
 // ─── Manage one exam ─────────────────────────────────────────────────────────
+// ─── Phone parking for one collection (2026-10) ──────────────────────────────
+// Who has parked a phone, who is still waiting, and a way to let a student
+// without a phone begin. Letting someone begin is recorded (who and when) and
+// says nothing about the student.
+const PHONE_STATE_LABEL = {
+  waiting: 'Waiting', parked: 'Parked', resumed: 'Parked', foreground_lost: 'Page hidden',
+  dropped: 'Not heard from', overridden: 'Begin allowed without phone',
+};
+
+export function PhoneParkPanel({ examId }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
+  async function load() {
+    try { setData(await BB_API.examPhoneParks(examId)); setError(''); }
+    catch (err) { setError(err.message || 'Could not load phones.'); }
+  }
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [examId]);
+  async function allow(s) {
+    const note = prompt(`Let ${s.name || 'this student'} begin without a parked phone? You can add a short note (optional).`, '');
+    if (note === null) return;
+    setBusy(s.student_id);
+    try { await BB_API.overridePhonePark(examId, s.student_id, note); await load(); }
+    catch (err) { setError(err.message || 'Could not save.'); }
+    setBusy('');
+  }
+  if (!data || !data.required) return error ? <ErrorText>{error}</ErrorText> : null;
+  const rows = data.students || [];
+  return (
+    <Panel style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ marginBottom: '.2rem' }}>Phone parking</h2>
+      <p className="bb-meta">
+        Each student scans their own code on the exam’s first page and parks their phone before beginning.
+        This shows whether each phone page is open. It is a prompt to look up, never proof of anything.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      <Table
+        rows={rows}
+        rowKey={r => r.student_id}
+        empty="No students on this collection’s roster yet."
+        columns={[
+          { key: 'name', label: 'Student', render: r => r.name || r.student_id },
+          { key: 'state', label: 'Phone', render: r => PHONE_STATE_LABEL[r.state] || r.state },
+          { key: 'when', label: 'Since', render: r => r.override_at ? `Allowed ${when(r.override_at)}${r.override_note ? ` · ${r.override_note}` : ''}` : (r.parked_at ? `Parked ${when(r.parked_at)}` : '') },
+          { key: 'act', label: '', render: r => (!r.parked && !r.overridden)
+            ? <Btn onClick={() => allow(r)} disabled={busy === r.student_id}>Let begin without phone</Btn>
+            : null },
+        ]}
+      />
+    </Panel>
+  );
+}
+
 export function ManageExamScreen({ onNavigate, onPreview }) {
   const examId = window.BB_MANAGE_EXAM;
   const [exam, setExam] = useState(null);
@@ -698,6 +755,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
     >
       <ErrorText>{error}</ErrorText>
       <Notice>{notice}</Notice>
+      {exam && exam.conditions && exam.conditions.phonePark === true && <PhoneParkPanel examId={examId} />}
       {exam && (
         <Panel style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
