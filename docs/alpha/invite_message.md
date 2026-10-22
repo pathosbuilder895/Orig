@@ -15,7 +15,11 @@ I'm inviting a small group of adults to help test **Original**, a writing app I'
 3. **Two short timed writings** (25 minutes each, copy & paste blocked), done whenever suits you after I send your personal join link: one in your own voice, and one trying to write in an assigned partner's voice (they'll have agreed to share a sample, and you'll do the same for them if you agree). Your link is personal — please don't share it: **[JOIN LINK]**
 4. A short feedback form afterwards.
 
+**Optional extra — Exam C (only if you'd like to; skipping it changes nothing):** after your two writings, you can do one more short step. Take a piece of **your own** writing (for example, your first timed writing or one of your past papers), ask a writing tool of your choice to rewrite it, and paste the rewritten version into the Exam C link I'll send you. Please tell me which tool you used (just its name). Only use your own writing for this, never anyone else's. This helps me see how the app handles a rewritten version of someone's own work; like everything else here, it isn't a judgement of you and the results won't be shown to you or anyone else as one.
+
 The two writings help me calibrate how the app compares a new piece of writing with someone's earlier writing. It's a new feature still in testing, the results won't be shown to you or anyone else as a judgement, and staff only look at grouped results after the writings are in.
+
+\[Staff note, not part of the message: record each Exam C paper in `labels.csv` as `label=shadow`, `shadow_kind=ai_own`, `author_true`/`imitated_student_id`/`writer_true` = the volunteer, `generator_tool` = the tool they named, `paired_submission_id` = the source paper. The Exam C session must allow pasting. Exam C is reported as its own category, never pooled into the Exam B shadow rates. This wording needs Andrew's approval before it is sent.\]
 
 You can stop at any time, for any reason, and ask for early deletion — contact me at **arclark555@gmail.com**.
 

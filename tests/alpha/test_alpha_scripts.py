@@ -228,6 +228,54 @@ def test_split_baseline_tagging_and_report_breakout(tmp_path):
     assert "baseline_source" in csv_text and "n_split_baselines" in csv_text
 
 
+def test_exam_c_ai_own_is_validated_and_reported_separately(tmp_path):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_c"
+    _write_baselines(stud)
+    for name in ("c_natural", "c_partner", "c_own"):
+        (stud / "submission" / f"{name}.txt").write_text(_text(name))
+    header = ("submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,"
+              "paired_submission_id,shadow_source_paper_id,generator_tool\n")
+    labels_path = tmp_path / "labels.csv"
+    good = (header + "c_natural,natural,stud_c,stud_c,,,,,,\n"
+            "c_partner,shadow,stud_c,writer-9,human_partner,stud_c,prompt-a,c_natural,sample-1,\n"
+            "c_own,shadow,stud_c,stud_c,ai_own,stud_c,prompt-a,c_natural,,tester-tool-y\n")
+    labels_path.write_text(good)
+    ids = {"c_natural", "c_partner", "c_own"}
+    parsed = batch.validate_labels(labels_path, ids)
+    assert parsed["c_own"]["shadow_kind"] == "ai_own" and parsed["c_own"]["shadow"] == "true"
+    # ai_own requires generator_tool and must imitate the tester's own writing.
+    labels_path.write_text(good.replace("tester-tool-y", ""))
+    with pytest.raises(ValueError, match="ai_own shadow needs generator_tool"):
+        batch.validate_labels(labels_path, ids)
+    labels_path.write_text(good.replace("ai_own,stud_c,", "ai_own,someone-else,"))
+    with pytest.raises(ValueError, match="imitated_student_id must equal author_true"):
+        batch.validate_labels(labels_path, ids)
+    # Other kinds still reject writer_true == author_true.
+    labels_path.write_text(good.replace("writer-9", "stud_c"))
+    with pytest.raises(ValueError, match="must not be the imitated student"):
+        batch.validate_labels(labels_path, ids)
+    labels_path.write_text(good)
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .9 if "own" in path.name else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if "own" in path.name else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score)
+    assert not problems
+    report = (tmp_path / "out/report.md").read_text()
+    # The pre-registered catch rate covers the human shadow only; ai_own is not pooled in.
+    assert "Caught shadow work (Exam B kinds; Exam C ai_own excluded): 0/1 (0%)" in report
+    assert "| ai_own | Exam C: AI rewrite of own writing (separate) | 1 | 1/1 (100%) |" in report
+    assert "| human_partner | human shadow | 1 | 0/1 (0%) |" in report
+    assert "- Human shadows: 0/1 (0%)" in report
+    assert "- Exam C (ai_own, separate; not in the pre-registered criteria): 1/1 (100%)" in report
+
+
 def test_baselines_csv_rejects_split_without_parent_and_unknown_files(tmp_path):
     export_dir = tmp_path / "export"
     student_dir = export_dir / "stud_a"

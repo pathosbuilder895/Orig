@@ -131,7 +131,17 @@ def bad(value) -> bool:
     return value is None or (isinstance(value, (int, float)) and not math.isfinite(value))
 
 
-SHADOW_KINDS = {"human_partner", "ai_staff", "injected_other", "public_domain"}
+SHADOW_KINDS = {"human_partner", "ai_staff", "injected_other", "public_domain", "ai_own"}
+#: Exam C (optional): the volunteer pasted an AI rewrite of their OWN writing.
+#: Always reported as its own category, never pooled into the pre-registered
+#: shadow catch rate, which covers the Exam B kinds only.
+SEPARATE_SHADOW_KINDS = {"ai_own"}
+HUMAN_SHADOW_KINDS = {"human_partner", "injected_other", "public_domain"}
+
+
+def in_primary_shadow(row: dict) -> bool:
+    """A shadow row counted in the pre-registered catch rate (not Exam C)."""
+    return row.get("label") == "shadow" and row.get("shadow_kind", "") not in SEPARATE_SHADOW_KINDS
 LABEL_METADATA_FIELDS = ["shadow_kind", "imitated_student_id", "prompt_id",
                          "paired_submission_id", "shadow_source_paper_id", "generator_tool"]
 
@@ -149,11 +159,15 @@ def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, dict[str, s
     ``label`` is ``natural`` or ``shadow``. For a shadow row: ``author_true``
     is the student whose baseline/voice is imitated, ``writer_true`` is who
     actually wrote/generated it (never that same student), ``shadow_kind`` is
-    one of ``human_partner|ai_staff|injected_other|public_domain``,
+    one of ``human_partner|ai_staff|injected_other|public_domain|ai_own``,
     ``prompt_id`` + ``paired_submission_id`` identify the same-prompt genuine
     paper it pairs with, ``shadow_source_paper_id`` is the one sample paper the
     writer/generator was shown, and ``generator_tool`` is required for
-    ``ai_staff``. ``writer_true`` may be blank on natural rows.
+    ``ai_staff`` and ``ai_own``. ``ai_own`` (optional Exam C) is a tester-pasted
+    AI rewrite of the tester's own writing: ``author_true`` and
+    ``imitated_student_id`` are the tester, ``writer_true`` may be the tester
+    (who pasted it), and it is reported separately from human shadows.
+    ``writer_true`` may be blank on natural rows.
     Legacy headers (``true_author`` and/or no metadata columns) and the legacy
     label ``not_own`` are accepted and normalised, with metadata blank.
     """
@@ -185,7 +199,12 @@ def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, dict[str, s
                 for field in ("author_true", "writer_true", "imitated_student_id", "prompt_id", "paired_submission_id"):
                     if not entry[field]:
                         raise ValueError(f"labels CSV line {line}: shadow row needs {field}")
-                if entry["writer_true"] == entry["author_true"]:
+                own = entry["shadow_kind"] == "ai_own"
+                if own and entry["imitated_student_id"] != entry["author_true"]:
+                    raise ValueError(f"labels CSV line {line}: ai_own shadow imitates the tester's own writing (imitated_student_id must equal author_true)")
+                if own and not entry["generator_tool"]:
+                    raise ValueError(f"labels CSV line {line}: ai_own shadow needs generator_tool")
+                if not own and entry["writer_true"] == entry["author_true"]:
                     raise ValueError(f"labels CSV line {line}: shadow writer must not be the imitated student")
                 if entry["shadow_kind"] == "ai_staff" and not entry["generator_tool"]:
                     raise ValueError(f"labels CSV line {line}: ai_staff shadow needs generator_tool")
@@ -274,7 +293,7 @@ def find_submissions(export_dir: Path) -> dict[str, tuple[Path, Path, str]]:
 
 def threshold_sweep(rows: list[dict]) -> list[dict]:
     natural = [row for row in rows if row.get("label") == "natural" and not row.get("inconclusive") and not bad(row.get("deviation"))]
-    not_own = [row for row in rows if row.get("label") == "shadow" and not row.get("inconclusive") and not bad(row.get("deviation"))]
+    not_own = [row for row in rows if in_primary_shadow(row) and not row.get("inconclusive") and not bad(row.get("deviation"))]
     return [{
         "threshold": step / 20,
         "caught": sum(row["deviation"] >= step / 20 for row in not_own),
@@ -356,14 +375,14 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
     if has_labels:
         labeled = [row for row in scored if row.get("label") and not row.get("inconclusive")]
         natural = [row for row in labeled if row["label"] == "natural"]
-        not_own = [row for row in labeled if row["label"] == "shadow"]
+        not_own = [row for row in labeled if in_primary_shadow(row)]
         false_flags = sum(bool(row["strict_flag"]) for row in natural)
         caught = sum(bool(row["strict_flag"]) for row in not_own)
         groups = {}
         for row in labeled:
             groups.setdefault(row["student"], []).append(row)
         def fraction(sample, label):
-            subset = [row for row in sample if row["label"] == label]
+            subset = [row for row in sample if (in_primary_shadow(row) if label == "shadow" else row["label"] == label)]
             return sum(bool(row["strict_flag"]) for row in subset) / len(subset) if subset else None
         f_lo, f_hi = boot_ci(groups, lambda sample: fraction(sample, "natural"))
         c_lo, c_hi = boot_ci(groups, lambda sample: fraction(sample, "shadow"))
@@ -371,7 +390,18 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
         f_wilson = wilson(false_flags, len(natural)); c_wilson = wilson(caught, len(not_own))
         lines += ["", "## Accuracy against labels (strict = schedule_conversation/escalate; INCONCLUSIVE excluded)",
                   f"- False flags on natural work: {rate(false_flags, len(natural))}; Wilson {format_interval(f_wilson)}; student-bootstrap {format_interval((f_lo, f_hi))}",
-                  f"- Caught shadow work: {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
+                  f"- Caught shadow work (Exam B kinds; Exam C ai_own excluded): {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
+                  "", "### Catch by shadow kind (Exam C `ai_own` is its own category, never pooled above)",
+                  "| shadow kind | group | shadow | caught |", "|---|---|---:|---:|"]
+        for kind in sorted({row.get("shadow_kind", "") for row in labeled if row["label"] == "shadow"}):
+            krows = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") == kind]
+            group = ("Exam C: AI rewrite of own writing (separate)" if kind in SEPARATE_SHADOW_KINDS
+                     else "human shadow" if kind in HUMAN_SHADOW_KINDS else "staff AI shadow" if kind == "ai_staff" else "unspecified (legacy)")
+            lines.append(f"| {kind or '-'} | {group} | {len(krows)} | {rate(sum(bool(r['strict_flag']) for r in krows), len(krows))} |")
+        human = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") in HUMAN_SHADOW_KINDS]
+        own = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") in SEPARATE_SHADOW_KINDS]
+        lines += [f"- Human shadows: {rate(sum(bool(r['strict_flag']) for r in human), len(human))}",
+                  f"- Exam C (ai_own, separate; not in the pre-registered criteria): {rate(sum(bool(r['strict_flag']) for r in own), len(own))}",
                   "", "### Deviation threshold sweep (flag if deviation >= t)", "| t | caught | false flags |", "|---|---|---|"]
         for row in threshold_sweep(labeled):
             lines.append(f"| {row['threshold']:.2f} | {rate(row['caught'], row['not_own_total'])} | {rate(row['false_flags'], row['natural_total'])} |")
@@ -383,7 +413,7 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
             if not grows:
                 continue
             gn = [row for row in grows if row["label"] == "natural"]
-            gs = [row for row in grows if row["label"] == "shadow"]
+            gs = [row for row in grows if in_primary_shadow(row)]
             lines.append(f"| {group} | {len({row['student'] for row in grows})} | {len(gn)} | {rate(sum(bool(r['strict_flag']) for r in gn), len(gn))} | {len(gs)} | {rate(sum(bool(r['strict_flag']) for r in gs), len(gs))} |")
         lines += ["", f"Pre-registered criteria: false-flag rate <= {max_false_flag_rate:.0%} and catch rate >= {min_catch_rate:.0%}",
                   f"**{'PASS' if passed else 'FAIL'}** on point estimates.",
@@ -508,7 +538,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", help="staff API base URL for an export")
     parser.add_argument("--exam", action="append", default=[], help="exam id to export; may be repeated")
     parser.add_argument("--from-dir", type=Path, help="score an existing local export")
-    parser.add_argument("--labels", type=Path, help="evaluation-only CSV: submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool")
+    parser.add_argument("--labels", type=Path, help="evaluation-only CSV: submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool (shadow_kind: human_partner|ai_staff|injected_other|public_domain|ai_own; ai_own = optional Exam C, reported separately)")
     parser.add_argument("--repo", type=Path, default=ROOT, help="repository root (default: detected from this script)")
     parser.add_argument("--out", type=Path, default=Path("alpha_scores"))
     parser.add_argument("--max-false-flag-rate", type=float, default=1 / 20)
