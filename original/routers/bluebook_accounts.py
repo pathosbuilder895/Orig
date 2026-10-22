@@ -24,6 +24,7 @@ from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
 from ..schemas import RosterAddRequest, SendEmailRequest
+from . import phone_park
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
 from .bluebook import _owned_course, _owned_exam
 
@@ -582,6 +583,10 @@ def my_exam_start(exam_id: str, request: Request):
             "This exam has not opened yet." if state == rules.UPCOMING else "This exam is closed."
         )
         raise HTTPException(status_code=409, detail=detail)
+    if existing is None:
+        # Phone parking (only if the teacher switched it on): a new sitting
+        # waits for the phone; one already under way is never held up.
+        phone_park.require_cleared(exam, exam_id, p.user_id)
     seconds = rules.session_seconds(exam, now)
     if seconds is None:
         # Untimed and never closes: nothing to pin (see rules.session_seconds).

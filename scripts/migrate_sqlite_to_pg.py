@@ -82,6 +82,7 @@ from original.db.models.live import (
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    BluebookPhonePark,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1545,6 +1546,42 @@ class _UserLastLocationMigrator(_Migrator):
         return out
 
 
+class _BluebookPhoneParkMigrator(_Migrator):
+    """A student's own parked phone per collection (2026-10). Composite key,
+    like bluebook_exam_drafts."""
+
+    name = "bluebook_phone_parks"
+    model = BluebookPhonePark
+    pk = "park_key"
+    _COLS = (
+        "exam_id", "student_key", "tenant_id", "state", "parked_at", "last_seen_at",
+        "override_by", "override_at", "override_note",
+    )  # fmt: skip
+    _TS = ("parked_at", "last_seen_at", "override_at")
+
+    def _canon(self, row):
+        for k in self._TS:
+            row[k] = _canon_ts(row[k])
+        row["park_key"] = f"{row['exam_id']}:{row['student_key']}"
+        return row
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_phone_parks").fetchall()
+        return [self._canon(dict(zip(self._COLS, r, strict=True))) for r in rows]
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        for k in self._TS:
+            kwargs[k] = _parse_ts(row[k])
+        return BluebookPhonePark(**kwargs)
+
+    def read_pg(self, session):
+        return [
+            self._canon({k: getattr(p, k) for k in self._COLS})
+            for p in session.query(BluebookPhonePark).all()
+        ]
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1572,6 +1609,7 @@ MIGRATORS: list[_Migrator] = [
     _StudentPastPaperMigrator(),
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
+    _BluebookPhoneParkMigrator(),
 ]
 
 

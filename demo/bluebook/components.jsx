@@ -625,6 +625,13 @@ export const BB_API = {
   async myExams()        { return (await this._json('GET', '/bluebook/me/exams')).exams || []; },
   myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
   startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
+  // Phone parking tied to the student's account (2026-10). `code` false polls
+  // the status without minting a new QR code.
+  myPhonePark(id, code = true) { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}/phone-park?code=${code ? 1 : 0}`); },
+  examPhoneParks(id)     { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/phone-park`); },
+  overridePhonePark(id, studentId, note) {
+    return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/phone-park/${encodeURIComponent(studentId)}/override`, { note: note || '' });
+  },
   async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
   // Past papers the student shares for their teacher to review (titles and
   // review status only; nothing here is ever scored).
