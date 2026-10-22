@@ -134,6 +134,33 @@ select.bb-input option{color:#111}
   .bb-rdetail{padding:1rem}
 }
 
+/* Collections list (Teacher.jsx ExamsListScreen): filters, then one card per collection */
+.bb-coll-filters{display:grid;grid-template-columns:minmax(0,2fr) repeat(5,minmax(0,1fr)) auto;gap:0 .9rem;align-items:end;margin-bottom:.6rem}
+.bb-coll-filters>.bb-link{margin-bottom:1.3rem;white-space:nowrap}
+.bb-coll-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr));gap:1rem}
+.bb-coll{display:flex;flex-direction:column;gap:.55rem;min-width:0}
+.bb-coll-grid>.bb-card{margin:0}
+.bb-coll-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}
+.bb-coll-title{margin:0;font-size:1.12rem;line-height:1.3;min-width:0;overflow-wrap:anywhere}
+.bb-coll-title .bb-link{padding:0;text-align:left;font:inherit;color:var(--cream)}
+.bb-coll-title .bb-link:hover,.bb-coll-title .bb-link:focus-visible{color:var(--gold)}
+.bb-coll-course{margin:0}
+.bb-coll-tags{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35rem}
+.bb-coll-tags li{font-size:.8rem;padding:.12rem .55rem;border-radius:999px;border:1px solid var(--line);color:var(--cream)}
+.bb-coll-dates{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.1rem 0 0}
+.bb-coll-dates dt{font:.68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2)}
+.bb-coll-dates dd{margin:.1rem 0 0;font-size:.9rem}
+.bb-coll-foot{margin:auto 0 0;font-size:.86rem;color:var(--dim)}
+@media(max-width:1000px){
+  .bb-coll-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bb-coll-search{grid-column:1/-1}
+}
+@media(max-width:600px){
+  .bb-coll-filters{gap:0 .6rem}
+  .bb-coll-filters .bb-field{margin-bottom:.6rem}
+  .bb-coll-grid{grid-template-columns:1fr}
+}
+
 /* Copyable link row */
 .bb-linkrow{display:flex;gap:.5rem;align-items:center;min-width:0}
 .bb-linkrow input{flex:1;min-width:0;font:12px ui-monospace,monospace}

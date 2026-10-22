@@ -6,6 +6,7 @@ import {
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { sizeOf } from './collection-options.jsx';
 import { noteView, takeResumed } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -447,44 +448,151 @@ export function AllSubmissionsScreen() {
   );
 }
 
-// "In class" / "Take-home", plus "Small" / "Great" when a size was chosen
-// (Smalls < 1,000 words, Greats >= 1,000). Old rows read as in class.
-export function collectionType(e) {
+// What a collection's card says, and what the filters read: its size
+// (Small / Great), timed or untimed, locked (paste blocked) or open, in class
+// or take-home, and its state. Old rows read as timed, open, in class.
+export function collectionFacts(e) {
   const c = (e && e.conditions) || {};
-  const where = c.setting === 'take_home' ? 'Take-home' : 'In class';
-  const size = c.size === 'small' ? 'Small' : c.size === 'great' ? 'Great' : '';
+  return {
+    size: sizeOf(e),
+    timed: c.timed !== false,
+    locked: !!c.blockCopy,
+    setting: c.setting === 'take_home' ? 'take_home' : 'in_class',
+    state: examState(e || {}),
+  };
+}
+
+// "In class" / "Take-home", plus "Small" / "Great" when it has a size.
+export function collectionType(e) {
+  const f = collectionFacts(e);
+  const where = f.setting === 'take_home' ? 'Take-home' : 'In class';
+  const size = f.size === 'small' ? 'Small' : f.size === 'great' ? 'Great' : '';
   return size ? `${where} · ${size}` : where;
 }
 
-// ─── Collections list (the one list of every assignment) ───────────────────────────────────────────────────────
+// The order cards are shown in: open first, then upcoming, drafts and
+// closed ones; the server's order (newest first) inside each.
+const STATE_ORDER = { open: 0, upcoming: 1, draft: 2, closed: 3 };
+export function orderCollections(exams) {
+  return (exams || []).map((e, i) => ({ e, i }))
+    .sort((a, b) => ((STATE_ORDER[examState(a.e)] ?? 4) - (STATE_ORDER[examState(b.e)] ?? 4)) || (a.i - b.i))
+    .map(x => x.e);
+}
+
+// The Collections list's filters. '' means any.
+export const NO_FILTERS = Object.freeze({ q: '', status: '', size: '', timing: '', paste: '', setting: '' });
+export function filterCollections(exams, filters = NO_FILTERS) {
+  const f0 = { ...NO_FILTERS, ...(filters || {}) };
+  const needle = String(f0.q || '').trim().toLowerCase();
+  return (exams || []).filter(e => {
+    const f = collectionFacts(e);
+    if (needle && !`${e.title || ''} ${e.course || ''}`.toLowerCase().includes(needle)) return false;
+    if (f0.status && f.state !== f0.status) return false;
+    if (f0.size && f.size !== f0.size) return false;
+    if (f0.timing && (f0.timing === 'timed') !== f.timed) return false;
+    if (f0.paste && (f0.paste === 'locked') !== f.locked) return false;
+    if (f0.setting && f.setting !== f0.setting) return false;
+    return true;
+  });
+}
+
+// One collection as a card. The title opens it; nothing else on the card does.
+function CollectionCard({ exam: e, onOpen }) {
+  const f = collectionFacts(e);
+  const headId = `coll-${e.id}`;
+  const n = Number(e.submissions) || 0;
+  return (
+    <article className="bb-card bb-coll" aria-labelledby={headId}>
+      <div className="bb-coll-head">
+        <h3 id={headId} className="bb-coll-title">
+          <LinkBtn onClick={onOpen}>{e.title}</LinkBtn>
+        </h3>
+        <Badge>{f.state}</Badge>
+      </div>
+      <p className="bb-meta bb-coll-course">{e.course || 'No course'}</p>
+      <ul className="bb-coll-tags" aria-label="Options">
+        {f.size && <li>{f.size === 'small' ? 'Small' : 'Great'}</li>}
+        <li>{f.timed ? `Timed · ${e.duration} min` : 'Untimed'}</li>
+        <li>{f.locked ? 'Locked · no paste' : 'Open · paste allowed'}</li>
+        <li>{f.setting === 'take_home' ? 'Take-home' : 'In class'}</li>
+      </ul>
+      <dl className="bb-coll-dates">
+        <div><dt>Opens</dt><dd>{e.opens_at ? when(e.opens_at) : (f.state === 'draft' ? 'When published' : 'Now')}</dd></div>
+        <div><dt>Closes</dt><dd>{e.closes_at ? when(e.closes_at) : 'No closing time'}</dd></div>
+      </dl>
+      <p className="bb-coll-foot">{n} submitted{e.results_released_at ? ' · results released' : ''}</p>
+    </article>
+  );
+}
+
+// ─── Collections list (the one list of every assignment) ──────────────────────
 export function ExamsListScreen({ onNavigate }) {
   const [exams, setExams] = useState(null);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState(NO_FILTERS);
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
       .catch(err => { setError(err.message || 'Could not load your collections.'); });
   }, []);
-  const columns = [
-    { key: 'title', label: 'Collection', lead: true, render: e => (
-      <LinkBtn onClick={() => openManageExam(e.id, onNavigate)} style={{ textAlign: 'left', padding: 0 }}>{e.title}</LinkBtn>
-    ) },
-    { key: 'course', label: 'Course', render: e => e.course || '—' },
-    { key: 'state', label: 'Status', render: e => <Badge>{examState(e)}</Badge> },
-    { key: 'window', label: 'Closes', render: e => e.closes_at ? when(e.closes_at) : '—' },
-    { key: 'type', label: 'Type', render: e => collectionType(e) },
-    { key: 'duration', label: 'Minutes', num: true, render: e => (e.conditions && e.conditions.timed === false) ? 'untimed' : e.duration },
-    { key: 'submissions', label: 'Submitted', num: true },
-    { key: 'released', label: 'Results', render: e => e.results_released_at ? <Badge>released</Badge> : '—' },
-  ];
+  const set = key => value => setFilters(f => ({ ...f, [key]: value }));
+  const shown = filterCollections(orderCollections(exams), filters);
+  const filtering = Object.keys(NO_FILTERS).some(k => filters[k]);
+  const total = (exams || []).length;
   return (
     <Page eyebrow="Your workspace" title="Collections"
-      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'}`}
+      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…'
+        : filtering ? `${shown.length} of ${total} collection${total === 1 ? '' : 's'}` : `${total} collection${total === 1 ? '' : 's'}`}
       actions={<Btn primary onClick={() => onNavigate('new-exam')}>+ New collection</Btn>}>
       <ErrorText>{error}</ErrorText>
       {/* A failed load is an error, never "no collections" (alpha bug 2026-10-20). */}
       {error ? null : exams === null ? <p role="status">Loading collections…</p> : (
-      <Table columns={columns} rows={exams} rowKey={e => e.id} caption="Collections"
-        empty="No collections yet. Choose + New collection to set the first one." />)}
+        <>
+          {total > 0 && (
+            <div className="bb-coll-filters" role="search" aria-label="Find a collection">
+              <div className="bb-coll-search">
+                <Field id="collSearch" label="Search by title or course" type="search" value={filters.q} onChange={set('q')} required={false} />
+              </div>
+              <Select id="collStatus" label="Status" value={filters.status} onChange={set('status')}>
+                <option value="">Any</option>
+                <option value="open">Open</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="draft">Draft</option>
+                <option value="closed">Closed</option>
+              </Select>
+              <Select id="collSize" label="Size" value={filters.size} onChange={set('size')}>
+                <option value="">Any</option>
+                <option value="small">Small (1,000 words or fewer)</option>
+                <option value="great">Great (over 1,000 words)</option>
+              </Select>
+              <Select id="collTiming" label="Timing" value={filters.timing} onChange={set('timing')}>
+                <option value="">Any</option>
+                <option value="timed">Timed</option>
+                <option value="untimed">Untimed</option>
+              </Select>
+              <Select id="collPaste" label="Paste" value={filters.paste} onChange={set('paste')}>
+                <option value="">Any</option>
+                <option value="locked">Locked (no paste)</option>
+                <option value="open">Open (paste allowed)</option>
+              </Select>
+              <Select id="collSetting" label="Where" value={filters.setting} onChange={set('setting')}>
+                <option value="">Any</option>
+                <option value="in_class">In class</option>
+                <option value="take_home">Take-home</option>
+              </Select>
+              {filtering && <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn>}
+            </div>
+          )}
+          {total === 0
+            ? <p className="bb-empty">No collections yet. Choose + New collection to set the first one.</p>
+            : shown.length === 0
+              ? <p role="status" className="bb-empty">No collections match these filters. <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn></p>
+              : (
+                <div className="bb-coll-grid">
+                  {shown.map(e => <CollectionCard key={e.id} exam={e} onOpen={() => openManageExam(e.id, onNavigate)} />)}
+                </div>
+              )}
+        </>
+      )}
     </Page>
   );
 }
