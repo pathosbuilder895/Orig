@@ -81,6 +81,7 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserLastLocation,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1507,6 +1508,43 @@ class _BluebookExamDraftMigrator(_Migrator):
         return out
 
 
+class _UserLastLocationMigrator(_Migrator):
+    """Where each signed-in account last was, for resume (2026-10). Keyed by
+    the account id verbatim in both schemas."""
+
+    name = "user_last_location"
+    model = UserLastLocation
+    pk = "account_key"
+    _COLS = (
+        "account_key", "tenant_id", "role", "screen", "entity_kind", "entity_id", "tab",
+        "scroll_fraction", "scroll_anchor", "updated_at",
+    )  # fmt: skip
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM user_last_location").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            row["scroll_fraction"] = float(row["scroll_fraction"] or 0.0)
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return UserLastLocation(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(UserLastLocation).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            row["scroll_fraction"] = float(row["scroll_fraction"] or 0.0)
+            out.append(row)
+        return out
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1533,6 +1571,7 @@ MIGRATORS: list[_Migrator] = [
     _ParkBeatMigrator(),
     _StudentPastPaperMigrator(),
     _BluebookExamDraftMigrator(),
+    _UserLastLocationMigrator(),
 ]
 
 

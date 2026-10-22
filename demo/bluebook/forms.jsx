@@ -124,7 +124,7 @@ export function Table({ columns, rows, rowKey, empty = 'Nothing here yet.', capt
             <tr><td className="bb-empty lead" colSpan={columns.length}>{empty}</td></tr>
           )}
           {rows.map(r => (
-            <tr key={rowKey(r)}>
+            <tr key={rowKey(r)} data-resume-anchor={`row-${rowKey(r)}`}>
               {columns.map(c => (
                 <td key={c.key} data-label={c.label}
                   className={[c.lead && 'lead', c.num && 'num', c.actions && 'actions'].filter(Boolean).join(' ') || undefined}>
