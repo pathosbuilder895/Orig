@@ -150,7 +150,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
-      spellChk: true, phoneBlk: false, aiDetect: true,
+      spellChk: true, phoneBlk: false, phonePark: false, aiDetect: true,
       // Collection options: the in-class, timed default (no size chosen).
       timed: true, setting: 'in_class',
     })

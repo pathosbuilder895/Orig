@@ -25,6 +25,12 @@
   "secure", no "locked", and nothing here accuses anyone of anything —
   see docs/PROCTOR_SCRIPT.md for the language the proctor is taught to use.
 
+  Two ways in. ?t= is the anonymous room code a proctor projects (T8): the
+  student types a name. ?s= is a student's own code from their briefing, for
+  a collection where the teacher switched phone parking on (2026-10): it is
+  signed for that one student and that one collection, so there is nothing to
+  type and no sign-in; the page swaps it for a grant it keeps in memory.
+
   Storage: NONE. No localStorage, no sessionStorage, no cookies. The student
   disclosure (docs/STUDENT_DISCLOSURE.md) promises nothing is retained on the
   device, so the name they type lives in a JS variable and dies with the tab.
@@ -162,6 +168,10 @@
       Set your phone back down. If you need to use it, tell your proctor first.
       Nothing is saved on your phone.
     </p>
+    <p class="fine" id="own-note" hidden>
+      Parked for your account on this exam only. This page reports whether it
+      is open, and nothing else about your phone.
+    </p>
   </section>
 
   <!-- ③ Calm dead ends: no token in the link, or the link has expired. -->
@@ -194,6 +204,8 @@
   }
 
   var token = queryParam('t');
+  var scanCode = queryParam('s');   // a student's own code (2026-10)
+  var beatToken = null;             // in memory only, never persisted
   var hint = null;          // in memory only, never persisted
   var startedAt = null;
   var beatTimer = null;
@@ -284,13 +296,16 @@
   }
 
   function beat(state, leaving) {
-    if (stopped || !hint) { return; }
-    var payload = { park_token: token, student_hint: hint, state: state };
+    if (stopped || (!hint && !beatToken)) { return; }
+    var url = beatToken ? '/bluebook/phone-park/beat' : '/proctor/park/beat';
+    var payload = beatToken
+      ? { beat_token: beatToken, state: state }
+      : { park_token: token, student_hint: hint, state: state };
     if (leaving) {
-      postLeaving('/proctor/park/beat', payload);
+      postLeaving(url, payload);
       return;
     }
-    post('/proctor/park/beat', payload, function (status) {
+    post(url, payload, function (status) {
       if (status === 404) {
         // Unknown or expired token — the sitting is over as far as this phone
         // is concerned. Stop beating and say so gently.
@@ -372,7 +387,47 @@
     tickTimer = setInterval(renderTimer, 1000);
   }
 
+  // A student's own code: swap it for the in-memory grant, then park.
+  function scanOwnCode() {
+    notice('Parking your phone', 'One moment.');
+    stopped = false;
+    // The code is single-purpose and short-lived, but keep it out of the
+    // address bar and history anyway.
+    try { window.history.replaceState(null, '', window.location.pathname); } catch (e) {}
+    var done = function (status, text) {
+      var data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      if (status >= 200 && status < 300 && data && data.beat_token) {
+        beatToken = data.beat_token;
+        hint = data.exam_title || 'Your phone is parked';
+        el('own-note').hidden = false;
+        park();
+        return;
+      }
+      if (status === 0) {
+        notice('No connection', 'Check this phone is online, then scan the code on your screen again.');
+        return;
+      }
+      notice('This code has expired',
+             'Scan the new code on your exam screen. Codes last a few minutes.');
+    };
+    var body = JSON.stringify({ token: scanCode });
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/bluebook/phone-park/scan', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) { done(xhr.status, xhr.responseText); }
+      };
+      xhr.send(body);
+    } catch (e) { done(0, ''); }
+  }
+
   function init() {
+    if (scanCode) {
+      scanOwnCode();
+      return;
+    }
     if (!token) {
       notice('Ask your proctor for the QR code',
              'This page opens from the code your proctor displays at the start of the exam.');
@@ -409,7 +464,7 @@
     // A phone that locks or navigates away should read as gone immediately
     // rather than waiting out the server's 30s window.
     window.addEventListener('pagehide', function () {
-      if (!stopped && hint) { beat('foreground_lost', true); }
+      if (!stopped && (hint || beatToken)) { beat('foreground_lost', true); }
     }, false);
   }
 

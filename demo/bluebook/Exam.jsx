@@ -1,5 +1,6 @@
 import React from 'react';
 import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
+import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -191,6 +192,7 @@ function buildConditions(cfg, withOriginal) {
     cfg.blockCopy && 'Copy and paste are turned off in the answer box.',
     withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
     cfg.phoneBlk  && 'Please silence your phone and other devices.',
+    cfg.phonePark === true && 'Before you begin, you park your phone by scanning your own code on this page. The phone page reports only whether it is open.',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
     withOriginal  && REFERENCE_WRITING_LINE,
   ].filter(Boolean);
@@ -517,6 +519,81 @@ export function bbSealStatus(withOriginal, seal) {
   return seal.aiScore != null && seal.aiScore < 70 ? 'FLAGGED' : 'SUBMITTED';
 }
 
+// ─── Phone parking (2026-10) ─────────────────────────────────────────────────
+// Only for a collection where the teacher switched it on. The code is the
+// student's own: it parks a phone for them, on this collection, and nobody
+// else. It lasts a few minutes, so it is refreshed while the page is open.
+const BB_PHONE_POLL_MS = 3000;
+const BB_PHONE_CODE_REFRESH_MS = 8 * 60 * 1000;
+
+export function bbPhoneParkCleared(st) {
+  return !!(st && (!st.required || st.parked || st.overridden));
+}
+
+function PhoneParkPanel({ examId, onCleared }) {
+  const [st, setSt] = useExState(null);
+  const [qr, setQr] = useExState('');
+  const [err, setErr] = useExState('');
+  useExEffect(() => {
+    let live = true;
+    let poll = null;
+    let refresh = null;
+    const apply = (d) => {
+      if (!live || !d) return;
+      setSt(d);
+      if (d.qr_url) setQr(d.qr_url);
+      onCleared(bbPhoneParkCleared(d));
+      if (bbPhoneParkCleared(d)) { clearInterval(poll); clearInterval(refresh); }
+    };
+    const fail = () => { if (live) setErr('We could not reach Collections just now. This page will keep trying.'); };
+    BB_API.myPhonePark(examId, true).then(d => { setErr(''); apply(d); }).catch(fail);
+    poll = setInterval(() => {
+      BB_API.myPhonePark(examId, false).then(d => { setErr(''); apply(d); }).catch(fail);
+    }, BB_PHONE_POLL_MS);
+    refresh = setInterval(() => {
+      BB_API.myPhonePark(examId, true).then(apply).catch(fail);
+    }, BB_PHONE_CODE_REFRESH_MS);
+    return () => { live = false; clearInterval(poll); clearInterval(refresh); };
+  }, [examId]);
+
+  if (!st || !st.required) {
+    return err ? <p role="alert" className="bk-cover-note state">{err}</p> : null;
+  }
+  const cleared = bbPhoneParkCleared(st);
+  return (
+    <div className="bk-conditions bk-phone-park" data-testid="phone-park">
+      <h2>Park your phone</h2>
+      {cleared ? (
+        <p role="status" className="bk-cover-note state">
+          {st.parked
+            ? 'Your phone is parked. Leave it where it is, with the page open, until you hand in.'
+            : 'Your teacher has let you begin without a parked phone.'}
+        </p>
+      ) : (
+        <>
+          <p className="bk-meta">Your teacher asks everyone to park their phone before beginning.</p>
+          <ol>
+            <li>Open your phone’s camera and point it at this code, then tap the link that appears. No app and no sign-in are needed.</li>
+            <li>Put your phone face down where your teacher asks: at the front of the room, or on the corner of your desk if they have not said. Leave the page open.</li>
+            <li>When this page says your phone is parked, you can begin.</li>
+          </ol>
+          {qr && (
+            <div style={{ display: 'inline-block', padding: 12, background: '#FFFFFF', borderRadius: 8, margin: '6px 0' }}>
+              <QrCode value={qr} px={220} label="Your own code for parking your phone. Point your phone’s camera at it." />
+            </div>
+          )}
+          <p role="status" className="bk-cover-note state">Waiting for your phone…</p>
+          <p className="bk-conditions-note">No phone with you, or the code will not scan? Tell your teacher. They can let you begin without one.</p>
+        </>
+      )}
+      {err && <p role="alert" className="bk-conditions-note">{err}</p>}
+      <p className="bk-conditions-note">
+        The phone page reports only whether it is open, for your account on this exam. Nothing else about your phone is kept.
+      </p>
+    </div>
+  );
+}
+
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
 // Whether this browser belongs to a student (launch link or account).
 function bbIsStudent() {
@@ -561,6 +638,10 @@ export function BriefingScreen({ onNavigate }) {
   const conditions = buildConditions(cfg, withOriginal);
   const studentAccount = BB_API.isStudentAccount();
   const cannotBegin = cfg.loaded && cfg.state && cfg.state !== 'open';
+  // Phone parking: a student's new sitting waits for their phone. A sitting
+  // already under way is never held up, and a teacher previewing is not asked.
+  const needsPhone = !!(cfg.phonePark === true && cfg.id && bbIsStudent() && !cfg.inProgress && !cannotBegin);
+  const [phoneCleared, setPhoneCleared] = useExState(false);
   if (loadState !== 'ready') {
     return (
       <div className="bk-stage bb-screen">
@@ -638,6 +719,11 @@ export function BriefingScreen({ onNavigate }) {
               </p>
             </div>
 
+            {needsPhone && <PhoneParkPanel examId={cfg.id} onCleared={setPhoneCleared} />}
+            {cfg.phonePark === true && !bbIsStudent() && (
+              <p className="bk-cover-note">Phone parking is on: each student sees their own code here and parks their phone before beginning.</p>
+            )}
+
             {cannotBegin ? (
               <p role="status" className="bk-cover-note state">
                 {cfg.state === 'upcoming'
@@ -645,7 +731,7 @@ export function BriefingScreen({ onNavigate }) {
                   : 'This exam has closed. If you think that is a mistake, please talk to your teacher.'}
               </p>
             ) : (
-              <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
+              <button type="button" className="bk-begin" disabled={needsPhone && !phoneCleared} onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
                 {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
               </button>
             )}
