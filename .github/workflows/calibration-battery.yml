@@ -43,6 +43,10 @@ jobs:
           - { name: g3g4, legs: "G3,G4" }
           - { name: g5, legs: "G5" }
           - { name: g6g7g8t, legs: "G6,G7,G8,T" }
+          # SP1 red-team harness (validation/adversarial/): one harness run
+          # serves all six, scored on the live path in parallel workers
+          # (ADVERSARIAL_WORKERS, default cores - 2).
+          - { name: adversarial, legs: "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6" }
     env:
       CALIBRATION_GATE_VECTOR_CACHE: .benchmark_cache/calibration_gate/vectors
     steps:
