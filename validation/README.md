@@ -64,7 +64,12 @@ Report ("The instruments were broken, not the math") and
    advisory to stderr. It excludes nothing and never touches the
    attribution candidate pool. `manifest_schema.py`'s
    `CorpusEntry` carries `genre` and a `Provenance` enum
-   (`real_historical` / `synthetic_ai` / `student_pilot`).
+   (`real_historical` / `synthetic_ai` / `student_pilot`). No committed
+   corpus is `student_pilot`: the seminary corpus is 25 essays generated
+   from templates by `validation/generate_modern_corpus.py` plus 114
+   Gutenberg sermons. Reports written before 2026-10-21 (including
+   `calibration_report_2026-09-07.json`) label it `student_pilot`; that
+   label was wrong and is now `synthetic_template+real_historical`.
 5. **Attribution is an ensemble** (`attribution/delta.py`,
    `attribution/ensemble.py`). Three independent engines score the same
    held-out essay: the existing deviation-calibrated scorer, a cosine-delta
@@ -127,19 +132,25 @@ the G6 native-English corpus are **exchangeable**; seminary,
 therefore pools within Plato only and is reported alongside, never instead
 of, the self-calibrated G1.
 
-`validation/benchmarks/2026-07-31/public_authors/report.json` (committed;
+`validation/benchmarks/2026-08-02/public_authors/report.json` (committed;
 `validation/benchmarks/*` is otherwise git-ignored and only specific runs are
-added as evidence — see `validation/benchmarks/README.md`) is a real run of
-`validation.public_authors.run`, not a hypothetical: 9 eligible authors, 22
-held-out essays. Top-1 accuracy: deviation-calibrated 72.7%, cosine-delta
-77.3%, MFW-delta 90.9%; the 2-of-3 ensemble covers 95.5% of essays at 81.0%
-accuracy on the covered set (see `report.md` in the same directory for the
-full per-author and confusion-matrix breakdown; every accuracy there carries
-its 95% Wilson interval — at n=22 they are wide, so don't read the row order
-as a ranking). Two authors (`douglass`, `thoreau`) were excluded from the
-candidate pool for that run — each has only 1 baseline document against the
-3-document floor — and the run completed over the remaining 9, exactly the
-exclude-not-abort behavior rule 4 describes.
+added as evidence, see `validation/benchmarks/README.md`) is a real run of
+`validation.public_authors.run` on the decontaminated corpus: 11 eligible
+authors, 27 held-out essays. Top-1 accuracy, with 95% Wilson intervals:
+deviation-calibrated 74.07% [0.55, 0.87], cosine-delta 81.48% [0.63, 0.92],
+MFW-delta 100% [0.88, 1.00]; the 2-of-3 ensemble covers 100% of essays at
+81.48% accuracy (see `report.md` in the same directory for the per-author
+and confusion-matrix breakdown). At n=27 the intervals overlap, so don't read
+the row order as a ranking. This is attribution among 11 published authors,
+not verification of student writing.
+
+The earlier `validation/benchmarks/2026-07-31/public_authors/` run is marked
+`INVALID.md` and must not be quoted: its corpus filed a French novel under
+`edwards` and ended `james` in index back-matter, and those two authors held
+7 of its 22 essays. It is kept as a record, and it does still show the
+exclude-not-abort behavior rule 4 describes: `douglass` and `thoreau` had
+only 1 baseline document each against the 3-document floor, were excluded
+from the candidate pool, and the run completed over the remaining 9.
 
 ## Running
 
