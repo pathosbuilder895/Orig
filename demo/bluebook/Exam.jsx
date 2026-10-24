@@ -562,32 +562,39 @@ function PhoneParkPanel({ examId, onCleared }) {
   const cleared = bbPhoneParkCleared(st);
   return (
     <div className="bk-conditions bk-phone-park" data-testid="phone-park">
-      <h2>Park your phone</h2>
+      <div className="bk-phone-park-head">
+        <h2>Park your phone</h2>
+        <span role="status" className={'bk-phone-park-badge' + (cleared ? ' is-cleared' : '')}>
+          {cleared ? (st.parked ? 'Phone parked' : 'Ready to begin') : 'Waiting for your phone…'}
+        </span>
+      </div>
       {cleared ? (
-        <p role="status" className="bk-cover-note state">
+        <p className="bk-cover-note state">
           {st.parked
             ? 'Your phone is parked. Leave it where it is, with the page open, until you hand in.'
             : 'Your teacher has let you begin without a parked phone.'}
         </p>
       ) : (
-        <>
-          <p className="bk-meta">Your teacher asks everyone to park their phone before beginning.</p>
+        <div className="bk-phone-park-body">
+          <p className="bk-phone-park-lead">Your teacher asks everyone to park their phone before beginning.</p>
+          {qr && (
+            <div className="bk-phone-qr-wrap">
+              <div className="bk-phone-qr-card">
+                <QrCode value={qr} px={180} label="Your own code for parking your phone. Point your phone’s camera at it." />
+              </div>
+              <span className="bk-phone-qr-caption">Scan with your phone’s camera</span>
+            </div>
+          )}
           <ol>
             <li>Open your phone’s camera and point it at this code, then tap the link that appears. No app and no sign-in are needed.</li>
             <li>Put your phone face down where your teacher asks: at the front of the room, or on the corner of your desk if they have not said. Leave the page open.</li>
             <li>When this page says your phone is parked, you can begin.</li>
           </ol>
-          {qr && (
-            <div style={{ display: 'inline-block', padding: 12, background: '#FFFFFF', borderRadius: 8, margin: '6px 0' }}>
-              <QrCode value={qr} px={220} label="Your own code for parking your phone. Point your phone’s camera at it." />
-            </div>
-          )}
-          <p role="status" className="bk-cover-note state">Waiting for your phone…</p>
           <p className="bk-conditions-note">No phone with you, or the code will not scan? Tell your teacher. They can let you begin without one.</p>
-        </>
+        </div>
       )}
       {err && <p role="alert" className="bk-conditions-note">{err}</p>}
-      <p className="bk-conditions-note">
+      <p className="bk-conditions-note bk-phone-park-foot">
         The phone page reports only whether it is open, for your account on this exam. Nothing else about your phone is kept.
       </p>
     </div>
@@ -669,7 +676,7 @@ export function BriefingScreen({ onNavigate }) {
   return (
     <div className="bk-stage bb-screen">
       <MockupFonts hand />
-      <div className="bk-booklet">
+      <div className="bk-booklet bk-briefing">
         <div className="bk-cover">
           {/* A launch-link student has nowhere else to go; an account student
               goes back to their exams; staff previewing go back to the list. */}
