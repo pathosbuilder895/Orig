@@ -38,7 +38,23 @@ Examples: Mill *On Liberty* part 2, 2% → 99%. Chesterton *Orthodoxy* part 3, 7
 
 - Committed scoring snapshots (`tests/snapshots/score_default*.json`): unchanged, because the fixed profile has no quotes or indents.
 - Toy alpha fixture (3 Mill baselines; a Mill paper and a Chesterton paper): Mill paper 0.557 monitor → 0.550 monitor. Chesterton paper 0.789 escalate → 0.597 monitor. That paper was 9% measured before and 100% after, so its old "escalate" came from measuring only 125 words. With the whole text it sits closer to Mill on this tiny two-paper fixture.
-- Calibration gate legs (G1p, G2, G4), main vs this branch: see the PR description.
+
+**Calibration gate (G1p, G2, G4) not run to completion.** On this box, `python -m validation.calibration_gate --only G1p,G2,G4` was still building the G1p Plato reference pools after about 95 minutes, on both main and this branch, so I stopped both runs. No gate numbers exist for either side. Re-run it on a faster machine before quoting gate results.
+
+**Proxy measured instead: seminary corpus through the alpha batch scorer, main vs this branch.** The 139 seminary essays were grouped the way the gate groups them (5 sequential files per "student", 27 students; 4 baselines plus 1 held-out paper). Each student was scored on their own held-out paper ("self") and on the next group's held-out paper ("other"). 26 of 27 scored on both sides; one group had too little baseline on both sides.
+
+| | main | this branch |
+|---|---|---|
+| self papers flagged (schedule_conversation / escalate) | 2 / 26 (7.7%) | 1 / 26 (3.8%) |
+| other papers flagged | 8 / 26 (31%) | 4 / 26 (15%) |
+| mean deviation, self | 0.509 | 0.490 |
+| mean deviation, other | 0.568 | 0.539 |
+| self actions changed | | 3 (median shift 0.013, max 0.146) |
+| other actions changed | | 4 (median shift 0.058, max 0.268) |
+
+Both sides fail the alpha's pre-registered bar (≤5% false flags and ≥75% caught) on this proxy, as before. With the full text measured, false flags go down. But the gap between self and other papers also narrows (0.059 → 0.049), and fewer other papers are flagged.
+
+**Concern:** the thresholds were tuned while much of the text was not measured. These numbers suggest the action thresholds, and possibly NORM_BOUNDS, should be re-derived on the corrected measurement. That is a separate, approved re-calibration. It is not done here, and NORM_BOUNDS and constants are untouched. Caveat: the seminary "students" are sequential 5-file groups, not verified single authors, so this proxy is only directional.
 
 ## Re-calibration
 
