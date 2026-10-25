@@ -155,7 +155,7 @@ threadpoolctl==3.6.0
     # via scikit-learn
 tqdm==4.68.4
     # via spacy
-typer==0.26.8
+typer==0.27.3
     # via
     #   spacy
     #   weasel
