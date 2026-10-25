@@ -229,7 +229,7 @@ def test_split_baseline_tagging_and_report_breakout(tmp_path):
     assert "baseline_source" in csv_text and "n_split_baselines" in csv_text
 
 
-def test_exam_c_ai_own_is_validated_and_reported_separately(tmp_path):
+def test_ai_own_is_validated_and_can_still_be_reported_separately(tmp_path):
     export_dir = tmp_path / "export"
     stud = export_dir / "stud_c"
     _write_baselines(stud)
@@ -265,16 +265,79 @@ def test_exam_c_ai_own_is_validated_and_reported_separately(tmp_path):
              "recommended_action": "escalate" if "own" in path.name else "no_action",
              "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
 
+    # Default: every shadow kind, ai_own included, counts in the headline.
     code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
                                            no_rerun=True, throttle_seconds=0, scorer=fake_score)
     assert not problems
     report = (tmp_path / "out/report.md").read_text()
-    # The pre-registered catch rate covers the human shadow only; ai_own is not pooled in.
-    assert "Caught shadow work (Exam B kinds; Exam C ai_own excluded): 0/1 (0%)" in report
-    assert "| ai_own | Exam C: AI rewrite of own writing (separate) | 1 | 1/1 (100%) |" in report
+    assert "Caught shadow work (all kinds): 1/2 (50%)" in report
+    assert "| ai_own | AI imitation of own writing | 1 | 1/1 (100%) |" in report
     assert "| human_partner | human shadow | 1 | 0/1 (0%) |" in report
+    # Opting out keeps the old separate reporting: ai_own is not pooled in.
+    kinds = batch.parse_shadow_kinds("human_partner,ai_staff,injected_other,public_domain")
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out2", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score,
+                                           primary_kinds=kinds)
+    assert not problems
+    report = (tmp_path / "out2/report.md").read_text()
+    assert "Caught shadow work (ai_staff, human_partner, injected_other, public_domain): 0/1 (0%)" in report
+    assert "not pooled above: ai_own" in report
+    assert "| ai_own | AI imitation of own writing (separate) | 1 | 1/1 (100%) |" in report
     assert "- Human shadows: 0/1 (0%)" in report
-    assert "- Exam C (ai_own, separate; not in the pre-registered criteria): 1/1 (100%)" in report
+    assert "- AI imitation of own writing (ai_own, separate; not in the criteria): 1/1 (100%)" in report
+    assert all(row["not_own_total"] == 1 for row in batch.threshold_sweep(rows, kinds))
+
+
+def test_simplified_alpha_ai_own_is_the_headline_shadow(tmp_path):
+    """Simplified alpha (2026-10-25): "Your own piece" (natural) + "AI imitation"
+    (ai_own). With no other shadow kind, the headline catch rate, the gate, the
+    sweep and the breakout must all count the AI imitation."""
+    export_dir = tmp_path / "export"
+    stud = export_dir / "EXAMPLE-stu-A"
+    _write_baselines(stud)
+    (stud / "submission" / "EXAMPLE-DELETE-sub001.txt").write_text(_text("own piece"))
+    (stud / "submission" / "EXAMPLE-DELETE-sub002.txt").write_text(_text("ai imitation"))
+    labels_path = tmp_path / "answer_key.csv"
+    labels_path.write_text(
+        "submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,"
+        "paired_submission_id,shadow_source_paper_id,generator_tool\n"
+        "EXAMPLE-DELETE-sub001,natural,EXAMPLE-stu-A,EXAMPLE-stu-A,,,own-piece,,,\n"
+        "EXAMPLE-DELETE-sub002,shadow,EXAMPLE-stu-A,EXAMPLE-stu-A,ai_own,EXAMPLE-stu-A,own-piece,"
+        "EXAMPLE-DELETE-sub001,EXAMPLE-DELETE-sub001,EXAMPLE-ToolName\n")
+    seen_dirs = []
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        seen_dirs.append((Path(baseline_dir), Path(submission_dir)))
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .8 if path.stem.endswith("2") else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if path.stem.endswith("2") else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score,
+                                           evidence=False)
+    assert not problems
+    report = (tmp_path / "out/report.md").read_text()
+    assert "Caught shadow work (all kinds): 1/1 (100%)" in report
+    assert "False flags on natural work: 0/1 (0%)" in report
+    assert "**PASS** on point estimates." in report and code == 0
+    sweep = batch.threshold_sweep(rows)
+    assert sweep and all(row["not_own_total"] == 1 and row["natural_total"] == 1 for row in sweep)
+    assert "| 0.50 | 1/1 (100%) | 0/1 (0%) |" in report
+    assert "| independent | 1 | 1 | 0/1 (0%) | 1 | 1/1 (100%) |" in report
+    # Labels stay out of the scored text: the scorer saw only the export's own files.
+    for baseline_dir, submission_dir in seen_dirs:
+        assert submission_dir == stud / "submission"
+        for path in list(baseline_dir.glob("*")) + list(submission_dir.glob("*")):
+            text = path.read_text()
+            assert "ai_own" not in text and "EXAMPLE-ToolName" not in text
+    # The CLI flag rejects unknown kinds.
+    with pytest.raises(ValueError, match="unknown: bogus"):
+        batch.parse_shadow_kinds("ai_own,bogus")
+    assert batch.parse_shadow_kinds("all") == batch.DEFAULT_PRIMARY_SHADOW_KINDS
+
+
 
 
 def test_baselines_csv_rejects_split_without_parent_and_unknown_files(tmp_path):

@@ -141,16 +141,34 @@ def bad(value) -> bool:
 
 
 SHADOW_KINDS = {"human_partner", "ai_staff", "injected_other", "public_domain", "ai_own"}
-#: Exam C (optional): the volunteer pasted an AI rewrite of their OWN writing.
-#: Always reported as its own category, never pooled into the pre-registered
-#: shadow catch rate, which covers the Exam B kinds only.
-SEPARATE_SHADOW_KINDS = {"ai_own"}
+#: ``ai_own``: the tester pasted an AI imitation of their OWN writing. In the
+#: simplified alpha (2026-10-25: "Your own piece" + "AI imitation") it is the
+#: main shadow kind, so by default every shadow kind counts in the headline
+#: catch rate, the PASS/FAIL gate, the threshold sweep and the baseline-source
+#: breakout. ``--primary-shadow-kinds`` narrows that set; a kind left out is
+#: still validated and reported on its own line, never pooled.
+DEFAULT_PRIMARY_SHADOW_KINDS = frozenset(SHADOW_KINDS)
 HUMAN_SHADOW_KINDS = {"human_partner", "injected_other", "public_domain"}
+SHADOW_KIND_GROUPS = {"ai_own": "AI imitation of own writing", "ai_staff": "staff AI shadow"}
 
 
-def in_primary_shadow(row: dict) -> bool:
-    """A shadow row counted in the pre-registered catch rate (not Exam C)."""
-    return row.get("label") == "shadow" and row.get("shadow_kind", "") not in SEPARATE_SHADOW_KINDS
+def parse_shadow_kinds(value: str) -> frozenset[str]:
+    """``--primary-shadow-kinds`` value: comma-separated kinds, or ``all``."""
+    if value.strip().lower() == "all":
+        return DEFAULT_PRIMARY_SHADOW_KINDS
+    kinds = frozenset(k.strip() for k in value.split(",") if k.strip())
+    unknown = sorted(kinds - SHADOW_KINDS)
+    if not kinds or unknown:
+        raise ValueError(f"--primary-shadow-kinds must be 'all' or a comma list of {sorted(SHADOW_KINDS)}"
+                         + (f"; unknown: {', '.join(unknown)}" if unknown else ""))
+    return kinds
+
+
+def in_primary_shadow(row: dict, primary_kinds: frozenset[str] = DEFAULT_PRIMARY_SHADOW_KINDS) -> bool:
+    """A shadow row counted in the headline catch rate. Legacy rows with no
+    ``shadow_kind`` always count, as before."""
+    kind = row.get("shadow_kind", "")
+    return row.get("label") == "shadow" and (not kind or kind in primary_kinds)
 LABEL_METADATA_FIELDS = ["shadow_kind", "imitated_student_id", "prompt_id",
                          "paired_submission_id", "shadow_source_paper_id", "generator_tool"]
 
@@ -172,10 +190,11 @@ def validate_labels(path: Path, exported_ids: set[str]) -> dict[str, dict[str, s
     ``prompt_id`` + ``paired_submission_id`` identify the same-prompt genuine
     paper it pairs with, ``shadow_source_paper_id`` is the one sample paper the
     writer/generator was shown, and ``generator_tool`` is required for
-    ``ai_staff`` and ``ai_own``. ``ai_own`` (optional Exam C) is a tester-pasted
-    AI rewrite of the tester's own writing: ``author_true`` and
+    ``ai_staff`` and ``ai_own``. ``ai_own`` ("AI imitation") is a tester-pasted
+    AI imitation of the tester's own writing: ``author_true`` and
     ``imitated_student_id`` are the tester, ``writer_true`` may be the tester
-    (who pasted it), and it is reported separately from human shadows.
+    (who pasted it). It counts as a main shadow kind unless
+    ``--primary-shadow-kinds`` leaves it out.
     ``writer_true`` may be blank on natural rows.
     Legacy headers (``true_author`` and/or no metadata columns) and the legacy
     label ``not_own`` are accepted and normalised, with metadata blank.
@@ -300,9 +319,9 @@ def find_submissions(export_dir: Path) -> dict[str, tuple[Path, Path, str]]:
     return found
 
 
-def threshold_sweep(rows: list[dict]) -> list[dict]:
+def threshold_sweep(rows: list[dict], primary_kinds: frozenset[str] = DEFAULT_PRIMARY_SHADOW_KINDS) -> list[dict]:
     natural = [row for row in rows if row.get("label") == "natural" and not row.get("inconclusive") and not bad(row.get("deviation"))]
-    not_own = [row for row in rows if in_primary_shadow(row) and not row.get("inconclusive") and not bad(row.get("deviation"))]
+    not_own = [row for row in rows if in_primary_shadow(row, primary_kinds) and not row.get("inconclusive") and not bad(row.get("deviation"))]
     return [{
         "threshold": step / 20,
         "caught": sum(row["deviation"] >= step / 20 for row in not_own),
@@ -396,7 +415,8 @@ def write_evidence(out_dir: Path, submission_id: str, submission_path: Path, bas
 
 
 def build_report(rows: list[dict], problems: list[str], timings: list[float], *, has_labels: bool,
-                 no_rerun: bool, max_false_flag_rate: float, min_catch_rate: float) -> tuple[str, int]:
+                 no_rerun: bool, max_false_flag_rate: float, min_catch_rate: float,
+                 primary_kinds: frozenset[str] = DEFAULT_PRIMARY_SHADOW_KINDS) -> tuple[str, int]:
     scored = [row for row in rows if not bad(row.get("deviation"))]
     deviations = [row["deviation"] for row in scored]
     effect = [abs(row["deviation"] - row["deviation_first3"]) for row in scored if not bad(row.get("deviation_first3"))]
@@ -414,35 +434,38 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
     if has_labels:
         labeled = [row for row in scored if row.get("label") and not row.get("inconclusive")]
         natural = [row for row in labeled if row["label"] == "natural"]
-        not_own = [row for row in labeled if in_primary_shadow(row)]
+        not_own = [row for row in labeled if in_primary_shadow(row, primary_kinds)]
         false_flags = sum(bool(row["strict_flag"]) for row in natural)
         caught = sum(bool(row["strict_flag"]) for row in not_own)
         groups = {}
         for row in labeled:
             groups.setdefault(row["student"], []).append(row)
         def fraction(sample, label):
-            subset = [row for row in sample if (in_primary_shadow(row) if label == "shadow" else row["label"] == label)]
+            subset = [row for row in sample if (in_primary_shadow(row, primary_kinds) if label == "shadow" else row["label"] == label)]
             return sum(bool(row["strict_flag"]) for row in subset) / len(subset) if subset else None
         f_lo, f_hi = boot_ci(groups, lambda sample: fraction(sample, "natural"))
         c_lo, c_hi = boot_ci(groups, lambda sample: fraction(sample, "shadow"))
         passed = bool(natural and not_own and false_flags / len(natural) <= max_false_flag_rate and caught / len(not_own) >= min_catch_rate)
         f_wilson = wilson(false_flags, len(natural)); c_wilson = wilson(caught, len(not_own))
+        counted = ", ".join(sorted(primary_kinds)) if primary_kinds != DEFAULT_PRIMARY_SHADOW_KINDS else "all kinds"
+        separate = sorted(SHADOW_KINDS - primary_kinds)
         lines += ["", "## Accuracy against labels (strict = schedule_conversation/escalate; INCONCLUSIVE excluded)",
                   f"- False flags on natural work: {rate(false_flags, len(natural))}; Wilson {format_interval(f_wilson)}; student-bootstrap {format_interval((f_lo, f_hi))}",
-                  f"- Caught shadow work (Exam B kinds; Exam C ai_own excluded): {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
-                  "", "### Catch by shadow kind (Exam C `ai_own` is its own category, never pooled above)",
+                  f"- Caught shadow work ({counted}): {rate(caught, len(not_own))}; Wilson {format_interval(c_wilson)}; student-bootstrap {format_interval((c_lo, c_hi))}",
+                  "", "### Catch by shadow kind" + (f" (reported separately, not pooled above: {', '.join(separate)})" if separate else ""),
                   "| shadow kind | group | shadow | caught |", "|---|---|---:|---:|"]
         for kind in sorted({row.get("shadow_kind", "") for row in labeled if row["label"] == "shadow"}):
             krows = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") == kind]
-            group = ("Exam C: AI rewrite of own writing (separate)" if kind in SEPARATE_SHADOW_KINDS
-                     else "human shadow" if kind in HUMAN_SHADOW_KINDS else "staff AI shadow" if kind == "ai_staff" else "unspecified (legacy)")
+            group = ("human shadow" if kind in HUMAN_SHADOW_KINDS else SHADOW_KIND_GROUPS.get(kind, "unspecified (legacy)"))
+            if kind and kind not in primary_kinds:
+                group += " (separate)"
             lines.append(f"| {kind or '-'} | {group} | {len(krows)} | {rate(sum(bool(r['strict_flag']) for r in krows), len(krows))} |")
         human = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") in HUMAN_SHADOW_KINDS]
-        own = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") in SEPARATE_SHADOW_KINDS]
+        own = [row for row in labeled if row["label"] == "shadow" and row.get("shadow_kind", "") == "ai_own"]
         lines += [f"- Human shadows: {rate(sum(bool(r['strict_flag']) for r in human), len(human))}",
-                  f"- Exam C (ai_own, separate; not in the pre-registered criteria): {rate(sum(bool(r['strict_flag']) for r in own), len(own))}",
+                  f"- AI imitation of own writing (ai_own{', separate; not in the criteria' if 'ai_own' not in primary_kinds else ''}): {rate(sum(bool(r['strict_flag']) for r in own), len(own))}",
                   "", "### Deviation threshold sweep (flag if deviation >= t)", "| t | caught | false flags |", "|---|---|---|"]
-        for row in threshold_sweep(labeled):
+        for row in threshold_sweep(labeled, primary_kinds):
             lines.append(f"| {row['threshold']:.2f} | {rate(row['caught'], row['not_own_total'])} | {rate(row['false_flags'], row['natural_total'])} |")
         lines += ["", "### Baseline-source breakout (split-derived never pooled silently)",
                   "> Sections cut from one long paper are correlated, not independent papers. Compare these rows before trusting the pooled rates above; a different false-flag rate for split-derived baselines is a calibration finding, not a student finding.",
@@ -452,7 +475,7 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
             if not grows:
                 continue
             gn = [row for row in grows if row["label"] == "natural"]
-            gs = [row for row in grows if in_primary_shadow(row)]
+            gs = [row for row in grows if in_primary_shadow(row, primary_kinds)]
             lines.append(f"| {group} | {len({row['student'] for row in grows})} | {len(gn)} | {rate(sum(bool(r['strict_flag']) for r in gn), len(gn))} | {len(gs)} | {rate(sum(bool(r['strict_flag']) for r in gs), len(gs))} |")
         lines += ["", f"Pre-registered criteria: false-flag rate <= {max_false_flag_rate:.0%} and catch rate >= {min_catch_rate:.0%}",
                   f"**{'PASS' if passed else 'FAIL'}** on point estimates.",
@@ -479,7 +502,8 @@ def build_report(rows: list[dict], problems: list[str], timings: list[float], *,
 def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | None, *, no_rerun: bool,
               throttle_seconds: float = 1.0, max_false_flag_rate: float = 1 / 20, min_catch_rate: float = .75,
               scorer: Callable = score, evidence: bool = True,
-              evidence_top_n: int = 5) -> tuple[int, list[dict], list[str]]:
+              evidence_top_n: int = 5,
+              primary_kinds: frozenset[str] = DEFAULT_PRIMARY_SHADOW_KINDS) -> tuple[int, list[dict], list[str]]:
     if throttle_seconds < 0:
         raise ValueError("--throttle-seconds must be >= 0")
     files = find_submissions(export_dir)
@@ -579,7 +603,7 @@ def run_batch(export_dir: Path, out_dir: Path, repo: Path, labels_path: Path | N
             problems.append(f"{student_dir.name}: baseline below minimum ({len(baseline_files)} samples, {baseline_words} words) -> INCONCLUSIVE")
     report, code = build_report(rows, problems, timings, has_labels=labels_path is not None,
                                 no_rerun=no_rerun, max_false_flag_rate=max_false_flag_rate,
-                                min_catch_rate=min_catch_rate)
+                                min_catch_rate=min_catch_rate, primary_kinds=primary_kinds)
     csv_path = out_dir / "per_submission.csv"
     columns = sorted({key for row in rows for key in row})
     with csv_path.open("w", newline="", encoding="utf-8") as stream:
@@ -597,7 +621,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", help="staff API base URL for an export")
     parser.add_argument("--exam", action="append", default=[], help="exam id to export; may be repeated")
     parser.add_argument("--from-dir", type=Path, help="score an existing local export")
-    parser.add_argument("--labels", type=Path, help="evaluation-only CSV: submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool (shadow_kind: human_partner|ai_staff|injected_other|public_domain|ai_own; ai_own = optional Exam C, reported separately)")
+    parser.add_argument("--labels", type=Path, help="evaluation-only CSV: submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,paired_submission_id,shadow_source_paper_id,generator_tool (shadow_kind: human_partner|ai_staff|injected_other|public_domain|ai_own)")
+    parser.add_argument("--primary-shadow-kinds", default="all",
+                        help="shadow kinds counted in the headline catch rate, PASS/FAIL gate, threshold sweep and "
+                             "baseline-source breakout: 'all' (default; includes ai_own, the 'AI imitation' collection) "
+                             "or a comma list such as human_partner,ai_staff,injected_other,public_domain to report ai_own separately")
     parser.add_argument("--repo", type=Path, default=ROOT, help="repository root (default: detected from this script)")
     parser.add_argument("--out", type=Path, default=Path("alpha_scores"))
     parser.add_argument("--max-false-flag-rate", type=float, default=1 / 20)
@@ -611,6 +639,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="how many of the engine's top differing habits to explain per submission (default: 5)")
     args = parser.parse_args(argv)
     try:
+        primary_kinds = parse_shadow_kinds(args.primary_shadow_kinds)
         if args.from_dir:
             export_dir = args.from_dir.resolve()
         else:
@@ -623,7 +652,8 @@ def main(argv: list[str] | None = None) -> int:
         code, _, _ = run_batch(export_dir, args.out.resolve(), args.repo.resolve(), args.labels,
                                no_rerun=args.no_rerun, throttle_seconds=args.throttle_seconds,
                                max_false_flag_rate=args.max_false_flag_rate, min_catch_rate=args.min_catch_rate,
-                               evidence=not args.no_evidence, evidence_top_n=args.evidence_top_n)
+                               evidence=not args.no_evidence, evidence_top_n=args.evidence_top_n,
+                               primary_kinds=primary_kinds)
         return code
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"batch_score_alpha: {exc}", file=sys.stderr)
