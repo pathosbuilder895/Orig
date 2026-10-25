@@ -679,15 +679,20 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
         )
     if want_evidence:
         try:
-            baselines = [
-                (f"past paper {i + 1}", s.text)
-                for i, s in enumerate(state.samples)
-                if s.auth_weight > 0 and s.text
-            ]
+            used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+            # Every measurement, with the engine's own vectors and baseline
+            # mean when every contributing sample has its text (otherwise the
+            # mean would cover papers the page cannot show).
+            complete = len(used) == sum(1 for s in state.samples if s.auth_weight > 0)
             response.evidence = build_evidence(
                 [dataclasses.asdict(f) for f in result.interference.destructive_features],
                 text,
                 baselines,
+                all_features=True,
+                submission_vector=result.feature_vector,
+                baseline_vectors=[s.vector for s in used],
+                past_average=state.baseline_mean if complete else None,
             )
         except Exception:
             logging.getLogger(__name__).exception(

@@ -48,18 +48,25 @@ from pathlib import Path
 from typing import Any
 
 from .constants import (
+    ALL_FEATURE_CODES,
     ASSERTION_WORDS,
     AUTHORITY_MARKERS,
+    BASE_FEATURE_CODES,
     CLAIM_MARKERS,
     DISCOURSE_MARKERS,
+    FEATURE_DIM,
     FEATURE_NAMES,
+    FEATURE_TIER,
     FIRST_PERSON,
     HEDGE_WORDS,
     MODAL_VERBS,
     PASSIVE_PATTERNS,
     PERSONAL_PRONOUNS,
+    RECENCY_DECAY,
+    TIER_WEIGHTS,
     TRANSITION_PHRASES,
 )
+from .evidence_features import feature_info
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
 from .features.tier1 import TextDoc, _tokenize
@@ -80,10 +87,8 @@ BAND_WORDS = {
     "schedule_conversation": "Outside the usual range",
     "escalate": "Far outside the usual range",
 }
-NUMBERS_ONLY_NOTE = (
-    "Measured over the whole paper; this habit has no single place in the text, "
-    "so it is shown as numbers only."
-)
+#: Shown for a measured habit that is a statistic over the whole paper.
+NUMBERS_ONLY_NOTE = "Whole-text measurement, no single sentence to point to."
 NOT_LOCATED_NOTE = (
     "The places counted could not be matched exactly to the stored text of this "
     "paper, so no passages are shown for it (numbers only)."
@@ -834,6 +839,10 @@ def build_feature_evidence(
     """
     code = feature["code"]
     name, description = describe(code)
+    info = feature_info().get(code)
+    if info is not None:
+        # Written from the extractor code, so it says how the number is made.
+        description = info["description"]
     delta = float(feature.get("delta", 0.0) or 0.0)
     direction = "higher" if delta > 0 else "lower" if delta < 0 else "same"
     out: dict[str, Any] = {
@@ -906,13 +915,21 @@ def build_evidence(
     *,
     top_n: int = DEFAULT_TOP_N,
     max_examples: int = MAX_EXAMPLES,
+    all_features: bool = False,
+    submission_vector: Any = None,
+    baseline_vectors: Sequence[Any] | None = None,
+    past_average: Any = None,
 ) -> dict[str, Any]:
-    """Evidence for the engine's top differing habits, in the engine's order."""
+    """Evidence for the engine's top differing habits, in the engine's order.
+
+    With ``all_features`` the result also lists every measurement in the
+    vector (``build_all_features``); the vector arguments pass through.
+    """
     features = [
         build_feature_evidence(f, submission_text, baselines, rank=i + 1, max_examples=max_examples)
         for i, f in enumerate(list(destructive_features)[:top_n])
     ]
-    return {
+    out: dict[str, Any] = {
         "measured": {
             "this_paper": measured_coverage(submission_text),
             "past_papers": [
@@ -925,6 +942,30 @@ def build_evidence(
         "features": features,
         "locatable_codes": list(LOCATABLE),
     }
+    if all_features:
+        full = build_all_features(
+            submission_text,
+            baselines,
+            submission_vector=submission_vector,
+            baseline_vectors=baseline_vectors,
+            past_average=past_average,
+            top_codes=[f["code"] for f in features],
+            max_examples=max_examples,
+        )
+        by_code = {f["code"]: f["engine_scale"] for f in full}
+        out["feature_count"] = FEATURE_DIM
+        out["all_features_ordering"] = ALL_FEATURES_ORDERING
+        out["past_average_matches_top_list"] = all(
+            f["engine_scale"]["past_papers_average"] is None
+            or abs(
+                by_code[f["code"]]["past_papers_average"] - f["engine_scale"]["past_papers_average"]
+            )
+            < 1e-3
+            for f in features
+            if f["code"] in by_code
+        )
+        out["all_features"] = full
+    return out
 
 
 def countable_overview(
@@ -955,6 +996,186 @@ def countable_overview(
             }
         )
     return rows
+
+
+# ── Every measurement in the vector (ADR-013, all-features extension) ────────
+
+WHOLE_TEXT_NOTE = NUMBERS_ONLY_NOTE
+#: The documented order of the full list.
+ALL_FEATURES_ORDERING = (
+    "Sorted by how far this paper sits from the past-paper average on Original's 0 to 1 "
+    "scale, times the weight Original gives that measurement's group (constants."
+    "TIER_WEIGHTS). This is the same size measure the engine uses to pick its top "
+    "differences (quantum/scoring.py _decompose), applied to every measurement. Ties, "
+    "including every measurement that does not differ, keep the engine's feature order "
+    "(constants.ALL_FEATURE_CODES). Original's own top list only takes measurements more "
+    "than one standard deviation from the writer's usual range, so a measurement can sit "
+    "high here and still be missing from that list, for example when the past papers "
+    "themselves vary widely on it."
+)
+#: Shown when the score's top list used a different past-paper average.
+AVERAGE_DIFFERS_NOTE = (
+    "The past-paper averages in Original's own top list differ from the ones in the full "
+    "list (for example when the score blended in a wider reference average for a short "
+    "baseline, or some past papers have no stored text), so compare the two lists with care."
+)
+KIND_WORDS = {
+    "located": "counted at places in the text",
+    "whole_text": "whole-text measurement",
+    "off": "switched off",
+    "placeholder": "not computed by default scoring",
+}
+
+
+@lru_cache(maxsize=32)
+def _paper_values(text: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """(raw, 0–1) values for every code in ``ALL_FEATURE_CODES``, one paper.
+
+    The 0–1 values are ``extract_features`` itself; raw values come from the
+    same extraction before ``NORM_BOUNDS`` (NaN for comparison codes, which
+    have no raw value in default scoring).
+    """
+    from .features.pipeline import _normalise, extract_raw_features
+
+    raw = extract_raw_features(text)
+    raw_row = tuple(float(raw.get(c, float("nan"))) for c in ALL_FEATURE_CODES)
+    norm_row = tuple(
+        _normalise(raw[c], c) if c in BASE_FEATURE_CODES else 0.5 for c in ALL_FEATURE_CODES
+    )
+    return raw_row, norm_row
+
+
+def recency_weighted_mean(vectors: Sequence[Sequence[float]]) -> list[float]:
+    """Past-paper average the way ``StudentState.baseline_mean`` takes it.
+
+    ``vectors`` are oldest first, all with the same authentication weight
+    (the batch scorer uploads every past paper as ``verified``): weight of
+    paper ``i`` is ``RECENCY_DECAY ** (N - 1 - i)``, newest 1.0.
+    """
+    n = len(vectors)
+    if not n:
+        return [0.5] * FEATURE_DIM
+    weights = [RECENCY_DECAY ** (n - 1 - i) for i in range(n)]
+    total = sum(weights)
+    return [
+        sum(w * float(v[d]) for w, v in zip(weights, vectors, strict=True)) / total
+        for d in range(FEATURE_DIM)
+    ]
+
+
+def _as_row(vector: Any) -> list[float]:
+    """A vector as floats in ``ALL_FEATURE_CODES`` order (dict or sequence)."""
+    if isinstance(vector, dict):
+        return [float(vector[c]) for c in ALL_FEATURE_CODES]
+    return [float(x) for x in vector]
+
+
+def _rr(value: float) -> float | None:
+    return None if value != value else _round(value)  # NaN -> None
+
+
+def build_all_features(
+    submission_text: str,
+    baselines: Sequence[tuple[str, str]],
+    *,
+    submission_vector: Any = None,
+    baseline_vectors: Sequence[Any] | None = None,
+    past_average: Any = None,
+    top_codes: Sequence[str] = (),
+    max_examples: int = MAX_EXAMPLES,
+) -> list[dict[str, Any]]:
+    """One entry for every code in the engine's vector, largest difference first.
+
+    By default the 0–1 values are recomputed with ``extract_features`` and
+    the past-paper average is the recency-weighted mean. A caller holding the
+    engine's own vectors (the API) passes ``submission_vector``,
+    ``baseline_vectors`` and ``past_average`` so the page shows exactly the
+    numbers the score used. Raw (plain-unit) values are always recomputed
+    from the texts. Nothing here feeds back into a score.
+    """
+    info = feature_info()
+    sub_raw, sub_norm = _paper_values(submission_text)
+    past_raw_norm = [_paper_values(text) for _, text in baselines]
+    this_row = _as_row(submission_vector) if submission_vector is not None else list(sub_norm)
+    past_rows = (
+        [_as_row(v) for v in baseline_vectors]
+        if baseline_vectors is not None
+        else [list(n) for _, n in past_raw_norm]
+    )
+    if len(past_rows) != len(baselines):
+        raise ValueError("one baseline vector per baseline text")
+    avg_row = (
+        _as_row(past_average) if past_average is not None else recency_weighted_mean(past_rows)
+    )
+    labels = [label for label, _ in baselines]
+    entries: list[tuple[tuple[float, int], dict[str, Any]]] = []
+    for d, code in enumerate(ALL_FEATURE_CODES):
+        tier = FEATURE_TIER[code]
+        meta = info[code]
+        this, avg = this_row[d], avg_row[d]
+        delta = this - avg
+        size = abs(delta) * TIER_WEIGHTS[tier]
+        past = [row[d] for row in past_rows]
+        lo, hi = (min(past), max(past)) if past else (None, None)
+        direction = "higher" if delta > 1e-9 else "lower" if delta < -1e-9 else "same"
+        entry: dict[str, Any] = {
+            "code": code,
+            "name": describe(code)[0],
+            "group": tier,
+            "in_top_list": code in top_codes,
+            "description": meta["description"],
+            "direction": direction,
+            "engine_scale": {
+                "this_paper": _round(this),
+                "past_papers": [
+                    {"paper": label, "value": _round(v)}
+                    for label, v in zip(labels, past, strict=True)
+                ],
+                "past_papers_average": _round(avg),
+                "past_range": [_round(lo), _round(hi)] if past else None,
+                "difference": _round(delta),
+                "weighted_size": _round(size),
+                "group_weight": TIER_WEIGHTS[tier],
+                "outside_past_range": bool(past) and not (lo - 1e-9 <= this <= hi + 1e-9),
+            },
+        }
+        kind = meta["kind"]
+        if kind == "measured" and code in LOCATABLE:
+            located = build_feature_evidence(
+                {"code": code, "submission_value": this, "baseline_value": avg, "delta": delta},
+                submission_text,
+                baselines,
+                rank=0,
+                max_examples=max_examples,
+            )
+            for key in ("plain", "what_is_marked", "this_paper", "past_papers", "note"):
+                if key in located:
+                    entry[key] = located[key]
+            kind = "located" if located["locatable"] else "whole_text"
+        elif kind == "measured":
+            kind = "whole_text"
+            if meta["unit"] is not None:
+                raw_past = [r[d] for r, _ in past_raw_norm]
+                entry["plain"] = {
+                    "unit": meta["unit"],
+                    "this_paper": _rr(sub_raw[d]),
+                    "past_papers": [
+                        {"paper": label, "value": _rr(v)}
+                        for label, v in zip(labels, raw_past, strict=True)
+                    ],
+                    "past_range": [_rr(min(raw_past)), _rr(max(raw_past))] if raw_past else None,
+                }
+            else:
+                entry["plain_note"] = "The measurement is itself a 0 to 1 score."
+            entry["note"] = WHOLE_TEXT_NOTE
+        entry["kind"] = kind
+        entry["locatable"] = kind == "located"
+        entries.append(((-round(size, 12), d), entry))
+    entries.sort(key=lambda pair: pair[0])
+    out = []
+    for rank, (_, entry) in enumerate(entries, start=1):
+        out.append({"rank": rank, **entry})
+    return out
 
 
 def preliminary_score(
@@ -996,6 +1217,10 @@ def _fmt(value) -> str:
     return "–" if value is None else f"{value:.3g}"
 
 
+def _signed(value: float) -> str:
+    return "0" if value == 0 else f"{value:+.3g}"
+
+
 def _md_quote(q: dict[str, Any]) -> str:
     """Passage with the counted part in bold; the text itself is untouched."""
     a = q["match_start"] - q["passage_start"]
@@ -1010,6 +1235,76 @@ def _md_quote(q: dict[str, Any]) -> str:
     if q.get("crosses_set_aside"):
         extra += " (as Original read it, this runs across text it set aside)"
     return f"{lead}“{body}”{tail}{extra} — *{q['paper']}*, chars {q['start']}–{q['end']}"
+
+
+def _md_plain(pl: dict[str, Any]) -> str:
+    per = ", ".join(f"{p['paper']} {_fmt(p['value'])}" for p in pl["past_papers"])
+    rng = pl["past_range"]
+    return (
+        f"- In plain units ({pl['unit']}): this paper {_fmt(pl['this_paper'])} "
+        f"· past papers "
+        f"{_fmt(rng[0]) if rng else '–'}–{_fmt(rng[1]) if rng else '–'} ({per})"
+    )
+
+
+def _md_sentences(f: dict[str, Any]) -> list[str]:
+    """The located part of a section: counts, note and the two-column table."""
+    lines = []
+    tp, pp = f["this_paper"], f["past_papers"]
+    if "count" in tp and "words" not in (tp["examples"][0] if tp["examples"] else {}):
+        lines.append(
+            f"- Marked: {f['what_is_marked']}. Found {tp['count']} in this paper; "
+            + ", ".join(f"{p['count']} in {p['paper']}" for p in pp["per_paper"])
+            + "."
+        )
+    if f.get("note"):
+        lines.append(f"- {f['note']}")
+    lines += ["", "| This paper | Past papers |", "|---|---|"]
+    rows = max(len(tp["examples"]), len(pp["examples"]), 1)
+    for i in range(rows):
+        left = (
+            _md_quote(tp["examples"][i])
+            if i < len(tp["examples"])
+            else ("*(none in this paper)*" if i == 0 else "")
+        )
+        right = (
+            _md_quote(pp["examples"][i])
+            if i < len(pp["examples"])
+            else ("*(none in the past papers)*" if i == 0 else "")
+        )
+        lines.append(f"| {left} | {right} |")
+    return lines
+
+
+def _md_full_entry(f: dict[str, Any]) -> list[str]:
+    eng = f["engine_scale"]
+    rng = eng["past_range"]
+    per = ", ".join(f"{p['paper']} {_fmt(p['value'])}" for p in eng["past_papers"])
+    lines = [
+        f"### {f['rank']}. {f['name']} ({_dir_words(f['direction'])})",
+        "",
+        f"`{f['code']}` · group {f['group']} · {KIND_WORDS[f['kind']]}"
+        + (" · ★ in Original's own top list" if f["in_top_list"] else ""),
+        "",
+        f["description"],
+        "",
+        f"- Original's 0–1 scale: this paper {_fmt(eng['this_paper'])} · past-paper average "
+        f"{_fmt(eng['past_papers_average'])} · past papers "
+        f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'}" + (f" ({per})" if per else ""),
+        f"- Difference: {_signed(eng['difference'])} on the 0–1 scale; size for sorting "
+        f"{_fmt(eng['weighted_size'])} (× group weight {eng['group_weight']:g})"
+        + ("; outside the range of every past paper" if eng["outside_past_range"] else ""),
+    ]
+    if "plain" in f:
+        lines.append(_md_plain(f["plain"]))
+    elif f.get("plain_note"):
+        lines.append(f"- {f['plain_note']}")
+    if f["kind"] == "located":
+        lines += _md_sentences(f)
+    elif f["kind"] == "whole_text":
+        lines.append(f"- {f['note']}")
+    lines.append("")
+    return lines
 
 
 def render_markdown(
@@ -1061,6 +1356,9 @@ def render_markdown(
                 "read the numbers below with that in mind."
             )
         lines.append("")
+    full = evidence.get("all_features")
+    if full is not None:
+        lines += ["## Biggest differences (Original's own top list)", ""]
     lines += [
         f"Order: {evidence['ordering']} Quotes are verbatim slices of the stored text at the "
         "character offsets shown; bold marks what was counted.",
@@ -1068,8 +1366,9 @@ def render_markdown(
     ]
     if not evidence["features"]:
         lines += ["The score listed no habits outside the writer's usual range.", ""]
+    head = "###" if full is not None else "##"
     for f in evidence["features"]:
-        lines += [f"## {f['rank']}. {f['name']} ({_dir_words(f['direction'])})", ""]
+        lines += [f"{head} {f['rank']}. {f['name']} ({_dir_words(f['direction'])})", ""]
         if f["description"]:
             lines += [f["description"], ""]
         eng = f["engine_scale"]
@@ -1078,42 +1377,39 @@ def render_markdown(
             f" · past-paper average {_fmt(eng['past_papers_average'])}"
         )
         if "plain" in f:
-            pl = f["plain"]
-            per = ", ".join(f"{p['paper']} {_fmt(p['value'])}" for p in pl["past_papers"])
-            rng = pl["past_range"]
-            lines.append(
-                f"- In plain units ({pl['unit']}): this paper {_fmt(pl['this_paper'])} "
-                f"· past papers "
-                f"{_fmt(rng[0]) if rng else '–'}–{_fmt(rng[1]) if rng else '–'} ({per})"
-            )
+            lines.append(_md_plain(f["plain"]))
         if not f["locatable"]:
-            lines += [f"- Numbers only: {f['note']}", ""]
+            lines += [f"- {f['note']}", ""]
             continue
-        tp, pp = f["this_paper"], f["past_papers"]
-        if "count" in tp and "words" not in (tp["examples"][0] if tp["examples"] else {}):
-            lines.append(
-                f"- Marked: {f['what_is_marked']}. Found {tp['count']} in this paper; "
-                + ", ".join(f"{p['count']} in {p['paper']}" for p in pp["per_paper"])
-                + "."
-            )
-        if f.get("note"):
-            lines.append(f"- {f['note']}")
-        lines += ["", "| This paper | Past papers |", "|---|---|"]
-        rows = max(len(tp["examples"]), len(pp["examples"]), 1)
-        for i in range(rows):
-            left = (
-                _md_quote(tp["examples"][i])
-                if i < len(tp["examples"])
-                else ("*(none in this paper)*" if i == 0 else "")
-            )
-            right = (
-                _md_quote(pp["examples"][i])
-                if i < len(pp["examples"])
-                else ("*(none in the past papers)*" if i == 0 else "")
-            )
-            lines.append(f"| {left} | {right} |")
+        lines += _md_sentences(f)
         lines.append("")
-    if overview:
+    if full is not None:
+        lines += [
+            f"## All {len(full)} measurements, largest difference first",
+            "",
+            evidence["all_features_ordering"],
+            "",
+            "★ = also in Original's own top list above.",
+            "",
+            "| # | measurement | kind | this paper (0–1) | past average (0–1) "
+            "| difference | size | outside past range |",
+            "|---:|---|---|---:|---:|---:|---:|---|",
+        ]
+        for f in full:
+            eng = f["engine_scale"]
+            lines.append(
+                f"| {f['rank']} | {f['name']}{' ★' if f['in_top_list'] else ''} | "
+                f"{KIND_WORDS[f['kind']]} | "
+                f"{_fmt(eng['this_paper'])} | {_fmt(eng['past_papers_average'])} | "
+                f"{_signed(eng['difference'])} | {_fmt(eng['weighted_size'])} | "
+                f"{'yes' if eng['outside_past_range'] else ''} |"
+            )
+        if evidence.get("past_average_matches_top_list") is False:
+            lines += ["", f"**Note:** {AVERAGE_DIFFERS_NOTE}"]
+        lines += ["", "## Every measurement in detail", ""]
+        for f in full:
+            lines += _md_full_entry(f)
+    elif overview:
         lines += [
             "## Every countable habit (fixed order, not a ranking; numbers only)",
             "",
@@ -1151,17 +1447,91 @@ def _html_quote(q: dict[str, Any]) -> str:
     )
 
 
+def _html_cols(f: dict[str, Any]) -> str:
+    left = (
+        "".join(_html_quote(q) for q in f["this_paper"]["examples"])
+        or "<p class='note'>None in this paper.</p>"
+    )
+    right = (
+        "".join(_html_quote(q) for q in f["past_papers"]["examples"])
+        or "<p class='note'>None in the past papers.</p>"
+    )
+    return (
+        f"<div class='cols'><div><h3>This paper</h3>{left}</div>"
+        f"<div><h3>Past papers</h3>{right}</div></div>"
+    )
+
+
+def _html_plain(pl: dict[str, Any]) -> str:
+    import html
+
+    rng = pl["past_range"]
+    per = ", ".join(f"{html.escape(p['paper'])} {_fmt(p['value'])}" for p in pl["past_papers"])
+    return (
+        f"<p class='note'>In plain units ({html.escape(pl['unit'])}): this paper "
+        f"{_fmt(pl['this_paper'])} · past papers "
+        f"{_fmt(rng[0]) if rng else '–'}–{_fmt(rng[1]) if rng else '–'} ({per})</p>"
+    )
+
+
+def _html_full_entry(f: dict[str, Any]) -> str:
+    import html
+
+    eng = f["engine_scale"]
+    rows = "".join(
+        f"<tr><td>{html.escape(p['paper'])}</td><td>{_fmt(p['value'])}</td></tr>"
+        for p in eng["past_papers"]
+    )
+    rng = eng["past_range"]
+    parts = [
+        f"<details id='f-{f['code']}' class='kind-{f['kind']}'>",
+        f"<summary><b>{f['rank']}. {html.escape(f['name'])}</b>"
+        f"{' ★' if f['in_top_list'] else ''} · "
+        f"{_dir_words(f['direction'])} · difference {_signed(eng['difference'])}"
+        f" · {KIND_WORDS[f['kind']]}</summary>",
+        f"<p><code>{f['code']}</code> · group {f['group']}"
+        + (" · ★ in Original's own top list" if f["in_top_list"] else "")
+        + "</p>",
+        f"<p>{html.escape(f['description'])}</p>",
+        "<table><tr><th>0–1 scale</th><th>value</th></tr>"
+        f"<tr><td><b>this paper</b></td><td><b>{_fmt(eng['this_paper'])}</b></td></tr>{rows}"
+        f"<tr><td>past-paper average</td><td>{_fmt(eng['past_papers_average'])}</td></tr>"
+        f"<tr><td>past-paper range</td><td>"
+        f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'}</td></tr></table>",
+        f"<p class='note'>Difference {_signed(eng['difference'])} on the 0–1 scale; size for "
+        f"sorting {_fmt(eng['weighted_size'])} (× group weight {eng['group_weight']:g})"
+        + ("; outside the range of every past paper" if eng["outside_past_range"] else "")
+        + ".</p>",
+    ]
+    if "plain" in f:
+        parts.append(_html_plain(f["plain"]))
+    elif f.get("plain_note"):
+        parts.append(f"<p class='note'>{html.escape(f['plain_note'])}</p>")
+    if f["kind"] == "located":
+        if f.get("note"):
+            parts.append(f"<p class='note'>{html.escape(f['note'])}</p>")
+        parts.append(_html_cols(f))
+    elif f["kind"] == "whole_text":
+        parts.append(f"<p class='whole'>{html.escape(f['note'])}</p>")
+    parts.append("</details>")
+    return "".join(parts)
+
+
 def render_html(
     submission_id: str, evidence: dict[str, Any], preliminary: dict[str, Any] | None
 ) -> str:
     import html
 
+    full = evidence.get("all_features")
     parts = [
         "<!doctype html><meta charset='utf-8'><title>Evidence</title>",
         "<style>body{font:15px/1.5 Georgia,serif;max-width:1100px;margin:2em auto;padding:0 1em}"
         ".cols{display:grid;grid-template-columns:1fr 1fr;gap:1.5em}mark{background:#ffe9a8}"
         "blockquote{margin:.5em 0;padding:.4em .8em;border-left:3px solid #c9b37e}"
-        ".note{color:#555}</style>",
+        ".note{color:#555}details{border-top:1px solid #ddd;padding:.4em 0}"
+        "summary{cursor:pointer}table{border-collapse:collapse;margin:.4em 0}"
+        "td,th{border:1px solid #ddd;padding:.15em .6em;text-align:left}"
+        ".whole{font-style:italic;color:#555}nav ol{columns:2;font-size:13px}</style>",
         f"<h1>Evidence for {html.escape(submission_id)}</h1>",
         "<p class='note'>Staff only; never shown to students. Original in testing: "
         "not validated on real "
@@ -1186,9 +1556,23 @@ def render_html(
             )
             + ".</p>"
         )
+    if full is not None:
+        parts.append(
+            "<nav><h2>Contents</h2><p><a href='#top'>Biggest differences (Original's own top "
+            f"list)</a> · <a href='#all'>All {len(full)} measurements</a></p><ol>"
+            + "".join(
+                f"<li><a href='#f-{f['code']}'>{html.escape(f['name'])}</a>"
+                f"{' ★' if f['in_top_list'] else ''} "
+                f"<small>{_signed(f['engine_scale']['difference'])}</small></li>"
+                for f in full
+            )
+            + "</ol></nav>"
+        )
+        parts.append("<h2 id='top'>Biggest differences (Original's own top list)</h2>")
+    head = "h3" if full is not None else "h2"
     for f in evidence["features"]:
         parts.append(
-            f"<h2>{f['rank']}. {html.escape(f['name'])} ({_dir_words(f['direction'])})</h2>"
+            f"<{head}>{f['rank']}. {html.escape(f['name'])} ({_dir_words(f['direction'])})</{head}>"
         )
         if f["description"]:
             parts.append(f"<p>{html.escape(f['description'])}</p>")
@@ -1198,18 +1582,16 @@ def render_html(
             f"{_fmt(eng['past_papers_average'])}</p>"
         )
         if not f["locatable"]:
-            parts.append(f"<p class='note'>Numbers only. {html.escape(f['note'])}</p>")
+            parts.append(f"<p class='whole'>{html.escape(f['note'])}</p>")
             continue
-        left = (
-            "".join(_html_quote(q) for q in f["this_paper"]["examples"])
-            or "<p class='note'>None in this paper.</p>"
-        )
-        right = (
-            "".join(_html_quote(q) for q in f["past_papers"]["examples"])
-            or "<p class='note'>None in the past papers.</p>"
-        )
+        parts.append(_html_cols(f))
+    if full is not None:
         parts.append(
-            f"<div class='cols'><div><h3>This paper</h3>{left}</div>"
-            f"<div><h3>Past papers</h3>{right}</div></div>"
+            f"<h2 id='all'>All {len(full)} measurements, largest difference first</h2>"
+            f"<p class='note'>{html.escape(evidence['all_features_ordering'])} Click a "
+            "measurement to open it. ★ = also in Original's own top list.</p>"
         )
+        if evidence.get("past_average_matches_top_list") is False:
+            parts.append(f"<p class='note'><b>Note:</b> {html.escape(AVERAGE_DIFFERS_NOTE)}</p>")
+        parts += [_html_full_entry(f) for f in full]
     return "\n".join(parts) + "\n"
