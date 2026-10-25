@@ -194,7 +194,8 @@ def engine_view(text: str) -> EngineView | None:
     rebuild does not match the engine byte for byte (fail closed)."""
     body_end = len(_pp._strip_backmatter(text))
     m = Mapped(text[:body_end], tuple(range(body_end)))
-    m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
+    if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
+        m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 
     def _quote(match: re.Match):
         if len(match.group(0).split()) > 40:

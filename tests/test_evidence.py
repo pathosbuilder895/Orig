@@ -42,7 +42,9 @@ PLAIN = [
     "to cut keys and mix paint for customers who came in every day: it was a good job.",
 ]
 LONG_SENTENCE = ("But " + "the long road wound on past fields and farms and rivers, " * 20).strip() + " and ended here. Short one."
-QUOTE_GAP = 'He called it "home" once. ' + "This is my own sentence about the city and its people. " * 10 + 'Later she said "goodbye" and left.'
+# A genuine long quotation (> 40 words) that preprocess sets aside.
+LONG_QUOTE = '"' + "the words of another writer quoted at length here " * 12 + 'end."'
+QUOTE_GAP = "He quoted it once. " + LONG_QUOTE + " Then he left."
 
 
 def _corpus_texts(limit=6):
@@ -50,7 +52,7 @@ def _corpus_texts(limit=6):
     return [f.read_text(encoding="utf-8", errors="replace")[2000:9000] for f in files]
 
 
-SHORT_LONG_QUOTE = ('She wrote "' + "extraordinarily " * 15 + '" twice; it stayed. ' + PLAIN[0])
+SHORT_LONG_QUOTE = ('She wrote "' + "extraordinarily " * 14 + 'extraordinarily" twice; it stayed. ' + PLAIN[0])
 
 ALL_TEXTS = [EDGE, LONG_SENTENCE, QUOTE_GAP, SHORT_LONG_QUOTE, *PLAIN, *_corpus_texts()]
 
@@ -206,7 +208,7 @@ def test_set_aside_text_is_reported_with_verbatim_previews():
 
 
 def test_sentences_that_run_across_set_aside_text_are_marked():
-    text = 'And she called it "home" once. ' + "This is my own sentence about the city and its people. " * 10 + 'Later she said "goodbye" and left.'
+    text = "And she wrote " + LONG_QUOTE + " before she left the city. " + "This is my own sentence. " * 3
     evidence = ev.build_evidence([_feature("sentence_initial_conjunction_rate")], text, [("past paper 1", PLAIN[0])])
     quote = evidence["features"][0]["this_paper"]["examples"][0]
     assert quote["crosses_set_aside"] is True
@@ -415,3 +417,9 @@ def test_sentence_spread_examples_do_not_repeat_a_sentence():
     many = ev.read_paper(PLAIN[0], "sentence_length_variance").places
     assert len(ev._length_pick(many, "spread", "higher", 2)) == 2
     assert ev._length_pick(many, "mean", "lower", 1)[0].words == min(p.words for p in many)
+
+
+def test_engine_view_mirrors_paragraph_style_indentation():
+    text = "\tMy first paragraph, typed with a tab.\n\n\tMy second paragraph, also tabbed, goes on."
+    view = ev.engine_view(text)
+    assert view is not None and view.prose.text == pp.preprocess(text)[0]
