@@ -54,7 +54,19 @@ Same proxy as `quote_block_fix_2026-10-25.md`: 139 seminary essays in 27 groups 
 | mean deviation, self / other | 0.490 / 0.539 | 0.490 / 0.539 |
 | actions changed | | 0 of 52; all 52 deviations identical |
 
-**Demo server path (pipeline on):** run in progress; numbers to follow in this note.
+**Demo server path (pipeline on: `CONTEXT_MANIFEST_ENABLED=1`, `ADAPTIVE_WEIGHTS_ENABLED=1`, live score route in process, one fresh database per side):**
+
+| | main | this branch |
+|---|---|---|
+| self flagged | 1 / 26 (3.8%) | 1 / 26 (3.8%) |
+| other flagged | 6 / 26 (23%) | 6 / 26 (23%) |
+| mean deviation, self / other | 0.488 / 0.537 | 0.488 / 0.537 |
+| actions changed | | 0 of 52; all 52 deviations identical |
+| papers with a comparison code in the top 5 differences | 19 self, 19 other | 0, 0 |
+| papers whose #1 difference was a comparison code | 4 self, 3 other | 0, 0 |
+| papers with the T1-T11 error-vanish pair | 2 self, 2 other (none forced an escalate) | 0, 0 |
+
+So on this proxy the fix changes no score and no action. What changes is the explanation: before, 38 of 52 papers had a stand-in comparison among their top five "differences".
 
 Both sides fail the alpha's pre-registered bar (≤5% false flags and ≥75% caught) on this proxy, as before. The proxy's "students" are sequential 5-file groups, not verified single authors, so it is only directional.
 
