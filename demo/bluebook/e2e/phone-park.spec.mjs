@@ -35,8 +35,28 @@ test('with phone parking on, Begin waits for the student\'s own phone', async ({
   await boot(studentPage, exam, testTenant, { phonePark: true })
   const begin = studentPage.getByRole('button', { name: 'Begin Examination' })
   await expect(studentPage.getByRole('heading', { name: 'Park your phone' })).toBeVisible()
-  await expect(studentPage.getByRole('img', { name: /Your own code for parking your phone/ })).toBeVisible()
+  const qrImg = studentPage.getByRole('img', { name: /Your own code for parking your phone/ })
+  await expect(qrImg).toBeVisible()
   await expect(begin).toBeDisabled()
+  // The blue cover grows with the phone-park card so its inner border never
+  // cuts through the QR card, and numbered steps have no bullet-dot overlay.
+  const layout = await studentPage.evaluate(() => {
+    const cover = document.querySelector('.bk-cover')
+    const afterH = parseFloat(getComputedStyle(cover, '::after').height)
+    const stepBefore = getComputedStyle(document.querySelector('.bk-phone-park ol li'), '::before')
+    return {
+      coverOverflow: cover.scrollHeight - cover.clientHeight,
+      afterCoversCard: afterH >= cover.clientHeight - 32,
+      stepBg: stepBefore.backgroundColor,
+    }
+  })
+  expect(layout.coverOverflow).toBeLessThanOrEqual(1)
+  expect(layout.afterCoversCard).toBe(true)
+  expect(layout.stepBg).toBe('rgba(0, 0, 0, 0)')
+  // And at 320px wide (mobile / 200% zoom), nothing overflows sideways.
+  await studentPage.setViewportSize({ width: 320, height: 568 })
+  expect(await studentPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  await studentPage.setViewportSize({ width: 1280, height: 720 })
 
   // The phone opens the student's own code: no sign-in.
   const r = await request.get(`/bluebook/me/exams/${exam.id}/phone-park`, {
