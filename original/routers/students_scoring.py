@@ -644,7 +644,56 @@ def score_submission(
     except Exception:
         pass
 
-    return _to_response(result, arc, report=report)
+    response = _to_response(result, arc, report=report)
+    _attach_staff_explainability(response, request, req.text, state, result)
+    return response
+
+
+def _attach_staff_explainability(response, request, text: str, state, result) -> None:
+    """ADR-013: located evidence and the preliminary score, both off by default.
+
+    Only for an HTTP caller that is not a student session. In-process callers
+    (``/me/work`` scores a student's own piece with ``request=None``) never
+    get either, and neither changes the score or the action.
+    """
+    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+
+    want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
+    if request is None or not (want_evidence or want_preliminary):
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    if want_preliminary:
+        from ..schemas import PreliminaryScoreOut
+
+        confidence = result.baseline_confidence
+        # Same line the readiness verdict draws for "ready" (students.py).
+        ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        response.preliminary = PreliminaryScoreOut(
+            **preliminary_score(
+                result.authorship.deviation_score,
+                result.recommendation.action,
+                inconclusive=not ready,
+            )
+        )
+    if want_evidence:
+        try:
+            baselines = [
+                (f"past paper {i + 1}", s.text)
+                for i, s in enumerate(state.samples)
+                if s.auth_weight > 0 and s.text
+            ]
+            response.evidence = build_evidence(
+                [dataclasses.asdict(f) for f in result.interference.destructive_features],
+                text,
+                baselines,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "evidence passages failed; omitted from the response"
+            )
+            response.evidence = None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────

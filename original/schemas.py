@@ -1055,6 +1055,18 @@ class FusedScoreOut(BaseModel):
     trained_on: str
 
 
+class PreliminaryScoreOut(BaseModel):
+    """Optional preliminary score (ADR-013). Staff and teachers only, never a
+    student session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from
+    the deviation score and action band this response already carries."""
+
+    label: str
+    score: float | None
+    band: str | None
+    band_words: str
+    note: str
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1131,6 +1143,13 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    # ADR-013 explainability, staff/teacher only and never on a student
+    # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
+    # differing habits with verbatim located passages from this paper and the
+    # baseline papers for countable habits (original/evidence.py). Null when
+    # the flag is off, so the default response is unchanged.
+    evidence: dict[str, Any] | None = None
+    preliminary: PreliminaryScoreOut | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

@@ -153,6 +153,7 @@
     "theological_register_score": 0.0404040404
   },
   "drift_analysis": null,
+  "evidence": null,
   "feature_vector": {
     "abbreviation_tendency": 0.5,
     "additive_ratio": 0.0,
@@ -417,6 +418,7 @@
     },
     "total_probability": 0.8915057781
   },
+  "preliminary": null,
   "recommendation": {
     "action": "monitor",
     "confidence": 0.8347402147,
