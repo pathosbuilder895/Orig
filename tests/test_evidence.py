@@ -16,6 +16,8 @@ from types import SimpleNamespace
 import pytest
 
 from original import evidence as ev
+from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
+from original.evidence_features import feature_info
 from original.features import preprocess as pp
 from original.features.pipeline import extract_features
 from original.features.tier1 import TextDoc
@@ -168,7 +170,7 @@ def test_statistical_habits_are_numbers_only_and_labelled():
         assert feature["engine_scale"] == {"this_paper": 0.7, "past_papers_average": 0.4,
                                            "note": "Original's 0 to 1 scale for this habit, as used in the score."}
     md = ev.render_markdown("s", evidence, None)
-    assert "Numbers only" in md
+    assert ev.NUMBERS_ONLY_NOTE in md
 
 
 def test_engine_order_is_kept_and_capped():
@@ -226,7 +228,7 @@ def test_fail_closed_when_the_rebuild_or_count_disagrees(monkeypatch):
     assert coverage["set_aside"] is None
     feature = ev.build_evidence([_feature("comma_rate")], PLAIN[0], [("past paper 1", PLAIN[1])])["features"][0]
     assert feature["locatable"] is False and feature["note"] == ev.NOT_LOCATED_NOTE
-    assert "Numbers only" in ev.render_markdown("s", {"features": [feature], "ordering": "o"}, None)
+    assert ev.NOT_LOCATED_NOTE in ev.render_markdown("s", {"features": [feature], "ordering": "o"}, None)
     monkeypatch.setattr(pp, "preprocess", real)
     ev.engine_view.cache_clear()
     ev._kept_cached.cache_clear()
@@ -288,7 +290,7 @@ def test_html_report_has_two_columns_and_escapes_text():
     assert "&lt;b&gt;hi&lt;/b&gt;<mark>;</mark>" in html_out
     assert "<b>hi</b>" not in html_out and "sub&lt;1&gt;" in html_out and "past &lt;1&gt;" in html_out
     assert "Preliminary · unvalidated · not a judgment" in html_out
-    assert "None in the past papers." in html_out and "Numbers only." in html_out
+    assert "None in the past papers." in html_out and ev.NUMBERS_ONLY_NOTE in html_out
     assert "words)</small>" in html_out
     whole = ev.render_html("s", ev.build_evidence([_feature("question_ratio")], "Why now? Fine.", [("p", "Who? Yes.")]), None)
     assert "<mark>" not in whole
@@ -315,12 +317,15 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
         authorship=SimpleNamespace(deviation_score=0.66),
         recommendation=SimpleNamespace(action="schedule_conversation"),
         interference=SimpleNamespace(destructive_features=[feature]),
+        feature_vector={code: 0.5 for code in ALL_FEATURE_CODES},
     )
     from original.quantum.scoring import FeatureContribution
 
     result.interference.destructive_features = [FeatureContribution(**vars(feature))]
-    state = SimpleNamespace(samples=[SimpleNamespace(text=t, auth_weight=1.0) for t in PLAIN]
-                            + [SimpleNamespace(text="ignored", auth_weight=0.0)])
+    flat = [0.5] * FEATURE_DIM
+    state = SimpleNamespace(samples=[SimpleNamespace(text=t, auth_weight=1.0, vector=flat) for t in PLAIN]
+                            + [SimpleNamespace(text="ignored", auth_weight=0.0, vector=flat)],
+                            baseline_mean=flat)
 
     def fresh():
         return SimpleNamespace(evidence=None, preliminary=None)
@@ -336,6 +341,16 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
     assert response.preliminary.score == 0.66 and response.preliminary.band_words == "Outside the usual range"
     assert [p["paper"] for p in response.evidence["measured"]["past_papers"]] == ["past paper 1", "past paper 2", "past paper 3"]
     assert response.evidence["features"][0]["this_paper"]["count"] == len(ev.read_paper(EDGE, "comma_rate").places) == 7
+    # Every measurement, with the engine's own vectors passed through.
+    assert len(response.evidence["all_features"]) == FEATURE_DIM
+    assert all(f["engine_scale"]["difference"] == 0 for f in response.evidence["all_features"])
+    # A contributing sample without stored text: the page cannot show it, so it
+    # does not borrow the engine's mean either.
+    gap = SimpleNamespace(samples=[*state.samples, SimpleNamespace(text="", auth_weight=1.0, vector=flat)],
+                          baseline_mean=[0.9] * FEATURE_DIM)
+    response = fresh()
+    ss._attach_staff_explainability(response, teacher, EDGE, gap, result)
+    assert response.evidence["all_features"][-1]["engine_scale"]["past_papers_average"] == 0.5
 
     thin = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=3.0)})
     response = fresh()
@@ -402,7 +417,8 @@ def test_overview_and_full_markdown_render():
     assert semicolons["outside_past_range"] is True
     assert ev.countable_overview(EDGE, [])[0]["past_range"] is None
     evidence = ev.build_evidence([_feature("typing_speed_cv"), _feature("sentence_length_variance")], EDGE, baselines)
-    assert evidence["features"][0]["description"] == ""
+    # Descriptions come from the code-checked table, also for switched-off groups.
+    assert evidence["features"][0]["description"] == feature_info()["typing_speed_cv"]["description"]
     md = ev.render_markdown("sub-1", evidence, ev.preliminary_score(None, None, inconclusive=True), overview)
     assert "Every countable habit (fixed order, not a ranking; numbers only)" in md
     assert "**Preliminary · unvalidated · not a judgment**: – · Not enough writing on file to compare yet." in md

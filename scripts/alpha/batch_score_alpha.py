@@ -401,7 +401,9 @@ def write_evidence(out_dir: Path, submission_id: str, submission_path: Path, bas
     text = submission_path.read_text(encoding="utf-8", errors="replace")
     baselines = [(f"past paper {index + 1} ({path.name})", path.read_text(encoding="utf-8", errors="replace"))
                  for index, path in enumerate(baseline_files)]
-    evidence = build_evidence(item.get("destructive_features") or [], text, baselines, top_n=top_n)
+    # all_features: one section per measurement in the engine's vector (ADR-013).
+    evidence = build_evidence(item.get("destructive_features") or [], text, baselines, top_n=top_n,
+                              all_features=True)
     overview = countable_overview(text, baselines)
     folder = out_dir / "evidence"
     folder.mkdir(parents=True, exist_ok=True)

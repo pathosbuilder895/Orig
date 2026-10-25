@@ -622,11 +622,23 @@ def test_batch_writes_staff_evidence_and_preliminary_columns_without_labels(tmp_
     assert "Evidence passages: 2 file(s)" in report
     assert "preliminary_band" in (out / "per_submission.csv").read_text()
 
-    # Determinism: a second run writes byte-identical evidence.
-    first = (out / "evidence" / "ev_other.json").read_bytes()
+    # Every measurement in the vector, once each (ADR-013 all-features list).
+    from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
+    full = json.loads((out / "evidence" / "ev_other.json").read_text())["evidence"]["all_features"]
+    assert len(full) == FEATURE_DIM and sorted(f["code"] for f in full) == sorted(ALL_FEATURE_CODES)
+    html_body = (out / "evidence" / "ev_other.html").read_text()
+    assert html_body.count("<details id='f-") == FEATURE_DIM
+
+    # Determinism: a second run, with nothing cached, writes byte-identical evidence (all three files).
+    from original import evidence as ev
+    first = {(sid, ext): (out / "evidence" / f"{sid}.{ext}").read_bytes()
+             for sid in ("ev_natural", "ev_other") for ext in ("md", "html", "json")}
+    ev._paper_values.cache_clear()
+    ev.engine_view.cache_clear()
     batch.run_batch(export_dir, tmp_path / "out2", ROOT, labels_path, no_rerun=True, throttle_seconds=0,
                     scorer=fake_score)
-    assert (tmp_path / "out2" / "evidence" / "ev_other.json").read_bytes() == first
+    for (sid, ext), body in first.items():
+        assert (tmp_path / "out2" / "evidence" / f"{sid}.{ext}").read_bytes() == body
 
     # --no-evidence keeps the preliminary column and writes no evidence files.
     code, rows, _ = batch.run_batch(export_dir, tmp_path / "out3", ROOT, labels_path, no_rerun=True,
