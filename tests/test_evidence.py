@@ -341,6 +341,17 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
     assert response.preliminary.score == 0.66 and response.preliminary.band_words == "Outside the usual range"
     assert [p["paper"] for p in response.evidence["measured"]["past_papers"]] == ["past paper 1", "past paper 2", "past paper 3"]
     assert response.evidence["features"][0]["this_paper"]["count"] == len(ev.read_paper(EDGE, "comma_rate").places) == 7
+    # Where each past paper came from: only what the samples store.
+    assert [p["paper"] for p in response.evidence["baseline_papers"]] == ["past paper 1", "past paper 2", "past paper 3"]
+    assert response.evidence["baseline_papers"][0] == {
+        "paper": "past paper 1", "assignment": None, "submitted_at": None, "provenance": None, "word_count": None}
+    named = SimpleNamespace(samples=[SimpleNamespace(text=PLAIN[0], auth_weight=1.0, vector=flat, assignment="On Liberty",
+                                                     submitted_at="2025-01-24", provenance="verified", word_count=40)],
+                            baseline_mean=flat)
+    response = fresh()
+    ss._attach_staff_explainability(response, teacher, EDGE, named, result)
+    assert response.evidence["baseline_papers"] == [{"paper": "past paper 1", "assignment": "On Liberty",
+                                                     "submitted_at": "2025-01-24", "provenance": "verified", "word_count": 40}]
     # Every measurement, with the engine's own vectors passed through.
     assert len(response.evidence["all_features"]) == FEATURE_DIM
     assert all(f["engine_scale"]["difference"] == 0 for f in response.evidence["all_features"])
@@ -366,7 +377,8 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
     monkeypatch.setattr("original.evidence.build_evidence", lambda *a, **k: {"features": []})
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, state, result)
-    assert response.evidence == {"features": []} and response.preliminary is None
+    assert response.evidence["features"] == [] and response.preliminary is None
+    assert len(response.evidence["baseline_papers"]) == 3
 
     monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
     response = fresh()

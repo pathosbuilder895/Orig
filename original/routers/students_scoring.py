@@ -694,6 +694,18 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
                 baseline_vectors=[s.vector for s in used],
                 past_average=state.baseline_mean if complete else None,
             )
+            # Where each "past paper N" came from, for the teacher's side-by-side
+            # view: only what the sample already stores, nothing derived.
+            response.evidence["baseline_papers"] = [
+                {
+                    "paper": label,
+                    "assignment": getattr(s, "assignment", "") or None,
+                    "submitted_at": getattr(s, "submitted_at", "") or None,
+                    "provenance": getattr(s, "provenance", None),
+                    "word_count": getattr(s, "word_count", None),
+                }
+                for (label, _), s in zip(baselines, used, strict=True)
+            ]
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
