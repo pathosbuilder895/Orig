@@ -226,7 +226,13 @@ def test_engine_vectors_pass_through_and_a_different_average_is_noted():
     )
     first = out["all_features"][0]
     assert first["code"] == "dash_rate" and first["engine_scale"]["difference"] == 0.4
-    assert all(f["engine_scale"]["difference"] == 0 for f in out["all_features"][1:])
+    assert all(
+        f["engine_scale"]["difference"] == (None if f["kind"] == "not_compared" else 0)
+        for f in out["all_features"][1:]
+    )
+    # The engine's own value for a not-compared measurement is shown, nothing else.
+    tail = [f for f in out["all_features"] if f["kind"] == "not_compared"]
+    assert len(tail) == 7 and all(f["engine_scale"]["this_paper"] == 0.5 for f in tail)
     assert out["past_average_matches_top_list"] is False
     assert ev.AVERAGE_DIFFERS_NOTE in ev.render_markdown("s", out, None)
     assert html.escape(ev.AVERAGE_DIFFERS_NOTE) in ev.render_html("s", out, None)
