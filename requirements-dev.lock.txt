@@ -123,7 +123,7 @@ sortedcontainers==2.4.0
     # via hypothesis
 textual==8.2.8
     # via mutmut
-threadpoolctl==3.6.0
+threadpoolctl==3.7.0
     # via scikit-learn
 typing-extensions==4.16.0
     # via
