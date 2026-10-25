@@ -269,7 +269,7 @@
   function notUsedWhy(f){
     const v=EV.fmt((f.engine_scale||{}).this_paper);
     if(f.kind==='off') return 'Switched off in scoring: every paper here has the fixed value '+v+'.';
-    if(f.kind==='placeholder') return 'Not computed for these papers: every paper here has the placeholder value '+v+'.';
+    if(EV.isNotCompared(f)) return EV.noteFor(f);
     return 'Not used.';
   }
 
@@ -385,7 +385,7 @@
   // How the two lists are ordered, in the words of the server's own ordering
   // notes (original/evidence.py) without their code references.
   const TOP_ORDER='Original\u2019s own top list, in its own order: the measurements it puts furthest from the past papers.';
-  const ALL_ORDER='Sorted by how far this paper sits from the past-paper average on Original\u2019s 0 to 1 scale, times the weight Original gives that measurement\u2019s group: the same size Original uses to pick its top list. Ties keep Original\u2019s own feature order. The top list only takes measurements more than one standard deviation from the writer\u2019s usual range, so a measurement can sit high here and still be missing from it, for example when the past papers themselves vary widely on it.';
+  const ALL_ORDER='Sorted by how far this paper sits from the past-paper average on Original\u2019s 0 to 1 scale, times the weight Original gives that measurement\u2019s group: the same size Original uses to pick its top list. Ties keep Original\u2019s own feature order. The top list only takes measurements more than one standard deviation from the writer\u2019s usual range, so a measurement can sit high here and still be missing from it, for example when the past papers themselves vary widely on it. Comparison measurements that past papers have no value for are not compared; they are listed under \u201cNot used\u201d.';
   const AVERAGE_DIFFERS='The past-paper averages in Original\u2019s own top list differ from the ones in the full list (for example when the score blended in a wider reference average for a short baseline, or some past papers have no stored text), so compare the two lists with care.';
 
   // ── sections ──
@@ -423,28 +423,25 @@
     const rows=active.map(f=>{
       const eng=f.engine_scale||{};
       const n=EV.numbersOf(f);
-      const one=EV.isOneSided(f);
-      const pos=one?'one':EV.position(f);
-      const posWords=one?'past papers on placeholder':(pos==='within'?'within range':(pos==='above'?'above range':(pos==='below'?'below range':'no past papers')));
+      const pos=EV.position(f);
+      const posWords=pos==='within'?'within range':(pos==='above'?'above range':(pos==='below'?'below range':'no past papers'));
       const plainRow=n.plain?'<tr><th scope="row">'+esc(n.unit)+'</th><td class="v">'+esc(EV.fmt(n.thisValue))+'</td>'+n.past.map(p=>'<td class="v">'+esc(EV.fmt(p.value))+'</td>').join('')+'</tr>':'';
       const past=Array.isArray(eng.past_papers)?eng.past_papers:[];
       const engRow='<tr><th scope="row">Original&rsquo;s 0 to 1 scale</th><td class="v">'+esc(EV.fmt(eng.this_paper))+'</td>'+past.map(p=>'<td class="v">'+esc(EV.fmt(p&&p.value))+'</td>').join('')+'</tr>';
       const table='<div class="nums-wrap"><table class="nums"><thead><tr><th scope="col"></th><th scope="col">This paper</th>'+
         past.map(p=>'<th scope="col">'+esc(nameOf(p&&p.paper))+'</th>').join('')+'</tr></thead><tbody>'+plainRow+engRow+'</tbody></table></div>';
-      // A one-sided comparison's server description says it cannot differ,
-      // which is not so for this paper: the note above the numbers says why.
-      const desc=one?'':EV.clean(f.description,'');
+      const desc=EV.clean(f.description,'');
       const body=card(f,{noHead:true});
       return '<details class="m" id="m-'+esc(f.code)+'" data-code="'+esc(f.code)+'" data-kind="'+esc(f.kind)+'">'+
         '<summary><span class="rk">'+esc(f.rank)+'</span><span class="nm">'+esc(EV.clean(f.name,f.code))+(f.in_top_list?' ★':'')+
-          '<small>'+esc([groupName(num(f.group)),one?'Computed for this paper only':(KIND_WORDS[f.kind]||'')].filter(Boolean).join(' · '))+'</small></span>'+
+          '<small>'+esc([groupName(num(f.group)),KIND_WORDS[f.kind]||''].filter(Boolean).join(' · '))+'</small></span>'+
           '<span class="pos'+(pos==='above'||pos==='below'?' out':'')+'">'+esc(posWords)+' · '+esc(EV.signed(eng.difference))+'</span></summary>'+
         '<div class="m-body">'+(desc?'<p class="desc">'+esc(desc)+'</p>':'')+table+body+'</div></details>';
     }).join('');
     let notUsed='';
     if(unused.length){
       notUsed='<details class="m notused" id="m-not-used"><summary><span class="rk"></span><span class="nm">Not used in this comparison ('+unused.length+')'+
-        '<small>Every paper here has the same fixed value on these, so they cannot differ</small></span><span></span></summary><ul>'+
+        '<small>Switched off, or not compared because past papers have no value for them</small></span><span></span></summary><ul>'+
         unused.map(f=>'<li data-code="'+esc(f.code)+'"><b>'+esc(EV.clean(f.name,f.code))+'</b>: <span>'+esc(notUsedWhy(f))+'</span></li>').join('')+
         '</ul></details>';
     }

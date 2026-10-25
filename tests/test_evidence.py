@@ -354,14 +354,23 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
                                                      "submitted_at": "2025-01-24", "provenance": "verified", "word_count": 40}]
     # Every measurement, with the engine's own vectors passed through.
     assert len(response.evidence["all_features"]) == FEATURE_DIM
-    assert all(f["engine_scale"]["difference"] == 0 for f in response.evidence["all_features"])
+    # Comparison measurements are not compared (past papers have no value for
+    # them): no difference at all rather than a difference against a stand-in.
+    assert all(
+        f["engine_scale"]["difference"] == 0
+        if f["kind"] != "not_compared"
+        else f["engine_scale"]["difference"] is None and f["engine_scale"]["this_paper"] == 0.5
+        for f in response.evidence["all_features"]
+    )
     # A contributing sample without stored text: the page cannot show it, so it
     # does not borrow the engine's mean either.
     gap = SimpleNamespace(samples=[*state.samples, SimpleNamespace(text="", auth_weight=1.0, vector=flat)],
                           baseline_mean=[0.9] * FEATURE_DIM)
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, gap, result)
-    assert response.evidence["all_features"][-1]["engine_scale"]["past_papers_average"] == 0.5
+    compared = [f for f in response.evidence["all_features"] if f["kind"] != "not_compared"]
+    assert compared[-1]["engine_scale"]["past_papers_average"] == 0.5
+    assert response.evidence["all_features"][-1]["engine_scale"]["past_papers_average"] is None
 
     thin = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=3.0)})
     response = fresh()

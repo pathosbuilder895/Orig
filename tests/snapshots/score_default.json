@@ -1,8 +1,8 @@
 {
   "ai_likelihood": null,
   "authorship": {
-    "authorship_probability": 0.9295586317,
-    "deviation_score": 0.5565963331,
+    "authorship_probability": 0.931087247,
+    "deviation_score": 0.5587197847,
     "fidelity_conformal_pvalue": null,
     "llr_deviation_score": null,
     "quantum_fidelity": 0.0
@@ -128,7 +128,7 @@
     "window_feature_variance_ratio": 0.4131267542
   },
   "catastrophic_drift": false,
-  "catastrophic_drift_rms_z": 1.475537166,
+  "catastrophic_drift_rms_z": 1.482779535,
   "characteristic_deviation_preview": null,
   "characteristic_factor_dispersion": null,
   "characteristic_mode": null,
@@ -260,7 +260,7 @@
       {
         "baseline_value": 0.5759291129,
         "code": "adjective_rate",
-        "contribution": 0.01057063867,
+        "contribution": 0.01061867777,
         "delta": -0.02139145198,
         "direction": "constructive",
         "name": "Adjective Rate",
@@ -270,7 +270,7 @@
       {
         "baseline_value": 0.5494156815,
         "code": "transition_density",
-        "contribution": 0.009907510068,
+        "contribution": 0.009951507165,
         "delta": -0.005325911489,
         "direction": "constructive",
         "name": "Transition Density",
@@ -280,7 +280,7 @@
       {
         "baseline_value": 0.5628486594,
         "code": "metric_flatness_score",
-        "contribution": 0.009530867648,
+        "contribution": 0.00957501985,
         "delta": -0.05095456165,
         "direction": "constructive",
         "name": "Metric Flatness (AI Signal)",
@@ -290,7 +290,7 @@
       {
         "baseline_value": 0.5219686429,
         "code": "quote_rate",
-        "contribution": 0.009282966111,
+        "contribution": 0.00932453388,
         "delta": 0.01487171788,
         "direction": "constructive",
         "name": "Quotation Rate",
@@ -300,7 +300,7 @@
       {
         "baseline_value": 0.5506437464,
         "code": "arc_resolution_score",
-        "contribution": 0.008941754797,
+        "contribution": 0.008983332249,
         "delta": -0.05972046191,
         "direction": "constructive",
         "name": "Arc Resolution Score",
@@ -312,7 +312,7 @@
       {
         "baseline_value": 0.4967366651,
         "code": "sentence_length_dispersion_ratio",
-        "contribution": 0.01266080474,
+        "contribution": 0.01271797533,
         "delta": 0.272799323,
         "direction": "destructive",
         "name": "Sentence-Length Dispersion",
@@ -322,7 +322,7 @@
       {
         "baseline_value": 0.5248383706,
         "code": "punctuation_dispersion_ratio",
-        "contribution": 0.004946055297,
+        "contribution": 0.004968499264,
         "delta": -0.240096897,
         "direction": "destructive",
         "name": "Punctuation Dispersion",
@@ -332,7 +332,7 @@
       {
         "baseline_value": 0.4501640899,
         "code": "contraction_rate",
-        "contribution": 0.009921561406,
+        "contribution": 0.009966886948,
         "delta": 0.2175050412,
         "direction": "destructive",
         "name": "Contraction Rate",
@@ -342,7 +342,7 @@
       {
         "baseline_value": 0.4672851619,
         "code": "function_word_burstiness_ratio",
-        "contribution": 0.01017475521,
+        "contribution": 0.01022188305,
         "delta": 0.1911880167,
         "direction": "destructive",
         "name": "Function-Word Burstiness",
@@ -350,43 +350,41 @@
         "tier": 18
       },
       {
-        "baseline_value": 0.4842795084,
-        "code": "char_trigram_profile_divergence",
-        "contribution": 0.01101866271,
-        "delta": 0.202232752,
+        "baseline_value": 0.4735964672,
+        "code": "revision_depth",
+        "contribution": 0.009964429255,
+        "delta": 0.1610772585,
         "direction": "destructive",
-        "name": "Char Trigram Divergence",
-        "submission_value": 0.6865122604,
-        "tier": 0
+        "name": "Revision Depth",
+        "submission_value": 0.6346737257,
+        "tier": 17
       }
     ],
     "tier_breakdown": {
-      "T0": 0.01975220691,
-      "T1": 0.07755327825,
-      "T10": 0.02320003603,
-      "T11": 0.02829689367,
-      "T12": 0.01043949289,
-      "T13": 0.05527517122,
-      "T14": 0.03634504348,
-      "T15": 0.05208088354,
-      "T16": 0.0637702589,
-      "T17": 0.05018501507,
-      "T18": 0.05673629971,
-      "T2": 0.1185632135,
-      "T3": 0.1163181638,
-      "T4": 0.06733366833,
-      "T5": 0.06320875265,
-      "T6": 0.0536795664,
-      "T7": 0.05240702998,
-      "T8": 0.03769150161,
-      "T9": 0.01716352301
+      "T1": 0.08343827071,
+      "T10": 0.01028979486,
+      "T12": 0.01123105094,
+      "T13": 0.05947260151,
+      "T14": 0.03910380605,
+      "T15": 0.05603360045,
+      "T16": 0.06861001492,
+      "T17": 0.05399588187,
+      "T18": 0.06104052693,
+      "T2": 0.1275631258,
+      "T3": 0.125146186,
+      "T4": 0.07244405008,
+      "T5": 0.0680088384,
+      "T6": 0.05775228296,
+      "T7": 0.05638391773,
+      "T8": 0.04055174496,
+      "T9": 0.008934304712
     },
-    "total_probability": 0.9295586317
+    "total_probability": 0.931087247
   },
   "recommendation": {
     "action": "monitor",
     "confidence": 0.833921387,
-    "rationale": "Deviation score 0.557 (primary verdict signal). Born authorship probability 0.930 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Sentence-Length Dispersion. Born and deviation signals diverge by 0.49 \u2014 confidence reduced; manual review advised."
+    "rationale": "Deviation score 0.559 (primary verdict signal). Born authorship probability 0.931 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Sentence-Length Dispersion. Born and deviation signals diverge by 0.49 \u2014 confidence reduced; manual review advised."
   },
   "student_id": "flagbi:alice",
   "style_authorship": null,
@@ -397,7 +395,7 @@
   "topic_mean_inflation": null,
   "trajectory": {
     "adjustment_factor": 1.0,
-    "alignment": -0.0138064425,
+    "alignment": -0.01313624885,
     "confidence": 0.1807996542,
     "direction": "lateral"
   },

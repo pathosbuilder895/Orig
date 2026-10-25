@@ -25,13 +25,12 @@ import numpy as np
 from ..constants import (
     ALL_FEATURE_CODES,
     BASE_FEATURE_CODES,
-    COMPARISON_CODES,
     DISABLED_FEATURE_GROUPS,
-    MUSICAL_COMPARISON_CODES,
     NORM_BOUNDS,
     TIER17_CODES,
     TIER18_CODES,
 )
+from .baseline_scope import NOT_COMPUTED_FOR_BASELINES
 from .preprocess import preprocess  # backmatter strip + citation data
 from .prosodic import extract_prosodic  # Tiers 13–15
 from .tier1 import TextDoc, extract_tier1
@@ -176,8 +175,10 @@ def extract_features(
     # _normalise() is a no-op clip for bounds=(0.0, 1.0))
     result = {code: _normalise(raw[code], code) for code in BASE_FEATURE_CODES}
 
-    # All comparison features: placeholder until scoring time
-    for code in MUSICAL_COMPARISON_CODES + list(COMPARISON_CODES):
+    # All comparison features: placeholder until scoring time. A past paper's
+    # vector is made here, so it never has a value for these; scoring leaves
+    # them out of the comparison (features/baseline_scope.py).
+    for code in NOT_COMPUTED_FOR_BASELINES:
         result[code] = 0.5
 
     return result

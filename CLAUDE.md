@@ -188,6 +188,12 @@ embeddings behind `semantic_centroid_proximity`), regardless of which backend
 would otherwise run. `BASE_FEATURE_DIM = 102` (was 96 before Tier 18 landed)
 is the stored-baseline width (tier-17 and tier-18 included as 0.5 placeholders)
 — a distinct number from the 97 "active" count; don't conflate the two.
+Of those 97, the 7 comparison codes (`MUSICAL_COMPARISON_CODES` +
+`COMPARISON_CODES`, `semantic_centroid_proximity` among them) are never
+compared: past-paper vectors come from `extract_features`, which does not
+compute them, so `features/baseline_scope.py` lists them and
+`active_feature_mask`, `score()` and `_decompose` leave them out by code, not
+by value (ADR-013, "Comparison measurements"). At most 90 dimensions enter a score.
 
 ---
 

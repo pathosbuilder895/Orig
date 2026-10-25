@@ -33,6 +33,7 @@ from original.constants import (
     TIER_WEIGHTS,
 )
 from original.evidence_features import feature_info
+from original.features.baseline_scope import NOT_COMPUTED_FOR_BASELINES
 from original.features.pipeline import _normalise, extract_features, extract_raw_features
 from original.quantum.state import BaselineSample, StudentState
 from tests.test_evidence import EDGE, PLAIN, _corpus_texts
@@ -52,14 +53,20 @@ def test_descriptions_cover_the_vector_exactly_and_honestly():
     assert list(info) != [] and set(info) == set(ALL_FEATURE_CODES) and len(info) == FEATURE_DIM
     for code, meta in info.items():
         assert meta["description"] and not BANNED.search(meta["description"]), code
-        assert meta["kind"] in {"measured", "off", "placeholder"}
+        assert meta["kind"] in {"measured", "off", "not_compared"}
     off = {c for c in ALL_FEATURE_CODES if info[c]["kind"] == "off"}
     expected_off = (set(TIER17_CODES) if "behavioral" in DISABLED_FEATURE_GROUPS else set()) | (
         set(TIER18_CODES) if "uniformity" in DISABLED_FEATURE_GROUPS else set()
     )
     assert off == expected_off
-    placeholders = {c for c in ALL_FEATURE_CODES if info[c]["kind"] == "placeholder"}
-    assert placeholders == set(MUSICAL_COMPARISON_CODES) | set(COMPARISON_CODES)
+    not_compared = {c for c in ALL_FEATURE_CODES if info[c]["kind"] == "not_compared"}
+    assert not_compared == set(MUSICAL_COMPARISON_CODES) | set(COMPARISON_CODES)
+    assert not_compared == set(NOT_COMPUTED_FOR_BASELINES)
+    for code in not_compared:
+        # The #318 text said every paper gets 0.5; the scored paper does not.
+        assert "every paper, past or new" not in info[code]["description"]
+        assert "not for the past papers themselves" in info[code]["description"]
+    assert ev.KIND_WORDS["not_compared"] == "not compared: past papers have no value for this"
     for word in [ev.WHOLE_TEXT_NOTE, ev.ALL_FEATURES_ORDERING, ev.AVERAGE_DIFFERS_NOTE, *ev.KIND_WORDS.values()]:
         assert not BANNED.search(word)
 
@@ -80,7 +87,12 @@ def test_every_feature_appears_exactly_once_in_a_documented_order(full_evidence)
     assert sorted(codes) == sorted(ALL_FEATURE_CODES) and len(set(codes)) == FEATURE_DIM
     assert [f["rank"] for f in full] == list(range(1, FEATURE_DIM + 1))
     keys = []
-    for f in full:
+    n_compared = sum(f["kind"] != "not_compared" for f in full)
+    # Not-compared measurements come last, in registry order, with no size.
+    tail = full[n_compared:]
+    assert [f["code"] for f in tail] == [c for c in ALL_FEATURE_CODES if c in NOT_COMPUTED_FOR_BASELINES]
+    assert all(f["kind"] == "not_compared" and f["engine_scale"]["weighted_size"] is None for f in tail)
+    for f in full[:n_compared]:
         eng = f["engine_scale"]
         size = abs(eng["this_paper"] - eng["past_papers_average"]) * TIER_WEIGHTS[FEATURE_TIER[f["code"]]]
         assert eng["weighted_size"] == pytest.approx(size, abs=2e-4)
@@ -110,6 +122,13 @@ def test_values_are_the_engines_and_the_average_is_recency_weighted(full_evidenc
     for f in full_evidence["all_features"]:
         d = ALL_FEATURE_CODES.index(f["code"])
         eng = f["engine_scale"]
+        if f["kind"] == "not_compared":
+            # Recomputed from the text, this paper only has the stand-in too:
+            # nothing on either side is shown or compared.
+            assert eng["this_paper"] is None and eng["past_papers_average"] is None
+            assert [p["value"] for p in eng["past_papers"]] == [None] * len(past)
+            assert eng["past_range"] is None and eng["outside_past_range"] is None
+            continue
         assert eng["this_paper"] == round(this[f["code"]], 4)
         assert [p["value"] for p in eng["past_papers"]] == [round(v[f["code"]], 4) for v in past]
         assert eng["past_papers_average"] == pytest.approx(mean[d], abs=1e-4)
@@ -126,9 +145,14 @@ def test_kinds_notes_and_off_or_placeholder_measurements(full_evidence):
     by_code = {f["code"]: f for f in full_evidence["all_features"]}
     info = feature_info()
     for code, f in by_code.items():
-        if info[code]["kind"] in ("off", "placeholder"):
-            assert f["kind"] == info[code]["kind"] and f["engine_scale"]["difference"] == 0
+        if info[code]["kind"] == "off":
+            assert f["kind"] == "off" and f["engine_scale"]["difference"] == 0
             assert f["direction"] == "same" and "plain" not in f and f["locatable"] is False
+        elif info[code]["kind"] == "not_compared":
+            assert f["kind"] == "not_compared" and f["engine_scale"]["difference"] is None
+            assert f["direction"] == "not_compared" and "plain" not in f and f["locatable"] is False
+            assert f["note"] == "Not compared: past papers have no value for this."
+            assert f["in_top_list"] is False
         elif code in ev.LOCATABLE:
             assert f["kind"] == "located" and f["locatable"] is True
             assert "examples" in f["this_paper"] and f["plain"]["unit"] == ev.LOCATABLE[code].unit

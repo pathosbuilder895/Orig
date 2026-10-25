@@ -130,9 +130,20 @@ test.describe('side by side, flags on @evidence-on', () => {
 
     // Every measurement is listed: the compared ones, and any whose papers do not
     // all share one value, as rows; the ones where every paper has the same
-    // fixed value in "not used".
+    // fixed value, and the comparison measurements past papers have no value
+    // for, in "not used".
     const constant = f => [f.engine_scale.this_paper, ...f.engine_scale.past_papers.map(p => p.value)].every((v, _, a) => v === a[0])
-    const unused = ev.all_features.filter(f => !(f.kind === 'located' || f.kind === 'whole_text') && constant(f))
+    const notCompared = ev.all_features.filter(f => f.kind === 'not_compared')
+    expect(notCompared.map(f => f.code).sort()).toEqual(['argument_sequence_likelihood', 'char_trigram_profile_divergence', 'error_kl_divergence',
+      'function_word_profile_divergence', 'punctuation_error_ratio', 'semantic_centroid_proximity', 'stumble_rate_consistency'])
+    for (const f of notCompared) {
+      expect(f.engine_scale.difference).toBeNull()
+      expect(f.in_top_list).toBe(false)
+      expect(ev.features.map(t => t.code)).not.toContain(f.code)
+    }
+    const unused = ev.all_features.filter(f => f.kind === 'not_compared' || (!(f.kind === 'located' || f.kind === 'whole_text') && constant(f)))
+    for (const f of notCompared) await expect(page.locator(`#m-not-used li[data-code="${f.code}"]`)).toContainText('Not compared: past papers have no value for this.')
+    await expect(page.locator('#p-summary')).toContainText('7 comparison measurements not compared, because past papers have no value for them')
     await expect(page.locator('#p-all > details.m:not(.notused)')).toHaveCount(ev.all_features.length - unused.length)
     await expect(page.locator('#m-not-used li')).toHaveCount(unused.length)
     const listed = await page.locator('#p-all [data-code]').evaluateAll(els => els.filter(e => e.matches('details.m, li')).map(e => e.dataset.code))

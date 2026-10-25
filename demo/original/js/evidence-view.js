@@ -75,22 +75,11 @@
   var ACTIVE = { located: true, whole_text: true };
   function isActive(f) { return !!f && ACTIVE[f.kind] === true; }
 
-  // A comparison measurement (kind "placeholder") that has a value of its own
-  // for this paper while every past paper has the same one: on the live
-  // scoring path Original computes these for the new paper against the past
-  // papers, and a past paper gets the placeholder. The two numbers are not
-  // measured the same way, so they are listed with that said, never counted.
-  function isOneSided(f) {
-    if (!f || f.kind !== 'placeholder') return false;
-    var eng = f.engine_scale || {};
-    var mine = num(eng.this_paper);
-    var past = Array.isArray(eng.past_papers) ? eng.past_papers : [];
-    if (mine == null || !past.length) return false;
-    var first = num(past[0] && past[0].value);
-    if (first == null) return false;
-    for (var i = 1; i < past.length; i++) if (num(past[i] && past[i].value) !== first) return false;
-    return mine !== first;
-  }
+  // A comparison measurement (kind "not_compared"): Original computes it for
+  // this paper against the past papers, but past papers have no value for it,
+  // so the score leaves it out and so does this page's comparison.
+  var NOT_COMPARED_WORDS = 'not compared: past papers have no value for this';
+  function isNotCompared(f) { return !!f && f.kind === 'not_compared'; }
   // Every paper, this one and the past ones, has the same value.
   function isConstant(f) {
     var eng = (f && f.engine_scale) || {};
@@ -100,14 +89,14 @@
   }
   // On the page's full list: compared measurements, plus any other whose
   // papers do not all share one value (so it is not hidden as "not used").
-  function isListed(f) { return isActive(f) || (!!f && typeof f === 'object' && !isConstant(f)); }
-  function oneSidedNote(f) {
-    var eng = f.engine_scale || {};
-    var n = (eng.past_papers || []).length;
-    return 'This paper: ' + fmt(eng.this_paper) + ' (on Original\u2019s 0 to 1 scale). ' +
-      (n === 1 ? 'The past paper has ' : 'Every past paper has ') + fmt(eng.past_papers[0].value) +
-      ', the placeholder Original gives a paper when this comparison is not computed for it. ' +
-      'The two numbers are not measured the same way, so this gap says little on its own.';
+  // Not-compared measurements are never listed, whatever their numbers.
+  function isListed(f) {
+    return isActive(f) || (!!f && typeof f === 'object' && !isNotCompared(f) && !isConstant(f));
+  }
+  function notComparedNote(f) {
+    var v = num(((f && f.engine_scale) || {}).this_paper);
+    return (v == null ? '' : 'This paper: ' + fmt(v) + ' (on Original\u2019s 0 to 1 scale). ') +
+      'Not compared: past papers have no value for this.';
   }
 
   // The numbers a sentence about one measurement may use: plain units when the
@@ -161,7 +150,7 @@
   // "What to notice": counts and values only, then where the paper sits.
   function noteFor(f, papers) {
     if (!f || typeof f !== 'object') return '';
-    if (isOneSided(f)) return clean(oneSidedNote(f), '');
+    if (isNotCompared(f)) return clean(notComparedNote(f), '');
     var n = numbersOf(f);
     var parts = [];
     var tp = f.this_paper && typeof f.this_paper === 'object' ? f.this_paper : null;
@@ -194,9 +183,8 @@
     var outside = active.filter(function (f) { return f.engine_scale && f.engine_scale.outside_past_range; });
     var unused = full.filter(function (f) { return f && !isListed(f); });
     var off = unused.filter(function (f) { return f.kind === 'off'; }).length;
-    var placeholder = unused.filter(function (f) { return f.kind === 'placeholder'; }).length;
-    var oneSided = full.filter(isOneSided).length;
-    var otherListed = full.filter(function (f) { return isListed(f) && !isActive(f) && !isOneSided(f); }).length;
+    var notCompared = unused.filter(isNotCompared).length;
+    var otherListed = full.filter(function (f) { return isListed(f) && !isActive(f); }).length;
     var groups = [];
     var byGroup = {};
     active.forEach(function (f) {
@@ -211,7 +199,7 @@
     if (full.length && full[0].engine_scale && Array.isArray(full[0].engine_scale.past_papers)) pastCount = full[0].engine_scale.past_papers.length;
     return {
       total: full.length, active: active.length, outside: outside.length, within: active.length - outside.length,
-      off: off, placeholder: placeholder, oneSided: oneSided, otherListed: otherListed, groups: groups, pastCount: pastCount,
+      off: off, notCompared: notCompared, otherListed: otherListed, groups: groups, pastCount: pastCount,
       topCount: Array.isArray(ev && ev.features) ? ev.features.length : 0,
     };
   }
@@ -231,18 +219,17 @@
     if (named.length && !(opts && opts.groups === false)) {
       out.push('By group: ' + named.map(function (g) { return g.name + ' ' + g.outside + ' of ' + g.active + ' outside'; }).join('; ') + '.');
     }
-    if (sum.oneSided) {
-      out.push(plural(sum.oneSided, 'comparison measurement') + ' had a value for this paper only, with every past paper on the placeholder value, so ' +
-        (sum.oneSided === 1 ? 'it is' : 'they are') + ' listed below but not counted here.');
-    }
     if (sum.otherListed) {
       out.push(plural(sum.otherListed, 'measurement') + ' that Original does not normally compare had differing values here, so ' +
         (sum.otherListed === 1 ? 'it is' : 'they are') + ' listed below but not counted here.');
     }
-    if (sum.off || sum.placeholder) {
+    if (sum.off || sum.notCompared) {
       var bits = [];
       if (sum.off) bits.push(plural(sum.off, 'measurement') + ' switched off');
-      if (sum.placeholder) bits.push(plural(sum.placeholder, 'measurement') + ' not computed for these papers');
+      if (sum.notCompared) {
+        bits.push(plural(sum.notCompared, 'comparison measurement') + ' not compared, because past papers have no value for ' +
+          (sum.notCompared === 1 ? 'it' : 'them'));
+      }
       out.push('Not used in this comparison: ' + listWords(bits) + '.');
     }
     return out.map(function (s) { return clean(s, ''); }).filter(Boolean);
@@ -283,7 +270,7 @@
 
   var API = {
     BANNED: BANNED, isClean: isClean, clean: clean, fmt: fmt, signed: signed, plural: plural,
-    paperName: paperName, isActive: isActive, isOneSided: isOneSided, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
+    paperName: paperName, isActive: isActive, isNotCompared: isNotCompared, NOT_COMPARED_WORDS: NOT_COMPARED_WORDS, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
     positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
   };
