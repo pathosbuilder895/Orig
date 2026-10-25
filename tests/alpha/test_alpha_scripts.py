@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 import os
 import re
@@ -489,3 +490,100 @@ def test_local_runbook_rehearsal_twenty_concurrent_students_full_delete(live_app
     assert repo.list_ids_for_tenant(tenant_id) == []
     assert repo.list_bluebook_courses(tenant_id) == []
     assert repo.list_bluebook_exams(tenant_id) == []
+
+
+def _real_ish_text(seed: str) -> str:
+    return (f"The {seed} market was loud at night; vendors shouted, and children ran between the stalls. "
+            "However, I usually went early because it's quieter then. Why did people stay so late? "
+            "Perhaps the food was the reason: noodles, dumplings and fresh juice. ") * 6
+
+
+def test_batch_writes_staff_evidence_and_preliminary_columns_without_labels(tmp_path):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_ev"
+    _write_baselines(stud)
+    (stud / "submission" / "ev_natural.txt").write_text(_real_ish_text("night"))
+    (stud / "submission" / "ev_other.txt").write_text(_real_ish_text("harbour"))
+    thin = export_dir / "stud_thin"
+    _write_baselines(thin, count=2)
+    (thin / "submission" / "thin_paper.txt").write_text(_text("thin"))
+    labels_path = tmp_path / "labels.csv"
+    labels_path.write_text("submission_id,label,author_true,writer_true\n"
+                           "ev_natural,natural,stud_ev,stud_ev\n"
+                           "ev_other,shadow,stud_ev,SECRET-WRITER-LABEL\n"
+                           "thin_paper,natural,stud_thin,stud_thin\n")
+    destructive = [
+        {"code": "semicolon_colon_rate", "name": "Semicolon+Colon Rate", "tier": 4, "contribution": 0.0,
+         "direction": "destructive", "baseline_value": 0.0, "submission_value": 0.4, "delta": 0.4},
+        {"code": "char_trigram_entropy", "name": "Char Trigram Entropy", "tier": 4, "contribution": 0.0,
+         "direction": "destructive", "baseline_value": 0.5, "submission_value": 0.7, "delta": 0.2},
+    ]
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .66 if "other" in path.name else .2,
+             "authorship_probability": .5,
+             "recommended_action": "schedule_conversation" if "other" in path.name else "no_action",
+             "scoring_time_ms": 1, "destructive_features": destructive}
+            for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    out = tmp_path / "out"
+    code, rows, problems = batch.run_batch(export_dir, out, ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score)
+    by_id = {row["submission_id"]: row for row in rows}
+    assert by_id["ev_other"]["preliminary_score"] == 0.66
+    assert by_id["ev_other"]["preliminary_band"] == "Outside the usual range"
+    assert by_id["ev_natural"]["preliminary_band"] == "Within the writer's usual range"
+    assert by_id["thin_paper"]["preliminary_score"] is None
+    assert by_id["thin_paper"]["preliminary_band"] == "Not enough writing on file to compare yet."
+    assert "evidence_file" not in by_id["thin_paper"]
+    # Calibration semantics unchanged: the strict flag still comes from the action alone.
+    assert by_id["ev_other"]["strict_flag"] is True and by_id["ev_natural"]["strict_flag"] is False
+    for sid in ("ev_natural", "ev_other"):
+        assert by_id[sid]["evidence_file"] == f"evidence/{sid}.md"
+        for ext in ("md", "html", "json"):
+            body = (out / "evidence" / f"{sid}.{ext}").read_text(encoding="utf-8")
+            # Answer-key values never reach an evidence file.
+            assert "SECRET-WRITER-LABEL" not in body and "shadow" not in body.lower()
+        payload = json.loads((out / "evidence" / f"{sid}.json").read_text(encoding="utf-8"))
+        assert payload["staff_only"] is True
+        semicolons = payload["evidence"]["features"][0]
+        assert semicolons["locatable"] is True and semicolons["this_paper"]["count"] == 12  # six ";" and six ":"
+        text = (stud / "submission" / f"{sid}.txt").read_text()
+        for q in semicolons["this_paper"]["examples"]:
+            assert q["match"] in (";", ":") and q["match"] == text[q["match_start"]:q["match_end"]]
+            assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+        assert payload["evidence"]["features"][1]["locatable"] is False
+    report = (out / "report.md").read_text()
+    assert "Staff evidence and preliminary scores (never shown to students)" in report
+    assert "Evidence passages: 2 file(s)" in report
+    assert "preliminary_band" in (out / "per_submission.csv").read_text()
+
+    # Determinism: a second run writes byte-identical evidence.
+    first = (out / "evidence" / "ev_other.json").read_bytes()
+    batch.run_batch(export_dir, tmp_path / "out2", ROOT, labels_path, no_rerun=True, throttle_seconds=0,
+                    scorer=fake_score)
+    assert (tmp_path / "out2" / "evidence" / "ev_other.json").read_bytes() == first
+
+    # --no-evidence keeps the preliminary column and writes no evidence files.
+    code, rows, _ = batch.run_batch(export_dir, tmp_path / "out3", ROOT, labels_path, no_rerun=True,
+                                    throttle_seconds=0, scorer=fake_score, evidence=False)
+    assert not (tmp_path / "out3" / "evidence").exists()
+    assert all("evidence_file" not in row for row in rows)
+
+
+def test_batch_evidence_failure_is_a_problem_not_a_crash(tmp_path, monkeypatch):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_err"
+    _write_baselines(stud)
+    (stud / "submission" / "paper.txt").write_text(_text("paper"))
+    monkeypatch.setattr(batch, "write_evidence", lambda *a, **k: 1 / 0)
+
+    def fake_score(*_args):
+        return ({"submissions": [{"filename": "paper.txt", "deviation_score": .3, "authorship_probability": .5,
+                                  "recommended_action": "no_action", "scoring_time_ms": 1}]}, .01, "")
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, None, no_rerun=True,
+                                           throttle_seconds=0, scorer=fake_score)
+    assert code == 0
+    assert problems == ["stud_err/paper: evidence file not written (ZeroDivisionError)"]
+    assert rows[0]["preliminary_score"] == 0.3
