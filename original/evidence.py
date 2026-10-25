@@ -41,10 +41,11 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 from .constants import (
     ASSERTION_WORDS,
@@ -61,7 +62,7 @@ from .constants import (
 )
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
-from .features.tier1 import TextDoc, _split_sentences, _tokenize
+from .features.tier1 import TextDoc, _tokenize
 
 #: The one label every preliminary score carries (ADR-013). Wording rules:
 #: no detection, misconduct or authorship-verification words, no accuracy claim.
@@ -87,6 +88,7 @@ NOT_LOCATED_NOTE = (
     "The places counted could not be matched exactly to the stored text of this "
     "paper, so no passages are shown for it (numbers only)."
 )
+
 
 def evidence_enabled() -> bool:
     """EVIDENCE_PASSAGES_ENABLED=1 adds located evidence to staff score responses."""
@@ -144,7 +146,9 @@ class Mapped:
         return real[0], real[-1] + 1
 
 
-def _msub(m: Mapped, pattern: re.Pattern, repl: Callable[[re.Match], tuple[str, Sequence[int]]]) -> Mapped:
+def _msub(
+    m: Mapped, pattern: re.Pattern, repl: Callable[[re.Match], tuple[str, Sequence[int]]]
+) -> Mapped:
     out: list[str] = []
     origin: list[int] = []
     last = 0
@@ -204,7 +208,9 @@ def engine_view(text: str) -> EngineView | None:
     m = _drop(m, _pp._FOOTNOTE_SUPERSCRIPT)
     m = _collapse(m, re.compile(r" {2,}"))
     m_p = m
-    m = _msub(m_p, re.compile(r"\s+([.,;:!?])"), lambda mt: (mt.group(1), (m_p.origin[mt.start(1)],)))
+    m = _msub(
+        m_p, re.compile(r"\s+([.,;:!?])"), lambda mt: (mt.group(1), (m_p.origin[mt.start(1)],))
+    )
     prose = _strip(m)
     expected_prose, _ = _pp.preprocess(text)
     if prose.text != expected_prose:
@@ -243,8 +249,11 @@ def _phrase_spans(lower: str, phrases: Iterable[str]) -> list[tuple[int, int]]:
 
 
 def _token_spans(clean: str, vocabulary: set[str]) -> list[tuple[int, int]]:
-    return [mt.span() for mt in re.finditer(r"\b\w+(?:'\w+)?\b", clean)
-            if mt.group(0).isalpha() and mt.group(0).lower() in vocabulary]
+    return [
+        mt.span()
+        for mt in re.finditer(r"\b\w+(?:'\w+)?\b", clean)
+        if mt.group(0).isalpha() and mt.group(0).lower() in vocabulary
+    ]
 
 
 def _first_marker_spans(lower: str, category: str | None) -> list[tuple[int, int]]:
@@ -283,6 +292,7 @@ def _sentences_where(pred: Callable[[str], bool]):
     def locate(view: EngineView):
         spans = _sentence_spans(view) or []
         return "clean", [(a, b) for a, b in spans if pred(view.clean.text[a:b])]
+
     return locate
 
 
@@ -295,13 +305,19 @@ def _phrases(vocabulary):
     def locate(view: EngineView):
         lower = _lower(view)
         return ("clean", _phrase_spans(lower, vocabulary)) if lower is not None else ("clean", None)
+
     return locate
 
 
 def _markers(category):
     def locate(view: EngineView):
         lower = _lower(view)
-        return ("clean", _first_marker_spans(lower, category)) if lower is not None else ("clean", None)
+        return (
+            ("clean", _first_marker_spans(lower, category))
+            if lower is not None
+            else ("clean", None)
+        )
+
     return locate
 
 
@@ -310,7 +326,10 @@ def _tokens(vocabulary):
 
 
 def _chars(*needles):
-    return lambda view: ("prose", sorted(s for n in needles for s in _str_count(view.prose.text, n)))
+    return lambda view: (
+        "prose",
+        sorted(s for n in needles for s in _str_count(view.prose.text, n)),
+    )
 
 
 def _quote_marks(view: EngineView):
@@ -324,8 +343,11 @@ def _contractions(view: EngineView):
 
 
 def _passive(view: EngineView):
-    spans = [mt.span() for pattern in PASSIVE_PATTERNS
-             for mt in re.finditer(pattern, view.clean.text, re.IGNORECASE)]
+    spans = [
+        mt.span()
+        for pattern in PASSIVE_PATTERNS
+        for mt in re.finditer(pattern, view.clean.text, re.IGNORECASE)
+    ]
     return "clean", sorted(spans)
 
 
@@ -380,51 +402,185 @@ def _ratio(category):
 LOCATABLE: dict[str, Locatable] = {
     spec.code: spec
     for spec in (
-        Locatable("mean_sentence_length", "sentence", "words per sentence", None, None,
-                  tier1.mean_sentence_length, sentence_length="mean"),
-        Locatable("sentence_length_variance", "sentence", "variance of sentence length (words²)", None, None,
-                  tier1.sentence_length_variance, sentence_length="spread"),
-        Locatable("passive_voice_ratio", "match of Original's passive pattern (is/was/been … + -ed/-en word)",
-                  "share of sentences (capped at one per sentence)", _passive, _passive_share, tier1.passive_voice_ratio),
-        Locatable("modal_verb_ratio", "modal verb (can, could, should, must, …)", "share of words",
-                  _tokens(MODAL_VERBS), _per_word, tier1.modal_verb_ratio),
-        Locatable("discourse_marker_density", "linking word or phrase (first use of each)", "per 100 words",
-                  _markers(None), _per100, tier2.discourse_marker_density),
-        Locatable("additive_ratio", "adding-on link (also, furthermore, …; first use of each)", "share of linking words",
-                  _markers("additive"), _marker_share, _ratio("additive")),
-        Locatable("adversative_ratio", "contrasting link (but, however, …; first use of each)", "share of linking words",
-                  _markers("adversative"), _marker_share, _ratio("adversative")),
-        Locatable("causal_ratio", "cause-and-effect link (because, therefore, …; first use of each)", "share of linking words",
-                  _markers("causal"), _marker_share, _ratio("causal")),
-        Locatable("temporal_ratio", "sequencing link (first, then, finally, …; first use of each)", "share of linking words",
-                  _markers("temporal"), _marker_share, _ratio("temporal")),
-        Locatable("transition_density", "transition word or phrase", "per 100 words",
-                  _phrases(TRANSITION_PHRASES), _per100, tier2.transition_density),
-        Locatable("hedging_density", "softening word (perhaps, might, seems, …)", "per 100 words",
-                  _phrases(HEDGE_WORDS), _per100, tier3.hedging_density),
-        Locatable("assertion_density", "confident-statement word (clearly, certainly, must, …)", "per 100 words",
-                  _phrases(ASSERTION_WORDS), _per100, tier3.assertion_density),
-        Locatable("claim_density", "claim or conclusion marker (therefore, this shows, …)", "per 100 words",
-                  _phrases(CLAIM_MARKERS), _per100, tier3.claim_density),
-        Locatable("question_ratio", "question", "share of sentences",
-                  _sentences_where(lambda s: s.strip().endswith("?")), _per_sentence, tier3.question_ratio),
-        Locatable("first_person_ratio", "first-person word (I, me, we, our, …)", "share of personal pronouns",
-                  _tokens(FIRST_PERSON), _first_person_share, tier3.first_person_ratio),
-        Locatable("appeal_to_authority_density", "source or authority phrase (according to, argues, …)", "per 100 words",
-                  _phrases(set(AUTHORITY_MARKERS)), _per100, tier3.appeal_to_authority_density),
+        Locatable(
+            "mean_sentence_length",
+            "sentence",
+            "words per sentence",
+            None,
+            None,
+            tier1.mean_sentence_length,
+            sentence_length="mean",
+        ),
+        Locatable(
+            "sentence_length_variance",
+            "sentence",
+            "variance of sentence length (words²)",
+            None,
+            None,
+            tier1.sentence_length_variance,
+            sentence_length="spread",
+        ),
+        Locatable(
+            "passive_voice_ratio",
+            "match of Original's passive pattern (is/was/been … + -ed/-en word)",
+            "share of sentences (capped at one per sentence)",
+            _passive,
+            _passive_share,
+            tier1.passive_voice_ratio,
+        ),
+        Locatable(
+            "modal_verb_ratio",
+            "modal verb (can, could, should, must, …)",
+            "share of words",
+            _tokens(MODAL_VERBS),
+            _per_word,
+            tier1.modal_verb_ratio,
+        ),
+        Locatable(
+            "discourse_marker_density",
+            "linking word or phrase (first use of each)",
+            "per 100 words",
+            _markers(None),
+            _per100,
+            tier2.discourse_marker_density,
+        ),
+        Locatable(
+            "additive_ratio",
+            "adding-on link (also, furthermore, …; first use of each)",
+            "share of linking words",
+            _markers("additive"),
+            _marker_share,
+            _ratio("additive"),
+        ),
+        Locatable(
+            "adversative_ratio",
+            "contrasting link (but, however, …; first use of each)",
+            "share of linking words",
+            _markers("adversative"),
+            _marker_share,
+            _ratio("adversative"),
+        ),
+        Locatable(
+            "causal_ratio",
+            "cause-and-effect link (because, therefore, …; first use of each)",
+            "share of linking words",
+            _markers("causal"),
+            _marker_share,
+            _ratio("causal"),
+        ),
+        Locatable(
+            "temporal_ratio",
+            "sequencing link (first, then, finally, …; first use of each)",
+            "share of linking words",
+            _markers("temporal"),
+            _marker_share,
+            _ratio("temporal"),
+        ),
+        Locatable(
+            "transition_density",
+            "transition word or phrase",
+            "per 100 words",
+            _phrases(TRANSITION_PHRASES),
+            _per100,
+            tier2.transition_density,
+        ),
+        Locatable(
+            "hedging_density",
+            "softening word (perhaps, might, seems, …)",
+            "per 100 words",
+            _phrases(HEDGE_WORDS),
+            _per100,
+            tier3.hedging_density,
+        ),
+        Locatable(
+            "assertion_density",
+            "confident-statement word (clearly, certainly, must, …)",
+            "per 100 words",
+            _phrases(ASSERTION_WORDS),
+            _per100,
+            tier3.assertion_density,
+        ),
+        Locatable(
+            "claim_density",
+            "claim or conclusion marker (therefore, this shows, …)",
+            "per 100 words",
+            _phrases(CLAIM_MARKERS),
+            _per100,
+            tier3.claim_density,
+        ),
+        Locatable(
+            "question_ratio",
+            "question",
+            "share of sentences",
+            _sentences_where(lambda s: s.strip().endswith("?")),
+            _per_sentence,
+            tier3.question_ratio,
+        ),
+        Locatable(
+            "first_person_ratio",
+            "first-person word (I, me, we, our, …)",
+            "share of personal pronouns",
+            _tokens(FIRST_PERSON),
+            _first_person_share,
+            tier3.first_person_ratio,
+        ),
+        Locatable(
+            "appeal_to_authority_density",
+            "source or authority phrase (according to, argues, …)",
+            "per 100 words",
+            _phrases(set(AUTHORITY_MARKERS)),
+            _per100,
+            tier3.appeal_to_authority_density,
+        ),
         Locatable("comma_rate", "comma", "per 100 words", _chars(","), _per100, tier4.comma_rate),
-        Locatable("semicolon_colon_rate", "semicolon or colon", "per 100 words",
-                  _chars(";", ":"), _per100, tier4.semicolon_colon_rate),
-        Locatable("parenthetical_rate", "opening parenthesis", "per 100 words",
-                  _chars("("), _per100, tier4.parenthetical_rate),
-        Locatable("dash_rate", "dash (—, – or --)", "per 100 words",
-                  _chars("\u2014", "\u2013", "--"), _per100, tier4.dash_rate),
-        Locatable("quote_rate", "opening quotation mark", "per 100 words", _quote_marks, _per100, tier4.quote_rate),
-        Locatable("contraction_rate", "contraction (don't, it's, …)", "per 100 words",
-                  _contractions, _per100, tier6.contraction_rate),
-        Locatable("sentence_initial_conjunction_rate", "sentence starting with And, But, So, Or, Yet, For or Nor",
-                  "share of sentences", _sentences_where(lambda s: _first_word(s) in _INITIAL_CONJ),
-                  _per_sentence, tier6.sentence_initial_conjunction_rate),
+        Locatable(
+            "semicolon_colon_rate",
+            "semicolon or colon",
+            "per 100 words",
+            _chars(";", ":"),
+            _per100,
+            tier4.semicolon_colon_rate,
+        ),
+        Locatable(
+            "parenthetical_rate",
+            "opening parenthesis",
+            "per 100 words",
+            _chars("("),
+            _per100,
+            tier4.parenthetical_rate,
+        ),
+        Locatable(
+            "dash_rate",
+            "dash (—, – or --)",
+            "per 100 words",
+            _chars("\u2014", "\u2013", "--"),
+            _per100,
+            tier4.dash_rate,
+        ),
+        Locatable(
+            "quote_rate",
+            "opening quotation mark",
+            "per 100 words",
+            _quote_marks,
+            _per100,
+            tier4.quote_rate,
+        ),
+        Locatable(
+            "contraction_rate",
+            "contraction (don't, it's, …)",
+            "per 100 words",
+            _contractions,
+            _per100,
+            tier6.contraction_rate,
+        ),
+        Locatable(
+            "sentence_initial_conjunction_rate",
+            "sentence starting with And, But, So, Or, Yet, For or Nor",
+            "share of sentences",
+            _sentences_where(lambda s: _first_word(s) in _INITIAL_CONJ),
+            _per_sentence,
+            tier6.sentence_initial_conjunction_rate,
+        ),
     )
 }
 
@@ -452,7 +608,9 @@ class PaperReading:
     places: tuple[Place, ...] | None  # None = could not be located exactly
 
 
-def _passage(text: str, sentences: list[tuple[int, int]], start: int, end: int) -> tuple[int, int, bool, bool]:
+def _passage(
+    text: str, sentences: list[tuple[int, int]], start: int, end: int
+) -> tuple[int, int, bool, bool]:
     """The quoted window: the sentence holding ``start``, or a verbatim window
     of at most about ``MAX_QUOTE_CHARS`` inside it, cut at spaces."""
     s0, s1 = start, end
@@ -500,9 +658,14 @@ def read_paper(text: str, code: str) -> PaperReading | None:
     if spec.sentence_length is not None:
         lengths = [len(_tokenize(s)) for s in view.doc.sentences]
         places = tuple(
-            Place(a, b, *_passage(view.original, sentences, a, b), words=n,
-                  crosses_set_aside=_crosses_set_aside(view, a, b))
-            for (a, b), n in zip(sentences, lengths)
+            Place(
+                a,
+                b,
+                *_passage(view.original, sentences, a, b),
+                words=n,
+                crosses_set_aside=_crosses_set_aside(view, a, b),
+            )
+            for (a, b), n in zip(sentences, lengths, strict=True)
         )
         return PaperReading(value, places)
     level, spans = spec.locate(view)
@@ -514,8 +677,14 @@ def read_paper(text: str, code: str) -> PaperReading | None:
     places = []
     for a, b in spans:
         start, end = mapped.span(a, b)
-        places.append(Place(start, end, *_passage(view.original, sentences, start, end),
-                            crosses_set_aside=_crosses_set_aside(view, start, end)))
+        places.append(
+            Place(
+                start,
+                end,
+                *_passage(view.original, sentences, start, end),
+                crosses_set_aside=_crosses_set_aside(view, start, end),
+            )
+        )
     return PaperReading(value, tuple(places))
 
 
@@ -551,8 +720,12 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
     stored_words = sum(1 for t in _tokenize(text) if t.isalpha())  # the engine's word count rule
     if view is None:
         prose, _ = _pp.preprocess(text)
-        return {"stored_words": stored_words, "measured_words": TextDoc(prose).word_count,
-                "set_aside": None, "set_aside_count": None}
+        return {
+            "stored_words": stored_words,
+            "measured_words": TextDoc(prose).word_count,
+            "set_aside": None,
+            "set_aside_count": None,
+        }
     kept = _kept(view)
     ranges: list[tuple[int, int]] = []
     i = 0
@@ -572,8 +745,13 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
         "measured_words": view.doc.word_count,
         "set_aside_count": len(ranges),
         "set_aside": [
-            {"start": a, "end": b, "words": len(text[a:b].split()),
-             "preview_end": min(b, a + preview_chars), "preview": text[a : min(b, a + preview_chars)]}
+            {
+                "start": a,
+                "end": b,
+                "words": len(text[a:b].split()),
+                "preview_end": min(b, a + preview_chars),
+                "preview": text[a : min(b, a + preview_chars)],
+            }
             for a, b in ranges[:max_ranges]
         ],
     }
@@ -627,7 +805,7 @@ def _length_pick(places: Sequence[Place], mode: str, direction: str, limit: int)
     if mode == "mean":
         return list((longest if direction == "higher" else shortest)[:limit])
     picked: list[Place] = []
-    for place in [x for pair in zip(longest, shortest) for x in pair]:
+    for place in [x for pair in zip(longest, shortest, strict=False) for x in pair]:
         if place not in picked:
             picked.append(place)
         if len(picked) == limit:
@@ -736,48 +914,64 @@ def build_evidence(
     return {
         "measured": {
             "this_paper": measured_coverage(submission_text),
-            "past_papers": [{"paper": label, **measured_coverage(text)} for label, text in baselines],
+            "past_papers": [
+                {"paper": label, **measured_coverage(text)} for label, text in baselines
+            ],
         },
-        "ordering": "Original's own order of the habits furthest from the writer's usual range (destructive_features).",
+        "ordering": "Original's own order of the habits furthest from the writer's "
+        "usual range (destructive_features).",
         "quotes_are_verbatim": True,
         "features": features,
         "locatable_codes": list(LOCATABLE),
     }
 
 
-def countable_overview(submission_text: str, baselines: Sequence[tuple[str, str]]) -> list[dict[str, Any]]:
+def countable_overview(
+    submission_text: str, baselines: Sequence[tuple[str, str]]
+) -> list[dict[str, Any]]:
     """Every locatable habit's plain value, this paper vs each past paper.
 
     Fixed feature order, not a ranking. Numbers only; no quotes.
     """
     rows = []
     views = [engine_view(submission_text)] + [engine_view(t) for _, t in baselines]
-    docs = [v.doc if v is not None else TextDoc(_pp.preprocess(t)[0])
-            for v, t in zip(views, [submission_text] + [t for _, t in baselines])]
+    docs = [
+        v.doc if v is not None else TextDoc(_pp.preprocess(t)[0])
+        for v, t in zip(views, [submission_text] + [t for _, t in baselines], strict=True)
+    ]
     for code, spec in LOCATABLE.items():
         this_value = spec.value(docs[0])
         past = [spec.value(d) for d in docs[1:]]
         lo, hi = (min(past), max(past)) if past else (None, None)
-        rows.append({
-            "code": code,
-            "name": describe(code)[0],
-            "unit": spec.unit,
-            "this_paper": _round(this_value),
-            "past_range": [_round(lo), _round(hi)] if past else None,
-            "outside_past_range": bool(past) and not (lo - 1e-12 <= this_value <= hi + 1e-12),
-        })
+        rows.append(
+            {
+                "code": code,
+                "name": describe(code)[0],
+                "unit": spec.unit,
+                "this_paper": _round(this_value),
+                "past_range": [_round(lo), _round(hi)] if past else None,
+                "outside_past_range": bool(past) and not (lo - 1e-12 <= this_value <= hi + 1e-12),
+            }
+        )
     return rows
 
 
-def preliminary_score(deviation: float | None, action: str | None, *, inconclusive: bool) -> dict[str, Any]:
+def preliminary_score(
+    deviation: float | None, action: str | None, *, inconclusive: bool
+) -> dict[str, Any]:
     """The optional preliminary score: Original's deviation and action band.
 
     Derived only from numbers the engine already returned; never shown to
     students (callers gate it). A thin baseline gives no number.
     """
     if inconclusive or deviation is None or action not in BAND_WORDS:
-        return {"label": PRELIMINARY_LABEL, "score": None, "band": None,
-                "band_words": INCONCLUSIVE_WORDS, "note": PRELIMINARY_NOTE}
+        return {
+            "label": PRELIMINARY_LABEL,
+            "score": None,
+            "band": None,
+            "band_words": INCONCLUSIVE_WORDS,
+            "note": PRELIMINARY_NOTE,
+        }
     return {
         "label": PRELIMINARY_LABEL,
         "score": round(float(deviation), 2),
@@ -791,8 +985,10 @@ def preliminary_score(deviation: float | None, action: str | None, *, inconclusi
 
 
 def _dir_words(direction: str) -> str:
-    return {"higher": "higher than the past-paper average", "lower": "lower than the past-paper average"}.get(
-        direction, "same as the past-paper average")
+    return {
+        "higher": "higher than the past-paper average",
+        "lower": "lower than the past-paper average",
+    }.get(direction, "same as the past-paper average")
 
 
 def _fmt(value) -> str:
@@ -815,33 +1011,60 @@ def _md_quote(q: dict[str, Any]) -> str:
     return f"{lead}“{body}”{tail}{extra} — *{q['paper']}*, chars {q['start']}–{q['end']}"
 
 
-def render_markdown(submission_id: str, evidence: dict[str, Any], preliminary: dict[str, Any] | None,
-                    overview: list[dict[str, Any]] | None = None) -> str:
-    lines = [f"# Evidence for {submission_id} (staff only; never shown to students)", "",
-             "Original in testing: not validated on real student writing. These passages show where "
-             "countable habits appear; they are a reason to read closely, not a finding.", ""]
+def render_markdown(
+    submission_id: str,
+    evidence: dict[str, Any],
+    preliminary: dict[str, Any] | None,
+    overview: list[dict[str, Any]] | None = None,
+) -> str:
+    lines = [
+        f"# Evidence for {submission_id} (staff only; never shown to students)",
+        "",
+        "Original in testing: not validated on real student writing. These passages show where "
+        "countable habits appear; they are a reason to read closely, not a finding.",
+        "",
+    ]
     if preliminary is not None:
         score = "–" if preliminary["score"] is None else f"{preliminary['score']:.2f}"
-        lines += [f"**{preliminary['label']}**: {score} · {preliminary['band_words']}", "",
-                  f"> {preliminary['note']}", ""]
+        lines += [
+            f"**{preliminary['label']}**: {score} · {preliminary['band_words']}",
+            "",
+            f"> {preliminary['note']}",
+            "",
+        ]
     measured = evidence.get("measured")
     if measured:
+
         def _cov(label, c):
             return f"{label}: {c['measured_words']} of {c['stored_words']} words measured"
+
         tp = measured["this_paper"]
-        lines += ["## What Original measured", "",
-                  "Back matter, citations and long quotations are set aside before measuring.", "",
-                  "- " + _cov("This paper", tp)]
+        lines += [
+            "## What Original measured",
+            "",
+            "Back matter, citations and long quotations are set aside before measuring.",
+            "",
+            "- " + _cov("This paper", tp),
+        ]
         lines += ["- " + _cov(p["paper"], p) for p in measured["past_papers"]]
         for r in tp.get("set_aside") or []:
             preview = " ".join(r["preview"].split()).replace("|", "\\|")
-            lines.append(f"  - set aside in this paper: chars {r['start']}–{r['end']} ({r['words']} words): “{preview}”"
-                         + (" …" if r["preview_end"] < r["end"] else ""))
+            lines.append(
+                f"  - set aside in this paper: chars {r['start']}–{r['end']}"
+                f" ({r['words']} words): “{preview}”"
+                + (" …" if r["preview_end"] < r["end"] else "")
+            )
         if tp["stored_words"] and tp["measured_words"] < 0.8 * tp["stored_words"]:
-            lines.append(f"- **Note:** less than 80% of this paper's words were measured; read the numbers below with that in mind.")
+            lines.append(
+                "- **Note:** less than 80% of this paper's words were measured; "
+                "read the numbers below with that in mind."
+            )
         lines.append("")
-    lines += [f"Order: {evidence['ordering']} Quotes are verbatim slices of the stored text at the "
-              "character offsets shown; bold marks what was counted.", ""]
+    lines += [
+        f"Order: {evidence['ordering']} Quotes are verbatim slices of the stored text at the "
+        "character offsets shown; bold marks what was counted.",
+        "",
+    ]
     if not evidence["features"]:
         lines += ["The score listed no habits outside the writer's usual range.", ""]
     for f in evidence["features"]:
@@ -849,36 +1072,60 @@ def render_markdown(submission_id: str, evidence: dict[str, Any], preliminary: d
         if f["description"]:
             lines += [f["description"], ""]
         eng = f["engine_scale"]
-        lines.append(f"- Original's 0–1 scale: this paper {_fmt(eng['this_paper'])} · past-paper average {_fmt(eng['past_papers_average'])}")
+        lines.append(
+            f"- Original's 0–1 scale: this paper {_fmt(eng['this_paper'])}"
+            f" · past-paper average {_fmt(eng['past_papers_average'])}"
+        )
         if "plain" in f:
             pl = f["plain"]
             per = ", ".join(f"{p['paper']} {_fmt(p['value'])}" for p in pl["past_papers"])
             rng = pl["past_range"]
-            lines.append(f"- In plain units ({pl['unit']}): this paper {_fmt(pl['this_paper'])} · past papers "
-                         f"{_fmt(rng[0]) if rng else '–'}–{_fmt(rng[1]) if rng else '–'} ({per})")
+            lines.append(
+                f"- In plain units ({pl['unit']}): this paper {_fmt(pl['this_paper'])} "
+                f"· past papers "
+                f"{_fmt(rng[0]) if rng else '–'}–{_fmt(rng[1]) if rng else '–'} ({per})"
+            )
         if not f["locatable"]:
             lines += [f"- Numbers only: {f['note']}", ""]
             continue
         tp, pp = f["this_paper"], f["past_papers"]
         if "count" in tp and "words" not in (tp["examples"][0] if tp["examples"] else {}):
-            lines.append(f"- Marked: {f['what_is_marked']}. Found {tp['count']} in this paper; "
-                         + ", ".join(f"{p['count']} in {p['paper']}" for p in pp["per_paper"]) + ".")
+            lines.append(
+                f"- Marked: {f['what_is_marked']}. Found {tp['count']} in this paper; "
+                + ", ".join(f"{p['count']} in {p['paper']}" for p in pp["per_paper"])
+                + "."
+            )
         if f.get("note"):
             lines.append(f"- {f['note']}")
         lines += ["", "| This paper | Past papers |", "|---|---|"]
         rows = max(len(tp["examples"]), len(pp["examples"]), 1)
         for i in range(rows):
-            left = _md_quote(tp["examples"][i]) if i < len(tp["examples"]) else ("*(none in this paper)*" if i == 0 else "")
-            right = _md_quote(pp["examples"][i]) if i < len(pp["examples"]) else ("*(none in the past papers)*" if i == 0 else "")
+            left = (
+                _md_quote(tp["examples"][i])
+                if i < len(tp["examples"])
+                else ("*(none in this paper)*" if i == 0 else "")
+            )
+            right = (
+                _md_quote(pp["examples"][i])
+                if i < len(pp["examples"])
+                else ("*(none in the past papers)*" if i == 0 else "")
+            )
             lines.append(f"| {left} | {right} |")
         lines.append("")
     if overview:
-        lines += ["## Every countable habit (fixed order, not a ranking; numbers only)", "",
-                  "| habit | unit | this paper | past papers (min–max) | outside past range |", "|---|---|---:|---:|---|"]
+        lines += [
+            "## Every countable habit (fixed order, not a ranking; numbers only)",
+            "",
+            "| habit | unit | this paper | past papers (min–max) | outside past range |",
+            "|---|---|---:|---:|---|",
+        ]
         for row in overview:
             rng = row["past_range"]
-            lines.append(f"| {row['name']} | {row['unit']} | {_fmt(row['this_paper'])} | "
-                         f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'} | {'yes' if row['outside_past_range'] else ''} |")
+            lines.append(
+                f"| {row['name']} | {row['unit']} | {_fmt(row['this_paper'])} | "
+                f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'}"
+                f" | {'yes' if row['outside_past_range'] else ''} |"
+            )
         lines.append("")
     return "\n".join(lines)
 
@@ -897,42 +1144,71 @@ def _html_quote(q: dict[str, Any]) -> str:
         extra = ""
     lead = "… " if q["clipped_start"] else ""
     tail = " …" if q["clipped_end"] else ""
-    return (f"<blockquote>{lead}{inner}{tail}{extra}<br><small>{html.escape(q['paper'])}, "
-            f"chars {q['start']}–{q['end']}</small></blockquote>")
+    return (
+        f"<blockquote>{lead}{inner}{tail}{extra}<br><small>{html.escape(q['paper'])}, "
+        f"chars {q['start']}–{q['end']}</small></blockquote>"
+    )
 
 
-def render_html(submission_id: str, evidence: dict[str, Any], preliminary: dict[str, Any] | None) -> str:
+def render_html(
+    submission_id: str, evidence: dict[str, Any], preliminary: dict[str, Any] | None
+) -> str:
     import html
 
-    parts = ["<!doctype html><meta charset='utf-8'><title>Evidence</title>",
-             "<style>body{font:15px/1.5 Georgia,serif;max-width:1100px;margin:2em auto;padding:0 1em}"
-             ".cols{display:grid;grid-template-columns:1fr 1fr;gap:1.5em}mark{background:#ffe9a8}"
-             "blockquote{margin:.5em 0;padding:.4em .8em;border-left:3px solid #c9b37e}"
-             ".note{color:#555}</style>",
-             f"<h1>Evidence for {html.escape(submission_id)}</h1>",
-             "<p class='note'>Staff only; never shown to students. Original in testing: not validated on real "
-             "student writing. Quotes are verbatim slices of the stored text.</p>"]
+    parts = [
+        "<!doctype html><meta charset='utf-8'><title>Evidence</title>",
+        "<style>body{font:15px/1.5 Georgia,serif;max-width:1100px;margin:2em auto;padding:0 1em}"
+        ".cols{display:grid;grid-template-columns:1fr 1fr;gap:1.5em}mark{background:#ffe9a8}"
+        "blockquote{margin:.5em 0;padding:.4em .8em;border-left:3px solid #c9b37e}"
+        ".note{color:#555}</style>",
+        f"<h1>Evidence for {html.escape(submission_id)}</h1>",
+        "<p class='note'>Staff only; never shown to students. Original in testing: "
+        "not validated on real "
+        "student writing. Quotes are verbatim slices of the stored text.</p>",
+    ]
     if preliminary is not None:
         score = "–" if preliminary["score"] is None else f"{preliminary['score']:.2f}"
-        parts.append(f"<p><strong>{html.escape(preliminary['label'])}</strong>: {score} · "
-                     f"{html.escape(preliminary['band_words'])}<br><span class='note'>{html.escape(preliminary['note'])}</span></p>")
+        parts.append(
+            f"<p><strong>{html.escape(preliminary['label'])}</strong>: {score} · "
+            f"{html.escape(preliminary['band_words'])}"
+            f"<br><span class='note'>{html.escape(preliminary['note'])}</span></p>"
+        )
     measured = evidence.get("measured")
     if measured:
         tp = measured["this_paper"]
-        parts.append(f"<p class='note'>Measured: this paper {tp['measured_words']} of {tp['stored_words']} words; "
-                     + "; ".join(f"{html.escape(p['paper'])} {p['measured_words']} of {p['stored_words']}"
-                                 for p in measured["past_papers"]) + ".</p>")
+        parts.append(
+            f"<p class='note'>Measured: this paper {tp['measured_words']}"
+            f" of {tp['stored_words']} words; "
+            + "; ".join(
+                f"{html.escape(p['paper'])} {p['measured_words']} of {p['stored_words']}"
+                for p in measured["past_papers"]
+            )
+            + ".</p>"
+        )
     for f in evidence["features"]:
-        parts.append(f"<h2>{f['rank']}. {html.escape(f['name'])} ({_dir_words(f['direction'])})</h2>")
+        parts.append(
+            f"<h2>{f['rank']}. {html.escape(f['name'])} ({_dir_words(f['direction'])})</h2>"
+        )
         if f["description"]:
             parts.append(f"<p>{html.escape(f['description'])}</p>")
         eng = f["engine_scale"]
-        parts.append(f"<p class='note'>0–1 scale: this paper {_fmt(eng['this_paper'])} · past-paper average "
-                     f"{_fmt(eng['past_papers_average'])}</p>")
+        parts.append(
+            f"<p class='note'>0–1 scale: this paper {_fmt(eng['this_paper'])} · past-paper average "
+            f"{_fmt(eng['past_papers_average'])}</p>"
+        )
         if not f["locatable"]:
             parts.append(f"<p class='note'>Numbers only. {html.escape(f['note'])}</p>")
             continue
-        left = "".join(_html_quote(q) for q in f["this_paper"]["examples"]) or "<p class='note'>None in this paper.</p>"
-        right = "".join(_html_quote(q) for q in f["past_papers"]["examples"]) or "<p class='note'>None in the past papers.</p>"
-        parts.append(f"<div class='cols'><div><h3>This paper</h3>{left}</div><div><h3>Past papers</h3>{right}</div></div>")
+        left = (
+            "".join(_html_quote(q) for q in f["this_paper"]["examples"])
+            or "<p class='note'>None in this paper.</p>"
+        )
+        right = (
+            "".join(_html_quote(q) for q in f["past_papers"]["examples"])
+            or "<p class='note'>None in the past papers.</p>"
+        )
+        parts.append(
+            f"<div class='cols'><div><h3>This paper</h3>{left}</div>"
+            f"<div><h3>Past papers</h3>{right}</div></div>"
+        )
     return "\n".join(parts) + "\n"

@@ -670,16 +670,29 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
         confidence = result.baseline_confidence
         # Same line the readiness verdict draws for "ready" (students.py).
         ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
-        response.preliminary = PreliminaryScoreOut(**preliminary_score(
-            result.authorship.deviation_score, result.recommendation.action, inconclusive=not ready))
+        response.preliminary = PreliminaryScoreOut(
+            **preliminary_score(
+                result.authorship.deviation_score,
+                result.recommendation.action,
+                inconclusive=not ready,
+            )
+        )
     if want_evidence:
         try:
-            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(state.samples)
-                         if s.auth_weight > 0 and s.text]
+            baselines = [
+                (f"past paper {i + 1}", s.text)
+                for i, s in enumerate(state.samples)
+                if s.auth_weight > 0 and s.text
+            ]
             response.evidence = build_evidence(
-                [dataclasses.asdict(f) for f in result.interference.destructive_features], text, baselines)
+                [dataclasses.asdict(f) for f in result.interference.destructive_features],
+                text,
+                baselines,
+            )
         except Exception:
-            logging.getLogger(__name__).exception("evidence passages failed; omitted from the response")
+            logging.getLogger(__name__).exception(
+                "evidence passages failed; omitted from the response"
+            )
             response.evidence = None
 
 
