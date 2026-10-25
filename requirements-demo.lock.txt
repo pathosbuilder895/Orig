@@ -92,6 +92,7 @@ packaging==26.3
     #   weasel
 preshed==3.0.13
     # via
+    #   -r requirements-demo.txt
     #   spacy
     #   thinc
 pydantic==2.13.5
