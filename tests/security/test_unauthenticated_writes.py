@@ -120,6 +120,14 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
         "signed-grant authenticated (beat grant for one student and one "
         "collection); see original/routers/phone_park.py"
     ),
+    # Course join links (2026-10): a student joins a course with the code its
+    # teacher turned on. Never writes an existing account without that
+    # account's own password; rate limited per client, and failures per email
+    # (tests/test_course_join.py).
+    ("POST", "/auth/join/{code}"): (
+        "public course join by a teacher-enabled code; an existing account "
+        "needs its own password; see original/routers/course_join.py"
+    ),
 }
 
 # ── Known holes with their own dedicated red test, below ─────────────────────
@@ -140,6 +148,7 @@ RED_ROUTES: set[tuple[str, str]] = {
 GENERIC_ROUTES: list[tuple[str, str]] = [
     ("DELETE", "/bluebook/courses/{course_id}"),
     ("DELETE", "/bluebook/courses/{course_id}/students/{student_id}"),
+    ("DELETE", "/bluebook/courses/{course_id}/join-requests/{student_id}"),
     ("DELETE", "/bluebook/exams/{exam_id}"),
     ("DELETE", "/bluebook/students/{student_id}"),
     ("DELETE", "/bluebook/submissions/{submission_id}/baseline"),
@@ -155,6 +164,9 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/admin/users/{user_id}/reset-link"),
     ("POST", "/auth/password"),
     ("POST", "/bluebook/courses"),
+    ("POST", "/bluebook/courses/{course_id}/join-requests/approve-all"),
+    ("POST", "/bluebook/courses/{course_id}/join-requests/{student_id}/approve"),
+    ("POST", "/bluebook/courses/{course_id}/join/reset"),
     ("POST", "/bluebook/courses/{course_id}/invites/reissue-pending"),
     ("POST", "/bluebook/courses/{course_id}/students"),
     ("POST", "/bluebook/courses/{course_id}/students/{student_id}/invite"),
@@ -163,6 +175,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/exams/{exam_id}/release"),
     ("POST", "/bluebook/exams/{exam_id}/unrelease"),
     ("POST", "/bluebook/me/exams/{exam_id}/start"),
+    ("PUT", "/bluebook/courses/{course_id}/join"),
     ("PUT", "/bluebook/exams/{exam_id}/draft"),
     ("PUT", "/bluebook/me/location"),
     ("POST", "/bluebook/exams/{exam_id}/phone-park/{student_id}/override"),

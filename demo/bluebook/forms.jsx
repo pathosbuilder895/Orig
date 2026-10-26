@@ -67,7 +67,7 @@ export const TextLink = SmallCaps;
 
 const BADGE_TONE = {
   open: 'ok', active: 'ok', submitted: 'ok', released: 'ok', writing: 'warn',
-  invited: 'warn', upcoming: 'warn', scheduled: 'warn', draft: '', closed: '',
+  invited: 'warn', pending: 'warn', upcoming: 'warn', scheduled: 'warn', draft: '', closed: '',
   late: 'bad', not_started: '', time_up: 'bad', link: '',
 };
 export function Badge({ children, tone }) {

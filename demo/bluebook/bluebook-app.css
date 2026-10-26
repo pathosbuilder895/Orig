@@ -20,6 +20,8 @@
 .bb-page .bb-eyebrow{font:.72rem var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep)}
 .bb-page h1{font:500 2rem/1.15 var(--display);margin:.4rem 0 0}
 .bb-page h2{font:500 1.3rem/1.3 var(--display);margin:0 0 .8rem}
+.bb-class-list h3{font:500 1.05rem/1.3 var(--display);margin:1rem 0 .3rem}
+.bb-class-list label.bb-btn:focus-within{outline:2px solid var(--gold);outline-offset:2px}
 .bb-page .bb-meta{color:var(--dim);font-size:.98rem;font-style:italic;margin:.35rem 0 0}
 .bb-page .bb-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
 .bb-page .bb-section{margin-bottom:2rem}

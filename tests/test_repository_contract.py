@@ -2728,6 +2728,7 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
         "jti-t08", tenant_id, "exam-t08", scoped_id
     )
     repo.put_enrollment("course-t08", scoped_id, tenant_id)     # bluebook_enrollments
+    repo.put_join_request("course-t08b", scoped_id, tenant_id)  # bluebook_join_requests
     repo.put_past_paper(                                        # student_past_papers
         {
             "paper_id": "paper-t08",
@@ -3188,6 +3189,94 @@ class TestBluebookSelfServeContract:
         assert repo.redeem_invite("i3") is False
         assert repo.get_invite_by_hash("h1")["voided_at"] is None
         assert repo.void_invites_for_user("ss-i:ann") == 0
+
+
+class TestCourseJoinContract:
+    """Course join links (2026-10): settings and waiting students, both backends."""
+
+    @staticmethod
+    def _rec(course_id, code, **over):
+        return {
+            "course_id": course_id,
+            "tenant_id": "cj-t",
+            "code": code,
+            "enabled": True,
+            "allowed_domain": "school.edu",
+            "require_approval": False,
+            **over,
+        }
+
+    def test_settings_round_trip_and_update(self, repo):
+        repo.put_tenant("cj-t", "CJ", environment="pilot")
+        assert repo.get_course_join("c1") is None
+        assert repo.get_course_join_by_code("AAAAAA") is None
+        assert repo.put_course_join(self._rec("c1", "AAAAAA")) is True
+        got = repo.get_course_join("c1")
+        assert (got["code"], got["enabled"], got["allowed_domain"], got["require_approval"]) == (
+            "AAAAAA",
+            True,
+            "school.edu",
+            False,
+        )
+        assert got["tenant_id"] == "cj-t" and got["updated_at"]
+        assert repo.get_course_join_by_code("AAAAAA")["course_id"] == "c1"
+        # Upsert: new code, switched off, approval on, no domain.
+        assert repo.put_course_join(
+            self._rec("c1", "BBBBBB", enabled=False, allowed_domain="", require_approval=True)
+        )
+        got = repo.get_course_join("c1")
+        assert (got["code"], got["enabled"], got["allowed_domain"], got["require_approval"]) == (
+            "BBBBBB",
+            False,
+            "",
+            True,
+        )
+        assert repo.get_course_join_by_code("AAAAAA") is None
+
+    def test_a_code_belongs_to_one_course(self, repo):
+        repo.put_tenant("cj-t", "CJ", environment="pilot")
+        assert repo.put_course_join(self._rec("c1", "AAAAAA"))
+        assert repo.put_course_join(self._rec("c2", "AAAAAA")) is False
+        assert repo.get_course_join("c2") is None
+        # A refused update leaves the course's own row as it was.
+        assert repo.put_course_join(self._rec("c2", "CCCCCC"))
+        assert repo.put_course_join(self._rec("c2", "AAAAAA")) is False
+        assert repo.get_course_join("c2")["code"] == "CCCCCC"
+
+    def test_join_requests(self, repo):
+        repo.put_tenant("cj-t", "CJ", environment="pilot")
+        repo.put_join_request("c1", "cj-t:ann", "cj-t")
+        repo.put_join_request("c1", "cj-t:ann", "cj-t")  # idempotent
+        repo.put_join_request("c1", "cj-t:bob", "cj-t")
+        repo.put_join_request("c2", "cj-t:ann", "cj-t")
+        assert [r["student_id"] for r in repo.list_join_requests_for_course("c1")] == [
+            "cj-t:ann",
+            "cj-t:bob",
+        ]
+        mine = repo.list_join_requests_for_student("cj-t:ann")
+        assert sorted(r["course_id"] for r in mine) == ["c1", "c2"]
+        assert all(r["tenant_id"] == "cj-t" and r["created_at"] for r in mine)
+        assert repo.delete_join_request("c1", "cj-t:bob") is True
+        assert repo.delete_join_request("c1", "cj-t:bob") is False
+        assert repo.list_join_requests_for_student("nobody") == []
+
+    def test_deleting_a_course_takes_its_join_link_and_requests(self, repo):
+        repo.put_tenant("cj-t", "CJ", environment="pilot")
+        repo.put_bluebook_course({"id": "crs", "tenant_id": "cj-t", "name": "Ethics"})
+        repo.put_course_join(self._rec("crs", "AAAAAA"))
+        repo.put_join_request("crs", "cj-t:ann", "cj-t")
+        repo.put_join_request("other", "cj-t:ann", "cj-t")
+        assert repo.delete_bluebook_course("crs") is True
+        assert repo.get_course_join("crs") is None
+        assert [r["course_id"] for r in repo.list_join_requests_for_student("cj-t:ann")] == [
+            "other"
+        ]
+
+    def test_a_waiting_request_alone_makes_a_student_erasable(self, repo):
+        repo.put_tenant("cj-t", "CJ", environment="pilot")
+        repo.put_join_request("c1", "cj-t:ann", "cj-t")
+        assert repo.delete_student("cj-t:ann") is True
+        assert repo.list_join_requests_for_student("cj-t:ann") == []
 
 
 class TestBluebookRound2Contract:

@@ -26,7 +26,7 @@ from .. import users as users_mod
 from ..schemas import RosterAddRequest, SendEmailRequest
 from . import phone_park
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
-from .bluebook import _owned_course, _owned_exam
+from .bluebook import _owned_course, _owned_exam, only_waiting
 
 router = APIRouter()
 
@@ -129,6 +129,8 @@ def roster_add(course_id: str, body: RosterAddRequest, request: Request):
             _repo().get_or_create(sid)
             _repo().set_display_name(sid, user.get("name") or email.split("@")[0])
         _repo().put_enrollment(course_id, sid, tenant)
+        # Added by the teacher: a request to join by link is answered.
+        _repo().delete_join_request(course_id, sid)
         row = {
             "student_id": sid,
             "email": user["email"],
@@ -163,16 +165,36 @@ def roster_add(course_id: str, body: RosterAddRequest, request: Request):
 
 @router.get("/bluebook/courses/{course_id}/students")
 def roster_list(course_id: str, request: Request):
+    """The course roster, then anyone who joined by link and is waiting for
+    the teacher's approval (state "pending", course_join.py)."""
     _require_staff(request)
     _owned_course(course_id, request)
     enrolled = _repo().list_enrollments_for_course(course_id)
     ids = [e["student_id"] for e in enrolled]
-    users = {u["user_id"]: u for u in _repo().list_users_by_ids(ids)}
+    waiting = [
+        r for r in _repo().list_join_requests_for_course(course_id) if r["student_id"] not in ids
+    ]
+    users = {
+        u["user_id"]: u for u in _repo().list_users_by_ids(ids + [r["student_id"] for r in waiting])
+    }
     rows = []
     for sid in ids:
         user = users.get(sid)
         invite = _repo().latest_invite_for_user(sid) if user else None
         rows.append(_roster_row(user, sid, invite))
+    for r in waiting:
+        user = users.get(r["student_id"])
+        if user is not None:
+            rows.append(
+                {
+                    "student_id": r["student_id"],
+                    "email": user["email"],
+                    "name": user.get("name") or "",
+                    "state": "pending",
+                    "invite_expires_at": None,
+                    "requested_at": r["created_at"],
+                }
+            )
     return {"students": rows}
 
 
@@ -447,8 +469,9 @@ def _require_student(request: Request) -> principal_mod.Principal:
 
 def _visible_exam(p: principal_mod.Principal, exam_id: str, now: datetime) -> tuple[dict, str]:
     """The exam and its state, if this student may see it: same tenant, not
-    a draft, and either course-less (open to the whole workspace) or on a
-    course the student is enrolled in. 404 otherwise."""
+    a draft, and either course-less (open to the whole workspace, though not
+    to a student still waiting for approval) or on a course the student is
+    enrolled in. 404 otherwise."""
     exam = _repo().get_bluebook_exam(exam_id)
     if exam is None or exam.get("tenant_id") != p.tenant_id:
         raise HTTPException(status_code=404, detail="exam not found")
@@ -456,10 +479,11 @@ def _visible_exam(p: principal_mod.Principal, exam_id: str, now: datetime) -> tu
     if state == rules.DRAFT:
         raise HTTPException(status_code=404, detail="exam not found")
     course_id = exam.get("course_id")
-    if course_id:
-        enrolled = {e["course_id"] for e in _repo().list_enrollments_for_student(p.user_id)}
-        if course_id not in enrolled:
-            raise HTTPException(status_code=404, detail="exam not found")
+    enrolled = {e["course_id"] for e in _repo().list_enrollments_for_student(p.user_id)}
+    if course_id and course_id not in enrolled:
+        raise HTTPException(status_code=404, detail="exam not found")
+    if not course_id and only_waiting(p.user_id, enrolled):
+        raise HTTPException(status_code=404, detail="exam not found")
     return exam, state
 
 
@@ -502,18 +526,30 @@ def _exam_detail(exam: dict, state: str, session: dict | None, submitted: bool) 
 def me(request: Request):
     p = _require_student(request)
     user = _repo().get_user(p.user_id)
-    courses = []
-    for e in _repo().list_enrollments_for_student(p.user_id):
-        c = _repo().get_bluebook_course(e["course_id"])
-        if c and c.get("tenant_id") == p.tenant_id:
-            courses.append(
-                {
-                    "course_id": c["id"],
-                    "code": c.get("code"),
-                    "name": c["name"],
-                    "term": c.get("term"),
-                }
-            )
+
+    def _courses(rows: list[dict]) -> list[dict]:
+        out = []
+        for e in rows:
+            c = _repo().get_bluebook_course(e["course_id"])
+            if c and c.get("tenant_id") == p.tenant_id:
+                out.append(
+                    {
+                        "course_id": c["id"],
+                        "code": c.get("code"),
+                        "name": c["name"],
+                        "term": c.get("term"),
+                    }
+                )
+        return out
+
+    courses = _courses(_repo().list_enrollments_for_student(p.user_id))
+    # Courses joined by link that still wait for the teacher's approval.
+    on = {c["course_id"] for c in courses}
+    pending = [
+        c
+        for c in _courses(_repo().list_join_requests_for_student(p.user_id))
+        if c["course_id"] not in on
+    ]
     return {
         "student_id": p.user_id,
         "name": (user or {}).get("name", ""),
@@ -522,6 +558,7 @@ def me(request: Request):
         "products": sorted(p.products),
         "has_account": user is not None,
         "courses": courses,
+        "pending_courses": pending,
     }
 
 
@@ -530,6 +567,8 @@ def my_exams(request: Request):
     p = _require_student(request)
     now = rules.now_utc()
     enrolled = {e["course_id"] for e in _repo().list_enrollments_for_student(p.user_id)}
+    if only_waiting(p.user_id, enrolled):
+        return {"exams": []}
     submitted = {
         s["exam_id"]
         for s in _repo().list_bluebook_submissions_for_student(p.user_id)

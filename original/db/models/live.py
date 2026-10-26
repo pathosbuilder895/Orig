@@ -623,6 +623,42 @@ class BluebookInvite(LiveBase):
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class BluebookCourseJoin(LiveBase):
+    """A course's join link (``bluebook_course_joins``, 2026-10).
+
+    One row per course whose teacher has turned joining on at least once.
+    ``code`` is the short join code, unique across every course because the
+    link (``/bluebook/?join=<code>``) names no tenant; resetting it replaces
+    the code, which kills the old link too. ``allowed_domain`` is empty when
+    any email may join.
+    """
+
+    __tablename__ = "bluebook_course_joins"
+
+    course_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    allowed_domain: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    require_approval: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BluebookJoinRequest(LiveBase):
+    """A student waiting for approval to join a course
+    (``bluebook_join_requests``, 2026-10). ``student_id`` is the full scoped
+    id, as in ``bluebook_enrollments``. Approving moves the row to the roster;
+    until then the student is on no roster, so they see no collections."""
+
+    __tablename__ = "bluebook_join_requests"
+    __table_args__ = (Index("idx_bluebook_join_requests_student", "student_id"),)
+
+    course_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 # ── Formation, requests, audit ────────────────────────────────────────────────
 
 
@@ -884,7 +920,7 @@ class BluebookPhonePark(LiveBase):
     override_note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
 
-#: All 27 live models in store-DDL order, for tests and the P3 repository.
+#: All 29 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -913,4 +949,6 @@ LIVE_MODELS = [
     BluebookExamDraft,
     UserLastLocation,
     BluebookPhonePark,
+    BluebookCourseJoin,
+    BluebookJoinRequest,
 ]

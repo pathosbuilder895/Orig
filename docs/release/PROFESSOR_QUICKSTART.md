@@ -34,6 +34,24 @@ press **Sign in**, enter your **Email** and **Password**, and press **Enter**.
    links yourself. **Fresh links for all *N* waiting** replaces links that
    were lost or have expired.
 
+Two other ways onto the same roster:
+
+- **Upload class list:** press **Upload class list** and choose a CSV, either
+  your Canvas gradebook export (**Grades** → **Export**) or any file with name
+  and email columns. Check the matched columns, then the preview: new
+  students, students already on the roster, and rows with problems. A Canvas
+  export usually has no email column; enter your school's email domain to make
+  addresses from each student's login (`jdoe` becomes `jdoe@school.edu`), or
+  skip those students. **Invite *N* new students** sends the invitations as
+  above. The file stays on your computer and is not kept.
+- **Join link:** under **Join link**, tick **Let students join this course
+  with a link or code** and share the link or the six-character code (students
+  can type it on the sign-in page). Each student enters their name and email
+  and chooses a password. You can limit joining to one email domain, and tick
+  **Approve each student before they join**: they then show as **Pending** on
+  the roster until you press **Approve** (or **Decline**). **Reset code** stops
+  the old link and code at once. Untick the box to turn joining off.
+
 ## 3. Set a writing session
 
 There are two ways:

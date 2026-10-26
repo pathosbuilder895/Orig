@@ -300,20 +300,24 @@ def _throttle_keys(request: Request, email: str, scope: str = "login") -> list[s
     return keys
 
 
-def _throttle_login(request: Request, email: str = "", scope: str = "login") -> None:
+def _throttle_login(
+    request: Request, email: str = "", scope: str = "login", limit: int | None = None
+) -> None:
     """Raise 429 when this IP, or this email, has too many recent failures.
 
     Only failures count (``_record_login_failure``): successful sign-ins no
     longer consume the budget, so a class of students signing in from one
-    school network is not throttled by its own successes.
+    school network is not throttled by its own successes. ``limit`` replaces
+    the attempt budget for a scope that needs a different one.
     """
     import time as _time
 
     now = _time.monotonic()
+    budget = _LOGIN_MAX_ATTEMPTS if limit is None else limit
     for key in _throttle_keys(request, email, scope):
         window = [t for t in _login_attempts.get(key, []) if now - t < _LOGIN_WINDOW_SEC]
         _login_attempts[key] = window
-        if len(window) >= _LOGIN_MAX_ATTEMPTS:
+        if len(window) >= budget:
             raise HTTPException(
                 status_code=429,
                 detail="Too many sign-in attempts. Try again in a few minutes.",

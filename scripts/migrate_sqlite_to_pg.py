@@ -83,6 +83,8 @@ from original.db.models.live import (
     BluebookExamDraft,
     UserLastLocation,
     BluebookPhonePark,
+    BluebookCourseJoin,
+    BluebookJoinRequest,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1582,6 +1584,72 @@ class _BluebookPhoneParkMigrator(_Migrator):
         ]
 
 
+class _BluebookCourseJoinMigrator(_Migrator):
+    """A course's join link and its settings (2026-10). Booleans are 0/1
+    INTEGERs in SQLite."""
+
+    name = "bluebook_course_joins"
+    model = BluebookCourseJoin
+    pk = "course_id"
+    _COLS = (
+        "course_id", "tenant_id", "code", "enabled", "allowed_domain", "require_approval",
+        "updated_at",
+    )  # fmt: skip
+
+    def _canon(self, row):
+        row["enabled"] = bool(row["enabled"])
+        row["require_approval"] = bool(row["require_approval"])
+        row["allowed_domain"] = row["allowed_domain"] or ""
+        row["updated_at"] = _canon_ts(row["updated_at"])
+        return row
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_course_joins").fetchall()
+        return [self._canon(dict(zip(self._COLS, r, strict=True))) for r in rows]
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return BluebookCourseJoin(**kwargs)
+
+    def read_pg(self, session):
+        return [
+            self._canon({k: getattr(p, k) for k in self._COLS})
+            for p in session.query(BluebookCourseJoin).all()
+        ]
+
+
+class _BluebookJoinRequestMigrator(_Migrator):
+    """Students waiting for approval to join a course (2026-10). student_id
+    is the full scoped id in both schemas, as in bluebook_enrollments."""
+
+    name = "bluebook_join_requests"
+    model = BluebookJoinRequest
+    pk = "_pk"
+    _COLS = ("course_id", "student_id", "tenant_id", "created_at")
+
+    def _canon(self, row):
+        row["created_at"] = _canon_ts(row["created_at"])
+        row["_pk"] = f"{row['course_id']}|{row['student_id']}"
+        return row
+
+    def read_sqlite(self, conn):
+        cols = ", ".join(self._COLS)
+        rows = conn.execute(f"SELECT {cols} FROM bluebook_join_requests").fetchall()
+        return [self._canon(dict(zip(self._COLS, r, strict=True))) for r in rows]
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["created_at"] = _parse_ts(row["created_at"])
+        return BluebookJoinRequest(**kwargs)
+
+    def read_pg(self, session):
+        return [
+            self._canon({k: getattr(p, k) for k in self._COLS})
+            for p in session.query(BluebookJoinRequest).all()
+        ]
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1610,6 +1678,8 @@ MIGRATORS: list[_Migrator] = [
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
     _BluebookPhoneParkMigrator(),
+    _BluebookCourseJoinMigrator(),
+    _BluebookJoinRequestMigrator(),
 ]
 
 

@@ -327,7 +327,11 @@ export function LoginScreen({ onNavigate }) {
               fontFamily: fontBody, fontSize: 15, color: BB.gold, textDecoration: 'underline',
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
             }}>Forgot your password?</button>
-            {' '}Students joining a class: use the invite link from your teacher.
+            {' '}Students joining a class: use the invite link from your teacher, or{' '}
+            <button type="button" data-testid="join-with-code" onClick={() => onNavigate('join')} style={{
+              fontFamily: fontBody, fontSize: 15, color: BB.gold, textDecoration: 'underline',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>join with a class code</button>.
           </p>
           {demoDeploy && (
             <div style={{ textAlign: 'center' }}>

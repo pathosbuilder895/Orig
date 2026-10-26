@@ -2536,6 +2536,79 @@
         "title": "InviteRedeemRequest",
         "type": "object"
       },
+      "JoinCourseRequest": {
+        "description": "POST /auth/join/{code}: a student joins a course by its link or code.",
+        "properties": {
+          "accept_terms": {
+            "default": false,
+            "description": "Must be true: the student notice, terms and privacy policy",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "JoinCourseRequest",
+        "type": "object"
+      },
+      "JoinSettingsRequest": {
+        "description": "PUT /bluebook/courses/{course_id}/join. Fields left out keep their\ncurrent value.",
+        "properties": {
+          "allowed_domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only emails at this domain may join (e.g. school.edu); empty for any",
+            "title": "Allowed Domain"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the join link and code work",
+            "title": "Enabled"
+          },
+          "require_approval": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New joiners wait as Pending until the teacher approves them",
+            "title": "Require Approval"
+          }
+        },
+        "title": "JoinSettingsRequest",
+        "type": "object"
+      },
       "Layer7OutputResponse": {
         "properties": {
           "ai_likelihood": {
@@ -5534,6 +5607,90 @@
         "summary": "Auth Invite Redeem"
       }
     },
+    "/auth/join/{code}": {
+      "get": {
+        "description": "What the join screen shows before the student types anything: the\ncourse, and the rules the teacher set. Unknown codes count as failures.",
+        "operationId": "join_lookup_auth_join__code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Lookup"
+      },
+      "post": {
+        "description": "Join a course: create the account (or reuse the teacher's roster row\nfor this email, or an existing account with its own password), then\nenrol, or wait for approval when the course asks for it, and sign in.",
+        "operationId": "join_course_auth_join__code__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinCourseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Course"
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "auth_login_auth_login_post",
@@ -5957,8 +6114,260 @@
         "summary": "Roster Reissue Pending"
       }
     },
+    "/bluebook/courses/{course_id}/join": {
+      "get": {
+        "operationId": "join_settings_bluebook_courses__course_id__join_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Settings"
+      },
+      "put": {
+        "description": "Turn joining on or off, set the domain limit and the approval\nsetting. The first save gives the course its code.",
+        "operationId": "update_join_settings_bluebook_courses__course_id__join_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Join Settings"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-requests/approve-all": {
+      "post": {
+        "operationId": "approve_all_join_requests_bluebook_courses__course_id__join_requests_approve_all_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve All Join Requests"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-requests/{student_id}": {
+      "delete": {
+        "description": "Decline a waiting student. An account made only to ask (nothing else\nattached) is deleted with the request; any other account is kept.",
+        "operationId": "decline_join_request_bluebook_courses__course_id__join_requests__student_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Join Request"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-requests/{student_id}/approve": {
+      "post": {
+        "operationId": "approve_join_request_bluebook_courses__course_id__join_requests__student_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Join Request"
+      }
+    },
+    "/bluebook/courses/{course_id}/join/reset": {
+      "post": {
+        "description": "Replace the code. The old code and every copy of the old link stop\nworking at once; students already on the course are unaffected.",
+        "operationId": "reset_join_code_bluebook_courses__course_id__join_reset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Join Code"
+      }
+    },
     "/bluebook/courses/{course_id}/students": {
       "get": {
+        "description": "The course roster, then anyone who joined by link and is waiting for\nthe teacher's approval (state \"pending\", course_join.py).",
         "operationId": "roster_list_bluebook_courses__course_id__students_get",
         "parameters": [
           {

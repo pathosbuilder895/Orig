@@ -7,6 +7,7 @@ import {
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
 import { noteView, takeResumed } from './resume-location.jsx';
+import { buildPreview, detectColumns, readClassList, recordsFromText } from './class-list.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
@@ -834,6 +835,229 @@ function InviteLink({ path, expires, emailed }) {
   );
 }
 
+// ─── Join link: one link (or code) for the whole class ──────────────────────
+// Off until the teacher turns it on. The link is the code, so resetting the
+// code kills every copy of the old link (original/routers/course_join.py).
+export const JOIN_PANEL_INTRO = 'Share one link with the whole class instead of sending each student their own. '
+  + 'Students open the link, or type the code on the sign-in page, then enter their name and email and choose a password.';
+
+export function JoinLinkPanel({ courseId, onError }) {
+  const [s, setS] = useState(null);   // the settings, from the server
+  const [domain, setDomain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState('');
+  const [msg, setMsg] = useState('');
+
+  function take(r) { setS(r); setDomain(r.allowed_domain || ''); }
+  useEffect(() => {
+    BB_API.joinSettings(courseId).then(take).catch(err => onError(err.message || 'Could not load the join link.'));
+  }, []);
+
+  async function save(fields, note) {
+    setBusy(true); setMsg('');
+    try { take(await BB_API.updateJoinSettings(courseId, fields)); setMsg(note || ''); }
+    catch (err) { onError(err.message || 'Could not save the join settings.'); }
+    setBusy(false);
+  }
+
+  async function reset() {
+    if (!confirm('Make a new code? The current link and code stop working straight away. Students already on the course stay on it.')) return;
+    setBusy(true); setMsg('');
+    try { take(await BB_API.resetJoinCode(courseId)); setMsg('New code ready. The old link and code no longer work.'); }
+    catch (err) { onError(err.message || 'Could not make a new code.'); }
+    setBusy(false);
+  }
+
+  async function copy(what, text) {
+    if (await copyText(text)) { setCopied(what); setTimeout(() => setCopied(''), 1500); }
+    else setMsg('Your browser did not allow copying. Select the text and copy it yourself.');
+  }
+
+  if (!s) {
+    return <Panel style={{ marginBottom: '1.5rem' }}><h2>Join link</h2><p role="status" className="bb-meta">Loading…</p></Panel>;
+  }
+  const link = s.join_path ? absoluteLink(s.join_path) : '';
+  const typed = domain.trim().toLowerCase().replace(/^@+/, '');
+  return (
+    <Panel className="bb-join-link" style={{ marginBottom: '1.5rem' }}>
+      <h2>Join link</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>{JOIN_PANEL_INTRO}</p>
+      <label className="bb-check">
+        <input type="checkbox" data-testid="join-enabled" checked={s.enabled} disabled={busy}
+          onChange={e => save({ enabled: e.target.checked }, e.target.checked ? 'Joining is on. Share the link or the code.' : 'Joining is off.')} />
+        <span>Let students join this course with a link or code</span>
+      </label>
+      {s.enabled && link && (
+        <>
+          <div className="bb-linkrow" style={{ marginTop: '.8rem' }}>
+            <input readOnly value={link} onFocus={e => e.target.select()} aria-label="Join link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
+            <LinkBtn onClick={() => copy('link', link)}>{copied === 'link' ? 'Copied' : 'Copy link'}</LinkBtn>
+          </div>
+          <p className="bb-meta" style={{ margin: '.6rem 0 0' }}>
+            Class code: <strong data-testid="join-code" style={{ fontFamily: 'monospace', fontSize: '1.15em', letterSpacing: '.12em' }}>{s.code}</strong>{' '}
+            <LinkBtn onClick={() => copy('code', s.code)}>{copied === 'code' ? 'Copied' : 'Copy code'}</LinkBtn>
+            <LinkBtn muted onClick={reset} disabled={busy}>Reset code</LinkBtn>
+          </p>
+        </>
+      )}
+      {!s.enabled && s.code && <p className="bb-hint">Joining is off, so the link and code do nothing until you turn it back on.</p>}
+      <form style={{ marginTop: '1rem' }} onSubmit={e => {
+        e.preventDefault();
+        save({ allowed_domain: typed }, typed ? `Only @${typed} email addresses can join now.` : 'Any email address can join now.');
+      }}>
+        <div style={{ display: 'flex', gap: '.6rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 240px' }}>
+            <Field id="joinDomain" label="Only allow emails from (optional)" value={domain} onChange={setDomain} required={false}
+              placeholder="school.edu" hint="For example school.edu. Leave empty to allow any email address." />
+          </div>
+          <Btn type="submit" disabled={busy || typed === (s.allowed_domain || '')} style={{ marginTop: '1.7rem' }}>Save</Btn>
+        </div>
+      </form>
+      <label className="bb-check">
+        <input type="checkbox" data-testid="join-approval" checked={s.require_approval} disabled={busy}
+          onChange={e => save({ require_approval: e.target.checked }, e.target.checked ? 'New students now wait as Pending until you approve them.' : 'New students now join straight away.')} />
+        <span>Approve each student before they join (they show as Pending below)</span>
+      </label>
+      <Notice>{msg}</Notice>
+    </Panel>
+  );
+}
+
+// ─── Upload class list: a Canvas gradebook export or any CSV ─────────────────
+// The file is read in this browser only (class-list.jsx). What reaches the
+// server is each new student's name and email, through the same "Add
+// students" route as the paste box, so the links land in the Invite links
+// panel the same way.
+const columnLabel = (h, i) => (String(h || '').trim() || `Column ${i + 1}`);
+
+function ColumnSelect({ id, label, value, headers, onChange }) {
+  return (
+    <Select id={id} label={label} value={String(value)} onChange={v => onChange(Number(v))}>
+      <option value="-1">None</option>
+      {headers.map((h, i) => <option key={i} value={String(i)}>{columnLabel(h, i)}</option>)}
+    </Select>
+  );
+}
+
+function PreviewList({ title, rows, render, open = false }) {
+  if (!rows.length) return null;
+  return (
+    <details open={open} style={{ margin: '.4rem 0' }}>
+      <summary>{title} ({rows.length})</summary>
+      <ul style={{ margin: '.4rem 0 0', paddingLeft: '1.2rem' }}>{rows.map(r => <li key={r.row}>{render(r)}</li>)}</ul>
+    </details>
+  );
+}
+
+export function ClassListImport({ courseId, rosterEmails, sendEmail, onDone, onCancel }) {
+  const [records, setRecords] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [map, setMap] = useState(null);
+  const [mode, setMode] = useState('make');   // students with no email: 'make' one, or 'skip' them
+  const [domain, setDomain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  function forget() { setRecords(null); setMap(null); setFileName(''); }
+
+  async function pick(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';   // choosing the same file again reads it again
+    if (!file) return;
+    setError('');
+    try {
+      const recs = recordsFromText(await readClassList(file));
+      if (recs.length < 2) { forget(); setError('That file has no student rows under its header.'); return; }
+      setRecords(recs); setMap(detectColumns(recs[0], recs.slice(1))); setFileName(file.name);
+    } catch (err) { forget(); setError(err.message || 'We could not read that file.'); }
+  }
+
+  const preview = records && map ? buildPreview(records, map, { domain: mode === 'make' ? domain : '', rosterEmails }) : null;
+  const undecided = preview && mode === 'make' && preview.needsEmailFormat;
+
+  async function importNow() {
+    const students = preview.fresh.map(r => ({ email: r.email, name: r.name }));
+    setBusy(true); setError('');
+    const results = [];
+    let failed = '';
+    try {
+      for (let i = 0; i < students.length; i += 500) {
+        results.push(...await BB_API.rosterAdd(courseId, students.slice(i, i + 500), sendEmail));
+      }
+    } catch (err) { failed = err.message || 'Could not add every student.'; }
+    forget();   // the file's contents are not kept once it is imported
+    setBusy(false);
+    onDone(results, failed);
+  }
+
+  const headers = (preview && preview.headers) || [];
+  return (
+    <Panel className="bb-class-list" style={{ marginBottom: '1.5rem' }}>
+      <h2>Upload class list</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+        A CSV exported from your Canvas gradebook, or any CSV with name and email columns.
+        The file stays on this computer: only each new student’s name and email are sent, and the file is not kept.
+      </p>
+      <div className="bb-actions" style={{ marginBottom: '.6rem' }}>
+        <label className="bb-btn" style={{ cursor: 'pointer' }}>
+          {fileName ? 'Choose another file' : 'Choose a CSV file'}
+          <input type="file" data-testid="class-list-file" accept=".csv,text/csv,.txt,text/plain" onChange={pick}
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+        </label>
+        <LinkBtn muted onClick={() => { forget(); onCancel(); }}>Cancel</LinkBtn>
+      </div>
+      {fileName && <p className="bb-hint">{fileName}{preview && preview.canvas ? ' · Canvas gradebook export' : ''}</p>}
+      <ErrorText>{error}</ErrorText>
+      {preview && (
+        <>
+          <h3>Columns</h3>
+          <p className="bb-hint">We matched these automatically. Change any that are wrong.</p>
+          <div className="bb-grid cols-2">
+            <ColumnSelect id="clName" label="Name" value={map.name} headers={headers} onChange={v => setMap({ ...map, name: v })} />
+            <ColumnSelect id="clLast" label="Last name (if it has its own column)" value={map.last} headers={headers} onChange={v => setMap({ ...map, last: v })} />
+            <ColumnSelect id="clEmail" label="Email" value={map.email} headers={headers} onChange={v => setMap({ ...map, email: v })} />
+            <ColumnSelect id="clId" label="Login or ID (for students with no email)" value={map.idCol} headers={headers} onChange={v => setMap({ ...map, idCol: v })} />
+          </div>
+          {(preview.needsEmailFormat || mode === 'skip' || domain) && (
+            <fieldset style={{ border: 0, padding: 0, margin: '.6rem 0' }}>
+              <legend className="bb-meta">Some students in this file have no email address. What should we do?</legend>
+              <label className="bb-check">
+                <input type="radio" name="clMode" checked={mode === 'make'} onChange={() => setMode('make')} />
+                <span>Make their email from their {map.idCol >= 0 ? columnLabel(headers[map.idCol], map.idCol) : 'login or ID'}, at this domain:</span>
+              </label>
+              <div style={{ maxWidth: 320, marginLeft: '1.6rem' }}>
+                <Field id="clDomain" label="Email domain" value={domain} onChange={setDomain} required={false}
+                  placeholder="school.edu" hint={`For example, login “jdoe” becomes jdoe@${domain.trim().replace(/^@+/, '') || 'school.edu'}.`} />
+              </div>
+              <label className="bb-check">
+                <input type="radio" name="clMode" checked={mode === 'skip'} onChange={() => setMode('skip')} />
+                <span>Skip students with no email address</span>
+              </label>
+            </fieldset>
+          )}
+          <h3>Before you import</h3>
+          <p className="bb-meta" data-testid="class-list-summary">
+            {preview.fresh.length} new · {preview.existing.length} already on the roster · {preview.problems.length} with problems
+            {preview.skipped.length ? ` · ${preview.skipped.length} skipped` : ''}
+          </p>
+          <PreviewList title="New students" rows={preview.fresh} open
+            render={r => <>{r.name || '(no name)'} · {r.email}{r.made ? ' (made from their login)' : ''}</>} />
+          <PreviewList title="Already on the roster" rows={preview.existing} render={r => <>{r.name || '(no name)'} · {r.email}</>} />
+          <PreviewList title="Rows with problems (not imported)" rows={preview.problems} open
+            render={r => <>Row {r.row}{r.name ? `, ${r.name}` : ''}: {r.reason}</>} />
+          <PreviewList title="Skipped" rows={preview.skipped} render={r => <>Row {r.row}: {r.reason}</>} />
+          <div className="bb-actions" style={{ marginTop: '.8rem' }}>
+            <Btn primary data-testid="class-list-import" onClick={importNow} disabled={busy || undecided || !preview.fresh.length}>
+              {busy ? 'Adding…' : `Invite ${preview.fresh.length} new student${preview.fresh.length === 1 ? '' : 's'}`}
+            </Btn>
+          </div>
+          {undecided && <p className="bb-hint">Enter an email domain, or choose to skip students with no email address.</p>}
+        </>
+      )}
+    </Panel>
+  );
+}
+
 export function RosterScreen({ onNavigate }) {
   const course = window.BB_ROSTER_COURSE;
   const [rows, setRows] = useState(null);
@@ -846,6 +1070,7 @@ export function RosterScreen({ onNavigate }) {
   const [mail, setMail] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
   const [copied, setCopied] = useState(0);   // how many links the last copy put on the clipboard
+  const [importing, setImporting] = useState(false);   // the Upload class list panel is open
 
   async function load() {
     try { setRows(await BB_API.rosterList(course.id)); }
@@ -880,6 +1105,43 @@ export function RosterScreen({ onNavigate }) {
       await load();
     } catch (err) { setError(err.message || 'Could not add students.'); }
     setBusy(false);
+  }
+
+  // An uploaded class list was imported (ClassListImport): the same results
+  // the paste box gets, so the links land in the Invite links panel.
+  async function imported(res, failed) {
+    setImporting(false);
+    setErrors(res.filter(r => r.error));
+    setNotice('');
+    keepLinks(res);
+    // keepLinks announces new links; students who were already set up get none.
+    const added = res.filter(r => !r.error);
+    if (failed) setError(failed);
+    else if (added.length && !added.some(r => r.invite_path)) setNotice(`${added.length} student${added.length === 1 ? '' : 's'} added.`);
+    await load();
+  }
+
+  async function approve(sid) {
+    setError(''); setNotice('');
+    try { await BB_API.approveJoin(course.id, sid); await load(); }
+    catch (err) { setError(err.message || 'Could not approve.'); }
+  }
+
+  async function approveAll() {
+    setError(''); setNotice('');
+    try {
+      const r = await BB_API.approveAllJoins(course.id);
+      const n = (r.approved || []).length;
+      setNotice(`${n} student${n === 1 ? '' : 's'} approved.`);
+      await load();
+    } catch (err) { setError(err.message || 'Could not approve.'); }
+  }
+
+  async function decline(sid, who) {
+    if (!confirm(`Decline ${who}? They will not join this course. If they are on none of your other courses, their account is deleted.`)) return;
+    setError(''); setNotice('');
+    try { await BB_API.declineJoin(course.id, sid); await load(); }
+    catch (err) { setError(err.message || 'Could not decline.'); }
   }
 
   async function reissueAll() {
@@ -933,21 +1195,30 @@ export function RosterScreen({ onNavigate }) {
   if (!course) return null;
   const linkRows = Object.values(links);
   const invited = (rows || []).filter(r => r.state === 'invited').length;
+  // Joined by link, waiting for approval: listed after the roster.
+  const waiting = (rows || []).filter(r => r.state === 'pending');
+  const onRoster = (rows || []).length - waiting.length;
   const columns = [
     { key: 'name', label: 'Student', lead: true, render: r => <>{r.name || '—'}<span className="sub">{r.email || 'joined by launch link'}</span></> },
     { key: 'state', label: 'Status', render: r => <Badge>{r.state}</Badge> },
-    { key: 'link', label: 'Invite link', render: r => links[r.student_id]
-      ? <InviteLink path={links[r.student_id].invite_path} expires={links[r.student_id].invite_expires_at} emailed={links[r.student_id].emailed} />
-      : (r.email ? <LinkBtn onClick={() => reissue(r.student_id)}>{r.state === 'active' ? 'Password reset link' : 'New invite link'}</LinkBtn> : '—') },
+    { key: 'link', label: 'Invite link', render: r => (r.state === 'pending'
+      ? <span className="bb-hint">Asked to join by link{r.requested_at ? `, ${when(r.requested_at)}` : ''}</span>
+      : links[r.student_id]
+        ? <InviteLink path={links[r.student_id].invite_path} expires={links[r.student_id].invite_expires_at} emailed={links[r.student_id].emailed} />
+        : (r.email ? <LinkBtn onClick={() => reissue(r.student_id)}>{r.state === 'active' ? 'Password reset link' : 'New invite link'}</LinkBtn> : '—')) },
     { key: 'actions', label: 'Actions', actions: true, render: r => {
       const who = r.name || r.email || 'this student';
+      if (r.state === 'pending') {
+        return <><LinkBtn onClick={() => approve(r.student_id)}>Approve</LinkBtn><LinkBtn danger onClick={() => decline(r.student_id, who)}>Decline</LinkBtn></>;
+      }
       return <><LinkBtn muted onClick={() => remove(r.student_id, who)}>Remove</LinkBtn><LinkBtn danger onClick={() => erase(r.student_id, who)}>Delete student</LinkBtn></>;
     } },
   ];
 
   return (
     <Page eyebrow="Course roster" title={course.name}
-      meta={[course.code, rows ? `${rows.length} student${rows.length === 1 ? '' : 's'}` : (error ? 'Roster unavailable' : 'Loading…'), invited ? `${invited} waiting to set a password` : null].filter(Boolean).join(' · ')}
+      meta={[course.code, rows ? `${onRoster} student${onRoster === 1 ? '' : 's'}` : (error ? 'Roster unavailable' : 'Loading…'), invited ? `${invited} waiting to set a password` : null,
+        waiting.length ? `${waiting.length} waiting for approval` : null].filter(Boolean).join(' · ')}
       actions={<Btn onClick={() => onNavigate('courses')}>← Courses</Btn>}>
       <ErrorText>{error}</ErrorText>
       <Notice>{notice}</Notice>
@@ -961,11 +1232,22 @@ export function RosterScreen({ onNavigate }) {
               <input type="checkbox" checked={sendEmail} disabled={!mail} onChange={e => setSendEmail(e.target.checked)} />
               <span>{mail ? 'Email each student their invitation' : 'Email is not set up for this site yet, so copy or download the links instead'}</span>
             </label>
-            <Btn primary type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add students'}</Btn>
+            <div className="bb-actions">
+              <Btn onClick={() => setImporting(true)} disabled={importing} data-testid="open-class-list">Upload class list</Btn>
+              <Btn primary type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add students'}</Btn>
+            </div>
           </div>
         </form>
         {errors.map(r => <ErrorText key={r.email}>{r.email}: {r.error}</ErrorText>)}
       </Panel>
+
+      {importing && (
+        <ClassListImport courseId={course.id} sendEmail={sendEmail}
+          rosterEmails={(rows || []).filter(r => r.state !== 'pending').map(r => r.email).filter(Boolean)}
+          onDone={imported} onCancel={() => setImporting(false)} />
+      )}
+
+      <JoinLinkPanel courseId={course.id} onError={setError} />
 
       {(linkRows.length > 0 || invited > 0) && (
         <Panel className="bb-invite-links" style={{ marginBottom: '1.5rem' }}>
@@ -997,7 +1279,7 @@ export function RosterScreen({ onNavigate }) {
         </Panel>
       )}
 
-      <Section title="Students">
+      <Section title="Students" actions={waiting.length > 1 ? <Btn onClick={approveAll}>Approve all {waiting.length} waiting</Btn> : null}>
         {rows === null ? (error ? null : <p role="status">Loading the roster…</p>) : (
         <Table columns={columns} rows={rows} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />)}
       </Section>

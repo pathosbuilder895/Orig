@@ -751,6 +751,35 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
             ON bluebook_invites(user_id)
     """)
+    # A course's join link (2026-10). The code is unique across every
+    # course: the link names no tenant. Booleans are 0/1 INTEGERs.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_course_joins (
+            course_id        TEXT PRIMARY KEY,
+            tenant_id        TEXT NOT NULL,
+            code             TEXT NOT NULL UNIQUE,
+            enabled          INTEGER NOT NULL,
+            allowed_domain   TEXT NOT NULL DEFAULT '',
+            require_approval INTEGER NOT NULL,
+            updated_at       TEXT NOT NULL
+        )
+    """)
+    # Students waiting for approval to join a course (2026-10). Kept off
+    # bluebook_enrollments until approved, so nothing that reads the roster
+    # sees them. student_id is the full scoped id, as in the roster.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_join_requests (
+            course_id   TEXT NOT NULL,
+            student_id  TEXT NOT NULL,
+            tenant_id   TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            PRIMARY KEY (course_id, student_id)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_join_requests_student
+            ON bluebook_join_requests(student_id)
+    """)
     conn.commit()
 
 
@@ -1851,6 +1880,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
     "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
     "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_join_requests WHERE student_id = ? LIMIT 1",
 )
 
 
@@ -1891,8 +1921,10 @@ def delete_student(student_id: str) -> bool:
     - bluebook_invites      (SQLite — set-password links, by user_id)
     - users                 (SQLite — the student's own login row, role
                              'student' only)
-    - student_past_papers   (SQLite — past papers the student shared for
+    - student_past_papers   (SQLite, past papers the student shared for
                              teacher approval, 2026-10)
+    - bluebook_join_requests (SQLite, requests to join a course still
+                             waiting for approval, 2026-10)
 
     A student with no Original profile still counts as found when they hold
     any Bluebook row (a Bluebook-only workspace never creates a profile);
@@ -1960,6 +1992,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
             # The student's own parked-phone records (2026-10).
             conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
+            # Requests to join a course still waiting for approval (2026-10).
+            conn.execute("DELETE FROM bluebook_join_requests WHERE student_id = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -3135,9 +3169,12 @@ def get_bluebook_course(course_id: str) -> dict | None:
 
 
 def delete_bluebook_course(course_id: str) -> bool:
-    """Delete a course and its roster. Callers refuse first when exams use it."""
+    """Delete a course, its roster, its join link and its waiting join
+    requests. Callers refuse first when exams use it."""
     with _get_conn() as conn:
         conn.execute("DELETE FROM bluebook_enrollments WHERE course_id = ?", (course_id,))
+        conn.execute("DELETE FROM bluebook_course_joins WHERE course_id = ?", (course_id,))
+        conn.execute("DELETE FROM bluebook_join_requests WHERE course_id = ?", (course_id,))
         cur = conn.execute("DELETE FROM bluebook_courses WHERE course_id = ?", (course_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3303,6 +3340,123 @@ def redeem_invite(invite_id: str) -> bool:
         )
         conn.commit()
     return cur.rowcount == 1
+
+
+# ── Course join links (2026-10) ───────────────────────────────────────────────
+
+_COURSE_JOIN_COLS = (
+    "course_id, tenant_id, code, enabled, allowed_domain, require_approval, updated_at"
+)
+
+
+def _course_join_to_dict(row) -> dict:
+    return {
+        "course_id": row[0],
+        "tenant_id": row[1],
+        "code": row[2],
+        "enabled": bool(row[3]),
+        "allowed_domain": row[4] or "",
+        "require_approval": bool(row[5]),
+        "updated_at": row[6],
+    }
+
+
+def get_course_join(course_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_COURSE_JOIN_COLS} FROM bluebook_course_joins WHERE course_id = ?",
+            (course_id,),
+        ).fetchone()
+    return _course_join_to_dict(row) if row else None
+
+
+def get_course_join_by_code(code: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_COURSE_JOIN_COLS} FROM bluebook_course_joins WHERE code = ?", (code,)
+        ).fetchone()
+    return _course_join_to_dict(row) if row else None
+
+
+def put_course_join(rec: dict) -> bool:
+    """Insert or replace a course's join settings. False, with nothing
+    written, when ``rec["code"]`` already belongs to another course (the
+    caller draws a new code and tries again)."""
+    try:
+        with _get_conn() as conn:
+            conn.execute(
+                f"""INSERT INTO bluebook_course_joins ({_COURSE_JOIN_COLS})
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(course_id) DO UPDATE SET
+                      code=excluded.code, enabled=excluded.enabled,
+                      allowed_domain=excluded.allowed_domain,
+                      require_approval=excluded.require_approval,
+                      updated_at=excluded.updated_at""",
+                (
+                    rec["course_id"],
+                    rec["tenant_id"],
+                    rec["code"],
+                    1 if rec["enabled"] else 0,
+                    rec.get("allowed_domain") or "",
+                    1 if rec["require_approval"] else 0,
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            conn.commit()
+    except sqlite3.IntegrityError:
+        return False
+    return True
+
+
+def _join_request_to_dict(row) -> dict:
+    return {
+        "course_id": row[0],
+        "student_id": row[1],
+        "tenant_id": row[2],
+        "created_at": row[3],
+    }
+
+
+def put_join_request(course_id: str, student_id: str, tenant_id: str) -> None:
+    """Idempotent: asking again keeps the first request's time."""
+    with _get_conn() as conn:
+        conn.execute(
+            """INSERT INTO bluebook_join_requests (course_id, student_id, tenant_id, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(course_id, student_id) DO NOTHING""",
+            (course_id, student_id, tenant_id, datetime.now(UTC).isoformat()),
+        )
+        conn.commit()
+
+
+def delete_join_request(course_id: str, student_id: str) -> bool:
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM bluebook_join_requests WHERE course_id = ? AND student_id = ?",
+            (course_id, student_id),
+        )
+        conn.commit()
+    return cur.rowcount == 1
+
+
+def list_join_requests_for_course(course_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT course_id, student_id, tenant_id, created_at FROM bluebook_join_requests "
+            "WHERE course_id = ? ORDER BY created_at",
+            (course_id,),
+        ).fetchall()
+    return [_join_request_to_dict(r) for r in rows]
+
+
+def list_join_requests_for_student(student_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT course_id, student_id, tenant_id, created_at FROM bluebook_join_requests "
+            "WHERE student_id = ? ORDER BY created_at",
+            (student_id,),
+        ).fetchall()
+    return [_join_request_to_dict(r) for r in rows]
 
 
 def list_tenants(environment: str | None = None) -> list[dict]:

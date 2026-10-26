@@ -9,7 +9,7 @@ import './booklet.css';
 import { ResultsScreen } from './Results.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {
-  AccountScreen, InviteScreen, SignupScreen, StudentAccountScreen,
+  AccountScreen, InviteScreen, JoinScreen, SignupScreen, StudentAccountScreen,
   StudentHomeScreen, StudentSubmissionScreen, ForgotPasswordScreen,
 } from './Account.jsx';
 import {
@@ -35,7 +35,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 // The screens a visitor sees before they have signed in (or while they are signing in or up).
-const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot'];
+const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot', 'join'];
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
@@ -103,15 +103,19 @@ function App() {
   // student, whose screens ignore it.
   const [deepLink, setDeepLink] = useState(() => parseDeepLink(window.location.hash));
   // Auth-gated entry, in priority order: an invite link → set password; a
-  // bound student launch → briefing; a student account → their exams; a
-  // signed-in teacher → dashboard; otherwise the public landing.
+  // course join link → join; a bound student launch → briefing; a student
+  // account → their exams; a signed-in teacher → dashboard; otherwise the
+  // public landing.
   const [autoScreen] = useState(() => {
     let invite = false;
+    let join = false;
     try {
       const q = new URLSearchParams(window.location.search);
       invite = q.has('invite') || q.has('reset');
+      join = q.has('join');
     } catch (e) {}
     if (invite) return 'invite';
+    if (join) return 'join';
     if (BB_API.isStudentLaunch()) return 'briefing';
     if (BB_API.isStudentAccount()) return 'student-home';
     if (BB_API.isAuthed()) return 'dashboard';
@@ -282,6 +286,9 @@ function App() {
       break;
     case 'forgot':
       content = <ForgotPasswordScreen onNavigate={navigate} />;
+      break;
+    case 'join':
+      content = <JoinScreen onNavigate={navigate} />;
       break;
     case 'student-home':
       content = <StudentHomeScreen onNavigate={navigate} />;
