@@ -66,6 +66,7 @@ from ..constants import (
     TRAJECTORY_GROWTH_THRESHOLD,
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
+from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
 from .state import StudentState, _unit
 
 log = logging.getLogger(__name__)
@@ -1044,6 +1045,19 @@ def score(
     """
     config = scoring_config or ScoringConfig()
 
+    # ── Measurements past papers have no value for ───────────────────────────
+    # The comparison measurements (features/baseline_scope.py) are computed
+    # for the paper being scored only; every past-paper vector holds a
+    # placeholder for them, by how it is made. They are not compared: put the
+    # past-paper mean in their place so z is 0 there and xi, the Born
+    # probability and the trajectory alignment see the same vector they would
+    # with no comparison value at all. `active` (state.active_feature_mask)
+    # also leaves them out of rms_z and every weighted sum, and _decompose
+    # leaves them out of the lists. `feature_dict` is reported unchanged.
+    submission_vector = np.where(
+        NOT_COMPUTED_FOR_BASELINES_MASK, state.baseline_mean, submission_vector
+    )
+
     xi = _unit(submission_vector)  # ξ  (unit-normalised submission vector)
     rho = state.density_matrix  # ρ
 
@@ -1669,6 +1683,14 @@ def _decompose(
 
     feature_contribs: list[FeatureContribution] = []
     for i, code in enumerate(ALL_FEATURE_CODES):
+        if NOT_COMPUTED_FOR_BASELINES_MASK[i]:
+            # Past papers have no value for it (features/baseline_scope.py):
+            # never a listed difference or similarity, never part of an
+            # entanglement pair, and not in tier_breakdown. This also means
+            # the vocabulary-spike + error-vanish pair below and the
+            # ghostwriting_confirmed override in _recommend() can no longer
+            # use error_kl_divergence / stumble_rate_consistency (ADR-013).
+            continue
         c = float(born_contribs[i])
         z = float(z_scores[i])
         sub_val = feature_dict.get(code, float(xi[i]))

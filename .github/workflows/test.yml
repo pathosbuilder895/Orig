@@ -441,7 +441,8 @@ jobs:
     # 25, not 15: on PR #227's run 37331743397 all 99 specs passed, but
     # `playwright install --with-deps chromium` took 12m51s on a slow apt
     # mirror and the job was cancelled at 15 minutes right after the tests.
-    timeout-minutes: 25
+    # 30 since the evidence-on server and specs were added (ADR-013).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -556,7 +557,11 @@ jobs:
         # above means it could not trigger the 429 it asserts on anyway.
         # It is NOT skipped in CI — the three steps below run it against a
         # second, default-throttle server. Keep this exclusion.
-        run: cd demo/bluebook && npx playwright test --grep-invert "@serial-lockout"
+        # @evidence-on is excluded for the opposite reason: it needs the
+        # staff-only evidence flags ON (ADR-013), and this server runs the
+        # default (off) so the flag-off half of teacher-evidence.spec.mjs is
+        # tested here. The steps below run it against a flags-on server.
+        run: cd demo/bluebook && npx playwright test --grep-invert "@serial-lockout|@evidence-on"
 
       # ---------------------------------------------------------------
       # Login-throttle lockout: the one spec that needs the PRODUCTION
@@ -586,6 +591,57 @@ jobs:
           for i in $(seq 1 30); do
             if ! curl -sf http://localhost:8001/health > /dev/null; then
               echo "Raised-throttle server down after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Something is still answering on :8001 after 30s -- refusing to start the lockout server on top of it."
+          exit 1
+
+      # ---------------------------------------------------------------
+      # The teacher's side-by-side page with its flags ON (ADR-013):
+      # EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED are read per
+      # request, but on one process they would change what every other spec
+      # sees, so the "@evidence-on" specs get their own server. The spec
+      # fails outright if the flags are not on, so this cannot pass vacuously.
+      # ---------------------------------------------------------------
+      - name: Start Original demo server with the evidence flags on
+        env:
+          ORIGINAL_ENV: pilot
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
+          MAINTENANCE_TOKEN: ci-test-only
+          LOGIN_THROTTLE_MAX_ATTEMPTS: "500"
+          EVIDENCE_PASSAGES_ENABLED: "1"
+          PRELIMINARY_SCORE_ENABLED: "1"
+        run: |
+          python run.py --demo --frontend-dir demo --port 8001 --skip-seed \
+            > /tmp/original-ci-evidence.log 2>&1 &
+          echo $! > /tmp/original-evidence.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8001/health > /dev/null; then
+              echo "Evidence server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Evidence server failed to start. Log:"
+          cat /tmp/original-ci-evidence.log
+          exit 1
+
+      - name: Run the evidence-on specs
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:8001
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
+          MAINTENANCE_TOKEN: ci-test-only
+        run: cd demo/bluebook && npx playwright test -g "@evidence-on"
+
+      - name: Stop the evidence server
+        # Fully down before the lockout server binds :8001 (same reason as above).
+        run: |
+          kill "$(cat /tmp/original-evidence.pid)" 2>/dev/null || true
+          for i in $(seq 1 30); do
+            if ! curl -sf http://localhost:8001/health > /dev/null; then
+              echo "Evidence server down after ${i}s"
               exit 0
             fi
             sleep 1
@@ -654,7 +710,7 @@ jobs:
         # absent if the job failed before that step ran — don't orphan
         # whichever one did start.
         run: |
-          for pidfile in /tmp/original.pid /tmp/original-lockout.pid; do
+          for pidfile in /tmp/original.pid /tmp/original-evidence.pid /tmp/original-lockout.pid; do
             [ -f "$pidfile" ] && kill "$(cat "$pidfile")" 2>/dev/null || true
           done
 

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Original · Side by side</title>
+<link rel="stylesheet" href="../bluebook/fonts.css" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+  :root{
+    --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
+    --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
+    --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
+    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
+    --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
+    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  a{color:var(--gold-2);}a:hover{color:var(--cream);}
+
+  /* ── The suite shell (same as the other pages; hidden when printing) ── */
+  .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
+  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
+  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
+  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
+  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.95rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;white-space:nowrap;}
+  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .pill:hover{color:var(--cream);}
+  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
+  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
+  .nav-right .avatar{cursor:pointer;}
+  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
+  .me-menu.open{display:block;}
+  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
+  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
+  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
+  .me-menu a:hover,.me-menu a[aria-current]{background:rgba(255,255,255,0.06);color:var(--cream);}
+  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .body{flex:1;overflow-y:auto;padding:.4rem 2rem 2rem;min-height:0;}
+  .body.gated{display:grid;}
+
+  /* ── Side by side: a bar above the paper, then the paper (packet.html's
+     layout and the original-flagged mock's cards, ADR-012 option A) ── */
+  :root{--gold-ink:#7a5c10;}
+  .wrap{width:100%;max-width:980px;margin:0 auto;}
+  .chrome{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem;color:var(--cream);}
+  .back{display:inline-flex;align-items:center;gap:.5rem;color:var(--dim);text-decoration:none;font-size:.95rem;border:1px solid var(--line-soft);border-radius:999px;padding:.5rem 1rem;transition:all .15s;white-space:nowrap;}
+  .back:hover{color:var(--cream);border-color:var(--line);}
+  .back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
+  .back:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .chrome .t{font-family:var(--display);font-size:1.15rem;font-weight:500;}
+  .chrome .s{font-size:.85rem;color:var(--dim);font-style:italic;}
+  .wrap .live-panel{margin:2rem auto;}
+  .status{margin:3rem 0;text-align:center;font:italic 1rem/1.5 var(--body);color:var(--dim);}
+
+  .paper{background:var(--paper);color:var(--ink);border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,0.55);padding:3rem 3.4rem 2.6rem;position:relative;}
+  .paper[hidden]{display:none;}
+  .paper::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--gold),#8a6d1a);border-radius:8px 8px 0 0;}
+  .paper a{color:var(--base);}
+  .paper a:focus-visible,.paper summary:focus-visible{outline:2px solid var(--base);outline-offset:2px;border-radius:4px;}
+  .p-head{display:flex;justify-content:space-between;align-items:flex-start;gap:2rem;padding-bottom:1.4rem;border-bottom:2px solid var(--ink);}
+  .p-head .mk{display:flex;align-items:center;gap:.5rem;font-family:var(--display);font-weight:600;font-size:1.2rem;}
+  .p-head .mk i{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
+  .p-head .kind{font-family:var(--mono);font-size:.66rem;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-2);margin-top:.35rem;}
+  .p-meta{text-align:right;font-size:.88rem;color:var(--ink-2);line-height:1.6;}
+  .p-meta b{color:var(--ink);font-weight:600;}
+  .chip{display:inline-block;margin-top:.4rem;padding:.25rem .7rem;border-radius:999px;border:1px solid var(--rule);background:#f1ead7;color:var(--ink);font-size:.82rem;line-height:1.4;text-align:left;}
+  .chip b{font-family:var(--mono);font-size:.78rem;}
+  .chip .lbl{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);}
+  h1{font-family:var(--display);font-weight:500;font-size:1.9rem;margin:1.6rem 0 .3rem;overflow-wrap:anywhere;}
+  .h-sub{font-size:1rem;color:var(--ink-2);font-style:italic;}
+  .h-sub b{font-style:normal;color:var(--ink);font-weight:500;}
+  .notice{margin:1.4rem 0 0;padding:.9rem 1.1rem;background:#f1ead7;border:1px solid var(--rule);border-radius:8px;font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
+  .notice b{font-style:normal;color:var(--ink);font-weight:600;}
+  .paper .live-testing{max-width:none;}
+  .toc{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin-top:1.2rem;font-size:.92rem;}
+  .toc a{text-decoration:none;border-bottom:1px solid currentColor;}
+  section{margin-top:2.2rem;}
+  .sec-t{font-family:var(--mono);font-size:.68rem;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-ink);border-bottom:1px solid var(--rule);padding-bottom:.45rem;margin-bottom:1rem;display:flex;justify-content:space-between;gap:1rem;}
+  .sec-t span{color:var(--ink-2);letter-spacing:.06em;text-transform:none;font-style:italic;font-family:var(--body);font-size:.82rem;text-align:right;}
+  .summary{font-size:1.08rem;line-height:1.7;}
+  .summary p+p{margin-top:.6rem;}
+  .summary .lead{font-weight:600;}
+  .groups{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.92rem;}
+  .groups th,.groups td{text-align:left;padding:.35rem .6rem;border-bottom:1px solid #efe8d5;}
+  .groups th{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:500;border-bottom:1px solid var(--rule);}
+  .groups td.n{font-family:var(--mono);font-size:.82rem;white-space:nowrap;}
+  .none-line{font-size:1rem;font-style:italic;color:var(--ink-2);line-height:1.6;}
+  .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
+  /* the side-by-side cards (original-flagged mock, "Side by side") */
+  .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;background:var(--paper);}
+  .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
+  .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
+  .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
+  .ex-col{padding:1rem 1.2rem;min-width:0;}
+  .ex-col+.ex-col{border-left:1px solid var(--rule);}
+  .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;overflow-wrap:anywhere;}
+  .ex-lbl.this{color:var(--flag);}
+  .ex-lbl.base{color:var(--base);}
+  .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.6rem;line-height:1.1;color:var(--flag);margin-bottom:.35rem;}
+  .ex-big.base{color:var(--base);}
+  .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
+  .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);overflow-wrap:anywhere;}
+  .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
+  .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  .ex-src{font-family:var(--mono);font-size:.64rem;color:var(--ink-2);margin-top:.45rem;overflow-wrap:anywhere;}
+  .ex-vals{list-style:none;font-size:.95rem;}
+  .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
+  .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
+  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  /* every measurement */
+  .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
+  .m>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:2.4rem 1fr auto;gap:.8rem;align-items:baseline;padding:.6rem .9rem;}
+  .m>summary::-webkit-details-marker{display:none;}
+  .m .rk{font-family:var(--mono);font-size:.78rem;color:var(--ink-2);}
+  .m .nm{font-size:1rem;}
+  .m .nm small{display:block;font-size:.82rem;color:var(--ink-2);font-style:italic;}
+  .m .pos{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;white-space:nowrap;padding:.12rem .5rem;border-radius:999px;border:1px solid var(--rule);color:var(--ink-2);}
+  .m .pos.out{color:var(--flag);border-color:#e7c7bd;background:var(--flag-bg);}
+  .m[open]>summary{border-bottom:1px solid var(--rule);background:#f6f0e0;border-radius:8px 8px 0 0;}
+  .m-body{padding:.9rem 1rem 1rem;}
+  .m-body .desc{font-size:.95rem;line-height:1.55;margin-bottom:.8rem;}
+  .m-body .ex{margin:0;}
+  .nums{width:100%;border-collapse:collapse;font-size:.9rem;margin-bottom:.9rem;}
+  .nums th,.nums td{text-align:left;padding:.3rem .5rem;border-bottom:1px solid #efe8d5;}
+  .nums th{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);font-weight:500;}
+  .nums td.v{font-family:var(--mono);font-size:.85rem;}
+  .nums-wrap{overflow-x:auto;}
+  .whole{font-size:.92rem;font-style:italic;color:var(--ink-2);margin-top:.6rem;}
+  .notused ul{list-style:none;padding:.6rem 1rem 1rem;}
+  .notused li{font-size:.92rem;line-height:1.5;padding:.25rem 0;border-bottom:1px dotted var(--rule);}
+  .notused li span{color:var(--ink-2);font-style:italic;}
+  /* where the past papers come from */
+  .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
+  .prov th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--rule);font-weight:500;}
+  .prov td{padding:.6rem;border-bottom:1px solid #efe8d5;vertical-align:top;overflow-wrap:anywhere;}
+  .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
+  .prov .len{white-space:nowrap;}
+  .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
+  .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;gap:1rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
+
+  @media (max-width:900px){
+    body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
+    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
+  }
+  @media (max-width:760px){
+    .body{padding:.4rem 1rem 1.5rem;}
+    .paper{padding:1.6rem 1.3rem;}
+    .ex{grid-template-columns:1fr;}
+    .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
+    .prov{display:block;overflow-x:auto;}
+    .chrome{flex-wrap:wrap;}
+    .p-head{flex-direction:column;gap:1rem;}
+    .p-meta{text-align:left;}
+    .m>summary{grid-template-columns:2rem 1fr;}
+    .m .pos{grid-column:2;justify-self:start;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition:none !important;animation:none !important;scroll-behavior:auto !important;}
+  }
+  /* global: hide scrollbars */
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <nav>
+    <div class="brand"><span class="mk"></span>Original</div>
+    <div class="pills">
+      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
+      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
+      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
+      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
+      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
+    </div>
+    <div class="nav-right">
+      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
+      <div class="me-menu" id="me-menu">
+        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
+        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
+        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+      </div>
+    </div>
+  </nav>
+  <main class="body" id="live-main">
+    <div class="wrap">
+      <div class="chrome">
+        <a class="back" id="back" href="writing-state.html"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Back to analysis</a>
+        <div><div class="t">Side by side</div><div class="s">This paper next to the student&rsquo;s own past papers, in their words and numbers.</div></div>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite">Loading the comparison</div>
+      <article class="paper" id="paper" hidden aria-labelledby="p-title">
+        <div class="p-head">
+          <div><div class="mk"><i></i>Original</div><div class="kind">Side by side · Staff only</div></div>
+          <div class="p-meta" id="p-meta"></div>
+        </div>
+        <h1 id="p-title"></h1>
+        <div class="h-sub" id="p-sub"></div>
+        <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how this paper compares with the student&rsquo;s own past papers. A difference is a reason to read both closely and talk with the student; on its own it is never evidence of anything.</div>
+        <div data-testing-notice="on-paper"></div>
+        <nav class="toc" aria-label="On this page">
+          <a href="#s-summary">Summary</a><a href="#s-diff">Biggest differences</a><a href="#s-steady">Where it held steady</a><a href="#s-all">Every measurement</a><a href="#s-past">Past papers</a>
+        </nav>
+
+        <section id="s-summary" aria-labelledby="h-summary">
+          <h2 class="sec-t" id="h-summary">What the comparison found <span>from the numbers only</span></h2>
+          <div class="summary" id="p-summary"></div>
+        </section>
+
+        <section id="s-diff" aria-labelledby="h-diff">
+          <h2 class="sec-t" id="h-diff">Biggest differences <span>Original&rsquo;s own top list, side by side</span></h2>
+          <div id="p-diff"></div>
+        </section>
+
+        <section id="s-steady" aria-labelledby="h-steady">
+          <h2 class="sec-t" id="h-steady">Where it held steady <span>closest to the past papers, inside their range</span></h2>
+          <div id="p-steady"></div>
+        </section>
+
+        <section id="s-all" aria-labelledby="h-all">
+          <h2 class="sec-t" id="h-all">Every measurement <span id="all-count"></span></h2>
+          <div id="p-all"></div>
+        </section>
+
+        <section id="s-past" aria-labelledby="h-past">
+          <h2 class="sec-t" id="h-past">Past papers <span>what this paper was compared with</span></h2>
+          <div id="p-past"></div>
+        </section>
+        <div class="p-foot"><span>Original · writing-consistency comparison</span><span id="p-foot-date"></span></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="live.js?v=2026-10-26.1"></script>
+<script src="js/evidence-view.js?v=2026-10-26.1"></script>
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const esc=Live.esc;
+  const EV=window.EvidenceView;
+  const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
+  const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+  const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
+  const main=document.querySelector('main');
+  const STORE_KEY='original_last_result';   // written by writing-state.html
+
+  // The engine's feature groups (constants.py tiers) in the words
+  // writing-state.html and packet.html use (repeated here, as packet.html does).
+  const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
+  const groupName=g=>g===0?PLAIN_TIER.tiercomp:(PLAIN_TIER['tier'+g]||'');
+  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
+  const KIND_WORDS={located:'Quoted',whole_text:'Whole text'};
+  // Why a measurement is not used, with the value every paper has.
+  function notUsedWhy(f){
+    const v=EV.fmt((f.engine_scale||{}).this_paper);
+    if(f.kind==='off') return 'Switched off in scoring: every paper here has the fixed value '+v+'.';
+    if(EV.isNotCompared(f)) return EV.noteFor(f);
+    return 'Not used.';
+  }
+
+  // ── account menu ──
+  (function(){
+    const b=$('me-btn'), m=$('me-menu');
+    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
+    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
+    $('sign-out').addEventListener('click',e=>{
+      e.preventDefault();
+      // The last analysis names a student: it must not outlive the sign-in.
+      try{ window.sessionStorage.removeItem(STORE_KEY); }catch(err){ /* storage blocked */ }
+      Live.signOut();
+    });
+  })();
+  function initials(name){
+    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
+    if(!w.length) return '';
+    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
+  }
+  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
+  function renderChrome(sess){
+    $('me-btn').textContent=initials(sess.name)||'··';
+    $('mm-name').textContent=sess.name||'Your account';
+    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
+    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
+  }
+
+  const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+  function parseTime(iso){ const d=new Date(String(iso||'')); return isNaN(d.getTime())?null:d; }
+  function sampleDay(s){
+    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
+    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
+    return '';
+  }
+
+  // ── what Writing State left for us (sessionStorage, shape-checked) ──
+  function readStored(){
+    let raw;
+    try{ raw=window.sessionStorage.getItem(STORE_KEY); }
+    catch(e){ return {blocked:true}; }
+    if(!raw) return null;
+    let d;
+    try{ d=JSON.parse(raw); }catch(e){ return null; }
+    if(!d||typeof d!=='object'||d.kind!=='original_writing_state'||d.version!==1) return null;
+    if(typeof d.student_id!=='string'||!d.student_id.trim()) return null;
+    if(!isObj(d.result)) return null;
+    return {data:d};
+  }
+
+  function panel(title,text,href,label){
+    $('status').hidden=true;
+    const box=document.createElement('div');
+    box.className='live-panel'; box.setAttribute('role','status'); box.id='ev-empty';
+    box.innerHTML='<h2>'+esc(title)+'</h2><p>'+esc(text)+'</p><a href="'+esc(href)+'">'+esc(label)+'</a>';
+    $('paper').insertAdjacentElement('beforebegin',box);
+  }
+  function showEmpty(kind,id){
+    const ws='writing-state.html'+(id?'?student='+encodeURIComponent(id):'');
+    if(kind==='blocked') panel('This browser is not keeping the analysis','This page is built from the analysis you just ran, and this browser is not storing data for the page. Allow site storage, then run the analysis again on the Writing State page.','writing-state.html','Open Writing State');
+    else if(kind==='access') panel('That student’s writing is not open to you here','The last analysis in this tab is for a student whose writing you cannot open, so nothing is shown.','writing-state.html','Open Writing State');
+    else if(kind==='off') panel('No side-by-side comparison for this analysis','This analysis did not come with passages to set side by side. Go back to the Writing State page.',ws,'Back to Writing State');
+    else panel('Run an analysis on the Writing State page first','This page is built from the last analysis you ran in this tab. Open a student on the Writing State page and analyse a paper.','writing-state.html','Open Writing State');
+  }
+
+  // ── pieces ──
+  const PAPERS={list:[]};
+  const nameOf=label=>EV.paperName(label,PAPERS.list);
+  function quoteHTML(q,side){
+    if(!isObj(q)) return '';
+    const parts=EV.markParts(q);
+    const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+    const body=esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
+    const src=[q.paper==='this paper'?'This paper':nameOf(q.paper)];
+    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
+    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
+    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
+      '<div class="ex-src">'+esc(src.join(' · '))+'</div>';
+  }
+  function baseLabel(examples){
+    const ps=[];
+    (examples||[]).forEach(q=>{ if(isObj(q)&&ps.indexOf(q.paper)<0) ps.push(q.paper); });
+    return ps.length===1?nameOf(ps[0]):'Past papers';
+  }
+  function textCols(f){
+    const tp=f.this_paper.examples||[], pp=f.past_papers.examples||[];
+    const none='<p class="none-line">None found in '+'%s'+'.</p>';
+    return '<div class="ex-col"><div class="ex-lbl this">This paper</div>'+
+        (tp.length?tp.map(q=>quoteHTML(q,'this')).join(''):none.replace('%s','this paper'))+'</div>'+
+      '<div class="ex-col"><div class="ex-lbl base">'+esc(baseLabel(pp))+'</div>'+
+        (pp.length?pp.map(q=>quoteHTML(q,'base')).join(''):none.replace('%s','the past papers'))+'</div>';
+  }
+  function numberCols(f){
+    const n=EV.numbersOf(f);
+    return '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-big">'+esc(EV.fmt(n.thisValue))+'</span>'+
+        '<div class="ex-unit">'+esc(n.unit)+'</div></div>'+
+      '<div class="ex-col"><div class="ex-lbl base">Past papers</div><ul class="ex-vals">'+
+        n.past.map(p=>'<li><span>'+esc(nameOf(p.paper))+'</span><b>'+esc(EV.fmt(p.value))+'</b></li>').join('')+
+        '</ul><div class="ex-unit">'+esc(n.unit)+'</div></div>';
+  }
+  const hasText=f=>f.kind==='located'&&isObj(f.this_paper)&&isObj(f.past_papers)&&Array.isArray(f.this_paper.examples)&&Array.isArray(f.past_papers.examples);
+  function card(f,opts){
+    const o=opts||{};
+    const name=EV.clean(f.name,f.code);
+    const head=o.noHead?'':'<div class="ex-h"><b>'+esc(name)+'</b><span>'+esc(EV.oneLine(f))+'</span></div>';
+    const cols=hasText(f)?textCols(f):numberCols(f);
+    const whole=f.kind==='whole_text'?' '+esc(EV.clean(f.note,'')):'';
+    return '<div class="ex" data-code="'+esc(f.code)+'">'+head+cols+
+      '<div class="ex-note"><b>What to notice:</b> '+esc(EV.noteFor(f,PAPERS.list))+whole+'</div></div>';
+  }
+
+  // How the two lists are ordered, in the words of the server's own ordering
+  // notes (original/evidence.py) without their code references.
+  const TOP_ORDER='Original\u2019s own top list, in its own order: the measurements it puts furthest from the past papers.';
+  const ALL_ORDER='Sorted by how far this paper sits from the past-paper average on Original\u2019s 0 to 1 scale, times the weight Original gives that measurement\u2019s group: the same size Original uses to pick its top list. Ties keep Original\u2019s own feature order. The top list only takes measurements more than one standard deviation from the writer\u2019s usual range, so a measurement can sit high here and still be missing from it, for example when the past papers themselves vary widely on it. Comparison measurements that past papers have no value for are not compared; they are listed under \u201cNot used\u201d.';
+  const AVERAGE_DIFFERS='The past-paper averages in Original\u2019s own top list differ from the ones in the full list (for example when the score blended in a wider reference average for a short baseline, or some past papers have no stored text), so compare the two lists with care.';
+
+  // ── sections ──
+  function renderSummary(ev){
+    const sum=EV.summarize(ev,groupName);
+    const lines=EV.summarySentences(sum,{groups:false});
+    let html=lines.map((s,i)=>'<p'+(i===0?' class="lead"':'')+'>'+esc(s)+'</p>').join('');
+    const groups=sum.groups.filter(g=>g.name);
+    if(groups.length){
+      html+='<table class="groups"><thead><tr><th scope="col">Group</th><th scope="col">Outside the range</th><th scope="col">Within it</th></tr></thead><tbody>'+
+        groups.map(g=>'<tr><td>'+esc(g.name)+'</td><td class="n">'+g.outside+' of '+g.active+'</td><td class="n">'+(g.active-g.outside)+' of '+g.active+'</td></tr>').join('')+
+        '</tbody></table>';
+    }
+    $('p-summary').innerHTML=html;
+    return sum;
+  }
+  function renderTop(ev,byCode){
+    const top=Array.isArray(ev.features)?ev.features.filter(isObj):[];
+    if(!top.length){ $('p-diff').innerHTML='<p class="none-line">Original&rsquo;s top list is empty for this paper: no measurement sits far enough from the past papers to make it.</p>'; return; }
+    const lede=typeof ev.ordering==='string'?TOP_ORDER:'';
+    $('p-diff').innerHTML=(lede?'<p class="sec-lede">'+esc(lede)+'</p>':'')+
+      top.map(f=>card(has(byCode,f.code)?byCode[f.code]:f)).join('');
+  }
+  function renderSteady(ev){
+    const list=EV.steady(ev,3,2);
+    if(!list.length){ $('p-steady').innerHTML='<p class="none-line">No measurement sits inside the past papers&rsquo; range, so there is nothing to show here.</p>'; return; }
+    $('p-steady').innerHTML='<p class="sec-lede">The measurements inside the past papers&rsquo; range whose number is closest to the past-paper average: up to three with sentences to show, then up to two whole-text ones.</p>'+
+      list.map(f=>card(f)).join('');
+  }
+  function renderAll(ev){
+    const full=ev.all_features.filter(isObj);
+    const active=full.filter(EV.isListed), unused=full.filter(f=>!EV.isListed(f));
+    $('all-count').textContent=active.length+' listed, largest difference first';
+    const lede=typeof ev.all_features_ordering==='string'?ALL_ORDER:'';
+    const rows=active.map(f=>{
+      const eng=f.engine_scale||{};
+      const n=EV.numbersOf(f);
+      const pos=EV.position(f);
+      const posWords=pos==='within'?'within range':(pos==='above'?'above range':(pos==='below'?'below range':'no past papers'));
+      const plainRow=n.plain?'<tr><th scope="row">'+esc(n.unit)+'</th><td class="v">'+esc(EV.fmt(n.thisValue))+'</td>'+n.past.map(p=>'<td class="v">'+esc(EV.fmt(p.value))+'</td>').join('')+'</tr>':'';
+      const past=Array.isArray(eng.past_papers)?eng.past_papers:[];
+      const engRow='<tr><th scope="row">Original&rsquo;s 0 to 1 scale</th><td class="v">'+esc(EV.fmt(eng.this_paper))+'</td>'+past.map(p=>'<td class="v">'+esc(EV.fmt(p&&p.value))+'</td>').join('')+'</tr>';
+      const table='<div class="nums-wrap"><table class="nums"><thead><tr><th scope="col"></th><th scope="col">This paper</th>'+
+        past.map(p=>'<th scope="col">'+esc(nameOf(p&&p.paper))+'</th>').join('')+'</tr></thead><tbody>'+plainRow+engRow+'</tbody></table></div>';
+      const desc=EV.clean(f.description,'');
+      const body=card(f,{noHead:true});
+      return '<details class="m" id="m-'+esc(f.code)+'" data-code="'+esc(f.code)+'" data-kind="'+esc(f.kind)+'">'+
+        '<summary><span class="rk">'+esc(f.rank)+'</span><span class="nm">'+esc(EV.clean(f.name,f.code))+(f.in_top_list?' ★':'')+
+          '<small>'+esc([groupName(num(f.group)),KIND_WORDS[f.kind]||''].filter(Boolean).join(' · '))+'</small></span>'+
+          '<span class="pos'+(pos==='above'||pos==='below'?' out':'')+'">'+esc(posWords)+' · '+esc(EV.signed(eng.difference))+'</span></summary>'+
+        '<div class="m-body">'+(desc?'<p class="desc">'+esc(desc)+'</p>':'')+table+body+'</div></details>';
+    }).join('');
+    let notUsed='';
+    if(unused.length){
+      notUsed='<details class="m notused" id="m-not-used"><summary><span class="rk"></span><span class="nm">Not used in this comparison ('+unused.length+')'+
+        '<small>Switched off, or not compared because past papers have no value for them</small></span><span></span></summary><ul>'+
+        unused.map(f=>'<li data-code="'+esc(f.code)+'"><b>'+esc(EV.clean(f.name,f.code))+'</b>: <span>'+esc(notUsedWhy(f))+'</span></li>').join('')+
+        '</ul></details>';
+    }
+    const differs=ev.past_average_matches_top_list===false?'<p class="sec-lede" id="average-differs"><b>Note:</b> '+esc(AVERAGE_DIFFERS)+'</p>':'';
+    $('p-all').innerHTML=differs+(lede?'<p class="sec-lede">'+esc(lede)+' ★ marks Original&rsquo;s top list. Open any row to see its numbers'+(active.some(hasText)?' and, where Original can point to them, the sentences':'')+'.</p>':'')+rows+notUsed;
+  }
+  function renderPast(ev,d){
+    const papers=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];
+    const measured=isObj(ev.measured)&&Array.isArray(ev.measured.past_papers)?ev.measured.past_papers.filter(isObj):[];
+    const labels=papers.length?papers.map(p=>p.paper):measured.map(p=>p.paper);
+    if(!labels.length){ $('p-past').innerHTML='<p class="none-line">No past papers with stored text were set beside this paper.</p>'; return; }
+    const mFor=l=>measured.filter(m=>m.paper===l)[0]||null;
+    const pFor=l=>papers.filter(p=>p.paper===l)[0]||null;
+    const anyName=papers.some(p=>typeof p.assignment==='string'&&p.assignment.trim());
+    const anyDay=papers.some(p=>sampleDay(p.submitted_at));
+    const anyHow=papers.some(p=>typeof p.provenance==='string'&&p.provenance);
+    const anyLen=labels.some(l=>{const m=mFor(l);return m&&num(m.stored_words)!=null;});
+    const head='<tr><th scope="col"></th><th scope="col">Called here</th>'+(anyName?'<th scope="col">Title</th>':'')+(anyDay?'<th scope="col">Date</th>':'')+
+      (anyHow?'<th scope="col">How it was added</th>':'')+(anyLen?'<th scope="col">Length</th>':'')+'</tr>';
+    const rows=labels.map((l,i)=>{
+      const p=pFor(l)||{}, m=mFor(l)||{};
+      const prov=typeof p.provenance==='string'?p.provenance:'';
+      return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(EV.paperName(l,[]))+'</td>'+
+        (anyName?'<td>'+esc(p.assignment||'')+'</td>':'')+(anyDay?'<td>'+esc(sampleDay(p.submitted_at))+'</td>':'')+
+        (anyHow?'<td>'+(prov?'<span class="how">'+esc(has(HOW,prov)?HOW[prov]:prov)+'</span>':'')+'</td>':'')+
+        (anyLen?'<td class="len">'+(num(m.stored_words)!=null?esc(EV.plural(m.stored_words,'word'))+(num(m.measured_words)!=null&&m.measured_words!==m.stored_words?esc(' ('+m.measured_words+' measured)'):''):'')+'</td>':'')+'</tr>';
+    }).join('');
+    const tp=isObj(ev.measured)&&isObj(ev.measured.this_paper)?ev.measured.this_paper:null;
+    const tpLine=tp&&num(tp.stored_words)!=null?'<p class="prov-note">'+esc('This paper: '+EV.plural(tp.stored_words,'word')+(num(tp.measured_words)!=null&&tp.measured_words!==tp.stored_words?' ('+tp.measured_words+' measured)':'')+'.')+'</p>':'';
+    $('p-past').innerHTML='<table class="prov"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+tpLine+
+      '<p class="prov-note">Only past papers whose text is stored are shown and counted here. Lengths are the words stored; any text set aside from measuring (quotations, references) is left out of the measured count.</p>'+thinNote(d,labels.length);
+  }
+  // The server's readiness rule, as packet.html applies it to the counts
+  // stored with the analysis: ready at 5 counted samples and 3 effective.
+  function verdictOf(d){
+    const bc=isObj(d.result.baseline_confidence)?d.result.baseline_confidence:{};
+    const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
+    if(a==null||e==null) return null;
+    if(a>=5&&e>=3) return 'ready';
+    if(a>=3) return 'developing';
+    return 'insufficient';
+  }
+  function thinNote(d,nPast){
+    const v=verdictOf(d);
+    if(v==='ready') return '';
+    const word=v?'Original rates this baseline \u201c'+Live.verdictWord(v)+'\u201d. ':'';
+    return '<p class="prov-note" id="thin-note"><b>'+esc(word)+'</b>'+esc('With '+EV.plural(nPast,'past paper')+' to compare against, a paper the student wrote themselves can also look different, so treat this comparison as inconclusive.')+'</p>';
+  }
+  function renderChip(pre){
+    if(!isObj(pre)||typeof pre.label!=='string') return '';
+    const score=num(pre.score);
+    return '<span class="chip" id="prelim-chip"><span class="lbl">'+esc(EV.clean(pre.label,'Preliminary · unvalidated · not a judgment'))+'</span>'+
+      (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
+  }
+
+  async function render(sess,d){
+    const id=d.student_id.trim();
+    const ev=d.result.evidence;
+    if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }
+    const st=await Live.api('/students/'+encodeURIComponent(id));
+    if(st.status===403||st.status===404){ showEmpty('access'); return; }
+    PAPERS.list=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];
+    const byCode={};
+    ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode[f.code]=f; });
+
+    const who=(typeof d.student_name==='string'&&d.student_name.trim())||id;
+    const assignment=typeof d.assignment==='string'?d.assignment.trim():'';
+    $('p-title').textContent=assignment?who+': \u201c'+assignment+'\u201d':who;
+    const analysed=parseTime(d.analysed_at), words=num(d.word_count);
+    const bits=[];
+    if(analysed) bits.push('Analysed '+shortDay(analysed));
+    if(words!=null) bits.push(EV.plural(words,'word'));
+    $('p-sub').textContent=bits.join(' · ');
+    $('p-meta').innerHTML=(sess.name?'Prepared for <b>'+esc(sess.name)+'</b><br>':'')+renderChip(d.result.preliminary);
+    $('p-foot-date').textContent=analysed?'Analysed '+shortDay(analysed):'';
+    $('back').href='writing-state.html?student='+encodeURIComponent(id);
+
+    const sum=renderSummary(ev);
+    if(!sum.pastCount){
+      $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="insufficient">No past papers with stored text are on file for this analysis, so there is nothing to set beside it. Add past papers on the Reference papers by student page, then analyse again.</p>');
+    }
+    renderTop(ev,byCode);
+    renderSteady(ev);
+    renderAll(ev);
+    renderPast(ev,d);
+    $('status').hidden=true;
+    $('paper').hidden=false;
+  }
+
+  // ── go ──
+  Live.session().then(renderChrome);
+  Live.gate(main).then(sess=>{
+    if(!sess){ main.classList.add('gated'); return; }
+    const stored=readStored();
+    if(stored&&stored.blocked){ showEmpty('blocked'); return; }
+    if(!stored){ showEmpty('none'); return; }
+    render(sess,stored.data).catch(()=>{
+      $('status').hidden=false;
+      $('status').textContent='This comparison could not be shown just now. Try reloading the page.';
+    });
+  });
+})();
+</script>
+</body>
+</html>

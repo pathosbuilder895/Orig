@@ -19,7 +19,7 @@ I'm inviting a small group of adults to help test **Original**, a writing app I'
 
 The two writings help me calibrate how the app compares a new piece of writing with someone's earlier writing. It's a new feature still in testing, the results won't be shown to you or anyone else as a judgement, and staff only look at grouped results after the writings are in.
 
-\[Staff note, not part of the message: record each Exam C paper in `labels.csv` as `label=shadow`, `shadow_kind=ai_own`, `author_true`/`imitated_student_id`/`writer_true` = the volunteer, `generator_tool` = the tool they named, `paired_submission_id` = the source paper. The Exam C session must allow pasting. Exam C is reported as its own category, never pooled into the Exam B shadow rates. This wording needs Andrew's approval before it is sent.\]
+\[Staff note, not part of the message: record each Exam C paper in `labels.csv` as `label=shadow`, `shadow_kind=ai_own`, `author_true`/`imitated_student_id`/`writer_true` = the volunteer, `generator_tool` = the tool they named, `paired_submission_id` = the source paper. The Exam C session must allow pasting. The batch scorer counts `ai_own` in the headline catch rate by default; run it with `--primary-shadow-kinds human_partner,ai_staff,injected_other,public_domain` to keep Exam C as its own category, out of the Exam B shadow rates. This wording needs Andrew's approval before it is sent.\]
 
 You can stop at any time, for any reason, and ask for early deletion — contact me at **arclark555@gmail.com**.
 

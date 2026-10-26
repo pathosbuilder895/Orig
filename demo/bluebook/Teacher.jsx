@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { BB_API } from './components.jsx';
+import { BB_API, ORIGINAL_TESTING_NOTICE } from './components.jsx';
 import {
   Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, Select, Stat, Table, TextArea,
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
@@ -166,6 +166,9 @@ export function baselineSummary(r) {
   let text = parts.join(' · ') + '.';
   if (held.length) text += ` Not added: ${held.join(', ')}.`;
   if (setAside.length) text += ` Set aside: ${setAside.join(', ')}.`;
+  // "Not added" is Original's comparison with earlier samples, so it carries
+  // the testing-phase label wherever a teacher sees it (NORTH_STAR rule 10).
+  if (r.held) text += ` ${ORIGINAL_TESTING_NOTICE}`;
   return text;
 }
 
@@ -208,7 +211,7 @@ function BaselineControl({ sub }) {
     setBusy(true); setError(''); setMessage('');
     try {
       const r = await BB_API.addToBaseline(sub.id);
-      if (r.status === 'held') { setHeld(true); setMessage(r.detail); }
+      if (r.status === 'held') { setHeld(true); setMessage(`${r.detail} ${ORIGINAL_TESTING_NOTICE}`); }
       else {
         if (r.status === 'added' || r.status === 'already_in_baseline') setInBaseline(true);
         setMessage(baselineMessage(r.status, name));
@@ -828,8 +831,9 @@ export function CoursesListScreen({ onNavigate }) {
   const [term, setTerm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // A failed load stays null: it is an error, never "no courses yet".
   const load = () => BB_API._json('GET', '/bluebook/courses').then(d => setCourses(d.courses || []))
-    .catch(err => { setError(err.message || 'Could not load courses.'); setCourses([]); });
+    .catch(err => { setError(err.message || 'Could not load courses.'); });
   useEffect(() => { load(); }, []);
 
   async function create(e) {
@@ -839,7 +843,7 @@ export function CoursesListScreen({ onNavigate }) {
       const c = await BB_API.createCourse({ code: code.trim(), name: name.trim(), term: term.trim(), status: 'ACTIVE' });
       setCode(''); setName(''); setTerm(''); setShowNew(false);
       openRoster(c, onNavigate);
-    } catch (err) { setError(`The course was not created: ${err.message || 'unknown error'}.`); }
+    } catch (err) { setError(`The course was not created. ${err.message || 'Please try again.'}`); }
     setBusy(false);
   }
 
@@ -851,12 +855,12 @@ export function CoursesListScreen({ onNavigate }) {
     ) },
     { key: 'term', label: 'Term', render: c => c.term || '—' },
     { key: 'students', label: 'Students', num: true },
-    { key: 'exams', label: 'Exams', num: true },
+    { key: 'exams', label: 'Collections', num: true },
     { key: 'status', label: 'Status', render: c => <Badge>{c.active ? 'active' : 'closed'}</Badge> },
     { key: 'open', label: 'Roster', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
   ];
   return (
-    <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? 'Loading…' : `${courses.length} course${courses.length === 1 ? '' : 's'}`}
+    <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? (error ? 'Courses unavailable' : 'Loading…') : `${courses.length} course${courses.length === 1 ? '' : 's'}`}
       actions={<Btn primary onClick={() => setShowNew(v => !v)} aria-expanded={showNew}>+ New course</Btn>}>
       <ErrorText>{error}</ErrorText>
       {showNew && (
@@ -875,8 +879,9 @@ export function CoursesListScreen({ onNavigate }) {
           </form>
         </Panel>
       )}
-      <Table columns={columns} rows={courses || []} rowKey={c => c.id} caption="Courses"
-        empty="No courses yet. Create one, then add your students to it." />
+      {courses === null ? (error ? null : <p role="status">Loading courses…</p>) : (
+      <Table columns={columns} rows={courses} rowKey={c => c.id} caption="Courses"
+        empty="No courses yet. Create one, then add your students to it." />)}
     </Page>
   );
 }
@@ -952,7 +957,8 @@ export function RosterScreen({ onNavigate }) {
 
   async function load() {
     try { setRows(await BB_API.rosterList(course.id)); }
-    catch (err) { setError(err.message || 'Could not load the roster.'); setRows([]); }
+    // A failed load stays null: it is an error, never "no students yet".
+    catch (err) { setError(err.message || 'Could not load the roster.'); }
   }
   useEffect(() => {
     if (!course) { onNavigate('courses'); return; }
@@ -1049,7 +1055,7 @@ export function RosterScreen({ onNavigate }) {
 
   return (
     <Page eyebrow="Course roster" title={course.name}
-      meta={[course.code, rows ? `${rows.length} student${rows.length === 1 ? '' : 's'}` : 'Loading…', invited ? `${invited} waiting to set a password` : null].filter(Boolean).join(' · ')}
+      meta={[course.code, rows ? `${rows.length} student${rows.length === 1 ? '' : 's'}` : (error ? 'Roster unavailable' : 'Loading…'), invited ? `${invited} waiting to set a password` : null].filter(Boolean).join(' · ')}
       actions={<Btn onClick={() => onNavigate('courses')}>← Courses</Btn>}>
       <ErrorText>{error}</ErrorText>
       <Notice>{notice}</Notice>
@@ -1100,7 +1106,8 @@ export function RosterScreen({ onNavigate }) {
       )}
 
       <Section title="Students">
-        <Table columns={columns} rows={rows || []} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />
+        {rows === null ? (error ? null : <p role="status">Loading the roster…</p>) : (
+        <Table columns={columns} rows={rows} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />)}
       </Section>
       <div style={{ textAlign: 'right' }}><LinkBtn danger onClick={deleteCourse}>Delete course</LinkBtn></div>
     </Page>

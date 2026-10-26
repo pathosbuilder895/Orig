@@ -2664,6 +2664,18 @@
               }
             ]
           },
+          "evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
           "feature_vector": {
             "additionalProperties": {
               "type": "number"
@@ -2695,6 +2707,16 @@
           },
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreliminaryScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "recommendation": {
             "$ref": "#/components/schemas/RecommendedActionOut"
@@ -3209,6 +3231,54 @@
           "token"
         ],
         "title": "PhoneScanBody",
+        "type": "object"
+      },
+      "PreliminaryScoreOut": {
+        "description": "Optional preliminary score (ADR-013). Staff and teachers only, never a\nstudent session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from\nthe deviation score and action band this response already carries.",
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "band_words": {
+            "title": "Band Words",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "label",
+          "score",
+          "band",
+          "band_words",
+          "note"
+        ],
+        "title": "PreliminaryScoreOut",
         "type": "object"
       },
       "ReadinessResponse": {

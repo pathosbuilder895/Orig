@@ -230,6 +230,18 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
     }
 
+    // The exam sits on the course the professor created above, and a student
+    // sits only an exam on a course they are enrolled on (the session and
+    // seal routes apply the dashboard's rules). Add this worker's student to
+    // that course from the roster, as the teacher would.
+    if (journey.exam.course_id) {
+      const enrolled = await request.post(
+        `/bluebook/courses/${encodeURIComponent(journey.exam.course_id)}/students`,
+        { headers: staffAuth(workerTenant), data: { students: [{ email: workerTenant.student.email, name: candidateName }] } },
+      )
+      expect(enrolled.ok(), await enrolled.text()).toBe(true)
+    }
+
     // Mirrors exam-flow.spec.mjs's bootInExam(): inject BB_EXAM_CONFIG so
     // the briefing→exam transition is immediate, using the real exam id
     // captured from the publish step (and the same toggle states).

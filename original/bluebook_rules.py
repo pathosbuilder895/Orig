@@ -217,10 +217,15 @@ def student_view(rec: dict, released: bool = False) -> dict:
     """A submission as its own author sees it: never any score, whatever the
     tenant bought (scores are for staff judgement, not a student display),
     never who graded it, and the mark and feedback only once the teacher has
-    released results for the exam."""
+    released results for the exam.
+
+    ``status`` is dropped too: the seal stores Original's reading there
+    (FLAGGED, INCONCLUSIVE), and a student's own data never carries a
+    comparison, even where no screen shows it."""
     out = {k: v for k, v in rec.items() if k not in SCORE_FIELDS}
     out.pop("tenant_id", None)
     out.pop("graded_by", None)
+    out.pop("status", None)
     out["results_released"] = bool(released)
     if not released:
         for k in GRADE_FIELDS:

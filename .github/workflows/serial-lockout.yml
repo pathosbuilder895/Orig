@@ -12,16 +12,15 @@ name: Serial lockout E2E
 #   2. bundle-e2e therefore raises LOGIN_THROTTLE_MAX_ATTEMPTS to 500, which
 #      means this test could not reach a 429 in 11 attempts even if it ran.
 #
-# So test.yml excludes it with `--grep-invert "@serial-lockout"` and, until
-# this workflow existed, it ran nowhere: 72 tests exist, 71 run on every PR,
-# 1 ran only if someone remembered to invoke it by hand. This gives that one
-# test a scheduled home rather than leaving the login lockout — a real
-# security control — covered only in principle.
+# So test.yml's main Playwright run excludes it with `--grep-invert
+# "@serial-lockout"`. When this workflow was written that meant it ran
+# nowhere else; since then bundle-e2e runs it on every push and PR as well,
+# against a second, default-throttle server ("Run the login-throttle lockout
+# spec" in test.yml). This weekly run is now a second, scheduled check of the
+# same control against the pilot requirements set, not its only home.
 #
-# Deliberately NOT on push/pull_request: it takes ~5 minutes of wall clock to
-# be worth anything and it is testing a control that changes about once a
-# year. Weekly + on demand is the right cadence; a red run here is a signal to
-# read on Monday, not a merge blocker.
+# Deliberately NOT on push/pull_request: test.yml already covers that, and a
+# red run here is a signal to read on Monday, not a merge blocker.
 
 on:
   schedule:
@@ -102,6 +101,14 @@ jobs:
       - name: Run the @serial-lockout spec
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:8001
+          SECRET_KEY: ci-test-only-secret-do-not-deploy
+          # POST /auth/register is guarded on a real deploy (T-64), so
+          # fixtures/api-setup.mjs's registerStaff() must send the server's
+          # MAINTENANCE_TOKEN as X-Guard-Token. Without it every run since
+          # 2026-09-14 failed in fixture setup with a 403 from /auth/register,
+          # before the lockout was ever exercised. Same values as the server
+          # step above and as test.yml's lockout step.
+          MAINTENANCE_TOKEN: ci-test-only
         # --workers=1: the tag selects one test today, but the flag is what
         # keeps that true if a second lockout case is ever added — two of them
         # in parallel would race for the same IP bucket and only one would see

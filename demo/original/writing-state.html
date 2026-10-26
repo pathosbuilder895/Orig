@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-15.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-15.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -312,6 +312,7 @@
   .fpq-btn:disabled{opacity:.45;cursor:default;}
   .fpq-btn:disabled:hover{color:var(--dim);}
   .tri-btn:disabled{opacity:.55;cursor:default;}
+  .tri-btn[hidden]{display:none;}
   .tri-done.err{color:#f0a690;}
   .tri-note{flex-basis:100%;font-size:.76rem;font-style:italic;color:var(--dim-2);}
   /* Feature detail and evidence: the server's own reading of each habit */
@@ -431,6 +432,7 @@
           <div class="plain-read" id="plain-read">Loading</div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
+            <a class="tri-btn packet" id="tri-evidence" href="evidence.html" style="text-decoration:none;" hidden>See it side by side</a>
             <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
             <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
             <span class="tri-done" id="tri-done" role="status"></span>
@@ -484,9 +486,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-15.1"></script>
-<script src="js/feature-data.js?v=2026-10-15.1"></script>
-<script src="js/fingerprint.js?v=2026-10-15.1"></script>
+<script src="live.js?v=2026-10-26.1"></script>
+<script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="js/fingerprint.js?v=2026-10-26.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1164,6 +1166,17 @@
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
     S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
+    showEvidenceLink();
+  }
+  // The side-by-side page (evidence.html) only when the server sent passages:
+  // the staff-only `evidence` field, null unless EVIDENCE_PASSAGES_ENABLED=1.
+  // Without it this page looks exactly as before.
+  const hasEvidence=r=>!!(r&&r.evidence&&typeof r.evidence==='object'&&Array.isArray(r.evidence.all_features));
+  function showEvidenceLink(){
+    const a=$('tri-evidence'); if(!a) return;
+    const on=hasEvidence(S.result);
+    a.hidden=!on;
+    a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
   }
 
   async function analyse(e){
@@ -1288,6 +1301,10 @@
         feature_vector:pick(S.sub), baseline_vector:pick(S.base)
       }
     };
+    // The side-by-side page's data, only when the server sent it (staff only,
+    // behind EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED).
+    if(hasEvidence(r)) keep.result.evidence=r.evidence;
+    if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
   }
 
@@ -1357,6 +1374,7 @@
     });
     document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
     $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
+    $('tri-evidence').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
 
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }

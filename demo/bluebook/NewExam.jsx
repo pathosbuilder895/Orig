@@ -323,7 +323,7 @@ export function NewExamScreen({ onNavigate }) {
       // usable from the live config above.
       if (BB_API.isAuthed()) {
         setSaving(false);
-        setSaveError(`The collection was not saved: ${(e && e.message) || 'unknown error'}.`);
+        setSaveError(`The collection was not saved. ${(e && e.message) || 'Please try again.'}`);
         return;
       }
       console.warn('Collections exam persistence failed:', e && e.message);
