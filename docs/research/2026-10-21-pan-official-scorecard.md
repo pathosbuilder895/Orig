@@ -217,6 +217,16 @@ page hides its results table, so they were not re-checked here.
 
 ## Caveats
 
+- **The `deviation_score` and `fused_score_v1` rows describe the code at
+  `bb3b98c`, not the current scorer.** After this run, `main` changed
+  preprocessing (23d5414, which strips genuine long quotations and block
+  quotes before extraction) and scoring (6647330 and a36b303, ADR-013, which
+  stop comparing the measurements past papers have no value for). Both move
+  feature vectors and `deviation_score`, and so the z-channel of
+  `fused_score_v1`. A rerun on current code is expected to change those rows;
+  by how much is not measured here. The LUAR rows do not depend on either
+  change. The `pair_strict` result does not depend on them either, since the
+  three-baseline floor is unchanged.
 - **None of this is student writing.** Every number here is fanfiction from
   fanfiction.net, as every PAN number in the repo already was. Nothing here
   says how any verifier behaves on a teacher's students.
@@ -285,6 +295,10 @@ PYTHONPATH=. .benchmark_cache/luar-venv/bin/python -m validation.verify.pan_offi
 .venv/bin/python -m validation.verify.pan_official_scorecard report
 .venv/bin/python -m pytest tests/validation/test_pan_official_metrics.py tests/validation/test_pan_official_scorecard.py -q
 ```
+
+The feature cache file is named after a SHA-256 of `original/features/` and
+`original/constants.py`, so a rerun after the extraction code changes
+re-extracts instead of reusing old vectors.
 
 `score` writes `validation/verify/pan_official_scorecard.json` (committed) and
 PAN-format `truth.jsonl` / `answers.jsonl` files for every dataset, protocol and

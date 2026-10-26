@@ -66,6 +66,7 @@ from validation.benchmark.reproducibility import lock_environment
 ENV_LOCK = lock_environment()
 
 import argparse
+import hashlib
 import itertools
 import json
 import math
@@ -120,7 +121,26 @@ PAN_CACHE = ROOT / ".benchmark_cache" / "pan"
 LUAR_PARTITION_CACHE = ROOT / ".benchmark_cache" / "luar" / "pan_luar_embeddings.npz"
 LUAR_PAIR_CACHE = ROOT / ".benchmark_cache" / "luar" / "pan_official_pair_embeddings.npz"
 LUAR_PAIR_META = LUAR_PAIR_CACHE.with_suffix(".meta.json")
-FEATURE_CACHE = ROOT / ".benchmark_cache" / "features" / "pan_official_vectors.npz"
+
+
+def _feature_code_fingerprint() -> str:
+    """Short SHA-256 over the code that turns a text into its 109 values.
+
+    ``feature_cache`` keys vectors on the text alone, so a cache written by
+    older extraction code would be reused silently after that code changes.
+    Naming this scorecard's cache file after the code keeps a rerun honest.
+    """
+
+    digest = hashlib.sha256()
+    sources = sorted((ROOT / "original" / "features").rglob("*.py")) + [ROOT / "original" / "constants.py"]
+    for path in sources:
+        digest.update(path.relative_to(ROOT).as_posix().encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
+FEATURE_CODE = _feature_code_fingerprint()
+FEATURE_CACHE = ROOT / ".benchmark_cache" / "features" / f"pan_official_vectors.{FEATURE_CODE}.npz"
 ANSWERS_DIR = PAN_CACHE / "official_answers"
 DEFAULT_OUTPUT = ROOT / "validation" / "verify" / "pan_official_scorecard.json"
 
@@ -1147,6 +1167,7 @@ def stage_score(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "commit": _git("rev-parse", "HEAD"),
         "uncommitted_changes": _git("status", "--porcelain", "--untracked-files=no").splitlines(),
+        "feature_code_fingerprint": FEATURE_CODE,
         "limit": limit,
         "sample": sample,
         "luar_all_pairs": luar_all_pairs,
