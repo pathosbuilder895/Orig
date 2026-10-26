@@ -700,6 +700,16 @@ def test_a_leftover_request_for_a_course_the_student_is_on_is_not_shown(
     assert [x["state"] for x in _roster(live_client, t, c)] == ["active"]
 
 
+def test_rows_for_a_course_that_is_gone_are_not_listed_to_the_student(live_client, approval_course):
+    out = _join(live_client, approval_course["code"]).json()
+    repo = get_repository()
+    repo.put_enrollment("gone-course", out["student_id"], approval_course["tenant"])
+    repo.put_join_request("gone-too", out["student_id"], approval_course["tenant"])
+    me = live_client.get("/bluebook/me", headers=_auth(out["token"])).json()
+    assert me["courses"] == []
+    assert [x["course_id"] for x in me["pending_courses"]] == [approval_course["course"]]
+
+
 def test_a_waiting_request_with_no_account_is_not_listed(live_client, approval_course):
     get_repository().put_join_request(
         approval_course["course"], "ghost:id", approval_course["tenant"]
