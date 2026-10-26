@@ -1,11 +1,13 @@
-# ADR-013: Aim verification at the classroom case, not at PAN and not at distance from self
+# ADR-014: Aim verification at the classroom case, not at PAN and not at distance from self
 
 **Status:** Proposed
 **Date:** 2026-10-22
 **Deciders:** Andrew (owner). Any step that changes a score or an action also needs its validation gate and a human approval (NORTH_STAR rule 4).
-**Relates to:** ADR-001 (density-matrix scoring), ADR-007 (AI-likelihood gating), `docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-design.md`, PR 308 (official PAN scorecard), PR 311 (adversarial gates G-A1 to G-A6).
+**Relates to:** ADR-001 (density-matrix scoring), ADR-007 (AI-likelihood gating), ADR-013 (located evidence and preliminary score), `docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-design.md`, PR 308 (official PAN scorecard), PR 311 (adversarial gates G-A1 to G-A6).
 
 Every number below is already recorded in the repo or in those two PRs; sources are given inline. None of it is real student writing.
+
+The live-scorer numbers below were measured before the 2026-10-25 preprocessing and scoring fixes on `main` (`23d5414`, quotation stripping; `6647330`, comparison features with no baseline value). Action 1 re-measures the live path at current `main` as its control. (This ADR was drafted as 013; `main` took that number for `013-located-evidence-and-preliminary-score.md`.)
 
 ## Context
 
@@ -187,6 +189,7 @@ Until a candidate beats the live path on those gates, on real student writing, `
 - Whether machine-written reference answers are allowed, and how they are produced (rule 7).
 - The minimum cohort size.
 - Whether the Collections "worth a look" mark (45-63% of honest Riddell-Juola essays) should stay switched on while Original is in testing.
+- ADR-013's preliminary score (`PRELIMINARY_SCORE_ENABLED`, default off, staff only) shows `round(deviation_score, 2)` with band words. It surfaces exactly the signal this ADR measures as weak, so if it is switched on before Layer 1 lands, its bands should carry the measured honest-essay rates (G-A1) next to them.
 
 **Owner decisions needed:**
 1. Classmates' sealed writing as reference: is the notice wording enough?
@@ -195,7 +198,7 @@ Until a candidate beats the live path on those gates, on real student writing, `
 
 ## Action items
 
-1. [ ] **Representation bake-off (offline, cheap, decides Layer 1).** Score the G-A4 and G-A1 Riddell-Juola cells with each candidate from Layer 1 through the SP1 harness (`validation/adversarial/`). Report AUROC with intervals, plus honest flags at a matched severity. Pass bar: the same-prompt AUROC's lower bound above 0.5, and well clear of the live path's 0.46-0.51, without raising G-A1.
+1. [ ] **Representation bake-off (offline, cheap, decides Layer 1).** Score the G-A4 and G-A1 Riddell-Juola cells with each candidate from Layer 1 through the SP1 harness (`validation/adversarial/`), with the live `deviation_score` at current `main` as the control. Report AUROC with intervals, plus honest flags at a matched severity. Pass bar: the same-prompt AUROC's lower bound above 0.5, and well clear of the live path's 0.46-0.51, without raising G-A1.
 2. [ ] Make G-A1, G-A4 and G-A5 (and G-A2/G-A3 once measured) the primary scorecard in `validation/README.md`. Keep PAN (PR 308) labelled as a representation benchmark.
 3. [ ] Pass a prompt and session id from Bluebook into `score_submission`, as metadata only, with no score change.
 4. [ ] Add a proctored-anchor rule to baseline assembly, behind a flag, and re-run G-A5.
