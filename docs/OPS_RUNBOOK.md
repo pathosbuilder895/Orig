@@ -335,5 +335,4 @@ retrain/self-test discipline to `style_authorship_v1.joblib`.
 ## Known limits (don't get paged for these)
 
 - Render free tier (demo service) sleeps after idle — first demo hit takes ~30 s. Warm it before a sales call.
-- The login throttle (10 attempts / 5 min / IP) is in-memory: a restart clears it. That's acceptable for a pilot.
-- 5 `TestAuthEndpoints` tests are marked xfail for rate-limit exhaustion when the full suite runs — pre-existing, not a regression signal.
+- The login throttle (10 failed attempts per 5 min, counted per IP and per email; `original/routers/_shared.py`) is in-memory: a restart clears it. That's acceptable for a pilot.

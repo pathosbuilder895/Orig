@@ -644,7 +644,73 @@ def score_submission(
     except Exception:
         pass
 
-    return _to_response(result, arc, report=report)
+    response = _to_response(result, arc, report=report)
+    _attach_staff_explainability(response, request, req.text, state, result)
+    return response
+
+
+def _attach_staff_explainability(response, request, text: str, state, result) -> None:
+    """ADR-013: located evidence and the preliminary score, both off by default.
+
+    Only for an HTTP caller that is not a student session. In-process callers
+    (``/me/work`` scores a student's own piece with ``request=None``) never
+    get either, and neither changes the score or the action.
+    """
+    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+
+    want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
+    if request is None or not (want_evidence or want_preliminary):
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    if want_preliminary:
+        from ..schemas import PreliminaryScoreOut
+
+        confidence = result.baseline_confidence
+        # Same line the readiness verdict draws for "ready" (students.py).
+        ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        response.preliminary = PreliminaryScoreOut(
+            **preliminary_score(
+                result.authorship.deviation_score,
+                result.recommendation.action,
+                inconclusive=not ready,
+            )
+        )
+    if want_evidence:
+        try:
+            used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+            # Every measurement, with the engine's own vectors and baseline
+            # mean when every contributing sample has its text (otherwise the
+            # mean would cover papers the page cannot show).
+            complete = len(used) == sum(1 for s in state.samples if s.auth_weight > 0)
+            response.evidence = build_evidence(
+                [dataclasses.asdict(f) for f in result.interference.destructive_features],
+                text,
+                baselines,
+                all_features=True,
+                submission_vector=result.feature_vector,
+                baseline_vectors=[s.vector for s in used],
+                past_average=state.baseline_mean if complete else None,
+            )
+            # Where each "past paper N" came from, for the teacher's side-by-side
+            # view: only what the sample already stores, nothing derived.
+            response.evidence["baseline_papers"] = [
+                {
+                    "paper": label,
+                    "assignment": getattr(s, "assignment", "") or None,
+                    "submitted_at": getattr(s, "submitted_at", "") or None,
+                    "provenance": getattr(s, "provenance", None),
+                    "word_count": getattr(s, "word_count", None),
+                }
+                for (label, _), s in zip(baselines, used, strict=True)
+            ]
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "evidence passages failed; omitted from the response"
+            )
+            response.evidence = None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────

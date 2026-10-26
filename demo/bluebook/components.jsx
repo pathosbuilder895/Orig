@@ -406,17 +406,10 @@ export const BB_API = {
       return (await r.json()).exams || [];
     } catch (e) { return null; }
   },
-  async createExam(payload) {
-    const r = await fetch(this.base + '/bluebook/exams', {
-      method: 'POST', headers: this._headers(), body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    return r.json();
-  },
+  // Through _json, so a lapsed sign-in sends the teacher to sign in (the
+  // form's draft stays on this computer) instead of a raw "Authentication
+  // required" under the form.
+  createExam(payload) { return this._json('POST', '/bluebook/exams', payload); },
   // Throws on failure. The seal loop retries on a throw and keeps the draft
   // on the device until this lands — a seal is only "sealed" once the
   // submission row exists, because that row is all the teacher ever sees.
@@ -505,17 +498,10 @@ export const BB_API = {
       return (await r.json()).items || [];
     } catch (e) { return null; }
   },
-  async createCourse(payload) {
-    const r = await fetch(this.base + '/bluebook/courses', {
-      method: 'POST', headers: this._headers(), body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    return r.json();
-  },
+  // Through _json, so a lapsed sign-in sends the teacher to sign in (the
+  // form's draft stays on this computer) instead of a raw "Authentication
+  // required" under the form.
+  createCourse(payload) { return this._json('POST', '/bluebook/courses', payload); },
   // ── QR phone park (proctoring deterrence) ──
   // Staff-only endpoints; the phones themselves post to /proctor/park/beat
   // anonymously and never touch this client.
@@ -625,6 +611,13 @@ export const BB_API = {
   async myExams()        { return (await this._json('GET', '/bluebook/me/exams')).exams || []; },
   myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
   startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
+  // Phone parking tied to the student's account (2026-10). `code` false polls
+  // the status without minting a new QR code.
+  myPhonePark(id, code = true) { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}/phone-park?code=${code ? 1 : 0}`); },
+  examPhoneParks(id)     { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/phone-park`); },
+  overridePhonePark(id, studentId, note) {
+    return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/phone-park/${encodeURIComponent(studentId)}/override`, { note: note || '' });
+  },
   async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
   // Past papers the student shares for their teacher to review (titles and
   // review status only; nothing here is ever scored).

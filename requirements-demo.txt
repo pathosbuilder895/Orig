@@ -31,6 +31,12 @@ numpy==2.2.6
 # validation on newer unpicklers (see requirements.txt). Bump only with a retrain.
 scikit-learn>=1.3,<1.7
 spacy>=3.7,<4.0
+# preshed 3.0.14 (a spaCy/thinc dependency, released 2026-10-24) breaks
+# spacy.load("en_core_web_sm") with "OverflowError: Python int too large to
+# convert to C ssize_t" in Tokenizer._flush_specials, which takes down every
+# feature extraction and baseline add. 3.0.13 works. Lift once a fixed preshed
+# ships (check: python -c "import spacy; spacy.load('en_core_web_sm')").
+preshed<3.0.14
 # langdetect powers the Phase 2 language resolver.
 langdetect>=1.0.9,<2.0
 
@@ -43,7 +49,8 @@ python-docx>=1.1,<2.0
 # (original/upload_utils.py), so parser CVEs here are reachable from
 # untrusted input, not just theoretical.
 # pypdf <6.20.1 adds CVE-2026-113792..113795; <6.21.1 adds CVE-2026-113786.
-pypdf>=6.21.1
+# pypdf <6.21.2 adds CVE-2026-115572/115580/115585 (pip-audit, 2026-10-24).
+pypdf>=6.21.2
 
 # ── Canvas integration ─────────────────────────────────────────────────────────
 # canvas/live_import.py makes real Canvas Submissions API calls when

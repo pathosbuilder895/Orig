@@ -665,6 +665,22 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             updated_at      TEXT NOT NULL
         )
     """)
+    # A student's own parked phone per collection (2026-10) — mirrors alembic
+    # revision a7e3c5d9f2b4.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_phone_parks (
+            exam_id       TEXT NOT NULL,
+            student_key   TEXT NOT NULL,
+            tenant_id     TEXT NOT NULL,
+            state         TEXT NOT NULL DEFAULT '',
+            parked_at     TEXT,
+            last_seen_at  TEXT,
+            override_by   TEXT NOT NULL DEFAULT '',
+            override_at   TEXT,
+            override_note TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (exam_id, student_key)
+        )
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -1834,6 +1850,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
     "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
 )
 
 
@@ -1941,6 +1958,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
             # Where the student last was in the app (2026-10).
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
+            # The student's own parked-phone records (2026-10).
+            conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -3009,7 +3028,13 @@ def set_user_password_hash(user_id: str, password_hash: str) -> bool:
 
 
 def delete_bluebook_exam(exam_id: str) -> bool:
+    """Delete the exam and what hangs off it before a seal: unsealed drafts,
+    sittings and phone parks. The route refuses an exam with submissions, so
+    this never orphans sealed work; without it a student's unsealed text
+    outlived the exam and only erasing the whole student removed it."""
     with _get_conn() as conn:
+        for table in ("bluebook_exam_drafts", "bluebook_sessions", "bluebook_phone_parks"):
+            conn.execute(f"DELETE FROM {table} WHERE exam_id = ?", (exam_id,))
         cur = conn.execute("DELETE FROM bluebook_exams WHERE exam_id = ?", (exam_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -4407,3 +4432,65 @@ def delete_last_location(account_key: str) -> None:
     with _get_conn() as conn:
         conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
         conn.commit()
+
+
+# ── A student's own parked phone, per collection (2026-10) ────────────────────
+
+PHONE_PARK_FIELDS = (
+    "exam_id",
+    "student_key",
+    "tenant_id",
+    "state",
+    "parked_at",
+    "last_seen_at",
+    "override_by",
+    "override_at",
+    "override_note",
+)
+
+
+def put_phone_park(exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
+    """Upsert one (exam, student) row, changing only the keys in ``fields``.
+    Timestamps are ISO strings (or None)."""
+    row = get_phone_park(exam_id, student_key) or {
+        "exam_id": exam_id,
+        "student_key": student_key,
+        "tenant_id": tenant_id,
+        "state": "",
+        "parked_at": None,
+        "last_seen_at": None,
+        "override_by": "",
+        "override_at": None,
+        "override_note": "",
+    }
+    for k, v in fields.items():
+        if k in PHONE_PARK_FIELDS and k not in ("exam_id", "student_key", "tenant_id"):
+            row[k] = v
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT OR REPLACE INTO bluebook_phone_parks ({', '.join(PHONE_PARK_FIELDS)}) "
+            f"VALUES ({', '.join('?' * len(PHONE_PARK_FIELDS))})",
+            tuple(row[k] for k in PHONE_PARK_FIELDS),
+        )
+        conn.commit()
+    return get_phone_park(exam_id, student_key) or {}
+
+
+def get_phone_park(exam_id: str, student_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        ).fetchone()
+    return dict(zip(PHONE_PARK_FIELDS, row, strict=True)) if row else None
+
+
+def list_phone_parks(exam_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? ORDER BY student_key",
+            (exam_id,),
+        ).fetchall()
+    return [dict(zip(PHONE_PARK_FIELDS, r, strict=True)) for r in rows]

@@ -202,3 +202,75 @@ def test_classic_student_pages_served_in_demo(mounted_client, url):
 def test_the_pages_students_use_stay_reachable_in_pilot(mounted_pilot_client):
     for url in ("/bluebook/", "/original/voice.html", "/original/my-work.html", "/legal/student-notice.html"):
         assert mounted_pilot_client.get(url).status_code == 200, url
+
+
+# StaticFiles splits the URL path on "/" and normalises the join, so an empty
+# or dot segment still reaches the gated file. Before the gates compared the
+# resolved path (``original/api.py:_static_lookup_path``), every spelling
+# below was served on a real deploy: ``//seed.db`` returned the database,
+# ``/bluebook//bluebook.bundle.js.map`` the source map, ``//prototypes/`` the
+# prototype index. ``/%2F`` decodes to ``//`` before the middleware sees it.
+GATE_BYPASS_SPELLINGS = (
+    "//seed.db",
+    "/%2Fseed.db",
+    "/./seed.db",
+    "/x/../seed.db",
+    "//student.html",
+    "/bluebook//bluebook.bundle.js.map",
+    "/collections//bluebook.bundle.js.map",
+    "//prototypes/",
+    "//app/index.html",
+    "/./app/index.html",
+)
+
+
+@pytest.mark.parametrize("url", GATE_BYPASS_SPELLINGS)
+def test_gate_bypass_spellings_404_in_pilot(mounted_pilot_client, url):
+    r = mounted_pilot_client.get("http://testserver" + url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}, {len(r.content)} bytes served"
+
+
+@pytest.mark.parametrize(
+    "path,resolved",
+    [
+        ("/", "/"),
+        ("//seed.db", "/seed.db"),
+        ("/./app/", "/app"),
+        ("/x/../seed.db", "/seed.db"),
+        ("/bluebook//bluebook.bundle.js.map", "/bluebook/bluebook.bundle.js.map"),
+        ("/prototypes-public/", "/prototypes-public"),
+    ],
+)
+def test_static_lookup_path_matches_what_staticfiles_serves(path, resolved):
+    import original.api as api_mod
+
+    assert api_mod._static_lookup_path(path) == resolved
+
+
+# T-25: demo/app/ is an unfinished second React dashboard that nothing links
+# to; original/api.py blocks /app on every deploy, including the public demo
+# (its committed .bundle.js.map files expose the full JSX source). Derived
+# from git so a file added there later is covered without editing this list.
+APP_URLS = ["/app/", "/app"] + [
+    "/" + rel[len("demo/") :]
+    for rel in subprocess.run(
+        ["git", "ls-files", "demo/app"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=True,
+    ).stdout.splitlines()
+]
+assert any(u.endswith(".bundle.js.map") for u in APP_URLS), APP_URLS
+
+
+@pytest.mark.parametrize("url", APP_URLS)
+def test_dormant_app_tree_404_in_demo(mounted_client, url):
+    r = mounted_client.get(url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}"
+
+
+@pytest.mark.parametrize("url", APP_URLS)
+def test_dormant_app_tree_404_in_pilot(mounted_pilot_client, url):
+    r = mounted_pilot_client.get(url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}"

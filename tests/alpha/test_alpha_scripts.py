@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 import os
 import re
@@ -228,6 +229,117 @@ def test_split_baseline_tagging_and_report_breakout(tmp_path):
     assert "baseline_source" in csv_text and "n_split_baselines" in csv_text
 
 
+def test_ai_own_is_validated_and_can_still_be_reported_separately(tmp_path):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_c"
+    _write_baselines(stud)
+    for name in ("c_natural", "c_partner", "c_own"):
+        (stud / "submission" / f"{name}.txt").write_text(_text(name))
+    header = ("submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,"
+              "paired_submission_id,shadow_source_paper_id,generator_tool\n")
+    labels_path = tmp_path / "labels.csv"
+    good = (header + "c_natural,natural,stud_c,stud_c,,,,,,\n"
+            "c_partner,shadow,stud_c,writer-9,human_partner,stud_c,prompt-a,c_natural,sample-1,\n"
+            "c_own,shadow,stud_c,stud_c,ai_own,stud_c,prompt-a,c_natural,,tester-tool-y\n")
+    labels_path.write_text(good)
+    ids = {"c_natural", "c_partner", "c_own"}
+    parsed = batch.validate_labels(labels_path, ids)
+    assert parsed["c_own"]["shadow_kind"] == "ai_own" and parsed["c_own"]["shadow"] == "true"
+    # ai_own requires generator_tool and must imitate the tester's own writing.
+    labels_path.write_text(good.replace("tester-tool-y", ""))
+    with pytest.raises(ValueError, match="ai_own shadow needs generator_tool"):
+        batch.validate_labels(labels_path, ids)
+    labels_path.write_text(good.replace("ai_own,stud_c,", "ai_own,someone-else,"))
+    with pytest.raises(ValueError, match="imitated_student_id must equal author_true"):
+        batch.validate_labels(labels_path, ids)
+    # Other kinds still reject writer_true == author_true.
+    labels_path.write_text(good.replace("writer-9", "stud_c"))
+    with pytest.raises(ValueError, match="must not be the imitated student"):
+        batch.validate_labels(labels_path, ids)
+    labels_path.write_text(good)
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .9 if "own" in path.name else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if "own" in path.name else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    # Default: every shadow kind, ai_own included, counts in the headline.
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score)
+    assert not problems
+    report = (tmp_path / "out/report.md").read_text()
+    assert "Caught shadow work (all kinds): 1/2 (50%)" in report
+    assert "| ai_own | AI imitation of own writing | 1 | 1/1 (100%) |" in report
+    assert "| human_partner | human shadow | 1 | 0/1 (0%) |" in report
+    # Opting out keeps the old separate reporting: ai_own is not pooled in.
+    kinds = batch.parse_shadow_kinds("human_partner,ai_staff,injected_other,public_domain")
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out2", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score,
+                                           primary_kinds=kinds)
+    assert not problems
+    report = (tmp_path / "out2/report.md").read_text()
+    assert "Caught shadow work (ai_staff, human_partner, injected_other, public_domain): 0/1 (0%)" in report
+    assert "not pooled above: ai_own" in report
+    assert "| ai_own | AI imitation of own writing (separate) | 1 | 1/1 (100%) |" in report
+    assert "- Human shadows: 0/1 (0%)" in report
+    assert "- AI imitation of own writing (ai_own, separate; not in the criteria): 1/1 (100%)" in report
+    assert all(row["not_own_total"] == 1 for row in batch.threshold_sweep(rows, kinds))
+
+
+def test_simplified_alpha_ai_own_is_the_headline_shadow(tmp_path):
+    """Simplified alpha (2026-10-25): "Your own piece" (natural) + "AI imitation"
+    (ai_own). With no other shadow kind, the headline catch rate, the gate, the
+    sweep and the breakout must all count the AI imitation."""
+    export_dir = tmp_path / "export"
+    stud = export_dir / "EXAMPLE-stu-A"
+    _write_baselines(stud)
+    (stud / "submission" / "EXAMPLE-DELETE-sub001.txt").write_text(_text("own piece"))
+    (stud / "submission" / "EXAMPLE-DELETE-sub002.txt").write_text(_text("ai imitation"))
+    labels_path = tmp_path / "answer_key.csv"
+    labels_path.write_text(
+        "submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,"
+        "paired_submission_id,shadow_source_paper_id,generator_tool\n"
+        "EXAMPLE-DELETE-sub001,natural,EXAMPLE-stu-A,EXAMPLE-stu-A,,,own-piece,,,\n"
+        "EXAMPLE-DELETE-sub002,shadow,EXAMPLE-stu-A,EXAMPLE-stu-A,ai_own,EXAMPLE-stu-A,own-piece,"
+        "EXAMPLE-DELETE-sub001,EXAMPLE-DELETE-sub001,EXAMPLE-ToolName\n")
+    seen_dirs = []
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        seen_dirs.append((Path(baseline_dir), Path(submission_dir)))
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .8 if path.stem.endswith("2") else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if path.stem.endswith("2") else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score,
+                                           evidence=False)
+    assert not problems
+    report = (tmp_path / "out/report.md").read_text()
+    assert "Caught shadow work (all kinds): 1/1 (100%)" in report
+    assert "False flags on natural work: 0/1 (0%)" in report
+    assert "**PASS** on point estimates." in report and code == 0
+    sweep = batch.threshold_sweep(rows)
+    assert sweep and all(row["not_own_total"] == 1 and row["natural_total"] == 1 for row in sweep)
+    assert "| 0.50 | 1/1 (100%) | 0/1 (0%) |" in report
+    assert "| independent | 1 | 1 | 0/1 (0%) | 1 | 1/1 (100%) |" in report
+    # Labels stay out of the scored text: the scorer saw only the export's own files.
+    for baseline_dir, submission_dir in seen_dirs:
+        assert submission_dir == stud / "submission"
+        for path in list(baseline_dir.glob("*")) + list(submission_dir.glob("*")):
+            text = path.read_text()
+            assert "ai_own" not in text and "EXAMPLE-ToolName" not in text
+    # The CLI flag rejects unknown kinds.
+    with pytest.raises(ValueError, match="unknown: bogus"):
+        batch.parse_shadow_kinds("ai_own,bogus")
+    assert batch.parse_shadow_kinds("all") == batch.DEFAULT_PRIMARY_SHADOW_KINDS
+
+
+
+
 def test_baselines_csv_rejects_split_without_parent_and_unknown_files(tmp_path):
     export_dir = tmp_path / "export"
     student_dir = export_dir / "stud_a"
@@ -441,3 +553,112 @@ def test_local_runbook_rehearsal_twenty_concurrent_students_full_delete(live_app
     assert repo.list_ids_for_tenant(tenant_id) == []
     assert repo.list_bluebook_courses(tenant_id) == []
     assert repo.list_bluebook_exams(tenant_id) == []
+
+
+def _real_ish_text(seed: str) -> str:
+    return (f"The {seed} market was loud at night; vendors shouted, and children ran between the stalls. "
+            "However, I usually went early because it's quieter then. Why did people stay so late? "
+            "Perhaps the food was the reason: noodles, dumplings and fresh juice. ") * 6
+
+
+def test_batch_writes_staff_evidence_and_preliminary_columns_without_labels(tmp_path):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_ev"
+    _write_baselines(stud)
+    (stud / "submission" / "ev_natural.txt").write_text(_real_ish_text("night"))
+    (stud / "submission" / "ev_other.txt").write_text(_real_ish_text("harbour"))
+    thin = export_dir / "stud_thin"
+    _write_baselines(thin, count=2)
+    (thin / "submission" / "thin_paper.txt").write_text(_text("thin"))
+    labels_path = tmp_path / "labels.csv"
+    labels_path.write_text("submission_id,label,author_true,writer_true\n"
+                           "ev_natural,natural,stud_ev,stud_ev\n"
+                           "ev_other,shadow,stud_ev,SECRET-WRITER-LABEL\n"
+                           "thin_paper,natural,stud_thin,stud_thin\n")
+    destructive = [
+        {"code": "semicolon_colon_rate", "name": "Semicolon+Colon Rate", "tier": 4, "contribution": 0.0,
+         "direction": "destructive", "baseline_value": 0.0, "submission_value": 0.4, "delta": 0.4},
+        {"code": "char_trigram_entropy", "name": "Char Trigram Entropy", "tier": 4, "contribution": 0.0,
+         "direction": "destructive", "baseline_value": 0.5, "submission_value": 0.7, "delta": 0.2},
+    ]
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .66 if "other" in path.name else .2,
+             "authorship_probability": .5,
+             "recommended_action": "schedule_conversation" if "other" in path.name else "no_action",
+             "scoring_time_ms": 1, "destructive_features": destructive}
+            for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    out = tmp_path / "out"
+    code, rows, problems = batch.run_batch(export_dir, out, ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score)
+    by_id = {row["submission_id"]: row for row in rows}
+    assert by_id["ev_other"]["preliminary_score"] == 0.66
+    assert by_id["ev_other"]["preliminary_band"] == "Outside the usual range"
+    assert by_id["ev_natural"]["preliminary_band"] == "Within the writer's usual range"
+    assert by_id["thin_paper"]["preliminary_score"] is None
+    assert by_id["thin_paper"]["preliminary_band"] == "Not enough writing on file to compare yet."
+    assert "evidence_file" not in by_id["thin_paper"]
+    # Calibration semantics unchanged: the strict flag still comes from the action alone.
+    assert by_id["ev_other"]["strict_flag"] is True and by_id["ev_natural"]["strict_flag"] is False
+    for sid in ("ev_natural", "ev_other"):
+        assert by_id[sid]["evidence_file"] == f"evidence/{sid}.md"
+        for ext in ("md", "html", "json"):
+            body = (out / "evidence" / f"{sid}.{ext}").read_text(encoding="utf-8")
+            # Answer-key values never reach an evidence file.
+            assert "SECRET-WRITER-LABEL" not in body and "shadow" not in body.lower()
+        payload = json.loads((out / "evidence" / f"{sid}.json").read_text(encoding="utf-8"))
+        assert payload["staff_only"] is True
+        semicolons = payload["evidence"]["features"][0]
+        assert semicolons["locatable"] is True and semicolons["this_paper"]["count"] == 12  # six ";" and six ":"
+        text = (stud / "submission" / f"{sid}.txt").read_text()
+        for q in semicolons["this_paper"]["examples"]:
+            assert q["match"] in (";", ":") and q["match"] == text[q["match_start"]:q["match_end"]]
+            assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+        assert payload["evidence"]["features"][1]["locatable"] is False
+    report = (out / "report.md").read_text()
+    assert "Staff evidence and preliminary scores (never shown to students)" in report
+    assert "Evidence passages: 2 file(s)" in report
+    assert "preliminary_band" in (out / "per_submission.csv").read_text()
+
+    # Every measurement in the vector, once each (ADR-013 all-features list).
+    from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
+    full = json.loads((out / "evidence" / "ev_other.json").read_text())["evidence"]["all_features"]
+    assert len(full) == FEATURE_DIM and sorted(f["code"] for f in full) == sorted(ALL_FEATURE_CODES)
+    html_body = (out / "evidence" / "ev_other.html").read_text()
+    assert html_body.count("<details id='f-") == FEATURE_DIM
+
+    # Determinism: a second run, with nothing cached, writes byte-identical evidence (all three files).
+    from original import evidence as ev
+    first = {(sid, ext): (out / "evidence" / f"{sid}.{ext}").read_bytes()
+             for sid in ("ev_natural", "ev_other") for ext in ("md", "html", "json")}
+    ev._paper_values.cache_clear()
+    ev.engine_view.cache_clear()
+    batch.run_batch(export_dir, tmp_path / "out2", ROOT, labels_path, no_rerun=True, throttle_seconds=0,
+                    scorer=fake_score)
+    for (sid, ext), body in first.items():
+        assert (tmp_path / "out2" / "evidence" / f"{sid}.{ext}").read_bytes() == body
+
+    # --no-evidence keeps the preliminary column and writes no evidence files.
+    code, rows, _ = batch.run_batch(export_dir, tmp_path / "out3", ROOT, labels_path, no_rerun=True,
+                                    throttle_seconds=0, scorer=fake_score, evidence=False)
+    assert not (tmp_path / "out3" / "evidence").exists()
+    assert all("evidence_file" not in row for row in rows)
+
+
+def test_batch_evidence_failure_is_a_problem_not_a_crash(tmp_path, monkeypatch):
+    export_dir = tmp_path / "export"
+    stud = export_dir / "stud_err"
+    _write_baselines(stud)
+    (stud / "submission" / "paper.txt").write_text(_text("paper"))
+    monkeypatch.setattr(batch, "write_evidence", lambda *a, **k: 1 / 0)
+
+    def fake_score(*_args):
+        return ({"submissions": [{"filename": "paper.txt", "deviation_score": .3, "authorship_probability": .5,
+                                  "recommended_action": "no_action", "scoring_time_ms": 1}]}, .01, "")
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, None, no_rerun=True,
+                                           throttle_seconds=0, scorer=fake_score)
+    assert code == 0
+    assert problems == ["stud_err/paper: evidence file not written (ZeroDivisionError)"]
+    assert rows[0]["preliminary_score"] == 0.3

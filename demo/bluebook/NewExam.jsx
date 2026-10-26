@@ -190,6 +190,8 @@ export function NewExamScreen({ onNavigate }) {
   // ── Secondary conditions ──
   const [spellChk,  setSpellChk]  = useNEState(pick('spellChk', false));
   const [phoneBlk,  setPhoneBlk]  = useNEState(pick('phoneBlk', true));
+  // Phone parking (2026-10): off unless the teacher switches it on.
+  const [phonePark, setPhonePark] = useNEState(pick('phonePark', false));
   // Writing consistency is never restored from a draft: it starts off every time.
   const [aiDetect,  setAiDetect]  = useNEState(false);
   // ── Collection type (More options): in class + timed + no size by default,
@@ -226,7 +228,7 @@ export function NewExamScreen({ onNavigate }) {
   }, []);
 
   const restoredDraft = Object.keys(draft0).length > 0;
-  const draftValues = { title, course, duration, minWords, maxWords, prompts, blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, setting, timed, size, opensAt, closesAt };
+  const draftValues = { title, course, duration, minWords, maxWords, prompts, blockAI, blockWeb, blockCopy, spellChk, phoneBlk, phonePark, aiDetect, setting, timed, size, opensAt, closesAt };
   React.useEffect(() => {
     if (saved) return;
     const empty = !title.trim() && !prompts.some(p => p.trim()) && !String(minWords).trim() && !String(maxWords).trim() && !opensAt && !closesAt;
@@ -276,7 +278,7 @@ export function NewExamScreen({ onNavigate }) {
 
   async function handleSave(publish = false) {
     if (!canSubmit || saving) return;
-    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, ...optionConditions({ timed, setting, size }) };
+    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, phonePark: phonePark === true, aiDetect, ...optionConditions({ timed, setting, size }) };
     const courseCode = pickedCourse ? (pickedCourse.code || pickedCourse.name) : (selectedCourse || '').trim();
     const prompt = combinePrompts(prompts);
     const opensIso = fromLocalInput(opensAt);
@@ -321,7 +323,7 @@ export function NewExamScreen({ onNavigate }) {
       // usable from the live config above.
       if (BB_API.isAuthed()) {
         setSaving(false);
-        setSaveError(`The collection was not saved: ${(e && e.message) || 'unknown error'}.`);
+        setSaveError(`The collection was not saved. ${(e && e.message) || 'Please try again.'}`);
         return;
       }
       console.warn('Collections exam persistence failed:', e && e.message);
@@ -618,6 +620,8 @@ export function NewExamScreen({ onNavigate }) {
             <ToggleRow label="Allow spell check"    desc="Browser spell-check is permitted" value={spellChk}  onChange={setSpellChk} />
             <GoldRule faint />
             <ToggleRow label="Phone blocker"        desc="Prompt students to silence devices" value={phoneBlk} onChange={setPhoneBlk} />
+            <GoldRule faint />
+            <ToggleRow label="Phone parking" desc="Before beginning, each student scans a code on their own screen with their phone and puts it where you ask. You can let a student without a phone begin." value={phonePark} onChange={setPhonePark} />
             <GoldRule faint />
             {BB_API.hasOriginal() && (
               <>

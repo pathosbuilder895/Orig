@@ -3073,6 +3073,22 @@ class TestBluebookSelfServeContract:
         assert repo.get_bluebook_exam("ss-exam") is None
         assert repo.delete_bluebook_exam("ss-exam") is False
 
+    def test_deleting_an_exam_removes_its_drafts_sittings_and_phone_parks(self, repo):
+        repo.put_tenant("ss-d", "SS", environment="pilot")
+        for exam_id in ("ss-gone", "ss-kept"):
+            repo.put_bluebook_exam({"id": exam_id, "tenant_id": "ss-d", "title": exam_id})
+            repo.put_exam_draft(exam_id, "ss-d:ann", "ss-d", "unsealed words", '["unsealed words"]', 1)
+            repo.get_or_create_bluebook_session(exam_id, "ss-d:ann", "ss-d", 600)
+            repo.put_phone_park(exam_id, "ss-d:ann", "ss-d", {})
+        assert repo.delete_bluebook_exam("ss-gone") is True
+        assert repo.get_exam_draft("ss-gone", "ss-d:ann") is None
+        assert repo.get_bluebook_session("ss-gone", "ss-d:ann") is None
+        assert repo.get_phone_park("ss-gone", "ss-d:ann") is None
+        # Another exam's rows for the same student are untouched.
+        assert repo.get_exam_draft("ss-kept", "ss-d:ann")["content"] == "unsealed words"
+        assert repo.get_bluebook_session("ss-kept", "ss-d:ann") is not None
+        assert repo.get_phone_park("ss-kept", "ss-d:ann") is not None
+
     def test_submission_text_warnings_and_queries(self, repo):
         repo.put_tenant("ss-s", "SS", environment="pilot")
         repo.put_tenant("ss-s2", "SS2", environment="pilot")
@@ -3266,3 +3282,30 @@ class TestLastLocation:
         repo.put_last_location(sid, tenant, "student", {"screen": "student-account"})
         repo.delete_student(sid)
         assert repo.get_last_location(sid) is None
+
+
+class TestPhoneParks:
+    """A student's own parked phone per collection (2026-10): upserted field
+    by field, listed per exam, and erased by delete_student — on every backend."""
+
+    def test_put_get_list_and_delete_student(self, repo):
+        tenant = "tenant-pp"
+        sid, other = f"{tenant}:ann", f"{tenant}:ben"
+        assert repo.get_phone_park("exam-p", sid) is None
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "parked",
+                            "parked_at": "2026-10-22T13:00:00+00:00",
+                            "last_seen_at": "2026-10-22T13:00:00+00:00"})
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "foreground_lost",
+                            "last_seen_at": "2026-10-22T13:00:10+00:00"})
+        repo.put_phone_park("exam-p", other, tenant, {"override_by": "prof",
+                            "override_at": "2026-10-22T13:01:00+00:00", "override_note": "no phone"})
+        row = repo.get_phone_park("exam-p", sid)
+        assert row["state"] == "foreground_lost" and row["parked_at"].startswith("2026-10-22T13:00:00")
+        assert row["last_seen_at"].startswith("2026-10-22T13:00:10") and row["override_at"] is None
+        ov = repo.get_phone_park("exam-p", other)
+        assert ov["override_by"] == "prof" and ov["override_note"] == "no phone" and ov["parked_at"] is None
+        assert [r["student_key"] for r in repo.list_phone_parks("exam-p")] == [sid, other]
+        assert repo.list_phone_parks("exam-q") == []
+        repo.delete_student(sid)
+        assert repo.get_phone_park("exam-p", sid) is None
+        assert repo.get_phone_park("exam-p", other) is not None

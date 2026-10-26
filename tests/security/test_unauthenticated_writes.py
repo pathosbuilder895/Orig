@@ -107,6 +107,19 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
         "capability-token authenticated (park_token is the credential, not a "
         "principal); documented anonymous-by-design in original/routers/proctor.py"
     ),
+    # Signed-grant authenticated (2026-10): the phone never signs in. The scan
+    # code and the beat grant are HMAC-signed, expiring, and name exactly one
+    # student and one collection (student_auth.mint_phone_scan_token /
+    # mint_phone_beat_token); tests/alpha/test_phone_park_accounts.py proves
+    # forged, expired and wrong-kind grants are refused.
+    ("POST", "/bluebook/phone-park/scan"): (
+        "signed-grant authenticated (short-lived scan code for one student and "
+        "one collection); see original/routers/phone_park.py"
+    ),
+    ("POST", "/bluebook/phone-park/beat"): (
+        "signed-grant authenticated (beat grant for one student and one "
+        "collection); see original/routers/phone_park.py"
+    ),
 }
 
 # ── Known holes with their own dedicated red test, below ─────────────────────
@@ -152,6 +165,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/me/exams/{exam_id}/start"),
     ("PUT", "/bluebook/exams/{exam_id}/draft"),
     ("PUT", "/bluebook/me/location"),
+    ("POST", "/bluebook/exams/{exam_id}/phone-park/{student_id}/override"),
     ("POST", "/bluebook/me/papers"),
     ("POST", "/bluebook/past-papers/{paper_id}/approve"),
     ("POST", "/bluebook/past-papers/{paper_id}/decline"),

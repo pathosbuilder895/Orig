@@ -150,7 +150,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
-      spellChk: true, phoneBlk: false, aiDetect: true,
+      spellChk: true, phoneBlk: false, phonePark: false, aiDetect: true,
       // Collection options: the in-class, timed default (no size chosen).
       timed: true, setting: 'in_class',
     })
@@ -228,6 +228,18 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       'A third approved essay where the student weighs inclination against obligation in ordinary moral choices.',
     ]) {
       await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
+    }
+
+    // The exam sits on the course the professor created above, and a student
+    // sits only an exam on a course they are enrolled on (the session and
+    // seal routes apply the dashboard's rules). Add this worker's student to
+    // that course from the roster, as the teacher would.
+    if (journey.exam.course_id) {
+      const enrolled = await request.post(
+        `/bluebook/courses/${encodeURIComponent(journey.exam.course_id)}/students`,
+        { headers: staffAuth(workerTenant), data: { students: [{ email: workerTenant.student.email, name: candidateName }] } },
+      )
+      expect(enrolled.ok(), await enrolled.text()).toBe(true)
     }
 
     // Mirrors exam-flow.spec.mjs's bootInExam(): inject BB_EXAM_CONFIG so

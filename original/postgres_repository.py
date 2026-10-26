@@ -40,6 +40,7 @@ from .db.models.live import (
     BluebookExam,
     BluebookExamDraft,
     BluebookInvite,
+    BluebookPhonePark,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -369,6 +370,9 @@ class PostgresRepository:
                 BluebookExamDraft.student_key == student_id
             ),
             select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
+            select(BluebookPhonePark.student_key).where(
+                BluebookPhonePark.student_key == student_id
+            ),
             select(BluebookEnrollment.student_id).where(
                 BluebookEnrollment.student_id == student_id
             ),
@@ -535,6 +539,12 @@ class PostgresRepository:
                 session.execute(
                     BluebookExamDraft.__table__.delete().where(
                         BluebookExamDraft.student_key == student_id,
+                    )
+                )
+                # The student's own parked-phone records (2026-10).
+                session.execute(
+                    BluebookPhonePark.__table__.delete().where(
+                        BluebookPhonePark.student_key == student_id,
                     )
                 )
                 # Where the student last was in the app (2026-10).
@@ -2174,7 +2184,11 @@ class PostgresRepository:
             return result.rowcount == 1
 
     def delete_bluebook_exam(self, exam_id):
+        # Same as store.delete_bluebook_exam: unsealed drafts, sittings and
+        # phone parks go with the exam (there is no FK cascade).
         with session_scope() as session:
+            for model in (BluebookExamDraft, BluebookSession, BluebookPhonePark):
+                session.execute(model.__table__.delete().where(model.exam_id == exam_id))
             result = session.execute(
                 BluebookExam.__table__.delete().where(BluebookExam.exam_id == exam_id)
             )
@@ -3000,6 +3014,64 @@ class PostgresRepository:
                     UserLastLocation.account_key == account_key
                 )
             )
+
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+
+    @staticmethod
+    def _phone_park_dict(row):
+        return {
+            "exam_id": row.exam_id,
+            "student_key": row.student_key,
+            "tenant_id": row.tenant_id,
+            "state": row.state,
+            "parked_at": _iso_or_none(row.parked_at),
+            "last_seen_at": _iso_or_none(row.last_seen_at),
+            "override_by": row.override_by,
+            "override_at": _iso_or_none(row.override_at),
+            "override_note": row.override_note,
+        }
+
+    def put_phone_park(self, exam_id, student_key, tenant_id, fields):
+        allowed = (
+            "state",
+            "parked_at",
+            "last_seen_at",
+            "override_by",
+            "override_at",
+            "override_note",
+        )
+        values = {}
+        for k in allowed:
+            if k in fields:
+                v = fields[k]
+                if k.endswith("_at") and isinstance(v, str):
+                    v = datetime.fromisoformat(v)
+                values[k] = v
+        with session_scope() as session:
+            stmt = pg_insert(BluebookPhonePark).values(
+                exam_id=exam_id, student_key=student_key, tenant_id=tenant_id, **values
+            )
+            stmt = (
+                stmt.on_conflict_do_update(index_elements=["exam_id", "student_key"], set_=values)
+                if values
+                else stmt.on_conflict_do_nothing(index_elements=["exam_id", "student_key"])
+            )
+            session.execute(stmt)
+        return self.get_phone_park(exam_id, student_key) or {}
+
+    def get_phone_park(self, exam_id, student_key):
+        with session_scope() as session:
+            row = session.get(BluebookPhonePark, (exam_id, student_key))
+            return None if row is None else self._phone_park_dict(row)
+
+    def list_phone_parks(self, exam_id):
+        with session_scope() as session:
+            rows = session.scalars(
+                select(BluebookPhonePark)
+                .where(BluebookPhonePark.exam_id == exam_id)
+                .order_by(BluebookPhonePark.student_key)
+            ).all()
+            return [self._phone_park_dict(r) for r in rows]
 
 
 def _past_paper_to_dict(row) -> dict:

@@ -164,6 +164,8 @@ def collection_options(conditions, min_words: int, max_words: int) -> tuple[dict
     lo, hi = int(min_words or 0), int(max_words or 0)
     if "timed" in cond and not isinstance(cond["timed"], bool):
         raise ValueError("timed must be true or false")
+    if "phonePark" in cond and not isinstance(cond["phonePark"], bool):
+        raise ValueError("phonePark must be true or false")
     if "setting" in cond and cond["setting"] not in SETTINGS:
         raise ValueError("setting must be in_class or take_home")
     size = cond.get("size")
@@ -188,6 +190,13 @@ def collection_options(conditions, min_words: int, max_words: int) -> tuple[dict
     return cond, lo, hi
 
 
+def phone_park_required(exam: dict | None) -> bool:
+    """True when the teacher switched phone parking on for this collection.
+    Off unless set: every existing collection behaves exactly as before."""
+    cond = (exam or {}).get("conditions") or {}
+    return isinstance(cond, dict) and cond.get("phonePark") is True
+
+
 # ── Response shaping ──────────────────────────────────────────────────────────
 
 
@@ -205,10 +214,15 @@ def student_view(rec: dict, released: bool = False) -> dict:
     """A submission as its own author sees it: never any score, whatever the
     tenant bought (scores are for staff judgement, not a student display),
     never who graded it, and the mark and feedback only once the teacher has
-    released results for the exam."""
+    released results for the exam.
+
+    ``status`` is dropped too: the seal stores Original's reading there
+    (FLAGGED, INCONCLUSIVE), and a student's own data never carries a
+    comparison, even where no screen shows it."""
     out = {k: v for k, v in rec.items() if k not in SCORE_FIELDS}
     out.pop("tenant_id", None)
     out.pop("graded_by", None)
+    out.pop("status", None)
     out["results_released"] = bool(released)
     if not released:
         for k in GRADE_FIELDS:
