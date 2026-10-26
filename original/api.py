@@ -55,6 +55,7 @@ from .routers import (
     bluebook,
     bluebook_accounts,
     bluebook_baselines,
+    course_join,
     health,
     imports,
     lti_routes,
@@ -635,6 +636,9 @@ app.router.routes.extend(lti_routes.router.routes)
 app.router.routes.extend(bluebook.router.routes)
 app.router.routes.extend(bluebook_accounts.router.routes)
 app.router.routes.extend(bluebook_baselines.router.routes)
+# Course join links (2026-10). Off for every course until its teacher turns
+# joining on.
+app.router.routes.extend(course_join.router.routes)
 app.router.routes.extend(past_papers.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)

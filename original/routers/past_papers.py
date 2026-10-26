@@ -35,7 +35,7 @@ from ..schemas import AddSampleRequest
 from ..upload_utils import extract_text_from_bytes
 from ._shared import _bluebook_tenant, _repo, _require_staff
 from .bluebook import _can_touch
-from .bluebook_accounts import _require_student
+from .bluebook_accounts import _require_student, only_waiting
 from .students_baseline import add_baseline
 
 router = APIRouter()
@@ -109,6 +109,12 @@ def share_past_paper(
     p = _require_student(request)
     if not _has_original(p.tenant_id):
         raise HTTPException(status_code=403, detail=NOT_AVAILABLE)
+    enrolled = {e["course_id"] for e in _repo().list_enrollments_for_student(p.user_id)}
+    if only_waiting(p.user_id, enrolled):
+        raise HTTPException(
+            status_code=403,
+            detail="You can share papers once your teacher has approved you for the course.",
+        )
 
     pasted = (text or "").strip()
     filename = None

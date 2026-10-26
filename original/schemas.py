@@ -294,6 +294,30 @@ class RosterAddRequest(BaseModel):
     send_email: bool = Field(False, description="Email each new invite (when mail is configured)")
 
 
+class JoinSettingsRequest(BaseModel):
+    """PUT /bluebook/courses/{course_id}/join. Fields left out keep their
+    current value."""
+
+    enabled: bool | None = Field(None, description="Whether the join link and code work")
+    allowed_domain: str | None = Field(
+        None, description="Only emails at this domain may join (e.g. school.edu); empty for any"
+    )
+    require_approval: bool | None = Field(
+        None, description="New joiners wait as Pending until the teacher approves them"
+    )
+
+
+class JoinCourseRequest(BaseModel):
+    """POST /auth/join/{code}: a student joins a course by its link or code."""
+
+    name: str = ""
+    email: str
+    password: str
+    accept_terms: bool = Field(
+        False, description="Must be true: the student notice, terms and privacy policy"
+    )
+
+
 class AuthSignupRequest(BaseModel):
     """POST /auth/signup — public teacher self-signup."""
 
