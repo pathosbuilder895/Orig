@@ -3073,6 +3073,22 @@ class TestBluebookSelfServeContract:
         assert repo.get_bluebook_exam("ss-exam") is None
         assert repo.delete_bluebook_exam("ss-exam") is False
 
+    def test_deleting_an_exam_removes_its_drafts_sittings_and_phone_parks(self, repo):
+        repo.put_tenant("ss-d", "SS", environment="pilot")
+        for exam_id in ("ss-gone", "ss-kept"):
+            repo.put_bluebook_exam({"id": exam_id, "tenant_id": "ss-d", "title": exam_id})
+            repo.put_exam_draft(exam_id, "ss-d:ann", "ss-d", "unsealed words", '["unsealed words"]', 1)
+            repo.get_or_create_bluebook_session(exam_id, "ss-d:ann", "ss-d", 600)
+            repo.put_phone_park(exam_id, "ss-d:ann", "ss-d", {})
+        assert repo.delete_bluebook_exam("ss-gone") is True
+        assert repo.get_exam_draft("ss-gone", "ss-d:ann") is None
+        assert repo.get_bluebook_session("ss-gone", "ss-d:ann") is None
+        assert repo.get_phone_park("ss-gone", "ss-d:ann") is None
+        # Another exam's rows for the same student are untouched.
+        assert repo.get_exam_draft("ss-kept", "ss-d:ann")["content"] == "unsealed words"
+        assert repo.get_bluebook_session("ss-kept", "ss-d:ann") is not None
+        assert repo.get_phone_park("ss-kept", "ss-d:ann") is not None
+
     def test_submission_text_warnings_and_queries(self, repo):
         repo.put_tenant("ss-s", "SS", environment="pilot")
         repo.put_tenant("ss-s2", "SS2", environment="pilot")

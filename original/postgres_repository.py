@@ -2184,7 +2184,11 @@ class PostgresRepository:
             return result.rowcount == 1
 
     def delete_bluebook_exam(self, exam_id):
+        # Same as store.delete_bluebook_exam: unsealed drafts, sittings and
+        # phone parks go with the exam (there is no FK cascade).
         with session_scope() as session:
+            for model in (BluebookExamDraft, BluebookSession, BluebookPhonePark):
+                session.execute(model.__table__.delete().where(model.exam_id == exam_id))
             result = session.execute(
                 BluebookExam.__table__.delete().where(BluebookExam.exam_id == exam_id)
             )

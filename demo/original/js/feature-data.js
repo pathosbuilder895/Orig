@@ -153,7 +153,7 @@
       ['latinate_ratio','Latinate Ratio','How many words come from Latin roots (utilize) vs. plain (use).'],
       ['nominalization_density','Nominalization Density','How often actions are turned into nouns: "we discussed" → "a discussion."'],
     ]},
-    { key:'tier16', pill:'Tier 16', name:'Citation Fingerprint', status:'active', c:'#4d90c8',
+    { key:'tier16', pill:'Tier 16', name:'Citation Patterns', status:'active', c:'#4d90c8',
       blurb:'personal habits in how sources are used and cited', features:[
       ['signal_verb_entropy','Signal Verb Entropy','How varied the signal verbs are (argues, claims, notes) vs. always one.'],
       ['signal_verb_assertiveness','Signal Verb Assertiveness','How forcefully the signal verbs frame a claim: "asserts" vs. "suggests."'],
