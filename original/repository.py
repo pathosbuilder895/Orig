@@ -304,6 +304,15 @@ class Repository(Protocol):
     def get_phone_park(self, exam_id: str, student_key: str) -> dict | None: ...
     def list_phone_parks(self, exam_id: str) -> list[dict]: ...
 
+    # ── Course join links (2026-10) ───────────────────────────────────────
+    def get_course_join(self, course_id: str) -> dict | None: ...
+    def get_course_join_by_code(self, code: str) -> dict | None: ...
+    def put_course_join(self, rec: dict) -> bool: ...
+    def put_join_request(self, course_id: str, student_id: str, tenant_id: str) -> None: ...
+    def delete_join_request(self, course_id: str, student_id: str) -> bool: ...
+    def list_join_requests_for_course(self, course_id: str) -> list[dict]: ...
+    def list_join_requests_for_student(self, student_id: str) -> list[dict]: ...
+
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
         self,
@@ -875,6 +884,28 @@ class SqliteRepository:
 
     def list_phone_parks(self, exam_id: str) -> list[dict]:
         return store.list_phone_parks(exam_id)
+
+    # ── Course join links (2026-10) ───────────────────────────────────────
+    def get_course_join(self, course_id: str) -> dict | None:
+        return store.get_course_join(course_id)
+
+    def get_course_join_by_code(self, code: str) -> dict | None:
+        return store.get_course_join_by_code(code)
+
+    def put_course_join(self, rec: dict) -> bool:
+        return store.put_course_join(rec)
+
+    def put_join_request(self, course_id: str, student_id: str, tenant_id: str) -> None:
+        store.put_join_request(course_id, student_id, tenant_id)
+
+    def delete_join_request(self, course_id: str, student_id: str) -> bool:
+        return store.delete_join_request(course_id, student_id)
+
+    def list_join_requests_for_course(self, course_id: str) -> list[dict]:
+        return store.list_join_requests_for_course(course_id)
+
+    def list_join_requests_for_student(self, student_id: str) -> list[dict]:
+        return store.list_join_requests_for_student(student_id)
 
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(

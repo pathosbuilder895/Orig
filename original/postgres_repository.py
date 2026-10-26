@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 import numpy as np
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 
 from .constants import FEATURE_DIM, GENRE_UNKNOWN
 from .core.logging import get_logger
@@ -36,10 +37,12 @@ from .db.models.live import (
     AuditLogEntry,
     BaselineRequest,
     BluebookCourse,
+    BluebookCourseJoin,
     BluebookEnrollment,
     BluebookExam,
     BluebookExamDraft,
     BluebookInvite,
+    BluebookJoinRequest,
     BluebookPhonePark,
     BluebookSession,
     BluebookSubmission,
@@ -377,6 +380,9 @@ class PostgresRepository:
                 BluebookEnrollment.student_id == student_id
             ),
             select(BluebookInvite.user_id).where(BluebookInvite.user_id == student_id),
+            select(BluebookJoinRequest.student_id).where(
+                BluebookJoinRequest.student_id == student_id
+            ),
             select(StaffUser.user_id).where(
                 StaffUser.user_id == student_id, StaffUser.role == "student"
             ),
@@ -551,6 +557,12 @@ class PostgresRepository:
                 session.execute(
                     UserLastLocation.__table__.delete().where(
                         UserLastLocation.account_key == student_id,
+                    )
+                )
+                # Requests to join a course still waiting for approval (2026-10).
+                session.execute(
+                    BluebookJoinRequest.__table__.delete().where(
+                        BluebookJoinRequest.student_id == student_id,
                     )
                 )
                 session.execute(
@@ -2270,6 +2282,16 @@ class PostgresRepository:
                     BluebookEnrollment.course_id == course_id
                 )
             )
+            session.execute(
+                BluebookCourseJoin.__table__.delete().where(
+                    BluebookCourseJoin.course_id == course_id
+                )
+            )
+            session.execute(
+                BluebookJoinRequest.__table__.delete().where(
+                    BluebookJoinRequest.course_id == course_id
+                )
+            )
             result = session.execute(
                 BluebookCourse.__table__.delete().where(BluebookCourse.course_id == course_id)
             )
@@ -3068,6 +3090,105 @@ class PostgresRepository:
                 .order_by(BluebookPhonePark.student_key)
             ).all()
             return [self._phone_park_dict(r) for r in rows]
+
+    # ── Course join links (2026-10) ───────────────────────────────────────
+    # Same contracts as the store.py functions of the same names.
+
+    @staticmethod
+    def _course_join_to_dict(row: BluebookCourseJoin) -> dict:
+        return {
+            "course_id": row.course_id,
+            "tenant_id": row.tenant_id,
+            "code": row.code,
+            "enabled": bool(row.enabled),
+            "allowed_domain": row.allowed_domain or "",
+            "require_approval": bool(row.require_approval),
+            "updated_at": row.updated_at.isoformat(),
+        }
+
+    def get_course_join(self, course_id):
+        with session_scope() as session:
+            row = session.get(BluebookCourseJoin, course_id)
+            return self._course_join_to_dict(row) if row else None
+
+    def get_course_join_by_code(self, code):
+        with session_scope() as session:
+            row = session.execute(
+                select(BluebookCourseJoin).where(BluebookCourseJoin.code == code)
+            ).scalar_one_or_none()
+            return self._course_join_to_dict(row) if row else None
+
+    def put_course_join(self, rec):
+        values = {
+            "code": rec["code"],
+            "enabled": bool(rec["enabled"]),
+            "allowed_domain": rec.get("allowed_domain") or "",
+            "require_approval": bool(rec["require_approval"]),
+            "updated_at": datetime.now(UTC),
+        }
+        try:
+            with session_scope() as session:
+                self._ensure_tenant_exists(session, rec["tenant_id"])
+                session.execute(
+                    pg_insert(BluebookCourseJoin)
+                    .values(course_id=rec["course_id"], tenant_id=rec["tenant_id"], **values)
+                    .on_conflict_do_update(index_elements=["course_id"], set_=values)
+                )
+        except IntegrityError:
+            # The code already belongs to another course.
+            return False
+        return True
+
+    @staticmethod
+    def _join_request_to_dict(row: BluebookJoinRequest) -> dict:
+        return {
+            "course_id": row.course_id,
+            "student_id": row.student_id,
+            "tenant_id": row.tenant_id,
+            "created_at": row.created_at.isoformat(),
+        }
+
+    def put_join_request(self, course_id, student_id, tenant_id):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, tenant_id)
+            session.execute(
+                pg_insert(BluebookJoinRequest)
+                .values(
+                    course_id=course_id,
+                    student_id=student_id,
+                    tenant_id=tenant_id,
+                    created_at=datetime.now(UTC),
+                )
+                .on_conflict_do_nothing(index_elements=["course_id", "student_id"])
+            )
+
+    def delete_join_request(self, course_id, student_id):
+        with session_scope() as session:
+            result = session.execute(
+                BluebookJoinRequest.__table__.delete().where(
+                    BluebookJoinRequest.course_id == course_id,
+                    BluebookJoinRequest.student_id == student_id,
+                )
+            )
+            return result.rowcount == 1
+
+    def list_join_requests_for_course(self, course_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookJoinRequest)
+                .where(BluebookJoinRequest.course_id == course_id)
+                .order_by(BluebookJoinRequest.created_at)
+            ).scalars()
+            return [self._join_request_to_dict(r) for r in rows]
+
+    def list_join_requests_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookJoinRequest)
+                .where(BluebookJoinRequest.student_id == student_id)
+                .order_by(BluebookJoinRequest.created_at)
+            ).scalars()
+            return [self._join_request_to_dict(r) for r in rows]
 
 
 def _past_paper_to_dict(row) -> dict:
