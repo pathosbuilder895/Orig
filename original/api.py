@@ -26,6 +26,7 @@ import asyncio
 import importlib.metadata
 import logging
 import os
+import posixpath
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -377,6 +378,18 @@ _DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})
 _ALWAYS_BLOCKED_STATIC_PREFIXES = frozenset({"/app"})
 
 
+def _static_lookup_path(path: str) -> str:
+    """The path StaticFiles will actually serve for the URL path *path*.
+
+    StaticFiles splits the path on "/" and normalises the join, so empty and
+    dot segments vanish: "//seed.db", "/%2Fseed.db" (decoded to "//seed.db"),
+    "/./seed.db" and "/bluebook//bluebook.bundle.js.map" all serve the gated
+    file. The gates below compare against this resolved form rather than the
+    raw URL, or any of those spellings walks past them.
+    """
+    return posixpath.normpath("/" + path.lstrip("/"))
+
+
 def _is_demo_only_static_path(path: str) -> bool:
     """Return whether *path* belongs to a demo-only static surface.
 
@@ -386,7 +399,7 @@ def _is_demo_only_static_path(path: str) -> bool:
     explicit path-boundary check avoids accidentally hiding a legitimate path
     such as ``/prototypes-public``.
     """
-    normalized = path.rstrip("/") or "/"
+    normalized = _static_lookup_path(path)
     if normalized in _DEMO_ONLY_STATICS:
         return True
     return any(
@@ -396,7 +409,7 @@ def _is_demo_only_static_path(path: str) -> bool:
 
 
 def _is_always_blocked_static_path(path: str) -> bool:
-    normalized = path.rstrip("/") or "/"
+    normalized = _static_lookup_path(path)
     return any(
         normalized == prefix or normalized.startswith(f"{prefix}/")
         for prefix in _ALWAYS_BLOCKED_STATIC_PREFIXES

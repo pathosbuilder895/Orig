@@ -202,3 +202,47 @@ def test_classic_student_pages_served_in_demo(mounted_client, url):
 def test_the_pages_students_use_stay_reachable_in_pilot(mounted_pilot_client):
     for url in ("/bluebook/", "/original/voice.html", "/original/my-work.html", "/legal/student-notice.html"):
         assert mounted_pilot_client.get(url).status_code == 200, url
+
+
+# StaticFiles splits the URL path on "/" and normalises the join, so an empty
+# or dot segment still reaches the gated file. Before the gates compared the
+# resolved path (``original/api.py:_static_lookup_path``), every spelling
+# below was served on a real deploy: ``//seed.db`` returned the database,
+# ``/bluebook//bluebook.bundle.js.map`` the source map, ``//prototypes/`` the
+# prototype index. ``/%2F`` decodes to ``//`` before the middleware sees it.
+GATE_BYPASS_SPELLINGS = (
+    "//seed.db",
+    "/%2Fseed.db",
+    "/./seed.db",
+    "/x/../seed.db",
+    "//student.html",
+    "/bluebook//bluebook.bundle.js.map",
+    "/collections//bluebook.bundle.js.map",
+    "//prototypes/",
+    "//app/index.html",
+    "/./app/index.html",
+)
+
+
+@pytest.mark.parametrize("url", GATE_BYPASS_SPELLINGS)
+def test_gate_bypass_spellings_404_in_pilot(mounted_pilot_client, url):
+    r = mounted_pilot_client.get("http://testserver" + url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}, {len(r.content)} bytes served"
+
+
+@pytest.mark.parametrize(
+    "path,resolved",
+    [
+        ("/", "/"),
+        ("//seed.db", "/seed.db"),
+        ("/./app/", "/app"),
+        ("/x/../seed.db", "/seed.db"),
+        ("/bluebook//bluebook.bundle.js.map", "/bluebook/bluebook.bundle.js.map"),
+        ("/prototypes-public/", "/prototypes-public"),
+    ],
+)
+def test_static_lookup_path_matches_what_staticfiles_serves(path, resolved):
+    import original.api as api_mod
+
+    assert api_mod._static_lookup_path(path) == resolved
+
