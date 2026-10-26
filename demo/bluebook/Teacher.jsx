@@ -747,7 +747,7 @@ export function CoursesListScreen({ onNavigate }) {
     ) },
     { key: 'term', label: 'Term', render: c => c.term || '—' },
     { key: 'students', label: 'Students', num: true },
-    { key: 'exams', label: 'Exams', num: true },
+    { key: 'exams', label: 'Collections', num: true },
     { key: 'status', label: 'Status', render: c => <Badge>{c.active ? 'active' : 'closed'}</Badge> },
     { key: 'open', label: 'Roster', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
   ];
