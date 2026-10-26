@@ -407,6 +407,23 @@ def _sat(live_client):
     return t, s, e, sub
 
 
+def test_saving_feedback_keeps_the_account_students_name(live_client):
+    """The reader merges the PATCH reply into what it shows. An account
+    student's seal carries no candidate (the name comes from the account),
+    so a reply without names turned the student into "Candidate" on the
+    reader and its print sheet once a mark was saved."""
+    t, s, e, sub = _sat(live_client)
+    name = live_client.get(f"/bluebook/submissions/{sub}", headers=_auth(t["token"])).json()[
+        "student"
+    ]
+    assert name and name != "Candidate"
+    r = live_client.patch(
+        f"/bluebook/submissions/{sub}/feedback", json={"mark": "B+"}, headers=_auth(t["token"])
+    )
+    assert r.status_code == 200
+    assert r.json()["student"] == name
+
+
 def test_feedback_is_hidden_until_released(live_client):
     t, s, e, sub = _sat(live_client)
     r = live_client.patch(

@@ -780,7 +780,10 @@ def bluebook_submission_feedback(
         actor=staff.user_id,
         details={"submission_id": submission_id, "marked": bool(mark), "commented": bool(feedback)},
     )
-    return _shape(_repo().get_bluebook_submission(submission_id))
+    # Named like the list and detail routes: the reader merges this reply into
+    # the submission it shows, so a bare row turned an account student's name
+    # into "Candidate" on the reader and its print sheet after saving a mark.
+    return _shape(_with_names([_repo().get_bluebook_submission(submission_id)])[0])
 
 
 def _set_release(exam_id: str, request: Request, released: bool) -> dict:
