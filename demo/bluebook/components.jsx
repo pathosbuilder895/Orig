@@ -581,6 +581,17 @@ export const BB_API = {
   async reissuePending(courseId, sendEmail = false) {
     return (await this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/invites/reissue-pending`, { send_email: sendEmail })).students || [];
   },
+  // A course's join link (original/routers/course_join.py).
+  joinSettings(courseId)        { return this._json('GET', `/bluebook/courses/${encodeURIComponent(courseId)}/join`); },
+  updateJoinSettings(courseId, fields) { return this._json('PUT', `/bluebook/courses/${encodeURIComponent(courseId)}/join`, fields); },
+  resetJoinCode(courseId)       { return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/join/reset`); },
+  approveJoin(courseId, sid) {
+    return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/${encodeURIComponent(sid)}/approve`);
+  },
+  approveAllJoins(courseId)     { return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/approve-all`); },
+  declineJoin(courseId, sid) {
+    return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/${encodeURIComponent(sid)}`);
+  },
   async listStudents()  { return (await this._json('GET', '/bluebook/students')).students || []; },
   examLive(id)          { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/live`); },
   saveFeedback(id, { mark, feedback }) {
@@ -707,6 +718,22 @@ export const BB_API = {
   // and password resets send false and the server ignores it.
   redeemInvite(token, password, acceptTerms = false) {
     return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
+  },
+  // The course a join code names, for the join screen. No sign-in needed.
+  async joinInfo(code) {
+    const r = await fetch(this.base + `/auth/join/${encodeURIComponent(code)}`);
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
+  // Join a course by its code and sign in as the student account it made
+  // (or the existing one, with its own password).
+  joinCourse(code, name, email, password, acceptTerms = false) {
+    return this._auth(`/auth/join/${encodeURIComponent(code)}`,
+      { name, email, password, accept_terms: acceptTerms }, 'We could not add you to the course. Please try again.');
   },
   changePassword(currentPassword, newPassword) {
     return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
