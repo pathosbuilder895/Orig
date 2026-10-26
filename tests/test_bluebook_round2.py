@@ -550,6 +550,8 @@ def test_student_view_rule():
     }
     hidden = rules.student_view(rec)
     assert set(hidden) == {"id", "results_released"}
+    # The seal stores Original's reading in status; the student never gets it.
+    assert "status" not in rules.student_view({**rec, "status": "FLAGGED"}, released=True)
     shown = rules.student_view(rec, released=True)
     assert shown["mark"] == "A" and "graded_by" not in shown and "aiScore" not in shown
 
