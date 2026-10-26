@@ -547,6 +547,36 @@ def test_a_pending_student_sees_no_collections_at_all(live_client, approval_cour
     assert live_client.get(f"/bluebook/me/exams/{everyone['id']}", headers=h).status_code == 200
 
 
+def test_a_pending_student_cannot_start_or_seal_through_the_older_routes(
+    live_client, approval_course
+):
+    """The session and seal routes apply the dashboard's visibility rules
+    (routers/bluebook.py _student_exam_state), so a student waiting for
+    approval cannot reach a workspace-wide collection through them either."""
+    t, c = approval_course["token"], approval_course["course"]
+    everyone = _exam(live_client, t, title="Workspace-wide")
+    out = _join(live_client, approval_course["code"]).json()
+    h = _auth(out["token"])
+    sid = out["student_id"]
+    start = live_client.post(
+        f"/bluebook/exams/{everyone['id']}/session", headers=h, json={"student_id": sid}
+    )
+    assert start.status_code == 404
+    seal = live_client.post(
+        "/bluebook/submissions",
+        headers=h,
+        json={"exam_id": everyone["id"], "student_id": sid, "word_count": 3},
+    )
+    assert seal.status_code == 404
+    assert get_repository().list_bluebook_submissions_for_student(sid) == []
+    # Once approved, the same sitting opens.
+    live_client.post(f"/bluebook/courses/{c}/join-requests/{sid}/approve", headers=_auth(t))
+    again = live_client.post(
+        f"/bluebook/exams/{everyone['id']}/session", headers=h, json={"student_id": sid}
+    )
+    assert again.status_code == 200, again.text
+
+
 def test_approving_puts_the_student_on_the_roster(live_client, approval_course):
     t, c = approval_course["token"], approval_course["course"]
     out = _join(live_client, approval_course["code"]).json()

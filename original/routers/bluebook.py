@@ -365,10 +365,18 @@ _NOT_OPEN = {
 }
 
 
+def only_waiting(student_id: str, enrolled: set[str]) -> bool:
+    """A student who joined by link and is still waiting for approval, and
+    is on no roster: they are not in the workspace yet, so they see none of
+    its collections, not even course-less ones (course_join.py)."""
+    return not enrolled and bool(_repo().list_join_requests_for_student(student_id))
+
+
 def _student_exam_state(exam: dict, sid: str) -> str:
     """The stored exam's state for a signed-in student, after the visibility
     rules /bluebook/me applies (routers/bluebook_accounts.py _visible_exam):
-    a draft, or an exam on a course the student is not enrolled in, is not
+    a draft, an exam on a course the student is not enrolled in, or a
+    course-less one while the student only waits for approval, is not
     found. The session and seal routes below used to check only the
     workspace, so a student could pin a sitting on an upcoming exam by hand
     (after which /bluebook/me/exams/{id} showed its prompt and the dashboard
@@ -378,9 +386,10 @@ def _student_exam_state(exam: dict, sid: str) -> str:
     if state == rules.DRAFT:
         raise HTTPException(status_code=404, detail="exam not found")
     course_id = exam.get("course_id")
-    if course_id and course_id not in {
-        e["course_id"] for e in _repo().list_enrollments_for_student(sid)
-    }:
+    enrolled = {e["course_id"] for e in _repo().list_enrollments_for_student(sid)}
+    if course_id and course_id not in enrolled:
+        raise HTTPException(status_code=404, detail="exam not found")
+    if not course_id and only_waiting(sid, enrolled):
         raise HTTPException(status_code=404, detail="exam not found")
     return state
 

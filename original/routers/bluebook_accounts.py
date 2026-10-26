@@ -26,7 +26,7 @@ from .. import users as users_mod
 from ..schemas import RosterAddRequest, SendEmailRequest
 from . import phone_park
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
-from .bluebook import _owned_course, _owned_exam
+from .bluebook import _owned_course, _owned_exam, only_waiting
 
 router = APIRouter()
 
@@ -465,13 +465,6 @@ def _require_student(request: Request) -> principal_mod.Principal:
     if p.role != "student":
         raise HTTPException(status_code=403, detail="Student account required.")
     return p
-
-
-def only_waiting(student_id: str, enrolled: set[str]) -> bool:
-    """A student who joined by link and is still waiting for approval, and
-    is on no roster: they are not in the workspace yet, so they see none of
-    its collections, not even course-less ones (course_join.py)."""
-    return not enrolled and bool(_repo().list_join_requests_for_student(student_id))
 
 
 def _visible_exam(p: principal_mod.Principal, exam_id: str, now: datetime) -> tuple[dict, str]:

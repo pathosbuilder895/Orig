@@ -34,8 +34,8 @@ from .. import principal as principal_mod
 from ..schemas import AddSampleRequest
 from ..upload_utils import extract_text_from_bytes
 from ._shared import _bluebook_tenant, _repo, _require_staff
-from .bluebook import _can_touch
-from .bluebook_accounts import _require_student, only_waiting
+from .bluebook import _can_touch, only_waiting
+from .bluebook_accounts import _require_student
 from .students_baseline import add_baseline
 
 router = APIRouter()
