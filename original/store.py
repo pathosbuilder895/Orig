@@ -3062,7 +3062,13 @@ def set_user_password_hash(user_id: str, password_hash: str) -> bool:
 
 
 def delete_bluebook_exam(exam_id: str) -> bool:
+    """Delete the exam and what hangs off it before a seal: unsealed drafts,
+    sittings and phone parks. The route refuses an exam with submissions, so
+    this never orphans sealed work; without it a student's unsealed text
+    outlived the exam and only erasing the whole student removed it."""
     with _get_conn() as conn:
+        for table in ("bluebook_exam_drafts", "bluebook_sessions", "bluebook_phone_parks"):
+            conn.execute(f"DELETE FROM {table} WHERE exam_id = ?", (exam_id,))
         cur = conn.execute("DELETE FROM bluebook_exams WHERE exam_id = ?", (exam_id,))
         conn.commit()
     return cur.rowcount == 1

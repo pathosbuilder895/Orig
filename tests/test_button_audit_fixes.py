@@ -314,14 +314,17 @@ def test_the_classic_page_hides_its_demo_controls_until_health_says_demo():
     # Hidden in the markup, so they are hidden before /health answers and when it fails.
     assert parser.found and all(hidden for _, _, hidden in parser.found)
     # Reset Demo; the Admin link (the topbar's and the sidebar's); Operator; the Research group:
-    # its label, Institutions and Validation (both "#"), Lab, Context Audit and Playground.
+    # its label, Institutions and Validation (both "#"), Lab, Context Audit and Playground; and
+    # the "How has this been tested?" card, whose AUC figures come from corpus calibration runs,
+    # not from real student writing (NORTH_STAR rule 2).
     assert marked.count(("button", "resetDemoState")) == 1
     assert marked.count(("a", "admin.html")) == 2
     assert marked.count(("a", "#")) == 2
-    assert marked.count(("div", "")) == 1
+    assert marked.count(("div", "")) == 2
     for href in ("operator.html", "lab.html", "admin-context.html", "playground.html"):
         assert marked.count(("a", href)) == 1, href
-    assert len(marked) == 1 + 2 + 2 + 1 + 4
+    assert len(marked) == 1 + 2 + 2 + 2 + 4
+    assert '<div id="proofCard" data-demo-only hidden' in page
     # The Settings panel (built by script) marks its own Reset and system-link cards the same way.
     assert page.count('<div class="card" data-demo-only hidden') == 2
     assert "Demo data</div>" in page and "System surfaces</div>" in page

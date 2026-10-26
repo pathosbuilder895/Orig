@@ -160,7 +160,7 @@ export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be use
 // What the set-password screen says when the server refuses a link of this kind.
 export function inviteErrorText(message, kind = 'student') {
   if (LINK_REFUSED.test(String(message || ''))) return kind === 'student' ? INVITE_LINK_USED : INVITE_LINK_USED_STAFF;
-  return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.';
+  return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot your password?” on the sign-in page.';
 }
 
 function clearInviteFromUrl() {
@@ -809,7 +809,7 @@ export function StudentAccountScreen({ onNavigate }) {
     <StudentShell onNavigate={onNavigate} active="student-account">
       <Page eyebrow="Account" title={id.name || 'Your account'} meta={id.email}>
         <Panel><h2>Change password</h2><PasswordForm /></Panel>
-        <p className="bb-hint" style={{ marginTop: 20 }}>Forgot your password? Sign out and use “Forgot password”, or ask your teacher for a new link.</p>
+        <p className="bb-hint" style={{ marginTop: 20 }}>Forgot your password? Sign out and use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.</p>
       </Page>
     </StudentShell>
   );
