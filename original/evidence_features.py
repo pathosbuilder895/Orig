@@ -17,8 +17,10 @@ means the extractor already returns a 0–1 score, so the raw value and the
 * ``"measured"``: computed from the paper's text on every scoring call.
 * ``"off"``: a switched-off group (``DISABLED_FEATURE_GROUPS``). Every paper
   gets the fixed middle value, so it cannot differ.
-* ``"placeholder"``: a comparison measurement that the default scoring path
-  does not compute. Every paper gets the placeholder 0.5.
+* ``"not_compared"``: a comparison measurement
+  (``features.baseline_scope.NOT_COMPUTED_FOR_BASELINES``). The paper being
+  scored gets a real value, measured against its past papers, but a past
+  paper's stored vector never has one, so scoring does not compare it.
 
 A test fails if this table and ``constants.ALL_FEATURE_CODES`` ever disagree,
 so a new measurement cannot ship without a description.
@@ -28,7 +30,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from .constants import COMPARISON_CODES, MUSICAL_COMPARISON_CODES, TIER17_CODES, TIER18_CODES
+from .constants import TIER17_CODES, TIER18_CODES
+from .features.baseline_scope import NOT_COMPUTED_FOR_BASELINES
 
 _OFF_KEYSTROKE = (
     "Keystroke measurement from the Bluebook exam app. This group is switched off, so "
@@ -38,9 +41,10 @@ _OFF_UNIFORMITY = (
     "Uniformity measurement (how evenly a habit is spread through the text). This group is "
     "switched off, so every paper gets the fixed middle value and it cannot differ."
 )
-_PLACEHOLDER = (
-    " The default scoring path does not compute it: every paper, past or new, gets the "
-    "placeholder 0.5, so it cannot differ."
+_NOT_COMPARED = (
+    " Original computes it for the paper being scored, against that paper's past papers, "
+    "but not for the past papers themselves, which only hold a fixed stand-in value. "
+    "So it is not compared: it is left out of the score, the top list and the counts."
 )
 
 # code -> (description, unit of the raw value or None)
@@ -465,7 +469,7 @@ _MEASURED: dict[str, tuple[str, str | None]] = {
     ),
 }
 
-_PLACEHOLDER_TEXT: dict[str, str] = {
+_COMPARISON_TEXT: dict[str, str] = {
     "argument_sequence_likelihood": (
         "Compares this paper's sequence of sentence moves with the move patterns in the past "
         "papers."
@@ -502,10 +506,10 @@ def feature_info() -> dict[str, dict[str, str | None]]:
         out[code] = {"description": _OFF_KEYSTROKE, "unit": None, "kind": "off"}
     for code in TIER18_CODES:
         out[code] = {"description": _OFF_UNIFORMITY, "unit": None, "kind": "off"}
-    for code in list(MUSICAL_COMPARISON_CODES) + list(COMPARISON_CODES):
+    for code in NOT_COMPUTED_FOR_BASELINES:
         out[code] = {
-            "description": _PLACEHOLDER_TEXT[code] + _PLACEHOLDER,
+            "description": _COMPARISON_TEXT[code] + _NOT_COMPARED,
             "unit": None,
-            "kind": "placeholder",
+            "kind": "not_compared",
         }
     return out

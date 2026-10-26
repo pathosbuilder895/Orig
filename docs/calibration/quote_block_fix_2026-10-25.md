@@ -59,3 +59,7 @@ Both sides fail the alpha's pre-registered bar (≤5% false flags and ≥75% cau
 ## Re-calibration
 
 NORM_BOUNDS were derived in 2026-03 from a 20-essay set that is not in the repo, so whether the bug skewed them cannot be checked here. The gate corpora (seminary, public_authors) were measured far more completely after this fix. Any threshold or AUC quoted from earlier gate reports (`validation/calibration_report_2026-*.json`) was computed on partially measured texts and should be re-run before it is quoted again. No re-calibration is done in this change.
+
+## Follow-up: comparison measurements (2026-10-25)
+
+The 7 comparison measurements are now left out of the comparison (past papers have no value for them). On this note's seminary proxy and toy fixture through the batch scorer, every deviation and action is unchanged; see `comparison_not_compared_2026-10-25.md`.

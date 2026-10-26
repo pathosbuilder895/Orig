@@ -69,6 +69,7 @@ from .constants import (
 from .evidence_features import feature_info
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
+from .features.baseline_scope import NOT_COMPARED_WORDS
 from .features.tier1 import TextDoc, _tokenize
 
 #: The one label every preliminary score carries (ADR-013). Wording rules:
@@ -1011,7 +1012,8 @@ ALL_FEATURES_ORDERING = (
     "(constants.ALL_FEATURE_CODES). Original's own top list only takes measurements more "
     "than one standard deviation from the writer's usual range, so a measurement can sit "
     "high here and still be missing from that list, for example when the past papers "
-    "themselves vary widely on it."
+    "themselves vary widely on it. Comparison measurements that the past papers have no "
+    "value for come last, not compared and not sized."
 )
 #: Shown when the score's top list used a different past-paper average.
 AVERAGE_DIFFERS_NOTE = (
@@ -1023,7 +1025,7 @@ KIND_WORDS = {
     "located": "counted at places in the text",
     "whole_text": "whole-text measurement",
     "off": "switched off",
-    "placeholder": "not computed by default scoring",
+    "not_compared": NOT_COMPARED_WORDS,
 }
 
 
@@ -1168,9 +1170,31 @@ def build_all_features(
             else:
                 entry["plain_note"] = "The measurement is itself a 0 to 1 score."
             entry["note"] = WHOLE_TEXT_NOTE
+        elif kind == "not_compared":
+            # Past papers have no value for it (features/baseline_scope.py):
+            # no past values, no difference, no size; listed last. This
+            # paper's value is shown only when it is the engine's own (the
+            # API passes it); recomputing from the text gives the stand-in.
+            entry["direction"] = "not_compared"
+            entry["engine_scale"].update(
+                {
+                    "this_paper": _round(this) if submission_vector is not None else None,
+                    "past_papers": [{"paper": label, "value": None} for label in labels],
+                    "past_papers_average": None,
+                    "past_range": None,
+                    "difference": None,
+                    "weighted_size": None,
+                    "outside_past_range": None,
+                }
+            )
+            entry["note"] = NOT_COMPARED_WORDS[0].upper() + NOT_COMPARED_WORDS[1:] + "."
+            entry["kind"] = kind
+            entry["locatable"] = False
+            entries.append(((1, 0.0, d), entry))
+            continue
         entry["kind"] = kind
         entry["locatable"] = kind == "located"
-        entries.append(((-round(size, 12), d), entry))
+        entries.append(((0, -round(size, 12), d), entry))
     entries.sort(key=lambda pair: pair[0])
     out = []
     for rank, (_, entry) in enumerate(entries, start=1):
@@ -1210,6 +1234,7 @@ def _dir_words(direction: str) -> str:
     return {
         "higher": "higher than the past-paper average",
         "lower": "lower than the past-paper average",
+        "not_compared": "not compared",
     }.get(direction, "same as the past-paper average")
 
 
@@ -1217,7 +1242,9 @@ def _fmt(value) -> str:
     return "–" if value is None else f"{value:.3g}"
 
 
-def _signed(value: float) -> str:
+def _signed(value: float | None) -> str:
+    if value is None:
+        return "–"
     return "0" if value == 0 else f"{value:+.3g}"
 
 
@@ -1291,10 +1318,15 @@ def _md_full_entry(f: dict[str, Any]) -> list[str]:
         f"- Original's 0–1 scale: this paper {_fmt(eng['this_paper'])} · past-paper average "
         f"{_fmt(eng['past_papers_average'])} · past papers "
         f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'}" + (f" ({per})" if per else ""),
-        f"- Difference: {_signed(eng['difference'])} on the 0–1 scale; size for sorting "
-        f"{_fmt(eng['weighted_size'])} (× group weight {eng['group_weight']:g})"
-        + ("; outside the range of every past paper" if eng["outside_past_range"] else ""),
     ]
+    if f["kind"] == "not_compared":
+        lines.append(f"- {f['note']}")
+    else:
+        lines.append(
+            f"- Difference: {_signed(eng['difference'])} on the 0–1 scale; size for sorting "
+            f"{_fmt(eng['weighted_size'])} (× group weight {eng['group_weight']:g})"
+            + ("; outside the range of every past paper" if eng["outside_past_range"] else "")
+        )
     if "plain" in f:
         lines.append(_md_plain(f["plain"]))
     elif f.get("plain_note"):
@@ -1498,10 +1530,15 @@ def _html_full_entry(f: dict[str, Any]) -> str:
         f"<tr><td>past-paper average</td><td>{_fmt(eng['past_papers_average'])}</td></tr>"
         f"<tr><td>past-paper range</td><td>"
         f"{(_fmt(rng[0]) + '–' + _fmt(rng[1])) if rng else '–'}</td></tr></table>",
-        f"<p class='note'>Difference {_signed(eng['difference'])} on the 0–1 scale; size for "
-        f"sorting {_fmt(eng['weighted_size'])} (× group weight {eng['group_weight']:g})"
-        + ("; outside the range of every past paper" if eng["outside_past_range"] else "")
-        + ".</p>",
+        (
+            f"<p class='note'>{html.escape(f['note'])}</p>"
+            if f["kind"] == "not_compared"
+            else f"<p class='note'>Difference {_signed(eng['difference'])} on the 0–1 scale; "
+            f"size for sorting {_fmt(eng['weighted_size'])} (× group weight "
+            f"{eng['group_weight']:g})"
+            + ("; outside the range of every past paper" if eng["outside_past_range"] else "")
+            + ".</p>"
+        ),
     ]
     if "plain" in f:
         parts.append(_html_plain(f["plain"]))

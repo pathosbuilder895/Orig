@@ -35,6 +35,7 @@ from ..constants import (
     RECENCY_DECAY,
     TRAJECTORY_MIN_SAMPLES,
 )
+from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
 
 
 @dataclass
@@ -318,13 +319,19 @@ class StudentState:
              A feature never observed in baseline is not an identity marker;
              its presence in a test doc tells us nothing about authorship.
 
+          3. Not computed for past papers: the comparison measurements
+             (features/baseline_scope.py). A past paper's vector never has a
+             value for them, by how it is made, so they are never compared,
+             whatever the stored numbers are and however many samples exist.
+
         Note: we exclude zero-frequency features (all-zero baseline) but NOT
         features with low positive values — those may be genuine identity markers
         (e.g. comma_splice_rate=0.01 ± 0.005 is informative, chiasmus=0.00 is not).
         """
+        compared = ~NOT_COMPUTED_FOR_BASELINES_MASK
         contributing = [s for s in self.samples if s.auth_weight > 0]
         if len(contributing) < 2:
-            return np.ones(FEATURE_DIM, dtype=bool)
+            return compared.copy()
         V = np.stack([s.vector for s in contributing])  # (N, D)
 
         # Condition 1: stuck at neutral placeholder
@@ -343,7 +350,7 @@ class StudentState:
         # all samples, source_integration_style=0.0, arc_resolution_score=0.51.
         constant_value = V.std(axis=0) < 0.008
 
-        return ~(stuck_at_neutral | zero_frequency | constant_value)
+        return ~(stuck_at_neutral | zero_frequency | constant_value) & compared
 
     @property
     def effective_sample_count(self) -> float:

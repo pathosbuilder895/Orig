@@ -95,21 +95,20 @@ test('the note never carries banned wording, even from a server name', () => {
 
 const flat = (v) => ({ this_paper: v, past_papers: past([v, v, v]), past_papers_average: v, past_range: [v, v], difference: 0, weighted_size: 0, group_weight: 1, outside_past_range: false });
 
-test('a comparison computed for this paper only says its past papers are on the placeholder', () => {
-  const one = feature({ kind: 'placeholder', code: 'punctuation_error_ratio', plain: null, engine_scale: { ...flat(0.5), this_paper: 1, difference: 0.5, outside_past_range: true } });
-  assert.equal(EV.isOneSided(one), true);
-  assert.equal(EV.noteFor(one, []),
-    'This paper: 1 (on Original\u2019s 0 to 1 scale). Every past paper has 0.5, the placeholder Original gives a paper when this comparison is not computed for it. ' +
-    'The two numbers are not measured the same way, so this gap says little on its own.');
-  const single = { ...one, engine_scale: { ...one.engine_scale, past_papers: past([0.5]) } };
-  assert.match(EV.noteFor(single, []), /The past paper has 0\.5,/);
-  assert.equal(EV.isOneSided({ ...one, engine_scale: flat(0.5) }), false);
-  assert.equal(EV.isOneSided({ ...one, kind: 'located' }), false);
-  assert.equal(EV.isOneSided({ ...one, engine_scale: { ...one.engine_scale, past_papers: [] } }), false);
-  assert.equal(EV.isOneSided({ ...one, engine_scale: { ...one.engine_scale, past_papers: past([0.5, 0.4]) } }), false);
-  assert.equal(EV.isOneSided({ ...one, engine_scale: { ...one.engine_scale, past_papers: [{ paper: 'p', value: null }] } }), false);
+const notCompared = (es) => ({ this_paper: 1, past_papers: past([null, null, null]), past_papers_average: null, past_range: null,
+  difference: null, weighted_size: null, group_weight: 1, outside_past_range: null, ...es });
+
+test('a comparison measurement past papers have no value for is never listed or compared', () => {
+  const one = feature({ kind: 'not_compared', code: 'punctuation_error_ratio', direction: 'not_compared', plain: null, engine_scale: notCompared({}) });
+  assert.equal(EV.isNotCompared(one), true);
+  assert.equal(EV.NOT_COMPARED_WORDS, 'not compared: past papers have no value for this');
+  assert.equal(EV.noteFor(one, []), 'This paper: 1 (on Original\u2019s 0 to 1 scale). Not compared: past papers have no value for this.');
+  assert.equal(EV.noteFor({ ...one, engine_scale: notCompared({ this_paper: null }) }, []), 'Not compared: past papers have no value for this.');
+  assert.equal(EV.isListed(one), false);
+  assert.equal(EV.isActive(one), false);
+  assert.equal(EV.isNotCompared({ ...one, kind: 'located' }), false);
+  assert.equal(EV.isNotCompared(null), false);
   assert.equal(EV.isConstant(feature({ engine_scale: flat(0.5) })), true);
-  assert.equal(EV.isListed(one), true);
   assert.equal(EV.isListed(feature({ kind: 'off', engine_scale: flat(0.5) })), false);
   assert.equal(EV.isListed(null), false);
 });
@@ -122,26 +121,28 @@ test('the summary counts active measurements, the outside ones, groups and the u
       feature({ rank: 2, code: 'b', group: 4, kind: 'whole_text', engine_scale: { ...feature().engine_scale, outside_past_range: false, difference: 0.01 } }),
       feature({ rank: 3, code: 'c', group: 1, kind: 'whole_text', engine_scale: { ...feature().engine_scale, outside_past_range: false, difference: 0.02 } }),
       feature({ rank: 4, code: 'd', group: 17, kind: 'off', engine_scale: flat(0.5) }),
-      feature({ rank: 5, code: 'e', group: 0, kind: 'placeholder', engine_scale: flat(0.5) }),
-      feature({ rank: 6, code: 'f', group: 0, kind: 'placeholder', engine_scale: flat(0.5) }),
-      feature({ rank: 7, code: 'g', group: 0, kind: 'placeholder', engine_scale: { ...flat(0.5), this_paper: 1 } }),
+      feature({ rank: 5, code: 'e', group: 0, kind: 'not_compared', engine_scale: notCompared({ this_paper: 0.5 }) }),
+      feature({ rank: 6, code: 'f', group: 0, kind: 'not_compared', engine_scale: notCompared({}) }),
+      // Even with differing numbers a not-compared row is never listed or counted.
+      feature({ rank: 7, code: 'g', group: 0, kind: 'not_compared', engine_scale: { ...flat(0.5), this_paper: 1, outside_past_range: true } }),
       feature({ rank: 8, code: 'h', group: 17, kind: 'off', engine_scale: { ...flat(0.5), past_papers: past([0.5, 0.4, 0.5]) } }),
     ],
   };
   const names = { 1: 'Word & Sentence Habits', 4: 'Punctuation Habits' };
   const sum = EV.summarize(ev, (g) => names[g] || '');
-  assert.deepEqual({ ...sum, groups: undefined }, { total: 8, active: 3, outside: 1, within: 2, off: 1, placeholder: 2, oneSided: 1, otherListed: 1, groups: undefined, pastCount: 3, topCount: 1 });
+  assert.deepEqual({ ...sum, groups: undefined }, { total: 8, active: 3, outside: 1, within: 2, off: 1, notCompared: 3, otherListed: 1, groups: undefined, pastCount: 3, topCount: 1 });
   assert.deepEqual(sum.groups.map((g) => [g.name, g.outside, g.active]), [['Word & Sentence Habits', 0, 1], ['Punctuation Habits', 1, 2]]);
   const lines = EV.summarySentences(sum);
   assert.equal(lines[0], 'This paper is outside the past-paper range on 1 of 3 active measurements, and within that range on 2.');
   assert.match(lines[1], /^Each range is simply the lowest to the highest of 3 past papers/);
   assert.equal(lines[2], 'By group: Word & Sentence Habits 0 of 1 outside; Punctuation Habits 1 of 2 outside.');
-  assert.equal(lines[3], '1 comparison measurement had a value for this paper only, with every past paper on the placeholder value, so it is listed below but not counted here.');
-  assert.equal(lines[4], '1 measurement that Original does not normally compare had differing values here, so it is listed below but not counted here.');
-  assert.equal(lines[5], 'Not used in this comparison: 1 measurement switched off and 2 measurements not computed for these papers.');
+  assert.equal(lines[3], '1 measurement that Original does not normally compare had differing values here, so it is listed below but not counted here.');
+  assert.equal(lines[4], 'Not used in this comparison: 1 measurement switched off and 3 comparison measurements not compared, because past papers have no value for them.');
+  assert.equal(lines.length, 5);
+  assert.equal(EV.summarySentences({ ...sum, off: 0, notCompared: 1 }).pop(), 'Not used in this comparison: 1 comparison measurement not compared, because past papers have no value for it.');
   lines.forEach((l) => assert.equal(EV.isClean(l), true));
-  assert.deepEqual(EV.summarySentences(sum, { groups: false }), [lines[0], lines[1], lines[3], lines[4], lines[5]]);
-  assert.deepEqual(ev.all_features.filter(EV.isListed).map((f) => f.code), ['comma_rate', 'b', 'c', 'g', 'h']);
+  assert.deepEqual(EV.summarySentences(sum, { groups: false }), [lines[0], lines[1], lines[3], lines[4]]);
+  assert.deepEqual(ev.all_features.filter(EV.isListed).map((f) => f.code), ['comma_rate', 'b', 'c', 'h']);
   assert.deepEqual(EV.summarySentences(EV.summarize({ all_features: [] })), ['No measurement in this analysis could be compared with past papers.']);
   assert.equal(EV.summarize(null).active, 0);
 });
@@ -182,6 +183,6 @@ test('past papers are called by their stored title when there is one', () => {
   assert.equal(EV.paperName('this paper', papers), 'This paper');
   assert.equal(EV.paperName('past paper 3'), 'Past paper 3');
   assert.equal(EV.plural(1, 'word'), '1 word');
-  assert.equal(EV.isActive({ kind: 'placeholder' }), false);
+  assert.equal(EV.isActive({ kind: 'not_compared' }), false);
   assert.equal(EV.position({ engine_scale: {} }), 'none');
 });
