@@ -246,3 +246,31 @@ def test_static_lookup_path_matches_what_staticfiles_serves(path, resolved):
 
     assert api_mod._static_lookup_path(path) == resolved
 
+
+# T-25: demo/app/ is an unfinished second React dashboard that nothing links
+# to; original/api.py blocks /app on every deploy, including the public demo
+# (its committed .bundle.js.map files expose the full JSX source). Derived
+# from git so a file added there later is covered without editing this list.
+APP_URLS = ["/app/", "/app"] + [
+    "/" + rel[len("demo/") :]
+    for rel in subprocess.run(
+        ["git", "ls-files", "demo/app"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=True,
+    ).stdout.splitlines()
+]
+assert any(u.endswith(".bundle.js.map") for u in APP_URLS), APP_URLS
+
+
+@pytest.mark.parametrize("url", APP_URLS)
+def test_dormant_app_tree_404_in_demo(mounted_client, url):
+    r = mounted_client.get(url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}"
+
+
+@pytest.mark.parametrize("url", APP_URLS)
+def test_dormant_app_tree_404_in_pilot(mounted_pilot_client, url):
+    r = mounted_pilot_client.get(url, follow_redirects=False)
+    assert r.status_code == 404, f"{url} -> {r.status_code}"
