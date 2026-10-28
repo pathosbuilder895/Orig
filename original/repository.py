@@ -268,6 +268,10 @@ class Repository(Protocol):
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
     def void_invites_for_user(self, user_id: str) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
+    def put_join_link(self, rec: dict) -> None: ...
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None: ...
+    def active_join_link_for_course(self, course_id: str) -> dict | None: ...
+    def void_join_links_for_course(self, course_id: str) -> int: ...
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
@@ -814,6 +818,18 @@ class SqliteRepository:
 
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
+
+    def put_join_link(self, rec: dict) -> None:
+        store.put_join_link(rec)
+
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None:
+        return store.get_join_link_by_hash(token_hash)
+
+    def active_join_link_for_course(self, course_id: str) -> dict | None:
+        return store.active_join_link_for_course(course_id)
+
+    def void_join_links_for_course(self, course_id: str) -> int:
+        return store.void_join_links_for_course(course_id)
 
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str

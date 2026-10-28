@@ -3189,6 +3189,42 @@ class TestBluebookSelfServeContract:
         assert repo.get_invite_by_hash("h1")["voided_at"] is None
         assert repo.void_invites_for_user("ss-i:ann") == 0
 
+    def test_join_links_one_active_per_course_and_voiding(self, repo):
+        repo.put_tenant("ss-j", "SS", environment="pilot")
+        repo.put_bluebook_course(
+            {"id": "jc1", "tenant_id": "ss-j", "name": "C", "code": None, "term": None}
+        )
+
+        def link(link_id, token_hash, created_at, course_id="jc1"):
+            return {
+                "link_id": link_id,
+                "tenant_id": "ss-j",
+                "course_id": course_id,
+                "token_hash": token_hash,
+                "created_by": "prof",
+                "created_at": created_at,
+            }
+
+        assert repo.active_join_link_for_course("jc1") is None
+        repo.put_join_link(link("j1", "jh1", "2026-10-01T00:00:00+00:00"))
+        got = repo.get_join_link_by_hash("jh1")
+        assert (got["link_id"], got["course_id"], got["voided_at"]) == ("j1", "jc1", None)
+        assert repo.get_join_link_by_hash("nope") is None
+        assert repo.active_join_link_for_course("jc1")["link_id"] == "j1"
+        assert repo.void_join_links_for_course("jc1") == 1
+        assert repo.void_join_links_for_course("jc1") == 0
+        assert repo.active_join_link_for_course("jc1") is None
+        assert repo.get_join_link_by_hash("jh1")["voided_at"] is not None
+
+        repo.put_join_link(link("j2", "jh2", "2026-10-02T00:00:00+00:00"))
+        repo.put_join_link(link("j3", "jh3", "2026-10-03T00:00:00+00:00", course_id="jc2"))
+        assert repo.active_join_link_for_course("jc1")["link_id"] == "j2"
+        # Deleting the course removes its links, never another course's.
+        assert repo.delete_bluebook_course("jc1") is True
+        assert repo.get_join_link_by_hash("jh2") is None
+        assert repo.get_join_link_by_hash("jh1") is None
+        assert repo.get_join_link_by_hash("jh3")["link_id"] == "j3"
+
 
 class TestBluebookRound2Contract:
     """Round 2 (2026-10): questions, release, answers and grading, both backends."""
