@@ -2536,6 +2536,55 @@
         "title": "InviteRedeemRequest",
         "type": "object"
       },
+      "JoinLinkInfoRequest": {
+        "description": "POST /auth/join/info and POST /bluebook/me/join — a course sign-up link.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "JoinLinkInfoRequest",
+        "type": "object"
+      },
+      "JoinLinkRequest": {
+        "description": "POST /auth/join — create a student account from a course sign-up link.",
+        "properties": {
+          "accept_terms": {
+            "default": false,
+            "description": "Must be true: the student notice, terms and privacy policy",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "JoinLinkRequest",
+        "type": "object"
+      },
       "Layer7OutputResponse": {
         "properties": {
           "ai_likelihood": {
@@ -5534,6 +5583,80 @@
         "summary": "Auth Invite Redeem"
       }
     },
+    "/auth/join": {
+      "post": {
+        "description": "Create (or finish setting up) a student account from a course sign-up\nlink, enrol it on the course, and sign the student in.\n\n- A new email: the account is created in the course's workspace, with the\n  same student id a roster add would give it (derive_student_id).\n- An email the teacher already added that has never set a password: that\n  account is activated (its pending invite is voided).\n- An email whose account already has a password, or that belongs to a\n  teacher or another workspace: refused. The link never sets the\n  password on an account that already has one.\n\nThe student must tick the consent box; nothing is created without it.\nFailures count against a per-IP and per-email budget like invite\nredemption; successes do not, so a class on one school network is not\nthrottled by its own sign-ups.",
+        "operationId": "auth_join_auth_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join"
+      }
+    },
+    "/auth/join/info": {
+      "post": {
+        "description": "What the sign-up screen shows before anyone types: the course and\nits teacher. One answer for every link that cannot be used.",
+        "operationId": "auth_join_info_auth_join_info_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join Info"
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "auth_login_auth_login_post",
@@ -5955,6 +6078,154 @@
           }
         },
         "summary": "Roster Reissue Pending"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link": {
+      "delete": {
+        "description": "Turn the sign-up link off. Accounts already made with it are unaffected.",
+        "operationId": "join_link_disable_bluebook_courses__course_id__join_link_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Disable"
+      },
+      "get": {
+        "description": "The course's sign-up link, if it is on. Off until the teacher turns it on.",
+        "operationId": "join_link_get_bluebook_courses__course_id__join_link_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Get"
+      },
+      "post": {
+        "description": "Turn the sign-up link on. Keeps a link that is already on.",
+        "operationId": "join_link_enable_bluebook_courses__course_id__join_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Enable"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link/regenerate": {
+      "post": {
+        "description": "Replace the sign-up link. The old link stops working at once;\naccounts already made with it are unaffected.",
+        "operationId": "join_link_regenerate_bluebook_courses__course_id__join_link_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Regenerate"
       }
     },
     "/bluebook/courses/{course_id}/students": {
@@ -6966,6 +7237,43 @@
           }
         },
         "summary": "My Exam Start"
+      }
+    },
+    "/bluebook/me/join": {
+      "post": {
+        "description": "A signed-in student opens a course sign-up link: join that course.\nOnly a course in the student's own workspace, and only with an account\n(a launch-link session has none).",
+        "operationId": "me_join_bluebook_me_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Me Join"
       }
     },
     "/bluebook/me/location": {

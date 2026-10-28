@@ -7,7 +7,9 @@ import secrets
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import bluebook_rules as rules
 from .. import invites as invites_mod
+from .. import join_links as join_links_mod
 from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
@@ -18,6 +20,8 @@ from ..schemas import (
     AuthSignupRequest,
     DemoLoginRequest,
     InviteRedeemRequest,
+    JoinLinkInfoRequest,
+    JoinLinkRequest,
     PasswordChangeRequest,
     PasswordResetRequest,
     StudentLoginRequest,
@@ -215,6 +219,159 @@ def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
         details={"terms_version": TERMS_VERSION} if (needs_terms or student_terms) else None,
     )
     return _session_payload(user)
+
+
+# ── Course sign-up links (forwardable, 2026-10) ─────────────────────────────
+# A teacher can turn on one shareable link per course (original/join_links.py).
+# Anyone who opens it creates their own student account and joins the course.
+# Unlike a per-email invite it is not tied to one person, so it never takes
+# over an account that already has a password.
+
+JOIN_LINK_DEAD = (
+    "This sign-up link is not active. It may have been turned off or replaced. "
+    "Ask your teacher for the current link."
+)
+JOIN_EXISTING_ACCOUNT = (
+    "An account with this email already exists. Sign in with your email and "
+    "password, then open this sign-up link again to join the course. If you "
+    "can't sign in, ask your teacher."
+)
+JOIN_OTHER_ACCOUNT = (
+    "This email can't be used with this sign-up link. Ask your teacher to add you to the course."
+)
+_JOIN_CONSENT_REQUIRED = (
+    "Please tick the box to say you have read the student notice and accept the terms."
+)
+
+
+def join_link_target(token: str) -> tuple[dict, dict] | None:
+    """``(link, course)`` for an active link whose course still exists in the
+    link's workspace, else None."""
+    link = join_links_mod.find_active(token)
+    if not link:
+        return None
+    course = _repo().get_bluebook_course(link["course_id"])
+    if not course or course.get("tenant_id") != link["tenant_id"]:
+        return None
+    return link, course
+
+
+def join_enrol(link: dict, course: dict, student_id: str, user: dict) -> None:
+    """Put ``student_id`` on the link's course, within the free-tier cap.
+    Mirrors roster_add: the cap counts only students on no roster yet, and a
+    workspace with Original gets the profile record its roster reads."""
+    tenant = course["tenant_id"]
+    if rules.is_self_serve(_repo().get_tenant(tenant)):
+        new = 0 if _repo().list_enrollments_for_student(student_id) else 1
+        if _repo().count_enrolled_students(tenant) + new > rules.MAX_ENROLLED_STUDENTS:
+            raise HTTPException(
+                status_code=403,
+                detail="This course is full. Ask your teacher.",
+            )
+    if "original" in principal_mod.tenant_products(tenant):
+        _repo().get_or_create(student_id)
+        _repo().set_display_name(
+            student_id, user.get("name") or (user.get("email") or "").split("@")[0]
+        )
+    _repo().put_enrollment(course["id"], student_id, tenant)
+
+
+@router.post("/auth/join/info")
+def auth_join_info(body: JoinLinkInfoRequest, request: Request):
+    """What the sign-up screen shows before anyone types: the course and
+    its teacher. One answer for every link that cannot be used."""
+    _throttle_login(request, "", scope="join")
+    target = join_link_target(body.token)
+    if not target:
+        _record_login_failure(request, "", scope="join")
+        raise HTTPException(status_code=404, detail=JOIN_LINK_DEAD)
+    link, course = target
+    teacher = _repo().get_user(link["created_by"]) or {}
+    return {
+        "course_name": course.get("name") or "",
+        "course_code": course.get("code") or "",
+        "teacher_name": teacher.get("name") or "",
+    }
+
+
+@router.post("/auth/join", status_code=201)
+def auth_join(body: JoinLinkRequest, request: Request):
+    """Create (or finish setting up) a student account from a course sign-up
+    link, enrol it on the course, and sign the student in.
+
+    - A new email: the account is created in the course's workspace, with the
+      same student id a roster add would give it (derive_student_id).
+    - An email the teacher already added that has never set a password: that
+      account is activated (its pending invite is voided).
+    - An email whose account already has a password, or that belongs to a
+      teacher or another workspace: refused. The link never sets the
+      password on an account that already has one.
+
+    The student must tick the consent box; nothing is created without it.
+    Failures count against a per-IP and per-email budget like invite
+    redemption; successes do not, so a class on one school network is not
+    throttled by its own sign-ups."""
+    email = body.email.strip().lower()
+    _throttle_login(request, email, scope="join")
+    target = join_link_target(body.token)
+    if not target:
+        _record_login_failure(request, email, scope="join")
+        raise HTTPException(status_code=400, detail=JOIN_LINK_DEAD)
+    link, course = target
+    tenant = course["tenant_id"]
+    name = body.name.strip()[:120]
+    if not name:
+        raise HTTPException(status_code=422, detail="Please enter your name.")
+    if not email or "@" not in email or len(email) > 254:
+        raise HTTPException(status_code=422, detail="A valid email is required.")
+    _check_new_password(body.password)
+    if not body.accept_terms:
+        raise HTTPException(status_code=422, detail=_JOIN_CONSENT_REQUIRED)
+
+    sid = student_auth.derive_student_id(tenant, email)
+    existing = _repo().get_user_by_email(email)
+    if existing:
+        if users_mod.is_activated(existing):
+            _record_login_failure(request, email, scope="join")
+            raise HTTPException(status_code=409, detail=JOIN_EXISTING_ACCOUNT)
+        if existing["user_id"] != sid or existing["role"] != "student":
+            _record_login_failure(request, email, scope="join")
+            raise HTTPException(status_code=409, detail=JOIN_OTHER_ACCOUNT)
+
+    # Cap before anything is written, so a full course creates no account.
+    if rules.is_self_serve(_repo().get_tenant(tenant)):
+        new = 0 if _repo().list_enrollments_for_student(sid) else 1
+        if _repo().count_enrolled_students(tenant) + new > rules.MAX_ENROLLED_STUDENTS:
+            raise HTTPException(status_code=403, detail="This course is full. Ask your teacher.")
+
+    try:
+        user, created = users_mod.create_student_account(tenant, email, name)
+    except ValueError:
+        _record_login_failure(request, email, scope="join")
+        raise HTTPException(status_code=409, detail=JOIN_OTHER_ACCOUNT) from None
+    if users_mod.is_activated(user):
+        # Raced with another sign-up or sign-in for this email: never
+        # overwrite a password that is already set.
+        raise HTTPException(status_code=409, detail=JOIN_EXISTING_ACCOUNT)
+    users_mod.set_password(user["user_id"], body.password)
+    # The student chose their own password, so a one-time link the teacher
+    # may still hold for this account must not be able to replace it.
+    _repo().void_invites_for_user(user["user_id"])
+    join_enrol(link, course, user["user_id"], user)
+    _repo().log_audit(
+        action="join_link_signup",
+        student_id=user["user_id"],
+        tenant_id=tenant,
+        actor=user["email"],
+        result="ok",
+        details={
+            "course_id": course["id"],
+            "link_id": link["link_id"],
+            "account": "created" if created else "activated",
+            "terms_version": TERMS_VERSION,
+        },
+    )
+    return _session_payload(_repo().get_user(user["user_id"]) or user)
 
 
 @router.post("/auth/password")

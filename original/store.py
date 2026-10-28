@@ -751,6 +751,23 @@ def _init_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
             ON bluebook_invites(user_id)
     """)
+    # Forwardable course sign-up links (2026-10). Only the sha256 of the
+    # token is stored; voided_at set = turned off or replaced.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_join_links (
+            link_id     TEXT PRIMARY KEY,
+            tenant_id   TEXT NOT NULL,
+            course_id   TEXT NOT NULL,
+            token_hash  TEXT NOT NULL UNIQUE,
+            created_by  TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            voided_at   TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_join_links_course
+            ON bluebook_join_links(course_id)
+    """)
     conn.commit()
 
 
@@ -3138,6 +3155,7 @@ def delete_bluebook_course(course_id: str) -> bool:
     """Delete a course and its roster. Callers refuse first when exams use it."""
     with _get_conn() as conn:
         conn.execute("DELETE FROM bluebook_enrollments WHERE course_id = ?", (course_id,))
+        conn.execute("DELETE FROM bluebook_join_links WHERE course_id = ?", (course_id,))
         cur = conn.execute("DELETE FROM bluebook_courses WHERE course_id = ?", (course_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3303,6 +3321,70 @@ def redeem_invite(invite_id: str) -> bool:
         )
         conn.commit()
     return cur.rowcount == 1
+
+
+_JOIN_LINK_COLS = "link_id, tenant_id, course_id, token_hash, created_by, created_at, voided_at"
+
+
+def _join_link_to_dict(row) -> dict:
+    return {
+        "link_id": row[0],
+        "tenant_id": row[1],
+        "course_id": row[2],
+        "token_hash": row[3],
+        "created_by": row[4],
+        "created_at": row[5],
+        "voided_at": row[6],
+    }
+
+
+def put_join_link(rec: dict) -> None:
+    """Insert one course join link. Timestamps are ISO."""
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO bluebook_join_links ({_JOIN_LINK_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                rec["link_id"],
+                rec["tenant_id"],
+                rec["course_id"],
+                rec["token_hash"],
+                rec["created_by"],
+                rec["created_at"],
+                None,
+            ),
+        )
+        conn.commit()
+
+
+def get_join_link_by_hash(token_hash: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def active_join_link_for_course(course_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links "
+            "WHERE course_id = ? AND voided_at IS NULL ORDER BY created_at DESC LIMIT 1",
+            (course_id,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def void_join_links_for_course(course_id: str) -> int:
+    """Void every active join link for this course."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_join_links SET voided_at = ? "
+            "WHERE course_id = ? AND voided_at IS NULL",
+            (datetime.now(UTC).isoformat(), course_id),
+        )
+        conn.commit()
+    return cur.rowcount
 
 
 def list_tenants(environment: str | None = None) -> list[dict]:

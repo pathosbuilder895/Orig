@@ -36,6 +36,7 @@ from original.db.models.live import (
     BluebookEnrollment,
     BluebookExam,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -88,6 +89,7 @@ EXPECTED_TABLES = {
     "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
     "user_last_location",  # where each account last was, for cross-device resume (2026-10)
     "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
+    "bluebook_join_links",  # forwardable course sign-up links (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -341,6 +343,15 @@ REPRESENTATIVE_ROWS = {
         created_at=NOW,
         expires_at=NOW,
         redeemed_at=None,
+        voided_at=None,
+    ),
+    BluebookJoinLink: dict(
+        link_id="jl-001",
+        tenant_id=TENANT_ID,
+        course_id="c-001",
+        token_hash="c" * 64,
+        created_by="prof-001",
+        created_at=NOW,
         voided_at=None,
     ),
     FormationPathway: dict(
