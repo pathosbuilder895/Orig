@@ -236,6 +236,11 @@ JOIN_EXISTING_ACCOUNT = (
     "password, then open this sign-up link again to join the course. If you "
     "can't sign in, ask your teacher."
 )
+JOIN_PENDING_INVITE = (
+    "Your teacher has already added this email to a course. Use the personal "
+    "invite link your teacher sent you to set your password, or ask your "
+    "teacher to resend it."
+)
 JOIN_OTHER_ACCOUNT = (
     "This email can't be used with this sign-up link. Ask your teacher to add you to the course."
 )
@@ -301,11 +306,10 @@ def auth_join(body: JoinLinkRequest, request: Request):
 
     - A new email: the account is created in the course's workspace, with the
       same student id a roster add would give it (derive_student_id).
-    - An email the teacher already added that has never set a password: that
-      account is activated (its pending invite is voided).
-    - An email whose account already has a password, or that belongs to a
-      teacher or another workspace: refused. The link never sets the
-      password on an account that already has one.
+    - Any email that already has an account is refused: one with a password
+      (sign in instead), one the teacher added that has never set a password
+      (use the personal invite link), and a teacher's or another workspace's.
+      The link only ever sets the password on an account it just created.
 
     The student must tick the consent box; nothing is created without it.
     Failures count against a per-IP and per-email budget like invite
@@ -337,6 +341,10 @@ def auth_join(body: JoinLinkRequest, request: Request):
         if existing["user_id"] != sid or existing["role"] != "student":
             _record_login_failure(request, email, scope="join")
             raise HTTPException(status_code=409, detail=JOIN_OTHER_ACCOUNT)
+        # Added by the teacher but never activated: that account belongs to
+        # its personal one-time invite. The link must not claim it.
+        _record_login_failure(request, email, scope="join")
+        raise HTTPException(status_code=409, detail=JOIN_PENDING_INVITE)
 
     # Cap before anything is written, so a full course creates no account.
     if rules.is_self_serve(_repo().get_tenant(tenant)):
@@ -349,14 +357,14 @@ def auth_join(body: JoinLinkRequest, request: Request):
     except ValueError:
         _record_login_failure(request, email, scope="join")
         raise HTTPException(status_code=409, detail=JOIN_OTHER_ACCOUNT) from None
-    if users_mod.is_activated(user):
-        # Raced with another sign-up or sign-in for this email: never
-        # overwrite a password that is already set.
-        raise HTTPException(status_code=409, detail=JOIN_EXISTING_ACCOUNT)
+    if not created:
+        # Raced with a roster add or another sign-up for this email: only an
+        # account this request created may get its password here.
+        raise HTTPException(
+            status_code=409,
+            detail=JOIN_EXISTING_ACCOUNT if users_mod.is_activated(user) else JOIN_PENDING_INVITE,
+        )
     users_mod.set_password(user["user_id"], body.password)
-    # The student chose their own password, so a one-time link the teacher
-    # may still hold for this account must not be able to replace it.
-    _repo().void_invites_for_user(user["user_id"])
     join_enrol(link, course, user["user_id"], user)
     _repo().log_audit(
         action="join_link_signup",
@@ -367,7 +375,6 @@ def auth_join(body: JoinLinkRequest, request: Request):
         details={
             "course_id": course["id"],
             "link_id": link["link_id"],
-            "account": "created" if created else "activated",
             "terms_version": TERMS_VERSION,
         },
     )

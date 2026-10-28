@@ -17,6 +17,7 @@ from original import bluebook_rules as rules
 from original import join_links as join_links_mod
 from original import principal as principal_mod
 from original import student_auth
+from original import users as users_mod
 from original.repository import get_repository
 
 PW = "s3cret-passw0rd"
@@ -309,25 +310,56 @@ def test_email_from_another_workspace_is_refused(live_client, setup):
     assert _roster(live_client, t["token"], course) == []
 
 
-def test_unactivated_roster_account_is_activated_and_its_invite_voided(live_client, setup):
+def test_invited_but_unredeemed_account_is_refused_and_its_invite_still_works(live_client, setup):
     t, course = setup
+    # Added by email on another course in the same workspace: the sign-up
+    # link for this course must not claim the account either.
+    other_course = _course(live_client, t["token"], name="Logic")
     row = live_client.post(
-        f"/bluebook/courses/{course}/students",
+        f"/bluebook/courses/{other_course}/students",
         json={"students": [{"email": "added@x.edu", "name": "Added By Teacher"}]},
         headers=_auth(t["token"]),
     ).json()["students"][0]
     invite_token = parse_qs(urlparse(row["invite_path"]).query)["invite"][0]
     tok = _tok(_enable(live_client, t["token"], course))
-    r = _join(live_client, tok, email="added@x.edu", name="Typed Name")
-    assert r.status_code == 201, r.text
-    assert r.json()["tenant_id"] == t["tenant_id"]
-    rows = _roster(live_client, t["token"], course)
-    assert [(x["student_id"], x["state"]) for x in rows] == [(row["student_id"], "active")]
-    # The teacher's one-time link can no longer replace the student's password.
-    r = live_client.post(
-        "/auth/invite/redeem", json={"token": invite_token, "password": "hijack-pass"}
+    r = _join(live_client, tok, email="Added@X.edu", name="Typed Name", pw="link-password")
+    assert r.status_code == 409
+    assert "invite link" in r.json()["detail"]
+    assert "resend" in r.json()["detail"]
+    # Nothing changed: not activated, no password, not on this course.
+    user = get_repository().get_user(row["student_id"])
+    assert not users_mod.is_activated(user)
+    assert user["name"] == "Added By Teacher"
+    assert _roster(live_client, t["token"], course) == []
+    login = live_client.post(
+        "/auth/login", json={"email": "added@x.edu", "password": "link-password"}
     )
-    assert r.status_code == 400
+    assert login.status_code == 401
+    # The personal invite still works, once, as before.
+    r = live_client.post("/auth/invite/redeem", json={"token": invite_token, "password": PW})
+    assert r.status_code == 200, r.text
+    rows = _roster(live_client, t["token"], other_course)
+    assert [(x["student_id"], x["state"]) for x in rows] == [(row["student_id"], "active")]
+
+
+def test_race_with_a_roster_add_never_sets_the_password(live_client, setup, monkeypatch):
+    """If the teacher adds the email between the check and the create, the
+    link still refuses rather than setting that account's password."""
+    from original.routers import auth as auth_routes
+
+    t, course = setup
+    tok = _tok(_enable(live_client, t["token"], course))
+    real = users_mod.create_student_account
+
+    def racing(tenant, email, name=""):
+        real(tenant, email, "Added By Teacher")
+        return real(tenant, email, name)
+
+    monkeypatch.setattr(auth_routes.users_mod, "create_student_account", racing)
+    r = _join(live_client, tok, email="race@x.edu")
+    assert r.status_code == 409
+    user = get_repository().get_user_by_email("race@x.edu")
+    assert not users_mod.is_activated(user)
 
 
 def test_cap_is_enforced(live_client, setup, monkeypatch):

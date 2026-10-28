@@ -284,6 +284,7 @@ export function InviteScreen({ onNavigate }) {
 // creates their own student account here (name, email, password, and the
 // student notice) and lands on that course. It never sets a password on an
 // account that already has one: that person signs in and opens the link again.
+// An email the teacher already added uses its personal invite link instead.
 function joinTokenFromUrl() {
   try { return new URLSearchParams(window.location.search).get('join') || ''; } catch (e) { return ''; }
 }
@@ -346,7 +347,8 @@ export function JoinScreen({ onNavigate }) {
       const data = await BB_API.joinSignup(token, name.trim(), email.trim(), pw, true);
       await finish(data);
     } catch (err) {
-      if (err.status === 409) setHasAccount(true);
+      // Only an account with a password can sign in; an invited one uses its own invite link.
+      if (err.status === 409 && /sign in/i.test(err.message || '')) setHasAccount(true);
       if (err.status === 400) setDead(err.message);
       setError(err.message || 'Could not create your account.');
       setBusy(false);

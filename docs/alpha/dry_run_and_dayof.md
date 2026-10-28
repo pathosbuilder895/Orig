@@ -22,7 +22,7 @@ Instead of adding each person by email, Andrew can turn on one sign-up link per 
 - **Turn on:** Courses → the course's roster → **Sign-up link** → **Turn on sign-up link**, then **Copy**. The link is off until turned on and does not expire.
 - **What a student sees:** the course name and Andrew's name, then name, email, password (8+ characters) and the student-notice consent box. Nothing is created until they tick it. They land on the course, signed in, and show up on the roster as active.
 - **Already has an account** (email has a password): they are told to sign in and open the link again; signed in, the link offers **Join this course**. The link never changes an existing password.
-- **Added by email but never set a password:** the link finishes that same account (their old one-time invite link stops working).
+- **Added by email but never set a password:** the link refuses them and says to use the personal invite link the teacher sent (or ask for it to be resent). Their invite keeps working; reissue it from the roster if they lost it.
 - **Turn off** stops new sign-ups; **Replace link** kills the old link and makes a new one. Accounts already made are kept either way.
 - **Consent:** people who get a forwarded link will not have heard Andrew's explanation first; the student notice and the consent box are all they see. Collect the consent form response as usual (Rolling checks), or keep the link off and add people by email.
 - **Test it** in a private window (signing up in a browser where Andrew is signed in signs him out there).
