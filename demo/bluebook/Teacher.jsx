@@ -834,6 +834,63 @@ function InviteLink({ path, expires, emailed }) {
   );
 }
 
+// The course's forwardable sign-up link. One link for the whole course:
+// anyone who opens it makes their own student account (with the student
+// notice) and joins. Off until the teacher turns it on; it stays on until
+// they turn it off or replace it.
+export function SignupLinkPanel({ courseId }) {
+  const [link, setLink] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    BB_API.joinLinkGet(courseId).then(setLink).catch(err => setError(err.message || 'Could not load the sign-up link.'));
+  }, [courseId]);
+
+  async function run(fn, ask) {
+    if (ask && !confirm(ask)) return;
+    setBusy(true); setError('');
+    try { setLink(await fn(courseId)); }
+    catch (err) { setError(err.message || 'Could not change the sign-up link.'); }
+    setBusy(false);
+  }
+
+  const url = link && (link.join_url || (link.join_path ? absoluteLink(link.join_path) : ''));
+  return (
+    <Panel className="bb-signup-link" style={{ marginBottom: '1.5rem' }}>
+      <h2>Sign-up link</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+        One link for the whole course. Anyone who opens it can create their own student account and join this course,
+        so it can be forwarded. Each person reads the student notice and ticks the consent box before their account is made.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {link === null && !error && <p className="bb-hint">Loading…</p>}
+      {link && !link.enabled && (
+        <div className="bb-actions">
+          <Btn primary disabled={busy} onClick={() => run(id => BB_API.joinLinkEnable(id))}>{busy ? 'Turning on…' : 'Turn on sign-up link'}</Btn>
+        </div>
+      )}
+      {link && link.enabled && (
+        <>
+          {url ? (
+            <div className="bb-linkrow" style={{ marginBottom: '.6rem' }}>
+              <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Sign-up link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
+              <LinkBtn onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</LinkBtn>
+            </div>
+          ) : (
+            <p className="bb-error">This link can no longer be shown. Replace it to get a new one.</p>
+          )}
+          <div className="bb-actions">
+            <Btn disabled={busy} onClick={() => run(id => BB_API.joinLinkRegenerate(id), 'Replace the sign-up link? The current link stops working at once. Accounts already made with it are kept.')}>Replace link</Btn>
+            <LinkBtn muted disabled={busy} onClick={() => run(id => BB_API.joinLinkDisable(id), 'Turn off the sign-up link? Nobody new can join with it. Accounts already made with it are kept.')}>Turn off</LinkBtn>
+          </div>
+          <p className="bb-hint" style={{ marginTop: '.6rem' }}>On until you turn it off or replace it. Someone whose email already has an account is asked to sign in instead.</p>
+        </>
+      )}
+    </Panel>
+  );
+}
+
 export function RosterScreen({ onNavigate }) {
   const course = window.BB_ROSTER_COURSE;
   const [rows, setRows] = useState(null);
@@ -966,6 +1023,8 @@ export function RosterScreen({ onNavigate }) {
         </form>
         {errors.map(r => <ErrorText key={r.email}>{r.email}: {r.error}</ErrorText>)}
       </Panel>
+
+      <SignupLinkPanel courseId={course.id} />
 
       {(linkRows.length > 0 || invited > 0) && (
         <Panel className="bb-invite-links" style={{ marginBottom: '1.5rem' }}>

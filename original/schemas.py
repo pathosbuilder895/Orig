@@ -314,6 +314,25 @@ class InviteRedeemRequest(BaseModel):
     )
 
 
+class JoinLinkInfoRequest(BaseModel):
+    """POST /auth/join/info and POST /bluebook/me/join — a course sign-up link."""
+
+    token: str
+
+
+class JoinLinkRequest(BaseModel):
+    """POST /auth/join — create a student account from a course sign-up link."""
+
+    token: str
+    name: str
+    email: str
+    password: str
+    accept_terms: bool = Field(
+        False,
+        description="Must be true: the student notice, terms and privacy policy",
+    )
+
+
 class PasswordChangeRequest(BaseModel):
     """POST /auth/password."""
 

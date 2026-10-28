@@ -67,6 +67,7 @@ from original.db.models.live import (
     BluebookEnrollment,
     BluebookExam,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -1179,6 +1180,47 @@ class _BluebookInviteMigrator(_Migrator):
         ]
 
 
+class _BluebookJoinLinkMigrator(_Migrator):
+    """Forwardable course sign-up links (2026-10). Only token hashes exist
+    in either store, so copying them moves no usable credential."""
+
+    name = "bluebook_join_links"
+    model = BluebookJoinLink
+    pk = "link_id"
+
+    _COLS = (
+        "link_id",
+        "tenant_id",
+        "course_id",
+        "token_hash",
+        "created_by",
+        "created_at",
+        "voided_at",
+    )
+    _TS = {"created_at", "voided_at"}
+
+    def _canon(self, values):
+        return {
+            c: (_canon_ts(v) if c in self._TS else v)
+            for c, v in zip(self._COLS, values, strict=True)
+        }
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_join_links").fetchall()
+        return [self._canon(r) for r in rows]
+
+    def to_model(self, row):
+        return BluebookJoinLink(
+            **{c: (_parse_ts(row[c]) if c in self._TS else row[c]) for c in self._COLS}
+        )
+
+    def read_pg(self, session):
+        return [
+            self._canon([getattr(i, c) for c in self._COLS])
+            for i in session.query(BluebookJoinLink).all()
+        ]
+
+
 class _ConsumedAttestationMigrator(_Migrator):
     """T-69: the proctor-attestation single-use ledger. No tenant FK,
     mirroring audit_log — see the tenants-referenced-set comment near
@@ -1600,6 +1642,7 @@ MIGRATORS: list[_Migrator] = [
     _BluebookSessionMigrator(),
     _BluebookEnrollmentMigrator(),
     _BluebookInviteMigrator(),
+    _BluebookJoinLinkMigrator(),
     _AuditMigrator(),
     _ConsumedAttestationMigrator(),
     _FormationMigrator(),

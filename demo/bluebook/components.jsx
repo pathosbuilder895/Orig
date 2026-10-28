@@ -567,6 +567,12 @@ export const BB_API = {
   async reissuePending(courseId, sendEmail = false) {
     return (await this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/invites/reissue-pending`, { send_email: sendEmail })).students || [];
   },
+  // The course's forwardable sign-up link: one link anyone can use to make
+  // their own student account on this course. Off until the teacher turns it on.
+  joinLinkGet(courseId)        { return this._json('GET',    `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
+  joinLinkEnable(courseId)     { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
+  joinLinkRegenerate(courseId) { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link/regenerate`); },
+  joinLinkDisable(courseId)    { return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
   async listStudents()  { return (await this._json('GET', '/bluebook/students')).students || []; },
   examLive(id)          { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/live`); },
   saveFeedback(id, { mark, feedback }) {
@@ -694,6 +700,33 @@ export const BB_API = {
   redeemInvite(token, password, acceptTerms = false) {
     return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
   },
+  // A course sign-up link (?join=): what it is for, before anyone types.
+  async joinInfo(token) {
+    const r = await fetch(this.base + '/auth/join/info', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+    });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, 'This sign-up link could not be opened.'));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
+  // Create a student account from a course sign-up link and sign in.
+  async joinSignup(token, name, email, password, acceptTerms) {
+    const r = await fetch(this.base + '/auth/join', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name, email, password, accept_terms: acceptTerms }),
+    });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, 'Could not create your account.'));
+      err.status = r.status;
+      throw err;
+    }
+    return this._storeSession(await r.json());
+  },
+  // A signed-in student opens a course sign-up link: join that course.
+  meJoin(token) { return this._json('POST', '/bluebook/me/join', { token }); },
   changePassword(currentPassword, newPassword) {
     return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
   },
