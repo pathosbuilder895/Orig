@@ -374,7 +374,7 @@ def _magnitude(delta: float) -> str | None:
 
 @dataclass
 class ProfessorExplanation:
-    headline: str  # one-sentence verdict in plain English
+    headline: str  # one plain-English sentence, never a verdict
     summary: str  # 2-3 sentence opening paragraph
     observations: list[str]  # 3-5 specific observations, each a complete sentence
     hypotheses: list[str]  # 2-4 non-accusatory possible explanations
@@ -393,32 +393,28 @@ class ProfessorExplanation:
 
 def _build_headline(deviation: float, student_name: str) -> str:
     """
-    Lead with what was CONFIRMED, not what deviated.
-    Same math — opposite emotion. Teachers are defenders, not prosecutors.
+    One plain sentence on how far this piece sits from the student's usual
+    writing. No percentage: a number beside a name reads as a probability,
+    and nothing here confirms who wrote anything (NORTH_STAR rules 1 and 2).
+    The bands are the same as before; only the words changed.
     """
-    # Express as voice-match confidence (what we confirmed)
-    confidence_pct = max(0, int(round((1.0 - min(deviation, 1.0)) * 100)))
     name = student_name
 
     if deviation < 0.30:
-        return (
-            f"{name}'s writing is {confidence_pct}% consistent with their "
-            f"established voice — this submission is confirmed authentic."
-        )
+        return f"{name}'s writing here sits close to their usual writing."
     if deviation < 0.55:
         return (
-            f"{name}'s writing is {confidence_pct}% consistent with their "
-            f"established voice, with a few areas worth a closer look."
+            f"{name}'s writing here is mostly close to their usual writing, "
+            f"with a few areas worth a closer look."
         )
     if deviation < 0.75:
         return (
-            f"This submission is {confidence_pct}% consistent with {name}'s "
-            f"established voice — notable differences are present."
+            f"Several of {name}'s habits differ from their usual writing here; "
+            f"notable differences are present."
         )
     return (
-        f"This submission is {confidence_pct}% consistent with {name}'s "
-        f"established voice — the difference is substantial enough to warrant "
-        f"a conversation."
+        f"Many of {name}'s habits differ markedly from their usual writing here, "
+        f"enough to be worth a conversation, not a conclusion."
     )
 
 
@@ -641,10 +637,7 @@ def _build_hypotheses(
 def _build_suggested_action(action: str, student_name: str) -> str:
     name = student_name
     if action == "no_action":
-        return (
-            f"Voice confirmed — no action needed. This submission is consistent with "
-            f"{name}'s established writing. Return it with confidence."
-        )
+        return f"No action needed. This submission is consistent with {name}'s usual writing."
     if action == "monitor":
         return (
             f"Keep this result in context as you read {name}'s next submission. "

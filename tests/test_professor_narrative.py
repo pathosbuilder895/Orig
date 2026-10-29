@@ -65,65 +65,45 @@ class TestMagnitude:
 
 
 class TestBuildHeadline:
-    def test_low_deviation_no_concern(self):
-        # Polarity reframe: lead with positive confidence %, "confirmed authentic"
+    def test_low_deviation_close_to_usual(self):
         h = _build_headline(0.20, "Jane")
         assert "Jane" in h
-        # Should lead with what was CONFIRMED (≥80%), not what deviated
-        assert "%" in h
-        assert "consistent" in h.lower()
-        assert "confirmed" in h.lower()
+        assert "close to their usual writing" in h
 
     def test_medium_deviation_some_differences(self):
         h = _build_headline(0.40, "Marcus")
         assert "Marcus" in h
-        assert "%" in h
-        assert "consistent" in h.lower()
         # Should note areas to explore, not lead with accusation
-        assert "closer look" in h.lower() or "areas" in h.lower() or "exploring" in h.lower()
+        assert "closer look" in h.lower()
 
     def test_high_deviation_noticeable(self):
         h = _build_headline(0.60, "Alex")
         assert "Alex" in h
-        assert "%" in h
-        assert "consistent" in h.lower()
-        # Notable differences, not "noticeably different"
-        assert "notable" in h.lower() or "differences" in h.lower()
+        assert "notable differences" in h.lower()
 
     def test_very_high_deviation_warrants_conversation(self):
         h = _build_headline(0.80, "Sam")
         assert "Sam" in h
-        assert "conversation" in h.lower()
+        assert "conversation, not a conclusion" in h.lower()
 
     def test_boundary_exactly_0_30(self):
         # 0.30 falls into "with a few areas worth a closer look" band
-        h = _build_headline(0.30, "Test")
-        assert "%" in h
-        assert "consistent" in h.lower()
-        # Should NOT say "confirmed authentic" (that's the < 0.30 band)
-        assert "closer look" in h.lower() or "areas" in h.lower() or "exploring" in h.lower()
+        assert "closer look" in _build_headline(0.30, "Test").lower()
 
     def test_boundary_exactly_0_55(self):
-        # 0.55 falls into "notable differences" band
-        h = _build_headline(0.55, "Test")
-        assert "%" in h
-        assert "consistent" in h.lower()
-        assert "notable" in h.lower() or "differences" in h.lower()
+        assert "notable differences" in _build_headline(0.55, "Test").lower()
 
     def test_boundary_exactly_0_75(self):
-        h = _build_headline(0.75, "Test")
-        assert "conversation" in h.lower()
+        assert "conversation" in _build_headline(0.75, "Test").lower()
 
-    def test_headline_shows_positive_percentage(self):
-        """Voice-match percentage should always appear and be positive."""
-        for dev in (0.10, 0.30, 0.55, 0.75, 0.90):
-            h = _build_headline(dev, "Student")
-            assert "%" in h, f"Missing % for deviation={dev}"
-            # Extract the number before the %
-            import re
-
-            pct_vals = [int(m) for m in re.findall(r"(\d+)%", h)]
-            assert all(p >= 0 for p in pct_vals), f"Negative % in headline: {h}"
+    def test_headline_never_shows_a_percentage_or_a_verdict(self):
+        """A number beside a name reads as a probability, and nothing here
+        confirms authorship (NORTH_STAR rules 1 and 2)."""
+        for dev in (0.0, 0.10, 0.29, 0.30, 0.55, 0.75, 0.90, 1.0):
+            h = _build_headline(dev, "Student").lower()
+            assert "%" not in h, h
+            for word in ("confirmed", "authentic", "verdict", "probability"):
+                assert word not in h, (word, h)
 
 
 # ── _build_summary ────────────────────────────────────────────────────────────
@@ -358,6 +338,7 @@ class TestBuildSuggestedAction:
     def test_no_action(self):
         s = _build_suggested_action("no_action", "Jane")
         assert "no action" in s.lower() or "consistent" in s.lower()
+        assert "confirmed" not in s.lower()
 
     def test_monitor(self):
         s = _build_suggested_action("monitor", "Jane")
