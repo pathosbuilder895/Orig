@@ -141,7 +141,7 @@ def roster_add(course_id: str, body: RosterAddRequest, request: Request):
             "emailed": False,
         }
         if row["state"] == "invited":
-            inv = invites_mod.issue(tenant, sid, staff.user_id, course_id)
+            inv = invites_mod.issue(tenant, sid, staff.user_id, course_id, keep_other_courses=True)
             row["invite_path"] = inv["invite_path"]
             row["invite_expires_at"] = inv["expires_at"]
             row["emailed"] = _deliver_invite(
@@ -185,9 +185,10 @@ def roster_remove(course_id: str, student_id: str, request: Request):
     if not _repo().delete_enrollment(course_id, student_id):
         raise HTTPException(status_code=404, detail="student is not on this course")
     # An unused set-password link would re-enrol the student on redemption;
-    # void it so removal also revokes the link (matters when links never
-    # expire, INVITE_NO_EXPIRY=1). Accounts already set up are unaffected.
-    _repo().void_invites_for_user(student_id)
+    # void this course's links so removal also revokes them (matters when
+    # links never expire, INVITE_NO_EXPIRY=1). Links for the student's other
+    # courses keep working (T-78). Accounts already set up are unaffected.
+    _repo().void_invites_for_user(student_id, course_id)
     _repo().log_audit(
         action="bluebook_roster_remove",
         tenant_id=course["tenant_id"],
@@ -211,7 +212,17 @@ def roster_reissue_invite(
     user = _repo().get_user(student_id) if student_id in enrolled else None
     if user is None or user.get("role") != "student":
         raise HTTPException(status_code=404, detail="student is not on this course")
-    inv = invites_mod.issue(course["tenant_id"], student_id, staff.user_id, course_id)
+    # Before a password is set this is a fresh invite for this course; after,
+    # it is a password reset, which voids every earlier link and lasts a day.
+    activated = users_mod.is_activated(user)
+    inv = invites_mod.issue(
+        course["tenant_id"],
+        student_id,
+        staff.user_id,
+        course_id,
+        keep_other_courses=not activated,
+        reset=activated,
+    )
     send = bool(body and body.send_email)
     emailed = _deliver_invite(
         request, user["email"], inv, course, _staff_name(staff) if send else "", send
@@ -245,7 +256,9 @@ def roster_reissue_pending(course_id: str, request: Request, body: SendEmailRequ
     for user in _repo().list_users_by_ids(ids):
         if user.get("role") != "student" or users_mod.is_activated(user):
             continue
-        inv = invites_mod.issue(course["tenant_id"], user["user_id"], staff.user_id, course_id)
+        inv = invites_mod.issue(
+            course["tenant_id"], user["user_id"], staff.user_id, course_id, keep_other_courses=True
+        )
         out.append(
             {
                 "student_id": user["user_id"],

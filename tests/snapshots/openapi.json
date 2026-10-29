@@ -5712,7 +5712,7 @@
     },
     "/auth/password": {
       "post": {
-        "description": "Change your own password (any signed-in account, staff or student).",
+        "description": "Change your own password (any signed-in account, staff or student).\n\nEvery session issued before the change stops working, this one included\n(T-79), so the reply carries a fresh sign-in for this browser.",
         "operationId": "auth_change_password_auth_password_post",
         "requestBody": {
           "content": {

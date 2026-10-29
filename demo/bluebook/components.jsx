@@ -727,8 +727,11 @@ export const BB_API = {
   },
   // A signed-in student opens a course sign-up link: join that course.
   meJoin(token) { return this._json('POST', '/bluebook/me/join', { token }); },
-  changePassword(currentPassword, newPassword) {
-    return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
+  // The change ends every earlier sign-in, this one included, so keep the
+  // fresh one the server sends back.
+  async changePassword(currentPassword, newPassword) {
+    const data = await this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
+    return data && data.token ? this._storeSession(data) : data;
   },
   // The public health probe, fetched once per page. A failure resolves to
   // null; every reader below treats null as "not a demo, signup closed".

@@ -143,7 +143,8 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
 def send_reset(to: str, link: str) -> bool:
     text = (
         "Someone asked to reset the password for this Original Collections account.\n\n"
-        f"Choose a new password here (this link works once and {_validity()}):\n{link}\n\n"
+        "Choose a new password here (this link works once and expires in 24 hours):\n"
+        f"{link}\n\n"
         "If you did not ask for this, you can ignore this email; your password is unchanged."
     )
     return send(to, "Reset your Original Collections password", text)

@@ -74,19 +74,39 @@ def _sign(payload: str) -> str:
     return _b64(hmac.new(_secret(), payload.encode(), hashlib.sha256).digest())
 
 
+def password_tag(password_hash: str) -> str:
+    """A short keyed fingerprint of an account's stored password hash.
+
+    A sign-in token carries the tag that was current when it was minted, so
+    setting a new password (a change, a reset, an invite redeemed) ends every
+    session issued before it (T-79). Keyed with the signing secret, so the
+    token carries nothing computed from the hash alone."""
+    return hmac.new(_secret(), b"pw:" + (password_hash or "").encode(), hashlib.sha256).hexdigest()[
+        :16
+    ]
+
+
 def mint_session(
-    student_id: str, name: str = "", ttl_seconds: int = _DEFAULT_TTL, account: bool = False
+    student_id: str,
+    name: str = "",
+    ttl_seconds: int = _DEFAULT_TTL,
+    account: bool = False,
+    pw: str | None = None,
 ) -> str:
     """Mint a signed session token for a student.
 
     ``account`` marks a session minted from a password login or invite
     redemption, i.e. one backed by a ``users`` row. Such a session is
     revocable: ``principal.resolve_principal`` rejects it once that row is
-    gone (erasure). Launch-link, LTI, and demo sessions have no account row
-    by design, carry no claim, and are byte-identical to before."""
+    gone (erasure), or, when it carries ``pw`` (``password_tag``), once the
+    password has changed since. Launch-link, LTI, and demo sessions have no
+    account row by design, carry neither claim, and are byte-identical to
+    before."""
     body = {"sid": student_id, "name": name, "exp": int(time.time()) + ttl_seconds}
     if account:
         body["acct"] = 1
+        if pw:
+            body["pw"] = pw
     payload = _b64(json.dumps(body, separators=(",", ":")).encode())
     return f"{payload}.{_sign(payload)}"
 

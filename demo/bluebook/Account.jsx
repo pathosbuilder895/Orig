@@ -148,10 +148,12 @@ export function inviteKind(search) {
 // expired, voided or already used), so the route cannot be used to probe
 // tokens (original/routers/auth.py). The screen says what to do next instead.
 const LINK_REFUSED = /invalid, expired, or already used/i;
-export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+// No lifetime is quoted: an invite lasts 14 days (or until replaced, with
+// INVITE_NO_EXPIRY), a password reset link a day (original/invites.py).
+export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, ask your teacher for a new link.';
 // A teacher's own invitation or reset link was not sent by a teacher.
-export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, use “Forgot your password?” on the sign-in page, '
   + 'or ask the person who invited you for a new link.';
 export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be used. Please open the whole link from your invitation, '
