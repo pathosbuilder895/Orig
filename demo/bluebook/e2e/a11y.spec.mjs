@@ -35,6 +35,7 @@ import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { test as tenancyTest, isolatedTest } from './fixtures/tenancy.mjs'
 import { createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 /**
  * Wait until the screen has stopped moving, so axe measures the UI a person
@@ -259,7 +260,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // also stops a nav click which silently did nothing from producing a green
   // scan of whatever screen was already showing.
   const SCREENS = [
-    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome back|Begin with the writing)/ },
+    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome|Begin with the writing)/ },
     { label: 'Examinations', navLabel: 'Collections', heading: 'Collections' },
     { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
     { label: 'Students', navLabel: 'Students', heading: 'Students' },
@@ -485,7 +486,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.goto('/bluebook/')
       await page.waitForLoadState('networkidle')
       await page.getByRole('row', { name: new RegExp(exam.title) }).getByRole('button', { name: /Open|Resume/ }).click()
-      await page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+      await page.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
       await expect(page.getByLabel('Your answer to question 1')).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(page), 'Exam with separate answers' + tag)
       await context.close()
@@ -514,8 +515,8 @@ isolatedTest.describe('Axe scan: student writing screen @a11y', () => {
     }, [exam, testTenant.student.student_id])
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Begin Examination' }).click()
-    await expect(page.getByLabel('Your examination answer')).toBeFocused()
+    await page.getByRole('button', { name: 'Begin writing' }).click()
+    await expect(page.getByLabel('Your answer', { exact: true })).toBeFocused()
     await page.keyboard.type('A good argument names its premises and shows why they hold.', { delay: 1 })
   }
 
@@ -550,9 +551,9 @@ isolatedTest.describe('Axe scan: student writing screen @a11y', () => {
 
   isolatedTest('Sealed', async ({ studentPage, request, testTenant }) => {
     await bootWriting(studentPage, request, testTenant, 'sealed')
-    studentPage.once('dialog', d => d.accept())
     await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 20_000 })
     checkA11y(await runAxe(studentPage), 'Sealed')
   })
 
@@ -561,8 +562,8 @@ isolatedTest.describe('Axe scan: student writing screen @a11y', () => {
       ? route.fulfill({ status: 422, contentType: 'application/json', body: '{"detail":"Not accepted."}' })
       : route.continue()))
     await bootWriting(studentPage, request, testTenant, 'not delivered')
-    studentPage.once('dialog', d => d.accept())
     await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
+    await confirmSeal(studentPage)
     await expect(studentPage.getByRole('button', { name: /Try again/i })).toBeVisible({ timeout: 10_000 })
     checkA11y(await runAxe(studentPage), 'Seal not delivered')
   })

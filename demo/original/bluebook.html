@@ -380,14 +380,14 @@
 
   // What the create call returned, and what is true for students: there is no
   // join code. A student on the class roster finds the open session under
-  // "My exams" once signed in to Bluebook.
+  // "My collections" once signed in to Bluebook.
   function showReceipt(exam,course){
     const id=encodeURIComponent(exam.id);
     const st=examState(exam);
     const roster=course.code||course.name;
     $('cc-code').textContent=st==='open'?'OPEN':STATE_WORD[st].toUpperCase();
     $('cc-text').innerHTML=(st==='open'?'Session is open. ':'Session saved: '+esc(STATE_WORD[st].toLowerCase())+'. ')+
-      'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My exams</b> when they sign in to Collections at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
+      'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My collections</b> when they sign in to Collections at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
       '<span class="cc-links"><a href="/bluebook/#live/'+id+'">Open the live room</a><a href="/bluebook/#exam/'+id+'">Manage it in Collections</a></span>';
     const chip=$('code-chip');
     chip.classList.add('show');

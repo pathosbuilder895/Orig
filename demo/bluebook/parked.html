@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
-<title>Examination in progress</title>
+<title>Collection in progress</title>
 <!--
   ═══════════════════════════════════════════════════════════════════
    parked.html — the page a student's phone holds during an exam
@@ -133,7 +133,7 @@
 
   <!-- ① Ask for a name once. Kept in memory only. -->
   <section id="screen-name" hidden>
-    <p class="meta">Examination</p>
+    <p class="meta">Collection</p>
     <div class="rule"></div>
     <h1>Park your phone</h1>
     <p class="muted">Type your name or initials so your proctor can tell one phone from another.</p>
@@ -154,7 +154,7 @@
 
   <!-- ② The parked view: a big clock and a calm status line. -->
   <section id="screen-parked" hidden>
-    <p class="meta">Examination in progress</p>
+    <p class="meta">Collection in progress</p>
     <div class="rule"></div>
     <p class="timer" id="timer">0:00</p>
     <p class="meta" id="hint-echo"></p>
@@ -169,14 +169,14 @@
       Nothing is saved on your phone.
     </p>
     <p class="fine" id="own-note" hidden>
-      Parked for your account on this exam only. This page reports whether it
+      Parked for your account on this collection only. This page reports whether it
       is open, and nothing else about your phone.
     </p>
   </section>
 
   <!-- ③ Calm dead ends: no token in the link, or the link has expired. -->
   <section id="screen-notice" hidden>
-    <p class="meta">Examination</p>
+    <p class="meta">Collection</p>
     <div class="rule"></div>
     <h1 id="notice-title"></h1>
     <p class="muted" id="notice-body"></p>
@@ -309,7 +309,7 @@
       if (status === 404) {
         // Unknown or expired token — the sitting is over as far as this phone
         // is concerned. Stop beating and say so gently.
-        notice('This exam link has expired',
+        notice('This collection link has expired',
                'Please see your proctor. You can close this page.');
         return;
       }
@@ -409,7 +409,7 @@
         return;
       }
       notice('This code has expired',
-             'Scan the new code on your exam screen. Codes last a few minutes.');
+             'Scan the new code on your collection screen. Codes last a few minutes.');
     };
     var body = JSON.stringify({ token: scanCode });
     try {

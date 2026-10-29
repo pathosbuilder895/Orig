@@ -242,6 +242,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         "roster",
         "sealed",
         "signOut",
+        "keepSignIn",
     ):
         assert re.search(rf"\b{key}\s*:", exported), f"Live.{key} is not exported"
     for token_key in (
@@ -533,6 +534,9 @@ def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exi
     # A typed password is never logged or kept: no console output, no storage.
     for leak in ("console.", "localStorage", "sessionStorage"):
         assert leak not in page, f"settings.html uses {leak}"
+    # The change signs out every earlier session, this page's included (T-79):
+    # the fresh sign-in it returns is kept through the shared client.
+    assert "Live.keepSignIn(res.data)" in page
     # A failed submit must not put the password in a URL (a form posts, it never GETs).
     assert 'method="post"' in page
     # There is no sensitivity setting and no LMS integration to configure.
@@ -3730,7 +3734,7 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     after = out["after"]
     assert after["err"] == ""
     assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
-    assert "<b>My exams</b>" in after["chip"]
+    assert "<b>My collections</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
     assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
     assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"

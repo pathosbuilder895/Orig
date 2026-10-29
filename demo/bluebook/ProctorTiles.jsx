@@ -203,7 +203,7 @@ export function ProctorTiles({ examSessionId }) {
             {idle
               ? 'Start a phone park above to see tiles here.'
               : missing
-                ? 'No phone park is open for this examination yet.'
+                ? 'No phone park is open for this collection yet.'
                 : 'No phones parked yet — students scan the code to appear here.'}
           </p>
         </div>
@@ -303,7 +303,7 @@ export function ProctorScreen() {
         border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.035)', borderRadius: 18,
         padding: '20px 24px', maxWidth: 620, marginBottom: 28,
       }}>
-        <MetaLabel htmlFor="park-session">Examination session</MetaLabel>
+        <MetaLabel htmlFor="park-session">Collection</MetaLabel>
         <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
           <input
             id="park-session"

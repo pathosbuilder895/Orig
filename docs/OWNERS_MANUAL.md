@@ -38,7 +38,7 @@ never system python3.)
 
 **Beat 1 — the hook (3 min), on `/professor.html`:**
 1. The student row at top — click **James Whitfield** (or any pill). Point at the quantum profile panel: "we model each student's *voice*, not a plagiarism database."
-2. Click **Load sample** → **Analyze Writing**. While it runs: "103 measurable habits — vocabulary, rhythm, punctuation, argument structure."
+2. Click **Load sample** → **Analyze Writing**. While it runs: "dozens of measurable habits: vocabulary, sentence rhythm, punctuation, argument structure."
 3. The result lands: deviation score, the plain-English explanation, and the recommendation. **Read the explanation out loud** — the explainability *is* the pitch.
 4. Say the line: *"a recommendation is never a finding of misconduct — this opens a conversation with the student, it never decides one."* Deans lean in at this; it's the anti-Turnitin position.
 
@@ -48,7 +48,7 @@ never system python3.)
 **Beat 3 — Collections (4 min):**
 6. Sidebar → **Collections ↗**. On the landing page: **Sign in → "Explore the demo →"**.
 7. **Examinations → + New Examination** — flip through Sections I–V, pausing on **IV. Secure Lockdown** (AI / web / clipboard toggles). Publish it.
-8. Open it from the list → **Begin Examination** — fullscreen engages, the gold "● Locked" strip shows. Type a few sentences; try **Cmd+C** (blocked, examiner's notice appears). Mention: "typing rhythm is being captured — it feeds the voice profile."
+8. Open it from the list → **Begin Examination** — fullscreen engages, the gold "● Locked" strip shows. Type a few sentences; try **Cmd+C** (blocked, examiner's notice appears). Mention: "no keystrokes are recorded, only coarse session facts such as time taken and paste attempts, and those are context, not evidence."
 9. (If time) lower stakes: type past the minimum → **Seal & Surrender** → "Examination Sealed" → **Results** shows the sitting with its scores.
 
 **Beat 4 — close (1 min):** `/admin.html` for the institution view, then the ask: "we run a one-department pilot — proctored baselines in week one, real scoring by week three."
@@ -91,8 +91,7 @@ that's exactly what an LTI launch does (binds the student id, skips login).
 ## 6. Reading the numbers (so you never misspeak)
 
 - **Deviation score** (professor dashboard): 0–1, higher = further from their voice. Thresholds (`ACTION_THRESHOLDS` in constants.py): <0.40 no action · 0.40–0.60 monitor · 0.60–0.75 conversation · >0.75 escalate.
-- **Bluebook Results — Stylometric**: how this sitting's style/keystrokes match the profile (= 1 − drift).
-- **Bluebook Results — AI Score**: authorship probability of the text against their baseline (higher = more authentically theirs). Shows **"—" on a first sitting** — that's honesty, not a bug: there's no baseline to compare against yet.
+- **Collections Results**: sealed submissions and their session facts (word count, time spent, notes for the teacher). It shows no score. Where Original is on, a sitting can read **worth a look** (with the testing-phase notice) or **inconclusive** (fewer than 3 approved samples from that student). Never describe either as a probability or as evidence of authorship.
 - Escalation is suppressed below 5 authenticated baselines. If a number surprises you, open the explanation panel before explaining it to anyone else.
 
 ## 7. When something misbehaves

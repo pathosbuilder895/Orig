@@ -190,7 +190,7 @@ test.describe('Deep links into one exam', () => {
     const page = await context.newPage()
     for (const hash of [`#exam/${exam.id}`, '#students', '#courses']) {
       await page.goto(`/bluebook/${hash}`)
-      await expect(page.getByRole('heading', { name: 'Examinations' })).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByRole('heading', { name: 'Collections', exact: true })).toBeVisible({ timeout: 10_000 })
       await expect(page.getByRole('heading', { name: 'My submissions' })).toBeVisible()
     }
     await expect(page.getByRole('button', { name: 'Watch live' })).toHaveCount(0)

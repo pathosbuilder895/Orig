@@ -155,8 +155,8 @@ test("a draft saved under the old shared key is adopted once by the student sitt
 });
 
 test('"already submitted" is the server\'s 409 with those words, nothing else', () => {
-  assert.equal(bbAlreadySubmitted(409, 'You have already submitted this exam.'), true);
-  assert.equal(bbAlreadySubmitted(409, 'This exam is closed.'), false);
-  assert.equal(bbAlreadySubmitted(403, 'You have already submitted this exam.'), false);
+  assert.equal(bbAlreadySubmitted(409, 'You have already submitted this collection.'), true);
+  assert.equal(bbAlreadySubmitted(409, 'This collection is closed.'), false);
+  assert.equal(bbAlreadySubmitted(403, 'You have already submitted this collection.'), false);
   assert.equal(bbAlreadySubmitted(undefined, undefined), false);
 });

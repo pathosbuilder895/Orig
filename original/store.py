@@ -3297,14 +3297,19 @@ def latest_invite_for_user(user_id: str) -> dict | None:
     return _invite_to_dict(row) if row else None
 
 
-def void_invites_for_user(user_id: str) -> int:
-    """Void every unredeemed, unvoided invite for this user."""
+def void_invites_for_user(user_id: str, course_id: str | None = None) -> int:
+    """Void every unredeemed, unvoided invite for this user, or only the ones
+    issued for ``course_id`` when one is given."""
+    sql = (
+        "UPDATE bluebook_invites SET voided_at = ? "
+        "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL"
+    )
+    params: list = [datetime.now(UTC).isoformat(), user_id]
+    if course_id is not None:
+        sql += " AND course_id = ?"
+        params.append(course_id)
     with _get_conn() as conn:
-        cur = conn.execute(
-            "UPDATE bluebook_invites SET voided_at = ? "
-            "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL",
-            (datetime.now(UTC).isoformat(), user_id),
-        )
+        cur = conn.execute(sql, params)
         conn.commit()
     return cur.rowcount
 

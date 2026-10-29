@@ -21,6 +21,7 @@
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { studentStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const BOX = 'textarea[placeholder="Begin writing here…"]'
 const ESSAY =
@@ -65,15 +66,15 @@ async function bootInExam(page, exam, testTenant, { studentId, blockWeb = false 
 }
 
 async function enter(page) {
-  await page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await page.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
 }
 
 async function writeAndSeal(page) {
   await enter(page)
   await page.locator(BOX).click()
   await page.keyboard.type(ESSAY, { delay: 1 })
-  page.once('dialog', d => d.accept())
   await page.getByRole('button', { name: /Seal & Submit/ }).click()
+  await confirmSeal(page)
 }
 
 test.describe('Exam reliability @robustness', () => {
@@ -119,7 +120,7 @@ test.describe('Exam reliability @robustness', () => {
     await studentPage.waitForLoadState('networkidle')
     await enter(studentPage)
     // No second confirmation and no second chance to edit: the seal resumes.
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
     expect(new Set(uuids).size).toBe(1)
     const rows = await rowsFor(request, testTenant, exam.id)
     expect(rows).toHaveLength(1)
@@ -143,7 +144,7 @@ test.describe('Exam reliability @robustness', () => {
     })
     await bootInExam(studentPage, exam, testTenant)
     await writeAndSeal(studentPage)
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
     expect(uuids.length).toBeGreaterThan(1)
     expect(new Set(uuids).size).toBe(1)
     expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(1)
@@ -189,7 +190,7 @@ test.describe('Exam reliability @robustness', () => {
 
     refuse = false
     await studentPage.getByRole('button', { name: /Try again/i }).click()
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
     expect(new Set(uuids).size).toBe(1)
     const rows = await rowsFor(request, testTenant, exam.id)
     expect(rows).toHaveLength(1)
@@ -213,14 +214,14 @@ test.describe('Exam reliability @robustness', () => {
     await enter(studentPage)
     await studentPage.locator(BOX).click()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
-    studentPage.once('dialog', d => d.accept())
     await studentPage.getByRole('button', { name: /Seal & Submit/ }).click()
+    await confirmSeal(studentPage)
     // While the seal is in flight (and past the 1.5s that absorbs the confirm
     // dialog's own blur), the student looks away.
     await expect.poll(() => attempts).toBe(1)
     await studentPage.waitForTimeout(1800)
     await studentPage.evaluate(() => window.dispatchEvent(new Event('blur')))
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
     const rows = await rowsFor(request, testTenant, exam.id)
     const sealed = await (await request.get(`/bluebook/submissions/${rows[0].id}`, { headers: staffAuth(testTenant) })).json()
     expect(sealed.warnings).toEqual([])
@@ -238,14 +239,14 @@ test.describe('Exam reliability @robustness', () => {
 
     await studentPage.context().setOffline(true)
     await expect(studentPage.getByText(/You are offline/)).toBeVisible()
-    studentPage.once('dialog', d => d.accept())
     await studentPage.getByRole('button', { name: /Seal & Submit/ }).click()
+    await confirmSeal(studentPage)
     await expect(studentPage.getByText(/will be submitted when the connection returns/)).toBeVisible()
     await studentPage.waitForTimeout(1500)
     expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(0)
 
     await studentPage.context().setOffline(false)
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
     expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(1)
   })
 
@@ -265,13 +266,13 @@ test.describe('Exam reliability @robustness', () => {
     await tabB.locator(BOX).click()
     await tabB.keyboard.type('A second attempt written in another tab, long enough to be sealed on its own too.', { delay: 1 })
 
-    tabA.once('dialog', d => d.accept())
     await tabA.getByRole('button', { name: /Seal & Submit/ }).click()
-    await expect(tabA.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+    await confirmSeal(tabA)
+    await expect(tabA.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 20_000 })
 
-    tabB.once('dialog', d => d.accept())
     await tabB.getByRole('button', { name: /Seal & Submit/ }).click()
-    await expect(tabB.getByRole('heading', { name: 'This exam was already submitted' })).toBeVisible({ timeout: 10_000 })
+    await confirmSeal(tabB)
+    await expect(tabB.getByRole('heading', { name: 'This collection was already submitted' })).toBeVisible({ timeout: 10_000 })
     await expect(tabB.getByText(/so this copy was not sent/)).toBeVisible()
     await expect(tabB.getByRole('button', { name: /Try again/ })).toHaveCount(0)
 
@@ -287,12 +288,12 @@ test.describe('Exam reliability @robustness', () => {
     const exam = await createExam(request, testTenant, 'Reliability later tab exam')
     await bootInExam(studentPage, exam, testTenant)
     await writeAndSeal(studentPage)
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 20_000 })
 
     const later = await studentPage.context().newPage()
     await bootInExam(later, exam, testTenant)
     await enter(later)
-    await expect(later.getByText(/You have already submitted this exam/)).toBeVisible()
+    await expect(later.getByText(/You have already submitted this collection/)).toBeVisible()
     await expect(later.getByRole('button', { name: 'Already submitted' })).toBeDisabled()
     await expect(later.locator(BOX)).toHaveAttribute('readonly', '')
     expect(await rowsFor(request, testTenant, exam.id)).toHaveLength(1)

@@ -2911,15 +2911,16 @@ function buildInterpretation(r, student) {
   if (r.deviation >= 0.45 || r.prob < 0.65) severity = 'amber';
   if (r.deviation >= 0.65 || r.prob < 0.4)  severity = 'red';
 
-  // Headline — lead with the CONFIRMED percentage (Sutherland polarity reframe)
-  const voiceMatchPct = Math.max(0, Math.round((1 - r.deviation) * 100));
+  // Headline: plain words, no percentage. A number beside a name reads as a
+  // probability, and nothing here confirms who wrote anything (NORTH_STAR
+  // rules 1 and 2). The bands are unchanged.
   let headline;
   if (r.deviation >= 0.65 && r.prob < 0.4) {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — notable differences are present.`;
+    headline = `Several of ${name}'s habits differ from their usual writing here; notable differences are present.`;
   } else if (r.deviation >= 0.45 || r.prob < 0.65) {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice, with some areas worth exploring.`;
+    headline = `${name}'s writing here is mostly close to their usual writing, with some areas worth exploring.`;
   } else {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — confirmed authentic.`;
+    headline = `${name}'s writing here sits close to their usual writing.`;
   }
 
   // A thin baseline makes the deviation score unreliable in either
@@ -2937,8 +2938,7 @@ function buildInterpretation(r, student) {
         (topRec ? ` ${topRec}` : '');
     } else {
       if (severity === 'red') severity = 'amber';
-      headline = `${name}'s baseline is still developing, so this reading is less certain than usual — ` +
-        `${voiceMatchPct}% consistent with their established voice so far.` +
+      headline = `${name}'s baseline is still developing, so treat this reading as inconclusive.` +
         (topRec ? ` ${topRec}` : '');
     }
   }

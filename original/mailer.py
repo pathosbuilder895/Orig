@@ -110,7 +110,7 @@ def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool
     text = (
         f"{who} has added you to Original Collections{where}.\n\n"
         f"Set your password here (this link works once and {_validity()}):\n{link}\n\n"
-        "Then sign in with this email address to see your examinations.\n\n"
+        "Then sign in with this email address to see your collections.\n\n"
         "If you were not expecting this, you can ignore this email."
     )
     return send(to, f"You've been added to Original Collections{where}", text)
@@ -143,7 +143,8 @@ def send_professor_invite(to: str, link: str, with_original: bool = False) -> bo
 def send_reset(to: str, link: str) -> bool:
     text = (
         "Someone asked to reset the password for this Original Collections account.\n\n"
-        f"Choose a new password here (this link works once and {_validity()}):\n{link}\n\n"
+        "Choose a new password here (this link works once and expires in 24 hours):\n"
+        f"{link}\n\n"
         "If you did not ask for this, you can ignore this email; your password is unchanged."
     )
     return send(to, "Reset your Original Collections password", text)

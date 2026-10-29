@@ -2,7 +2,7 @@
  * teacher-view-refresh.spec.mjs — alpha bug 2026-10-20 (live pilot 859436e).
  *
  * The teacher reported (1) no way to see a student's work from Students and
- * (2) after a refresh, "No examinations yet" and no submissions. Cause: one
+ * (2) after a refresh, "No collections yet" and no submissions. Cause: one
  * browser holds one sign-in in localStorage; redeeming a student invite in
  * the teacher's browser replaced the teacher session, so a refresh opened the
  * student home. These pin the fixes:
@@ -12,6 +12,7 @@
  *     and the teacher tab says it was signed out instead of showing empties.
  */
 import { test, expect } from '@playwright/test'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
@@ -66,13 +67,13 @@ test('separate browsers: teacher refresh keeps Students and shows the student\'s
   await redeem(student)
   await expect(student.getByText(title)).toBeVisible({ timeout: 10_000 })
   await student.getByRole('button', { name: 'Open' }).click()
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
   const answer = 'Refresh must never hide this sealed answer.'
-  await student.getByLabel('Your examination answer').focus()
+  await student.getByLabel('Your answer', { exact: true }).focus()
   await student.keyboard.type(answer, { delay: 1 })
-  student.once('dialog', d => d.accept())
   await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
-  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await confirmSeal(student)
+  await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
 
   await teacher.getByRole('button', { name: 'Students', exact: true }).click()
   await expect(teacher).toHaveURL(/#students$/)
@@ -134,12 +135,12 @@ test('Students lists the class roster (not just hand-ins) and hand-ins show the 
   await student.goto(invite)
   await redeem(student)
   await student.getByRole('button', { name: 'Open' }).click()
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
-  await student.getByLabel('Your examination answer').focus()
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
+  await student.getByLabel('Your answer', { exact: true }).focus()
   await student.keyboard.type('Names belong on hand-ins.', { delay: 1 })
-  student.once('dialog', d => d.accept())
   await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
-  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await confirmSeal(student)
+  await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
   // The student never sees a score.
   await expect(student.getByText(/stylometric|worth a look|consistency score/i)).toHaveCount(0)
   await teacher.reload()

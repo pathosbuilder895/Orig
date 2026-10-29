@@ -14,6 +14,7 @@
 
 import { test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor, studentLogin, studentStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const staffAuth = workerTenant => ({ Authorization: `Bearer ${workerTenant.staff.token}` })
 
@@ -71,8 +72,8 @@ async function sealAsNewStudent({ browser, request, workerTenant }, samples, tit
   await expect(box).toBeVisible({ timeout: 10_000 })
   await box.focus()
   await page.keyboard.type(ESSAY, { delay: 1 })
-  page.once('dialog', d => d.accept())
   await page.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+  await confirmSeal(page)
   await expect(page.getByText('✓ Delivered to your teacher')).toBeVisible({ timeout: 60_000 })
   await context.close()
 

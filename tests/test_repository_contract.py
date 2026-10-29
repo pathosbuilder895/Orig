@@ -3189,6 +3189,15 @@ class TestBluebookSelfServeContract:
         assert repo.get_invite_by_hash("h1")["voided_at"] is None
         assert repo.void_invites_for_user("ss-i:ann") == 0
 
+        # Scoped to one course (T-78): the other course's link survives.
+        repo.put_invite(inv("i4", "h4", "2026-10-04T00:00:00+00:00", course_id="c1"))
+        repo.put_invite(inv("i5", "h5", "2026-10-05T00:00:00+00:00", course_id="c2"))
+        assert repo.void_invites_for_user("ss-i:ann", "c1") == 1
+        assert repo.get_invite_by_hash("h4")["voided_at"] is not None
+        assert repo.get_invite_by_hash("h5")["voided_at"] is None
+        assert repo.void_invites_for_user("ss-i:ann", "c9") == 0
+        assert repo.redeem_invite("i5") is True
+
     def test_join_links_one_active_per_course_and_voiding(self, repo):
         repo.put_tenant("ss-j", "SS", environment="pilot")
         repo.put_bluebook_course(

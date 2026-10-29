@@ -17,14 +17,16 @@
 import { readFileSync } from 'node:fs'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { staffStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const PHONE = { width: 375, height: 812 }
 const LAPTOP = { width: 1280, height: 800 }
 const PASSWORD = 'alpha-e2e-pass-1'
 const ESSAY = 'At midnight the market wakes. The stall at the end of the lane sells hours that people lost, weighed on a brass scale. '
 
-// Every dialog the journey meets is one a person would accept: the seal's
-// "Ready to submit?", "Issue fresh links?", and the exam's leave-page guard.
+// Every browser dialog the journey meets is one a person would accept:
+// "Issue fresh links?" and the booklet's leave-page guard. The seal asks in
+// the booklet's own dialog instead (confirmSeal).
 function acceptDialogs(page) {
   page.on('dialog', d => d.accept().catch(() => {}))
 }
@@ -131,7 +133,7 @@ test.describe('Alpha journey @alpha', () => {
       const nav = student.getByRole('navigation', { name: 'Student navigation' })
       await expect(nav.getByRole('link')).toHaveCount(0)
       // The first exam the teacher set is listed first.
-      const titles = await student.getByRole('table', { name: 'Your examinations' }).locator('td.lead').allInnerTexts()
+      const titles = await student.getByRole('table', { name: 'Your collections' }).locator('td.lead').allInnerTexts()
       expect(titles[0]).toContain(`Practice prompt 1 ${tag}`)
       expect(titles[1]).toContain(`Practice prompt 2 ${tag}`)
       expect(await student.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE.width)
@@ -153,34 +155,35 @@ test.describe('Alpha journey @alpha', () => {
 
     await test.step('exam A: instructions, timer, paste notice, a refresh, sealing and the done state', async () => {
       await student.getByRole('row', { name: new RegExp(`Practice prompt 1 ${tag}`) }).getByRole('button', { name: 'Open' }).click()
-      await expect(student.getByRole('heading', { name: 'How this exam works' })).toBeVisible()
+      await expect(student.getByRole('heading', { name: 'How this collection works' })).toBeVisible()
       await expect(student.getByText('Copy and paste are turned off in the answer box.')).toBeVisible()
       const brief = await student.evaluate(() => document.body.innerText)
       expect(brief).not.toMatch(/compar|score|consisten|Original/i)
       await expect(student.getByText('1 question · 25 minutes.')).toBeVisible()
-      await student.getByRole('button', { name: 'Begin Examination' }).click()
+      await student.getByRole('button', { name: 'Begin writing' }).click()
       await expect(student.getByRole('timer')).toHaveText(/^2[45]:\d\d$/, { timeout: 10_000 })
-      const box = student.getByRole('textbox', { name: 'Your examination answer' })
+      const box = student.getByRole('textbox', { name: 'Your answer', exact: true })
       await box.click()
       await box.pressSequentially(ESSAY, { delay: 2 })
       await expect(student.getByText(/\d+ words?/).first()).toBeVisible()
       // Ctrl/Cmd+V is stopped at the key press; the student is told why.
       await student.evaluate(() => navigator.clipboard.writeText('PASTED FROM ELSEWHERE'))
       await box.press('ControlOrMeta+v')
-      await expect(student.getByText('Pasting is turned off for this exam, so nothing was added.').first()).toBeVisible()
+      await expect(student.getByText('Pasting is turned off for this collection, so nothing was added.').first()).toBeVisible()
       expect(await box.inputValue()).not.toContain('PASTED')
       await student.waitForTimeout(1600)   // the notice's 1.5s de-duplication, then a fresh save
       // A refresh in the middle comes back to this exam, not the exam list.
       await student.reload()
-      await expect(student.getByText('You have already started this exam.')).toBeVisible({ timeout: 10_000 })
-      await student.getByRole('button', { name: 'Resume Examination' }).click()
-      await expect(student.getByRole('textbox', { name: 'Your examination answer' })).toHaveValue(ESSAY)
+      await expect(student.getByText('You have already started this collection.')).toBeVisible({ timeout: 10_000 })
+      await student.getByRole('button', { name: 'Resume writing' }).click()
+      await expect(student.getByRole('textbox', { name: 'Your answer', exact: true })).toHaveValue(ESSAY)
       await student.getByRole('button', { name: 'Seal & Submit' }).click()
-      await expect(student.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 30_000 })
+      await confirmSeal(student)
+      await expect(student.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 30_000 })
       const done = await student.locator('.bk-done').innerText()
       expect(done).not.toMatch(/compar|score|consisten/i)
       expect(done).toContain('Your teacher may choose to keep this booklet as reference writing')
-      await student.getByRole('button', { name: 'Back to my exams' }).click()
+      await student.getByRole('button', { name: 'Back to my collections' }).click()
       await expect(student.getByRole('row', { name: new RegExp(`Practice prompt 1 ${tag}`) }).locator('.bb-badge')).toHaveText('submitted')
     })
 

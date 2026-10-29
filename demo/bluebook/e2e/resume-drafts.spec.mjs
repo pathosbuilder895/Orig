@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { isolatedTest } from './fixtures/tenancy.mjs'
 import { staffStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
@@ -113,19 +114,19 @@ isolatedTest('past-paper text is kept until sent, and a lapsed seal resumes afte
   await expect(student.getByRole('form', { name: 'Share a past paper' }).getByLabel('Or paste the text')).toHaveValue('', { timeout: 10_000 })
 
   await student.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: 'Open' }).click()
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
   const answer = 'These words must reach the teacher after signing back in.'
-  await student.getByLabel('Your examination answer').focus()
+  await student.getByLabel('Your answer', { exact: true }).focus()
   await student.keyboard.type(answer, { delay: 1 })
   // The sign-in lapses while writing.
   await student.evaluate(() => localStorage.setItem('original_session_token', 'expired.token'))
-  student.once('dialog', d => d.accept())
   await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+  await confirmSeal(student)
   await expect(student.getByTestId('signin-expired')).toContainText('finish submitting your exam', { timeout: 30_000 })
   await student.locator('#bbLoginEmail').fill(email)
   await student.locator('#bbLoginPass').fill('e2e-student-pass-1')
   await student.getByRole('button', { name: 'Sign in' }).click()
   // Signing back in reopens this exam; Resume finishes the confirmed seal.
-  await student.getByRole('button', { name: 'Resume Examination' }).click({ timeout: 15_000 })
-  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await student.getByRole('button', { name: 'Resume writing' }).click({ timeout: 15_000 })
+  await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
 })

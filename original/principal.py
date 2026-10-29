@@ -130,12 +130,15 @@ def _sign(payload: str) -> str:
 
 
 def mint_principal_token(
-    user_id: str, role: str, tenant_id: str, ttl_seconds: int = 8 * 3600
+    user_id: str, role: str, tenant_id: str, ttl_seconds: int = 8 * 3600, pw: str | None = None
 ) -> str:
     """Mint a signed token for a professor/admin/operator principal.
 
     Phase 1.x (email/password) and Phase 1.5 (LTI) both call this after
     verifying credentials, so every auth method terminates in the same token.
+    A password sign-in passes ``pw`` (``student_auth.password_tag``): the
+    token then stops working once that password changes (T-79). LTI tokens
+    have no password behind them and carry no claim.
     """
     body = {
         "sub": user_id,
@@ -143,6 +146,8 @@ def mint_principal_token(
         "tid": tenant_id,
         "exp": int(time.time()) + ttl_seconds,
     }
+    if pw:
+        body["pw"] = pw
     payload = _b64(json.dumps(body, separators=(",", ":")).encode())
     return f"{payload}.{_sign(payload)}"
 
@@ -276,8 +281,18 @@ REVOKED = Principal(
 )
 
 
-def _account_session_live(sid: str) -> bool:
-    """Whether an account-backed student session's login still exists.
+def _password_unchanged(user: dict, pw) -> bool:
+    """True when a token minted with ``pw`` predates no password change.
+    A token without the claim (minted before T-79) is not checked."""
+    if pw is None:
+        return True
+    current = student_auth.password_tag(user.get("password_hash") or "")
+    return hmac.compare_digest(current, str(pw))
+
+
+def _account_session_live(sid: str, pw=None) -> bool:
+    """Whether an account-backed student session's login still exists, and
+    its password has not changed since the session was minted.
 
     One primary-key lookup, paid only by sessions carrying the ``acct``
     claim (password login / invite redemption). Signed launch-link, LTI and
@@ -289,7 +304,20 @@ def _account_session_live(sid: str) -> bool:
         user = get_repository().get_user(sid)
     except Exception:
         return False
-    return user is not None and user.get("role") == "student"
+    return user is not None and user.get("role") == "student" and _password_unchanged(user, pw)
+
+
+def _staff_token_live(user_id: str, pw) -> bool:
+    """Whether a staff token from a password sign-in still stands: the
+    account exists, is staff, and its password has not changed since. One
+    primary-key lookup, paid only by tokens carrying ``pw``. Fails closed."""
+    try:
+        from .repository import get_repository
+
+        user = get_repository().get_user(user_id)
+    except Exception:
+        return False
+    return user is not None and user.get("role") != "student" and _password_unchanged(user, pw)
 
 
 def _bearer(request) -> str:
@@ -307,6 +335,8 @@ def resolve_principal(request) -> Principal:
     if tok:
         body = verify_principal_token(tok)
         if body:
+            if "pw" in body and not _staff_token_live(str(body["sub"]), body["pw"]):
+                return REVOKED
             tid = str(body["tid"])
             return Principal(
                 user_id=str(body["sub"]),
@@ -319,7 +349,7 @@ def resolve_principal(request) -> Principal:
         sess = student_auth.verify_session(tok)
         if sess:
             sid = str(sess.get("sid", ""))
-            if sess.get("acct") and not _account_session_live(sid):
+            if sess.get("acct") and not _account_session_live(sid, sess.get("pw")):
                 return REVOKED
             tid = tenant_of(sid) or DEMO_TENANT
             return Principal(

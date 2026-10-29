@@ -60,7 +60,7 @@ def test_a_second_tab_cannot_submit_the_same_exam_again(live_client, store_reset
     assert _seal(live_client, exam_id, "tab-a").status_code == 201
     r = _seal(live_client, exam_id, "tab-b")
     assert r.status_code == 409, r.text
-    assert r.json()["detail"] == "You have already submitted this exam."
+    assert r.json()["detail"] == "You have already submitted this collection."
     assert len(_rows(exam_id)) == 1
 
 
@@ -90,7 +90,7 @@ def test_a_tab_opened_after_the_seal_is_told_before_writing(live_client, store_r
     assert _seal(live_client, exam_id, "tab-a").status_code == 201
     again = live_client.post(f"/bluebook/exams/{exam_id}/session", headers=_student(), json={"student_id": SID})
     assert again.status_code == 409
-    assert again.json()["detail"] == "You have already submitted this exam."
+    assert again.json()["detail"] == "You have already submitted this collection."
 
 
 def test_two_seals_at_the_same_moment_record_one_submission(live_client, store_reset, monkeypatch):

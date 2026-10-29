@@ -71,7 +71,7 @@ def test_launch_missing_sid_400(live_client, store_reset):
     token = student_auth.mint_launch_token("", _TENANT, exam="exam-1", name="")
     r = live_client.get("/bluebook/launch", params={"t": token})
     assert r.status_code == 400, r.text
-    assert "This exam link is incomplete." in r.json()["detail"]
+    assert "This collection link is incomplete." in r.json()["detail"]
 
 
 # ── Valid tokens → 200, localStorage-seed + redirect ───────────────────────

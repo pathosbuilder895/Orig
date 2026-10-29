@@ -389,7 +389,7 @@ test.describe('Proctor screen — QR phone park', () => {
 
     // Next poll (POLL_MS = 5s) — auto-waiting, no sleep.
     await expect(tile).toHaveCount(0, { timeout: 15_000 })
-    await expect(staffPage.getByText('No phone park is open for this examination yet.'))
+    await expect(staffPage.getByText('No phone park is open for this collection yet.'))
       .toBeVisible()
     await expect(staffPage.locator('[role="alert"]')).toHaveCount(0)
     // Distinct from the never-started empty state: this screen still HAS an

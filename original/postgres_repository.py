@@ -2403,17 +2403,16 @@ class PostgresRepository:
             )
             return self._invite_to_dict(row) if row else None
 
-    def void_invites_for_user(self, user_id):
+    def void_invites_for_user(self, user_id, course_id=None):
+        stmt = update(BluebookInvite).where(
+            BluebookInvite.user_id == user_id,
+            BluebookInvite.redeemed_at.is_(None),
+            BluebookInvite.voided_at.is_(None),
+        )
+        if course_id is not None:
+            stmt = stmt.where(BluebookInvite.course_id == course_id)
         with session_scope() as session:
-            result = session.execute(
-                update(BluebookInvite)
-                .where(
-                    BluebookInvite.user_id == user_id,
-                    BluebookInvite.redeemed_at.is_(None),
-                    BluebookInvite.voided_at.is_(None),
-                )
-                .values(voided_at=datetime.now(UTC))
-            )
+            result = session.execute(stmt.values(voided_at=datetime.now(UTC)))
             return int(result.rowcount)
 
     def redeem_invite(self, invite_id):

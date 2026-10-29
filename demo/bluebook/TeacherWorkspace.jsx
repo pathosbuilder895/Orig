@@ -127,21 +127,21 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
     try {
       await onCreate({title:`${selected.code||selected.name||'Class'} · ${new Date().toLocaleDateString()}`,course:selected.code||selected.name,course_id:selected.id,duration,questions:list,status:'ACTIVE',minWords:0,maxWords:0,conditions:{}});
       setQuestions(['']);
-    } catch(err) {setSaveError(err.message||'The session could not be saved. Your questions are still here.');}
+    } catch(err) {setSaveError(err.message||'The collection could not be saved. Your questions are still here.');}
     finally {saving.current=false;setBusy(false);}
   }
   return <>
     <header className="teacher-head"><div>
-      <div className="eyebrow">Collections Sessions</div>
+      <div className="eyebrow">Collections</div>
       <h1>In-class writing, in their own hand.</h1>
       {hasOriginal
-        ? <p className="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay as written. Because Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</p>
-        : <p className="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay exactly as written, and you read them all in one place.</p>}
+        ? <p className="sub">A collection is a supervised essay written live in class. Sealed booklets stay as written. Because Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</p>
+        : <p className="sub">A collection is a supervised essay written live in class. Sealed booklets stay exactly as written, and you read them all in one place.</p>}
     </div></header>
     {error && <div role="alert" className="teacher-error">{error} <button onClick={onRetry}>Try again</button></div>}
     <div className="teacher-columns">
       <form className="teacher-card teacher-setup" onSubmit={submit}>
-        <div className="setup-heading"><span className="book-mark" aria-hidden="true"/><div><h2>Start a new session</h2><p>Three questions. That’s the whole setup.</p></div></div>
+        <div className="setup-heading"><span className="book-mark" aria-hidden="true"/><div><h2>Start a new collection</h2><p>Three questions. That’s the whole setup.</p></div></div>
         <div className="teacher-steps">
           <section className="teacher-step"><h3>What should they write about?</h3>
             {questions.map((q,i)=><div key={i} className="question-field"><label className={questions.length>1?undefined:'sr-only'} htmlFor={`teacher-question-${i}`}>Question {i+1}</label><textarea id={`teacher-question-${i}`} required maxLength={8000} disabled={busy} value={q} placeholder={i===0?'e.g. In two pages, explain the difference between Luther’s and Calvin’s views of the Lord’s Supper, and which you find more persuasive, and why.':`Question ${i+1}. Students can move between questions freely.`} onChange={e=>setQuestions(questions.map((v,j)=>j===i?e.target.value:v))}/>{i>0&&<button type="button" className="quiet-button" disabled={busy} onClick={()=>setQuestions(questions.filter((_,j)=>j!==i))}>Remove question {i+1}</button>}</div>)}
@@ -151,16 +151,16 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
           <section className="teacher-step"><h3>Which class?</h3><div className="class-choices" aria-label="Choose a class">
             {loading?<p role="status">Loading your classes…</p>:courses.map(c=><button type="button" key={c.id} disabled={busy} aria-pressed={selected?.id===c.id} onClick={()=>setCourseId(c.id)}>{c.code||c.name} · {c.students??0} student{c.students===1?'':'s'}</button>)}
           </div>{!loading&&!courses.length&&!error&&<p>No classes yet. <button type="button" className="quiet-button" onClick={onCourses}>Create your first course</button></p>}</section>
-          <section className="teacher-step"><h3><label htmlFor="teacher-duration">How long do they get?</label></h3><div className="time-row"><input id="teacher-duration" aria-label="Session duration in minutes" type="range" min="15" max="120" step="5" value={duration} disabled={busy} onChange={e=>setDuration(Number(e.target.value))}/><output htmlFor="teacher-duration">{duration} min</output></div>
+          <section className="teacher-step"><h3><label htmlFor="teacher-duration">How long do they get?</label></h3><div className="time-row"><input id="teacher-duration" aria-label="Collection duration in minutes" type="range" min="15" max="120" step="5" value={duration} disabled={busy} onChange={e=>setDuration(Number(e.target.value))}/><output htmlFor="teacher-duration">{duration} min</output></div>
             <div className="quiet-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg><p><strong>Everything else is already handled.</strong> Drafts save on the student’s device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</p></div>
           </section>
         </div>
         {saveError&&<p className="teacher-error" role="alert">{saveError}</p>}
         <div className="launch-row"><button className="teacher-primary" disabled={busy||loading||!!error||!courses.length} type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>{busy?'Opening…':'Open the booklets'}</button><span>{selected?.code||selected?.name||'Choose a class'} · {questions.length} question{questions.length>1?'s':''} · {duration} minutes</span></div>
-        {receipt&&<div className="code-chip" role="status" ref={chip}><div className="code">OPEN</div><div className="cc-l">Session is open. Students on this class roster find it under <b>My exams</b>.</div><button type="button" onClick={()=>onManage(receipt)}>Manage session and read submissions →</button></div>}
+        {receipt&&<div className="code-chip" role="status" ref={chip}><div className="code">OPEN</div><div className="cc-l">Collection is open. Students on this class roster find it under <b>My collections</b>.</div><button type="button" onClick={()=>onManage(receipt)}>Manage collection and read submissions →</button></div>}
       </form>
-      <aside><section className="teacher-card session-history"><div className="section-title"><h2>Sessions</h2><span>{demo?'example term':`${exams.length} in total`}</span></div>
-        {loading?<p role="status">Loading sessions…</p>:!exams.length?<p>No sessions yet. Your first one will appear here.</p>:exams.map(e=>{const st=sessionState(e);return <button className="session-row" key={e.id} onClick={()=>onOpen(e)}><span className={'small-book'+(st==='closed'?' done':'')} aria-hidden="true"/><span className="session-title"><strong>{e.title}</strong><small>{[e.course,dateLabel(e.created_at),`${e.duration} min`].filter(Boolean).join(' · ')}</small></span><span className="session-badge"><span className={'s-badge '+SESSION_TONE[st]}><span className="d"/>{st}</span><small>{e.submissions??0} sealed</small></span></button>;})}
+      <aside><section className="teacher-card session-history"><div className="section-title"><h2>Collections</h2><span>{demo?'example term':`${exams.length} in total`}</span></div>
+        {loading?<p role="status">Loading collections…</p>:!exams.length?<p>No collections yet. Your first one will appear here.</p>:exams.map(e=>{const st=sessionState(e);return <button className="session-row" key={e.id} onClick={()=>onOpen(e)}><span className={'small-book'+(st==='closed'?' done':'')} aria-hidden="true"/><span className="session-title"><strong>{e.title}</strong><small>{[e.course,dateLabel(e.created_at),`${e.duration} min`].filter(Boolean).join(' · ')}</small></span><span className="session-badge"><span className={'s-badge '+SESSION_TONE[st]}><span className="d"/>{st}</span><small>{e.submissions??0} sealed</small></span></button>;})}
       </section><section className="teacher-card teacher-why"><h2>Why Collections matters</h2>
         {hasOriginal
           ? <p>Collections gives students a quiet, trustworthy place to write. Because Original is on, the sealed booklets you <b>approve</b> become the reference writing it compares later papers against. More approved samples give it more to go on; with only a few, it may say it can’t tell.</p>
@@ -221,8 +221,10 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
   const invited = (students || []).filter(s => s.state === 'invited').length;
   const manage = id => { window.BB_MANAGE_EXAM = id; onNavigate('manage-exam'); };
   const name = (BB_API.identity().name || '').trim();
+  // A teacher with no course and no collection yet has never been here before.
+  const returning = courses.length > 0 || exams.length > 0;
   return <div className="bb-page">
-    <header className="teacher-head"><div className="eyebrow">Your teaching workspace</div><h1>{name ? `Welcome back, ${name}.` : 'Begin with the writing.'}</h1><p>Set a collection, invite your class, and give their words a thoughtful reading.</p></header>
+    <header className="teacher-head"><div className="eyebrow">Your teaching workspace</div><h1>{name ? `${returning ? 'Welcome back' : 'Welcome'}, ${name}.` : 'Begin with the writing.'}</h1><p>Set a collection, invite your class, and give their words a thoughtful reading.</p></header>
     {error && <div role="alert" className="teacher-error">{error} <button onClick={onRetry}>Try again</button></div>}
     {detailError && !error && <div role="alert" className="teacher-error">{detailError} <button onClick={loadDetails}>Try again</button></div>}
     {loading ? <p role="status">Loading your workspace…</p> : !error && !detailError && <>
@@ -234,7 +236,7 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
       </div>
       {!courses.length && <div className="teacher-card teacher-list" style={{ marginBottom: '1.5rem' }}>
         <h2>Start here</h2>
-        <p style={{ margin: '.8rem 0' }}>Create a course, add your students by email, then open a session for them.</p>
+        <p style={{ margin: '.8rem 0' }}>Create a course, add your students by email, then publish a collection for them.</p>
         <button className="teacher-primary" onClick={() => onNavigate('courses')}>Create your first course →</button>
       </div>}
       {!!courses.length && <div className="bb-actions" style={{ marginBottom: '1.5rem' }}>

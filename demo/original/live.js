@@ -21,7 +21,9 @@
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
    Live.signOut()    forget the session and the kept papers, go to the sign-in page
-                     (a student's is Collections', a teacher's the main one) */
+                     (a student's is Collections', a teacher's the main one)
+   Live.keepSignIn(d) keep the fresh sign-in a password change returns; the
+                     change ends every earlier one, this page's included (T-79) */
 (function (window, document) {
   'use strict';
 
@@ -65,6 +67,13 @@
 
   function read(key) {
     try { return window.localStorage.getItem(key) || ''; } catch (e) { return ''; }
+  }
+
+  // Only the token the server returned is kept, never anything typed.
+  function keepSignIn(data) {
+    if (!data || !data.token) return;
+    var key = data.role === 'student' ? 'original_session_token' : 'original_principal_token';
+    try { window.localStorage.setItem(key, data.token); } catch (e) { /* storage blocked */ }
   }
 
   function failed() {
@@ -668,6 +677,7 @@
     referenceWords: wordsIn,
     REFERENCE_MINIMUM: MIN_RULE,
     sealed: sealed,
-    signOut: signOut
+    signOut: signOut,
+    keepSignIn: keepSignIn
   };
 })(window, document);
