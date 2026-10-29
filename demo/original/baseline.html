@@ -955,7 +955,7 @@
     }).join('');
   }
 
-  const HELD='Not added: this exam differs strongly from the student’s existing samples. Approval does not override this check.';
+  const HELD='Not added: this booklet differs strongly from the student’s existing samples. Approval does not override this check.';
   const MAYBE='The server did not confirm the save, so it may not have been saved. Reload the page to check.';
   const writeFailed=res=>res.status===0||res.status>=500;
   async function actOnExam(id,kind){
@@ -970,7 +970,7 @@
     if(res.ok&&kind==='approve'){
       if(word==='added'){ m.in_baseline=true; m.msg='Added to the baseline.'; m.kind='ok'; changed=true; }
       else if(word==='already_in_baseline'){ m.in_baseline=true; m.msg='It was already in the baseline.'; m.kind='ok'; }
-      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this exam on this visit.'; m.kind='err'; }
+      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this booklet on this visit.'; m.kind='err'; }
       else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
     } else if(res.ok&&kind==='undo'){
       if(word==='removed'){ m.in_baseline=false; m.msg='Taken out of the baseline. The baseline was recalculated from the remaining samples.'; m.kind='ok'; changed=true; }

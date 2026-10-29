@@ -186,6 +186,18 @@
 .bk-done .acts .back{background:none;border:1px solid rgba(90,130,200,.5);color:var(--bb-blue);font-weight:400}
 .bk-done .closed-on{margin-top:1.4rem;font:.62rem var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 
+/* The seal confirmation (Exam.jsx): the page's own modal dialog, so it keeps
+   the booklet's look and stays inside full-screen. */
+.bk-confirm{margin:auto;width:calc(100% - 2rem);max-width:26rem;padding:1.6rem 1.8rem;border:1px solid var(--rule);border-radius:14px;background:var(--paper);color:var(--ink);font:16px/1.5 var(--body);box-shadow:0 18px 50px rgba(10,16,32,.45)}
+.bk-confirm::backdrop{background:rgba(15,20,34,.6)}
+.bk-confirm h2{margin:0 0 .5rem;font:600 1.35rem var(--display);color:var(--bb-ink)}
+.bk-confirm p{margin:0 0 1.3rem}
+.bk-confirm-acts{display:flex;gap:.8rem;justify-content:flex-end;flex-wrap:wrap}
+.bk-confirm-acts button{border-radius:999px;padding:.65rem 1.4rem;font:600 .95rem var(--body)}
+.bk-confirm-acts .go{border:none;background:var(--bb-blue);color:#fff}
+.bk-confirm-acts .go:hover{background:#223c74}
+.bk-confirm-acts .back{background:none;border:1px solid rgba(90,130,200,.5);color:var(--bb-blue);font-weight:400}
+
 @media(max-width:1000px){
   .bk-booklet:not(.compact){max-width:none}
 }
@@ -194,6 +206,8 @@
   .bk-booklet:not(.compact):not(.bk-briefing){max-width:none;height:100vh;height:100dvh}
   .bk-booklet.bk-briefing{max-width:none;min-height:100vh;min-height:100dvh}
   .bk-phone-qr-wrap{padding:.75rem .9rem}
+  .bk-confirm-acts{flex-direction:column-reverse}
+  .bk-confirm-acts button{width:100%}
   .bk-cover,.bk-page{border-radius:0;border-left-width:6px}
   .bk-cover-inner{padding:4rem 1.4rem 2rem}
   .bk-cover h1{font-size:2.3rem}

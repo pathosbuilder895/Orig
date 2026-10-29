@@ -6,6 +6,7 @@ import {
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { MAX_QUESTIONS } from './collection-options.jsx';
 import { noteView, takeResumed } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -46,7 +47,7 @@ function submittedLine(sub) {
 // Only what the stored record holds and the reader shows: never a score.
 export function submissionAsText(sub) {
   const s = sub || {};
-  const lines = [s.exam || 'Examination', '', `Student: ${s.student || 'Student'}`];
+  const lines = [s.exam || 'Collection', '', `Student: ${s.student || 'Student'}`];
   if (s.course) lines.push(`Course: ${s.course}`);
   const submitted = submittedLine(s);
   if (submitted) lines.push(`Submitted: ${submitted}`);
@@ -94,7 +95,7 @@ function PrintSheet({ sub }) {
   return createPortal(
     <article className="bb-print-sheet">
       <p className="bb-print-kicker">Collections · sealed submission</p>
-      <h1>{sub.exam || 'Examination'}</h1>
+      <h1>{sub.exam || 'Collection'}</h1>
       <dl>
         <dt>Student</dt><dd>{sub.student || 'Student'}</dd>
         {sub.course && <><dt>Course</dt><dd>{sub.course}</dd></>}
@@ -220,7 +221,7 @@ function BaselineControl({ sub }) {
   }
 
   async function remove() {
-    if (!confirm(`Remove this exam from ${name}'s baseline? Their profile is recomputed from the remaining samples.`)) return;
+    if (!confirm(`Remove this booklet from ${name}'s baseline? Their profile is recomputed from the remaining samples.`)) return;
     setBusy(true); setError(''); setMessage('');
     try {
       const r = await BB_API.removeFromBaseline(sub.id);
@@ -238,7 +239,7 @@ function BaselineControl({ sub }) {
         {loadFailed ? 'unavailable' : inBaseline === null ? 'checking…' : inBaseline ? 'In baseline' : 'Not in baseline'}
       </p>
       <p className="bb-hint" style={{ margin: '0 0 .6rem' }}>
-        The baseline is {name}'s own reference writing. Sealed exams join it only when you add them.
+        The baseline is {name}'s own reference writing. Sealed booklets join it only when you add them.
       </p>
       {loadFailed && <Btn onClick={() => loadStatus()}>Try again</Btn>}
       {inBaseline === true && <Btn onClick={remove} disabled={busy}>Remove from baseline</Btn>}
@@ -301,7 +302,7 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
     try {
       const s = await BB_API.saveFeedback(submissionId, { mark, feedback });
       setSub(prev => ({ ...prev, ...s }));
-      setSaved('Saved. Students see it once you release results for this exam.');
+      setSaved('Saved. Students see it once you release results for this collection.');
       onSaved && onSaved();
     } catch (err) { setError(err.message || 'Could not save.'); }
     setBusy(false);
@@ -365,7 +366,7 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
 }
 
 // ─── Submissions table (shared) ──────────────────────────────────────────────
-export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed exams yet. They appear here as students submit them.', onChanged }) {
+export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed booklets yet. They appear here as students submit them.', onChanged }) {
   const [open, setOpen] = useState('');
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
@@ -529,7 +530,7 @@ export function PhoneParkPanel({ examId }) {
     <Panel style={{ marginBottom: '1.5rem' }}>
       <h2 style={{ marginBottom: '.2rem' }}>Phone parking</h2>
       <p className="bb-meta">
-        Each student scans their own code on the exam’s first page and parks their phone before beginning.
+        Each student scans their own code on the collection’s first page and parks their phone before beginning.
         This shows whether each phone page is open. It is a prompt to look up, never proof of anything.
       </p>
       <ErrorText>{error}</ErrorText>
@@ -576,7 +577,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
         opens: toLocalInput(e.opens_at), closes: toLocalInput(e.closes_at),
         questions: questionsOf(e).length ? questionsOf(e) : [''],
       });
-    } catch (err) { setError(err.message || 'Could not load the exam.'); }
+    } catch (err) { setError(err.message || 'Could not load the collection.'); }
   }
   useEffect(() => { if (!examId) onNavigate('exams'); else load(); }, []);
 
@@ -667,7 +668,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
       <Section title="Submissions">
         {subs === null && error
           ? <Btn onClick={load}>Try again</Btn>
-          : <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet. Sealed exams appear here as students submit them." />}
+          : <SubmissionsTable subs={subs} onChanged={load} empty="Nobody has submitted yet. Sealed booklets appear here as students submit them." />}
       </Section>
       {form && (
         <Section title="Settings">
@@ -697,7 +698,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
                 )}
               </div>
             ))}
-            {form.questions.length < 20 && (
+            {form.questions.length < MAX_QUESTIONS && (
               <LinkBtn onClick={() => setForm(f => ({ ...f, questions: [...f.questions, ''] }))}>+ Add a question</LinkBtn>
             )}
             {subList.length > 0 && <p className="bb-hint">Students have already submitted. Changing questions now changes what later students see, not earlier answers.</p>}
@@ -964,7 +965,7 @@ export function RosterScreen({ onNavigate }) {
 
   async function erase(sid, who) {
     if (!confirm(`Permanently delete ${who} and all their work? This erases their account, `
-      + 'every exam they sat, and their place on every course. It cannot be undone.')) return;
+      + 'every collection they sat, and their place on every course. It cannot be undone.')) return;
     setError('');
     try { await BB_API.eraseStudent(sid); await load(); }
     catch (err) { setError(err.message || 'Could not delete the student.'); }
@@ -1085,7 +1086,7 @@ export function StudentsScreen({ onNavigate }) {
 
   async function erase(r) {
     const who = r.name || r.email || 'this student';
-    if (!confirm(`Permanently delete ${who} and all their work? This erases their account, every exam they sat, and their place on every course. It cannot be undone.`)) return;
+    if (!confirm(`Permanently delete ${who} and all their work? This erases their account, every collection they sat, and their place on every course. It cannot be undone.`)) return;
     try { await BB_API.eraseStudent(r.student_id); await load(); }
     catch (err) { setError(err.message || 'Could not delete the student.'); }
   }
@@ -1230,8 +1231,8 @@ export function ProctorLiveScreen() {
             <Stat value={counts.not_started ?? '—'} label="Not started" />
           </div>
           <Table columns={columns} rows={(live && live.students) || []} rowKey={r => r.student_id} caption="Live sitting"
-            empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose a collection above.'} />
-          <p className="bb-hint">Warnings arrive when a student seals their exam, so they show for submitted students only.</p>
+            empty={examId ? 'Nobody on the roster for this collection yet.' : 'Choose a collection above.'} />
+          <p className="bb-hint">Warnings arrive when a student seals their booklet, so they show for submitted students only.</p>
         </>
       ) : (
         <div key={examId} style={{ marginTop: '1rem' }}><ProctorScreen /></div>

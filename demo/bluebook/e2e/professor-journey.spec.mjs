@@ -44,6 +44,7 @@ import { test, expect } from './fixtures/tenancy.mjs'
 import {
   addBaselineFor, provisionTenantWithStaff, staffStorageState,
 } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const HARDCODED_COURSE_CODE = 'PHIL 301A' // must match a NewExam.jsx COURSES entry
 
@@ -284,9 +285,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const sealBtn = studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
-    studentPage.once('dialog', d => d.accept())
     await sealBtn.click()
-    await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 45_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByText('Collection Sealed')).toBeVisible({ timeout: 45_000 })
     // The submission record was written (the sealed screen only says
     // "Delivered" when recordSubmission succeeded — Exam.jsx handleSubmit).
     await expect(studentPage.getByText('✓ Delivered to your teacher'))

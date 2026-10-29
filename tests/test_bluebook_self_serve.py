@@ -1966,7 +1966,7 @@ def test_student_session_route_refuses_an_upcoming_exam_and_keeps_its_prompt_hid
     up = classroom["exams"]["upcoming"]["id"]
     r = _legacy_session(live_client, s["token"], up, s["student_id"])
     assert r.status_code == 409
-    assert r.json()["detail"] == "This exam has not opened yet."
+    assert r.json()["detail"] == "This collection has not opened yet."
     h = _auth(s["token"])
     assert live_client.get(f"/bluebook/me/exams/{up}", headers=h).json()["prompt"] is None
     assert live_client.post(f"/bluebook/me/exams/{up}/start", headers=h).status_code == 409

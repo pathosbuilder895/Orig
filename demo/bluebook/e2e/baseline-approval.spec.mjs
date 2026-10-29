@@ -152,7 +152,7 @@ test('after a held result the Add button stays hidden until the reader is reopen
   const ws = await sealedExam(request, {})
   const { ctx, page } = await teacherPage(browser, baseURL, ws, ['bluebook', 'original'])
   // The server's HELD_DETAIL (original/routers/bluebook_baselines.py), word for word.
-  const held = "Not added: this exam differs strongly from the student's existing samples. " +
+  const held = "Not added: this booklet differs strongly from the student's existing samples. " +
     'Approval does not override this check.'
 
   let posts = 0

@@ -2,7 +2,7 @@ import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { ErrorText, fromLocalInput } from './forms.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
-import { SMALLS_GREATS_CUTOFF, applySizePreset, optionConditions, settingDefaults } from './collection-options.jsx';
+import { MAX_QUESTIONS, SMALLS_GREATS_CUTOFF, applySizePreset, optionConditions, romanNumeral, settingDefaults } from './collection-options.jsx';
 
 // Every non-empty question, in order. One question is saved as-is; several
 // are numbered into the exam's single prompt, so none is silently dropped.
@@ -490,7 +490,7 @@ export function NewExamScreen({ onNavigate }) {
             {prompts.map((prompt, i) => (
               <div key={i}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
-                  <MetaLabel htmlFor={`nePrompt${i}`}>Question {['I','II','III','IV','V'][i] || i + 1}</MetaLabel>
+                  <MetaLabel htmlFor={`nePrompt${i}`}>Question {romanNumeral(i + 1)}</MetaLabel>
                   {prompts.length > 1 && (
                     <button onClick={() => removePrompt(i)} style={{
                       fontFamily: fontMono, fontSize: 9, letterSpacing: '0.15em',
@@ -504,6 +504,7 @@ export function NewExamScreen({ onNavigate }) {
                   value={prompt}
                   onChange={e => updatePrompt(i, e.target.value)}
                   placeholder="Write the question here…"
+                  maxLength={8000}
                   rows={4}
                   style={{
                     ...fieldBase,
@@ -517,7 +518,7 @@ export function NewExamScreen({ onNavigate }) {
                 />
               </div>
             ))}
-            {prompts.length < 5 && (
+            {prompts.length < MAX_QUESTIONS && (
               <button onClick={addPrompt} style={{
                 fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
                 color: BB.gold, background: 'none', border: 'none',
@@ -587,8 +588,8 @@ export function NewExamScreen({ onNavigate }) {
             </FormField>
           </div>
           <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '12px 0 0' }}>
-            Students can start only while the exam is open. A sitting that starts
-            near the closing time is shortened so it ends when the exam closes.
+            Students can start only while the collection is open. A sitting that starts
+            near the closing time is shortened so it ends when the collection closes.
           </p>
         </div>
 

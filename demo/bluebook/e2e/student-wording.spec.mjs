@@ -12,6 +12,7 @@
  */
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 // Whole words or stems, matched case-insensitively against visible text.
 const UNKIND = [
@@ -65,11 +66,11 @@ test.describe('Student-facing wording', () => {
     test.setTimeout(60_000)
     const exam = await createExam(request, testTenant, 'Wording exam')
     await boot(studentPage, exam, testTenant)
-    await expect(studentPage.getByRole('button', { name: 'Begin Examination' })).toBeVisible()
+    await expect(studentPage.getByRole('button', { name: 'Begin writing' })).toBeVisible()
     expect(unkindIn(await visibleText(studentPage))).toEqual([])
 
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
-    const box = studentPage.getByLabel('Your examination answer')
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
+    const box = studentPage.getByLabel('Your answer', { exact: true })
     await expect(box).toBeFocused()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
@@ -94,12 +95,11 @@ test.describe('Student-facing wording', () => {
     expect(unkindIn(await visibleText(studentPage))).toEqual([])
     await studentPage.context().setOffline(false)
 
-    studentPage.once('dialog', async d => {
-      expect(unkindIn(d.message())).toEqual([])
-      await d.accept()
-    })
     await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
-    await expect(studentPage.getByRole('heading', { name: 'Examination Sealed' })).toBeVisible({ timeout: 20_000 })
+    const ask = studentPage.getByRole('dialog', { name: 'Ready to submit?' })
+    expect(unkindIn(await ask.innerText())).toEqual([])
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 20_000 })
     expect(unkindIn(await visibleText(studentPage))).toEqual([])
   })
 
@@ -111,11 +111,11 @@ test.describe('Student-facing wording', () => {
       ? route.fulfill({ status: 403, contentType: 'application/json', body: '{"detail":"Session does not match the submission\'s student_id."}' })
       : route.continue()))
     await boot(studentPage, exam, testTenant, { blockWeb: false })
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
-    studentPage.once('dialog', d => d.accept())
     await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
-    await expect(studentPage.getByRole('heading', { name: 'Your exam has not been submitted yet' })).toBeVisible({ timeout: 10_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByRole('heading', { name: 'Your collection has not been submitted yet' })).toBeVisible({ timeout: 10_000 })
     await expect(studentPage.getByText(/Your writing is saved on this device/)).toBeVisible()
     const text = await visibleText(studentPage)
     expect(unkindIn(text)).toEqual([])
@@ -129,7 +129,7 @@ test.describe('Student-facing wording', () => {
     // so the local three-second clock runs out (exam-flow.spec.mjs does the same).
     const exam = { id: `wording-empty-${Date.now()}`, title: 'Wording empty exam', course: 'HIST 110', prompt: 'What changed in 1848?' }
     await boot(studentPage, exam, testTenant, { blockWeb: false, duration: 0.05 })
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     await expect(studentPage.getByRole('heading', { name: 'Time is up' })).toBeVisible({ timeout: 20_000 })
     await expect(studentPage.getByText(/Nothing was written in this booklet/)).toBeVisible()
     await expect(studentPage.getByRole('button', { name: /Try again/ })).toHaveCount(0)

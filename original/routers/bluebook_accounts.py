@@ -527,7 +527,7 @@ def student_erase(student_id: str, request: Request):
 def _require_student(request: Request) -> principal_mod.Principal:
     p = getattr(request.state, "principal", None)
     if p is None or p.is_demo:
-        raise HTTPException(status_code=401, detail="Sign in to see your exams.")
+        raise HTTPException(status_code=401, detail="Sign in to see your collections.")
     if p.role != "student":
         raise HTTPException(status_code=403, detail="Student account required.")
     return p
@@ -693,11 +693,13 @@ def my_exam_start(exam_id: str, request: Request):
         s.get("exam_id") == exam_id
         for s in _repo().list_bluebook_submissions_for_student(p.user_id)
     ):
-        raise HTTPException(status_code=409, detail="You have already submitted this exam.")
+        raise HTTPException(status_code=409, detail="You have already submitted this collection.")
     existing = _repo().get_bluebook_session(exam_id, p.user_id)
     if existing is None and state != rules.OPEN:
         detail = (
-            "This exam has not opened yet." if state == rules.UPCOMING else "This exam is closed."
+            "This collection has not opened yet."
+            if state == rules.UPCOMING
+            else "This collection is closed."
         )
         raise HTTPException(status_code=409, detail=detail)
     if existing is None:

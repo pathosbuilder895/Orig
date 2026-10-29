@@ -346,9 +346,9 @@ function App() {
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
-            { label: '⑤ Exam Briefing',         value: 'briefing'  },
+            { label: '⑤ Briefing',              value: 'briefing'  },
             { label: '⑥ New Collection',         value: 'new-exam'  },
-            { label: '⑦ Active Examination',    value: 'exam'      },
+            { label: '⑦ Writing',                value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}
           onChange={(v) => navigate(v)}

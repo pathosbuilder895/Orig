@@ -3730,7 +3730,7 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     after = out["after"]
     assert after["err"] == ""
     assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
-    assert "<b>My exams</b>" in after["chip"]
+    assert "<b>My collections</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
     assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
     assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"

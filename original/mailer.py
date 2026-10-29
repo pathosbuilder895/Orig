@@ -110,7 +110,7 @@ def send_invite(to: str, link: str, course: str = "", teacher: str = "") -> bool
     text = (
         f"{who} has added you to Original Collections{where}.\n\n"
         f"Set your password here (this link works once and {_validity()}):\n{link}\n\n"
-        "Then sign in with this email address to see your examinations.\n\n"
+        "Then sign in with this email address to see your collections.\n\n"
         "If you were not expecting this, you can ignore this email."
     )
     return send(to, f"You've been added to Original Collections{where}", text)
