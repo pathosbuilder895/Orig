@@ -29,7 +29,7 @@ import { confirmSeal } from './fixtures/seal.mjs'
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 const COMPARED_LINE = 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.'
-const CONTEXT_LINE = 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.'
+const CONTEXT_LINE = 'Your teacher also sees a few facts about how you wrote, such as how long you took and your word count, as context.'
 
 // A workspace (the fixture creates it with both products), its operator, and
 // an open exam with one invited student.

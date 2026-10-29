@@ -120,7 +120,7 @@ test.describe('Teacher reading and marking a sealed submission', () => {
     await expect(page.getByText('Loading submissions…')).toBeVisible()
     await expect(page.getByText(/Nobody has submitted yet/)).toHaveCount(0)
     release()
-    await expect(page.getByText('Nobody has submitted yet. Sealed exams appear here as students submit them.')).toBeVisible()
+    await expect(page.getByText('Nobody has submitted yet. Sealed booklets appear here as students submit them.')).toBeVisible()
     await ctx.close()
   })
 

@@ -133,7 +133,7 @@ test.describe('Alpha journey @alpha', () => {
       const nav = student.getByRole('navigation', { name: 'Student navigation' })
       await expect(nav.getByRole('link')).toHaveCount(0)
       // The first exam the teacher set is listed first.
-      const titles = await student.getByRole('table', { name: 'Your examinations' }).locator('td.lead').allInnerTexts()
+      const titles = await student.getByRole('table', { name: 'Your collections' }).locator('td.lead').allInnerTexts()
       expect(titles[0]).toContain(`Practice prompt 1 ${tag}`)
       expect(titles[1]).toContain(`Practice prompt 2 ${tag}`)
       expect(await student.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE.width)
@@ -169,12 +169,12 @@ test.describe('Alpha journey @alpha', () => {
       // Ctrl/Cmd+V is stopped at the key press; the student is told why.
       await student.evaluate(() => navigator.clipboard.writeText('PASTED FROM ELSEWHERE'))
       await box.press('ControlOrMeta+v')
-      await expect(student.getByText('Pasting is turned off for this exam, so nothing was added.').first()).toBeVisible()
+      await expect(student.getByText('Pasting is turned off for this collection, so nothing was added.').first()).toBeVisible()
       expect(await box.inputValue()).not.toContain('PASTED')
       await student.waitForTimeout(1600)   // the notice's 1.5s de-duplication, then a fresh save
       // A refresh in the middle comes back to this exam, not the exam list.
       await student.reload()
-      await expect(student.getByText('You have already started this exam.')).toBeVisible({ timeout: 10_000 })
+      await expect(student.getByText('You have already started this collection.')).toBeVisible({ timeout: 10_000 })
       await student.getByRole('button', { name: 'Resume writing' }).click()
       await expect(student.getByRole('textbox', { name: 'Your answer', exact: true })).toHaveValue(ESSAY)
       await student.getByRole('button', { name: 'Seal & Submit' }).click()
@@ -183,7 +183,7 @@ test.describe('Alpha journey @alpha', () => {
       const done = await student.locator('.bk-done').innerText()
       expect(done).not.toMatch(/compar|score|consisten/i)
       expect(done).toContain('Your teacher may choose to keep this booklet as reference writing')
-      await student.getByRole('button', { name: 'Back to my exams' }).click()
+      await student.getByRole('button', { name: 'Back to my collections' }).click()
       await expect(student.getByRole('row', { name: new RegExp(`Practice prompt 1 ${tag}`) }).locator('.bb-badge')).toHaveText('submitted')
     })
 

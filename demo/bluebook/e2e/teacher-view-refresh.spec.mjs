@@ -2,7 +2,7 @@
  * teacher-view-refresh.spec.mjs — alpha bug 2026-10-20 (live pilot 859436e).
  *
  * The teacher reported (1) no way to see a student's work from Students and
- * (2) after a refresh, "No examinations yet" and no submissions. Cause: one
+ * (2) after a refresh, "No collections yet" and no submissions. Cause: one
  * browser holds one sign-in in localStorage; redeeming a student invite in
  * the teacher's browser replaced the teacher session, so a refresh opened the
  * student home. These pin the fixes:

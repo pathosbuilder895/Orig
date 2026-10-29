@@ -160,7 +160,7 @@ test.describe('Public self-serve journey', () => {
     // A Bluebook-only workspace never reaches Original.
     expect(originalCalls).toEqual([])
 
-    await student.getByRole('button', { name: 'Back to my exams' }).click()
+    await student.getByRole('button', { name: 'Back to my collections' }).click()
     await expect(student.getByText('Not yet released')).toBeVisible({ timeout: 10_000 })
 
     // ── Teacher: read each answer and the warning, mark, release ────────

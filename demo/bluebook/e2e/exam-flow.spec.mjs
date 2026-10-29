@@ -163,7 +163,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).toHaveValue('')
 
     // The examiner's warning banner appears with the canonical copy
-    await expect(page.getByText('Pasting is turned off for this exam, so nothing was added.', { exact: true }))
+    await expect(page.getByText('Pasting is turned off for this collection, so nothing was added.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -180,7 +180,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     const mod = browserName === 'webkit' || process.platform === 'darwin' ? 'Meta' : 'Control'
     await page.keyboard.press(`${mod}+p`)
 
-    await expect(page.getByText('Printing and saving are turned off during this exam.', { exact: true }))
+    await expect(page.getByText('Printing and saving are turned off during this collection.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 

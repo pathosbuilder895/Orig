@@ -260,7 +260,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // also stops a nav click which silently did nothing from producing a green
   // scan of whatever screen was already showing.
   const SCREENS = [
-    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome back|Begin with the writing)/ },
+    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome|Begin with the writing)/ },
     { label: 'Examinations', navLabel: 'Collections', heading: 'Collections' },
     { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
     { label: 'Students', navLabel: 'Students', heading: 'Students' },

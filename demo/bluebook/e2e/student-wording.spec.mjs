@@ -228,7 +228,7 @@ test.describe('Student-facing wording', () => {
   test('an exam that is closed or not yet open is explained kindly', async ({ studentPage, testTenant, request }) => {
     const exam = await createExam(request, testTenant, 'Wording closed exam')
     await boot(studentPage, exam, testTenant, { loaded: true, state: 'closed' })
-    await expect(studentPage.getByText(/This exam has closed/)).toBeVisible()
+    await expect(studentPage.getByText(/This collection has closed/)).toBeVisible()
     expect(unkindIn(await visibleText(studentPage))).toEqual([])
   })
 })
