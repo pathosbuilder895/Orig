@@ -5,18 +5,19 @@ syllabus paragraph (bottom) in every participating course.*
 
 ## What this course uses
 
-This course uses **Original**, an authorship-verification tool, with
-**Collections**, its in-class examination environment. The goal is to protect the
-value of your own work: the system learns *your* writing voice so your authentic
-work is recognizably yours.
+This course uses **Original**, a writing-consistency tool, with
+**Collections**, its in-class writing environment. The goal is to protect the
+value of your own work: the system learns how *you* usually write, so your
+teacher can see whether a new piece fits your own earlier writing. It is a
+reason for a conversation, never a verdict.
 
 ## What is collected
 
 | When | What | Why |
 |---|---|---|
 | Any analyzed submission | the text you submitted | to compare against your own earlier writing |
-| Any analyzed submission | 103 numerical style measurements derived from the text | your "voice fingerprint" |
-| Proctored Collections examinations only | a session-level summary: how long you took, your word count, how many times you pasted, how many times you lost window focus (a count, not individual timestamped events), and your session start/end times | documents exam conditions and composition pace at a macro level |
+| Any analyzed submission | numerical style measurements derived from the text (sentence length, punctuation, word choice and similar) | a profile of your usual writing style |
+| Supervised collections only | a session-level summary: how long you took, your word count, how many times you pasted, how many times you lost window focus (a count, not individual timestamped events), and your session start/end times | documents the writing conditions and overall pace |
 
 We do **not** collect or analyze the rhythm or timing of your individual
 keystrokes. Only the session-level counts above are captured — never a
@@ -35,29 +36,29 @@ deletion.
 - Your writing is **never** shared with other institutions or third parties.
 - Your writing is **never** used to train AI models.
 - Your data is **never** sold.
-- No camera, no microphone, no screen recording — Collections watches the exam
-  page only, and only during the exam.
-- **No score ever decides an outcome by itself.** A flag prompts a
+- No camera, no microphone, no screen recording — Collections watches the
+  writing page only, and only while you write.
+- **No score ever decides an outcome by itself.** An unusual result prompts a
   conversation with your professor, in which you can always explain your work.
 
-## During a Collections examination
+## During a collection
 
 The briefing screen tells you, before you begin, exactly which conditions are
 enforced (full-screen, no copy/paste, no other tabs). Your work autosaves every
 30 seconds. Leaving full-screen or switching windows is recorded and shown to
-you as a warning — it does not eject you from the exam.
+you as a warning — it does not end your collection.
 
-During proctored examinations you may also be asked to scan a QR code that
+During supervised collections you may also be asked to scan a QR code that
 opens a "parked" page on your own phone. That page reports only that the
 phone is present and its screen is on (foreground/heartbeat) — it collects no
-content, no location, and no identifiers beyond the exam session you typed in.
+content, no location, and no identifiers beyond the collection you typed in.
 That information is discarded once the session ends.
 
-If your teacher turns on **phone parking** for a collection, the exam's first
+If your teacher turns on **phone parking** for a collection, its first
 page shows a QR code that is yours alone (it lasts a few minutes and is
 refreshed while the page is open). Scanning it with your phone's camera opens
 the parked page with no app and no sign-in, and links the parked phone to your
-account for that exam; you cannot begin until it is parked. Put the phone where
+account for that collection; you cannot begin until it is parked. Put the phone where
 your teacher asks. The page reports only whether it is open. Nothing about the
 phone itself (number, device details, location) is collected. If you have no
 phone with you, your teacher can let you begin without one; that is recorded
@@ -80,13 +81,13 @@ deleted with the rest of your data if you withdraw.
 
 ## Suggested syllabus paragraph
 
-> Written work in this course is analyzed by **Original**, an authorship-
-> verification tool that compares submissions against your own earlier writing.
-> In-class writing uses **Collections**, a secure exam page that runs full-screen,
+> Written work in this course is analyzed by **Original**, a writing-
+> consistency tool that compares submissions against your own earlier writing.
+> In-class writing uses **Collections**, a secure writing page that runs full-screen,
 > disables copy/paste, and records a session-level summary (time taken, word
 > count, paste attempts, and a count of window-focus losses) — not the rhythm
 > or timing of individual keystrokes; these conditions are shown to you before
-> each exam begins. Results are advisory: they may prompt a conversation with
+> each collection begins. Results are advisory: they may prompt a conversation with
 > your instructor and are never used as the sole basis for an academic-integrity
 > decision. Your writing is not shared, sold, or used to train AI. You may
 > request details or deletion of your data through the registrar.
