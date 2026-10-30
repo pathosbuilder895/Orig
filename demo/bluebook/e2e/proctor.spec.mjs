@@ -34,6 +34,7 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
+import { createExam } from './fixtures/api-setup.mjs'
 
 /** The hint one "phone" types on parked.html — initials, which is all this
  *  feature ever stores about a student (see the router's privacy banner). */
@@ -257,6 +258,28 @@ test.describe('Proctor screen — QR phone park', () => {
     const second = await startPark(staffPage, examSession)
     expect(second.token).toBe(first.token)
     expect(second.qrUrl).toBe(first.qrUrl)
+  })
+
+  // The panel is keyed on the chosen collection, and the screen chooses one
+  // when its list arrives. Shown before that, the panel took a label, then
+  // remounted and refilled the box with the collection's id: typing was lost
+  // silently (and the reload test above flaked whenever the list was slow).
+  test('a label typed as soon as the phone park shows survives the collection list arriving', async ({
+    staffPage, workerTenant, request,
+  }) => {
+    await createExam(request, workerTenant.staff.token, { title: `Park race ${workerTenant.tenant.tenant_id}` })
+    // A slow collection list, as on a slow connection. Latency only: every
+    // wait below is still an auto-waiting expect.
+    await staffPage.route(/\/bluebook\/exams(\?.*)?$/, async (route) => {
+      await new Promise((r) => setTimeout(r, 1500))
+      await route.continue()
+    })
+    await gotoProctorScreen(staffPage)
+    const label = parkId(workerTenant, 'early')
+    await staffPage.locator('#park-session').fill(label)
+    // Once a collection is chosen, the box still holds what was typed.
+    await expect(staffPage.getByLabel('Collection', { exact: true })).not.toHaveValue('')
+    await expect(staffPage.locator('#park-session')).toHaveValue(label)
   })
 
   // ── 6 ──────────────────────────────────────────────────────────────────
