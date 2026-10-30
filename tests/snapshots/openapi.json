@@ -367,6 +367,154 @@
         "title": "AuthorshipSignalOut",
         "type": "object"
       },
+      "BandRateCellOut": {
+        "description": "One band's measured rates from gate G9 (validation/band_rates.json):\nthe share of genuine student papers that landed in the band, and the\nshare that landed in it or further out, each with a 95% Wilson interval.",
+        "properties": {
+          "at_or_beyond": {
+            "title": "At Or Beyond",
+            "type": "number"
+          },
+          "ci_at_or_beyond": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci At Or Beyond",
+            "type": "array"
+          },
+          "ci_in_band": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci In Band",
+            "type": "array"
+          },
+          "in_band": {
+            "title": "In Band",
+            "type": "number"
+          }
+        },
+        "required": [
+          "in_band",
+          "at_or_beyond",
+          "ci_in_band",
+          "ci_at_or_beyond"
+        ],
+        "title": "BandRateCellOut",
+        "type": "object"
+      },
+      "BandRateOut": {
+        "description": "The one measured rate a teacher page may quote for this band, present\nonly when gate G9 passed in strict mode (NORTH_STAR rule 2). ``kind`` is\n\"in_band\" below the first band and \"at_or_beyond\" (the false-alarm rate\nat that bar) otherwise. Never a probability that the paper is the\nstudent's own.",
+        "properties": {
+          "ci": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci",
+            "type": "array"
+          },
+          "corpus": {
+            "title": "Corpus",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "rate": {
+            "title": "Rate",
+            "type": "number"
+          },
+          "students": {
+            "title": "Students",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rate",
+          "kind",
+          "ci",
+          "n",
+          "students",
+          "corpus",
+          "date"
+        ],
+        "title": "BandRateOut",
+        "type": "object"
+      },
+      "BandRateStatusOut": {
+        "description": "Gate G9's last recorded run, whatever its verdict, so a staff page can\nshow how the band rates are being measured. ``verdict`` is \"not run\"\nuntil the first run is recorded.",
+        "properties": {
+          "bands": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BandRateCellOut"
+            },
+            "default": {},
+            "title": "Bands",
+            "type": "object"
+          },
+          "corpus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "n_papers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Papers"
+          },
+          "n_students": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Students"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "BandRateStatusOut",
+        "type": "object"
+      },
       "BaselineConfidenceOut": {
         "properties": {
           "authenticated_count": {
@@ -3283,7 +3431,7 @@
         "type": "object"
       },
       "PreliminaryScoreOut": {
-        "description": "Optional preliminary score (ADR-013). Staff and teachers only, never a\nstudent session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from\nthe deviation score and action band this response already carries.",
+        "description": "Optional preliminary score (ADR-013). Staff and teachers only, never a\nstudent session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from\nthe deviation score and action band this response already carries, plus\nthe count of measured habits outside the past-paper range and gate G9's\nband rate when one has been measured.",
         "properties": {
           "band": {
             "anyOf": [
@@ -3296,9 +3444,51 @@
             ],
             "title": "Band"
           },
+          "band_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BandRateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "band_rate_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BandRateStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "band_words": {
             "title": "Band Words",
             "type": "string"
+          },
+          "habits_compared": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Compared"
+          },
+          "habits_outside": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Outside"
           },
           "label": {
             "title": "Label",

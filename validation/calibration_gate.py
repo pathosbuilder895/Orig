@@ -2337,7 +2337,7 @@ def _leg_clock():
     return mark
 
 
-GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T")
+GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "T")
 
 
 def _parse_only(spec: str | None) -> set[str] | None:
@@ -2601,6 +2601,20 @@ def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
         except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
             results.append(_machinery_error_result("G8", _G8_CRITERION, exc))
         _mark("G8")
+
+    if _want("G9"):
+        # G9: per-band false-alarm rate on REAL student writing, scored on
+        # the pilot's own path (deviation bands, typicality off). Its corpus
+        # is not committed and does not exist yet (no teacher has been
+        # invited), so on every checkout today this is a loud
+        # "uninformative" skip, exactly like G7 — and --strict is right to
+        # refuse to bless the run, because the teacher page quotes a
+        # percentage only from a G9 pass (NORTH_STAR rule 2, 2026-10-30).
+        try:
+            results.append(_compute_g9_band_data(client))
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G9", _G9_CRITERION, exc))
+        _mark("G9")
 
     # Deployment-shaped gates consume the latest deterministic TermSim metrics.
     # Corpus extraction remains outside this already-expensive battery; the
@@ -4815,8 +4829,343 @@ def run_g5(
     )
 
 
+# ── G9 — per-band false-alarm rate on real student writing ───────────────────
+#
+# Decided 2026-10-30 with the Writing State redesign. The teacher's result
+# page may quote a percentage for a band ("in our tests, 6% of papers that
+# students wrote themselves read at least this far from their past work")
+# ONLY from a recorded G9 pass: NORTH_STAR rule 2 as amended that day.
+# Everything about this gate follows from what that sentence has to mean:
+#
+#   - the corpus is REAL student writing, every paper confirmed by its
+#     teacher as the student's own (``kind: student_pilot`` in the manifest),
+#     scored against that student's own teacher-approved past papers;
+#   - it is scored on the pilot's own path — the live /score route with the
+#     pilot's flags, i.e. deviation bands and TYPICALITY_SCORING off, which
+#     this battery otherwise forces on for G1 — because the rate must
+#     describe the number the teacher sees, not a research configuration;
+#   - the quoted rate must be MEASURED, so a thin corpus is "uninformative":
+#     at least _G9_MIN_STUDENTS students (one prolific student must not
+#     define a population rate) and _G9_MIN_PAPERS papers, and the Wilson
+#     interval at the schedule_conversation+ bar must not straddle
+#     _G9_FA_BAR (validation/power.bar_decidable, the G3 convention);
+#   - the bar itself is the project's existing honest-student bar: no more
+#     than 5% of genuine papers at schedule_conversation or above (the same
+#     0.05 G1 holds its flagged rate to, and the "flagged" definition the
+#     T-01 certification test uses). A measured rate above it is a FAIL —
+#     the band words "worth a conversation" would then be wrong for one
+#     honest student in twenty, and that is exactly what must not be quoted
+#     as if it were fine. A fail still records every band's rate in
+#     validation/band_rates.json (for the staff Calibration section); only a
+#     pass lets the teacher page quote one.
+#
+# What the rates mean, per band: ``in_band`` is the share of genuine papers
+# whose action was exactly that band; ``at_or_beyond`` the share at that band
+# or any more severe one (the false-alarm rate at that bar; 1.0 at
+# no_action by construction). Neither is P(genuine | band) — that needs a
+# base rate nobody has — and the teacher-facing words say which it is.
+
+_G9_FA_BAR = 0.05
+_G9_MIN_STUDENTS = 5
+_G9_MIN_PAPERS = 30
+_G9_BAR_BAND = "schedule_conversation"
+_G9_BANDS: tuple[str, ...] = ("no_action", "monitor", "schedule_conversation", "escalate")
+_G9_CRITERION = (
+    "genuine student papers at schedule_conversation+ <= 5% (Wilson 95% interval "
+    "decidable), on real student writing from >= 5 students and >= 30 papers, "
+    "scored on the pilot path (deviation bands, typicality off)"
+)
+_G9_REMEDIATION = (
+    "assemble validation/student_bands/ from pilot data: manifest.json with "
+    '{"corpus": <name>, "kind": "student_pilot", "students": {<id>: {"baselines": '
+    '[<5+ teacher-approved past papers>], "papers": [<teacher-confirmed genuine '
+    "papers>]}}} and the text files it names (never committed: student writing "
+    "stays inside the deployment, NORTH_STAR rule 7); then "
+    "`python -m validation.calibration_gate --strict --only G9 --write-band-rates`"
+)
+
+
+class _G9UnknownActionError(ValueError):
+    """An action outside production's four bands reached G9; a dedicated type
+    so run_all's crash wrapper reports it as machinery, never as a rate."""
+
+
+def _g9_skip_result(
+    missing: str, *, reason: str = "corpus unavailable", extra_detail: dict | None = None
+) -> GateResult:
+    detail = dict(extra_detail or {})
+    detail.update({"missing": missing, "remediation": _G9_REMEDIATION, "bar": _G9_FA_BAR})
+    return GateResult(
+        name="G9",
+        passed=False,
+        verdict="uninformative",
+        criterion=_G9_CRITERION,
+        current_value=f"SKIPPED ({reason}): {missing}",
+        detail=detail,
+    )
+
+
+def _g9_band_table(actions: list[str]) -> dict[str, dict]:
+    """Per-band counts and rates with Wilson intervals, severity order."""
+    from validation.power import wilson_interval
+
+    n = len(actions)
+    severity = {band: i for i, band in enumerate(_G9_BANDS)}
+    table: dict[str, dict] = {}
+    for band in _G9_BANDS:
+        in_band = sum(1 for a in actions if a == band)
+        beyond = sum(1 for a in actions if severity[a] >= severity[band])
+        table[band] = {
+            "count_in_band": in_band,
+            "count_at_or_beyond": beyond,
+            "in_band": in_band / n if n else 0.0,
+            "at_or_beyond": beyond / n if n else 0.0,
+            "ci_in_band": list(wilson_interval(in_band, n)) if n else [0.0, 1.0],
+            "ci_at_or_beyond": list(wilson_interval(beyond, n)) if n else [0.0, 1.0],
+        }
+    return table
+
+
+def evaluate_g9_band_false_alarm(
+    actions: list[str],
+    n_students: int,
+    *,
+    corpus: str = "",
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G9 — per-band false-alarm rate on real student writing. ``actions`` is
+    one recommendation.action per genuine paper scored on the pilot path;
+    ``n_students`` how many distinct students they came from.
+
+    Three-valued like every other gate here, by the same rule: only a
+    would-be pass is ever downgraded to "uninformative". A measured rate
+    whose whole interval sits above the bar is a FAIL however thin the
+    corpus, because that is evidence against the band words themselves.
+    An action outside the four production bands is a machinery error
+    (raised, never counted).
+    """
+    unknown = sorted({a for a in actions if a not in _G9_BANDS})
+    if unknown:
+        raise _G9UnknownActionError(f"unrecognised action(s) in G9 input: {unknown}")
+    from validation.power import bar_decidable
+
+    n = len(actions)
+    table = _g9_band_table(actions)
+    bar_cell = table[_G9_BAR_BAND]
+    flagged = bar_cell["count_at_or_beyond"]
+    rate = bar_cell["at_or_beyond"]
+    decidable = bar_decidable(flagged, n, _G9_FA_BAR) if n else "undecided"
+    thin = []
+    if n_students < _G9_MIN_STUDENTS:
+        thin.append(f"{n_students} student(s) < {_G9_MIN_STUDENTS}")
+    if n < _G9_MIN_PAPERS:
+        thin.append(f"{n} paper(s) < {_G9_MIN_PAPERS}")
+
+    if decidable == "above":
+        verdict = "fail"
+    elif decidable == "below" and not thin:
+        verdict = "pass"
+    else:
+        verdict = "uninformative"
+    lo, hi = bar_cell["ci_at_or_beyond"]
+    if decidable == "above":
+        why = ""
+    elif thin:
+        why = "; ".join(thin)
+    elif decidable == "undecided":
+        why = f"95% CI [{lo:.3f}, {hi:.3f}] straddles the {_G9_FA_BAR:.0%} bar"
+    else:
+        why = ""
+    detail = {
+        "n_papers": n,
+        "n_students": n_students,
+        "corpus": corpus,
+        "bar": _G9_FA_BAR,
+        "bar_band": _G9_BAR_BAND,
+        "decidable": decidable,
+        "bands": table,
+        "power": {"n_papers": n, "wilson_ci": [lo, hi], "bar": _G9_FA_BAR, "n_essays": n},
+    }
+    if informational:
+        detail["informational"] = informational
+    return GateResult(
+        name="G9",
+        passed=verdict == "pass",
+        verdict=verdict,
+        criterion=_G9_CRITERION,
+        current_value=(
+            f"{flagged}/{n} genuine papers at {_G9_BAR_BAND}+ ({rate:.1%}) from "
+            f"{n_students} student(s); CI [{lo:.3f}, {hi:.3f}] is {decidable} the bar"
+            + (f" — {why}" if why else "")
+        ),
+        detail=detail,
+    )
+
+
+def _g9_corpus_dir() -> Path:
+    return Path(
+        os.environ.get("CALIBRATION_GATE_G9_CORPUS") or (_ROOT / "validation" / "student_bands")
+    )
+
+
+def _load_g9_corpus(corpus_dir: Path) -> tuple[str, dict[str, tuple[list[str], list[str]]]]:
+    """``(corpus name, {student: (baseline texts, genuine paper texts)})``.
+    Raises FileNotFoundError when the manifest is absent and ValueError when
+    it is not a student-pilot corpus of the documented shape."""
+    manifest_path = corpus_dir / "manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(str(manifest_path))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or manifest.get("kind") != "student_pilot":
+        raise ValueError(
+            'manifest.json must declare "kind": "student_pilot" (real student writing only)'
+        )
+    name = str(manifest.get("corpus") or corpus_dir.name)
+    students = manifest.get("students")
+    if not isinstance(students, dict) or not students:
+        raise ValueError("manifest.json names no students")
+    out: dict[str, tuple[list[str], list[str]]] = {}
+    for sid, entry in students.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"student {sid!r}: not an object")
+        baselines = [
+            (corpus_dir / rel).read_text(encoding="utf-8") for rel in entry.get("baselines", [])
+        ]
+        papers = [(corpus_dir / rel).read_text(encoding="utf-8") for rel in entry.get("papers", [])]
+        out[str(sid)] = (baselines, papers)
+    return name, out
+
+
+def _score_g9_papers(
+    client, corpus: dict[str, tuple[list[str], list[str]]]
+) -> tuple[list[str], int, int, int]:
+    """Score every genuine paper against its student's own baselines on the
+    pilot path. Returns (actions, n_students_with_a_scored_paper, n_errors,
+    n_skipped_thin): a student with fewer than 5 baselines is skipped, since
+    the teacher page would call that reading inconclusive and quote nothing."""
+    actions: list[str] = []
+    n_errors = 0
+    n_thin = 0
+    students = 0
+    saved = os.environ.get("TYPICALITY_SCORING")
+    os.environ["TYPICALITY_SCORING"] = "0"
+    try:
+        for sid, (baselines, papers) in corpus.items():
+            if len(baselines) < 5 or not papers:
+                n_thin += 1
+                continue
+            student_sid = f"demo:gate_g9_{sid}"
+            failed = False
+            for i, text in enumerate(baselines):
+                r = client.post(
+                    f"/students/{student_sid}/baseline",
+                    json={
+                        "text": text,
+                        "provenance": "verified",
+                        "submitted_at": f"2026-01-{1 + i % 28:02d}",
+                    },
+                )
+                if r.status_code != 200:
+                    failed = True
+            if failed:
+                n_errors += 1
+                continue
+            scored_here = 0
+            for j, text in enumerate(papers):
+                r = client.post(
+                    f"/students/{student_sid}/score",
+                    json={"text": text, "submission_id": f"g9_{sid}_{j}"},
+                )
+                if r.status_code == 200:
+                    actions.append(r.json()["recommendation"]["action"])
+                    scored_here += 1
+                else:
+                    n_errors += 1
+            if scored_here:
+                students += 1
+    finally:
+        if saved is None:
+            os.environ.pop("TYPICALITY_SCORING", None)
+        else:
+            os.environ["TYPICALITY_SCORING"] = saved
+    return actions, students, n_errors, n_thin
+
+
+def _compute_g9_band_data(client, corpus_dir: Path | None = None) -> GateResult:
+    """Load the student corpus, score it on the pilot path, evaluate G9.
+    A missing corpus is a loud uninformative skip naming the remediation; a
+    malformed one is a machinery error (raised to run_all's wrapper)."""
+    corpus_dir = corpus_dir or _g9_corpus_dir()
+    try:
+        name, corpus = _load_g9_corpus(corpus_dir)
+    except FileNotFoundError as exc:
+        return _g9_skip_result(
+            f"no student corpus at {corpus_dir} ({exc})",
+            extra_detail={"corpus_dir": str(corpus_dir)},
+        )
+    actions, n_students, n_errors, n_thin = _score_g9_papers(client, corpus)
+    _require_healthy_leg("G9 student-paper scoring", n_success=len(actions), n_errors=n_errors)
+    if not actions:
+        return _g9_skip_result(
+            f"{len(corpus)} student(s) in {corpus_dir}, none with 5+ baselines and a genuine paper",
+            reason="nothing measurable",
+            extra_detail={"corpus_dir": str(corpus_dir), "corpus": name, "n_thin_students": n_thin},
+        )
+    return evaluate_g9_band_false_alarm(
+        actions,
+        n_students,
+        corpus=name,
+        informational={"corpus_dir": str(corpus_dir), "n_thin_students": n_thin, "n_errors": n_errors},
+    )
+
+
+def band_rates_payload(result: GateResult, *, date: str | None = None) -> dict:
+    """What validation/band_rates.json holds for one G9 result: the shape
+    original/evidence.py's load_band_rates validates. A skip or a machinery
+    error records status only (no bands), so a stale pass can never outlive
+    the run that failed to reproduce it."""
+    import datetime as _dt
+
+    detail = result.detail or {}
+    bands = {}
+    for band, cell in (detail.get("bands") or {}).items():
+        if band not in _G9_BANDS:
+            continue
+        bands[band] = {
+            "in_band": float(cell["in_band"]),
+            "at_or_beyond": float(cell["at_or_beyond"]),
+            "ci_in_band": [float(x) for x in cell["ci_in_band"]],
+            "ci_at_or_beyond": [float(x) for x in cell["ci_at_or_beyond"]],
+        }
+    verdict = result.verdict if result.verdict in ("pass", "fail", "uninformative") else "uninformative"
+    return {
+        "schema": 1,
+        "gate": "G9",
+        "verdict": verdict,
+        "corpus": str(
+            detail.get("corpus") or detail.get("corpus_dir") or detail.get("missing") or "unknown"
+        ),
+        "date": date or _dt.date.today().isoformat(),
+        "n_papers": int(detail.get("n_papers") or 0),
+        "n_students": int(detail.get("n_students") or 0),
+        "bands": bands,
+    }
+
+
+def write_band_rates(result: GateResult, path: Path | None = None) -> Path:
+    from original.evidence import BAND_RATES_PATH, load_band_rates
+
+    target = Path(path) if path is not None else BAND_RATES_PATH
+    payload = band_rates_payload(result)
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    if load_band_rates(target) is None:  # the loader is the contract; never leave a file it rejects
+        raise RuntimeError(f"wrote {target} but original.evidence.load_band_rates rejects it")
+    return target
+
+
 def render(results: list[GateResult]) -> str:
-    lines = ["╭─ Calibration gates (G1, G1p-G8 + T-1…T-4) ─────────────────╮"]
+    lines = ["╭─ Calibration gates (G1, G1p-G9 + T-1…T-4) ─────────────────╮"]
     for r in results:
         status = r.verdict.upper()
         lines.append(f"│ {r.name} [{status}] {r.criterion}")
@@ -4869,7 +5218,15 @@ def main(argv=None) -> int:
         help=f"comma-separated subset of legs to run (valid: {', '.join(GATE_LEGS)}); "
         "default runs every leg",
     )
+    parser.add_argument(
+        "--write-band-rates",
+        action="store_true",
+        help="record gate G9's result in validation/band_rates.json (requires --strict; "
+        "the teacher page quotes a band's rate only from a recorded G9 pass)",
+    )
     args = parser.parse_args(argv)
+    if args.write_band_rates and not args.strict:
+        parser.error("--write-band-rates requires --strict")
     try:
         only = _parse_only(args.only)
     except ValueError as exc:
@@ -4879,6 +5236,13 @@ def main(argv=None) -> int:
     # zero-argument run_all stand-ins in tests/test_calibration_gate.py valid.
     results = run_all() if only is None else run_all(only=only)
     print(render(results))
+    if args.write_band_rates:
+        g9 = [r for r in results if r.name == "G9"]
+        if not g9:
+            print("band rates: G9 did not run (use --only G9 or run every leg); nothing written")
+        else:
+            written = write_band_rates(g9[-1])
+            print(f"band rates: wrote {written} (verdict {g9[-1].verdict})")
     if args.out:
         from original.quantum.typicality import (
             MONITOR_FAR_THRESHOLD,

@@ -595,8 +595,8 @@ def test_batch_writes_staff_evidence_and_preliminary_columns_without_labels(tmp_
                                            no_rerun=True, throttle_seconds=0, scorer=fake_score)
     by_id = {row["submission_id"]: row for row in rows}
     assert by_id["ev_other"]["preliminary_score"] == 0.66
-    assert by_id["ev_other"]["preliminary_band"] == "Outside the usual range"
-    assert by_id["ev_natural"]["preliminary_band"] == "Within the writer's usual range"
+    assert by_id["ev_other"]["preliminary_band"] == "Reads differently in several habits; worth a conversation"
+    assert by_id["ev_natural"]["preliminary_band"] == "Reads like their own writing"
     assert by_id["thin_paper"]["preliminary_score"] is None
     assert by_id["thin_paper"]["preliminary_band"] == "Not enough writing on file to compare yet."
     assert "evidence_file" not in by_id["thin_paper"]

@@ -9,6 +9,7 @@ only tests the gate LOGIC on small synthetic inputs.
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
@@ -42,6 +43,7 @@ from validation.calibration_gate import (
     evaluate_g5_permutation_null,
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
+    evaluate_g9_band_false_alarm,
     render,
     run_g5,
 )
@@ -3963,6 +3965,157 @@ class TestG8GenreDiscrimination:
         assert r.detail["failed_legs"] == []
 
 
+# ── G9 — per-band false-alarm rate on real student writing ───────────────────
+#
+# The gate behind the teacher page's percentage (NORTH_STAR rule 2, 2026-10-30).
+# Pass needs a decidable Wilson interval below the 5% bar at
+# schedule_conversation+ AND enough students and papers; a measured rate above
+# the bar fails however thin the corpus; everything else is uninformative.
+
+
+def _g9_actions(n_ok, n_monitor=0, n_sched=0, n_esc=0):
+    return (["no_action"] * n_ok + ["monitor"] * n_monitor
+            + ["schedule_conversation"] * n_sched + ["escalate"] * n_esc)
+
+
+class TestG9BandFalseAlarm:
+    def test_passes_when_the_interval_clears_the_bar_with_enough_students(self):
+        # 0 of 79 at schedule_conversation+: Wilson upper bound 0.046 < 0.05.
+        # One flagged paper would already push the upper bound to 0.068.
+        r = evaluate_g9_band_false_alarm(_g9_actions(70, 9, 0, 0), 9, corpus="pilot")
+        assert r.verdict == "pass" and r.passed is True and r.name == "G9"
+        bands = r.detail["bands"]
+        assert bands["schedule_conversation"]["count_at_or_beyond"] == 0
+        assert bands["no_action"]["at_or_beyond"] == 1.0
+        assert bands["monitor"]["in_band"] == pytest.approx(9 / 79)
+        one = evaluate_g9_band_false_alarm(_g9_actions(70, 8, 1, 0), 9)
+        assert one.verdict == "uninformative" and one.detail["decidable"] == "undecided"
+        assert bands["escalate"]["ci_at_or_beyond"][0] == 0.0
+        assert r.detail["corpus"] == "pilot" and r.detail["decidable"] == "below"
+
+    def test_zero_flags_on_a_small_clean_corpus_is_uninformative_not_a_pass(self):
+        r = evaluate_g9_band_false_alarm(_g9_actions(30), 6)
+        assert r.verdict == "uninformative" and r.passed is False
+        assert "straddles" in r.current_value
+
+    def test_too_few_students_downgrades_a_would_be_pass(self):
+        r = evaluate_g9_band_false_alarm(_g9_actions(90), 2)
+        assert r.detail["decidable"] == "below"
+        assert r.verdict == "uninformative" and "student(s) < 5" in r.current_value
+
+    def test_too_few_papers_downgrades_even_when_decidable(self):
+        # Wilson at 0/N clears 0.05 only above ~N=72, so "decidable but thin"
+        # needs the floor raised in the test rather than found in nature.
+        r = evaluate_g9_band_false_alarm(_g9_actions(29), 9)
+        assert r.verdict == "uninformative" and "paper(s) < 30" in r.current_value
+
+    def test_fails_on_the_measured_rate_not_on_thinness(self):
+        from validation.gate_contracts import GATE_CONTRACTS
+
+        r = GATE_CONTRACTS["evaluate_g9_band_false_alarm"].failure_witness()
+        assert r.verdict == "fail" and r.passed is False
+        assert r.detail["n_papers"] < 30, "the witness must be a THIN corpus that still fails"
+        assert r.detail["decidable"] == "above"
+
+    def test_unknown_action_is_a_machinery_error_never_a_rate(self):
+        with pytest.raises(ValueError):
+            evaluate_g9_band_false_alarm(_g9_actions(40) + ["escalate_now"], 6)
+
+    def test_empty_input_is_uninformative(self):
+        r = evaluate_g9_band_false_alarm([], 0)
+        assert r.verdict == "uninformative" and r.detail["n_papers"] == 0
+
+    def test_gate_leg_and_render_know_g9(self):
+        assert "G9" in calibration_gate.GATE_LEGS
+        text = render([evaluate_g9_band_false_alarm(_g9_actions(30), 6)])
+        assert "G9 [UNINFORMATIVE]" in text
+
+
+class TestG9CorpusAndBandRates:
+    def test_missing_corpus_is_a_loud_skip_naming_the_remediation(self, tmp_path):
+        r = calibration_gate._compute_g9_band_data(client=None, corpus_dir=tmp_path / "absent")
+        assert r.verdict == "uninformative" and r.name == "G9"
+        assert "SKIPPED" in r.current_value and "student_bands" in r.detail["remediation"]
+
+    def test_a_corpus_that_is_not_student_writing_is_refused(self, tmp_path):
+        (tmp_path / "manifest.json").write_text(json.dumps({"kind": "real_historical", "students": {}}))
+        with pytest.raises(ValueError):
+            calibration_gate._compute_g9_band_data(client=None, corpus_dir=tmp_path)
+
+    def test_scores_on_the_pilot_path_with_typicality_off(self, tmp_path, monkeypatch):
+        (tmp_path / "s1").mkdir()
+        for i in range(5):
+            (tmp_path / "s1" / f"b{i}.txt").write_text(f"baseline {i}")
+        (tmp_path / "s1" / "p0.txt").write_text("paper")
+        (tmp_path / "thin").mkdir()
+        (tmp_path / "thin" / "b0.txt").write_text("only one")
+        (tmp_path / "manifest.json").write_text(json.dumps({
+            "corpus": "fixture", "kind": "student_pilot",
+            "students": {"s1": {"baselines": [f"s1/b{i}.txt" for i in range(5)], "papers": ["s1/p0.txt"]},
+                         "thin": {"baselines": ["thin/b0.txt"], "papers": []}}}))
+        seen = {"typicality": [], "posts": []}
+
+        class _Resp:
+            def __init__(self, status, body=None):
+                self.status_code = status
+                self._body = body or {}
+
+            def json(self):
+                return self._body
+
+        class _Client:
+            def post(self, url, json=None):
+                seen["posts"].append(url)
+                seen["typicality"].append(os.environ.get("TYPICALITY_SCORING"))
+                if url.endswith("/score"):
+                    return _Resp(200, {"recommendation": {"action": "monitor"}})
+                return _Resp(200)
+
+        monkeypatch.setenv("TYPICALITY_SCORING", "1")
+        r = calibration_gate._compute_g9_band_data(client=_Client(), corpus_dir=tmp_path)
+        assert set(seen["typicality"]) == {"0"} and os.environ["TYPICALITY_SCORING"] == "1"
+        assert sum(u.endswith("/baseline") for u in seen["posts"]) == 5
+        assert sum(u.endswith("/score") for u in seen["posts"]) == 1
+        assert r.name == "G9" and r.verdict == "uninformative"
+        assert r.detail["n_papers"] == 1 and r.detail["n_students"] == 1
+        assert r.detail["informational"]["n_thin_students"] == 1
+        assert r.detail["bands"]["monitor"]["count_in_band"] == 1
+
+    def test_band_rates_file_round_trips_through_the_loader(self, tmp_path):
+        from original.evidence import band_rate_for, load_band_rates
+
+        passing = evaluate_g9_band_false_alarm(_g9_actions(70, 9, 0, 0), 9, corpus="pilot")
+        target = calibration_gate.write_band_rates(passing, tmp_path / "band_rates.json")
+        rates = load_band_rates(target)
+        assert rates["verdict"] == "pass" and rates["n_papers"] == 79 and rates["n_students"] == 9
+        assert band_rate_for("schedule_conversation", rates)["rate"] == 0.0
+        assert band_rate_for("monitor", rates)["rate"] == pytest.approx(9 / 79)
+        assert band_rate_for("no_action", rates)["kind"] == "in_band"
+        # A later skip overwrites the pass: no stale rate outlives the run that lost it.
+        skip = calibration_gate._compute_g9_band_data(client=None, corpus_dir=tmp_path / "absent")
+        calibration_gate.write_band_rates(skip, target)
+        rates = load_band_rates(target)
+        assert rates["verdict"] == "uninformative" and rates["bands"] == {}
+        assert band_rate_for("schedule_conversation", rates) is None
+
+    def test_payload_of_a_machinery_error_records_status_only(self):
+        err = _machinery_error_result("G9", "c", RuntimeError("boom"))
+        payload = calibration_gate.band_rates_payload(err, date="2026-10-30")
+        assert payload["verdict"] == "fail" and payload["bands"] == {} and payload["date"] == "2026-10-30"
+
+    def test_main_write_band_rates_requires_strict_and_writes_g9(self, monkeypatch, tmp_path, capsys):
+        with pytest.raises(SystemExit):
+            calibration_gate.main(["--write-band-rates"])
+        result = evaluate_g9_band_false_alarm(_g9_actions(30), 6)
+        monkeypatch.setattr(calibration_gate, "run_all", lambda only=None: [result])
+        monkeypatch.setattr(calibration_gate, "write_band_rates", lambda r, path=None: tmp_path / "x.json")
+        assert calibration_gate.main(["--strict", "--only", "G9", "--write-band-rates"]) == 1
+        assert "band rates: wrote" in capsys.readouterr().out
+        monkeypatch.setattr(calibration_gate, "run_all", lambda only=None: [])
+        calibration_gate.main(["--strict", "--write-band-rates"])
+        assert "G9 did not run" in capsys.readouterr().out
+
+
 class TestG8SkipsWhenSklearnIsMissing:
     """G8's author-shuffled control re-fits a LogisticRegression, but sklearn
     is absent from the base requirements.txt — the very fact that motivated
@@ -4129,8 +4282,8 @@ class TestParseOnly:
         from validation.calibration_gate import GATE_LEGS, _parse_only
 
         with pytest.raises(ValueError) as exc:
-            _parse_only("G1,G9")
-        assert "G9" in str(exc.value)
+            _parse_only("G1,G99")
+        assert "G99" in str(exc.value)
         for leg in GATE_LEGS:
             assert leg in str(exc.value)
 

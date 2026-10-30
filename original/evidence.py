@@ -39,6 +39,7 @@ Nothing here changes a score or the recommended action.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections.abc import Callable, Iterable, Sequence
@@ -81,13 +82,22 @@ PRELIMINARY_NOTE = (
     "validated on real student writing and is a reason to read closely, not a finding."
 )
 INCONCLUSIVE_WORDS = "Not enough writing on file to compare yet."
-#: Plain words for the engine's existing action bands (constants.ACTION_THRESHOLDS).
+#: Plain words for the engine's existing action bands (constants.ACTION_THRESHOLDS):
+#: the "reads-like" set chosen 2026-10-30. One copy here and one in the suite
+#: (``demo/original/live.js`` ``Live.BAND_WORDS``); a test keeps them equal.
+#: An observation about the paper's habits, never a finding about the student.
 BAND_WORDS = {
-    "no_action": "Within the writer's usual range",
-    "monitor": "A little outside the usual range",
-    "schedule_conversation": "Outside the usual range",
-    "escalate": "Far outside the usual range",
+    "no_action": "Reads like their own writing",
+    "monitor": "Mostly like their own writing; a few habits differ",
+    "schedule_conversation": "Reads differently in several habits; worth a conversation",
+    "escalate": "Reads very differently from their past work",
 }
+#: Appended on the two upper bands (NORTH_STAR rule 4 in words).
+BAND_INNOCENT_CLAUSE = "A new topic, heavy revision or a changed genre can do this too."
+#: The number row's sentence when gate G9 has not passed for this band.
+BAND_RATE_NOT_MEASURED = (
+    "How often this reading is right has not been measured on student writing yet."
+)
 #: Shown for a measured habit that is a statistic over the whole paper.
 NUMBERS_ONLY_NOTE = "Whole-text measurement, no single sentence to point to."
 NOT_LOCATED_NOTE = (
@@ -104,6 +114,148 @@ def evidence_enabled() -> bool:
 def preliminary_enabled() -> bool:
     """PRELIMINARY_SCORE_ENABLED=1 adds the preliminary score to staff score responses."""
     return os.environ.get("PRELIMINARY_SCORE_ENABLED", "0").strip() == "1"
+
+
+# ── Band rates: gate G9's measured false-alarm rates, if any ──────────────────
+#
+# ``validation/band_rates.json`` is written only by
+# ``python -m validation.calibration_gate --strict --write-band-rates`` from
+# gate G9 (band false-alarm rate on real student writing). The file carries
+# the last run's status for every band whatever its verdict, so the staff
+# Calibration section can show progress; a band's rate reaches the teacher's
+# number row only when that run's verdict was "pass" (NORTH_STAR rule 2, as
+# amended 2026-10-30). Anything malformed fails closed to "not run".
+
+BAND_RATES_PATH = Path(__file__).resolve().parents[1] / "validation" / "band_rates.json"
+BAND_RATES_SCHEMA = 1
+BAND_RATES_GATE = "G9"
+_VERDICTS = ("pass", "fail", "uninformative")
+_RATE_KEYS = ("in_band", "at_or_beyond")
+
+
+def _is_rate(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and 0.0 <= float(v) <= 1.0
+
+
+def _is_ci(v: Any) -> bool:
+    return (
+        isinstance(v, list)
+        and len(v) == 2
+        and all(_is_rate(x) for x in v)
+        and float(v[0]) <= float(v[1])
+    )
+
+
+def load_band_rates(path: Path | str | None = None) -> dict[str, Any] | None:
+    """The committed band-rates file as a dict, or ``None`` when it is
+    missing, unreadable or not the shape G9 writes (fails closed)."""
+    p = Path(path) if path is not None else BAND_RATES_PATH
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    if data.get("schema") != BAND_RATES_SCHEMA or data.get("gate") != BAND_RATES_GATE:
+        return None
+    if data.get("verdict") not in _VERDICTS:
+        return None
+    for key in ("corpus", "date"):
+        if not isinstance(data.get(key), str) or not data[key].strip():
+            return None
+    for key in ("n_papers", "n_students"):
+        v = data.get(key)
+        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+            return None
+    bands = data.get("bands")
+    if not isinstance(bands, dict):
+        return None
+    for band, cell in bands.items():
+        if band not in BAND_WORDS or not isinstance(cell, dict):
+            return None
+        for key in _RATE_KEYS:
+            if not _is_rate(cell.get(key)) or not _is_ci(cell.get("ci_" + key)):
+                return None
+    return data
+
+
+def band_rate_status(rates: dict[str, Any] | None) -> dict[str, Any]:
+    """What the staff Calibration section shows, whatever the verdict."""
+    if rates is None:
+        return {
+            "verdict": "not run",
+            "n_papers": None,
+            "n_students": None,
+            "corpus": None,
+            "date": None,
+            "bands": {},
+        }
+    return {
+        "verdict": rates["verdict"],
+        "n_papers": rates["n_papers"],
+        "n_students": rates["n_students"],
+        "corpus": rates["corpus"],
+        "date": rates["date"],
+        "bands": {
+            band: {
+                "in_band": float(cell["in_band"]),
+                "at_or_beyond": float(cell["at_or_beyond"]),
+                "ci_in_band": [float(x) for x in cell["ci_in_band"]],
+                "ci_at_or_beyond": [float(x) for x in cell["ci_at_or_beyond"]],
+            }
+            for band, cell in rates["bands"].items()
+        },
+    }
+
+
+def band_rate_for(action: str | None, rates: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The teacher's number: this band's measured rate, only after a pass.
+
+    Below the first band the rate quoted is the share of genuine papers that
+    read like this (``in_band``); at every other band it is the share that
+    read at least this far from their own past work (``at_or_beyond``), the
+    false-alarm rate at that bar. Neither is a probability that this paper
+    is the student's own, and the words say so.
+    """
+    if rates is None or rates["verdict"] != "pass" or action not in rates["bands"]:
+        return None
+    cell = rates["bands"][action]
+    kind = "in_band" if action == "no_action" else "at_or_beyond"
+    return {
+        "rate": float(cell[kind]),
+        "kind": kind,
+        "ci": [float(x) for x in cell["ci_" + kind]],
+        "n": int(rates["n_papers"]),
+        "students": int(rates["n_students"]),
+        "corpus": rates["corpus"],
+        "date": rates["date"],
+    }
+
+
+def range_counts(
+    submission_vector: Any, baseline_vectors: Sequence[Any]
+) -> tuple[int | None, int | None]:
+    """``(outside, compared)``: how many measured habits of this paper sit
+    outside the lowest-to-highest range of its past papers, and how many
+    were compared at all. The same rule and tolerance as the side-by-side
+    page's summary (``build_all_features``: measured kinds only, so neither
+    the switched-off tiers nor the comparison codes count). ``(None, None)``
+    without a past paper."""
+    past_rows = [_as_row(v) for v in baseline_vectors]
+    if not past_rows:
+        return None, None
+    this_row = _as_row(submission_vector)
+    info = feature_info()
+    outside = compared = 0
+    for d, code in enumerate(ALL_FEATURE_CODES):
+        if info[code]["kind"] != "measured":
+            continue
+        compared += 1
+        past = [row[d] for row in past_rows]
+        lo, hi = min(past), max(past)
+        if not (lo - 1e-9 <= this_row[d] <= hi + 1e-9):
+            outside += 1
+    return outside, compared
 
 
 MAX_EXAMPLES = 3
@@ -1203,13 +1355,23 @@ def build_all_features(
 
 
 def preliminary_score(
-    deviation: float | None, action: str | None, *, inconclusive: bool
+    deviation: float | None,
+    action: str | None,
+    *,
+    inconclusive: bool,
+    habits_outside: int | None = None,
+    habits_compared: int | None = None,
+    band_rates: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The optional preliminary score: Original's deviation and action band.
 
     Derived only from numbers the engine already returned; never shown to
-    students (callers gate it). A thin baseline gives no number.
+    students (callers gate it). A thin baseline gives no number. The counts
+    (``range_counts``) and gate G9's measured rate for the band
+    (``band_rate_for``) ride along when the caller has them; the band's
+    calibration status is always attached so a staff page can show it.
     """
+    status = band_rate_status(band_rates)
     if inconclusive or deviation is None or action not in BAND_WORDS:
         return {
             "label": PRELIMINARY_LABEL,
@@ -1217,6 +1379,10 @@ def preliminary_score(
             "band": None,
             "band_words": INCONCLUSIVE_WORDS,
             "note": PRELIMINARY_NOTE,
+            "habits_outside": None,
+            "habits_compared": None,
+            "band_rate": None,
+            "band_rate_status": status,
         }
     return {
         "label": PRELIMINARY_LABEL,
@@ -1224,6 +1390,10 @@ def preliminary_score(
         "band": action,
         "band_words": BAND_WORDS[action],
         "note": PRELIMINARY_NOTE,
+        "habits_outside": habits_outside,
+        "habits_compared": habits_compared,
+        "band_rate": band_rate_for(action, band_rates),
+        "band_rate_status": status,
     }
 
 

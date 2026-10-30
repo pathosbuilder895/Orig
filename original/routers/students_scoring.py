@@ -656,7 +656,14 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
     (``/me/work`` scores a student's own piece with ``request=None``) never
     get either, and neither changes the score or the action.
     """
-    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+    from ..evidence import (
+        build_evidence,
+        evidence_enabled,
+        load_band_rates,
+        preliminary_enabled,
+        preliminary_score,
+        range_counts,
+    )
 
     want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
     if request is None or not (want_evidence or want_preliminary):
@@ -670,11 +677,23 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
         confidence = result.baseline_confidence
         # Same line the readiness verdict draws for "ready" (students.py).
         ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        # The counted samples' own vectors, the same ones the score compared
+        # against; a count that cannot be made is simply absent.
+        try:
+            outside, compared = range_counts(
+                result.feature_vector, [s.vector for s in state.samples if s.auth_weight > 0]
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("range counts failed; omitted")
+            outside = compared = None
         response.preliminary = PreliminaryScoreOut(
             **preliminary_score(
                 result.authorship.deviation_score,
                 result.recommendation.action,
                 inconclusive=not ready,
+                habits_outside=outside,
+                habits_compared=compared,
+                band_rates=load_band_rates(),
             )
         )
     if want_evidence:

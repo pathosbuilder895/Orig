@@ -1,6 +1,8 @@
 # NORTH STAR: Original + Bluebook
 
-*v0.3, 8 Oct 2026. Owner: Andrew Clark. This file wins over every other doc in the repo. If something here looks wrong, propose an edit. Don't work around it.*
+*v0.4, 30 Oct 2026. Owner: Andrew Clark. This file wins over every other doc in the repo. If something here looks wrong, propose an edit. Don't work around it.*
+
+*v0.4 (30 Oct 2026): rule 2 now says when a number or percentage may be shown to a teacher; the "authorship probability" and "writer-similarity" lines under Not doing now are narrowed to match; milestone 4 names the first measured rate. Proposed by Claude Code with the Writing State redesign, for Andrew's approval.*
 
 ## Mission
 
@@ -41,12 +43,12 @@ Milestones, in order:
 1. A shareable fictional demo. *(Live since 6 Oct 2026 at `bluebook-teacher-demo.onrender.com`.)*
 2. A usable Bluebook pilot.
 3. Original reports in teacher workspaces, labelled as testing-phase.
-4. A validated Original.
+4. A validated Original. A measured false-alarm rate per band on student writing (gate G9) is the first thing a validated Original shows.
 
 ## Non-negotiables
 
 1. **Decision support, not a verdict.** Original recommends; people decide. No automatic grade changes or misconduct referrals. Every result is framed as a consistency observation, never an accusation.
-2. **Honest claims only.** No feature counts, accuracy figures, probabilities or "AI-written" labels that the code and measured evidence don't support. No invented demo numbers presented as real, and fictional data is always labelled as fictional. Passing tests prove the engineering works. They do not prove the science.
+2. **Honest claims only.** No feature counts, accuracy figures, probabilities or "AI-written" labels that the code and measured evidence don't support. A number or percentage may be shown to a teacher only when it is a named quantity the code computes, its plain meaning is written beside it, and any claim about how often it is right comes from a measurement on real student writing whose gate passes in strict mode (today gate G9, `validation/band_rates.json`), shown with its sample size and date. Until then the same place says the rate has not been measured. A staff page may show the gate's own progress, labelled as the gate's working numbers and never as a claim about the paper. No invented demo numbers presented as real, and fictional data is always labelled as fictional. Passing tests prove the engineering works. They do not prove the science.
 3. **"Inconclusive" is a valid answer.** With thin baselines, short texts or missing peers, the system should say it can't tell, not guess.
 4. **Protect honest students first.** A false alarm on an honest student is the worst failure. Students may legitimately write differently because they learned, changed genre, revised heavily, used permitted help, or needed accommodations. Score-changing mechanisms ship off by default and are only enabled after their validation gate passes and a human approves.
 5. **Build the student's own skill.** Features should help students write better themselves. No feature should rewrite or "fix" a student's work for them, and no result should push a student to imitate a baseline.
@@ -73,9 +75,9 @@ Milestones, in order:
 - Canvas/LTI integration. The code stays in the repo, but nothing links to it and it is not configured in the pilot.
 - Keystroke or behavioural biometrics in any form. This means PR #160-style Tier 17 work is off the table.
 - Turning on any research flag that changes scores. This includes the AI-likelihood detector, fused score, topic inflation and characteristic weights.
-- Claims to detect cheating or AI authorship. Any "authorship probability" presentation.
+- Claims to detect cheating or AI authorship. Any uncalibrated "authorship probability" presentation (the Born-rule figure stays off the screen; a measured band rate under rule 2 is not this).
 - AI that rewrites or corrects student work.
-- Billing automation; "My Voice" longitudinal graphics; writer-similarity percentages; class-wide unlocks or leaderboards.
+- Billing automation; "My Voice" longitudinal graphics; writer-similarity percentages between students; class-wide unlocks or leaderboards.
 - The older Next.js Bluebook and its `bbook_client.py` adapter.
 - Public self-serve signup.
 

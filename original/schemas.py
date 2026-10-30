@@ -1074,16 +1074,62 @@ class FusedScoreOut(BaseModel):
     trained_on: str
 
 
+class BandRateCellOut(BaseModel):
+    """One band's measured rates from gate G9 (validation/band_rates.json):
+    the share of genuine student papers that landed in the band, and the
+    share that landed in it or further out, each with a 95% Wilson interval."""
+
+    in_band: float
+    at_or_beyond: float
+    ci_in_band: list[float]
+    ci_at_or_beyond: list[float]
+
+
+class BandRateStatusOut(BaseModel):
+    """Gate G9's last recorded run, whatever its verdict, so a staff page can
+    show how the band rates are being measured. ``verdict`` is "not run"
+    until the first run is recorded."""
+
+    verdict: str
+    n_papers: int | None = None
+    n_students: int | None = None
+    corpus: str | None = None
+    date: str | None = None
+    bands: dict[str, BandRateCellOut] = {}
+
+
+class BandRateOut(BaseModel):
+    """The one measured rate a teacher page may quote for this band, present
+    only when gate G9 passed in strict mode (NORTH_STAR rule 2). ``kind`` is
+    "in_band" below the first band and "at_or_beyond" (the false-alarm rate
+    at that bar) otherwise. Never a probability that the paper is the
+    student's own."""
+
+    rate: float
+    kind: str
+    ci: list[float]
+    n: int
+    students: int
+    corpus: str
+    date: str
+
+
 class PreliminaryScoreOut(BaseModel):
     """Optional preliminary score (ADR-013). Staff and teachers only, never a
     student session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from
-    the deviation score and action band this response already carries."""
+    the deviation score and action band this response already carries, plus
+    the count of measured habits outside the past-paper range and gate G9's
+    band rate when one has been measured."""
 
     label: str
     score: float | None
     band: str | None
     band_words: str
     note: str
+    habits_outside: int | None = None
+    habits_compared: int | None = None
+    band_rate: BandRateOut | None = None
+    band_rate_status: BandRateStatusOut | None = None
 
 
 class Layer7OutputResponse(BaseModel):

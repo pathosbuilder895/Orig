@@ -324,6 +324,49 @@
   .evi-col.base .evi-big{color:#8ba8dd;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
+  /* ── the essentials and the folded sections (2026-10-30) ── */
+  .ess{padding:1.4rem 1.5rem 1.2rem;}
+  .ess-eyebrow{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;}
+  .ess-answer{font-family:var(--display);font-weight:500;font-size:1.85rem;line-height:1.15;color:var(--cream);margin:0 0 .55rem;}
+  .ess-answer.ok{color:#9fd8b4;}.ess-answer.warn{color:#f0c56a;}.ess-answer.talk{color:#f2a08a;}.ess-answer.far{color:#f28b8b;}.ess-answer.inc{color:#8ba8dd;}
+  .ess-sub{font-size:.92rem;font-style:italic;color:var(--dim);margin:-.2rem 0 .6rem;}
+  .ess .plain-read{margin-top:.7rem;font-size:1rem;}
+  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
+  .plain-read .hab:hover,.plain-read .hab:focus-visible{text-decoration-style:solid;outline:none;}
+  .ess-sure{margin-top:.7rem;font-size:.9rem;color:var(--dim);}
+  .ess-sure b{color:var(--cream);font-weight:600;}
+  .ess-nums{margin-top:.5rem;display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;color:var(--dim);line-height:1.5;}
+  .ess-nums b{color:var(--cream);font-family:var(--mono);font-weight:600;}
+  .ess-chip{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,160,40,.35);border-radius:4px;padding:.1rem .4rem;margin-left:.45rem;vertical-align:middle;}
+  .ess .triage{margin-top:1rem;}
+  .deep-head{display:flex;align-items:baseline;gap:.55rem;margin:.4rem 0 -.6rem;}
+  .deep-head b{font-family:var(--display);font-weight:500;font-size:1.1rem;color:var(--cream);}
+  .deep-head span{color:var(--dim-2);font-size:.84rem;font-style:italic;}
+  details.deep{border:1px solid var(--line-soft);border-radius:16px;background:rgba(255,255,255,0.025);}
+  details.deep>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:.55rem;padding:.85rem 1.2rem;}
+  details.deep>summary::-webkit-details-marker{display:none;}
+  details.deep>summary b{font-family:var(--display);font-weight:500;font-size:1.08rem;color:var(--cream);}
+  details.deep>summary span{color:var(--dim);font-size:.84rem;}
+  details.deep>summary::after{content:'+';margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:1rem;}
+  details.deep[open]>summary::after{content:'-';}
+  details.deep>summary:hover{background:rgba(255,255,255,0.03);border-radius:16px;}
+  details.deep>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;border-radius:16px;}
+  .deep-body{padding:.2rem 1.2rem 1.2rem;}
+  .deep-body.radar-card{padding-top:.2rem;}
+  .fp-box{position:relative;height:380px;border-radius:14px;overflow:hidden;background:#0a1024;}
+  .fp-box .hero{pointer-events:auto;}
+  .fp-box .hero-inner{min-height:0;height:100%;padding:1rem 1.2rem 1.1rem;}
+  .fp-box .fpq-toggle{left:1.2rem;top:1rem;}
+  .fp-box .fpq-readout{right:1.2rem;top:1rem;}
+  .fp-box .fpq-hint{left:1.2rem;top:3.6rem;}
+  .fp-box .hero-title{font-size:1.5rem;}
+  .deep .hero-evi{position:relative;inset:auto;margin:.2rem 0 1rem;padding:1rem 1.1rem 1.1rem;}
+  .deep .hero-evi::before{inset:0;}
+  .cal-t{width:100%;border-collapse:collapse;margin-top:.4rem;font-size:.8rem;}
+  .cal-t th,.cal-t td{text-align:left;padding:.35rem .4rem;border-top:1px solid var(--line-soft);vertical-align:top;}
+  .cal-t th{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);border-top:none;}
+  .cal-t small{color:var(--dim-2);}
+  @media (max-width:900px){.ess-answer{font-size:1.5rem;}.fp-box{height:320px;}}
   /* global: hide scrollbars */
 *::-webkit-scrollbar{width:0;height:0;display:none;}
 *{scrollbar-width:none;-ms-overflow-style:none;}
@@ -345,7 +388,6 @@
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
       </div>
     </div>
@@ -388,48 +430,21 @@
         </div>
       </div>
 
-      <!-- Tier Profile radar -->
-      <div class="card radar-card">
-        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · click to pin</span></div>
-        <div class="radar-wrap">
-          <canvas id="radar-canvas"></canvas>
-          <div class="radar-tip" id="radar-tip"></div>
-        </div>
-        <div class="tier-chips" id="tier-chips"></div>
-        <a class="feat-link" id="voice-link" href="baseline.html" style="margin-top:.3rem;" hidden>Voice baseline →</a>
-      </div>
     </aside>
 
     <!-- RIGHT -->
     <section class="right">
-      <div class="hero">
-        <canvas id="fpq-canvas"></canvas>
-        <div class="hero-grad"></div>
-        <div class="hero-mask"></div>
-      </div>
-
       <div class="right-scroll" id="right-scroll">
-        <div id="result-notice" hidden><div data-testing-notice></div></div>
-        <div class="hero-inner">
-          <div class="fpq-toggle">
-            <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
-            <button class="fpq-btn" type="button" data-state="submission" disabled title="Analyse a paper first">This submission</button>
-          </div>
-          <div class="fpq-readout" id="readout" hidden>
-            <span class="nm" id="ro-name"></span>
-            <span class="rw" id="ro-habits">HABITS MEASURED · 97</span>
-            <details class="rw" id="ro-pur" hidden>
-              <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
-              <div class="ro-pur-body">
-                <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> counted samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
-                <p><b>Testing caveat (T-01):</b> Small baselines can produce false alarms, and Original is not yet validated on real student writing.</p>
-              </div>
-            </details>
-            <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
-          </div>
-          <div class="fpq-hint">Drag across the print to disturb it</div>
-          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
+        <!-- The essentials: the answer, why, how sure, what next. Everything
+             else this page can show is one click further down. -->
+        <div class="card ess" id="essentials">
+          <div class="ess-eyebrow" id="ess-eyebrow">Writing State</div>
+          <h2 class="ess-answer" id="ess-answer">Loading</h2>
+          <div class="ess-sub" id="ess-sub" hidden></div>
+          <div id="result-notice" hidden><div data-testing-notice></div></div>
           <div class="plain-read" id="plain-read">Loading</div>
+          <div class="ess-sure" id="ess-sure" hidden></div>
+          <div class="ess-nums" id="ess-nums" hidden></div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
             <a class="tri-btn packet" id="tri-evidence" href="evidence.html" style="text-decoration:none;" hidden>See it side by side</a>
@@ -438,49 +453,111 @@
             <span class="tri-done" id="tri-done" role="status"></span>
             <span class="tri-note">Kept on this computer only, for now.</span>
           </div>
-          <div class="hero-evi" id="hero-evi">
-            <div class="evi-head">
-              <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
-              <span class="evi-nums" id="evi-nums"></span>
-              <button class="evi-close" id="evi-close" type="button">✕ Back to the pattern</button>
-            </div>
-            <div class="evi-desc" id="evi-desc"></div>
-            <div class="evi-cols">
-              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
-              <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
-            </div>
-          </div>
-        </div>
-        <!-- State vector -->
-        <div>
-          <div class="sec-h"><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></div>
-          <div class="card hm-wrap">
-            <div class="hm-grid" id="heatmap"></div>
-            <div class="hm-band" id="heatmap-band"></div>
-            <div class="hm-labels" id="heatmap-labels"></div>
-            <div class="hm-legend">
-              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline value</span>
-              <span class="k"><i style="background:#c9a028"></i>Tick = this paper</span>
-              <span class="k"><i style="background:#c0392b"></i>below ↓</span>
-              <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
-              <span class="k">red and green ticks: the habits furthest from their usual range</span>
-            </div>
-          </div>
-          <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
-            <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
-            <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
-          </div>
         </div>
 
-        <!-- Math note -->
-        <div>
-          <div class="sec-h"><b>How the number is made</b></div>
-          <div class="card mnote">
-            <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
-            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The pattern above is decorative, not drawn from ρ: it is the same pattern for every student.</p>
-            <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+        <div class="deep-head"><b>Look closer</b><span>every part of the reading, one click each</span></div>
+
+        <!-- Habit by habit: the state vector, one habit's numbers side by side, and the detail window -->
+        <details class="deep" id="deep-habits">
+          <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
+          <div class="deep-body">
+            <div class="hero-evi" id="hero-evi">
+              <div class="evi-head">
+                <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
+                <span class="evi-nums" id="evi-nums"></span>
+                <button class="evi-close" id="evi-close" type="button">✕ Back to the habits</button>
+              </div>
+              <div class="evi-desc" id="evi-desc"></div>
+              <div class="evi-cols">
+                <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+                <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
+              </div>
+            </div>
+            <div class="card hm-wrap">
+              <div class="hm-grid" id="heatmap"></div>
+              <div class="hm-band" id="heatmap-band"></div>
+              <div class="hm-labels" id="heatmap-labels"></div>
+              <div class="hm-legend">
+                <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline value</span>
+                <span class="k"><i style="background:#c9a028"></i>Tick = this paper</span>
+                <span class="k"><i style="background:#c0392b"></i>below ↓</span>
+                <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
+                <span class="k">red and green ticks: the habits furthest from their usual range</span>
+              </div>
+            </div>
+            <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
+              <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
+              <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
+            </div>
           </div>
-        </div>
+        </details>
+
+        <!-- Tier profile radar -->
+        <details class="deep" id="deep-tiers">
+          <summary><b>Tier profile</b><span>16 tiers + comparison · click to pin</span></summary>
+          <div class="deep-body radar-card">
+            <div class="radar-wrap">
+              <canvas id="radar-canvas"></canvas>
+              <div class="radar-tip" id="radar-tip"></div>
+            </div>
+            <div class="tier-chips" id="tier-chips"></div>
+            <a class="feat-link" id="voice-link" href="baseline.html" style="margin-top:.3rem;" hidden>Voice baseline →</a>
+          </div>
+        </details>
+
+        <!-- Baseline strength (purity, behind its caveat) and the decorative print -->
+        <details class="deep" id="deep-pattern">
+          <summary><b>Baseline strength and writing pattern</b><span>counted samples, purity, and a decorative print</span></summary>
+          <div class="deep-body">
+            <div class="fp-box">
+              <div class="hero">
+                <canvas id="fpq-canvas"></canvas>
+                <div class="hero-grad"></div>
+                <div class="hero-mask"></div>
+              </div>
+              <div class="hero-inner">
+                <div class="fpq-toggle">
+                  <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
+                  <button class="fpq-btn" type="button" data-state="submission" disabled title="Analyse a paper first">This submission</button>
+                </div>
+                <div class="fpq-readout" id="readout" hidden>
+                  <span class="nm" id="ro-name"></span>
+                  <span class="rw" id="ro-habits">HABITS MEASURED · 97</span>
+                  <details class="rw" id="ro-pur" hidden>
+                    <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
+                    <div class="ro-pur-body">
+                      <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> counted samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
+                      <p><b>Testing caveat (T-01):</b> Small baselines can produce false alarms, and Original is not yet validated on real student writing.</p>
+                    </div>
+                  </details>
+                  <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
+                </div>
+                <div class="fpq-hint">Drag across the print to disturb it</div>
+                <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Math note -->
+        <details class="deep" id="deep-math">
+          <summary><b>How the number is made</b><span>the comparison, in its own terms</span></summary>
+          <div class="deep-body">
+            <div class="card mnote">
+              <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>. The distance in the reading above is that same deviation on a 0 to 100 scale: a distance, not a probability.</p>
+              <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The pattern above is decorative, not drawn from ρ: it is the same pattern for every student.</p>
+              <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Calibration: how the percentage above is being measured (gate G9) -->
+        <details class="deep" id="deep-cal">
+          <summary><b>Calibration</b><span>how often this reading is right is being measured</span></summary>
+          <div class="deep-body">
+            <div class="card mnote" id="cal-body"><p>Appears with a result.</p></div>
+          </div>
+        </details>
       </div>
     </section>
   </main>
@@ -513,15 +590,18 @@
   const FAMILY_CLS={Surface:'gS',Discourse:'gD',Rhetorical:'gR'};
   const TIER_BY_KEY=new Map(TIERS.map(t=>[t.key,t]));
 
-  // The server's recommended action (recommendation.action) in plain words.
+  // The server's recommended action (recommendation.action) in the suite's one
+  // set of words (Live.BAND_WORDS; original/evidence.py sends the same words).
   // A reading of how far the habits moved, never a finding about the student.
   const ACTION={
-    no_action:{words:'Close to their usual writing',color:'#6bbf8a',line:'rgba(107,191,138,0.42)',gold:'rgba(107,191,138,0.9)'},
-    monitor:{words:'A few habits differ',color:'#d8b04a',line:'rgba(216,176,74,0.42)',gold:'rgba(216,176,74,0.9)'},
-    schedule_conversation:{words:'Worth a conversation',color:'#e0725a',line:'rgba(224,114,90,0.42)',gold:'rgba(224,114,90,0.9)'},
-    escalate:{words:'Several habits differ markedly',color:'#e05252',line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)'}
+    no_action:{words:Live.BAND_WORDS.no_action,cls:'ok',color:'#6bbf8a',line:'rgba(107,191,138,0.42)',gold:'rgba(107,191,138,0.9)'},
+    monitor:{words:Live.BAND_WORDS.monitor,cls:'warn',color:'#d8b04a',line:'rgba(216,176,74,0.42)',gold:'rgba(216,176,74,0.9)'},
+    schedule_conversation:{words:Live.BAND_WORDS.schedule_conversation,cls:'talk',color:'#e0725a',line:'rgba(224,114,90,0.42)',gold:'rgba(224,114,90,0.9)'},
+    escalate:{words:Live.BAND_WORDS.escalate,cls:'far',color:'#e05252',line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)'}
   };
-  const OTHER_ACTION={words:'See the habits below',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
+  const OTHER_ACTION={words:'See the habits below',cls:'inc',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
+  // The answer line when the baseline is not rated ready: no band words at all (NORTH_STAR rule 3).
+  const INCONCLUSIVE_ANSWER='Inconclusive: not enough past writing to compare yet';
   const BASE_LOOK={line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',color:'#8ba8dd'};
   // The server's baseline verdict is named only in the suite's one set of words (Live.VERDICT_WORDS).
   const rated=v=>'\u201c'+Live.verdictWord(v)+'\u201d';
@@ -926,7 +1006,9 @@
       box.classList.add('show');
       openCode=code; opener=from||null;
       markExpanded(code);
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      // The card lives in the Habit by habit section: open it and bring the card into view.
+      const sec=$('deep-habits'); if(sec&&!sec.open) sec.open=true;
+      try{ box.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){ /* older browser */ }
       if(from) $('evi-close').focus();
     }
     function close(back){
@@ -1004,7 +1086,8 @@
     if(!list.length) return 'None of the habits measured in this paper sits outside '+esc(poss())+' usual range by Original\u2019s measure.';
     const named=list.map(f=>{
       const cls=FAMILY_CLS[TIER_BY_KEY.get(f.tier).group]||FAMILY_CLS.Surface, b=baseOf(f), s=subOf(f);
-      return '<span class="'+cls+'">'+esc(f.name)+'</span>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
+      // Each habit opens its own numbers side by side (the Habit by habit section).
+      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.name)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
     const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
     return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
@@ -1033,30 +1116,95 @@
     return '';
   }
 
-  function renderPlain(){
-    const pr=$('plain-read');
-    if(!S.id){ pr.textContent='Choose a student on the left. Their baseline appears here, and you can analyse a paper against it.'; return; }
-    if(S.stErr){ pr.textContent=S.stErr; return; }
-    if(!S.loaded){ pr.textContent='Loading'; return; }
+  // ── the essentials: the answer, why, how sure, what next ──
+  function setAnswer(text,cls,eyebrow){
+    const a=$('ess-answer'); a.textContent=text; a.className='ess-answer'+(cls?' '+cls:'');
+    $('ess-eyebrow').textContent=eyebrow||'Writing State';
+  }
+  const readyNow=()=>verdictNow()==='ready';
+  function bindHabitLinks(el){
+    el.querySelectorAll('button.hab').forEach(b=>b.addEventListener('click',()=>{ if(S.base&&b.dataset.code) EVI.open(b.dataset.code,b); }));
+  }
+  function renderEssentials(){
+    const pr=$('plain-read'), sub=$('ess-sub'), sure=$('ess-sure');
+    sub.hidden=true; sub.textContent=''; sure.hidden=true; sure.innerHTML='';
+    if(!S.id){ setAnswer('Choose a student','inc'); pr.textContent='Choose a student on the left. Their baseline appears here, and you can analyse a paper against it.'; renderNumbers(); return; }
+    if(S.stErr){ setAnswer('Not available','inc',who()); pr.textContent=S.stErr; renderNumbers(); return; }
+    if(!S.loaded){ setAnswer('Loading','inc',who()); pr.textContent='Loading'; renderNumbers(); return; }
     if(!hasBaseline()){
-      pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
-      return;
+      setAnswer('Not enough writing to compare yet','inc',who());
+      pr.innerHTML='No counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+      renderNumbers(); return;
     }
     const n=counted()||0, a=teacherApproved();
     if(!S.result){
+      setAnswer('No paper analysed yet','inc',who());
       let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
       if(S.verdict==='developing') h+=' Original rates this baseline '+rated('developing')+' ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
       else if(S.verdict==='insufficient') h+=' Original rates this baseline '+rated('insufficient')+' ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
-      return;
+      renderNumbers(); return;
     }
-    let h=furthestLine();
-    const words=esc(lowerFirst(look().words));
-    if(actionOf()==='schedule_conversation') h+=' Overall: <b>'+words+'</b>, not a conclusion.';
-    else if(actionOf()==='no_action') h+=' Overall: <b>'+words+'</b>. A reading, not a conclusion.';
-    else h+=' Overall: <b>'+words+'</b>. That is worth a conversation, not a conclusion.';
-    h+=thinResultLine();
-    pr.innerHTML=h;
+    if(!readyNow()){
+      // A thin baseline: the answer is that there is no answer yet. The habits
+      // still show, but no band words do.
+      setAnswer(INCONCLUSIVE_ANSWER,'inc',who());
+      pr.innerHTML=furthestLine()+thinResultLine();
+    } else {
+      const lk=look();
+      setAnswer(lk.words,lk.cls,who());
+      const act=actionOf();
+      sub.textContent=(act==='schedule_conversation'||act==='escalate'?Live.BAND_INNOCENT_CLAUSE+' ':'')+'A reading, not a conclusion.';
+      sub.hidden=false;
+      pr.innerHTML=furthestLine();
+    }
+    bindHabitLinks(pr);
+    sure.innerHTML='Based on <b>'+esc(plural(n,'counted sample'))+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+(readyNow()?' · baseline rated '+rated('ready'):'')+'.';
+    sure.hidden=false;
+    renderNumbers();
+  }
+
+  // The number row: the preliminary score the server sent (staff only, behind
+  // PRELIMINARY_SCORE_ENABLED), as a distance and a count, plus the one
+  // sentence that may carry a percentage: gate G9's measured rate for this
+  // band, present only after a recorded pass (NORTH_STAR rule 2). Nothing
+  // here is computed in the browser.
+  function renderNumbers(){
+    const nums=$('ess-nums'); nums.innerHTML=''; nums.hidden=true;
+    const pre=S.result&&S.result.preliminary;
+    if(!S.result||!readyNow()||!pre||typeof pre!=='object') return;
+    const rows=[];
+    const score=num(pre.score);
+    if(score!=null) rows.push('<div>Distance from their usual writing: <b>'+Math.round(clamp01(score)*100)+'</b> on a 0 to 100 scale<span class="ess-chip">'+esc(String(pre.label||''))+'</span></div>');
+    const out=num(pre.habits_outside), cmp=num(pre.habits_compared);
+    if(out!=null&&cmp!=null) rows.push('<div>Outside the range of their past papers on <b>'+Math.round(out)+'</b> of '+Math.round(cmp)+' habits compared.</div>');
+    rows.push('<div class="ess-rate">'+rateSentence(pre.band_rate)+'</div>');
+    nums.innerHTML=rows.join(''); nums.hidden=false;
+  }
+  function rateSentence(br){
+    if(!br||typeof br!=='object'||num(br.rate)==null||num(br.n)==null||typeof br.date!=='string') return esc(Live.BAND_RATE_NOT_MEASURED);
+    const pct=Math.round(clamp01(br.rate)*100)+'%';
+    const tail=' (n='+Math.round(br.n)+', measured '+esc(br.date)+')';
+    if(br.kind==='in_band') return 'In our tests, <b>'+pct+'</b> of papers that students wrote themselves read like this'+tail+'.';
+    return 'In our tests, <b>'+pct+'</b> of papers that students wrote themselves read at least this far from their past work'+tail+'.';
+  }
+
+  // Calibration: gate G9's last recorded run, whatever its verdict. These are
+  // the gate's own working numbers, labelled as such; none of them reaches
+  // the reading above until the verdict is a pass.
+  function renderCalibration(){
+    const el=$('cal-body');
+    if(!S.result){ el.innerHTML='<p>Appears with a result.</p>'; return; }
+    const pre=S.result.preliminary, st=pre&&typeof pre==='object'?pre.band_rate_status:null;
+    if(!st||typeof st!=='object'){ el.innerHTML='<p>The preliminary score is off for this workspace, so Original sent no calibration record with this result.</p>'; return; }
+    const v=String(st.verdict||'not run');
+    let h='<p>Gate G9 measures, on real student writing, how often papers a student wrote themselves land in each band. A band\u2019s rate reaches the reading above only after that gate passes in strict mode; until then the reading says the rate has not been measured. Last recorded run: <strong>'+esc(v)+'</strong>'+(st.date?' on '+esc(String(st.date)):'')+(st.corpus?', corpus: '+esc(String(st.corpus)):'')+(num(st.n_papers)!=null?', '+plural(Math.round(st.n_papers),'paper')+' from '+plural(Math.round(num(st.n_students)||0),'student'):'')+'.</p>';
+    const bands=st.bands&&typeof st.bands==='object'?st.bands:{};
+    const keys=Object.keys(ACTION).filter(k=>has(bands,k)&&bands[k]&&typeof bands[k]==='object');
+    const cell=(r,ci)=>{ r=num(r); if(r==null) return DASH; let t=Math.round(clamp01(r)*100)+'%'; if(Array.isArray(ci)&&num(ci[0])!=null&&num(ci[1])!=null) t+=' <small>('+Math.round(clamp01(ci[0])*100)+' to '+Math.round(clamp01(ci[1])*100)+')</small>'; return t; };
+    if(!keys.length) h+='<p>No band has been measured yet.</p>';
+    else h+='<p>The gate\u2019s working numbers (share of genuine papers, with a 95% interval), not a claim about this paper:</p><table class="cal-t"><tr><th>Band</th><th>In this band</th><th>This far or further</th></tr>'+keys.map(k=>'<tr><td>'+esc(ACTION[k].words)+'</td><td>'+cell(bands[k].in_band,bands[k].ci_in_band)+'</td><td>'+cell(bands[k].at_or_beyond,bands[k].ci_at_or_beyond)+'</td></tr>').join('')+'</table>';
+    el.innerHTML=h;
   }
 
   function renderResultChrome(){
@@ -1067,7 +1215,8 @@
   function renderAll(){
     renderHead();
     renderReadout();
-    renderPlain();
+    renderEssentials();
+    renderCalibration();
     renderResultChrome();
     EVI.close();
     CHIPS.unpin();
@@ -1145,7 +1294,7 @@
       const me=ro&&ro.ok?ro.students.find(s=>s.id===S.id):null;
       if(me){
         S.name=String(me.name||S.id); S.verdict=me.verdict||null;
-        if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
+        if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderEssentials(); }
         if(!S.stErr&&hasBaseline()) note(thinNote());
         if(!hasBaseline()&&!S.stErr) notEnough();
         // A note already chosen names the student: say it with the roster's name.
@@ -1208,6 +1357,8 @@
       // baseline link and the browser's Back button all find it again.
       storeForPacket();
       const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      // On a phone the analyse card sits above the result: bring the answer up.
+      if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
       return;
     }
     const detail=d&&typeof d.detail==='string'?d.detail:'';
@@ -1291,8 +1442,8 @@
     const keep={
       kind:'original_writing_state', version:1,
       student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
-      habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
-      summary:$('plain-read').textContent,
+      habits_measured:N_HABITS, action:actionOf(), action_words:readyNow()?look().words:INCONCLUSIVE_ANSWER,
+      summary:[$('ess-answer').textContent+'.',$('ess-sub').hidden?'':$('ess-sub').textContent,$('plain-read').textContent,$('ess-sure').hidden?'':$('ess-sure').textContent].filter(Boolean).join(' '),
       result:{
         student_id:r.student_id, submission_id:r.submission_id,
         recommendation:{action:actionOf()},
@@ -1373,6 +1524,9 @@
       rd.readAsText(f);
     });
     document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
+    // A canvas inside a closed section has no size: the radar and the print
+    // both listen for resize, so opening a section asks them to measure again.
+    document.querySelectorAll('details.deep').forEach(d=>d.addEventListener('toggle',()=>{ if(d.open) window.dispatchEvent(new Event('resize')); }));
     $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
     $('tri-evidence').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
 
