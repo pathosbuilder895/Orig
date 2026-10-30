@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BB_API, MockupFonts } from './components.jsx';
 import { Badge, LinkBtn, Section, Stat, Table, when } from './forms.jsx';
+import { InstructionsButton } from './instructions.jsx';
 import './teacher-workspace.css';
 
 const dateLabel = value => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
@@ -88,6 +89,7 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
       </div>
       <div className="teacher-nav-right">
         {!demo && <>
+          <InstructionsButton who="teacher" className="quiet-link"/>
           <button className="quiet-link" onClick={()=>onNavigate('account')}>Account</button>
           <button className="quiet-link" onClick={()=>{BB_API.logout();onNavigate('landing');}}>Sign out</button>
         </>}

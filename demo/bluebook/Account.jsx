@@ -5,6 +5,7 @@ import {
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
+import { InstructionsButton } from './instructions.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -532,6 +533,7 @@ export function StudentShell({ onNavigate, active, children }) {
         <div className="tabs">
           {tab('student-home', 'My exams')}
           {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
+          <InstructionsButton who="student" />
           {tab('student-account', 'Account')}
           <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
         </div>
