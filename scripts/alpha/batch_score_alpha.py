@@ -47,6 +47,26 @@ BASELINE_SOURCES = {"independent", "split"}
 MIN_BASELINES = 3  # matches the server's insufficient-baseline gate
 
 
+def submission_files(row: dict[str, str]) -> dict[str, str]:
+    """The files one exported submission row becomes, as ``{id: text}``.
+
+    A one-question submission is one file named by its ``submission_id``. A
+    submission to an exam with more than one question (the alpha exam: the
+    tester's own piece in question 1, the AI piece in question 2) becomes one
+    file per answered question, ``<submission_id>-q<N>``, from the export's
+    ``answer_N`` columns; a question left blank gets no file. Its joined
+    ``text`` would score the two pieces as one document, and a label could not
+    tell them apart. A row with no separate answers keeps its ``text``.
+    """
+    answers = sorted((int(key.split("_", 1)[1]), value or "") for key, value in row.items()
+                     if key.startswith("answer_") and key.split("_", 1)[1].isdigit())
+    if len(answers) > 1:
+        split = {f"{row['submission_id']}-q{n}": text for n, text in answers if text.strip()}
+        if split:
+            return split
+    return {row["submission_id"]: row.get("text") or ""}
+
+
 def export(base: str, token: str, exams: list[str], dest: Path) -> Path:
     """Copy selected exam exports and each submitter's baselines from the API."""
     import requests
@@ -71,7 +91,8 @@ def export(base: str, token: str, exams: list[str], dest: Path) -> Path:
         submission_dir = student_dir / "submission"
         baseline_dir.mkdir(parents=True, exist_ok=True)
         submission_dir.mkdir(parents=True, exist_ok=True)
-        (submission_dir / f"{row['submission_id']}.txt").write_text(row.get("text") or "", encoding="utf-8")
+        for name, text in submission_files(row).items():
+            (submission_dir / f"{name}.txt").write_text(text, encoding="utf-8")
         for index in range(counts.get(sid, 0)):
             response = requests.get(f"{base.rstrip('/')}/students/{sid}/samples/{index}/text", headers=headers, timeout=60)
             response.raise_for_status()
