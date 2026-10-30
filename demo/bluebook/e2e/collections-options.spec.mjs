@@ -40,8 +40,11 @@ test('a take-home Great is untimed, starts above 1,000 words and is listed as su
   await expect(card).toContainText('Take-home')
 })
 
-test('the Collections list is cards with filters and search; a card opens only when its title is clicked', async ({ browser, request, workerTenant }) => {
-  const T = workerTenant
+// Its own tenant: the worker tenant's collections show up on other specs'
+// screens (the Proctor picker), and a title here once broke proctor.spec's
+// pinned lock-word count there.
+isolatedTest('the Collections list is cards with filters and search; a card opens only when its title is clicked', async ({ browser, request, testTenant }) => {
+  const T = testTenant
   const auth = { Authorization: `Bearer ${T.staff.token}` }
   const tag = `${T.tenant.tenant_id.slice(-6)}-${Date.now()}`
   const make = async (title, extra) => {
