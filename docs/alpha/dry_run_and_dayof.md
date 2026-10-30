@@ -6,15 +6,15 @@ The alpha is open-ended and asynchronous (starts 2026-10-19, no fixed end date).
 - [ ] Pilot on the expected commit: `live_smoke.py` PASS; `/health` shows `backend: postgres`, `signup_open: false`. (A transient disconnect was seen 2026-10-19 — rerun until a clean PASS; do not claim PASS from a partial run.)
 - [ ] `INVITE_NO_EXPIRY=1` re-confirmed in the Render dashboard (it is not in `render.yaml`), and alpha teacher workspace created with `--no-expiry` (see `setup_runbook.md` §2).
 - [ ] Consent + feedback Google Forms built from `google_forms_spec.md`, contact arclark555@gmail.com, tested with a dummy response that is then deleted.
-- [ ] 2–3 test accounts on Andrew's own emails: run every step in `join_link_check.md` on Chrome and Safari, plus one phone; import 3 test papers; write both timed writings; batch-score them; confirm no score is visible to the student account.
+- [ ] 2–3 test accounts on Andrew's own emails: run every step in `join_link_check.md` on Chrome and Safari, plus one phone; share 3 test papers and approve them; open the alpha exam, paste a test piece into question 1 and another into question 2, and seal; batch-score it and confirm the export holds a `-q1` and a `-q2` file; confirm no score is visible to the student account.
 - [ ] One split-derived test baseline: split a long test paper, tag it in `baselines.csv`, confirm the report's baseline-source breakout shows it separately.
 - [ ] Delete the test accounts (or keep clearly-named spares), then generate the first real invite links.
 
 ## Rolling checks (each time a volunteer finishes, and a weekly sweep)
-- [ ] Consent response received **before** that person's join link is sent; partners only among Q11=Yes; shadow use only per Q12/Q13.
+- [ ] Consent response received **before** that person's join link is sent; shadow use only per consent Q11/Q12.
 - [ ] Baseline count after import: 3+ papers (drift hold can hold one back — confirm the count the screen reports). Record independent vs split-derived in `baselines.csv`.
-- [ ] Both writings sealed, no score visible to the student; staff batch-score as submissions arrive (see `scoring_plan.md`).
-- [ ] Feedback form sent to that volunteer; note any slowness/errors with date/time (ET).
+- [ ] Alpha exam sealed with both questions answered, no score visible to the student; staff batch-score as submissions arrive (see `scoring_plan.md`).
+- [ ] Feedback form sent to that volunteer; copy the AI tool they name into `labels.csv` as `generator_tool`; note any slowness/errors with date/time (ET).
 - [ ] Withdrawals: delete that person's data within 14 days of withdrawal (see `deletion_plan.md`); Andrew closes a participation the same way.
 
 ## Course sign-up link (forwardable, optional)

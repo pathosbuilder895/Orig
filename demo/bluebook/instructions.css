@@ -1,0 +1,37 @@
+/* instructions.css: the Instructions guide (instructions.jsx), opened from the
+   teacher and student navigation bars. Self-contained colours, since the same
+   dialog sits under .teacher-ui and under .bb-student. Cream on navy clears
+   WCAG AA; e2e/a11y.spec.mjs scans the open dialog. */
+
+.bb-howto{
+  width:min(560px,calc(100% - 32px));max-height:min(86vh,760px);
+  /* A page-wide margin reset would otherwise pin the modal top-left. */
+  margin:auto;padding:0;border:1px solid rgba(201,160,40,.35);border-radius:18px;
+  background:#0d1530;color:#f5efe0;
+  font:16px/1.5 'EB Garamond',Georgia,serif;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+}
+.bb-howto::backdrop{background:rgba(7,12,28,.72)}
+.bb-howto-card{padding:1.4rem 1.6rem 1.3rem}
+.bb-howto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.9rem}
+.bb-howto h2{margin:0;font:500 1.45rem/1.2 'Playfair Display',Georgia,serif;color:#f5efe0}
+.bb-howto h3{margin:1.1rem 0 .4rem;font:.72rem 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:#e0be55}
+/* Two classes, so the nav bars' own button rules (.bb-student-nav button)
+   do not restyle Close. */
+.bb-howto .bb-howto-close{
+  flex-shrink:0;min-height:44px;padding:.4rem 1rem;border-radius:999px;
+  border:1px solid rgba(201,160,40,.45);background:none;color:#e0be55;
+  font:16px/1.2 'EB Garamond',Georgia,serif;cursor:pointer;
+}
+.bb-howto .bb-howto-close:hover{color:#f5efe0}
+.bb-howto button:focus-visible{outline:2px solid #e0be55;outline-offset:3px}
+.bb-howto-steps{margin:0;padding-left:1.4rem;display:grid;gap:.55rem}
+.bb-howto-steps li::marker{color:#e0be55;font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.85em}
+.bb-howto-steps strong{font-weight:600;color:#f5efe0}
+.bb-howto-notes{margin:0;padding-left:1.2rem;display:grid;gap:.4rem;color:rgba(245,239,224,.82)}
+.bb-howto-foot{margin:1.1rem 0 0;padding-top:.8rem;border-top:1px solid rgba(255,255,255,.08);font-style:italic;font-size:.95rem;color:rgba(245,239,224,.72)}
+
+@media(max-width:600px){
+  .bb-howto-card{padding:1.1rem 1.1rem 1rem}
+  .bb-howto h2{font-size:1.25rem}
+}
