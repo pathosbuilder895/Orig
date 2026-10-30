@@ -32,6 +32,16 @@ async function examFor(request, workerTenant, title) {
   return exam
 }
 
+// A place saved on "another device" (resume-location.jsx): signing in opens it
+// unless the visitor followed a link. Saved explicitly so the link has to win
+// every time, not only when no earlier test happened to leave a place behind.
+async function saveAPlace(request, workerTenant) {
+  const res = await request.put('/bluebook/me/location', {
+    headers: staffAuth(workerTenant), data: { screen: 'courses', scroll_fraction: 0 },
+  })
+  expect(res.ok(), await res.text()).toBe(true)
+}
+
 // The teacher overview (TeacherWorkspace.jsx TeacherOverview): the e2e staff
 // storage state carries no name, so its heading is the unnamed greeting.
 async function expectDashboard(page) {
@@ -121,7 +131,8 @@ test.describe('Deep links into one exam', () => {
     await expect(staffPage.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
   })
 
-  test('a signed-out visitor following #students gets the landing page, then the Students screen after signing in', async ({ page, workerTenant }) => {
+  test('a signed-out visitor following #students gets the landing page, then the Students screen after signing in', async ({ page, workerTenant, request }) => {
+    await saveAPlace(request, workerTenant)
     await page.goto('/bluebook/#students')
     await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()
@@ -160,6 +171,7 @@ test.describe('Deep links into one exam', () => {
   test('a signed-out visitor gets the landing page, then the exam after signing in', async ({ page, workerTenant, request }) => {
     const title = `Deep link after sign-in ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
+    await saveAPlace(request, workerTenant)
     await page.goto(`/bluebook/#exam/${exam.id}`)
     await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()

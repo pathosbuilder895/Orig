@@ -46,10 +46,12 @@ function App() {
   // that exam the next time they land on the dashboard. A visitor who is not signed in yet keeps
   // it: the sign-in flow carries it to the exam. That includes the navigation right after sign-in
   // or sign-up, which happens with the session already stored, so it is the screen the move starts
-  // from that tells the two apart, not the session alone.
+  // from that tells the two apart, not the session alone. The address bar keeps it too: sign-in
+  // reads it there (resumeOrHome), so a followed link wins over the place saved on another device.
   const navigate = (next) => {
-    clearDeepLink();
-    if (BB_API.isAuthed() && !PRE_AUTH_SCREENS.includes(screen)) setDeepLink(null);
+    const signingIn = PRE_AUTH_SCREENS.includes(screen);
+    clearDeepLink({ signingIn });
+    if (BB_API.isAuthed() && !signingIn) setDeepLink(null);
     if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) rememberScreen(next);
     setTweak('currentScreen', next);
   };

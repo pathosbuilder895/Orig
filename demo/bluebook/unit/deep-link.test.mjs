@@ -94,6 +94,18 @@ test('#forgot is not a deep link, and moving on drops it like one', () => {
   assert.deepEqual(globalThis.window.calls, [{ state: { kept: true }, next: '/bluebook/?x=1' }]);
 });
 
+test('a visitor still signing in keeps a deep link, so signing in can open it', () => {
+  for (const hash of ['#exam/abc', '#live/abc', '#students']) {
+    globalThis.window = fakeWindow(`https://example.test/bluebook/${hash}`);
+    clearDeepLink({ signingIn: true });
+    assert.deepEqual(globalThis.window.calls, [], hash);
+  }
+  // '#forgot' is not a deep link: leaving the reset form still drops it.
+  globalThis.window = fakeWindow('https://example.test/bluebook/?x=1#forgot');
+  clearDeepLink({ signingIn: true });
+  assert.deepEqual(globalThis.window.calls, [{ state: { kept: true }, next: '/bluebook/?x=1' }]);
+});
+
 test('clearing never throws when history is unavailable', () => {
   globalThis.window = { location: { hash: '#exam/abc', pathname: '/bluebook/', search: '' } };
   assert.doesNotThrow(() => clearDeepLink());
