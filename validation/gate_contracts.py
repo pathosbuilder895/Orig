@@ -43,6 +43,7 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g9_band_false_alarm,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
@@ -351,6 +352,35 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "the 0.60 AUC bar, which the spec set above chance for precisely "
             "this reason. All three legs therefore fail, pinned in "
             "test_g7_label_destruction_fails_all_three_legs_by_construction."
+        ),
+    ),
+    "evaluate_g9_band_false_alarm": GateContract(
+        gate="G9",
+        claims="on real student writing scored on the pilot path, no more than "
+        "5% of papers a student wrote themselves land at schedule_conversation "
+        "or above, measured well enough (>= 5 students, >= 30 papers, Wilson "
+        "interval clear of the bar) that the teacher page may quote the rate",
+        # 5 of 20 genuine papers at schedule_conversation+ from 6 students:
+        # a 25% false-alarm rate whose whole Wilson interval (~0.11-0.47)
+        # sits ABOVE the 5% bar. It fails on the measured rate, not on
+        # thinness: 20 papers is below _G9_MIN_PAPERS, and a thin corpus
+        # may only ever downgrade a would-be pass to uninformative, never
+        # rescue a measured failure. test_g9_fails_on_the_measured_rate_not_
+        # on_thinness pins that the fail survives the thin-corpus guard.
+        failure_witness=lambda: evaluate_g9_band_false_alarm(
+            ["no_action"] * 12 + ["monitor"] * 3 + ["schedule_conversation"] * 4 + ["escalate"],
+            6,
+        ),
+        notes=(
+            "No label-destruction leg: G9 has no impostor side to destroy "
+            "labels between. Its corpus is genuine papers only, each confirmed "
+            "by its teacher; shuffling authorship would turn it into a "
+            "cross-student experiment that is G1/G2's business, not a "
+            "false-alarm measurement. The guard against a hollow pass is "
+            "instead the decidability rule: zero flagged papers out of 30 "
+            "gives a Wilson upper bound of ~0.11, above the 0.05 bar, so a "
+            "small clean corpus cannot pass — the interval has to clear the "
+            "bar, which takes roughly 70+ papers at zero flags."
         ),
     ),
     "evaluate_g8_genre_discrimination": GateContract(

@@ -10,6 +10,11 @@
                      token, else a student's session token); never throws
    Live.session()    who is looking: demo, signed-in or signed-out
    Live.STUDENT_NOTICE  the testing-phase label the student pages show (the only copy)
+   Live.BAND_WORDS   the server's action band (recommendation.action) in the suite's
+                     one set of words, the same words original/evidence.py sends as
+                     band_words (a test keeps the two copies equal)
+   Live.BAND_INNOCENT_CLAUSE  the reminder appended on the two upper bands
+   Live.BAND_RATE_NOT_MEASURED  the number row's sentence until gate G9 has passed
    Live.notices()    fills every [data-testing-notice] with the label, and every
                      [data-student-notice] with the student label
    Live.empty(el,t)  an honest empty state inside a card
@@ -56,6 +61,18 @@
   // testing-phase warning, plus what NORTH_STAR rule 10 says a student must be
   // told about their sealed work. A student never sees the teacher's sentence.
   var STUDENT_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Your teacher may approve your sealed Collections work as reference writing for it, and can undo that approval.';
+
+  // The action bands in words (chosen 2026-10-30, the "reads-like" set). A
+  // reading of how far the habits moved, never a finding about the student.
+  // original/evidence.py's BAND_WORDS is the server's copy of the same words.
+  var BAND_WORDS = {
+    no_action: 'Reads like their own writing',
+    monitor: 'Mostly like their own writing; a few habits differ',
+    schedule_conversation: 'Reads differently in several habits; worth a conversation',
+    escalate: 'Reads very differently from their past work'
+  };
+  var BAND_INNOCENT_CLAUSE = 'A new topic, heavy revision or a changed genre can do this too.';
+  var BAND_RATE_NOT_MEASURED = 'How often this reading is right has not been measured on student writing yet.';
 
   var ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -655,6 +672,9 @@
     TOKEN_KEYS: TOKEN_KEYS,
     NOTICE: NOTICE,
     STUDENT_NOTICE: STUDENT_NOTICE,
+    BAND_WORDS: BAND_WORDS,
+    BAND_INNOCENT_CLAUSE: BAND_INNOCENT_CLAUSE,
+    BAND_RATE_NOT_MEASURED: BAND_RATE_NOT_MEASURED,
     esc: esc,
     api: api,
     session: session,

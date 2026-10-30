@@ -254,18 +254,98 @@ def test_case_folding_that_changes_length_fails_closed():
     assert ev.read_paper(text, "semicolon_colon_rate").places is not None
 
 
+NOT_RUN = {"verdict": "not run", "n_papers": None, "n_students": None, "corpus": None, "date": None, "bands": {}}
+
+
 def test_preliminary_score_is_the_engines_numbers_with_its_label():
     p = ev.preliminary_score(0.6789, "schedule_conversation", inconclusive=False)
     assert p == {"label": "Preliminary · unvalidated · not a judgment", "score": 0.68,
-                 "band": "schedule_conversation", "band_words": "Outside the usual range", "note": ev.PRELIMINARY_NOTE}
+                 "band": "schedule_conversation",
+                 "band_words": "Reads differently in several habits; worth a conversation",
+                 "note": ev.PRELIMINARY_NOTE, "habits_outside": None, "habits_compared": None,
+                 "band_rate": None, "band_rate_status": NOT_RUN}
     for args in ((0.9, "escalate", True), (None, "monitor", False), (0.2, "error", False)):
-        q = ev.preliminary_score(args[0], args[1], inconclusive=args[2])
+        q = ev.preliminary_score(args[0], args[1], inconclusive=args[2], habits_outside=3, habits_compared=90)
         assert q["score"] is None and q["band_words"] == "Not enough writing on file to compare yet."
+        assert q["habits_outside"] is None and q["band_rate"] is None and q["band_rate_status"] == NOT_RUN
+    counted = ev.preliminary_score(0.2, "no_action", inconclusive=False, habits_outside=12, habits_compared=90)
+    assert (counted["habits_outside"], counted["habits_compared"]) == (12, 90)
     banned = re.compile(r"\bAI\b|detect|cheat|authorship verification|accura|percent|%|authentic|misconduct",
                         re.IGNORECASE)
     for words in [ev.PRELIMINARY_LABEL, ev.PRELIMINARY_NOTE, *ev.BAND_WORDS.values(), ev.NUMBERS_ONLY_NOTE,
-                  ev.NOT_LOCATED_NOTE]:
+                  ev.NOT_LOCATED_NOTE, ev.BAND_INNOCENT_CLAUSE, ev.BAND_RATE_NOT_MEASURED]:
         assert not banned.search(words), words
+
+
+def _rates(verdict="pass", **over):
+    cell = {"in_band": 0.7, "at_or_beyond": 0.3, "ci_in_band": [0.6, 0.8], "ci_at_or_beyond": [0.2, 0.4]}
+    data = {"schema": 1, "gate": "G9", "verdict": verdict, "corpus": "pilot 2027", "date": "2027-01-05",
+            "n_papers": 80, "n_students": 9,
+            "bands": {"no_action": dict(cell), "monitor": dict(cell), "schedule_conversation": dict(cell)}}
+    data.update(over)
+    return data
+
+
+def test_band_rates_reach_the_teacher_only_after_a_pass(tmp_path):
+    path = tmp_path / "band_rates.json"
+    path.write_text(json.dumps(_rates()), encoding="utf-8")
+    rates = ev.load_band_rates(path)
+    assert rates is not None
+    p = ev.preliminary_score(0.5, "monitor", inconclusive=False, band_rates=rates)
+    assert p["band_rate"] == {"rate": 0.3, "kind": "at_or_beyond", "ci": [0.2, 0.4], "n": 80, "students": 9,
+                              "corpus": "pilot 2027", "date": "2027-01-05"}
+    assert p["band_rate_status"]["verdict"] == "pass" and set(p["band_rate_status"]["bands"]) == {
+        "no_action", "monitor", "schedule_conversation"}
+    # Below the first band the share quoted is the share that read like this.
+    assert ev.preliminary_score(0.1, "no_action", inconclusive=False, band_rates=rates)["band_rate"]["kind"] == "in_band"
+    # A band the run did not cover has no rate even after a pass.
+    assert ev.preliminary_score(0.9, "escalate", inconclusive=False, band_rates=rates)["band_rate"] is None
+    # Any other verdict keeps the status (for the staff page) and withholds the rate.
+    for verdict in ("fail", "uninformative"):
+        path.write_text(json.dumps(_rates(verdict)), encoding="utf-8")
+        q = ev.preliminary_score(0.5, "monitor", inconclusive=False, band_rates=ev.load_band_rates(path))
+        assert q["band_rate"] is None and q["band_rate_status"]["verdict"] == verdict
+        assert q["band_rate_status"]["bands"]["monitor"]["at_or_beyond"] == 0.3
+
+
+def test_band_rates_loader_fails_closed(tmp_path):
+    path = tmp_path / "band_rates.json"
+    assert ev.load_band_rates(path) is None  # missing
+    bad = [
+        "not json", json.dumps([]), json.dumps(_rates(schema=2)), json.dumps(_rates(gate="G1")),
+        json.dumps(_rates("passed")), json.dumps(_rates(corpus="")), json.dumps(_rates(n_papers=-1)),
+        json.dumps(_rates(n_papers=True)), json.dumps(_rates(bands="x")),
+        json.dumps(_rates(bands={"verdict_band": {}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 1.5, "at_or_beyond": 0.3, "ci_in_band": [0, 1], "ci_at_or_beyond": [0, 1]}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 0.5, "at_or_beyond": 0.3, "ci_in_band": [0.9, 0.1], "ci_at_or_beyond": [0, 1]}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 0.5, "at_or_beyond": 0.3, "ci_in_band": [0, 1]}})),
+    ]
+    for text in bad:
+        path.write_text(text, encoding="utf-8")
+        assert ev.load_band_rates(path) is None, text
+    assert ev.band_rate_status(None) == NOT_RUN and ev.band_rate_for("monitor", None) is None
+
+
+def test_committed_band_rates_file_is_valid_and_not_yet_a_pass():
+    rates = ev.load_band_rates()
+    assert rates is not None, "validation/band_rates.json must stay loadable"
+    assert rates["verdict"] != "pass" or rates["n_papers"] > 0
+
+
+def test_range_counts_match_the_side_by_side_summary():
+    base = [[0.5] * FEATURE_DIM, [0.6] * FEATURE_DIM]
+    this = [0.55] * FEATURE_DIM
+    this[0] = 0.9  # outside, provided code 0 is a measured habit
+    outside, compared = ev.range_counts(this, base)
+    measured = [c for c in ALL_FEATURE_CODES if ev.feature_info()[c]["kind"] == "measured"]
+    assert compared == len(measured) and 0 < compared < FEATURE_DIM
+    assert outside == (1 if ALL_FEATURE_CODES[0] in measured else 0)
+    assert ev.range_counts(this, []) == (None, None)
+    # The same rule the full list applies.
+    full = ev.build_all_features("One. Two.", [("a", "Three. Four."), ("b", "Five. Six.")],
+                                 submission_vector=this, baseline_vectors=base)
+    flags = [e["engine_scale"]["outside_past_range"] for e in full if e["kind"] in ("located", "whole_text")]
+    assert (sum(flags), len(flags)) == (outside, compared)
 
 
 def test_flags_default_off(monkeypatch):
@@ -338,7 +418,9 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
         assert response.evidence is None and response.preliminary is None
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, state, result)
-    assert response.preliminary.score == 0.66 and response.preliminary.band_words == "Outside the usual range"
+    assert response.preliminary.score == 0.66 and response.preliminary.band_words == ev.BAND_WORDS["schedule_conversation"]
+    assert response.preliminary.habits_compared is not None and response.preliminary.band_rate is None
+    assert response.preliminary.band_rate_status.verdict in ("not run", "uninformative", "fail")
     assert [p["paper"] for p in response.evidence["measured"]["past_papers"]] == ["past paper 1", "past paper 2", "past paper 3"]
     assert response.evidence["features"][0]["this_paper"]["count"] == len(ev.read_paper(EDGE, "comma_rate").places) == 7
     # Where each past paper came from: only what the samples store.

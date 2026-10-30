@@ -108,6 +108,7 @@ scoring change). Verdicts, `--strict`:
 | G6 | uninformative | skipped | p_central floor 0.200 at n = 4, threshold 0.02 needs n ≥ 49 |
 | G7 | uninformative | skipped | cross-genre corpus not committed (Plan 02) |
 | G8 | pass | precision 1.000, abstention 0.333, shuffled control 0.306 | — |
+| G9 | uninformative | skipped | no real student corpus exists yet (`validation/student_bands/`, never committed); the gate behind the teacher page's percentage, see `validation/band_rates.json` |
 | T-1 | fail | honest-term action budget | TermSim evidence artifact (`validation/termsim/reports/latest.json`) |
 | T-2 | pass | ghost detection floor | — |
 | T-3 | fail | baseline-growth neutrality | TermSim evidence artifact |

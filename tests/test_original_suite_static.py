@@ -750,11 +750,14 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "writing-state.html" in page
 
 
-# ── Teachers land on these pages; the old page stays one click away ───────────
+# ── Teachers land on these pages; the old page is no longer linked ───────────
 # Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
-# professor.html stays reachable as "Analysis (classic)" until these pages cover
-# it. The account menu markup is written out on every page (no templating), so
-# the check runs over every page in the suite, present and future.
+# professor.html stayed reachable as "Analysis (classic)" until 2026-10-30,
+# when the link was removed: that page shows "% consistent" and "confirmed
+# authentic", wording the amended NORTH_STAR rule 2 does not allow a teacher
+# to see. The file stays for the demo until Task 12 retires it. The account
+# menu markup is written out on every page (no templating), so the check runs
+# over every page in the suite, present and future.
 
 
 class _AccountMenu(HTMLParser):
@@ -799,14 +802,13 @@ def _account_menu(path: Path) -> list[tuple[str, str]]:
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
-def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
+def test_account_menu_is_settings_then_sign_out_with_no_classic_link(path):
     links = _account_menu(path)
     assert links, f"{path.name} has no account menu"
     texts = [text for _, text in links]
-    assert texts.count("Analysis (classic)") == 1, f"{path.name}: {texts}"
-    classic = texts.index("Analysis (classic)")
-    assert links[classic][0] == "/professor.html"
-    assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
+    assert "Analysis (classic)" not in texts, f"{path.name}: {texts}"
+    assert not any(href == "/professor.html" for href, _ in links), f"{path.name} links professor.html"
+    assert texts.index("Settings") < texts.index("Sign out"), f"{path.name}: {texts}"
 
 
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
@@ -2662,11 +2664,81 @@ def _writing_state() -> str:
     return (SUITE / "writing-state.html").read_text(encoding="utf-8")
 
 
-def test_writing_state_has_one_testing_label_and_it_comes_first_in_the_result_column():
+def test_writing_state_has_one_testing_label_and_it_sits_under_the_answer():
     page = _writing_state()
     assert page.count("data-testing-notice") == 1
     column = page.index('id="right-scroll"')
-    assert column < page.index("data-testing-notice") < page.index('class="hero-inner"')
+    # Under the answer line, above everything that folds away.
+    assert column < page.index('id="ess-answer"') < page.index("data-testing-notice") < page.index('<details class="deep"')
+
+
+# ── Writing State leads with the essentials (2026-10-30) ───────────────────
+# The answer, why, how sure and what next come first and always show; every
+# other part of the reading sits in a closed <details class="deep"> below.
+
+DEEP_SECTIONS = ("deep-habits", "deep-tiers", "deep-pattern", "deep-math", "deep-cal")
+
+
+def test_writing_state_puts_the_essentials_first_and_folds_the_rest():
+    page = _writing_state()
+    column = page.index('id="right-scroll"')
+    ess = page.index('id="essentials"')
+    first_fold = page.index('<details class="deep"')
+    assert column < ess < first_fold
+    # The essentials block, in order: answer, why, how sure, numbers, what next.
+    order = ['id="ess-answer"', 'id="ess-sub"', 'id="plain-read"', 'id="ess-sure"', 'id="ess-nums"', 'id="triage"']
+    positions = [page.index(needle) for needle in order]
+    assert positions == sorted(positions) and positions[-1] < first_fold
+    # The folded sections, in the documented order, every one closed by default.
+    folds = re.findall(r'<details class="deep"( open)? id="([a-z-]+)">', page)
+    assert [name for _, name in folds] == list(DEEP_SECTIONS)
+    assert not any(flag for flag, _ in folds), "a deep section ships open"
+    # The left rail keeps only the analyse card: the radar moved into a fold.
+    aside = page[page.index('<aside class="left">') : page.index("</aside>")]
+    assert "radar-canvas" not in aside and 'id="an-card"' in aside
+    assert page.index('id="radar-canvas"') > page.index('id="deep-tiers"')
+
+
+def test_writing_state_band_words_are_the_suites_one_copy_and_inconclusive_shows_none():
+    page = _writing_state()
+    for band in ("no_action", "monitor", "schedule_conversation", "escalate"):
+        assert f"Live.BAND_WORDS.{band}" in page
+    for gone in ("Close to their usual writing", "A few habits differ", "Several habits differ markedly"):
+        assert gone not in page, gone
+    # A baseline that is not rated ready gets the inconclusive answer and no band words.
+    assert "const INCONCLUSIVE_ANSWER='Inconclusive: not enough past writing to compare yet';" in page
+    assert "setAnswer(INCONCLUSIVE_ANSWER,'inc',who());" in page
+    assert "action_words:readyNow()?look().words:INCONCLUSIVE_ANSWER," in page
+    # The two upper bands carry the innocent-causes reminder (NORTH_STAR rule 4).
+    assert "Live.BAND_INNOCENT_CLAUSE" in page
+
+
+def test_writing_state_quotes_a_percentage_only_from_a_recorded_g9_pass():
+    page = _writing_state()
+    script = _inline_scripts(SUITE / "writing-state.html")
+    sentence = _extract(script, "rateSentence")
+    # The only place a percent sign can reach the reading: inside rateSentence,
+    # and only when the server sent band_rate (gate G9 passed). Otherwise the
+    # not-measured sentence, the server's own wording.
+    assert "return esc(Live.BAND_RATE_NOT_MEASURED);" in sentence
+    assert sentence.index("Live.BAND_RATE_NOT_MEASURED") < sentence.index("'%'")
+    body = script[script.index("function renderNumbers("):]
+    assert "'%'" not in body.replace(sentence, "").split("function renderCalibration(")[0]
+    assert "rateSentence(pre.band_rate)" in page
+    # The distance is a distance: the math note says so, and nothing presents one as a probability.
+    assert "on a 0 to 100 scale" in page and "a distance, not a probability" in page
+    assert not re.search(r"probability (of|that)|% (consistent|authentic|likely)", page, re.I)
+
+
+def test_writing_state_not_measured_sentence_and_band_words_match_the_server():
+    from original.evidence import BAND_INNOCENT_CLAUSE, BAND_RATE_NOT_MEASURED, BAND_WORDS
+
+    live = (SUITE / "live.js").read_text(encoding="utf-8")
+    block = re.search(r"var BAND_WORDS = \{(.*?)\};", live, re.S).group(1)
+    words = dict(re.findall(r"(\w+): '([^']*)'", block))
+    assert words == BAND_WORDS
+    assert re.search(r"var BAND_INNOCENT_CLAUSE = '([^']*)';", live).group(1) == BAND_INNOCENT_CLAUSE
+    assert re.search(r"var BAND_RATE_NOT_MEASURED = '([^']*)';", live).group(1) == BAND_RATE_NOT_MEASURED
 
 
 def test_writing_state_says_a_listed_habit_is_among_the_furthest_not_that_it_is_outside_the_range():

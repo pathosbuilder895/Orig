@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "gate": "G9",
+  "verdict": "uninformative",
+  "corpus": "validation/student_bands (not committed: no real student corpus exists yet)",
+  "date": "2026-10-30",
+  "n_papers": 0,
+  "n_students": 0,
+  "bands": {}
+}

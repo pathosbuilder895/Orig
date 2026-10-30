@@ -115,6 +115,12 @@ services:
       # pilot says "none" explicitly (NORTH_STAR rule 4).
       - key: NULL_MODEL
         value: "none"
+      # Writing State's number row (2026-10-30): the preliminary distance on a
+      # 0 to 100 scale, the outside-range count, and the "not measured yet"
+      # sentence until gate G9 passes. Staff only, never a student; restates
+      # the deviation the page already acts on (ADR-013, NORTH_STAR rule 2 v0.4).
+      - key: PRELIMINARY_SCORE_ENABLED
+        value: "1"
       # ── Bbook external exam app (original/bbook_client.py) ──
       # Outbound client for POST /students/{id}/request-baseline. Both unset
       # means that endpoint returns 503 with manual-upload guidance — the
