@@ -48,10 +48,13 @@ function App() {
   // or sign-up, which happens with the session already stored, so it is the screen the move starts
   // from that tells the two apart, not the session alone. The address bar keeps it too: sign-in
   // reads it there (resumeOrHome), so a followed link wins over the place saved on another device.
+  // Sign-in also takes the waiting link from the address bar. After a lapsed sign-in the one held
+  // here was dropped when the teacher first moved on, and only the address still names their screen.
   const navigate = (next) => {
     const signingIn = PRE_AUTH_SCREENS.includes(screen);
     clearDeepLink({ signingIn });
-    if (BB_API.isAuthed() && !signingIn) setDeepLink(null);
+    if (signingIn) setDeepLink(parseDeepLink(window.location.hash));
+    else if (BB_API.isAuthed()) setDeepLink(null);
     if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) rememberScreen(next);
     setTweak('currentScreen', next);
   };
@@ -72,8 +75,10 @@ function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
   // A lapsed teacher sign-in (401) goes to the sign-in page with a reason,
-  // never to empty lists. The current screen is kept in the hash, so signing
-  // back in returns there.
+  // never to empty lists. A screen that keeps its place (rememberScreen in
+  // deep-link.jsx) is still named in the hash, so signing back in returns
+  // there (navigate); from any other screen it goes to the place last saved
+  // for resuming (resume-location.jsx).
   const [expired, setExpired] = useState(false);
   const [expiredStudent, setExpiredStudent] = useState(false);
   React.useEffect(() => {

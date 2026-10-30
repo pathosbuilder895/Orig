@@ -181,6 +181,31 @@ test.describe('Deep links into one exam', () => {
     await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
   })
 
+  test('a teacher whose sign-in lapses is back on the same screen after signing in again', async ({ staffPage, workerTenant, request }) => {
+    // The place saved for resuming on another device is somewhere else, so
+    // only the address can bring the teacher back to Students.
+    await saveAPlace(request, workerTenant)
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage.getByText('Students who have joined')).toBeVisible({ timeout: 10_000 })
+    await staffPage.waitForLoadState('networkidle')
+    // The 8-hour sign-in lapses as the teacher opens Students: on a real
+    // deploy the server answers with this 401 (teacher-view-refresh.spec.mjs
+    // pins the same answer).
+    const lapsed = /\/bluebook\/students(\?.*)?$/
+    await staffPage.route(lapsed, route => route.fulfill({
+      status: 401, contentType: 'application/json',
+      body: JSON.stringify({ detail: 'Authentication required, sign in with a staff account.' }),
+    }))
+    await staffPage.getByRole('button', { name: 'Students', exact: true }).click()
+    await expect(staffPage.getByTestId('signin-expired')).toBeVisible({ timeout: 10_000 })
+    await staffPage.unroute(lapsed)
+    await staffPage.getByPlaceholder('you@school.edu').fill(workerTenant.staff.email)
+    await staffPage.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
+    await staffPage.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).hash).toBe('#students')
+  })
+
   test("the hash changes nothing for a student", async ({ browser, workerTenant, request }) => {
     const title = `Deep link student ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
