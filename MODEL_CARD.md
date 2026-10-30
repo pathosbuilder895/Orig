@@ -443,13 +443,21 @@ peers** (`original/quantum/null_pool.py`), producing
 distinctly this student's voice; toward 1 = fits the peer pool better than
 the claimed student's own baseline.
 
-**Measured lift** (binary authorship verification, N=3 baselines,
-`validation/benchmarks/2026-07-01/*nullmodel*`): seminary median
-per-author AUC 0.8125 → **1.0** (pooled 0.8925 → **0.9325**, Brier 0.51 →
-0.17); public authors pooled 0.8551 → **0.8993** (Brier 0.34 → 0.09).
-TPR at 5% FPR rose from 0.6 → 0.8. Ledoit-Wolf shrinkage
-(`RANK_REMEDIATION=shrinkage`) was A/B'd at the same time and *hurt* —
-the null model alone accounts for the entire gain.
+**Measured lift** (binary authorship verification, N=3 baselines). Seminary
+(`validation/benchmarks/2026-07-01/*nullmodel*`; 5 synthetic template
+"students", 10 same-author / 40 different-author pairs, not real student
+writing): median per-author AUC 0.8125 → **1.0** (pooled 0.8925 →
+**0.9325**, Brier 0.51 → 0.17), TPR at 5% FPR 0.6 → 0.8. Public authors,
+decontaminated corpus (`validation/benchmarks/2026-08-01/*public_authors*`;
+11 authors, 27 same-author / 270 different-author pairs): pooled AUC
+0.8868 → **0.9527** (Brier 0.64 → 0.13), TPR at 5% FPR 0.6667 → 0.6667.
+For 9 of those 11 authors the baseline and held-out essays come from the
+same book, so this measures within-work continuity as much as authorial
+voice. The 2026-07-01 public-authors figures (0.8551 → 0.8993) came from the
+contaminated corpus and are superseded; see
+`validation/benchmarks/2026-08-01/CONTAMINATION_COMPARISON.md`. Ledoit-Wolf
+shrinkage (`RANK_REMEDIATION=shrinkage`) was A/B'd on seminary at the same
+time and *hurt*; the null model alone accounts for the entire gain there.
 
 **Contract**
 

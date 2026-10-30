@@ -4925,7 +4925,9 @@ def main(argv=None) -> int:
         spec = build_spec(
             task="calibration_suite",
             corpora={
-                "seminary": summarize_author_docs(seminary_texts, "student_pilot"),
+                "seminary": summarize_author_docs(
+                    seminary_texts, "synthetic_template+real_historical"
+                ),
                 "public_authors": summarize_author_docs(public_authors_texts, "real_historical"),
                 "plato": summarize_author_docs(plato_texts, "real_historical"),
                 "g1_scored": summarize_author_docs(
