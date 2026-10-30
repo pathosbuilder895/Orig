@@ -1233,6 +1233,11 @@ export function ProctorLiveScreen() {
             empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose a collection above.'} />
           <p className="bb-hint">Warnings arrive when a student seals their exam, so they show for submitted students only.</p>
         </>
+      ) : exams === null ? (
+        // Not before the list: choosing a collection when it arrives changes
+        // the key below, which would remount the panel and refill its box
+        // over whatever the teacher had typed.
+        <p role="status" className="bb-meta" style={{ marginTop: '1rem' }}>Loading your collections…</p>
       ) : (
         <div key={examId} style={{ marginTop: '1rem' }}><ProctorScreen /></div>
       )}
