@@ -665,6 +665,16 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             updated_at      TEXT NOT NULL
         )
     """)
+    # Each account's chosen text font and size (2026-11) — mirrors alembic
+    # revision a1d5f3c7e9b2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_display_prefs (
+            account_key TEXT PRIMARY KEY,
+            font        TEXT NOT NULL DEFAULT 'serif',
+            size        TEXT NOT NULL DEFAULT 'default',
+            updated_at  TEXT NOT NULL
+        )
+    """)
     # A student's own parked phone per collection (2026-10) — mirrors alembic
     # revision a7e3c5d9f2b4.
     conn.execute("""
@@ -1867,6 +1877,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
     "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM user_display_prefs WHERE account_key = ? LIMIT 1",
     "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
 )
 
@@ -1975,6 +1986,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
             # Where the student last was in the app (2026-10).
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
+            # The student's chosen text font and size (2026-11).
+            conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (student_id,))
             # The student's own parked-phone records (2026-10).
             conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
@@ -4513,6 +4526,36 @@ def get_last_location(account_key: str) -> dict | None:
 def delete_last_location(account_key: str) -> None:
     with _get_conn() as conn:
         conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
+        conn.commit()
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+
+
+def put_display_prefs(account_key: str, prefs: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_display_prefs (account_key, font, size, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (account_key, prefs["font"], prefs["size"], now),
+        )
+        conn.commit()
+    return get_display_prefs(account_key) or {}
+
+
+def get_display_prefs(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT font, size, updated_at FROM user_display_prefs WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return {"font": row[0], "size": row[1], "updated_at": row[2]} if row else None
+
+
+def delete_display_prefs(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (account_key,))
         conn.commit()
 
 

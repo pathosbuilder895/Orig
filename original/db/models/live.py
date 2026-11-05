@@ -883,6 +883,21 @@ class UserLastLocation(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserDisplayPrefs(LiveBase):
+    """The text font and size an account chose in Settings
+    (``user_display_prefs``, 2026-11). One row per account; display only,
+    never applied to submitted text or anything measured; deleted with the
+    student's data on withdrawal.
+    """
+
+    __tablename__ = "user_display_prefs"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    font: Mapped[str] = mapped_column(Text, nullable=False, server_default="serif")
+    size: Mapped[str] = mapped_column(Text, nullable=False, server_default="default")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class BluebookPhonePark(LiveBase):
     """A student's own parked phone for one collection
     (``bluebook_phone_parks``, 2026-10). Only for collections where the

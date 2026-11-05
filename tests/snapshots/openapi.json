@@ -7100,6 +7100,66 @@
         "summary": "Me"
       }
     },
+    "/bluebook/me/display": {
+      "get": {
+        "description": "The signed-in account's own text font and size, or null (defaults).",
+        "operationId": "get_display_prefs_bluebook_me_display_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Display Prefs"
+      },
+      "put": {
+        "description": "Save the signed-in account's text font and size. Only known values are kept.",
+        "operationId": "put_display_prefs_bluebook_me_display_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Display Prefs"
+      }
+    },
     "/bluebook/me/exams": {
       "get": {
         "operationId": "my_exams_bluebook_me_exams_get",

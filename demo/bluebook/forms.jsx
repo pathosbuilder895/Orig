@@ -154,7 +154,7 @@ export function AuthShell({ title, onBack, children, footer }) {
       {onBack && (
         <button onClick={onBack} style={{
           position: 'fixed', top: 20, left: 20,
-          fontFamily: fontMono, fontSize: 11, letterSpacing: '0.18em',
+          fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
           textTransform: 'uppercase', color: BB.fade,
           background: 'none', border: 'none', cursor: 'pointer', padding: 10,
         }}>← Back</button>
@@ -165,7 +165,7 @@ export function AuthShell({ title, onBack, children, footer }) {
           <GoldRule double style={{ margin: '18px 0 14px' }} />
           <h1 style={{
             fontFamily: fontDisplay, fontStyle: 'italic', fontWeight: 400,
-            fontSize: 21, color: BB.fade, letterSpacing: '0.04em', margin: 0,
+            fontSize: '1.3125rem', color: BB.fade, letterSpacing: '0.04em', margin: 0,
           }}>{title}</h1>
         </div>
         <div className="bb-page" style={{ border: '1px solid rgba(201,169,97,0.28)', padding: 'clamp(20px, 5vw, 32px)' }}>
@@ -179,7 +179,7 @@ export function AuthShell({ title, onBack, children, footer }) {
 
 export function SubmitButton({ busy, children, busyLabel = 'Working…' }) {
   return (
-    <BtnPrimary full style={{ padding: '14px 0', fontSize: 17 }}>
+    <BtnPrimary full style={{ padding: '14px 0', fontSize: '1.0625rem' }}>
       {busy ? busyLabel : children}
     </BtnPrimary>
   );
@@ -187,7 +187,7 @@ export function SubmitButton({ busy, children, busyLabel = 'Working…' }) {
 
 // Plain text for small print inside dark pages.
 export function Small({ children }) {
-  return <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, lineHeight: 1.55 }}>{children}</p>;
+  return <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, lineHeight: 1.55 }}>{children}</p>;
 }
 
 // Local, human date-time for an ISO string (or an em dash).

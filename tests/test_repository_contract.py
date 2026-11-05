@@ -3320,6 +3320,28 @@ class TestLastLocation:
         assert repo.get_last_location(sid) is None
 
 
+class TestDisplayPrefs:
+    """Text font and size (2026-11): one row per account, upserted, read
+    back, deleted, and erased by delete_student — on every backend."""
+
+    def test_put_get_upsert_delete(self, repo):
+        key = "tenant-disp:ann"
+        assert repo.get_display_prefs(key) is None
+        repo.put_display_prefs(key, {"font": "sans", "size": "large"})
+        repo.put_display_prefs(key, {"font": "readable", "size": "xlarge"})
+        got = repo.get_display_prefs(key)
+        assert got["font"] == "readable" and got["size"] == "xlarge" and got["updated_at"]
+        assert repo.get_display_prefs("tenant-disp:ben") is None
+        repo.delete_display_prefs(key)
+        assert repo.get_display_prefs(key) is None
+
+    def test_delete_student_erases_prefs(self, repo):
+        sid = "tenant-disp2:cy"
+        repo.put_display_prefs(sid, {"font": "classic", "size": "small"})
+        repo.delete_student(sid)
+        assert repo.get_display_prefs(sid) is None
+
+
 class TestPhoneParks:
     """A student's own parked phone per collection (2026-10): upserted field
     by field, listed per exam, and erased by delete_student — on every backend."""
