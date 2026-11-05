@@ -949,6 +949,7 @@ LIVE_MODELS = [
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    UserDisplayPrefs,
     BluebookPhonePark,
     BluebookJoinLink,
 ]
