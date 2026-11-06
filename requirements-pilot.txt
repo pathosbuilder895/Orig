@@ -30,7 +30,7 @@ cryptography==50.0.0
 # `from .postgres_repository import PostgresRepository` raises ModuleNotFoundError
 # on the first request after REPO_BACKEND=postgres is set, even though the
 # process boots cleanly — pinned to match requirements.txt's versions.
-sqlalchemy==2.0.51
+sqlalchemy==2.0.54
 alembic==1.18.5
 psycopg2-binary==2.9.13
 
