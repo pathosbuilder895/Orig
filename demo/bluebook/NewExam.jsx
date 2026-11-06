@@ -557,8 +557,8 @@ export function NewExamScreen({ onNavigate }) {
             <FormField label="Size" hint="optional" id="neSize">
               <SelectInput id="neSize" value={size} onChange={chooseSize} options={[
                 { value: '', label: 'Any length' },
-                { value: 'small', label: `Small (under ${SMALLS_GREATS_CUTOFF.toLocaleString()} words)` },
-                { value: 'great', label: `Great (${SMALLS_GREATS_CUTOFF.toLocaleString()} words or more)` },
+                { value: 'small', label: `Small (${SMALLS_GREATS_CUTOFF.toLocaleString()} words or fewer)` },
+                { value: 'great', label: `Great (over ${SMALLS_GREATS_CUTOFF.toLocaleString()} words)` },
               ]} />
             </FormField>
           </div>
