@@ -27,7 +27,7 @@ charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via uvicorn
-cloudpathlib==0.24.0
+cloudpathlib==0.26.0
     # via weasel
 confection==1.3.3
     # via
