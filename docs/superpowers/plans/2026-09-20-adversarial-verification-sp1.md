@@ -501,6 +501,7 @@ pip install anthropic   # not installed in this venv yet
 ANTHROPIC_API_KEY=sk-ant-… /Users/andrew/Desktop/Original/.venv/bin/python -m validation.adversarial.gen_llm_attacks --n-baselines 3,5,10
 ```
 Until this runs, `validation/adversarial/corpus/llm_attacks/` does not exist, and `LLMImitation`/`LLMParaphrase`/`LLMRoundTrip` correctly report `configured=False` — gates G-A2/G-A3 (Task 19) will read as `uninformative`, by design, not `fail`.
+  *Still open 2026-10-21:* not run (no key in the validation environment, and generating attacks needs the owner's approval). G-A2/G-A3 are wired and read `uninformative` with that reason; once the cache is committed, `python -m validation.adversarial.report` scores it with no code change.
 
 - [x] **Step 5: Run tests, expect PASS. Step 6: Commit** the generators, the script (cache-reader classes + populator script only — the committed cache itself is Step 4's output, still pending).
 
@@ -534,6 +535,7 @@ Until this runs, `validation/adversarial/corpus/llm_attacks/` does not exist, an
 - Produces: `run_attack(profile, attack, path="score"|"api") -> AttackResult` with per-action-bar impostor catch rate, genuine-holdout FPR at N∈{3,5,10}, imitation success (fraction at `no_action`), poisoning success, and the σ-inflation curve.
 
 - [x] **Step 1:** Failing test on a tiny fixture — a genuine holdout scores below `escalate`, a blatant impostor scores at/above `monitor`; metrics dict has the documented keys. **Step 2:** Run, FAIL. **Step 3:** Implement both paths (report the API-path number; use the fast path for the σ curve); cap corpus so a full run is < 30 min. **Step 4:** PASS. **Step 5:** Commit.
+  *Extended 2026-10-21 (`4fb4c58`, `4bab200`):* the runner records the live `deviation_score`, `authorship_probability`, `baseline_integrity`, drift holds, the unfloored real-feature spread and 422 refusals; `validation/adversarial/report.py` builds and scores every cell (public authors, Riddell-Juola, LLM cache) in parallel workers. Deviations from this task's text: the σ curve uses the API path too (the fast path's extraction differs from the live route), and the corpus is not capped: the full run took 60 min for public authors (8 workers) plus 27 min for Riddell-Juola (4 workers) on a shared 12-core Mac.
 
 ### Task 19: Gates G-A1…G-A6 + falsifiability witnesses + wiring
 
@@ -545,30 +547,35 @@ Until this runs, `validation/adversarial/corpus/llm_attacks/` does not exist, an
 **Interfaces:**
 - Produces: G-A1 cold-start FPR (genuine holdout FPR at N∈{3,5,10} ≤ bar); G-A2 imitation catch; G-A3 paraphrase/MT catch; G-A4 peer-imitation separation; G-A5 σ-inflation (catch rate must not collapse as σ grows); G-A6 baseline-integrity detects poisoned profiles. Each three-valued; `uninformative` when its corpus (esp. the committed LLM cache) is absent.
 
-- [ ] **Step 1:** Write failing witness tests — each witness constructs an input on which the gate must return `verdict="fail"` (pass args after the first by KEYWORD, per the SIGNATURE TRAP). **Step 2:** Run `tests/test_gate_falsifiability.py`, expect FAIL (gates unregistered). **Step 3:** Implement the six `evaluate_g_a*` with the `uninformative` guards (missing corpus → uninformative; zero attacks generated → uninformative), register witnesses, wire into `run_all`/`GATE_LEGS`/`_want`/`_mark` with `try/except → _machinery_error_result`. **Step 4:** Run:
+- [x] **Step 1:** Write failing witness tests — each witness constructs an input on which the gate must return `verdict="fail"` (pass args after the first by KEYWORD, per the SIGNATURE TRAP). **Step 2:** Run `tests/test_gate_falsifiability.py`, expect FAIL (gates unregistered). **Step 3:** Implement the six `evaluate_g_a*` with the `uninformative` guards (missing corpus → uninformative; zero attacks generated → uninformative), register witnesses, wire into `run_all`/`GATE_LEGS`/`_want`/`_mark` with `try/except → _machinery_error_result`. **Step 4:** Run:
 ```bash
 /Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/test_gate_falsifiability.py -v
 /Users/andrew/Desktop/Original/.venv/bin/python -m validation.calibration_gate --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"
 ```
 Expected: witnesses pass; gates run (uninformative without cache, pass/fail with it). **Step 5:** Commit.
+  *Done 2026-10-21 (`4bab200`, leak fix `51f9ead`). Step 4: the falsifiability suite passes (63 passed, 11 skipped) and the battery legs ran with `--strict` (see the Gate legs item below):* six evaluators on one severity bar (`monitor`+) with bars borrowed from G1, T-2 and G7; witnesses and label-destruction legs in `gate_contracts.py`, pinned in `tests/test_gate_falsifiability.py::TestAdversarialWitnesses`; legs wired into `run_all`, `GATE_LEGS`, `scripts/merge_calibration_reports.py` and the weekly battery matrix. Two validation-gatekeeper review rounds hardened when a pass is withheld (missing route, N or corpus; partial cache coverage; refusals; σ that did not grow by 5%; AUROC bound at small n).
 
 ### Task 20: First findings doc
 
 **Files:**
 - Create: `docs/research/ADVERSARIAL_BASELINE_FINDINGS_2026-09-20.md`
 
-- [ ] **Step 1:** Run the harness with the committed corpora and record, per attack, the catch rate at each action bar and the genuine FPR at N∈{3,5,10} — the numbers every later SP must beat. Include the honesty caveats (R1 contested; R2 verification≠attribution; corpus≠students). **Step 2:** Commit.
+- [x] **Step 1:** Run the harness with the committed corpora and record, per attack, the catch rate at each action bar and the genuine FPR at N∈{3,5,10} — the numbers every later SP must beat. Include the honesty caveats (R1 contested; R2 verification≠attribution; corpus≠students). **Step 2:** Commit.
+  *Done 2026-10-21:* `docs/research/ADVERSARIAL_BASELINE_FINDINGS_2026-09-20.md`, raw rows in `validation/adversarial/reports/2026-10-21_sp1_first_run.json`. G-A1, G-A4, G-A5, G-A6 fail; G-A2, G-A3 uninformative (no LLM cache). A review found that sigma-inflation donors could reappear as peer documents; fixed in `51f9ead` before these numbers were written. The Riddell-Juola participant baselines were downloaded and committed for this with the owner's approval (`1438e7a`).
 
 ---
 
 ## Verification checklist (whole SP1)
 
 - [ ] Full suite green: `/Users/andrew/Desktop/Original/.venv/bin/python -m pytest tests/ -q` (budget 11–12 min).
-- [ ] Postgres layer: `make test-postgres` (Tasks 4, 8, 10 touch persistence).
-- [ ] Security suite green: `tests/security/` (T-67/68/69 flip red→green).
-- [ ] Gate legs: `/Users/andrew/Desktop/Original/.venv/bin/python -m validation.calibration_gate --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"` — pass with committed corpora, uninformative without.
-- [ ] Falsifiability: `tests/test_gate_falsifiability.py` green.
+  *2026-10-21, CI command locally: 5,038 passed, 270 skipped, 30 failed. All 30 are in `tests/config/test_flag_byte_identity.py` (28), `tests/test_openapi_snapshot.py` and `tests/validation/test_zero_shot_origin.py`, and fail identically on an untouched checkout of `main` (5942bbd) on this machine, while `main`'s CI pytest jobs pass them: environment-specific, not from this work. Left unticked until this PR's CI is green.*
+- [x] Postgres layer: `make test-postgres` (Tasks 4, 8, 10 touch persistence). *2026-10-21: 310 passed (local Docker Postgres 16, throwaway database).*
+- [x] Security suite green: `tests/security/` (T-67/68/69 flip red→green). *2026-10-21: 246 passed.*
+- [x] Gate legs: `/Users/andrew/Desktop/Original/.venv/bin/python -m validation.calibration_gate --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"` — pass with committed corpora, uninformative without.
+  *Ran 2026-10-21 with `--strict` (330 cells, 1,573 s; G-A5 re-run at `51f9ead` after the leak fix, identical to the report): G-A1 fail, G-A2 uninformative, G-A3 uninformative, G-A4 fail, G-A5 fail, G-A6 fail, every leg reproducing the report path. The legs run and return three-valued verdicts as designed; "pass with committed corpora" was the expectation, and the measured answer is that the live path does not pass them.*
+- [x] Falsifiability: `tests/test_gate_falsifiability.py` green. *2026-10-21: 63 passed, 11 skipped (contracts with no label-destruction leg, each with notes).*
 - [ ] Score-invariance: `baseline_integrity` and `composition_summary` do not move `deviation_score`/`recommendation` — the `tests/fusion/test_wiring.py:193-210` pattern; and `python -m validation.termsim run --matrix standard` `baseline` cell diff is empty (Task 9 is the only score-touching path).
+  *Not re-run 2026-10-21:* the Tasks 19-20 work changes nothing under `original/`. The TermSim half cannot isolate Task 9 as written: the committed `validation/termsim/reports/latest.json` (2026-08-27) predates T-01's 2026-09-15 scoring change, so a diff against it would show that change too. Task 9's byte-identity is held by `tests/context/test_composition_summary.py`.
 - [ ] Coverage: `--cov-branch --cov-fail-under=98` on `original/` still passes (new branches in `baseline_integrity.py`, `consumed_attestations.py`, resolver path covered).
 - [ ] Bluebook bundle rebuilt and committed (Task 11).
-- [ ] Docs: threat model, ADR-010, gap rows, data_inventory, STUDENT_DISCLOSURE updated; Tier 17 runbook removed.
+- [x] Docs: threat model, ADR-010, gap rows, data_inventory, STUDENT_DISCLOSURE updated; Tier 17 runbook removed. *Checked 2026-10-21: spec and ADR-010 present, nine T-67…T-75 rows, macro-only rows in data_inventory and STUDENT_DISCLOSURE, runbook absent.*

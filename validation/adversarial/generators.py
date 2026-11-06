@@ -598,6 +598,18 @@ class _LLMCacheGenerator(Generator):
             (tamper/corruption — the file on disk is not what the
             manifest says it is).
         """
+        return [
+            GeneratedSample(prompt=entry["prompt_sha"], text=text)
+            for entry, text in self.load_entries()
+        ]
+
+    def load_entries(self) -> list[tuple[dict, str]]:
+        """`load_samples` with each doc's manifest entry kept alongside its
+        text. The SP1 harness needs the entry's `n_baselines` (the baseline
+        size an imitation was written from) to score each doc against the
+        matching victim profile; `GeneratedSample` has no slot for it. Same
+        verification and the same raise-never-fabricate contract as
+        `load_samples`, which delegates here."""
         entries = self._matching_entries()
         if not entries:
             reason = self.skip_reason() or "no cached samples for this generator"
@@ -605,7 +617,7 @@ class _LLMCacheGenerator(Generator):
                 f"LLM attack cache miss for victim_id={self.victim_id!r} "
                 f"attack={self.attack!r}: {reason}"
             )
-        samples: list[GeneratedSample] = []
+        loaded: list[tuple[dict, str]] = []
         for entry in entries:
             missing = _REQUIRED_LLM_MANIFEST_KEYS - entry.keys()
             if missing:
@@ -626,8 +638,8 @@ class _LLMCacheGenerator(Generator):
                     f"{doc_path}: content SHA-256 {actual_sha} does not match manifest "
                     f"doc_sha {entry['doc_sha']!r} (file may be corrupted or tampered with)"
                 )
-            samples.append(GeneratedSample(prompt=entry["prompt_sha"], text=text))
-        return samples
+            loaded.append((entry, text))
+        return loaded
 
 
 class LLMImitation(_LLMCacheGenerator):

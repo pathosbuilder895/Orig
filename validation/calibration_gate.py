@@ -40,6 +40,14 @@ that are right, often enough to be useful, for reasons that are about genre
 rather than about recognising the author — the third leg permutes genre
 labels across authors and requires accuracy to collapse to chance, because
 the labelled corpus confounds the two.
+G-A1…G-A6 (adversarial verification, SP1) run the red-team harness in
+validation/adversarial/ through the LIVE score route under the pilot's
+scoring flags (not the typicality path above): cold-start same-author FPR
+per baseline size, LLM imitation, LLM paraphrase/MT laundering, peer swap,
+sigma-inflation and baseline-integrity detection. G-A2/G-A3 read
+uninformative until the LLM attack cache is generated and committed. See
+docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-
+design.md §4.
 """
 
 from __future__ import annotations
@@ -1485,6 +1493,573 @@ def evaluate_g8_genre_discrimination(
     )
 
 
+# ── G-A1…G-A6: adversarial verification (SP1) ────────────────────────────────
+#
+# Spec: docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-
+# design.md §4. The cells are built and scored by validation/adversarial/
+# report.py through the REAL score route under the pilot's scoring
+# configuration (report.LIVE_SCORING_ENV), not the typicality path the other
+# legs of run_all() turn on: these gates describe the live deviation_score and
+# recommendation.action.
+#
+# One severity bar everywhere: a document is "flagged" (genuine side) or
+# "caught" (attack side) when its action is monitor or above. Reading both
+# sides at the same bar is G7's lesson: a correction measured only on one
+# side can buy its number from the other.
+#
+# Bars are taken from gates that already exist rather than invented here:
+#   _GA_FPR_BAR / _GA_FALSE_ALARM_BAR  0.05  G1's same-author budget
+#   _GA_CATCH_BAR / _GA_DETECTION_BAR  0.60  T-2's GHOST detection floor at
+#                                            monitor+ (a ghostwriter is the
+#                                            un-adversarial version of every
+#                                            attack measured here)
+#   _GA_AUC_BAR                        0.60  G7's above-chance bar
+# The catch gates carry a separation leg (deviation_score AUROC, attack docs
+# vs. the same students' genuine holdouts) because at cold start the live path
+# flags nearly everything: a catch rate alone would pass a verifier that
+# cannot tell anyone apart.
+#
+# Every population arrives split by baseline size N (report.py's reducers):
+# the same documents recur across N, so pooling would count one document up
+# to three times. Within one N a peer document can still be scored against
+# several students' baselines; the Wilson and AUROC screens assume
+# independence and are screens, not proofs (G7's stated limitation).
+
+_GA_FLAG_FLOOR = "monitor"
+_GA_FPR_BAR = 0.05
+_GA_CATCH_BAR = 0.60
+_GA_AUC_BAR = 0.60
+_GA_SIGMA_DROP_BAR = 0.10
+# The smallest relative widening of the baseline spread that counts as the
+# sigma-inflation attack having happened (G-A5). A stated minimum effect, so
+# numerical noise in the spread cannot pass as "sigma grew".
+_GA_SIGMA_MIN_GROWTH = 0.05
+_GA_DETECTION_BAR = 0.60
+_GA_FALSE_ALARM_BAR = 0.05
+_GA_NS: tuple[int, ...] = (3, 5, 10)
+
+_GA1_CRITERION = (
+    f"genuine-holdout flagged rate (action at {_GA_FLAG_FLOOR} or above) "
+    f"<= {_GA_FPR_BAR:.0%} at EVERY baseline size N in {{3, 5, 10}}, live scoring path"
+)
+_GA_CATCH_CRITERION = (
+    "{what} caught (action at monitor or above) >= {catch:.0%} AND deviation_score "
+    "AUROC against the same students' genuine holdouts >= {auc:.2f}, for EVERY "
+    "population, live scoring path"
+)
+_GA2_CRITERION = _GA_CATCH_CRITERION.format(
+    what="LLM imitations of the student's own baselines", catch=_GA_CATCH_BAR, auc=_GA_AUC_BAR
+)
+_GA3_CRITERION = _GA_CATCH_CRITERION.format(
+    what="LLM paraphrases and MT round-trips of the student's own work",
+    catch=_GA_CATCH_BAR,
+    auc=_GA_AUC_BAR,
+)
+_GA4_CRITERION = _GA_CATCH_CRITERION.format(
+    what="peer swaps (a classmate's own writing under this student's name)",
+    catch=_GA_CATCH_BAR,
+    auc=_GA_AUC_BAR,
+)
+_GA5_CRITERION = (
+    f"impostor catch (monitor+) against sigma-inflated baselines no more than "
+    f"{_GA_SIGMA_DROP_BAR:.0%} below the clean-baseline catch AND impostor-vs-genuine "
+    f"AUROC under the inflated baseline >= {_GA_AUC_BAR:.2f}; uninformative unless "
+    "the real-feature baseline sigma actually grew"
+)
+_GA6_CRITERION = (
+    f"every poisoned-baseline population detected (drift-gate hold or integrity "
+    f"LOO outlier on an INJECTED document) >= {_GA_DETECTION_BAR:.0%} AND every "
+    f"clean population falsely flagged <= {_GA_FALSE_ALARM_BAR:.0%}"
+)
+
+
+def _ga_flagged(actions: list[str]) -> int:
+    return sum(1 for a in actions if a != "no_action")
+
+
+def _ga_auroc(attack_scores: list[float], genuine_scores: list[float]) -> float | None:
+    """P(attack score > genuine score), ties counted half (Mann-Whitney).
+    None when either side is empty."""
+    if not attack_scores or not genuine_scores:
+        return None
+    wins = 0.0
+    for a in attack_scores:
+        for g in genuine_scores:
+            wins += 1.0 if a > g else 0.5 if a == g else 0.0
+    return wins / (len(attack_scores) * len(genuine_scores))
+
+
+def _ga_auroc_lower(auc: float, n_attack: int, n_genuine: int) -> float:
+    """Conservative lower end of a 95% interval on an AUROC: the Wilson lower
+    bound for the AUROC read as a proportion over the SMALLER side's document
+    count. Hanley & McNeil's normal approximation was the first choice and
+    was dropped in review: its variance is exactly zero at AUROC 1.0 whatever
+    n is, so six attack documents against ONE genuine document "demonstrated"
+    a pass. Taking the smaller side as the effective sample size is the
+    maximum-variance argument (Birnbaum & Klose 1957), and Wilson stays
+    honest at 0 and 1. Still a screen: it assumes independent documents."""
+    from validation.power import wilson_interval
+
+    m = min(n_attack, n_genuine)
+    k = min(max(int(round(auc * m)), 0), m)
+    return wilson_interval(k, m)[0]
+
+
+def _ga_rate_leg(label: str, successes: int, n: int, bar: float, upper: bool) -> dict:
+    """One proportion leg. `upper=True` means the bar is a ceiling (a rate
+    that must stay low): a demonstrated pass needs the whole Wilson interval
+    BELOW it; a floor needs it ABOVE. n == 0 is unmeasured."""
+    if n <= 0:
+        return {"label": label, "state": None, "n": 0, "rate": None}
+    from validation.power import bar_decidable, wilson_interval
+
+    rate = successes / n
+    decidable = bar_decidable(successes, n, bar)
+    demonstrated = decidable == ("below" if upper else "above")
+    return {
+        "label": label,
+        "state": rate <= bar if upper else rate >= bar,
+        "n": n,
+        "successes": successes,
+        "rate": rate,
+        "bar": bar,
+        "wilson_ci": list(wilson_interval(successes, n)),
+        "demonstrated": demonstrated,
+        "why_not": None
+        if demonstrated
+        else f"{label}: {rate:.1%} over n={n} has a 95% CI that straddles the {bar:.0%} bar",
+    }
+
+
+def _ga_auc_leg(label: str, attack_scores: list[float], genuine_scores: list[float]) -> dict:
+    auc = _ga_auroc(attack_scores, genuine_scores)
+    if auc is None:
+        return {"label": label, "state": None, "auc": None}
+    lower = _ga_auroc_lower(auc, len(attack_scores), len(genuine_scores))
+    demonstrated = lower > _GA_AUC_BAR
+    return {
+        "label": label,
+        "state": auc >= _GA_AUC_BAR,
+        "auc": auc,
+        "auc_lower_95": lower,
+        "n_attack": len(attack_scores),
+        "n_genuine": len(genuine_scores),
+        "bar": _GA_AUC_BAR,
+        "demonstrated": demonstrated,
+        "why_not": None
+        if demonstrated
+        else f"{label}: AUROC {auc:.3f} (n={len(attack_scores)} vs {len(genuine_scores)}) "
+        f"has a 95% lower bound {lower:.3f} that does not clear {_GA_AUC_BAR:.2f}",
+    }
+
+
+def _ga_leg_text(leg: dict) -> str:
+    if leg["state"] is None:
+        return f"{leg['label']}=not measured"
+    if "auc" in leg:
+        return f"{leg['label']}={leg['auc']:.3f}"
+    return f"{leg['label']}={leg['rate']:.1%} ({leg['successes']}/{leg['n']})"
+
+
+def _ga_result(
+    name: str,
+    criterion: str,
+    legs: list[dict],
+    *,
+    reasons: list[str] | None = None,
+    informational: dict | None = None,
+    extra_detail: dict | None = None,
+) -> GateResult:
+    """Shared three-valued verdict for the G-A gates, by the module's usual
+    rule: any measured leg missing its bar fails the gate, whatever else
+    could not be measured; with no failure, an unmeasured leg (or no legs at
+    all) withholds a pass; and a would-be pass is downgraded to
+    uninformative when any leg's interval straddles its bar or a caller
+    reason (an absent corpus, an attack that never fired) applies. A
+    measured failure is never softened."""
+    reasons = list(reasons or [])
+    failed = [leg["label"] for leg in legs if leg["state"] is False]
+    unmeasured = [leg["label"] for leg in legs if leg["state"] is None]
+    if failed:
+        verdict = "fail"
+    elif not legs or unmeasured:
+        verdict = "uninformative"
+        if unmeasured:
+            reasons.append(f"not measured: {', '.join(unmeasured)}")
+        if not legs:
+            reasons.append("nothing was scored")
+    else:
+        verdict = "pass"
+        reasons += [leg["why_not"] for leg in legs if not leg.get("demonstrated", True)]
+        if reasons:
+            verdict = "uninformative"
+
+    current_value = "; ".join(_ga_leg_text(leg) for leg in legs) or "nothing scored"
+    if failed:
+        current_value += f" (FAILED: {', '.join(failed)})"
+    elif verdict == "uninformative":
+        current_value += " (UNINFORMATIVE: " + "; ".join(reasons) + ")"
+
+    detail = dict(informational or {})
+    detail.update(extra_detail or {})
+    detail.update(
+        {
+            "legs": legs,
+            "failed_legs": failed,
+            "unmeasured_legs": unmeasured,
+            "uninformative_reasons": reasons if verdict == "uninformative" else [],
+            "informativeness_caveats": reasons
+            + [leg["why_not"] for leg in legs if leg.get("why_not")],
+        }
+    )
+    return GateResult(
+        name=name,
+        passed=verdict == "pass",
+        verdict=verdict,
+        criterion=criterion,
+        current_value=current_value,
+        detail=detail,
+    )
+
+
+def evaluate_g_a1_cold_start_fpr(
+    holdout_actions_by_n: dict[int, list[str]] | None,
+    required_ns: tuple[int, ...] = _GA_NS,
+    refused_by_n: dict[int, int] | None = None,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A1: cold-start same-author false-positive rate (attack 9). The share of
+    genuine held-out documents the live path flags (monitor or above) must
+    stay within G1's 5% budget at EVERY baseline size in `required_ns`, not
+    pooled: a pooled rate would let the well-sampled N=10 students hide the
+    thin-baseline N=3 ones, which are the case this gate exists for.
+
+    A missing or empty N is unmeasured and withholds a pass. A would-be pass
+    needs each N's Wilson interval wholly below 5%, which at 0 flags takes
+    about 73 documents per N; smaller corpora read uninformative, never
+    pass. `refused_by_n` counts profiles the route declined to score (the
+    drift gate left fewer than three baselines): their holdouts are missing
+    from the rate, which is a selection effect, so any refusal withholds a
+    pass. There is no label-destruction leg (the gate scores genuine
+    documents only); G-A4's catch leg is what stops "flag nothing" from
+    looking like a fix.
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    by_n = holdout_actions_by_n or {}
+    legs = [
+        _ga_rate_leg(f"FPR@N={n}", _ga_flagged(by_n.get(n, [])), len(by_n.get(n, [])),
+                     _GA_FPR_BAR, upper=True)
+        for n in required_ns
+    ]
+    per_n = {}
+    for n in required_ns:
+        actions = by_n.get(n, [])
+        per_n[n] = {
+            "n": len(actions),
+            "rate_at_or_above": {
+                bar: (_g7_rate_at_or_above(actions, bar) if actions else None)
+                for bar in ("monitor", "schedule_conversation", "escalate")
+            },
+        }
+    reasons = [
+        f"{k} profile(s) at N={n} were refused scoring and are missing from the rate"
+        for n, k in sorted((refused_by_n or {}).items())
+        if k
+    ]
+    return _ga_result(
+        "G-A1", _GA1_CRITERION, legs, reasons=reasons, informational=informational,
+        extra_detail={"per_n": per_n, "refused_by_n": refused_by_n or {}},
+    )
+
+
+def _ga_family(name: str) -> str:
+    """Population names are "<family> N=<n>" (report.py); the family is what
+    `required` lists."""
+    return name.rsplit(" N=", 1)[0]
+
+
+def _ga_missing_populations(
+    names, required: tuple[str, ...], required_ns: tuple[int, ...]
+) -> list[str]:
+    """Every required family must be measured at every required N: a cache
+    or corpus that only reaches N=3 is not a measurement at N=5 or 10."""
+    present = set(names)
+    return [
+        f"{family} N={n}"
+        for family in required
+        for n in required_ns
+        if f"{family} N={n}" not in present
+    ]
+
+
+def _evaluate_ga_catch(
+    name: str,
+    criterion: str,
+    populations: list[dict] | None,
+    absent_reason: str | None,
+    required: tuple[str, ...],
+    required_ns: tuple[int, ...],
+    informational: dict | None,
+) -> GateResult:
+    """Shared body of G-A2/G-A3/G-A4: per population a catch leg (attack
+    docs at monitor+ >= 60%) and a separation leg (deviation_score AUROC of
+    the attack docs against the same students' genuine holdouts >= 0.60).
+
+    A would-be pass is withheld (uninformative) when a `required` family has
+    no population with attack docs at some N in `required_ns`, when a
+    population covers fewer victims
+    than have a clean baseline (`coverage` = [covered, expected], a partly
+    generated cache), or when any profile was refused scoring. With no legs
+    at all the gate is uninformative and says why (`absent_reason`)."""
+    legs: list[dict] = []
+    reasons: list[str] = []
+    measured: list[str] = []
+    for pop in populations or []:
+        actions = pop.get("attack_actions") or []
+        if not actions:
+            continue
+        measured.append(pop["name"])
+        legs.append(
+            _ga_rate_leg(f"{pop['name']} catch", _ga_flagged(actions), len(actions),
+                         _GA_CATCH_BAR, upper=False)
+        )
+        legs.append(
+            _ga_auc_leg(f"{pop['name']} AUROC", pop.get("attack_scores") or [],
+                        pop.get("genuine_scores") or [])
+        )
+        coverage = pop.get("coverage")
+        if coverage and coverage[0] < coverage[1]:
+            reasons.append(
+                f"{pop['name']} covers {coverage[0]} of {coverage[1]} victim profiles"
+            )
+        if pop.get("n_refused"):
+            reasons.append(f"{pop['name']}: {pop['n_refused']} profile(s) refused scoring")
+    if not legs:
+        if absent_reason:
+            reasons.append(absent_reason)
+    else:
+        missing = _ga_missing_populations(measured, required, required_ns)
+        if missing:
+            reasons.append(f"not measured: {', '.join(missing)}")
+    return _ga_result(
+        name, criterion, legs, reasons=reasons, informational=informational,
+        extra_detail={"required": list(required), "required_ns": list(required_ns)},
+    )
+
+
+def evaluate_g_a2_imitation(
+    populations: list[dict] | None,
+    absent_reason: str | None = None,
+    required: tuple[str, ...] = ("llm_imitation",),
+    required_ns: tuple[int, ...] = _GA_NS,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A2: imitation of the student's own baselines (attacks 4 and 8): an LLM
+    told "write like these essays". `populations` holds one entry per
+    (attack kind, N): {"name": "<family> N=<n>", "attack_actions",
+    "attack_scores", "genuine_scores", "coverage", "n_refused"}.
+    Uninformative while validation/adversarial/corpus/llm_attacks/ is absent
+    (plan Task 15 Step 4: generating it needs an API key and the owner's
+    approval), never a pass.
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    return _evaluate_ga_catch(
+        "G-A2", _GA2_CRITERION, populations, absent_reason, required, required_ns, informational
+    )
+
+
+def evaluate_g_a3_paraphrase(
+    populations: list[dict] | None,
+    absent_reason: str | None = None,
+    required: tuple[str, ...] = ("llm_paraphrase", "llm_roundtrip_de", "llm_roundtrip_ja"),
+    required_ns: tuple[int, ...] = _GA_NS,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A3: paraphrase / machine-translation round-trip laundering (attack 6),
+    one population per (attack, N) for paraphrase, EN-DE-EN and EN-JA-EN.
+    Every route in `required` must be measured for a pass: one laundering
+    route left out is not evidence it fails. Same legs and the same
+    absent-corpus rule as G-A2.
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    return _evaluate_ga_catch(
+        "G-A3", _GA3_CRITERION, populations, absent_reason, required, required_ns, informational
+    )
+
+
+def evaluate_g_a4_peer_imitation(
+    populations: list[dict] | None,
+    absent_reason: str | None = None,
+    required: tuple[str, ...] = (
+        "public_authors/peer_swap",
+        "riddell_juola/peer_swap_same_prompt",
+    ),
+    required_ns: tuple[int, ...] = _GA_NS,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A4: peer swap / collusion (attack 5): a classmate's own writing handed
+    in under this student's name, one population per (corpus, N). The pilot
+    runs NULL_MODEL=none, so nothing on the live path knows who the peers
+    are; this measures that structural blind spot (spec §8) rather than
+    assuming a fix. The separation leg is what keeps a cold-start "flag
+    everything" profile from passing on its catch rate.
+
+    The public-author peers are writers from other centuries and genres,
+    the easy case; the Riddell-Juola cell (classmates answering the SAME
+    prompt) is the realistic one and is required for a pass. Within one N a
+    peer document is reused across several students' baselines.
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    return _evaluate_ga_catch(
+        "G-A4", _GA4_CRITERION, populations, absent_reason, required, required_ns, informational
+    )
+
+
+def evaluate_g_a5_sigma_inflation(
+    cells: list[dict] | None,
+    required_ns: tuple[int, ...] = _GA_NS,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A5: sigma-inflation (attack 3): a student pads a minority of their
+    baselines with someone else's writing so baseline_std widens and every
+    later z shrinks. `cells` holds one entry per N (report.ga5_inputs), each
+    pairing the same victims and impostor documents against a clean and an
+    inflated baseline. Two legs per N:
+
+      - drop: impostor catch (monitor+) against the inflated baseline may sit
+        at most 10pt below the catch against the clean baseline. The bar is
+        relative: the claim is "inflating sigma does not buy the attacker
+        anything", not an absolute detection level (G-A4 owns that).
+      - separation: under the inflated baseline the impostors must still
+        out-score the student's own genuine holdouts (AUROC >= 0.60), so a
+        drop leg held up by flagging everything cannot pass.
+
+    Each cell compares only victims whose injected document reached the
+    scored baseline (report.ga5_inputs; pairs the drift gate defended are
+    counted as `n_held`). A would-be pass is withheld (uninformative) when
+    an N in `required_ns` has no cell, when the unfloored real-feature
+    baseline spread grew by less than 5% (the attack did not measurably
+    happen), when the clean catch is already at or below 10% (a 10pt drop
+    cannot be observed), or when a pair was refused scoring. The interval
+    screen on the drop leg treats the clean catch as fixed.
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    legs: list[dict] = []
+    reasons: list[str] = []
+    for cell in cells or []:
+        n = cell["n"]
+        clean_n, inflated_n = cell.get("clean_n", 0), cell.get("inflated_n", 0)
+        if clean_n > 0 and inflated_n > 0:
+            clean_rate = cell["clean_caught"] / clean_n
+            legs.append(
+                _ga_rate_leg(
+                    f"N={n} inflated catch vs clean {clean_rate:.1%}",
+                    cell["inflated_caught"],
+                    inflated_n,
+                    max(0.0, clean_rate - _GA_SIGMA_DROP_BAR),
+                    upper=False,
+                )
+            )
+            if clean_rate <= _GA_SIGMA_DROP_BAR:
+                reasons.append(
+                    f"N={n}: clean catch {clean_rate:.1%} leaves no room to observe a "
+                    f"{_GA_SIGMA_DROP_BAR:.0%} drop"
+                )
+        else:
+            legs.append({"label": f"N={n} inflated catch vs clean", "state": None})
+        legs.append(
+            _ga_auc_leg(
+                f"N={n} inflated AUROC",
+                cell.get("inflated_impostor_scores") or [],
+                cell.get("inflated_genuine_scores") or [],
+            )
+        )
+        clean_sigma, inflated_sigma = cell.get("clean_mean_sigma"), cell.get("inflated_mean_sigma")
+        if not cell.get("n_pairs", 0):
+            reasons.append(
+                f"N={n}: no inflated baseline was scored"
+                + (f" (the drift gate held the injection for {cell['n_held']} victim(s))"
+                   if cell.get("n_held") else "")
+            )
+        elif clean_sigma is None or inflated_sigma is None:
+            reasons.append(f"N={n}: baseline spread was not measured")
+        elif inflated_sigma < clean_sigma * (1.0 + _GA_SIGMA_MIN_GROWTH):
+            reasons.append(
+                f"N={n}: the real-feature baseline spread did not grow by "
+                f"{_GA_SIGMA_MIN_GROWTH:.0%} ({clean_sigma:.4f} clean, "
+                f"{inflated_sigma:.4f} inflated)"
+            )
+        if cell.get("n_refused"):
+            reasons.append(f"N={n}: {cell['n_refused']} pair(s) refused scoring and were dropped")
+    present = {cell["n"] for cell in cells or []}
+    missing_ns = [n for n in required_ns if n not in present]
+    if missing_ns:
+        reasons.append(f"not measured at N={', '.join(str(n) for n in missing_ns)}")
+    return _ga_result(
+        "G-A5", _GA5_CRITERION, legs, reasons=reasons, informational=informational,
+        extra_detail={
+            "cells": cells or [],
+            "sigma_drop_bar": _GA_SIGMA_DROP_BAR,
+            "sigma_min_growth": _GA_SIGMA_MIN_GROWTH,
+        },
+    )
+
+
+def evaluate_g_a6_baseline_integrity(
+    poisoned: dict[str, tuple[int, int]] | None,
+    clean: dict[str, tuple[int, int]] | None = None,
+    required: tuple[str, ...] = (),
+    required_ns: tuple[int, ...] = _GA_NS,
+    informational: dict | None = None,
+) -> GateResult:
+    """
+    G-A6: baseline-integrity signal against obfuscated or outsourced
+    baselines (attacks 1 and 2). `poisoned` maps a population ("<family>
+    N=<n>") to (profiles where the drift gate or the integrity block pointed
+    at an INJECTED document, profiles); `clean` maps a population to
+    (profiles with any hold or outlier note, profiles). Every poisoned
+    population must be detected >= 60% and every clean one falsely flagged
+    <= 5%.
+
+    `required` names population FAMILIES that must be present at every N in
+    `required_ns` for a pass (the Riddell-Juola cells, until each
+    participant's prior writing is committed): an absent corpus is a missing
+    measurement, not a pass.
+
+    Destroying the poisoned/clean labels makes the two rates converge on one
+    shared value, and no value is both >= 0.60 and <= 0.05, so the
+    label-destroyed case fails by construction (see gate_contracts).
+
+    SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
+    """
+    legs = [
+        _ga_rate_leg(f"{name} detected", hits, n, _GA_DETECTION_BAR, upper=False)
+        for name, (hits, n) in sorted((poisoned or {}).items())
+    ] + [
+        _ga_rate_leg(f"{name} false alarm", hits, n, _GA_FALSE_ALARM_BAR, upper=True)
+        for name, (hits, n) in sorted((clean or {}).items())
+    ]
+    missing = _ga_missing_populations(
+        list(poisoned or {}) + list(clean or {}), required, required_ns
+    )
+    return _ga_result(
+        "G-A6", _GA6_CRITERION, legs,
+        reasons=[f"not measured: {', '.join(missing)}"] if missing else [],
+        informational=informational,
+        extra_detail={"missing_populations": missing},
+    )
+
+
 _G7_SEVERITY_BAR = "schedule_conversation"
 
 
@@ -2293,6 +2868,123 @@ def _compute_termsim_gates() -> list[GateResult]:
     ]
 
 
+ADVERSARIAL_LEGS: tuple[str, ...] = ("G-A1", "G-A2", "G-A3", "G-A4", "G-A5", "G-A6")
+
+_GA_CRITERIA = {
+    "G-A1": _GA1_CRITERION,
+    "G-A2": _GA2_CRITERION,
+    "G-A3": _GA3_CRITERION,
+    "G-A4": _GA4_CRITERION,
+    "G-A5": _GA5_CRITERION,
+    "G-A6": _GA6_CRITERION,
+}
+
+
+def _ga_llm_absent_reason(meta: dict, kinds: tuple[str, ...]) -> str:
+    llm = meta.get("llm_attacks") or {}
+    if not llm.get("present"):
+        return (
+            f"LLM attack cache absent ({llm.get('manifest', 'corpus/llm_attacks/manifest.json')} "
+            "does not exist): validation/adversarial/gen_llm_attacks.py has not been run. It "
+            "needs an ANTHROPIC_API_KEY and the owner's approval (plan Task 15 Step 4)"
+        )
+    return f"the LLM attack cache holds no {', '.join(kinds)} documents for any victim profile"
+
+
+def adversarial_results_from_rows(
+    rows: list[dict], meta: dict, legs: tuple[str, ...] = ADVERSARIAL_LEGS
+) -> list[GateResult]:
+    """Reduce harness rows (validation/adversarial/report.py) into the G-A
+    gate results. Shared by the run_all() legs and the report CLI, so the
+    committed findings and the battery can never compute a gate two ways.
+    Each leg is evaluated independently: one raising becomes a machinery
+    error for that leg only."""
+    from validation.adversarial import report as adv
+
+    harness = {
+        key: meta.get(key)
+        for key in ("seed", "ns", "path", "workers", "n_cells", "runtime_seconds",
+                    "corpus_fingerprint", "n_distinct_documents", "semantic_backend",
+                    "live_scoring_env",
+                    "llm_attacks", "riddell_juola", "reused_from")
+        if key in meta
+    }
+    rj = meta.get("riddell_juola") or {}
+    rj_note = (
+        None
+        if rj.get("participant_baselines_present")
+        else "riddell_juola cells not measured: each participant's prior writing is not "
+        "committed under validation/adversarial/corpus/riddell_juola/baselines/ "
+        "(fetch_riddell_juola.py extracts it)"
+    )
+
+    def _ga1():
+        inputs = adv.ga1_inputs(rows)
+        return evaluate_g_a1_cold_start_fpr(
+            inputs["holdout_actions_by_n"],
+            refused_by_n=inputs["refused_by_n"],
+            informational={"by_corpus_n": inputs["by_corpus_n"], "riddell_juola_note": rj_note},
+        )
+
+    def _ga2():
+        kinds = ("llm_imitation",)
+        return evaluate_g_a2_imitation(
+            adv.attack_populations(rows, kinds),
+            absent_reason=_ga_llm_absent_reason(meta, kinds),
+        )
+
+    def _ga3():
+        kinds = ("llm_paraphrase", "llm_roundtrip_de", "llm_roundtrip_ja")
+        return evaluate_g_a3_paraphrase(
+            adv.attack_populations(rows, kinds),
+            absent_reason=_ga_llm_absent_reason(meta, kinds),
+        )
+
+    def _ga4():
+        return evaluate_g_a4_peer_imitation(
+            adv.peer_swap_populations(rows),
+            absent_reason="no clean cell was scored",
+            required=tuple(adv.PEER_SWAP_FAMILIES.values()),
+            informational={"riddell_juola_note": rj_note},
+        )
+
+    def _ga5():
+        return evaluate_g_a5_sigma_inflation(adv.ga5_inputs(rows)["cells"])
+
+    def _ga6():
+        inputs = adv.ga6_inputs(rows)
+        return evaluate_g_a6_baseline_integrity(
+            inputs["poisoned"],
+            clean=inputs["clean"],
+            required=tuple(adv.GA6_POISONED.values()) + tuple(adv.GA6_CLEAN.values()),
+            informational={**inputs["informational"], "riddell_juola_note": rj_note},
+        )
+
+    compute = {"G-A1": _ga1, "G-A2": _ga2, "G-A3": _ga3, "G-A4": _ga4, "G-A5": _ga5, "G-A6": _ga6}
+    results = []
+    for leg in legs:
+        try:
+            result = compute[leg]()
+        except Exception as exc:  # noqa: BLE001 (see _machinery_error_result)
+            result = _machinery_error_result(leg, _GA_CRITERIA[leg], exc)
+        result.detail["harness"] = harness
+        results.append(result)
+    return results
+
+
+def _compute_adversarial_gates(legs: tuple[str, ...]) -> list[GateResult]:
+    """Run the SP1 harness for just the cells these legs need, then reduce.
+    A crash in the harness itself is a machinery error on every requested
+    leg (none of them got a measurement)."""
+    try:
+        from validation.adversarial.report import run_harness
+
+        report = run_harness(legs)
+    except Exception as exc:  # noqa: BLE001 (see _machinery_error_result)
+        return [_machinery_error_result(leg, _GA_CRITERIA[leg], exc) for leg in legs]
+    return adversarial_results_from_rows(report["rows"], report["meta"], legs)
+
+
 # Set by run_all() for main()'s report: the vector-cache description (dir,
 # key scheme, backend) when CALIBRATION_GATE_VECTOR_CACHE was honoured, else
 # None. A report must be able to say whether its extraction was memoised.
@@ -2337,7 +3029,9 @@ def _leg_clock():
     return mark
 
 
-GATE_LEGS: tuple[str, ...] = ("G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T")
+GATE_LEGS: tuple[str, ...] = (
+    "G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "T", *ADVERSARIAL_LEGS,
+)
 
 
 def _parse_only(spec: str | None) -> set[str] | None:
@@ -2607,6 +3301,18 @@ def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
     # scheduled TermSim job refreshes this small committed evidence artifact.
     if _want("T"):
         results.extend(_compute_termsim_gates())
+
+    # G-A1…G-A6: the SP1 red-team harness (validation/adversarial/). One
+    # harness run serves every requested G-A leg and scores only the cells
+    # those legs need, through the live score route under the pilot's
+    # scoring flags (report.LIVE_SCORING_ENV), not the TYPICALITY_SCORING=1
+    # set above for G1-G6. G-A2/G-A3 read uninformative until the LLM attack
+    # cache is committed; that is by design, never a pass.
+    adversarial_legs = tuple(leg for leg in ADVERSARIAL_LEGS if _want(leg))
+    if adversarial_legs:
+        results.extend(_compute_adversarial_gates(adversarial_legs))
+        for leg in adversarial_legs:
+            _mark(leg)
 
     # Attach a corpus_fingerprint to every TEXT-CORPUS result (G1-G6) so a
     # future report can be checked for comparability against this one without
