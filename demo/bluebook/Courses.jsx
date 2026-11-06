@@ -53,12 +53,12 @@ export function CoursesScreen({ onNavigate }) {
     <div style={{ flex:1, overflowY:'auto', padding:'44px 48px', background:BB.deep }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:10 }}>
         <div>
-          <h1 style={{ fontFamily:fontDisplay, fontSize:34, color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
+          <h1 style={{ fontFamily:fontDisplay, fontSize:'2.125rem', color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
             Courses
           </h1>
           <MetaLabel>{courses.length} course{courses.length === 1 ? '' : 's'}</MetaLabel>
         </div>
-        <BtnPrimary onClick={() => setShowNew(v => !v)} style={{ padding:'10px 28px', fontSize:16 }}>
+        <BtnPrimary onClick={() => setShowNew(v => !v)} style={{ padding:'10px 28px', fontSize:'1rem' }}>
           + New Course
         </BtnPrimary>
       </div>
@@ -80,7 +80,7 @@ export function CoursesScreen({ onNavigate }) {
                 style={{
                   width:'100%', background:'transparent', border:'none',
                   borderBottom:'1px solid rgba(201,169,97,0.4)', padding:'8px 2px',
-                  fontFamily:fontBody, fontSize:16, color:BB.cream, outline:'none',
+                  fontFamily:fontBody, fontSize:'1rem', color:BB.cream, outline:'none',
                 }} />
             </div>
             <div>
@@ -90,7 +90,7 @@ export function CoursesScreen({ onNavigate }) {
                 style={{
                   width:'100%', background:'transparent', border:'none',
                   borderBottom:'1px solid rgba(201,169,97,0.4)', padding:'8px 2px',
-                  fontFamily:fontBody, fontSize:16, color:BB.cream, outline:'none',
+                  fontFamily:fontBody, fontSize:'1rem', color:BB.cream, outline:'none',
                 }} />
             </div>
             <div>
@@ -100,19 +100,19 @@ export function CoursesScreen({ onNavigate }) {
                 style={{
                   width:'100%', background:'transparent', border:'none',
                   borderBottom:'1px solid rgba(201,169,97,0.4)', padding:'8px 2px',
-                  fontFamily:fontBody, fontSize:16, color:BB.cream, outline:'none',
+                  fontFamily:fontBody, fontSize:'1rem', color:BB.cream, outline:'none',
                 }} />
             </div>
           </div>
           <ErrorText>{createError}</ErrorText>
           <div style={{ display:'flex', gap:12, justifyContent:'flex-end' }}>
-            <BtnGhost onClick={() => setShowNew(false)} style={{ padding:'8px 24px', fontSize:15 }}>
+            <BtnGhost onClick={() => setShowNew(false)} style={{ padding:'8px 24px', fontSize:'.9375rem' }}>
               Cancel
             </BtnGhost>
             <BtnPrimary
               disabled={!newCode.trim() || !newName.trim() || creating}
               onClick={handleCreate}
-              style={{ padding:'8px 28px', fontSize:15 }}
+              style={{ padding:'8px 28px', fontSize:'.9375rem' }}
             >{creating ? 'Creating…' : 'Create Course'}</BtnPrimary>
           </div>
         </div>
@@ -132,7 +132,7 @@ export function CoursesScreen({ onNavigate }) {
               onMouseLeave={e => e.currentTarget.style.background='transparent'}
             >
               <MetaLabel style={{ color:BB.gold }}>{course.code}</MetaLabel>
-              <p style={{ fontFamily:fontBody, fontSize:16, color:BB.cream, margin:0 }}>{course.name}</p>
+              <p style={{ fontFamily:fontBody, fontSize:'1rem', color:BB.cream, margin:0 }}>{course.name}</p>
               <MetaLabel>{course.term}</MetaLabel>
               <MetaLabel>{course.students}</MetaLabel>
               <MetaLabel>{course.exams}</MetaLabel>
@@ -140,7 +140,7 @@ export function CoursesScreen({ onNavigate }) {
                 <StatusBadge status={course.active ? 'ACTIVE' : 'COMPLETED'} pulse={course.active} />
               </div>
               {BB_API.isAuthed() ? (
-                <button onClick={() => openRoster(course, onNavigate)} style={{ fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em', textTransform:'uppercase', color:BB.gold, background:'none', border:'none', cursor:'pointer' }}>
+                <button onClick={() => openRoster(course, onNavigate)} style={{ fontFamily:fontMono, fontSize:'.75rem', letterSpacing:'0.15em', textTransform:'uppercase', color:BB.gold, background:'none', border:'none', cursor:'pointer' }}>
                   Students →
                 </button>
               ) : <span />}

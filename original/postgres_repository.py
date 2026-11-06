@@ -59,6 +59,7 @@ from .db.models.live import (
     SubmissionManifest,
     Tenant,
     TunedThresholds,
+    UserDisplayPrefs,
     UserLastLocation,
 )
 from .db.postgres_session import session_scope
@@ -371,6 +372,7 @@ class PostgresRepository:
                 BluebookExamDraft.student_key == student_id
             ),
             select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
+            select(UserDisplayPrefs.account_key).where(UserDisplayPrefs.account_key == student_id),
             select(BluebookPhonePark.student_key).where(
                 BluebookPhonePark.student_key == student_id
             ),
@@ -552,6 +554,12 @@ class PostgresRepository:
                 session.execute(
                     UserLastLocation.__table__.delete().where(
                         UserLastLocation.account_key == student_id,
+                    )
+                )
+                # The student's chosen text font and size (2026-11).
+                session.execute(
+                    UserDisplayPrefs.__table__.delete().where(
+                        UserDisplayPrefs.account_key == student_id,
                     )
                 )
                 session.execute(
@@ -3078,6 +3086,33 @@ class PostgresRepository:
             session.execute(
                 UserLastLocation.__table__.delete().where(
                     UserLastLocation.account_key == account_key
+                )
+            )
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+
+    def put_display_prefs(self, account_key, prefs):
+        values = dict(font=prefs["font"], size=prefs["size"], updated_at=datetime.now(UTC))
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserDisplayPrefs)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_display_prefs(account_key) or {}
+
+    def get_display_prefs(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserDisplayPrefs, account_key)
+            if row is None:
+                return None
+            return {"font": row.font, "size": row.size, "updated_at": _iso_or_none(row.updated_at)}
+
+    def delete_display_prefs(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserDisplayPrefs.__table__.delete().where(
+                    UserDisplayPrefs.account_key == account_key
                 )
             )
 
