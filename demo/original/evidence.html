@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Side by side</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
 <link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
 <link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
@@ -16,10 +18,10 @@
     --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
     --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
     --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
-    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --display:var(--bb-font-display);--body:var(--bb-font-body);--mono:var(--bb-font-label);
   }
   html,body{height:100%;}
-  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
   a{color:var(--gold-2);}a:hover{color:var(--cream);}
 
   /* ── The suite shell (same as the other pages; hidden when printing) ── */

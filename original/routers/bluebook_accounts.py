@@ -914,3 +914,35 @@ def get_last_location(request: Request):
     if loc.get("role") != p.role and not (kind == "staff" and loc.get("role") != "student"):
         return {"location": None}
     return {"location": _resolve_location(request, p, kind, loc)}
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+# Display only. The chosen font and size change how the app is shown to this
+# person; they never touch submitted text, word counts, timers or anything
+# measured. The browser also keeps the choice locally so it applies before
+# sign-in; this copy lets it follow the account to another device.
+
+DISPLAY_FONTS = ("serif", "sans", "readable", "classic")
+DISPLAY_SIZES = ("small", "default", "large", "xlarge", "xxlarge")
+
+
+@router.get("/bluebook/me/display")
+def get_display_prefs(request: Request):
+    """The signed-in account's own text font and size, or null (defaults)."""
+    p, _ = _location_account(request)
+    prefs = _repo().get_display_prefs(p.user_id)
+    if not prefs:
+        return {"display": None}
+    return {"display": {"font": prefs["font"], "size": prefs["size"]}}
+
+
+@router.put("/bluebook/me/display")
+def put_display_prefs(request: Request, body: dict | None = Body(default=None)):
+    """Save the signed-in account's text font and size. Only known values are kept."""
+    p, _ = _location_account(request)
+    body = body or {}
+    font, size = body.get("font"), body.get("size")
+    if font not in DISPLAY_FONTS or size not in DISPLAY_SIZES:
+        raise HTTPException(status_code=422, detail="That text setting is not available.")
+    saved = _repo().put_display_prefs(p.user_id, {"font": font, "size": size})
+    return {"saved": True, "display": {"font": saved.get("font"), "size": saved.get("size")}}
