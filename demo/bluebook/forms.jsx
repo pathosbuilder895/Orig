@@ -12,9 +12,9 @@ export function Field({ id, label, type = 'text', value, onChange, placeholder, 
   return (
     <div className="bb-field">
       <label htmlFor={id}>{label}</label>
+      {hint && <p className="bb-hint">{hint}</p>}
       <input id={id} className="bb-input" type={type} value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder} autoComplete={autoComplete} required={required} {...rest} />
-      {hint && <p className="bb-hint">{hint}</p>}
     </div>
   );
 }
@@ -23,9 +23,9 @@ export function TextArea({ id, label, value, onChange, rows = 4, placeholder, hi
   return (
     <div className="bb-field">
       <label htmlFor={id}>{label}</label>
+      {hint && <p className="bb-hint">{hint}</p>}
       <textarea id={id} className="bb-input" rows={rows} value={value} placeholder={placeholder}
         onChange={e => onChange(e.target.value)} {...rest} />
-      {hint && <p className="bb-hint">{hint}</p>}
     </div>
   );
 }
@@ -127,7 +127,7 @@ export function Table({ columns, rows, rowKey, empty = 'Nothing here yet.', capt
             <tr key={rowKey(r)} data-resume-anchor={`row-${rowKey(r)}`}>
               {columns.map(c => (
                 <td key={c.key} data-label={c.label}
-                  className={[c.lead && 'lead', c.num && 'num', c.actions && 'actions'].filter(Boolean).join(' ') || undefined}>
+                  className={[c.lead && 'lead', c.num && 'num', c.actions && 'actions', c.className].filter(Boolean).join(' ') || undefined}>
                   {c.render ? c.render(r) : (r[c.key] ?? '—')}
                 </td>
               ))}
@@ -191,11 +191,19 @@ export function Small({ children }) {
 }
 
 // Local, human date-time for an ISO string (or an em dash).
+// Compact on purpose: phone cards at Largest used to wrap a medium date onto
+// three lines ("Nov 5," / "2026, 2:49" / "PM"). Same year drops the year.
 export function when(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d)) return '—';
-  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    year: sameYear ? undefined : 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
 }
 
 // ISO string -> value for <input type="datetime-local"> in local time.

@@ -688,6 +688,7 @@ export function BriefingScreen({ onNavigate }) {
           )}
 
           <div className="bk-cover-inner">
+            <div className="bk-briefing-textbtn"><TextSettingsButton className="bk-textbtn" /></div>
             <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />

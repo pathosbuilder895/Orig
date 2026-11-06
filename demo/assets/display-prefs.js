@@ -53,16 +53,24 @@
   }
 
   // The window's width in text widths: how wide it would be at the original
-  // 18px default text. Layouts made for narrow windows apply when this is narrow
-  // (html.bb-wN, see bluebook/text-breakpoints.mjs).
+  // 18px default text. Phone layouts (600/700) follow that, so large text on a
+  // small screen still gets the compact chrome. Breaks at 900px and up follow
+  // the physical window only, so Largest on a laptop keeps the desktop layout
+  // (nav stays put; it does not flip into the phone chrome).
   var BREAKS = [600, 700, 900, 1000, 1420];
   function narrowClasses() {
     var root = document.documentElement;
+    var physical = root.clientWidth || window.innerWidth;
     var px = parseFloat(getComputedStyle(root).fontSize) || 18;
-    var eff = (root.clientWidth || window.innerWidth) * 18 / px;
-    for (var i = 0; i < BREAKS.length; i++) root.classList.toggle('bb-w' + BREAKS[i], eff <= BREAKS[i]);
-    var effH = (window.innerHeight || root.clientHeight) * 18 / px;
-    root.classList.toggle('bb-h600', effH <= 600);
+    var eff = physical * 18 / px;
+    for (var i = 0; i < BREAKS.length; i++) {
+      var n = BREAKS[i];
+      root.classList.toggle('bb-w' + n, (n >= 900 ? physical : eff) <= n);
+    }
+    var physicalH = window.innerHeight || root.clientHeight;
+    var effH = physicalH * 18 / px;
+    // Same idea for height: only a truly short window gets the short chrome.
+    root.classList.toggle('bb-h600', physicalH <= 600 || (physicalH <= 750 && effH <= 600));
   }
   window.addEventListener('resize', narrowClasses);
   apply(current);

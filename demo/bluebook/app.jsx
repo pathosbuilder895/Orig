@@ -38,7 +38,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
 // Screens whose own bar or sidebar already carries the Text button.
 const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
-  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam']);
+  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {

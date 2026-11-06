@@ -370,7 +370,7 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
     showExam && { key: 'exam', label: 'Collection' },
-    { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
+    { key: 'created_at', label: 'Submitted', className: 'bb-date', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'warnings', label: 'Notes', num: true, render: s => (s.warnings || []).length },
     { key: 'mark', label: 'Mark', render: s => s.mark || '—' },
@@ -749,7 +749,7 @@ export function CoursesListScreen({ onNavigate }) {
     { key: 'students', label: 'Students', num: true },
     { key: 'exams', label: 'Collections', num: true },
     { key: 'status', label: 'Status', render: c => <Badge>{c.active ? 'active' : 'closed'}</Badge> },
-    { key: 'open', label: 'Roster', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
+    { key: 'open', label: '', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
   ];
   return (
     <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? (error ? 'Courses unavailable' : 'Loading…') : `${courses.length} course${courses.length === 1 ? '' : 's'}`}

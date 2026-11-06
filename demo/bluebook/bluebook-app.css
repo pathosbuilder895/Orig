@@ -55,7 +55,7 @@
 .bb-input:focus{border-color:rgba(201,160,40,.45)}
 textarea.bb-input{resize:vertical;line-height:1.5}
 select.bb-input option{color:#111}
-.bb-hint{font-size:.88rem;color:var(--dim-2);font-style:italic;margin:.35rem 0 0}
+.bb-hint{font-size:.88rem;color:var(--dim-2);font-style:italic;margin:0 0 .45rem}
 .bb-error{color:#ffccc0;padding:.8rem 1rem;border:1px solid #e0be5580;background:#e0be5514;border-radius:12px;margin:0 0 1rem}
 .bb-notice{color:#9cdab1;padding:.8rem 1rem;border:1px solid rgba(107,191,138,.3);background:rgba(107,191,138,.08);border-radius:12px;margin:0 0 1rem}
 .bb-check{display:flex;gap:.6rem;align-items:flex-start;font-size:.95rem;color:var(--dim)}
@@ -136,7 +136,8 @@ select.bb-input option{color:#111}
 
 /* Copyable link row */
 .bb-linkrow{display:flex;gap:.5rem;align-items:center;min-width:0}
-.bb-linkrow input{flex:1;min-width:0;font:.75rem ui-monospace,monospace}
+.bb-linkrow input{flex:1;min-width:0;font:.75rem ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bb-table td.bb-date{white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* Student shell (no teacher frame): same tokens, own background */
 .bb-student{min-height:100vh;background:radial-gradient(120% 90% at 82% 8%,#1b2a52,#0a0a10 70%)}
@@ -171,8 +172,11 @@ select.bb-input option{color:#111}
   .bb-table td.actions{justify-content:flex-end;flex-wrap:wrap}
   .bb-table td.actions::before{display:none}
   .bb-paper{padding:1.1rem 1rem;font-size:1.0625rem}
-  .bb-linkrow{flex-wrap:wrap}
+  .bb-linkrow{flex-wrap:nowrap}
+  .bb-linkrow input{flex:1 1 auto}
+  .bb-table td.bb-date{white-space:nowrap;font-size:.9rem}
 }
+
 @media(prefers-reduced-motion:reduce){.bb-page *{animation:none!important;transition:none!important}}
 
 /* Public landing (Landing.jsx). Desktop layout is inline; on phones the 48px
