@@ -301,6 +301,11 @@ class Repository(Protocol):
     def get_last_location(self, account_key: str) -> dict | None: ...
     def delete_last_location(self, account_key: str) -> None: ...
 
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
+    def get_display_prefs(self, account_key: str) -> dict | None: ...
+    def delete_display_prefs(self, account_key: str) -> None: ...
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
         self, exam_id: str, student_key: str, tenant_id: str, fields: dict
@@ -882,6 +887,15 @@ class SqliteRepository:
     def delete_last_location(self, account_key: str) -> None:
         store.delete_last_location(account_key)
 
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict:
+        return store.put_display_prefs(account_key, prefs)
+
+    def get_display_prefs(self, account_key: str) -> dict | None:
+        return store.get_display_prefs(account_key)
+
+    def delete_display_prefs(self, account_key: str) -> None:
+        store.delete_display_prefs(account_key)
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
         return store.put_phone_park(exam_id, student_key, tenant_id, fields)
@@ -1014,6 +1028,8 @@ _WRITE_METHODS = frozenset(
         "delete_exam_draft",
         "put_last_location",
         "delete_last_location",
+        "put_display_prefs",
+        "delete_display_prefs",
         "put_phone_park",
         "set_past_paper_status",
         "delete_tenant_students",

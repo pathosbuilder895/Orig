@@ -51,14 +51,14 @@ export function LandingScreen({ onNavigate }) {
         <Logotype size={22} />
         <div className="bb-land-navlinks" style={{ display: 'flex', alignItems: 'center', gap: 36 }}>
           <button onClick={() => onNavigate('login')} style={{
-            fontFamily: fontBody, fontSize: 16, color: BB.fade,
+            fontFamily: fontBody, fontSize: '1rem', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
             letterSpacing: '0.03em', transition: 'color 0.3s',
           }}>Sign in</button>
           {signupOpen && (
             <button onClick={() => onNavigate('signup')} style={{
               fontFamily: fontBody, fontVariant: 'small-caps',
-              letterSpacing: '0.12em', fontSize: 16,
+              letterSpacing: '0.12em', fontSize: '1rem',
               color: BB.gold, background: 'none', border: 'none',
               borderBottom: '1px solid rgba(201,169,97,0.45)',
               paddingBottom: 2, cursor: 'pointer',
@@ -99,7 +99,7 @@ export function LandingScreen({ onNavigate }) {
           gap: 32, flexWrap: 'wrap',
         }}>
           <p style={{
-            fontFamily: fontBody, fontSize: 17, color: BB.fade,
+            fontFamily: fontBody, fontSize: '1.0625rem', color: BB.fade,
             lineHeight: 1.65, maxWidth: 380, margin: 0,
           }}>
             The digital counterpart to the traditional examination notebook.
@@ -107,11 +107,11 @@ export function LandingScreen({ onNavigate }) {
             timed, full-screen, and in one place.
           </p>
           <div className="bb-land-ctas" style={{ display: 'flex', gap: 14, flexShrink: 0 }}>
-            <BtnGhost onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: 16 }}>
+            <BtnGhost onClick={() => onNavigate('login')} style={{ padding: '10px 28px', fontSize: '1rem' }}>
               Sign in
             </BtnGhost>
             {signupOpen && (
-              <BtnPrimary onClick={() => onNavigate('signup')} style={{ padding: '10px 28px', fontSize: 16 }}>
+              <BtnPrimary onClick={() => onNavigate('signup')} style={{ padding: '10px 28px', fontSize: '1rem' }}>
                 Create a free workspace
               </BtnPrimary>
             )}
@@ -137,20 +137,20 @@ export function LandingScreen({ onNavigate }) {
             { num: 'IV',  title: 'Read & Export',       desc: 'Every answer in one place, and as a spreadsheet' },
           ].map(({ num, title, desc }) => (
             <div key={num}>
-              <div className="bb-land-row" style={{ padding: '16px 0', display: 'flex', alignItems: 'baseline', gap: 20 }}>
+              <div className="bb-land-row" style={{ padding: '16px 0', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 20px' }}>
                 <span style={{
-                  fontFamily: fontMono, fontSize: 10,
+                  fontFamily: fontMono, fontSize: '.75rem',
                   color: BB.fade, letterSpacing: '0.18em',
                   width: 28, flexShrink: 0,
                 }}>{num}</span>
                 <span style={{
-                  fontFamily: fontDisplay, fontSize: 22,
+                  fontFamily: fontDisplay, fontSize: '1.375rem',
                   color: BB.cream, fontWeight: 500,
-                  letterSpacing: '0.02em', flex: 1,
+                  letterSpacing: '0.02em', flex: '1 1 10rem', minWidth: 0,
                 }}>{title}</span>
                 <span className="bb-land-desc" style={{
-                  fontFamily: fontBody, fontSize: 15, fontStyle: 'italic',
-                  color: BB.fade, letterSpacing: '0.03em', flexShrink: 0,
+                  fontFamily: fontBody, fontSize: '.9375rem', fontStyle: 'italic',
+                  color: BB.fade, letterSpacing: '0.03em', flex: '0 1 auto', minWidth: 0,
                 }}>{desc}</span>
               </div>
               <GoldRule faint />
@@ -172,25 +172,25 @@ export function LandingScreen({ onNavigate }) {
         <MetaLabel>© MMXXVI · All rights reserved</MetaLabel>
         <div className="bb-land-footlinks" style={{ display: 'flex', gap: 28 }}>
           <button onClick={() => onNavigate('login')} style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
           }}>Sign in</button>
           <a href="mailto:hello@originalvoice.io?subject=Collections%20support" style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade,
             textDecoration: 'none',
           }}>Support</a>
           <a href="../legal/privacy.html" style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
           }}>Privacy</a>
           <a href="../legal/terms.html" style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
           }}>Terms</a>
           <a href="../legal/student-notice.html" style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.fade, textDecoration: 'none',
           }}>Student notice</a>
         </div>
@@ -229,7 +229,7 @@ export function LoginScreen({ onNavigate }) {
     border: '1px solid rgba(201,169,97,0.18)',
     borderBottom: '1px solid rgba(201,169,97,0.5)',
     padding: '10px 14px',
-    fontFamily: fontBody, fontSize: 17,
+    fontFamily: fontBody, fontSize: '1.0625rem',
     color: BB.cream, outline: 'none',
     letterSpacing: '0.03em',
     transition: 'border-color 0.3s',
@@ -243,7 +243,7 @@ export function LoginScreen({ onNavigate }) {
     }}>
       <button onClick={() => onNavigate('landing')} style={{
         position: 'fixed', top: 28, left: 48,
-        fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
+        fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
         textTransform: 'uppercase', color: BB.fade,
         background: 'none', border: 'none', cursor: 'pointer',
       }}>← Back</button>
@@ -254,7 +254,7 @@ export function LoginScreen({ onNavigate }) {
           <GoldRule double style={{ margin: '18px 0 14px' }} />
           <p style={{
             fontFamily: fontDisplay, fontStyle: 'italic',
-            fontSize: 19, color: BB.fade, letterSpacing: '0.04em', margin: 0,
+            fontSize: '1.1875rem', color: BB.fade, letterSpacing: '0.04em', margin: 0,
           }}>Sign in</p>
         </div>
 
@@ -287,12 +287,12 @@ export function LoginScreen({ onNavigate }) {
             </div>
             {error && (
               <p role="alert" style={{
-                fontFamily: fontBody, fontStyle: 'italic', fontSize: 14,
+                fontFamily: fontBody, fontStyle: 'italic', fontSize: '.875rem',
                 color: '#C47A6B', textAlign: 'center', letterSpacing: '0.02em',
                 margin: '0 0 14px',
               }}>{error}</p>
             )}
-            <BtnPrimary full style={{ padding: '14px 0', fontSize: 17 }}>
+            <BtnPrimary full style={{ padding: '14px 0', fontSize: '1.0625rem' }}>
               {loading ? 'Signing in…' : 'Sign in'}
             </BtnPrimary>
           </form>
@@ -301,30 +301,30 @@ export function LoginScreen({ onNavigate }) {
 
           {signupOpen ? (
             <p style={{
-              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              textAlign: 'center', fontFamily: fontBody, fontSize: '1rem',
               color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
             }}>
               Teacher without an account?{' '}
               <button type="button" onClick={() => onNavigate('signup')} style={{
-                fontFamily: fontBody, fontSize: 16, color: BB.gold,
+                fontFamily: fontBody, fontSize: '1rem', color: BB.gold,
                 textDecoration: 'underline', letterSpacing: '0.02em',
                 background: 'none', border: 'none', padding: 0, cursor: 'pointer',
               }}>Create a free workspace</button>
             </p>
           ) : (
             <p style={{
-              textAlign: 'center', fontFamily: fontBody, fontSize: 16,
+              textAlign: 'center', fontFamily: fontBody, fontSize: '1rem',
               color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
             }}>
               Teachers join Collections by invitation for now.
             </p>
           )}
           <p style={{
-            textAlign: 'center', fontFamily: fontBody, fontSize: 15,
+            textAlign: 'center', fontFamily: fontBody, fontSize: '.9375rem',
             color: BB.fade, letterSpacing: '0.02em', margin: '0 0 14px',
           }}>
             <button type="button" onClick={() => onNavigate('forgot')} style={{
-              fontFamily: fontBody, fontSize: 15, color: BB.gold, textDecoration: 'underline',
+              fontFamily: fontBody, fontSize: '.9375rem', color: BB.gold, textDecoration: 'underline',
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
             }}>Forgot your password?</button>
             {' '}Students joining a class: use the invite link from your teacher.
@@ -332,7 +332,7 @@ export function LoginScreen({ onNavigate }) {
           {demoDeploy && (
             <div style={{ textAlign: 'center' }}>
               <button onClick={() => { window.location.href = 'teacher-demo.html'; }} style={{
-                fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
+                fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
                 textTransform: 'uppercase', color: 'rgba(139,155,180,0.9)',
                 background: 'none', border: 'none', cursor: 'pointer',
               }}>Explore the demo →</button>
