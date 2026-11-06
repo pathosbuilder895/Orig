@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BB_API, BB_SIGNED_OUT_EVENT, devToolsEnabled } from './components.jsx';
+import { BB_API, BB_SIGNED_OUT_EVENT, TextSettingsButton, devToolsEnabled, syncDisplayWithAccount } from './components.jsx';
 import { expiryWarnDelay, tokenExpiryMs } from './form-drafts.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
@@ -30,12 +30,15 @@ const { useState } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "currentScreen": "",
-  "writingSize": 18,
+  "writingSize": 17,
   "parchmentColor": "#F4EFE6"
 }/*EDITMODE-END*/;
 
 // The screens a visitor sees before they have signed in (or while they are signing in or up).
 const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
+// Screens whose own bar or sidebar already carries the Text button.
+const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
+  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
@@ -174,6 +177,8 @@ function App() {
   // (resume-location.jsx). Only kept screens are saved; the rest are ignored.
   React.useEffect(() => { installResumeTracking(); }, []);
   React.useEffect(() => { trackScreen(screen); }, [screen]);
+  // The Text setting follows the signed-in account (display only).
+  React.useEffect(() => { syncDisplayWithAccount(); }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
@@ -228,7 +233,7 @@ function App() {
       content = (
         <ExamScreen
           onNavigate={navigate}
-          writingSize={Number(t.writingSize) || 18}
+          writingSize={Number(t.writingSize) || 17}
           parchmentColor={t.parchmentColor || '#F4EFE6'}
         />
       );
@@ -337,6 +342,8 @@ function App() {
       <div key={screen} style={{ animation: 'bbFadeIn 0.65s ease both' }}>
         {content}
       </div>
+      {/* Screens without a navigation bar get a floating Text button. */}
+      {!TEXT_IN_NAV.has(screen) && <TextSettingsButton floating />}
 
       {devTools && (
       <TweaksPanel>
@@ -364,7 +371,7 @@ function App() {
         <TweakSection label="Writing Surface" />
         <TweakSlider
           label="Font size"
-          value={Number(t.writingSize) || 18}
+          value={Number(t.writingSize) || 17}
           min={14} max={22} step={1} unit="px"
           onChange={(v) => setTweak('writingSize', v)}
         />

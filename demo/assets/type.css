@@ -1,0 +1,85 @@
+/* type.css — one type system for every Collections page (2026-11).
+   All text sizes are rem, so everything scales from the root size set here.
+   The Text setting (display-prefs.js) changes --bb-text-scale and the
+   data-bb-font attribute on <html>. Display only: nothing here touches what a
+   student submits or anything measured. Fonts are self-hosted (OFL). */
+@import url("type-fonts.css");
+
+:root{
+  --bb-text-scale:1;
+  --bb-font-body:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --bb-font-display:'Playfair Display','Source Serif 4',Georgia,serif;
+  --bb-font-label:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --bb-font-writing:var(--bb-font-body);
+  --bb-line:1.55;
+  --bb-line-writing:1.8;
+  --bb-letter:normal;
+}
+/* 18px default body text (112.5% of the browser's 16px, so a reader's own
+   browser text-size setting still counts), times the chosen size. */
+html{font-size:calc(112.5% * var(--bb-text-scale));-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html[data-bb-font="sans"]{
+  --bb-font-body:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --bb-font-display:var(--bb-font-body);
+}
+html[data-bb-font="readable"]{
+  --bb-font-body:'OpenDyslexic','Atkinson Hyperlegible',Verdana,Tahoma,sans-serif;
+  --bb-font-display:'Atkinson Hyperlegible',Verdana,Tahoma,sans-serif;
+  --bb-font-label:'Atkinson Hyperlegible',Verdana,Tahoma,sans-serif;
+  --bb-line:1.7;--bb-line-writing:2;--bb-letter:.01em;
+}
+html[data-bb-font="classic"]{
+  --bb-font-body:'EB Garamond',Georgia,serif;
+  --bb-font-display:'Cormorant Garamond','Playfair Display',Georgia,serif;
+}
+body{font-family:var(--bb-font-body);line-height:var(--bb-line);letter-spacing:var(--bb-letter);overflow-wrap:break-word}
+
+/* ── The Text setting button and panel ── */
+.bbd-btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:44px;min-width:44px;padding:.35rem .8rem;border-radius:999px;
+  border:1px solid currentColor;background:transparent;color:inherit;font:600 .9rem/1 var(--bb-font-body);cursor:pointer;white-space:nowrap}
+.bbd-btn:focus-visible{outline:3px solid #4a6cb5;outline-offset:2px}
+.bbd-btn .bbd-aa{font:600 1.05rem/1 var(--bb-font-body)}
+.bbd-float{position:fixed;left:.75rem;bottom:.75rem;z-index:9990;background:#fbf8f0;color:#1e2f57;border-color:rgba(30,47,87,.35);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+/* Room under long pages so the floating Aa never covers the last line. */
+.bbd-has-float{padding-bottom:5.5rem}
+.bbd-has-float .bk-cover-inner,
+.bbd-has-float .bk-sheet-inner,
+.bbd-has-float .bb-student-body,
+.bbd-has-float .bb-page{padding-bottom:5.5rem}
+.bbd-backdrop{position:fixed;inset:0;z-index:9995;background:rgba(10,16,32,.45);display:flex;align-items:flex-end;justify-content:center;padding:.75rem}
+@media (min-width:640px){.bbd-backdrop{align-items:center}}
+.bbd-panel{width:min(34rem,100%);max-height:calc(100dvh - 1.5rem);max-height:calc(100vh - 1.5rem);overflow:auto;-webkit-overflow-scrolling:touch;background:#fbf8f0;color:#1e2a44;border-radius:14px;padding:1.1rem 1.2rem 1.2rem;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);font:1rem/1.45 var(--bb-font-body);text-align:left}
+.bbd-panel h2{margin:0 0 .2rem;font:600 1.25rem/1.25 var(--bb-font-body)}
+.bbd-panel p.bbd-note{margin:0 0 .9rem;font-size:.9rem;color:#4a5468}
+.bbd-panel fieldset{border:0;margin:0 0 1rem;padding:0}
+.bbd-panel legend{padding:0;margin:0 0 .5rem;font:600 .95rem/1.3 var(--bb-font-body)}
+.bbd-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:.5rem}
+.bbd-opt{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;min-height:44px;padding:.55rem .75rem;border-radius:10px;border:1.5px solid rgba(30,47,87,.25);
+  background:#fff;color:#1e2a44;cursor:pointer;text-align:left;font-size:1rem;line-height:1.3}
+.bbd-opt small{font-size:.8rem;color:#4a5468}
+.bbd-opt[aria-checked="true"]{border-color:#2c4a8c;box-shadow:inset 0 0 0 1.5px #2c4a8c;background:#eef2fb}
+.bbd-opt:focus-visible{outline:3px solid #4a6cb5;outline-offset:2px}
+.bbd-sizes{display:flex;flex-wrap:wrap;gap:.5rem}
+.bbd-sizes .bbd-opt{flex:1 1 4.5rem;align-items:center;text-align:center}
+.bbd-actions{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.6rem;margin-top:.4rem;position:sticky;bottom:0;background:#fbf8f0;padding-top:.5rem}
+.bbd-actions button{min-height:44px;padding:.5rem 1.2rem;border-radius:999px;font:600 .95rem/1 var(--bb-font-body);cursor:pointer}
+.bbd-reset{background:none;border:1px solid rgba(30,47,87,.35);color:#1e2a44}
+.bbd-done{background:#2c4a8c;border:none;color:#fff}
+.bbd-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Phone + Largest: keep every control reachable without hunting. */
+@media (max-width:640px){
+  .bbd-panel{padding:.75rem .85rem .9rem}
+  .bbd-panel p.bbd-note{margin:0 0 .45rem;font-size:.82rem}
+  .bbd-panel fieldset{margin:0 0 .55rem}
+  .bbd-opts{grid-template-columns:1fr 1fr;gap:.3rem}
+  .bbd-opt{padding:.35rem .5rem;min-height:38px;gap:0}
+  .bbd-opt small{display:none}
+  /* Size chips: fixed px labels so Largest does not smash the words together. */
+  .bbd-sizes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.3rem}
+  .bbd-sizes .bbd-opt{flex:none;padding:.35rem .15rem;min-height:38px;font-size:11px;line-height:1.15}
+}
+html[data-bb-size="xxlarge"] .bbd-panel,
+html[data-bb-size="xlarge"] .bbd-panel{font-size:.95rem}
+html[data-bb-size="xxlarge"] .bbd-panel h2{font-size:1.1rem}
+html[data-bb-size="xxlarge"] .bbd-opt{padding:.4rem .55rem}

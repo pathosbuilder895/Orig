@@ -52,6 +52,7 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserDisplayPrefs,
     UserLastLocation,
     BluebookPhonePark,
     StudentProfile,
@@ -88,6 +89,7 @@ EXPECTED_TABLES = {
     "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
     "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
     "user_last_location",  # where each account last was, for cross-device resume (2026-10)
+    "user_display_prefs",  # each account's chosen text font and size (2026-11)
     "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
     "bluebook_join_links",  # forwardable course sign-up links (2026-10)
 }
@@ -439,6 +441,12 @@ REPRESENTATIVE_ROWS = {
         tab="",
         scroll_fraction=0.42,
         scroll_anchor="",
+        updated_at=NOW,
+    ),
+    UserDisplayPrefs: dict(
+        account_key=f"{TENANT_ID}:marcus",
+        font="readable",
+        size="large",
         updated_at=NOW,
     ),
     BluebookPhonePark: dict(

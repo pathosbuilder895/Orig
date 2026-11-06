@@ -43,9 +43,10 @@ export const BB = {
   fadedCream:  '#B8B4AC',
 };
 
-export const fontDisplay = "'Cormorant Garamond', serif";
-export const fontBody    = "'EB Garamond', serif";
-export const fontMono    = "'IBM Plex Mono', monospace";
+// Every family follows the Text setting (assets/type.css, display-prefs.js).
+export const fontDisplay = "var(--bb-font-display, 'Cormorant Garamond', serif)";
+export const fontBody    = "var(--bb-font-body, 'EB Garamond', serif)";
+export const fontMono    = "var(--bb-font-label, 'IBM Plex Mono', monospace)";
 
 export const PARCHMENT_SHADES = {
   warm:  '#F4EFE6',
@@ -155,7 +156,7 @@ export function Ornament({ char = '❦', py = 20 }) {
     }}>
       <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
       <span style={{
-        color: BB.gold, fontSize: 18, opacity: 0.65, lineHeight: 1,
+        color: BB.gold, fontSize: '1.125rem', opacity: 0.65, lineHeight: 1,
         userSelect: 'none',
       }}>{char}</span>
       <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
@@ -172,7 +173,7 @@ export function MetaLabel({ children, style: s = {}, htmlFor, className }) {
   return (
     <Tag {...forProp} className={className} style={{
       fontFamily: fontMono,
-      fontSize: 12.5,
+      fontSize: '.7812rem',
       letterSpacing: '0.14em',
       textTransform: 'uppercase',
       color: BB.fade,
@@ -198,7 +199,7 @@ export function BtnPrimary({ children, onClick, disabled = false, style: s = {},
         color: BB.deep,
         border: 'none',
         padding: '12px 40px',
-        fontSize: 17,
+        fontSize: '1.0625rem',
         fontWeight: 500,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.4 : 1,
@@ -229,7 +230,7 @@ export function BtnGhost({ children, onClick, disabled = false, style: s = {}, f
         color: BB.gold,
         border: `1px solid rgba(201,169,97,${hover ? 0.6 : 0.32})`,
         padding: '12px 40px',
-        fontSize: 17,
+        fontSize: '1.0625rem',
         fontWeight: 500,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.4 : 1,
@@ -282,7 +283,7 @@ export function StatusBadge({ status, pulse = false }) {
   return (
     <span title={flagged ? `${WORTH_A_LOOK_SOURCE} ${ORIGINAL_TESTING_NOTICE}` : undefined} style={{
       fontFamily: fontMono,
-      fontSize: 9,
+      fontSize: '.75rem',
       letterSpacing: '0.18em',
       textTransform: 'uppercase',
       color: s.color,
@@ -449,6 +450,23 @@ export const BB_API = {
     try {
       const r = await fetch(this.base + '/bluebook/me/location', {
         method: 'PUT', headers: this._headers(), body: JSON.stringify(loc), keepalive,
+      });
+      return r.status;
+    } catch (e) { return 0; }
+  },
+  // The Text setting (assets/display-prefs.js), kept on the account so it
+  // follows the person to another device. Display only. Never throws.
+  async getDisplay() {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/display', { headers: this._headers() });
+      if (!r.ok) return null;
+      return (await r.json()).display || null;
+    } catch (e) { return null; }
+  },
+  async putDisplay(prefs) {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/display', {
+        method: 'PUT', headers: this._headers(), body: JSON.stringify({ font: prefs.font, size: prefs.size }),
       });
       return r.status;
     } catch (e) { return 0; }
@@ -832,4 +850,38 @@ export const BB_API = {
 export function devToolsEnabled() {
   if (BB_API.isStudentLaunch()) return false;
   return BB_API.isDevToolsArmed();
+}
+
+// ─── Text setting button ─────────────────────────────────────────────────────
+// Opens the site-wide Text panel (assets/display-prefs.js): font and text
+// size, applied at once to every page. It never touches what a student writes,
+// the word count, the timer or the session, so it is safe mid-collection.
+export function TextSettingsButton({ floating = false, className = '', style }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!floating) return undefined;
+    document.body.classList.add('bbd-has-float');
+    return () => document.body.classList.remove('bbd-has-float');
+  }, [floating]);
+  if (typeof window === 'undefined' || !window.BBDisplay) return null;
+  return (
+    <button ref={ref} type="button" style={style}
+      className={'bbd-btn' + (floating ? ' bbd-float' : '') + (className ? ' ' + className : '')}
+      aria-haspopup="dialog" data-testid="text-settings-button" title="Text size and font"
+      onClick={() => window.BBDisplay.open(ref.current)}>
+      <span className="bbd-aa" aria-hidden="true">Aa</span><span>Text</span>
+    </button>
+  );
+}
+
+// Keep the Text setting on the signed-in account (and pick it up from there).
+let _displaySyncedFor = null;
+export function syncDisplayWithAccount() {
+  if (typeof window === 'undefined' || !window.BBDisplay) return;
+  const who = BB_API.identity();
+  const sig = who.authed && !BB_API.isStudentLaunch() ? `${who.tenant}|${who.email}|${who.role}` : '';
+  if (sig === _displaySyncedFor) return;
+  _displaySyncedFor = sig;
+  if (!sig) { window.BBDisplay.sync(null, null); return; }
+  window.BBDisplay.sync(() => BB_API.getDisplay(), p => BB_API.putDisplay(p));
 }
