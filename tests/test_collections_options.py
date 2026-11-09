@@ -2,7 +2,7 @@
 in-class vs take-home trust, and the Smalls/Greats word-range preset.
 
 Spec: /workspace/collections_merge_spec.md, decisions from Andrew 2026-10-20:
-- Smalls < 1,000 words, Greats >= 1,000 words.
+- Smalls are 1,000 words and under; Greats are over 1,000 words.
 - Untimed: no time limit; the sitting stays open until the collection's
   close time (deadline = closes_at), or has no deadline when there is none.
   Never a huge fake duration.
@@ -103,7 +103,10 @@ def _seal(client, student, exam_id, text=BASE, words=None):
 def test_smalls_greats_cutoff_is_1000_words():
     assert rules.SMALLS_GREATS_CUTOFF == 1000
     assert rules.size_class({"minWords": 0, "maxWords": 999, "conditions": {}}) == "small"
-    assert rules.size_class({"minWords": 1000, "maxWords": 0, "conditions": {}}) == "great"
+    # The boundary: 1,000 words is a Small; a Great starts above it.
+    assert rules.size_class({"minWords": 0, "maxWords": 1000, "conditions": {}}) == "small"
+    assert rules.size_class({"minWords": 1000, "maxWords": 0, "conditions": {}}) is None
+    assert rules.size_class({"minWords": 1001, "maxWords": 0, "conditions": {}}) == "great"
     assert rules.size_class({"minWords": 0, "maxWords": 0, "conditions": {}}) is None
     assert rules.size_class({"minWords": 0, "maxWords": 0, "conditions": {"size": "great"}}) == "great"
 
@@ -129,8 +132,10 @@ def test_untimed_deadline_is_the_close_time_or_none():
 @pytest.mark.parametrize(
     "conditions,min_w,max_w,expected",
     [
-        ({"size": "small"}, 0, 0, (0, 999)),
-        ({"size": "great"}, 0, 0, (1000, 0)),
+        ({"size": "small"}, 0, 0, (0, 1000)),
+        ({"size": "great"}, 0, 0, (1001, 0)),
+        ({"size": "small"}, 0, 1000, (0, 1000)),
+        ({"size": "great"}, 1001, 0, (1001, 0)),
         ({"size": "small"}, 200, 800, (200, 800)),
         ({"size": "great"}, 1200, 3000, (1200, 3000)),
         ({}, 0, 0, (0, 0)),
@@ -145,7 +150,9 @@ def test_size_preset_fills_the_word_range(conditions, min_w, max_w, expected):
     "conditions,min_w,max_w",
     [
         ({"size": "small"}, 0, 1500),
+        ({"size": "small"}, 0, 1001),
         ({"size": "great"}, 500, 0),
+        ({"size": "great"}, 1000, 0),
         ({"size": "medium"}, 0, 0),
         ({"setting": "online"}, 0, 0),
         ({"timed": "sometimes"}, 0, 0),
@@ -163,7 +170,7 @@ def test_create_applies_the_greats_preset(live_client):
     prof, course = _prof(live_client)
     r = _exam(live_client, prof, course, conditions={"size": "great", "setting": "take_home"})
     assert r.status_code == 201, r.text
-    assert (r.json()["minWords"], r.json()["maxWords"]) == (1000, 0)
+    assert (r.json()["minWords"], r.json()["maxWords"]) == (1001, 0)
     assert r.json()["conditions"]["setting"] == "take_home"
 
 
