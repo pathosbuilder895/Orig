@@ -202,7 +202,9 @@ function restoreScroll(anchor, fraction) {
 export async function resumeOrHome(onNavigate, home, { openExam } = {}) {
   const who = signedInAccount();
   // A link the visitor followed (#exam/<id>, #students) wins over the saved place.
-  const linked = typeof window !== 'undefined' && parseDeepLink(window.location.hash);
+  // Deep links are for teachers (deep-link.jsx): a student's screens ignore
+  // them, so a student still goes back to where they were.
+  const linked = who === 'staff' && typeof window !== 'undefined' && parseDeepLink(window.location.hash);
   const loc = who && !linked ? await BB_API.getLastLocation() : null;
   const table = who === 'student' ? STUDENT_SCREENS : STAFF_SCREENS;
   if (!loc || !loc.screen || !(loc.screen in table) || loc.screen === 'exam') { onNavigate(home); return; }
