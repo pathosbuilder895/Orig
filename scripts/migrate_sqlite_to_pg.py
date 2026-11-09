@@ -67,6 +67,7 @@ from original.db.models.live import (
     BluebookEnrollment,
     BluebookExam,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -81,6 +82,7 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserDisplayPrefs,
     UserLastLocation,
     BluebookPhonePark,
     StudentProfile,
@@ -1179,6 +1181,47 @@ class _BluebookInviteMigrator(_Migrator):
         ]
 
 
+class _BluebookJoinLinkMigrator(_Migrator):
+    """Forwardable course sign-up links (2026-10). Only token hashes exist
+    in either store, so copying them moves no usable credential."""
+
+    name = "bluebook_join_links"
+    model = BluebookJoinLink
+    pk = "link_id"
+
+    _COLS = (
+        "link_id",
+        "tenant_id",
+        "course_id",
+        "token_hash",
+        "created_by",
+        "created_at",
+        "voided_at",
+    )
+    _TS = {"created_at", "voided_at"}
+
+    def _canon(self, values):
+        return {
+            c: (_canon_ts(v) if c in self._TS else v)
+            for c, v in zip(self._COLS, values, strict=True)
+        }
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_join_links").fetchall()
+        return [self._canon(r) for r in rows]
+
+    def to_model(self, row):
+        return BluebookJoinLink(
+            **{c: (_parse_ts(row[c]) if c in self._TS else row[c]) for c in self._COLS}
+        )
+
+    def read_pg(self, session):
+        return [
+            self._canon([getattr(i, c) for c in self._COLS])
+            for i in session.query(BluebookJoinLink).all()
+        ]
+
+
 class _ConsumedAttestationMigrator(_Migrator):
     """T-69: the proctor-attestation single-use ledger. No tenant FK,
     mirroring audit_log — see the tenants-referenced-set comment near
@@ -1546,6 +1589,38 @@ class _UserLastLocationMigrator(_Migrator):
         return out
 
 
+class _UserDisplayPrefsMigrator(_Migrator):
+    """Each account's chosen text font and size (2026-11). Keyed by the
+    account id verbatim in both schemas."""
+
+    name = "user_display_prefs"
+    model = UserDisplayPrefs
+    pk = "account_key"
+    _COLS = ("account_key", "font", "size", "updated_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM user_display_prefs").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return UserDisplayPrefs(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(UserDisplayPrefs).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+
 class _BluebookPhoneParkMigrator(_Migrator):
     """A student's own parked phone per collection (2026-10). Composite key,
     like bluebook_exam_drafts."""
@@ -1600,6 +1675,7 @@ MIGRATORS: list[_Migrator] = [
     _BluebookSessionMigrator(),
     _BluebookEnrollmentMigrator(),
     _BluebookInviteMigrator(),
+    _BluebookJoinLinkMigrator(),
     _AuditMigrator(),
     _ConsumedAttestationMigrator(),
     _FormationMigrator(),
@@ -1609,6 +1685,7 @@ MIGRATORS: list[_Migrator] = [
     _StudentPastPaperMigrator(),
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
+    _UserDisplayPrefsMigrator(),
     _BluebookPhoneParkMigrator(),
 ]
 

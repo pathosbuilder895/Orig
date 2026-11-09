@@ -6,6 +6,7 @@ import {
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { sizeOf } from './collection-options.jsx';
 import { noteView, takeResumed } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -370,7 +371,7 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
     showExam && { key: 'exam', label: 'Collection' },
-    { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
+    { key: 'created_at', label: 'Submitted', className: 'bb-date', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'warnings', label: 'Notes', num: true, render: s => (s.warnings || []).length },
     { key: 'mark', label: 'Mark', render: s => s.mark || '—' },
@@ -450,44 +451,151 @@ export function AllSubmissionsScreen() {
   );
 }
 
-// "In class" / "Take-home", plus "Small" / "Great" when a size was chosen
-// (Smalls < 1,000 words, Greats >= 1,000). Old rows read as in class.
-export function collectionType(e) {
+// What a collection's card says, and what the filters read: its size
+// (Small / Great), timed or untimed, locked (paste blocked) or open, in class
+// or take-home, and its state. Old rows read as timed, open, in class.
+export function collectionFacts(e) {
   const c = (e && e.conditions) || {};
-  const where = c.setting === 'take_home' ? 'Take-home' : 'In class';
-  const size = c.size === 'small' ? 'Small' : c.size === 'great' ? 'Great' : '';
+  return {
+    size: sizeOf(e),
+    timed: c.timed !== false,
+    locked: !!c.blockCopy,
+    setting: c.setting === 'take_home' ? 'take_home' : 'in_class',
+    state: examState(e || {}),
+  };
+}
+
+// "In class" / "Take-home", plus "Small" / "Great" when it has a size.
+export function collectionType(e) {
+  const f = collectionFacts(e);
+  const where = f.setting === 'take_home' ? 'Take-home' : 'In class';
+  const size = f.size === 'small' ? 'Small' : f.size === 'great' ? 'Great' : '';
   return size ? `${where} · ${size}` : where;
 }
 
-// ─── Collections list (the one list of every assignment) ───────────────────────────────────────────────────────
+// The order cards are shown in: open first, then upcoming, drafts and
+// closed ones; the server's order (newest first) inside each.
+const STATE_ORDER = { open: 0, upcoming: 1, draft: 2, closed: 3 };
+export function orderCollections(exams) {
+  return (exams || []).map((e, i) => ({ e, i }))
+    .sort((a, b) => ((STATE_ORDER[examState(a.e)] ?? 4) - (STATE_ORDER[examState(b.e)] ?? 4)) || (a.i - b.i))
+    .map(x => x.e);
+}
+
+// The Collections list's filters. '' means any.
+export const NO_FILTERS = Object.freeze({ q: '', status: '', size: '', timing: '', paste: '', setting: '' });
+export function filterCollections(exams, filters = NO_FILTERS) {
+  const f0 = { ...NO_FILTERS, ...(filters || {}) };
+  const needle = String(f0.q || '').trim().toLowerCase();
+  return (exams || []).filter(e => {
+    const f = collectionFacts(e);
+    if (needle && !`${e.title || ''} ${e.course || ''}`.toLowerCase().includes(needle)) return false;
+    if (f0.status && f.state !== f0.status) return false;
+    if (f0.size && f.size !== f0.size) return false;
+    if (f0.timing && (f0.timing === 'timed') !== f.timed) return false;
+    if (f0.paste && (f0.paste === 'locked') !== f.locked) return false;
+    if (f0.setting && f.setting !== f0.setting) return false;
+    return true;
+  });
+}
+
+// One collection as a card. The title opens it; nothing else on the card does.
+function CollectionCard({ exam: e, onOpen }) {
+  const f = collectionFacts(e);
+  const headId = `coll-${e.id}`;
+  const n = Number(e.submissions) || 0;
+  return (
+    <article className="bb-card bb-coll" aria-labelledby={headId}>
+      <div className="bb-coll-head">
+        <h3 id={headId} className="bb-coll-title">
+          <LinkBtn onClick={onOpen}>{e.title}</LinkBtn>
+        </h3>
+        <Badge>{f.state}</Badge>
+      </div>
+      <p className="bb-meta bb-coll-course">{e.course || 'No course'}</p>
+      <ul className="bb-coll-tags" aria-label="Options">
+        {f.size && <li>{f.size === 'small' ? 'Small' : 'Great'}</li>}
+        <li>{f.timed ? `Timed · ${e.duration} min` : 'Untimed'}</li>
+        <li>{f.locked ? 'Locked · no paste' : 'Open · paste allowed'}</li>
+        <li>{f.setting === 'take_home' ? 'Take-home' : 'In class'}</li>
+      </ul>
+      <dl className="bb-coll-dates">
+        <div><dt>Opens</dt><dd>{e.opens_at ? when(e.opens_at) : (f.state === 'draft' ? 'When published' : 'Now')}</dd></div>
+        <div><dt>Closes</dt><dd>{e.closes_at ? when(e.closes_at) : 'No closing time'}</dd></div>
+      </dl>
+      <p className="bb-coll-foot">{n} submitted{e.results_released_at ? ' · results released' : ''}</p>
+    </article>
+  );
+}
+
+// ─── Collections list (the one list of every assignment) ──────────────────────
 export function ExamsListScreen({ onNavigate }) {
   const [exams, setExams] = useState(null);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState(NO_FILTERS);
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
       .catch(err => { setError(err.message || 'Could not load your collections.'); });
   }, []);
-  const columns = [
-    { key: 'title', label: 'Collection', lead: true, render: e => (
-      <LinkBtn onClick={() => openManageExam(e.id, onNavigate)} style={{ textAlign: 'left', padding: 0 }}>{e.title}</LinkBtn>
-    ) },
-    { key: 'course', label: 'Course', render: e => e.course || '—' },
-    { key: 'state', label: 'Status', render: e => <Badge>{examState(e)}</Badge> },
-    { key: 'window', label: 'Closes', render: e => e.closes_at ? when(e.closes_at) : '—' },
-    { key: 'type', label: 'Type', render: e => collectionType(e) },
-    { key: 'duration', label: 'Minutes', num: true, render: e => (e.conditions && e.conditions.timed === false) ? 'untimed' : e.duration },
-    { key: 'submissions', label: 'Submitted', num: true },
-    { key: 'released', label: 'Results', render: e => e.results_released_at ? <Badge>released</Badge> : '—' },
-  ];
+  const set = key => value => setFilters(f => ({ ...f, [key]: value }));
+  const shown = filterCollections(orderCollections(exams), filters);
+  const filtering = Object.keys(NO_FILTERS).some(k => filters[k]);
+  const total = (exams || []).length;
   return (
     <Page eyebrow="Your workspace" title="Collections"
-      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'}`}
+      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…'
+        : filtering ? `${shown.length} of ${total} collection${total === 1 ? '' : 's'}` : `${total} collection${total === 1 ? '' : 's'}`}
       actions={<Btn primary onClick={() => onNavigate('new-exam')}>+ New collection</Btn>}>
       <ErrorText>{error}</ErrorText>
       {/* A failed load is an error, never "no collections" (alpha bug 2026-10-20). */}
       {error ? null : exams === null ? <p role="status">Loading collections…</p> : (
-      <Table columns={columns} rows={exams} rowKey={e => e.id} caption="Collections"
-        empty="No collections yet. Choose + New collection to set the first one." />)}
+        <>
+          {total > 0 && (
+            <div className="bb-coll-filters" role="search" aria-label="Find a collection">
+              <div className="bb-coll-search">
+                <Field id="collSearch" label="Search by title or course" type="search" value={filters.q} onChange={set('q')} required={false} />
+              </div>
+              <Select id="collStatus" label="Status" value={filters.status} onChange={set('status')}>
+                <option value="">Any</option>
+                <option value="open">Open</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="draft">Draft</option>
+                <option value="closed">Closed</option>
+              </Select>
+              <Select id="collSize" label="Size" value={filters.size} onChange={set('size')}>
+                <option value="">Any</option>
+                <option value="small">Small (1,000 words or fewer)</option>
+                <option value="great">Great (over 1,000 words)</option>
+              </Select>
+              <Select id="collTiming" label="Timing" value={filters.timing} onChange={set('timing')}>
+                <option value="">Any</option>
+                <option value="timed">Timed</option>
+                <option value="untimed">Untimed</option>
+              </Select>
+              <Select id="collPaste" label="Paste" value={filters.paste} onChange={set('paste')}>
+                <option value="">Any</option>
+                <option value="locked">Locked (no paste)</option>
+                <option value="open">Open (paste allowed)</option>
+              </Select>
+              <Select id="collSetting" label="Where" value={filters.setting} onChange={set('setting')}>
+                <option value="">Any</option>
+                <option value="in_class">In class</option>
+                <option value="take_home">Take-home</option>
+              </Select>
+              {filtering && <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn>}
+            </div>
+          )}
+          {total === 0
+            ? <p className="bb-empty">No collections yet. Choose + New collection to set the first one.</p>
+            : shown.length === 0
+              ? <p role="status" className="bb-empty">No collections match these filters. <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn></p>
+              : (
+                <div className="bb-coll-grid">
+                  {shown.map(e => <CollectionCard key={e.id} exam={e} onOpen={() => openManageExam(e.id, onNavigate)} />)}
+                </div>
+              )}
+        </>
+      )}
     </Page>
   );
 }
@@ -749,7 +857,7 @@ export function CoursesListScreen({ onNavigate }) {
     { key: 'students', label: 'Students', num: true },
     { key: 'exams', label: 'Collections', num: true },
     { key: 'status', label: 'Status', render: c => <Badge>{c.active ? 'active' : 'closed'}</Badge> },
-    { key: 'open', label: 'Roster', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
+    { key: 'open', label: '', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
   ];
   return (
     <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? (error ? 'Courses unavailable' : 'Loading…') : `${courses.length} course${courses.length === 1 ? '' : 's'}`}
@@ -831,6 +939,63 @@ function InviteLink({ path, expires, emailed }) {
       </div>
       <p className="bb-hint">{emailed ? 'Emailed. ' : ''}Works once{expires ? (new Date(expires).getUTCFullYear() >= 9999 ? ', until you replace it' : `, until ${new Date(expires).toLocaleDateString()}`) : ''}.</p>
     </div>
+  );
+}
+
+// The course's forwardable sign-up link. One link for the whole course:
+// anyone who opens it makes their own student account (with the student
+// notice) and joins. Off until the teacher turns it on; it stays on until
+// they turn it off or replace it.
+export function SignupLinkPanel({ courseId }) {
+  const [link, setLink] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    BB_API.joinLinkGet(courseId).then(setLink).catch(err => setError(err.message || 'Could not load the sign-up link.'));
+  }, [courseId]);
+
+  async function run(fn, ask) {
+    if (ask && !confirm(ask)) return;
+    setBusy(true); setError('');
+    try { setLink(await fn(courseId)); }
+    catch (err) { setError(err.message || 'Could not change the sign-up link.'); }
+    setBusy(false);
+  }
+
+  const url = link && (link.join_url || (link.join_path ? absoluteLink(link.join_path) : ''));
+  return (
+    <Panel className="bb-signup-link" style={{ marginBottom: '1.5rem' }}>
+      <h2>Sign-up link</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+        One link for the whole course. Anyone who opens it can create their own student account and join this course,
+        so it can be forwarded. Each person reads the student notice and ticks the consent box before their account is made.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {link === null && !error && <p className="bb-hint">Loading…</p>}
+      {link && !link.enabled && (
+        <div className="bb-actions">
+          <Btn primary disabled={busy} onClick={() => run(id => BB_API.joinLinkEnable(id))}>{busy ? 'Turning on…' : 'Turn on sign-up link'}</Btn>
+        </div>
+      )}
+      {link && link.enabled && (
+        <>
+          {url ? (
+            <div className="bb-linkrow" style={{ marginBottom: '.6rem' }}>
+              <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Sign-up link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
+              <LinkBtn onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</LinkBtn>
+            </div>
+          ) : (
+            <p className="bb-error">This link can no longer be shown. Replace it to get a new one.</p>
+          )}
+          <div className="bb-actions">
+            <Btn disabled={busy} onClick={() => run(id => BB_API.joinLinkRegenerate(id), 'Replace the sign-up link? The current link stops working at once. Accounts already made with it are kept.')}>Replace link</Btn>
+            <LinkBtn muted disabled={busy} onClick={() => run(id => BB_API.joinLinkDisable(id), 'Turn off the sign-up link? Nobody new can join with it. Accounts already made with it are kept.')}>Turn off</LinkBtn>
+          </div>
+          <p className="bb-hint" style={{ marginTop: '.6rem' }}>On until you turn it off or replace it. Someone whose email already has an account is asked to sign in instead.</p>
+        </>
+      )}
+    </Panel>
   );
 }
 
@@ -966,6 +1131,8 @@ export function RosterScreen({ onNavigate }) {
         </form>
         {errors.map(r => <ErrorText key={r.email}>{r.email}: {r.error}</ErrorText>)}
       </Panel>
+
+      <SignupLinkPanel courseId={course.id} />
 
       {(linkRows.length > 0 || invited > 0) && (
         <Panel className="bb-invite-links" style={{ marginBottom: '1.5rem' }}>
@@ -1174,6 +1341,11 @@ export function ProctorLiveScreen() {
             empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose a collection above.'} />
           <p className="bb-hint">Warnings arrive when a student seals their exam, so they show for submitted students only.</p>
         </>
+      ) : exams === null ? (
+        // Not before the list: choosing a collection when it arrives changes
+        // the key below, which would remount the panel and refill its box
+        // over whatever the teacher had typed.
+        <p role="status" className="bb-meta" style={{ marginTop: '1rem' }}>Loading your collections…</p>
       ) : (
         <div key={examId} style={{ marginTop: '1rem' }}><ProctorScreen /></div>
       )}

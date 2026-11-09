@@ -73,8 +73,13 @@ export function rememberScreen(screen) {
 // Drops a deep-link hash from the address bar, keeping the path and query,
 // so a reload after the teacher has moved on opens the dashboard rather
 // than the exam the link named. Does not fire hashchange.
-export function clearDeepLink() {
+// `signingIn`: the move starts on a screen a visitor sees before signing in.
+// A deep link then stays, because resumeOrHome (resume-location.jsx) reads it
+// after sign-in so the followed link wins over the place saved on another
+// device. '#forgot' is not a deep link and still goes.
+export function clearDeepLink({ signingIn = false } = {}) {
   try {
+    if (signingIn && parseDeepLink(window.location.hash)) return;
     if (!parseDeepLink(window.location.hash) && window.location.hash !== FORGOT_HASH) return;
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
   } catch (e) { /* history unavailable: the hash stays, which is harmless */ }

@@ -40,6 +40,7 @@ from .db.models.live import (
     BluebookExam,
     BluebookExamDraft,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookPhonePark,
     BluebookSession,
     BluebookSubmission,
@@ -58,6 +59,7 @@ from .db.models.live import (
     SubmissionManifest,
     Tenant,
     TunedThresholds,
+    UserDisplayPrefs,
     UserLastLocation,
 )
 from .db.postgres_session import session_scope
@@ -370,6 +372,7 @@ class PostgresRepository:
                 BluebookExamDraft.student_key == student_id
             ),
             select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
+            select(UserDisplayPrefs.account_key).where(UserDisplayPrefs.account_key == student_id),
             select(BluebookPhonePark.student_key).where(
                 BluebookPhonePark.student_key == student_id
             ),
@@ -551,6 +554,12 @@ class PostgresRepository:
                 session.execute(
                     UserLastLocation.__table__.delete().where(
                         UserLastLocation.account_key == student_id,
+                    )
+                )
+                # The student's chosen text font and size (2026-11).
+                session.execute(
+                    UserDisplayPrefs.__table__.delete().where(
+                        UserDisplayPrefs.account_key == student_id,
                     )
                 )
                 session.execute(
@@ -2274,6 +2283,9 @@ class PostgresRepository:
                     BluebookEnrollment.course_id == course_id
                 )
             )
+            session.execute(
+                BluebookJoinLink.__table__.delete().where(BluebookJoinLink.course_id == course_id)
+            )
             result = session.execute(
                 BluebookCourse.__table__.delete().where(BluebookCourse.course_id == course_id)
             )
@@ -2424,6 +2436,68 @@ class PostgresRepository:
                 .values(redeemed_at=datetime.now(UTC))
             )
             return result.rowcount == 1
+
+    @staticmethod
+    def _join_link_to_dict(row: BluebookJoinLink) -> dict:
+        return {
+            "link_id": row.link_id,
+            "tenant_id": row.tenant_id,
+            "course_id": row.course_id,
+            "token_hash": row.token_hash,
+            "created_by": row.created_by,
+            "created_at": row.created_at.isoformat(),
+            "voided_at": _iso_or_none(row.voided_at),
+        }
+
+    def put_join_link(self, rec):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, rec["tenant_id"])
+            session.add(
+                BluebookJoinLink(
+                    link_id=rec["link_id"],
+                    tenant_id=rec["tenant_id"],
+                    course_id=rec["course_id"],
+                    token_hash=rec["token_hash"],
+                    created_by=rec["created_by"],
+                    created_at=_dt_or_none(rec["created_at"]),
+                )
+            )
+
+    def get_join_link_by_hash(self, token_hash):
+        with session_scope() as session:
+            row = session.execute(
+                select(BluebookJoinLink).where(BluebookJoinLink.token_hash == token_hash)
+            ).scalar_one_or_none()
+            return self._join_link_to_dict(row) if row else None
+
+    def active_join_link_for_course(self, course_id):
+        with session_scope() as session:
+            row = (
+                session.execute(
+                    select(BluebookJoinLink)
+                    .where(
+                        BluebookJoinLink.course_id == course_id,
+                        BluebookJoinLink.voided_at.is_(None),
+                    )
+                    .order_by(BluebookJoinLink.created_at.desc())
+                    .limit(1)
+                )
+                .scalars()
+                .first()
+            )
+            return self._join_link_to_dict(row) if row else None
+
+    def void_join_links_for_course(self, course_id):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookJoinLink)
+                .where(
+                    BluebookJoinLink.course_id == course_id,
+                    BluebookJoinLink.voided_at.is_(None),
+                )
+                .values(voided_at=datetime.now(UTC))
+            )
+            return int(result.rowcount)
 
     # ── Audit ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -3012,6 +3086,33 @@ class PostgresRepository:
             session.execute(
                 UserLastLocation.__table__.delete().where(
                     UserLastLocation.account_key == account_key
+                )
+            )
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+
+    def put_display_prefs(self, account_key, prefs):
+        values = dict(font=prefs["font"], size=prefs["size"], updated_at=datetime.now(UTC))
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserDisplayPrefs)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_display_prefs(account_key) or {}
+
+    def get_display_prefs(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserDisplayPrefs, account_key)
+            if row is None:
+                return None
+            return {"font": row.font, "size": row.size, "updated_at": _iso_or_none(row.updated_at)}
+
+    def delete_display_prefs(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserDisplayPrefs.__table__.delete().where(
+                    UserDisplayPrefs.account_key == account_key
                 )
             )
 

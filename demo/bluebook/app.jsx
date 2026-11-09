@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BB_API, BB_SIGNED_OUT_EVENT, devToolsEnabled } from './components.jsx';
+import { BB_API, BB_SIGNED_OUT_EVENT, TextSettingsButton, devToolsEnabled, syncDisplayWithAccount } from './components.jsx';
 import { expiryWarnDelay, tokenExpiryMs } from './form-drafts.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
@@ -9,7 +9,7 @@ import './booklet.css';
 import { ResultsScreen } from './Results.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {
-  AccountScreen, InviteScreen, SignupScreen, StudentAccountScreen,
+  AccountScreen, InviteScreen, JoinScreen, SignupScreen, StudentAccountScreen,
   StudentHomeScreen, StudentSubmissionScreen, ForgotPasswordScreen,
 } from './Account.jsx';
 import {
@@ -30,12 +30,15 @@ const { useState } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "currentScreen": "",
-  "writingSize": 18,
+  "writingSize": 17,
   "parchmentColor": "#F4EFE6"
 }/*EDITMODE-END*/;
 
 // The screens a visitor sees before they have signed in (or while they are signing in or up).
-const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot'];
+const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
+// Screens whose own bar or sidebar already carries the Text button.
+const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
+  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
@@ -46,10 +49,15 @@ function App() {
   // that exam the next time they land on the dashboard. A visitor who is not signed in yet keeps
   // it: the sign-in flow carries it to the exam. That includes the navigation right after sign-in
   // or sign-up, which happens with the session already stored, so it is the screen the move starts
-  // from that tells the two apart, not the session alone.
+  // from that tells the two apart, not the session alone. The address bar keeps it too: sign-in
+  // reads it there (resumeOrHome), so a followed link wins over the place saved on another device.
+  // Sign-in also takes the waiting link from the address bar. After a lapsed sign-in the one held
+  // here was dropped when the teacher first moved on, and only the address still names their screen.
   const navigate = (next) => {
-    clearDeepLink();
-    if (BB_API.isAuthed() && !PRE_AUTH_SCREENS.includes(screen)) setDeepLink(null);
+    const signingIn = PRE_AUTH_SCREENS.includes(screen);
+    clearDeepLink({ signingIn });
+    if (signingIn) setDeepLink(parseDeepLink(window.location.hash));
+    else if (BB_API.isAuthed()) setDeepLink(null);
     if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) rememberScreen(next);
     setTweak('currentScreen', next);
   };
@@ -70,8 +78,10 @@ function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
   // A lapsed teacher sign-in (401) goes to the sign-in page with a reason,
-  // never to empty lists. The current screen is kept in the hash, so signing
-  // back in returns there.
+  // never to empty lists. A screen that keeps its place (rememberScreen in
+  // deep-link.jsx) is still named in the hash, so signing back in returns
+  // there (navigate); from any other screen it goes to the place last saved
+  // for resuming (resume-location.jsx).
   const [expired, setExpired] = useState(false);
   const [expiredStudent, setExpiredStudent] = useState(false);
   React.useEffect(() => {
@@ -107,11 +117,15 @@ function App() {
   // signed-in teacher → dashboard; otherwise the public landing.
   const [autoScreen] = useState(() => {
     let invite = false;
+    let join = false;
     try {
       const q = new URLSearchParams(window.location.search);
       invite = q.has('invite') || q.has('reset');
+      join = q.has('join');
     } catch (e) {}
     if (invite) return 'invite';
+    // A course sign-up link: make an account (or, signed in, join the course).
+    if (join) return 'join';
     if (BB_API.isStudentLaunch()) return 'briefing';
     if (BB_API.isStudentAccount()) return 'student-home';
     if (BB_API.isAuthed()) return 'dashboard';
@@ -163,6 +177,8 @@ function App() {
   // (resume-location.jsx). Only kept screens are saved; the rest are ignored.
   React.useEffect(() => { installResumeTracking(); }, []);
   React.useEffect(() => { trackScreen(screen); }, [screen]);
+  // The Text setting follows the signed-in account (display only).
+  React.useEffect(() => { syncDisplayWithAccount(); }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
@@ -217,7 +233,7 @@ function App() {
       content = (
         <ExamScreen
           onNavigate={navigate}
-          writingSize={Number(t.writingSize) || 18}
+          writingSize={Number(t.writingSize) || 17}
           parchmentColor={t.parchmentColor || '#F4EFE6'}
         />
       );
@@ -280,6 +296,9 @@ function App() {
     case 'invite':
       content = <InviteScreen onNavigate={navigate} />;
       break;
+    case 'join':
+      content = <JoinScreen onNavigate={navigate} />;
+      break;
     case 'forgot':
       content = <ForgotPasswordScreen onNavigate={navigate} />;
       break;
@@ -323,6 +342,8 @@ function App() {
       <div key={screen} style={{ animation: 'bbFadeIn 0.65s ease both' }}>
         {content}
       </div>
+      {/* Screens without a navigation bar get a floating Text button. */}
+      {!TEXT_IN_NAV.has(screen) && <TextSettingsButton floating />}
 
       {devTools && (
       <TweaksPanel>
@@ -350,7 +371,7 @@ function App() {
         <TweakSection label="Writing Surface" />
         <TweakSlider
           label="Font size"
-          value={Number(t.writingSize) || 18}
+          value={Number(t.writingSize) || 17}
           min={14} max={22} step={1} unit="px"
           onChange={(v) => setTweak('writingSize', v)}
         />

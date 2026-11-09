@@ -338,6 +338,87 @@ def test_simplified_alpha_ai_own_is_the_headline_shadow(tmp_path):
     assert batch.parse_shadow_kinds("all") == batch.DEFAULT_PRIMARY_SHADOW_KINDS
 
 
+def test_two_question_alpha_exam_exports_each_answer_as_its_own_submission(tmp_path, monkeypatch):
+    """The alpha exam (2026-10-30): the tester's own piece in question 1, an AI
+    piece on the same topic in question 2, sealed as ONE submission. Each answer
+    must reach the scorer as its own file (<id>-q1, <id>-q2) so the two can be
+    labelled natural and ai_own; the joined text would score them as one."""
+    from original.bluebook_rules import joined_answers, submissions_csv
+
+    def sub(sid, student, answers):
+        return {"id": sid, "student_id": student, "answers": answers, "text": joined_answers(answers),
+                "created_at": "2026-10-30T10:00:00Z", "words": 100}
+
+    exam_csv = submissions_csv([
+        sub("EXAMPLE-DELETE-sub001", "t1:stu-A", [_text("own piece"), _text("ai piece")]),
+        sub("EXAMPLE-DELETE-sub002", "t1:stu-B", [_text("only own piece"), ""]),
+    ], {})
+
+    class FakeResponse:
+        def __init__(self, text="", payload=None):
+            self.text, self._payload = text, payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    class FakeRequests:
+        @staticmethod
+        def get(url, headers=None, timeout=None):
+            if url.endswith("/export"):
+                return FakeResponse(exam_csv)
+            if url.endswith("/students"):
+                return FakeResponse(payload={"roster": []})
+            if url.endswith("/bluebook/past-papers"):
+                return FakeResponse(payload={"papers": []})
+            raise AssertionError(url)
+
+    monkeypatch.setitem(sys.modules, "requests", FakeRequests)
+    export_dir = batch.export("https://local.example.test", "token", ["exam-1"], tmp_path / "export")
+    stud_a = export_dir / "t1_stu-A" / "submission"
+    assert sorted(p.name for p in stud_a.glob("*.txt")) == ["EXAMPLE-DELETE-sub001-q1.txt", "EXAMPLE-DELETE-sub001-q2.txt"]
+    assert (stud_a / "EXAMPLE-DELETE-sub001-q1.txt").read_text() == _text("own piece")
+    assert (stud_a / "EXAMPLE-DELETE-sub001-q2.txt").read_text() == _text("ai piece")
+    assert "Question 1." not in (stud_a / "EXAMPLE-DELETE-sub001-q1.txt").read_text()
+    # A blank question 2 gets no file; question 1 keeps its -q1 id, so its label does not change.
+    assert [p.name for p in (export_dir / "t1_stu-B" / "submission").glob("*.txt")] == ["EXAMPLE-DELETE-sub002-q1.txt"]
+
+    # A one-question submission stays one file under its own id, as before.
+    assert batch.submission_files({"submission_id": "s1", "text": "one answer", "answer_1": "one answer"}) == {"s1": "one answer"}
+    assert batch.submission_files({"submission_id": "s2", "text": "older client"}) == {"s2": "older client"}
+    # A multi-question row saved without separate answers keeps its joined text.
+    assert batch.submission_files({"submission_id": "s3", "text": "joined", "answer_1": "", "answer_2": ""}) == {"s3": "joined"}
+
+    # Labelled per question, the two pieces score as natural and ai_own.
+    _write_baselines(export_dir / "t1_stu-A")
+    _write_baselines(export_dir / "t1_stu-B")
+    labels_path = tmp_path / "answer_key.csv"
+    labels_path.write_text(
+        "submission_id,label,author_true,writer_true,shadow_kind,imitated_student_id,prompt_id,"
+        "paired_submission_id,shadow_source_paper_id,generator_tool\n"
+        "EXAMPLE-DELETE-sub001-q1,natural,t1_stu-A,t1_stu-A,,,own-topic,,,\n"
+        "EXAMPLE-DELETE-sub001-q2,shadow,t1_stu-A,t1_stu-A,ai_own,t1_stu-A,own-topic,"
+        "EXAMPLE-DELETE-sub001-q1,,EXAMPLE-ToolName\n"
+        "EXAMPLE-DELETE-sub002-q1,natural,t1_stu-B,t1_stu-B,,,own-topic,,,\n")
+
+    def fake_score(repo, baseline_dir, submission_dir, student_id):
+        return ({"submissions": [
+            {"filename": path.name, "deviation_score": .8 if path.stem.endswith("-q2") else .2,
+             "authorship_probability": .5,
+             "recommended_action": "escalate" if path.stem.endswith("-q2") else "no_action",
+             "scoring_time_ms": 1} for path in sorted(Path(submission_dir).glob("*.txt"))]}, .01, "")
+
+    code, rows, problems = batch.run_batch(export_dir, tmp_path / "out", ROOT, labels_path,
+                                           no_rerun=True, throttle_seconds=0, scorer=fake_score,
+                                           evidence=False)
+    assert not problems and code == 0
+    report = (tmp_path / "out/report.md").read_text()
+    assert "Caught shadow work (all kinds): 1/1 (100%)" in report
+    assert "False flags on natural work: 0/2 (0%)" in report
+
+
 
 
 def test_baselines_csv_rejects_split_without_parent_and_unknown_files(tmp_path):

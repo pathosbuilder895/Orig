@@ -20,10 +20,11 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .. import bluebook_rules as rules
 from .. import invites as invites_mod
+from .. import join_links as join_links_mod
 from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
-from ..schemas import RosterAddRequest, SendEmailRequest
+from ..schemas import JoinLinkInfoRequest, RosterAddRequest, SendEmailRequest
 from . import phone_park
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
 from .bluebook import _owned_course, _owned_exam
@@ -267,6 +268,80 @@ def roster_reissue_pending(course_id: str, request: Request, body: SendEmailRequ
         },
     )
     return {"students": out}
+
+
+# ── Teacher: the course's forwardable sign-up link (2026-10) ─────────────────
+
+
+def _request_base(request: Request) -> str:
+    """The origin the teacher reached us on. Behind Render's proxy the
+    socket scheme is http, so the forwarded scheme wins when it is https."""
+    base = str(request.base_url)
+    if (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip() == "https":
+        base = "https://" + base.split("://", 1)[-1]
+    return base
+
+
+def _join_link_out(request: Request, view: dict) -> dict:
+    path = view.get("join_path")
+    return {
+        **view,
+        "join_url": mailer.absolute_url(path, _request_base(request)) if path else None,
+    }
+
+
+@router.get("/bluebook/courses/{course_id}/join-link")
+def join_link_get(course_id: str, request: Request):
+    """The course's sign-up link, if it is on. Off until the teacher turns it on."""
+    _require_staff(request)
+    _owned_course(course_id, request)
+    return _join_link_out(request, join_links_mod.current(course_id))
+
+
+@router.post("/bluebook/courses/{course_id}/join-link")
+def join_link_enable(course_id: str, request: Request):
+    """Turn the sign-up link on. Keeps a link that is already on."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    view = join_links_mod.enable(course["tenant_id"], course_id, staff.user_id)
+    _repo().log_audit(
+        action="bluebook_join_link_enable",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, view)
+
+
+@router.post("/bluebook/courses/{course_id}/join-link/regenerate")
+def join_link_regenerate(course_id: str, request: Request):
+    """Replace the sign-up link. The old link stops working at once;
+    accounts already made with it are unaffected."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    view = join_links_mod.regenerate(course["tenant_id"], course_id, staff.user_id)
+    _repo().log_audit(
+        action="bluebook_join_link_regenerate",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, view)
+
+
+@router.delete("/bluebook/courses/{course_id}/join-link")
+def join_link_disable(course_id: str, request: Request):
+    """Turn the sign-up link off. Accounts already made with it are unaffected."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    join_links_mod.disable(course_id)
+    _repo().log_audit(
+        action="bluebook_join_link_disable",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, join_links_mod.current(course_id))
 
 
 # ── Teacher: everyone in the workspace ────────────────────────────────────────
@@ -523,6 +598,35 @@ def me(request: Request):
         "has_account": user is not None,
         "courses": courses,
     }
+
+
+@router.post("/bluebook/me/join")
+def me_join(body: JoinLinkInfoRequest, request: Request):
+    """A signed-in student opens a course sign-up link: join that course.
+    Only a course in the student's own workspace, and only with an account
+    (a launch-link session has none)."""
+    from .auth import JOIN_LINK_DEAD, JOIN_OTHER_ACCOUNT, join_enrol, join_link_target
+
+    p = _require_student(request)
+    user = _repo().get_user(p.user_id)
+    if user is None:
+        raise HTTPException(status_code=403, detail="Student account required.")
+    target = join_link_target(body.token)
+    if not target:
+        raise HTTPException(status_code=404, detail=JOIN_LINK_DEAD)
+    link, course = target
+    if course["tenant_id"] != p.tenant_id:
+        raise HTTPException(status_code=403, detail=JOIN_OTHER_ACCOUNT)
+    join_enrol(link, course, p.user_id, user)
+    _repo().log_audit(
+        action="join_link_enrol",
+        student_id=p.user_id,
+        tenant_id=p.tenant_id,
+        actor=user["email"],
+        result="ok",
+        details={"course_id": course["id"], "link_id": link["link_id"]},
+    )
+    return {"course_id": course["id"], "name": course.get("name") or ""}
 
 
 @router.get("/bluebook/me/exams")
@@ -810,3 +914,35 @@ def get_last_location(request: Request):
     if loc.get("role") != p.role and not (kind == "staff" and loc.get("role") != "student"):
         return {"location": None}
     return {"location": _resolve_location(request, p, kind, loc)}
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+# Display only. The chosen font and size change how the app is shown to this
+# person; they never touch submitted text, word counts, timers or anything
+# measured. The browser also keeps the choice locally so it applies before
+# sign-in; this copy lets it follow the account to another device.
+
+DISPLAY_FONTS = ("serif", "sans", "readable", "classic")
+DISPLAY_SIZES = ("small", "default", "large", "xlarge", "xxlarge")
+
+
+@router.get("/bluebook/me/display")
+def get_display_prefs(request: Request):
+    """The signed-in account's own text font and size, or null (defaults)."""
+    p, _ = _location_account(request)
+    prefs = _repo().get_display_prefs(p.user_id)
+    if not prefs:
+        return {"display": None}
+    return {"display": {"font": prefs["font"], "size": prefs["size"]}}
+
+
+@router.put("/bluebook/me/display")
+def put_display_prefs(request: Request, body: dict | None = Body(default=None)):
+    """Save the signed-in account's text font and size. Only known values are kept."""
+    p, _ = _location_account(request)
+    body = body or {}
+    font, size = body.get("font"), body.get("size")
+    if font not in DISPLAY_FONTS or size not in DISPLAY_SIZES:
+        raise HTTPException(status_code=422, detail="That text setting is not available.")
+    saved = _repo().put_display_prefs(p.user_id, {"font": font, "size": size})
+    return {"saved": True, "display": {"font": saved.get("font"), "size": saved.get("size")}}

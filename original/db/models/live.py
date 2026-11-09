@@ -818,6 +818,28 @@ class StudentPastPaper(LiveBase):
     reviewed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class BluebookJoinLink(LiveBase):
+    """A forwardable course sign-up link (``bluebook_join_links``, 2026-10).
+
+    Anyone with the link can create their own student account and join the
+    course. Only the sha256 of the token is stored (``original/join_links.py``
+    derives the token from ``link_id`` with an HMAC keyed by SECRET_KEY, so
+    the teacher can copy the same link again). One unvoided row per course;
+    turning the link off or replacing it sets ``voided_at``.
+    """
+
+    __tablename__ = "bluebook_join_links"
+    __table_args__ = (Index("idx_bluebook_join_links_course", "course_id"),)
+
+    link_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    course_id: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class BluebookExamDraft(LiveBase):
     """A student's unsealed exam draft kept on the server
     (``bluebook_exam_drafts``, 2026-10) so a sitting can resume from any
@@ -861,6 +883,21 @@ class UserLastLocation(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserDisplayPrefs(LiveBase):
+    """The text font and size an account chose in Settings
+    (``user_display_prefs``, 2026-11). One row per account; display only,
+    never applied to submitted text or anything measured; deleted with the
+    student's data on withdrawal.
+    """
+
+    __tablename__ = "user_display_prefs"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    font: Mapped[str] = mapped_column(Text, nullable=False, server_default="serif")
+    size: Mapped[str] = mapped_column(Text, nullable=False, server_default="default")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class BluebookPhonePark(LiveBase):
     """A student's own parked phone for one collection
     (``bluebook_phone_parks``, 2026-10). Only for collections where the
@@ -884,7 +921,7 @@ class BluebookPhonePark(LiveBase):
     override_note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
 
 
-#: All 27 live models in store-DDL order, for tests and the P3 repository.
+#: All 28 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -912,5 +949,7 @@ LIVE_MODELS = [
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    UserDisplayPrefs,
     BluebookPhonePark,
+    BluebookJoinLink,
 ]

@@ -268,6 +268,10 @@ class Repository(Protocol):
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
     def void_invites_for_user(self, user_id: str) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
+    def put_join_link(self, rec: dict) -> None: ...
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None: ...
+    def active_join_link_for_course(self, course_id: str) -> dict | None: ...
+    def void_join_links_for_course(self, course_id: str) -> int: ...
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
@@ -296,6 +300,11 @@ class Repository(Protocol):
     def put_last_location(self, account_key: str, tenant_id: str, role: str, loc: dict) -> dict: ...
     def get_last_location(self, account_key: str) -> dict | None: ...
     def delete_last_location(self, account_key: str) -> None: ...
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
+    def get_display_prefs(self, account_key: str) -> dict | None: ...
+    def delete_display_prefs(self, account_key: str) -> None: ...
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
@@ -815,6 +824,18 @@ class SqliteRepository:
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
 
+    def put_join_link(self, rec: dict) -> None:
+        store.put_join_link(rec)
+
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None:
+        return store.get_join_link_by_hash(token_hash)
+
+    def active_join_link_for_course(self, course_id: str) -> dict | None:
+        return store.active_join_link_for_course(course_id)
+
+    def void_join_links_for_course(self, course_id: str) -> int:
+        return store.void_join_links_for_course(course_id)
+
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool:
@@ -865,6 +886,15 @@ class SqliteRepository:
 
     def delete_last_location(self, account_key: str) -> None:
         store.delete_last_location(account_key)
+
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict:
+        return store.put_display_prefs(account_key, prefs)
+
+    def get_display_prefs(self, account_key: str) -> dict | None:
+        return store.get_display_prefs(account_key)
+
+    def delete_display_prefs(self, account_key: str) -> None:
+        store.delete_display_prefs(account_key)
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
@@ -998,6 +1028,8 @@ _WRITE_METHODS = frozenset(
         "delete_exam_draft",
         "put_last_location",
         "delete_last_location",
+        "put_display_prefs",
+        "delete_display_prefs",
         "put_phone_park",
         "set_past_paper_status",
         "delete_tenant_students",
