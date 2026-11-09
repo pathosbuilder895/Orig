@@ -47,7 +47,6 @@ Checked 2026-10-26 against GitHub. The table this replaced (2026-10-11) listed #
 
 | PR | Owner | Notes |
 |----|-------|-------|
-| [#308](https://github.com/pathosbuilder895/Orig/pull/308) | Claude Code (Claude Opus 5.5) | Official PAN scorecard for deviation_score, fused_score_v1 and the LUAR fusion; measurement only. Findings in `docs/research/2026-10-21-pan-official-scorecard.md`. |
 | [#305](https://github.com/pathosbuilder895/Orig/pull/305) | Claude Code | Collections follow-up to #295/#296: Smalls are 1,000 words and under, Greats over 1,000 (was under 1,000 / 1,000 or more); the Collections list as cards with filters and search. No change to submissions, sealing or scoring. Andrew reviews and merges. |
 | [#267](https://github.com/pathosbuilder895/Orig/pull/267) | another Claude session | Refactors the per-run Postgres test databases and trims redundant tests. In progress. |
 | [#273](https://github.com/pathosbuilder895/Orig/pull/273) | Claude Code (overnight, draft) | Student writing screen accessibility and reliability, calm student wording, legal pages rewritten to match the code (still DRAFT, pending counsel review), teacher reader loading states and print/text view. Do not merge without review: merging deploys to the pilot. |
