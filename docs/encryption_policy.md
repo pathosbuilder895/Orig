@@ -382,7 +382,7 @@ application-level encryption.
 ## 7. Environment / Secret Handling
 
 **What secrets actually exist in the live stack:**
-- `LTI_PRIVATE_KEY_PEM` / `LTI_PRIVATE_KEY_FILE` — the RSA signing key
+- `LTI_PRIVATE_KEY` / `LTI_PRIVATE_KEY_FILE` — the RSA signing key
   material described in §2.3.
 - `MAINTENANCE_TOKEN` — guards destructive admin operations (see
   `docs/OPS_RUNBOOK.md`; owned by the ops-runbook documentation, not this
@@ -403,7 +403,7 @@ secrets manager, and never log them.
 
 ### 8.1 Suspected LTI Key Compromise
 
-1. Rotate `LTI_PRIVATE_KEY_PEM` immediately (see §5).
+1. Rotate `LTI_PRIVATE_KEY` (or the file `LTI_PRIVATE_KEY_FILE` points at) immediately (see §5).
 2. Re-register the new JWKS with affected Canvas instances.
 3. Review LTI launch logs for anomalous activity under the old key.
 4. Notify affected institutions per the DPA's breach-notification terms

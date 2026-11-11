@@ -110,6 +110,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -785,7 +786,142 @@ class ParkBeat(LiveBase):
     )
 
 
-#: All 23 live models in store-DDL order, for tests and the P3 repository.
+class StudentPastPaper(LiveBase):
+    """A past paper a student shared from their Collections account
+    (``student_past_papers``, 2026-10 alpha).
+
+    It waits here for the teacher: nothing reaches the student's baseline
+    until a teacher approves it, and it is never scored on upload.
+    ``student_id`` is the full scoped id verbatim (like ``users.user_id``);
+    ``baseline_source`` is ``independent`` or ``split`` (a section of a longer
+    paper, with ``parent_title`` naming that paper) so calibration can keep
+    split-derived baselines apart. ``status``: pending | approved | declined |
+    held (the drift gate kept an approved paper out). No tenant FK, mirroring
+    ``ConsumedAttestation``.
+    """
+
+    __tablename__ = "student_past_papers"
+    __table_args__ = (Index("idx_student_past_papers_student", "tenant_id", "student_id"),)
+
+    paper_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baseline_source: Mapped[str] = mapped_column(Text, nullable=False, server_default="independent")
+    parent_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class BluebookJoinLink(LiveBase):
+    """A forwardable course sign-up link (``bluebook_join_links``, 2026-10).
+
+    Anyone with the link can create their own student account and join the
+    course. Only the sha256 of the token is stored (``original/join_links.py``
+    derives the token from ``link_id`` with an HMAC keyed by SECRET_KEY, so
+    the teacher can copy the same link again). One unvoided row per course;
+    turning the link off or replacing it sets ``voided_at``.
+    """
+
+    __tablename__ = "bluebook_join_links"
+    __table_args__ = (Index("idx_bluebook_join_links_course", "course_id"),)
+
+    link_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    course_id: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BluebookExamDraft(LiveBase):
+    """A student's unsealed exam draft kept on the server
+    (``bluebook_exam_drafts``, 2026-10) so a sitting can resume from any
+    browser. One row per (exam, student); visible only to that student,
+    never to staff; deleted when the exam is sealed and with the student's
+    data on withdrawal. Never scored, never part of a baseline.
+    ``answers`` is a JSON list of strings. No tenant FK, mirroring
+    ``StudentPastPaper``.
+    """
+
+    __tablename__ = "bluebook_exam_drafts"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    answers: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
+    client_saved_at: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class UserLastLocation(LiveBase):
+    """Where a signed-in account last was in Collections
+    (``user_last_location``, 2026-10), so signing in on another device
+    resumes there. One row per account (teacher or student); readable only
+    by that account; checked against current access when read back; deleted
+    with the student's data on withdrawal. Holds no text and no link token.
+    """
+
+    __tablename__ = "user_last_location"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    screen: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_kind: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    entity_id: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    tab: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    scroll_fraction: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    scroll_anchor: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class UserDisplayPrefs(LiveBase):
+    """The text font and size an account chose in Settings
+    (``user_display_prefs``, 2026-11). One row per account; display only,
+    never applied to submitted text or anything measured; deleted with the
+    student's data on withdrawal.
+    """
+
+    __tablename__ = "user_display_prefs"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    font: Mapped[str] = mapped_column(Text, nullable=False, server_default="serif")
+    size: Mapped[str] = mapped_column(Text, nullable=False, server_default="default")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BluebookPhonePark(LiveBase):
+    """A student's own parked phone for one collection
+    (``bluebook_phone_parks``, 2026-10). Only for collections where the
+    teacher switched phone parking on. One row per (exam, student): when the
+    phone was parked (scanned from the student's own briefing QR code), the
+    phone page's last reported state and time, and any proctor override for
+    a missing phone (who, when, an optional note). No device details. Deleted
+    with the student's data on withdrawal.
+    """
+
+    __tablename__ = "bluebook_phone_parks"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    parked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_by: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+
+#: All 28 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -810,4 +946,10 @@ LIVE_MODELS = [
     BaselineRequest,
     ParkSession,
     ParkBeat,
+    StudentPastPaper,
+    BluebookExamDraft,
+    UserLastLocation,
+    UserDisplayPrefs,
+    BluebookPhonePark,
+    BluebookJoinLink,
 ]

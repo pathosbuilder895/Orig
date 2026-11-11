@@ -1,15 +1,17 @@
 import React from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { BB_API } from './components.jsx';
+import { BB_API, ORIGINAL_TESTING_NOTICE } from './components.jsx';
 import {
   Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, Select, Stat, Table, TextArea,
   absoluteLink, copyText, csvCell, downloadText, fromLocalInput, questionsOf, toLocalInput, when,
 } from './forms.jsx';
 import { ProctorScreen } from './ProctorTiles.jsx';
+import { sizeOf } from './collection-options.jsx';
+import { noteView, takeResumed } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Teacher screens (inside TeacherFrame)
-//  Examinations · Manage exam (grading, release, export) · Courses ·
+//  Collections · Manage collection (grading, release, export) · Courses ·
 //  Roster & invitations · Students · Submissions · Proctor (live)
 // ════════════════════════════════════════════════════════════════
 const { useState, useEffect, useLayoutEffect, useRef } = React;
@@ -164,6 +166,9 @@ export function baselineSummary(r) {
   let text = parts.join(' · ') + '.';
   if (held.length) text += ` Not added: ${held.join(', ')}.`;
   if (setAside.length) text += ` Set aside: ${setAside.join(', ')}.`;
+  // "Not added" is Original's comparison with earlier samples, so it carries
+  // the testing-phase label wherever a teacher sees it (NORTH_STAR rule 10).
+  if (r.held) text += ` ${ORIGINAL_TESTING_NOTICE}`;
   return text;
 }
 
@@ -206,7 +211,7 @@ function BaselineControl({ sub }) {
     setBusy(true); setError(''); setMessage('');
     try {
       const r = await BB_API.addToBaseline(sub.id);
-      if (r.status === 'held') { setHeld(true); setMessage(r.detail); }
+      if (r.status === 'held') { setHeld(true); setMessage(`${r.detail} ${ORIGINAL_TESTING_NOTICE}`); }
       else {
         if (r.status === 'added' || r.status === 'already_in_baseline') setInBaseline(true);
         setMessage(baselineMessage(r.status, name));
@@ -365,8 +370,8 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   const [open, setOpen] = useState('');
   const columns = [
     { key: 'student', label: 'Student', lead: true, render: s => <>{s.student}{s.late ? <> <Badge tone="bad">late</Badge></> : null}</> },
-    showExam && { key: 'exam', label: 'Examination' },
-    { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
+    showExam && { key: 'exam', label: 'Collection' },
+    { key: 'created_at', label: 'Submitted', className: 'bb-date', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'warnings', label: 'Notes', num: true, render: s => (s.warnings || []).length },
     { key: 'mark', label: 'Mark', render: s => s.mark || '—' },
@@ -386,6 +391,49 @@ export function SubmissionsTable({ subs, showExam = false, empty = 'No sealed ex
   );
 }
 
+// Export one examination's sealed submissions as a CSV, from the Submissions
+// screen: the alpha runbook exports Exam A and Exam B separately from here.
+// The same export is on each examination's own page. Only examinations with
+// something submitted are offered; the oldest is chosen first.
+export function ExportByExam() {
+  const [exams, setExams] = useState(null);
+  const [examId, setExamId] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    BB_API._json('GET', '/bluebook/exams').then(d => {
+      if (!live) return;
+      const list = (d.exams || []).filter(e => (Number(e.submissions) || 0) > 0);
+      setExams(list);
+      if (list.length) setExamId(list[list.length - 1].id);
+    }).catch(() => { if (live) setExams([]); });
+    return () => { live = false; };
+  }, []);
+  async function run() {
+    const exam = (exams || []).find(e => e.id === examId);
+    if (!exam) return;
+    setBusy(true); setError('');
+    try { await BB_API.downloadExport(exam.id, exam.title); }
+    catch (err) { setError(err.message || 'The export did not go through. Please try again.'); }
+    setBusy(false);
+  }
+  if (!exams || !exams.length) return null;
+  return (
+    <Panel className="bb-export" style={{ marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
+          <Select id="exportExam" label="Export one collection's submissions (CSV)" value={examId} onChange={setExamId}>
+            {exams.map(e => <option key={e.id} value={e.id}>{e.title} ({e.submissions} submitted)</option>)}
+          </Select>
+        </div>
+        <Btn primary onClick={run} disabled={busy || !examId} style={{ marginBottom: '1rem' }}>{busy ? 'Exporting…' : 'Export CSV'}</Btn>
+      </div>
+      <ErrorText>{error}</ErrorText>
+    </Panel>
+  );
+}
+
 export function AllSubmissionsScreen() {
   const [subs, setSubs] = useState(null);
   const [error, setError] = useState('');
@@ -397,45 +445,219 @@ export function AllSubmissionsScreen() {
   return (
     <Page eyebrow="Your workspace" title="Submissions" meta={error ? 'Submissions unavailable' : subs === null ? 'Loading…' : `${subs.length} sealed`}>
       <ErrorText>{error}</ErrorText>
+      {!error && <ExportByExam />}
       {error ? <Btn onClick={load}>Try again</Btn> : subs === null ? <p role="status">Loading submissions…</p> : <SubmissionsTable subs={subs} showExam onChanged={load} />}
     </Page>
   );
 }
 
-// ─── Examinations list ───────────────────────────────────────────────────────
+// What a collection's card says, and what the filters read: its size
+// (Small / Great), timed or untimed, locked (paste blocked) or open, in class
+// or take-home, and its state. Old rows read as timed, open, in class.
+export function collectionFacts(e) {
+  const c = (e && e.conditions) || {};
+  return {
+    size: sizeOf(e),
+    timed: c.timed !== false,
+    locked: !!c.blockCopy,
+    setting: c.setting === 'take_home' ? 'take_home' : 'in_class',
+    state: examState(e || {}),
+  };
+}
+
+// "In class" / "Take-home", plus "Small" / "Great" when it has a size.
+export function collectionType(e) {
+  const f = collectionFacts(e);
+  const where = f.setting === 'take_home' ? 'Take-home' : 'In class';
+  const size = f.size === 'small' ? 'Small' : f.size === 'great' ? 'Great' : '';
+  return size ? `${where} · ${size}` : where;
+}
+
+// The order cards are shown in: open first, then upcoming, drafts and
+// closed ones; the server's order (newest first) inside each.
+const STATE_ORDER = { open: 0, upcoming: 1, draft: 2, closed: 3 };
+export function orderCollections(exams) {
+  return (exams || []).map((e, i) => ({ e, i }))
+    .sort((a, b) => ((STATE_ORDER[examState(a.e)] ?? 4) - (STATE_ORDER[examState(b.e)] ?? 4)) || (a.i - b.i))
+    .map(x => x.e);
+}
+
+// The Collections list's filters. '' means any.
+export const NO_FILTERS = Object.freeze({ q: '', status: '', size: '', timing: '', paste: '', setting: '' });
+export function filterCollections(exams, filters = NO_FILTERS) {
+  const f0 = { ...NO_FILTERS, ...(filters || {}) };
+  const needle = String(f0.q || '').trim().toLowerCase();
+  return (exams || []).filter(e => {
+    const f = collectionFacts(e);
+    if (needle && !`${e.title || ''} ${e.course || ''}`.toLowerCase().includes(needle)) return false;
+    if (f0.status && f.state !== f0.status) return false;
+    if (f0.size && f.size !== f0.size) return false;
+    if (f0.timing && (f0.timing === 'timed') !== f.timed) return false;
+    if (f0.paste && (f0.paste === 'locked') !== f.locked) return false;
+    if (f0.setting && f.setting !== f0.setting) return false;
+    return true;
+  });
+}
+
+// One collection as a card. The title opens it; nothing else on the card does.
+function CollectionCard({ exam: e, onOpen }) {
+  const f = collectionFacts(e);
+  const headId = `coll-${e.id}`;
+  const n = Number(e.submissions) || 0;
+  return (
+    <article className="bb-card bb-coll" aria-labelledby={headId}>
+      <div className="bb-coll-head">
+        <h3 id={headId} className="bb-coll-title">
+          <LinkBtn onClick={onOpen}>{e.title}</LinkBtn>
+        </h3>
+        <Badge>{f.state}</Badge>
+      </div>
+      <p className="bb-meta bb-coll-course">{e.course || 'No course'}</p>
+      <ul className="bb-coll-tags" aria-label="Options">
+        {f.size && <li>{f.size === 'small' ? 'Small' : 'Great'}</li>}
+        <li>{f.timed ? `Timed · ${e.duration} min` : 'Untimed'}</li>
+        <li>{f.locked ? 'Locked · no paste' : 'Open · paste allowed'}</li>
+        <li>{f.setting === 'take_home' ? 'Take-home' : 'In class'}</li>
+      </ul>
+      <dl className="bb-coll-dates">
+        <div><dt>Opens</dt><dd>{e.opens_at ? when(e.opens_at) : (f.state === 'draft' ? 'When published' : 'Now')}</dd></div>
+        <div><dt>Closes</dt><dd>{e.closes_at ? when(e.closes_at) : 'No closing time'}</dd></div>
+      </dl>
+      <p className="bb-coll-foot">{n} submitted{e.results_released_at ? ' · results released' : ''}</p>
+    </article>
+  );
+}
+
+// ─── Collections list (the one list of every assignment) ──────────────────────
 export function ExamsListScreen({ onNavigate }) {
   const [exams, setExams] = useState(null);
   const [error, setError] = useState('');
+  const [filters, setFilters] = useState(NO_FILTERS);
   useEffect(() => {
     BB_API._json('GET', '/bluebook/exams').then(d => setExams(d.exams || []))
-      .catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
+      .catch(err => { setError(err.message || 'Could not load your collections.'); });
   }, []);
-  const columns = [
-    { key: 'title', label: 'Examination', lead: true, render: e => (
-      <LinkBtn onClick={() => openManageExam(e.id, onNavigate)} style={{ textAlign: 'left', padding: 0 }}>{e.title}</LinkBtn>
-    ) },
-    { key: 'course', label: 'Course', render: e => e.course || '—' },
-    { key: 'state', label: 'Status', render: e => <Badge>{examState(e)}</Badge> },
-    { key: 'window', label: 'Closes', render: e => e.closes_at ? when(e.closes_at) : '—' },
-    { key: 'duration', label: 'Minutes', num: true },
-    { key: 'submissions', label: 'Submitted', num: true },
-    { key: 'released', label: 'Results', render: e => e.results_released_at ? <Badge>released</Badge> : '—' },
-  ];
+  const set = key => value => setFilters(f => ({ ...f, [key]: value }));
+  const shown = filterCollections(orderCollections(exams), filters);
+  const filtering = Object.keys(NO_FILTERS).some(k => filters[k]);
+  const total = (exams || []).length;
   return (
-    <Page eyebrow="Your workspace" title="Examinations"
-      meta={exams === null ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'}`}
-      actions={<>
-        <Btn onClick={() => onNavigate('sessions')}>Quick session</Btn>
-        <Btn primary onClick={() => onNavigate('new-exam')}>+ New examination</Btn>
-      </>}>
+    <Page eyebrow="Your workspace" title="Collections"
+      meta={error ? 'Collections unavailable' : exams === null ? 'Loading…'
+        : filtering ? `${shown.length} of ${total} collection${total === 1 ? '' : 's'}` : `${total} collection${total === 1 ? '' : 's'}`}
+      actions={<Btn primary onClick={() => onNavigate('new-exam')}>+ New collection</Btn>}>
       <ErrorText>{error}</ErrorText>
-      <Table columns={columns} rows={exams || []} rowKey={e => e.id} caption="Examinations"
-        empty="No examinations yet. Start a quick session or create a full examination." />
+      {/* A failed load is an error, never "no collections" (alpha bug 2026-10-20). */}
+      {error ? null : exams === null ? <p role="status">Loading collections…</p> : (
+        <>
+          {total > 0 && (
+            <div className="bb-coll-filters" role="search" aria-label="Find a collection">
+              <div className="bb-coll-search">
+                <Field id="collSearch" label="Search by title or course" type="search" value={filters.q} onChange={set('q')} required={false} />
+              </div>
+              <Select id="collStatus" label="Status" value={filters.status} onChange={set('status')}>
+                <option value="">Any</option>
+                <option value="open">Open</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="draft">Draft</option>
+                <option value="closed">Closed</option>
+              </Select>
+              <Select id="collSize" label="Size" value={filters.size} onChange={set('size')}>
+                <option value="">Any</option>
+                <option value="small">Small (1,000 words or fewer)</option>
+                <option value="great">Great (over 1,000 words)</option>
+              </Select>
+              <Select id="collTiming" label="Timing" value={filters.timing} onChange={set('timing')}>
+                <option value="">Any</option>
+                <option value="timed">Timed</option>
+                <option value="untimed">Untimed</option>
+              </Select>
+              <Select id="collPaste" label="Paste" value={filters.paste} onChange={set('paste')}>
+                <option value="">Any</option>
+                <option value="locked">Locked (no paste)</option>
+                <option value="open">Open (paste allowed)</option>
+              </Select>
+              <Select id="collSetting" label="Where" value={filters.setting} onChange={set('setting')}>
+                <option value="">Any</option>
+                <option value="in_class">In class</option>
+                <option value="take_home">Take-home</option>
+              </Select>
+              {filtering && <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn>}
+            </div>
+          )}
+          {total === 0
+            ? <p className="bb-empty">No collections yet. Choose + New collection to set the first one.</p>
+            : shown.length === 0
+              ? <p role="status" className="bb-empty">No collections match these filters. <LinkBtn onClick={() => setFilters(NO_FILTERS)}>Clear filters</LinkBtn></p>
+              : (
+                <div className="bb-coll-grid">
+                  {shown.map(e => <CollectionCard key={e.id} exam={e} onOpen={() => openManageExam(e.id, onNavigate)} />)}
+                </div>
+              )}
+        </>
+      )}
     </Page>
   );
 }
 
 // ─── Manage one exam ─────────────────────────────────────────────────────────
+// ─── Phone parking for one collection (2026-10) ──────────────────────────────
+// Who has parked a phone, who is still waiting, and a way to let a student
+// without a phone begin. Letting someone begin is recorded (who and when) and
+// says nothing about the student.
+const PHONE_STATE_LABEL = {
+  waiting: 'Waiting', parked: 'Parked', resumed: 'Parked', foreground_lost: 'Page hidden',
+  dropped: 'Not heard from', overridden: 'Begin allowed without phone',
+};
+
+export function PhoneParkPanel({ examId }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
+  async function load() {
+    try { setData(await BB_API.examPhoneParks(examId)); setError(''); }
+    catch (err) { setError(err.message || 'Could not load phones.'); }
+  }
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [examId]);
+  async function allow(s) {
+    const note = prompt(`Let ${s.name || 'this student'} begin without a parked phone? You can add a short note (optional).`, '');
+    if (note === null) return;
+    setBusy(s.student_id);
+    try { await BB_API.overridePhonePark(examId, s.student_id, note); await load(); }
+    catch (err) { setError(err.message || 'Could not save.'); }
+    setBusy('');
+  }
+  if (!data || !data.required) return error ? <ErrorText>{error}</ErrorText> : null;
+  const rows = data.students || [];
+  return (
+    <Panel style={{ marginBottom: '1.5rem' }}>
+      <h2 style={{ marginBottom: '.2rem' }}>Phone parking</h2>
+      <p className="bb-meta">
+        Each student scans their own code on the exam’s first page and parks their phone before beginning.
+        This shows whether each phone page is open. It is a prompt to look up, never proof of anything.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      <Table
+        rows={rows}
+        rowKey={r => r.student_id}
+        empty="No students on this collection’s roster yet."
+        columns={[
+          { key: 'name', label: 'Student', render: r => r.name || r.student_id },
+          { key: 'state', label: 'Phone', render: r => PHONE_STATE_LABEL[r.state] || r.state },
+          { key: 'when', label: 'Since', render: r => r.override_at ? `Allowed ${when(r.override_at)}${r.override_note ? ` · ${r.override_note}` : ''}` : (r.parked_at ? `Parked ${when(r.parked_at)}` : '') },
+          { key: 'act', label: '', render: r => (!r.parked && !r.overridden)
+            ? <Btn onClick={() => allow(r)} disabled={busy === r.student_id}>Let begin without phone</Btn>
+            : null },
+        ]}
+      />
+    </Panel>
+  );
+}
+
 export function ManageExamScreen({ onNavigate, onPreview }) {
   const examId = window.BB_MANAGE_EXAM;
   const [exam, setExam] = useState(null);
@@ -496,7 +718,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function remove() {
-    if (!confirm('Delete this examination? This cannot be undone.')) return;
+    if (!confirm('Delete this collection? This cannot be undone.')) return;
     try { await BB_API.deleteExam(examId); onNavigate('exams'); }
     catch (err) { setError(err.message || 'Could not delete.'); }
   }
@@ -508,7 +730,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   }
 
   async function addAllToBaselines() {
-    if (!confirm('Add every sealed submission of this examination to the students’ writing baselines? Late sittings and sittings with lockdown warnings are set aside for you to review one at a time, and exams that differ strongly from a student’s existing samples are not added.')) return;
+    if (!confirm('Add every sealed submission of this collection to the students’ writing baselines? Late sittings and sittings with lockdown warnings are set aside for you to review one at a time, and exams that differ strongly from a student’s existing samples are not added.')) return;
     setBulkBusy(true); setError(''); setNotice('');
     try { setNotice(baselineSummary(await BB_API.addExamToBaselines(examId))); }
     catch (err) { setError(err.message || 'Could not add to baselines.'); }
@@ -519,11 +741,11 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
   const graded = subList.filter(s => s.mark || s.feedback).length;
   return (
     <Page
-      eyebrow="Examination"
-      title={exam ? exam.title : 'Examination'}
+      eyebrow="Collection"
+      title={exam ? exam.title : 'Collection'}
       meta={exam ? [exam.course, subs === null ? null : `${subList.length} submission${subList.length === 1 ? '' : 's'}`, subs === null ? null : `${graded} marked`].filter(Boolean).join(' · ') : 'Loading…'}
       actions={exam && <>
-        <Btn onClick={() => onNavigate('exams')}>← Examinations</Btn>
+        <Btn onClick={() => onNavigate('sessions')}>← Collections</Btn>
         <Btn onClick={() => { window.BB_PROCTOR_EXAM = examId; onNavigate('proctor'); }}>Watch live</Btn>
         <Btn onClick={() => onPreview(exam)}>Preview</Btn>
         <Btn onClick={exportCsv}>Export CSV</Btn>
@@ -536,6 +758,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
     >
       <ErrorText>{error}</ErrorText>
       <Notice>{notice}</Notice>
+      {exam && exam.conditions && exam.conditions.phonePark === true && <PhoneParkPanel examId={examId} />}
       {exam && (
         <Panel style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
@@ -588,7 +811,7 @@ export function ManageExamScreen({ onNavigate, onPreview }) {
             {subList.length > 0 && <p className="bb-hint">Students have already submitted. Changing questions now changes what later students see, not earlier answers.</p>}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginTop: '1rem' }}>
               <LinkBtn danger onClick={remove} disabled={subs === null || subList.length > 0}>
-                {subList.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete examination'}
+                {subList.length > 0 ? 'Has submissions: close it instead of deleting' : 'Delete collection'}
               </LinkBtn>
               <Btn primary onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Btn>
             </div>
@@ -608,8 +831,9 @@ export function CoursesListScreen({ onNavigate }) {
   const [term, setTerm] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // A failed load stays null: it is an error, never "no courses yet".
   const load = () => BB_API._json('GET', '/bluebook/courses').then(d => setCourses(d.courses || []))
-    .catch(err => { setError(err.message || 'Could not load courses.'); setCourses([]); });
+    .catch(err => { setError(err.message || 'Could not load courses.'); });
   useEffect(() => { load(); }, []);
 
   async function create(e) {
@@ -619,7 +843,7 @@ export function CoursesListScreen({ onNavigate }) {
       const c = await BB_API.createCourse({ code: code.trim(), name: name.trim(), term: term.trim(), status: 'ACTIVE' });
       setCode(''); setName(''); setTerm(''); setShowNew(false);
       openRoster(c, onNavigate);
-    } catch (err) { setError(`The course was not created: ${err.message || 'unknown error'}.`); }
+    } catch (err) { setError(`The course was not created. ${err.message || 'Please try again.'}`); }
     setBusy(false);
   }
 
@@ -631,12 +855,12 @@ export function CoursesListScreen({ onNavigate }) {
     ) },
     { key: 'term', label: 'Term', render: c => c.term || '—' },
     { key: 'students', label: 'Students', num: true },
-    { key: 'exams', label: 'Exams', num: true },
+    { key: 'exams', label: 'Collections', num: true },
     { key: 'status', label: 'Status', render: c => <Badge>{c.active ? 'active' : 'closed'}</Badge> },
-    { key: 'open', label: 'Roster', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
+    { key: 'open', label: '', actions: true, render: c => <LinkBtn onClick={() => openRoster(c, onNavigate)}>Students & invitations →</LinkBtn> },
   ];
   return (
-    <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? 'Loading…' : `${courses.length} course${courses.length === 1 ? '' : 's'}`}
+    <Page eyebrow="Your workspace" title="Courses" meta={courses === null ? (error ? 'Courses unavailable' : 'Loading…') : `${courses.length} course${courses.length === 1 ? '' : 's'}`}
       actions={<Btn primary onClick={() => setShowNew(v => !v)} aria-expanded={showNew}>+ New course</Btn>}>
       <ErrorText>{error}</ErrorText>
       {showNew && (
@@ -655,8 +879,9 @@ export function CoursesListScreen({ onNavigate }) {
           </form>
         </Panel>
       )}
-      <Table columns={columns} rows={courses || []} rowKey={c => c.id} caption="Courses"
-        empty="No courses yet. Create one, then add your students to it." />
+      {courses === null ? (error ? null : <p role="status">Loading courses…</p>) : (
+      <Table columns={columns} rows={courses} rowKey={c => c.id} caption="Courses"
+        empty="No courses yet. Create one, then add your students to it." />)}
     </Page>
   );
 }
@@ -681,14 +906,23 @@ export function parseRosterInput(text) {
   return out;
 }
 
-function linksAsText(rows) {
-  return rows.filter(r => r.invite_path)
+// "Copy all invite links": one line per student, name, email and link,
+// separated by tabs, so the list reads as three columns when it is pasted
+// into a spreadsheet and as one line per person anywhere else.
+// Sorted by name, then email ("Volunteer 2" before "Volunteer 10"), so the
+// list reads like the roster whatever order the server made the links in.
+const byNameThenEmail = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
+  || String(a.email || '').localeCompare(String(b.email || ''));
+const withLinks = rows => rows.filter(r => r.invite_path).slice().sort(byNameThenEmail);
+
+export function linksAsText(rows) {
+  return withLinks(rows)
     .map(r => `${r.name || ''}\t${r.email || ''}\t${absoluteLink(r.invite_path)}`).join('\n');
 }
 
-function linksAsCsv(rows) {
+export function linksAsCsv(rows) {
   const lines = [['name', 'email', 'invite_link', 'expires'].join(',')];
-  rows.filter(r => r.invite_path).forEach(r => lines.push([
+  withLinks(rows).forEach(r => lines.push([
     csvCell(r.name), csvCell(r.email), csvCell(absoluteLink(r.invite_path)), csvCell(r.invite_expires_at),
   ].join(',')));
   return lines.join('\n') + '\n';
@@ -703,8 +937,65 @@ function InviteLink({ path, expires, emailed }) {
         <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Invite link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
         <LinkBtn onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</LinkBtn>
       </div>
-      <p className="bb-hint">{emailed ? 'Emailed. ' : ''}Works once{expires ? `, until ${new Date(expires).toLocaleDateString()}` : ''}.</p>
+      <p className="bb-hint">{emailed ? 'Emailed. ' : ''}Works once{expires ? (new Date(expires).getUTCFullYear() >= 9999 ? ', until you replace it' : `, until ${new Date(expires).toLocaleDateString()}`) : ''}.</p>
     </div>
+  );
+}
+
+// The course's forwardable sign-up link. One link for the whole course:
+// anyone who opens it makes their own student account (with the student
+// notice) and joins. Off until the teacher turns it on; it stays on until
+// they turn it off or replace it.
+export function SignupLinkPanel({ courseId }) {
+  const [link, setLink] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    BB_API.joinLinkGet(courseId).then(setLink).catch(err => setError(err.message || 'Could not load the sign-up link.'));
+  }, [courseId]);
+
+  async function run(fn, ask) {
+    if (ask && !confirm(ask)) return;
+    setBusy(true); setError('');
+    try { setLink(await fn(courseId)); }
+    catch (err) { setError(err.message || 'Could not change the sign-up link.'); }
+    setBusy(false);
+  }
+
+  const url = link && (link.join_url || (link.join_path ? absoluteLink(link.join_path) : ''));
+  return (
+    <Panel className="bb-signup-link" style={{ marginBottom: '1.5rem' }}>
+      <h2>Sign-up link</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+        One link for the whole course. Anyone who opens it can create their own student account and join this course,
+        so it can be forwarded. Each person reads the student notice and ticks the consent box before their account is made.
+      </p>
+      <ErrorText>{error}</ErrorText>
+      {link === null && !error && <p className="bb-hint">Loading…</p>}
+      {link && !link.enabled && (
+        <div className="bb-actions">
+          <Btn primary disabled={busy} onClick={() => run(id => BB_API.joinLinkEnable(id))}>{busy ? 'Turning on…' : 'Turn on sign-up link'}</Btn>
+        </div>
+      )}
+      {link && link.enabled && (
+        <>
+          {url ? (
+            <div className="bb-linkrow" style={{ marginBottom: '.6rem' }}>
+              <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Sign-up link" className="bb-input" style={{ minHeight: 36, padding: '.35rem .6rem' }} />
+              <LinkBtn onClick={async () => { setCopied(await copyText(url)); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy'}</LinkBtn>
+            </div>
+          ) : (
+            <p className="bb-error">This link can no longer be shown. Replace it to get a new one.</p>
+          )}
+          <div className="bb-actions">
+            <Btn disabled={busy} onClick={() => run(id => BB_API.joinLinkRegenerate(id), 'Replace the sign-up link? The current link stops working at once. Accounts already made with it are kept.')}>Replace link</Btn>
+            <LinkBtn muted disabled={busy} onClick={() => run(id => BB_API.joinLinkDisable(id), 'Turn off the sign-up link? Nobody new can join with it. Accounts already made with it are kept.')}>Turn off</LinkBtn>
+          </div>
+          <p className="bb-hint" style={{ marginTop: '.6rem' }}>On until you turn it off or replace it. Someone whose email already has an account is asked to sign in instead.</p>
+        </>
+      )}
+    </Panel>
   );
 }
 
@@ -719,10 +1010,12 @@ export function RosterScreen({ onNavigate }) {
   const [busy, setBusy] = useState(false);
   const [mail, setMail] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
+  const [copied, setCopied] = useState(0);   // how many links the last copy put on the clipboard
 
   async function load() {
     try { setRows(await BB_API.rosterList(course.id)); }
-    catch (err) { setError(err.message || 'Could not load the roster.'); setRows([]); }
+    // A failed load stays null: it is an error, never "no students yet".
+    catch (err) { setError(err.message || 'Could not load the roster.'); }
   }
   useEffect(() => {
     if (!course) { onNavigate('courses'); return; }
@@ -791,6 +1084,17 @@ export function RosterScreen({ onNavigate }) {
     catch (err) { setError(err.message || 'Could not delete the course.'); }
   }
 
+  async function copyAll() {
+    const n = linkRows.filter(r => r.invite_path).length;
+    if (await copyText(linksAsText(linkRows))) {
+      setCopied(n);
+      setNotice(`${n} invite link${n === 1 ? '' : 's'} copied: one line per student with their name, email and link.`);
+      setTimeout(() => setCopied(0), 2500);
+    } else {
+      setNotice('Your browser did not allow copying. Use “Download links (CSV)” instead, or copy each link from the table below.');
+    }
+  }
+
   if (!course) return null;
   const linkRows = Object.values(links);
   const invited = (rows || []).filter(r => r.state === 'invited').length;
@@ -808,7 +1112,7 @@ export function RosterScreen({ onNavigate }) {
 
   return (
     <Page eyebrow="Course roster" title={course.name}
-      meta={[course.code, rows ? `${rows.length} student${rows.length === 1 ? '' : 's'}` : 'Loading…', invited ? `${invited} waiting to set a password` : null].filter(Boolean).join(' · ')}
+      meta={[course.code, rows ? `${rows.length} student${rows.length === 1 ? '' : 's'}` : (error ? 'Roster unavailable' : 'Loading…'), invited ? `${invited} waiting to set a password` : null].filter(Boolean).join(' · ')}
       actions={<Btn onClick={() => onNavigate('courses')}>← Courses</Btn>}>
       <ErrorText>{error}</ErrorText>
       <Notice>{notice}</Notice>
@@ -828,19 +1132,41 @@ export function RosterScreen({ onNavigate }) {
         {errors.map(r => <ErrorText key={r.email}>{r.email}: {r.error}</ErrorText>)}
       </Panel>
 
-      {linkRows.length > 0 && (
-        <Panel style={{ marginBottom: '1.5rem' }}>
-          <h2>New links ({linkRows.length})</h2>
-          <p className="bb-meta" style={{ marginBottom: '.8rem' }}>Links are shown once. Paste them into your class email or LMS, or download them.</p>
-          <div className="bb-actions">
-            <Btn onClick={async () => setNotice(await copyText(linksAsText(linkRows)) ? 'All links copied (name, email, link per line).' : 'Copy failed. Use the download instead.')}>Copy all links</Btn>
-            <Btn onClick={() => downloadText(`${(course.code || course.name || 'course').replace(/[^A-Za-z0-9]+/g, '-')}-invites.csv`, linksAsCsv(linkRows))}>Download links (CSV)</Btn>
-          </div>
+      <SignupLinkPanel courseId={course.id} />
+
+      {(linkRows.length > 0 || invited > 0) && (
+        <Panel className="bb-invite-links" style={{ marginBottom: '1.5rem' }}>
+          <h2>Invite links{linkRows.length > 0 ? ` (${linkRows.length})` : ''}</h2>
+          {linkRows.length > 0 ? (
+            <>
+              <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+                Each link works once and lasts 14 days. Links are shown only now, so copy or download them before you leave this page.
+                Send each student their own link.
+              </p>
+              <div className="bb-actions">
+                <Btn primary onClick={copyAll}>{copied ? `Copied ${copied} link${copied === 1 ? '' : 's'}` : 'Copy all invite links'}</Btn>
+                <Btn onClick={() => downloadText(`${(course.code || course.name || 'course').replace(/[^A-Za-z0-9]+/g, '-')}-invites.csv`, linksAsCsv(linkRows))}>Download links (CSV)</Btn>
+                {invited > 0 && <LinkBtn muted onClick={reissueAll} disabled={busy}>Fresh links for all {invited} waiting</LinkBtn>}
+              </div>
+              <p className="bb-hint" style={{ marginTop: '.6rem' }}>Copying gives one line per student: name, email and link, separated by tabs, so it also pastes into a spreadsheet as three columns.</p>
+            </>
+          ) : (
+            <>
+              <p className="bb-meta" style={{ marginBottom: '.8rem' }}>
+                {invited} student{invited === 1 ? ' has' : 's have'} not set a password yet. Links are shown only once, when they are made, so
+                to copy them all again, get fresh links. Each student’s earlier link then stops working.
+              </p>
+              <div className="bb-actions">
+                <Btn primary onClick={reissueAll} disabled={busy}>{busy ? 'Making links…' : `Get fresh links for all ${invited} waiting`}</Btn>
+              </div>
+            </>
+          )}
         </Panel>
       )}
 
-      <Section title="Students" actions={invited > 0 && <Btn onClick={reissueAll} disabled={busy}>Fresh links for all {invited} waiting</Btn>}>
-        <Table columns={columns} rows={rows || []} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />
+      <Section title="Students">
+        {rows === null ? (error ? null : <p role="status">Loading the roster…</p>) : (
+        <Table columns={columns} rows={rows} rowKey={r => r.student_id} caption="Course roster" empty="No students on this course yet." />)}
       </Section>
       <div style={{ textAlign: 'right' }}><LinkBtn danger onClick={deleteCourse}>Delete course</LinkBtn></div>
     </Page>
@@ -852,7 +1178,17 @@ export function StudentsScreen({ onNavigate }) {
   const [rows, setRows] = useState(null);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const load = () => BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); setRows([]); });
+  // A teacher reads a student's sealed work from here (alpha bug 2026-10-20:
+  // the Students page listed counts but offered no way to open the work).
+  const [subs, setSubs] = useState(null);
+  // Resumed on another device (resume-location.jsx): the student whose work was open.
+  const [viewing, setViewing] = useState(() => takeResumed('student') || '');
+  useEffect(() => { noteView({ student: viewing }); }, [viewing]);
+  const load = () => {
+    BB_API.listSubmissions().then(setSubs).catch(() => setSubs([]));
+    setError('');
+    return BB_API.listStudents().then(setRows).catch(err => { setError(err.message || 'Could not load students.'); });
+  };
   useEffect(() => { load(); }, []);
 
   async function erase(r) {
@@ -872,18 +1208,33 @@ export function StudentsScreen({ onNavigate }) {
     { key: 'state', label: 'Status', render: r => <Badge>{r.state}</Badge> },
     { key: 'submissions', label: 'Submitted', num: true },
     { key: 'last', label: 'Last submission', render: r => when(r.last_submitted_at) },
-    { key: 'actions', label: 'Actions', actions: true, render: r => <LinkBtn danger onClick={() => erase(r)}>Delete student</LinkBtn> },
+    { key: 'actions', label: 'Actions', actions: true, render: r => <>
+      {r.submissions > 0 && <LinkBtn onClick={() => setViewing(viewing === r.student_id ? '' : r.student_id)} aria-expanded={viewing === r.student_id}>
+        {viewing === r.student_id ? 'Hide work' : 'View work'}
+      </LinkBtn>}
+      <LinkBtn danger onClick={() => erase(r)}>Delete student</LinkBtn>
+    </> },
   ];
+  const viewed = (rows || []).find(r => r.student_id === viewing);
+  const viewedSubs = (subs || []).filter(x => x.student_id === viewing);
   return (
     <Page eyebrow="Your workspace" title="Students"
-      meta={rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
+      meta={error ? 'Students unavailable' : rows === null ? 'Loading…' : `${rows.length} student${rows.length === 1 ? '' : 's'} across your courses`}
       actions={<Btn onClick={() => onNavigate('courses')}>Add students via a course</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div style={{ maxWidth: 420 }}>
         <Field id="studentSearch" label="Search by name or email" value={query} onChange={setQuery} required={false} type="search" />
       </div>
+      {error ? <Btn onClick={load}>Try again</Btn> : rows === null ? <p role="status">Loading students…</p> : (
       <Table columns={columns} rows={shown} rowKey={r => r.student_id} caption="Students"
-        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />
+        empty={q ? 'Nobody matches that search.' : 'No students yet. Add them to a course to invite them.'} />)}
+      {viewed && (
+        <section aria-label={`Work by ${viewed.name || viewed.email || 'student'}`} data-resume-anchor={`work-${viewed.student_id}`} style={{ marginTop: '2rem' }}>
+          <h2 className="bb-h2">Work by {viewed.name || viewed.email || 'this student'}</h2>
+          {subs === null ? <p role="status">Loading submissions…</p>
+            : <SubmissionsTable subs={viewedSubs} showExam onChanged={load} empty="Nothing sealed by this student yet." />}
+        </section>
+      )}
     </Page>
   );
 }
@@ -891,26 +1242,59 @@ export function StudentsScreen({ onNavigate }) {
 // ─── Proctor: live view of one exam ──────────────────────────────────────────
 const LIVE_STATUS = { not_started: 'not started', writing: 'writing', submitted: 'submitted', time_up: 'time up' };
 
+// Which open exam the live view opens on when none was chosen: the one with
+// the most students writing now, then the one with the most still to start
+// (the next sitting, during a break), then the first one the teacher set.
+// `candidates` are [{ id, counts }] in the server's order (newest first).
+export function chooseLiveExam(candidates) {
+  const list = (candidates || []).map((c, i) => ({ ...c, i }));
+  if (!list.length) return '';
+  const n = (c, k) => Number((c.counts || {})[k]) || 0;
+  list.sort((a, b) => (n(b, 'writing') - n(a, 'writing')) || (n(b, 'not_started') - n(a, 'not_started')) || (b.i - a.i));
+  return list[0].id;
+}
+
 export function ProctorLiveScreen() {
   const [exams, setExams] = useState(null);
   const [examId, setExamId] = useState(window.BB_PROCTOR_EXAM || '');
   const [live, setLive] = useState(null);
-  const [tab, setTab] = useState('live');
+  const [tab, setTab] = useState(() => (takeResumed('tab') === 'phones' ? 'phones' : 'live'));
   const [error, setError] = useState('');
 
+  // "Watch live" and a #live/<id> link name the exam once; the next visit
+  // from the navigation chooses afresh (the exam being written now).
+  useEffect(() => { window.BB_PROCTOR_EXAM = ''; }, []);
+  // The exam and tab shown, for resuming on another device (resume-location.jsx).
+  useEffect(() => { noteView({ exam: examId, tab }); }, [examId, tab]);
+  const [tick, setTick] = useState(0);   // "Refresh now"
+  // The tab, read by the exam choice below after its requests come back.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+
   useEffect(() => {
-    BB_API._json('GET', '/bluebook/exams').then(d => {
+    BB_API._json('GET', '/bluebook/exams').then(async d => {
       // Drafts are left out, except the exam this screen was opened for (a
       // deep link, deep-link.jsx), so the picker never shows another title.
       const list = (d.exams || []).filter(e => examState(e) !== 'draft' || e.id === examId);
       setExams(list);
-      if (!examId && list.length) setExamId((list.find(e => examState(e) === 'open') || list[0]).id);
-    }).catch(err => { setError(err.message || 'Could not load examinations.'); setExams([]); });
+      if (examId || !list.length) return;
+      const open = list.filter(e => examState(e) === 'open').slice(0, 6);
+      // At once, so the screen never waits on an exam: the first open one the
+      // teacher set (or the newest exam when none is open).
+      const first = open.length ? chooseLiveExam(open.map(e => ({ id: e.id }))) : list[0].id;
+      setExamId(first);
+      if (open.length < 2) return;
+      // Several are open: look at each and move to the one being written, but
+      // only if the teacher has not chosen an exam or opened the phone park
+      // meanwhile (the park is kept per exam, so moving would close it).
+      const counts = await Promise.all(open.map(e => BB_API.examLive(e.id).then(l => l.counts).catch(() => null)));
+      const best = chooseLiveExam(open.map((e, i) => ({ id: e.id, counts: counts[i] })));
+      setExamId(id => (id === first && tabRef.current === 'live' ? best : id));
+    }).catch(err => { setError(err.message || 'Could not load your collections.'); setExams([]); });
   }, []);
 
   useEffect(() => {
     if (!examId) return undefined;
-    window.BB_PROCTOR_EXAM = examId;
     let alive = true;
     const poll = () => BB_API.examLive(examId)
       .then(d => { if (alive) { setLive(d); setError(''); } })
@@ -918,7 +1302,7 @@ export function ProctorLiveScreen() {
     poll();
     const id = setInterval(poll, 15000);
     return () => { alive = false; clearInterval(id); };
-  }, [examId]);
+  }, [examId, tick]);
 
   const counts = (live && live.counts) || {};
   const columns = [
@@ -931,11 +1315,12 @@ export function ProctorLiveScreen() {
   ];
   if (tab === 'phones') window.BB_EXAM_CONFIG = { ...(window.BB_EXAM_CONFIG || {}), id: examId };
   return (
-    <Page eyebrow="Proctor" title="Live examination"
-      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : 'Choose an examination to watch.'}>
+    <Page eyebrow="Proctor" title="Live sitting"
+      meta={live ? `Updated ${new Date(live.now).toLocaleTimeString()} · refreshes every 15 seconds` : (examId ? 'Loading the live view…' : 'Choose a collection to watch.')}
+      actions={examId && <Btn onClick={() => setTick(t => t + 1)}>Refresh now</Btn>}>
       <ErrorText>{error}</ErrorText>
       <div className="bb-grid cols-2" style={{ alignItems: 'end' }}>
-        <Select id="proctorExam" label="Examination" value={examId} onChange={v => { setLive(null); setExamId(v); }}>
+        <Select id="proctorExam" label="Collection" value={examId} onChange={v => { setLive(null); setExamId(v); }}>
           {!examId && <option value="">Choose…</option>}
           {(exams || []).map(e => <option key={e.id} value={e.id}>{e.title} ({examState(e)})</option>)}
         </Select>
@@ -953,9 +1338,14 @@ export function ProctorLiveScreen() {
             <Stat value={counts.not_started ?? '—'} label="Not started" />
           </div>
           <Table columns={columns} rows={(live && live.students) || []} rowKey={r => r.student_id} caption="Live sitting"
-            empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose an examination above.'} />
+            empty={examId ? 'Nobody on the roster for this exam yet.' : 'Choose a collection above.'} />
           <p className="bb-hint">Warnings arrive when a student seals their exam, so they show for submitted students only.</p>
         </>
+      ) : exams === null ? (
+        // Not before the list: choosing a collection when it arrives changes
+        // the key below, which would remount the panel and refill its box
+        // over whatever the teacher had typed.
+        <p role="status" className="bb-meta" style={{ marginTop: '1rem' }}>Loading your collections…</p>
       ) : (
         <div key={examId} style={{ marginTop: '1rem' }}><ProctorScreen /></div>
       )}

@@ -18,7 +18,7 @@ catalogue==2.0.10
     #   spacy
     #   srsly
     #   thinc
-certifi==2026.7.22
+certifi==2026.10.19
     # via
     #   httpcore
     #   httpx
@@ -27,7 +27,7 @@ charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via uvicorn
-cloudpathlib==0.24.0
+cloudpathlib==0.26.0
     # via weasel
 confection==1.3.3
     # via
@@ -47,7 +47,7 @@ h11==0.16.0
     #   uvicorn
 httpcore==1.0.9
     # via httpx
-httptools==0.8.0
+httptools==0.9.0
     # via uvicorn
 httpx==0.28.1
     # via
@@ -92,6 +92,7 @@ packaging==26.3
     #   weasel
 preshed==3.0.13
     # via
+    #   -r requirements-demo.txt
     #   spacy
     #   thinc
 pydantic==2.13.5
@@ -105,7 +106,7 @@ pydantic-core==2.46.5
     # via pydantic
 pygments==2.20.0
     # via rich
-pypdf==6.19.0
+pypdf==6.21.4
     # via -r requirements-demo.txt
 python-docx==1.2.0
     # via -r requirements-demo.txt
@@ -123,7 +124,7 @@ scikit-learn==1.6.1
     # via -r requirements-demo.txt
 scipy==1.17.1
     # via scikit-learn
-setuptools==83.0.0
+setuptools==84.2.1
     # via
     #   spacy
     #   thinc

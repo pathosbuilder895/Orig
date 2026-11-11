@@ -22,7 +22,7 @@ from ..schemas import (
     SampleSummary,
     StudentStateResponse,
 )
-from ._shared import _repo, _require_guard
+from ._shared import _repo, _require_guard, min_baseline_samples
 
 router = APIRouter()
 
@@ -103,7 +103,8 @@ def get_student(student_id: str):
 # Answers "is this student's baseline good enough to score against yet?" in
 # one call, with plain-language recommendations. Verdict thresholds: 5
 # authenticated samples is where scoring confidence saturates
-# (quantum/scoring.py), 2 is the developing floor, and 0 authenticated
+# (quantum/scoring.py), 3 (MIN_BASELINE_SAMPLES) is the developing floor and
+# the minimum the score endpoint accepts, and 0 authenticated
 # cannot score at all (the score endpoint 422s).
 
 
@@ -132,12 +133,17 @@ def get_student_readiness(student_id: str):
     eff = state.effective_sample_count
     if auth >= 5 and eff >= 3:
         verdict = "ready"
-    elif auth >= 2:
+    elif auth >= max(2, min_baseline_samples()):
         verdict = "developing"
     else:
         verdict = "insufficient"
 
     recs: list[str] = []
+    if 0 < auth < max(2, min_baseline_samples()):
+        recs.append(
+            f"Original will not compare new writing until this student has at least "
+            f"{min_baseline_samples()} approved baseline papers."
+        )
     if auth == 0:
         recs.append(
             "Collect a first proctored writing sample (via Collections) — "

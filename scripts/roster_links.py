@@ -312,6 +312,12 @@ def main() -> int:
         help="validity window for a signed launch link (default: 14 days).",
     )
     ap.add_argument(
+        "--no-expiry",
+        action="store_true",
+        help="signed launch links stay valid for 100 years (closed alpha). They cannot "
+        "be revoked one by one; rotate SECRET_KEY or delete the tenant to revoke.",
+    )
+    ap.add_argument(
         "--no-disclosure",
         action="store_true",
         help="suppress the syllabus-disclosure reminder printed to stderr",
@@ -371,7 +377,7 @@ def main() -> int:
             args.exam,
             name,
             args.include_name,
-            args.link_ttl_days,
+            36500 if args.no_expiry else args.link_ttl_days,
             exam_id=args.exam_id,
         )
 

@@ -431,6 +431,49 @@
     return (typeof v === 'number' && isFinite(v)) ? v : null;
   }
 
+  // Words across all of a student's reference papers, from a readiness answer:
+  // its word_stats mean over sample_count papers. 0 for no papers; null when
+  // the answer does not say.
+  function wordsIn(d) {
+    var n = count(d && d.sample_count);
+    if (n === 0) return 0;
+    var ws = d && d.word_stats;
+    var mean = ws && typeof ws === 'object' ? count(ws.mean) : null;
+    return n === null || mean === null ? null : Math.round(mean * n);
+  }
+
+  // The least reference writing a student needs before Original's reading of
+  // a new piece means anything: 3 papers and 300 words in all. Below it the
+  // reading is inconclusive (NORTH_STAR rule 3). It is the rule the alpha
+  // test's batch reading uses (docs/alpha/scoring_plan.md, alpha-test-kit
+  // branch), and its 3 papers are the floor a sealed exam is held to
+  // (Bluebook records INCONCLUSIVE below 3 teacher-approved samples). Returns
+  // { met, tone, short, text } for a count of papers and of words.
+  var MIN_PAPERS = 3, MIN_WORDS = 300;
+  var MIN_RULE = 'at least ' + MIN_PAPERS + ' papers and ' + MIN_WORDS + ' words in all';
+  function referenceStatus(papers, words) {
+    var p = count(papers), w = count(words);
+    var nPapers = function (n) { return n + ' paper' + (n === 1 ? '' : 's'); };
+    if (p === null) return { met: null, tone: 'off', short: 'Not known', text: 'The number of papers could not be read just now.' };
+    if (p === 0) return { met: false, tone: 'bad', short: 'No papers yet', need: 'Needs ' + MIN_RULE + '.', text: 'No reference papers yet. Add ' + MIN_RULE + '.' };
+    var needP = Math.max(0, MIN_PAPERS - p);
+    var needW = w === null ? null : Math.max(0, MIN_WORDS - w);
+    var have = nPapers(p) + (w === null ? '' : ', ' + w + ' word' + (w === 1 ? '' : 's'));
+    if (needP === 0 && needW === 0) {
+      return { met: true, tone: 'ok', short: 'Meets the minimum', text: have + ': meets the minimum of ' + MIN_RULE + '.' };
+    }
+    var adds = [];
+    if (needP) adds.push(needP + ' more paper' + (needP === 1 ? '' : 's'));
+    if (needW) adds.push('at least ' + needW + ' more word' + (needW === 1 ? '' : 's'));
+    if (needW === null && !needP) {
+      return { met: null, tone: 'off', short: 'Words not known', text: have + '. The word count could not be read, so check the papers come to 300 words or more.' };
+    }
+    return {
+      met: false, tone: 'warn', short: 'Below the minimum', need: 'Needs ' + adds.join(' and ') + '.',
+      text: have + '. Below the minimum of ' + MIN_RULE + ': add ' + adds.join(' and ') + '. Until then Original’s reading is inconclusive.'
+    };
+  }
+
   function rosterFailure() {
     return Object.freeze({
       ok: false, error: 'Could not load your students', scoped: false, students: freezeList([]),
@@ -453,9 +496,9 @@
       // name. The readiness response below then supplies the counts.
       var base = rows
         ? rows.map(function (r) {
-            return { id: String(r.id), name: r.name, ac: count(r.authenticated_count), sc: count(r.sample_count), verdict: null };
+            return { id: String(r.id), name: r.name, ac: count(r.authenticated_count), sc: count(r.sample_count), words: null, verdict: null };
           })
-        : ids.map(function (id) { return { id: String(id), name: '', ac: null, sc: null, verdict: null }; });
+        : ids.map(function (id) { return { id: String(id), name: '', ac: null, sc: null, words: null, verdict: null }; });
 
       var asked = base.slice(0, ROSTER_CAP);
       var checks = asked.map(function (r) {
@@ -469,6 +512,7 @@
           if (!d) return;
           if (VERDICTS.indexOf(d.verdict) >= 0) r.verdict = d.verdict;
           if (!rows) { r.ac = count(d.authenticated_count); r.sc = count(d.sample_count); }
+          r.words = wordsIn(d);
         });
 
         // Keyed by ids the API sent: a Map, so an id like "constructor" is just an id.
@@ -512,6 +556,7 @@
             courses: freezeList(courses),
             counted: r.ac,
             samples: r.sc,
+            words: r.words,
             verdict: r.verdict,
             lastSealed: bluebook === 'ok' ? ((b && b.last_submitted_at) || (e && e.last) || null) : null,
             sealed: bluebook === 'ok' ? (e ? e.n : 0) : null,
@@ -619,6 +664,9 @@
     roster: roster,
     VERDICT_WORDS: VERDICT_WORDS,
     verdictWord: verdictWord,
+    referenceStatus: referenceStatus,
+    referenceWords: wordsIn,
+    REFERENCE_MINIMUM: MIN_RULE,
     sealed: sealed,
     signOut: signOut
   };

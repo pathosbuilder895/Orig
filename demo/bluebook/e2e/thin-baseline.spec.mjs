@@ -34,6 +34,9 @@ async function createExam(request, workerTenant, title) {
     data: {
       title, course: 'PHIL 301A', duration: 120, minWords: 12, maxWords: 5000,
       prompt: 'Discuss.', status: 'PUBLISHED',
+      // The server only lets a student score during a sitting whose exam has
+      // writing consistency enabled, so enable it on the exam itself.
+      conditions: { aiDetect: true },
     },
   })
   expect(res.ok()).toBe(true)
@@ -58,6 +61,7 @@ async function sealAsNewStudent({ browser, request, workerTenant }, samples, tit
       id: examArg.id, title: examArg.title, course: examArg.course,
       courseTitle: examArg.course, candidate: cand, duration: 7200,
       minWords: 12, maxWords: null, blockWeb: false, blockCopy: false, spellChk: true,
+      aiDetect: true, // writing consistency is off by default
     }
   }, [exam, student.student_id, candidate])
   await page.goto('/bluebook/')

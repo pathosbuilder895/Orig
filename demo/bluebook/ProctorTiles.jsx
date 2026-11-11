@@ -1,7 +1,7 @@
 import React from 'react';
 import { BB, BB_API, MetaLabel, fontBody, fontMono, rowKeyDown } from './components.jsx';
 import { Btn } from './forms.jsx';
-import { qrEncode, qrPath } from './vendor/qr.js';
+import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Proctor tiles (QR phone park)
@@ -81,17 +81,17 @@ function Tile({ tile, expanded, onToggle }) {
       >
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
           <p style={{
-            fontFamily: fontBody, fontSize: 17, color: BB.cream,
+            fontFamily: fontBody, fontSize: '1.0625rem', color: BB.cream,
             margin: 0, letterSpacing: '0.01em',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{tile.student_hint}</p>
           {/* glyph + word + colour: three cues, any one of which is enough */}
           <span style={{
-            fontFamily: fontMono, fontSize: 11, letterSpacing: '0.16em',
+            fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.16em',
             textTransform: 'uppercase', color: tone.color,
             display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
           }}>
-            <span aria-hidden="true" style={{ fontSize: 10 }}>{view.glyph}</span>
+            <span aria-hidden="true" style={{ fontSize: '.75rem' }}>{view.glyph}</span>
             {view.label}
           </span>
         </div>
@@ -104,7 +104,7 @@ function Tile({ tile, expanded, onToggle }) {
         <div style={{ borderTop: `1px solid ${tone.border}`, padding: '12px 16px 14px' }}>
           <MetaLabel style={{ display: 'block', marginBottom: 10 }}>Timeline</MetaLabel>
           {transitions.length === 0 ? (
-            <p style={{ fontFamily: fontBody, fontSize: 14, color: BB.fade, margin: 0 }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.875rem', color: BB.fade, margin: 0 }}>
               No changes recorded yet.
             </p>
           ) : (
@@ -116,15 +116,15 @@ function Tile({ tile, expanded, onToggle }) {
                     key={`${t.at}-${i}`}
                     style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0' }}
                   >
-                    <span aria-hidden="true" style={{ fontSize: 9, color: TONE[tv.tone].color, flexShrink: 0 }}>
+                    <span aria-hidden="true" style={{ fontSize: '.75rem', color: TONE[tv.tone].color, flexShrink: 0 }}>
                       {tv.glyph}
                     </span>
                     <span style={{
-                      fontFamily: fontMono, fontSize: 11, letterSpacing: '0.1em',
+                      fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.1em',
                       textTransform: 'uppercase', color: TONE[tv.tone].color,
                       minWidth: 74, flexShrink: 0,
                     }}>{tv.label}</span>
-                    <span style={{ fontFamily: fontMono, fontSize: 12, color: BB.fade }}>
+                    <span style={{ fontFamily: fontMono, fontSize: '.75rem', color: BB.fade }}>
                       {clockTime(t.at)}
                     </span>
                   </li>
@@ -133,7 +133,7 @@ function Tile({ tile, expanded, onToggle }) {
             </ol>
           )}
           {view.note && (
-            <p style={{ fontFamily: fontBody, fontSize: 13.5, color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
               {view.note}
             </p>
           )}
@@ -183,7 +183,7 @@ export function ProctorTiles({ examSessionId }) {
     <section aria-label="Parked phones">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <h3 style={{
-          fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, color: BB.cream,
+          fontFamily: "var(--bb-font-display)", fontSize: '1.25rem', color: BB.cream,
           fontWeight: 500, margin: 0,
         }}>Parked Phones</h3>
         <MetaLabel>
@@ -199,7 +199,7 @@ export function ProctorTiles({ examSessionId }) {
           border: '1px dashed rgba(201,169,97,0.28)', borderRadius: 14,
           padding: '26px 20px', textAlign: 'center',
         }}>
-          <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: 0 }}>
+          <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: 0 }}>
             {idle
               ? 'Start a phone park above to see tiles here.'
               : missing
@@ -227,7 +227,7 @@ export function ProctorTiles({ examSessionId }) {
       )}
 
       <p style={{
-        fontFamily: fontBody, fontSize: 13.5, color: BB.fade,
+        fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade,
         margin: '16px 0 0', lineHeight: 1.55,
       }}>
         A tile shows what a phone reported, nothing more. A phone can go quiet for
@@ -235,44 +235,6 @@ export function ProctorTiles({ examSessionId }) {
         change as a reason to walk over and have a quiet word, never as a finding.
       </p>
     </section>
-  );
-}
-
-// ─── QR code ─────────────────────────────────────────────────────────────────
-// Encoded in-process (see vendor/qr.js) — never a CDN or an image service,
-// which would mean posting the park URL to a third party and would leave an
-// offline exam room with a blank square where the code should be.
-//
-// Rendered dark-on-white regardless of the surrounding theme: scanners expect
-// dark modules on a light field, and the quiet zone is part of the symbol.
-function QrCode({ value, px = 300 }) {
-  const encoded = React.useMemo(() => {
-    try {
-      return qrEncode(value);
-    } catch (e) {
-      return null;   // over capacity — the caller shows the URL instead
-    }
-  }, [value]);
-
-  const d = React.useMemo(() => (encoded ? qrPath(encoded.modules) : ''), [encoded]);
-  if (!encoded) return null;
-
-  const quiet = 4;
-  const total = encoded.size + quiet * 2;
-  return (
-    <svg
-      width={px} height={px}
-      viewBox={`0 0 ${total} ${total}`}
-      shapeRendering="crispEdges"
-      role="img"
-      aria-label="QR code for the phone park page. The same link is printed below."
-      style={{ display: 'block' }}
-    >
-      <rect width={total} height={total} fill="#FFFFFF" />
-      <g transform={`translate(${quiet} ${quiet})`} fill="#000000">
-        <path d={d} />
-      </g>
-    </svg>
   );
 }
 
@@ -319,7 +281,7 @@ export function ProctorScreen() {
     <div>
       <div>
         <h1 style={{
-          fontFamily: "'Playfair Display', Georgia, serif", fontSize: 28, color: BB.cream,
+          fontFamily: "var(--bb-font-display)", fontSize: '1.75rem', color: BB.cream,
           fontWeight: 500, margin: '0 0 6px',
         }}>Phone Park</h1>
         <MetaLabel>Deterrence and signal — never proof</MetaLabel>
@@ -327,7 +289,7 @@ export function ProctorScreen() {
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '20px 0 28px' }} />
 
       <p style={{
-        fontFamily: fontBody, fontSize: 16, color: BB.fade,
+        fontFamily: fontBody, fontSize: '1rem', color: BB.fade,
         maxWidth: 620, margin: '0 0 28px', lineHeight: 1.6,
       }}>
         Project the code at the start of the sitting and ask the room to scan it
@@ -353,7 +315,7 @@ export function ProctorScreen() {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); start(); } }}
             style={{
               flex: '1 1 240px', minWidth: 0, padding: '11px 13px',
-              fontFamily: fontBody, fontSize: 16, color: BB.cream,
+              fontFamily: fontBody, fontSize: '1rem', color: BB.cream,
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
             }}
           />
@@ -367,17 +329,17 @@ export function ProctorScreen() {
             </Btn>
           )}
         </div>
-        <p style={{ fontFamily: fontBody, fontSize: 13.5, color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
+        <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
           Any label you will recognise later. Reopening the same one during a
           sitting shows the same code, so a reload will not strand parked phones.
         </p>
         {error && (
-          <p role="alert" style={{ fontFamily: fontBody, fontSize: 15, color: '#E8A598', margin: '10px 0 0' }}>
+          <p role="alert" style={{ fontFamily: fontBody, fontSize: '.9375rem', color: '#E8A598', margin: '10px 0 0' }}>
             {error}
           </p>
         )}
         {closed && !open && (
-          <p role="status" style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '10px 0 0' }}>
+          <p role="status" style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '10px 0 0' }}>
             Phone park closed. The code no longer works and the beats are deleted.
           </p>
         )}
@@ -394,10 +356,10 @@ export function ProctorScreen() {
             <QrCode value={open.qr_url} px={300} />
           </div>
           <p style={{
-            fontFamily: fontMono, fontSize: 13, color: BB.cream,
+            fontFamily: fontMono, fontSize: '.8125rem', color: BB.cream,
             margin: '18px 0 0', wordBreak: 'break-all', lineHeight: 1.5,
           }}>{open.qr_url}</p>
-          <p style={{ fontFamily: fontBody, fontSize: 13.5, color: BB.fade, margin: '8px 0 0' }}>
+          <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '8px 0 0' }}>
             A phone that cannot scan can type this in instead.
           </p>
         </div>

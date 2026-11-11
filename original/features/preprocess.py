@@ -96,18 +96,69 @@ _SCRIPTURE_PAREN = re.compile(
     r"\((?:[1-3]\s*)?[A-Z][a-z]+\.?\s+\d+(?::\d+)?(?:[–\-]\d+)?(?:;\s*(?:[1-3]\s*)?[A-Z][a-z]+\.?\s+\d+(?::\d+)?)*\)",
 )
 
-# Block quotes: 40+ words in "…" or indented 4 spaces / tab
-# Block-quote detector: match "..." spans of 200+ characters (\u224840+ words).
-# Uses [^"] to avoid nested quantifiers and catastrophic backtracking on texts
-# that have an unmatched opening quote (common in 18th-century prose that uses
-# "\u2026" for emphasis rather than block quotation).
+# Block quotes: 40+ words in "…" / “…” or indented 4 spaces / tab.
+#
+# The quote detector matches a quotation of 200+ characters (~40+ words) from
+# a real OPENING mark to its real CLOSING mark:
+#
+# * Straight quotes are ambiguous, so their role is read from context: an
+#   opening " sits at the start of the text or after whitespace / an opening
+#   bracket / a dash and is followed by a non-space character; a closing "
+#   follows a non-space character and is followed by whitespace, punctuation,
+#   a closing bracket, a dash or the end of the text.
+# * Curly quotes say which side they are on: “ opens, ” closes.
+# * The quoted body may not contain any double-quote character (" “ ”). So a
+#   match can never run from one short quote's closing mark to the next short
+#   quote's opening mark, and nested or unbalanced double quotes produce no
+#   match at all: the text is kept (fail safe), never dropped.
+#
+# The earlier pattern, '"[^"]{200,}"', also matched from a CLOSING quote to the
+# next OPENING quote, so any paper with two short quotations more than 200
+# characters apart lost all the prose between them (2026-10-24 finding,
+# docs/STATUS.md). The body class is still a single negated class with no
+# nested quantifier, so a text with an unmatched quote cannot backtrack
+# catastrophically.
+_QUOTE_CHARS = '"\u201c\u201d'
 _DOUBLE_QUOTE_BLOCK = re.compile(
-    r'"[^"]{200,}"',
-    re.DOTALL,
+    # straight quotes: opener in opening position, closer in closing position
+    r'(?<![^\s(\[{\u2014\u2013-])"(?=[^\s' + _QUOTE_CHARS + r"])"
+    r"[^" + _QUOTE_CHARS + r"]{200,}"
+    r'(?<=\S)"(?=[\s.,;:!?)\]}\u2014\u2013-]|$)'
+    # curly quotes: “ … ” with no double-quote character inside
+    r"|\u201c[^" + _QUOTE_CHARS + r"]{200,}\u201d",
 )
+# Indented block quote: a WHOLE paragraph (blank line or start of text before
+# it, blank line or end of text after it) of two or more lines that all begin
+# with 4 spaces or a tab. The earlier pattern, '(?m)^(?:    |\t).+(?:\n...)*',
+# also took the first line of every paragraph written with a first-line indent
+# (hard-wrapped text) and every one-line paragraph that starts with a tab
+# (a typed paragraph indent), dropping the writer's own prose. A single
+# indented line, or an indented first line followed by unindented lines, is a
+# paragraph indent and is kept. See _indent_is_paragraph_style for the case
+# where every paragraph is indented.
 _INDENT_BLOCK = re.compile(
-    r"(?m)^(?:    |\t).+(?:\n(?:    |\t).+)*",
+    r"(?:\A|(?<=\n\n))"
+    r"(?:    |\t)[^\n]*\S[^\n]*"
+    r"(?:\n(?:    |\t)[^\n]*\S[^\n]*)+"
+    r"(?=\n[ \t]*\n|[ \t\n]*\Z)",
 )
+_PARAGRAPH_SPLIT = re.compile(r"\n[ \t]*\n")
+
+
+def _indent_is_paragraph_style(body: str) -> bool:
+    """True when every paragraph is indented: then indentation is how the
+    writer lays out paragraphs, not a marker of quoted text, so nothing is
+    stripped as an indented block quote (fail safe: keep the text)."""
+    paragraphs = [p for p in _PARAGRAPH_SPLIT.split(body) if p.strip()]
+    return bool(paragraphs) and all(p.lstrip("\n").startswith(("    ", "\t")) for p in paragraphs)
+
+
+def _indent_blocks(body: str) -> list[re.Match]:
+    """Indented block quotes in *body* (empty when indentation is paragraph style)."""
+    if _indent_is_paragraph_style(body):
+        return []
+    return list(_INDENT_BLOCK.finditer(body))
+
 
 # Ibid. / op. cit. / loc. cit.
 _IBID_RE = re.compile(r"\bibid(?:\.|,)?\b|\bop\.\s*cit\.\b|\bloc\.\s*cit\.\b", re.IGNORECASE)
@@ -306,7 +357,7 @@ def _extract_citation_data(body: str) -> CitationData:
             cd.block_quote_word_count += wc
         else:
             cd.short_quote_count += 1
-    for m in _INDENT_BLOCK.finditer(body):
+    for m in _indent_blocks(body):
         cd.block_quote_word_count += len(m.group(0).split())
 
     # ── Per-paragraph citation density ────────────────────────────────────────
@@ -357,7 +408,7 @@ def _clean_prose(body: str) -> str:
     - Block quotes (indented or > 40 words in quotes)
     """
     # Remove block quotes (indented) first so we don't process their content
-    prose = _INDENT_BLOCK.sub(" ", body)
+    prose = body if _indent_is_paragraph_style(body) else _INDENT_BLOCK.sub(" ", body)
 
     # Remove long quoted blocks
     def _maybe_strip_quote(m: re.Match) -> str:

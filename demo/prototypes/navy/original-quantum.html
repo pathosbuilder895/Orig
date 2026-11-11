@@ -244,6 +244,8 @@
   /* global: hide scrollbars */
 *::-webkit-scrollbar{width:0;height:0;display:none;}
 *{scrollbar-width:none;-ms-overflow-style:none;}
+  /* Frame photo restored from the 2026-10 mockup (assets/CREDITS.md). */
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.12) hue-rotate(184deg);opacity:1;}
 </style>
 </head>
 <body class="demo-frame">

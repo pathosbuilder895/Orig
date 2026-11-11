@@ -51,7 +51,7 @@ test.describe('Public self-serve journey', () => {
     await teacher.getByRole('button', { name: 'Create workspace' }).click()
     await expect(teacher.getByRole('button', { name: 'Overview', exact: true })).toBeVisible({ timeout: 10_000 })
     // A Bluebook-only workspace has no Original cross-link.
-    await expect(teacher.getByRole('button', { name: /Original Analysis/ })).toHaveCount(0)
+    await expect(teacher.getByRole('button', { name: /^Original/ })).toHaveCount(0)
 
     // ── Teacher: course (creating it opens its roster) ─────────────────
     await teacher.getByRole('button', { name: 'Courses', exact: true }).click()
@@ -78,8 +78,8 @@ test.describe('Public self-serve journey', () => {
     expect(linksCsv).toContain(inviteUrl)
 
     // ── Teacher: exam with two questions, linked to the course ─────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await teacher.getByRole('button', { name: '+ New examination' }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
+    await teacher.getByRole('button', { name: '+ New collection' }).click()
     await teacher.locator('#neTitle').fill(examTitle)
     await teacher.locator('#neDuration').fill('30')
     await teacher.locator('#neMinWords').fill('5')
@@ -88,10 +88,10 @@ test.describe('Public self-serve journey', () => {
     await teacher.locator('#nePrompt1').fill(q2)
     const [createRes] = await Promise.all([
       teacher.waitForResponse(r => r.url().endsWith('/bluebook/exams') && r.request().method() === 'POST'),
-      teacher.getByRole('button', { name: 'Publish Examination' }).click(),
+      teacher.getByRole('button', { name: 'Publish Collection' }).click(),
     ])
     expect((await createRes.json()).questions).toEqual([q1, q2])
-    await expect(teacher.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(teacher.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
 
     // ── Student: redeem, see the exam, sit it ───────────────────────────
     const sctx = await browser.newContext()
@@ -102,6 +102,9 @@ test.describe('Public self-serve journey', () => {
     await student.goto(new URL(inviteUrl).pathname + new URL(inviteUrl).search)
     await student.getByLabel('New password').fill('e2e-student-pass-1')
     await student.getByLabel('Confirm password').fill('e2e-student-pass-1')
+    // A student's invitation asks them to read the student notice and accept the terms.
+    await expect(student.getByText(/I have read the student notice/)).toBeVisible()
+    await student.getByRole('checkbox').check()
     await student.getByRole('button', { name: 'Save and continue' }).click()
     await expect(student.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     await expect(student).not.toHaveURL(/invite=/)
@@ -160,7 +163,7 @@ test.describe('Public self-serve journey', () => {
     await expect(student.getByText('Not yet released')).toBeVisible({ timeout: 10_000 })
 
     // ── Teacher: read each answer and the warning, mark, release ────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
     await teacher.getByRole('button', { name: examTitle, exact: true }).click()
     await expect(teacher.getByRole('button', { name: 'Export CSV' })).toBeVisible({ timeout: 10_000 })
     await teacher.getByRole('button', { name: 'Read & mark' }).click()

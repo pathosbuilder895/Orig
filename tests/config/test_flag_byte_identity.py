@@ -267,6 +267,9 @@ FLAG_OFF_VALUES: dict[str, str] = {
     "TYPICALITY_SCORING": "0",
     "TYPICALITY_POOLED_CALIBRATION": "0",
     "IDENTITY_AXIS": "0",
+    # ADR-013 staff explainability: report-only, never moves a score.
+    "EVIDENCE_PASSAGES_ENABLED": "0",
+    "PRELIMINARY_SCORE_ENABLED": "0",
 }
 
 
