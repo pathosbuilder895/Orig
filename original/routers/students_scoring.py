@@ -62,7 +62,60 @@ def _throttle_score(request: Request | None) -> None:
         _score_calls.clear()
 
 
+def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
+    """Students may score only their own work during an enabled exam sitting.
+
+    Staff batch scoring uses a staff token and is unaffected. In particular,
+    a student cannot bypass an exam's disabled writing-consistency setting by
+    calling the Original scoring API directly.
+    """
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is None or principal.role != "student":
+        return
+    if principal.user_id != student_id:
+        raise HTTPException(status_code=403, detail="Students may score only their own work.")
+    repo = _repo()
+    exams = repo.list_bluebook_exams(principal.tenant_id)
+    # Preserve the standalone scoring API for tenants that have not created an
+    # exam. Once exams exist, a student score must be tied to an enabled sitting.
+    if not exams:
+        return
+    for exam in exams:
+        if not (exam.get("conditions") or {}).get("aiDetect"):
+            continue
+        if repo.get_bluebook_session(exam["id"], student_id):
+            return
+    raise HTTPException(
+        status_code=403,
+        detail="Writing consistency scoring is unavailable for this exam.",
+    )
+
+
 # ── Score submission ──────────────────────────────────────────────────────────
+
+
+from ._shared import min_baseline_samples  # noqa: E402
+
+
+def _require_min_baseline(state) -> None:
+    _min_baseline = min_baseline_samples()
+    if state.authenticated_count < _min_baseline:
+        # Too few approved papers to know this student's normal range: return
+        # a clear "insufficient baseline" state instead of a number. With two
+        # papers the false-flag rate roughly triples in simulation.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "insufficient_baseline",
+                "message": (
+                    f"Original needs at least {_min_baseline} approved baseline papers "
+                    f"before it can compare new writing; this student has "
+                    f"{state.authenticated_count}."
+                ),
+                "required": _min_baseline,
+                "have": state.authenticated_count,
+            },
+        )
 
 
 @router.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
@@ -73,6 +126,7 @@ def score_submission(
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
     _throttle_score(request)
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -84,6 +138,7 @@ def score_submission(
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+    _require_min_baseline(state)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -589,7 +644,73 @@ def score_submission(
     except Exception:
         pass
 
-    return _to_response(result, arc, report=report)
+    response = _to_response(result, arc, report=report)
+    _attach_staff_explainability(response, request, req.text, state, result)
+    return response
+
+
+def _attach_staff_explainability(response, request, text: str, state, result) -> None:
+    """ADR-013: located evidence and the preliminary score, both off by default.
+
+    Only for an HTTP caller that is not a student session. In-process callers
+    (``/me/work`` scores a student's own piece with ``request=None``) never
+    get either, and neither changes the score or the action.
+    """
+    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+
+    want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
+    if request is None or not (want_evidence or want_preliminary):
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    if want_preliminary:
+        from ..schemas import PreliminaryScoreOut
+
+        confidence = result.baseline_confidence
+        # Same line the readiness verdict draws for "ready" (students.py).
+        ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        response.preliminary = PreliminaryScoreOut(
+            **preliminary_score(
+                result.authorship.deviation_score,
+                result.recommendation.action,
+                inconclusive=not ready,
+            )
+        )
+    if want_evidence:
+        try:
+            used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+            # Every measurement, with the engine's own vectors and baseline
+            # mean when every contributing sample has its text (otherwise the
+            # mean would cover papers the page cannot show).
+            complete = len(used) == sum(1 for s in state.samples if s.auth_weight > 0)
+            response.evidence = build_evidence(
+                [dataclasses.asdict(f) for f in result.interference.destructive_features],
+                text,
+                baselines,
+                all_features=True,
+                submission_vector=result.feature_vector,
+                baseline_vectors=[s.vector for s in used],
+                past_average=state.baseline_mean if complete else None,
+            )
+            # Where each "past paper N" came from, for the teacher's side-by-side
+            # view: only what the sample already stores, nothing derived.
+            response.evidence["baseline_papers"] = [
+                {
+                    "paper": label,
+                    "assignment": getattr(s, "assignment", "") or None,
+                    "submitted_at": getattr(s, "submitted_at", "") or None,
+                    "provenance": getattr(s, "provenance", None),
+                    "word_count": getattr(s, "word_count", None),
+                }
+                for (label, _), s in zip(baselines, used, strict=True)
+            ]
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "evidence passages failed; omitted from the response"
+            )
+            response.evidence = None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────
@@ -604,7 +725,7 @@ def score_submission(
     "/students/{student_id}/score/blend",
     response_model=BlendResultOut,
 )
-def score_blend(student_id: str, req: BlendDetectionRequest):
+def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = None):
     """
     Detect mid-document fingerprint shifts (collaboration / AI insertion /
     advisor edits) by scoring overlapping token windows separately.
@@ -612,6 +733,7 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -624,6 +746,8 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+
+    _require_min_baseline(state)
 
     from ..context.blend import detect_blend
 

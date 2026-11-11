@@ -64,7 +64,7 @@ async function teacherPage(browser, baseURL, { tenant, staff }) {
 
 async function openExam(page, examTitle) {
   await page.goto('/bluebook/')
-  await page.getByRole('button', { name: 'Examinations' }).first().click()
+  await page.getByRole('button', { name: 'Collections' }).first().click()
   await page.getByRole('button', { name: examTitle }).click()
 }
 
@@ -128,7 +128,7 @@ test.describe('Teacher reading and marking a sealed submission', () => {
     const ws = await workspace(request)
     const { ctx, page } = await teacherPage(browser, baseURL, ws)
     await page.goto('/bluebook/')
-    await page.getByRole('button', { name: 'Examinations' }).first().click()
+    await page.getByRole('button', { name: 'Collections' }).first().click()
     // Fail only the exam screen's own list request, not the dashboard's.
     let failures = 1
     await page.route('**/bluebook/submissions', route => {

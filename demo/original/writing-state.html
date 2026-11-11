@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -312,6 +312,7 @@
   .fpq-btn:disabled{opacity:.45;cursor:default;}
   .fpq-btn:disabled:hover{color:var(--dim);}
   .tri-btn:disabled{opacity:.55;cursor:default;}
+  .tri-btn[hidden]{display:none;}
   .tri-done.err{color:#f0a690;}
   .tri-note{flex-basis:100%;font-size:.76rem;font-style:italic;color:var(--dim-2);}
   /* Feature detail and evidence: the server's own reading of each habit */
@@ -427,10 +428,11 @@
             <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
           </div>
           <div class="fpq-hint">Drag across the print to disturb it</div>
-          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing fingerprint · decorative</span></div>
+          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
           <div class="plain-read" id="plain-read">Loading</div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
+            <a class="tri-btn packet" id="tri-evidence" href="evidence.html" style="text-decoration:none;" hidden>See it side by side</a>
             <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
             <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
             <span class="tri-done" id="tri-done" role="status"></span>
@@ -440,7 +442,7 @@
             <div class="evi-head">
               <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
               <span class="evi-nums" id="evi-nums"></span>
-              <button class="evi-close" id="evi-close" type="button">✕ Back to fingerprint</button>
+              <button class="evi-close" id="evi-close" type="button">✕ Back to the pattern</button>
             </div>
             <div class="evi-desc" id="evi-desc"></div>
             <div class="evi-cols">
@@ -475,7 +477,7 @@
           <div class="sec-h"><b>How the number is made</b></div>
           <div class="card mnote">
             <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
-            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The fingerprint above is decorative, not drawn from ρ: it is the same print for every student.</p>
+            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The pattern above is decorative, not drawn from ρ: it is the same pattern for every student.</p>
             <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
           </div>
         </div>
@@ -484,9 +486,9 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-11.1"></script>
-<script src="js/feature-data.js?v=2026-10-11.1"></script>
-<script src="js/fingerprint.js?v=2026-10-11.1"></script>
+<script src="live.js?v=2026-10-26.1"></script>
+<script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="js/fingerprint.js?v=2026-10-26.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1018,7 +1020,7 @@
     const a=bc?num(bc.authenticated_count):null, e=bc?num(bc.effective_sample_count):null;
     if(a==null||e==null) return null;
     if(a>=5&&e>=3) return 'ready';
-    if(a>=2) return 'developing';
+    if(a>=3) return 'developing';
     return 'insufficient';
   }
   const verdictNow=()=>S.verdict||(S.result?resultVerdict():null);
@@ -1164,6 +1166,17 @@
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
     S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
+    showEvidenceLink();
+  }
+  // The side-by-side page (evidence.html) only when the server sent passages:
+  // the staff-only `evidence` field, null unless EVIDENCE_PASSAGES_ENABLED=1.
+  // Without it this page looks exactly as before.
+  const hasEvidence=r=>!!(r&&r.evidence&&typeof r.evidence==='object'&&Array.isArray(r.evidence.all_features));
+  function showEvidenceLink(){
+    const a=$('tri-evidence'); if(!a) return;
+    const on=hasEvidence(S.result);
+    a.hidden=!on;
+    a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
   }
 
   async function analyse(e){
@@ -1288,6 +1301,10 @@
         feature_vector:pick(S.sub), baseline_vector:pick(S.base)
       }
     };
+    // The side-by-side page's data, only when the server sent it (staff only,
+    // behind EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED).
+    if(hasEvidence(r)) keep.result.evidence=r.evidence;
+    if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
   }
 
@@ -1357,6 +1374,7 @@
     });
     document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
     $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
+    $('tri-evidence').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
 
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }

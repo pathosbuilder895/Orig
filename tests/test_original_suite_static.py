@@ -356,6 +356,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/baseline.html",
         "/original/writing-state.html",
         "/original/packet.html",
+        "/original/evidence.html",
         "/original/settings.html",
         "/original/submissions.html",
         "/original/reports.html",
@@ -367,6 +368,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/fonts.css",
         "/original/js/fingerprint.js",
         "/original/js/feature-data.js",
+        "/original/js/evidence-view.js",
         "/original/assets/radcliffe-night-stars.jpeg",
         "/original/assets/st-andrews-quad.jpg",
         "/original/assets/radcliffe-observatory-watercolour.jpg",
@@ -2703,8 +2705,11 @@ def test_writing_state_cleans_the_label_it_keeps_on_this_computer():
 
 def test_writing_state_calls_its_picture_decorative_and_names_no_symbol_that_is_not_drawn():
     page = _writing_state()
-    assert "Writing fingerprint \u00b7 decorative" in page
-    assert "The fingerprint above is decorative, not drawn from \u03c1: it is the same print for every student." in page
+    assert "Writing pattern \u00b7 decorative" in page
+    assert "The pattern above is decorative, not drawn from \u03c1: it is the same pattern for every student." in page
+    # "fingerprint" is not a word the product uses for a student's writing.
+    visible = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>|<[^>]+>", " ", page)
+    assert "fingerprint" not in visible.lower()
     for symbol in ("|\u03c8\u1d62|", "|\u03be\u1d62|"):
         assert symbol not in page, f"the legend names {symbol}, which nothing draws"
 
@@ -2967,7 +2972,8 @@ def _scored(authenticated, effective, **state) -> dict:
         (5, 2.9, "developing"),  # five samples that barely count are still building
         (9, 2.0, "developing"),
         (4, 10, "developing"),
-        (2, 0, "developing"),
+        (3, 0, "developing"),
+        (2, 0, "insufficient"),  # below the 3-paper minimum Original does not compare
         (1, 1, "insufficient"),
         (0, 0, "insufficient"),
         (None, 3, None),  # a missing field is no verdict, never "fine"
@@ -3151,12 +3157,12 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
         ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 2, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 3, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
         ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
         ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
         ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
-    ids=["ready", "five-barely-counting", "two-samples", "one-sample", "no-effective-count", "no-counts"],
+    ids=["ready", "five-barely-counting", "three-samples", "one-sample", "no-effective-count", "no-counts"],
 )
 def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
     out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500
@@ -3551,8 +3557,8 @@ def test_bluebook_page_links_into_the_app_by_its_deep_links():
     assert "/bluebook/#live/'+id+'\">Open the live room</a>" in page
     assert "/bluebook/#exam/'+id+'\">Manage it in Collections</a>" in page
     deep = (DEMO / "bluebook" / "deep-link.jsx").read_text(encoding="utf-8")
-    assert "const DEEP_LINK = /^#(exam|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
-    assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', live: 'proctor' }" in deep
+    assert "const DEEP_LINK = /^#(exam|collection|live)\\/([A-Za-z0-9_-]{1,64})$/;" in deep
+    assert "DEEP_LINK_SCREEN = { exam: 'manage-exam', collection: 'manage-exam', live: 'proctor' }" in deep
 
 
 BLUEBOOK_TAIL = r"""
@@ -3814,3 +3820,71 @@ def test_bluebook_page_gates_like_the_other_teacher_pages():
     out = _bluebook_run(local={}, health=[200, {"environment": "pilot"}])
     assert "Sign in to continue" in out["before"]["gate"]
     assert not [c for c in out["calls"] if c.startswith("/bluebook/")]
+
+
+# ── Side by side (evidence.html, ADR-013 teacher view) ──────────────────────
+# The teacher's side-by-side page reads the staff-only `evidence` field the
+# last analysis carried (EVIDENCE_PASSAGES_ENABLED=1); with the flag off the
+# field is null, Writing State shows no link, and the page says there is
+# nothing to show. Its words come from demo/original/js/evidence-view.js,
+# templated from numbers (demo/bluebook/unit/evidence-view.test.mjs).
+
+
+def _evidence_page() -> str:
+    return (SUITE / "evidence.html").read_text(encoding="utf-8")
+
+
+def test_evidence_page_reads_what_writing_state_stores_and_scores_nothing():
+    page = _evidence_page()
+    assert "<title>Original · Side by side</title>" in page
+    assert "sessionStorage.getItem(STORE_KEY)" in page and "STORE_KEY='original_last_result'" in page
+    assert "removeItem(STORE_KEY)" in page
+    for endpoint in ("/score", "/correct", "/baseline"):
+        assert endpoint not in page, f"evidence.html calls {endpoint}"
+    # Teacher-only: the suite's gate sends a student session to Collections.
+    assert "Live.gate(main)" in page
+    # Nothing without the server's evidence field: no field, no comparison.
+    assert "if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }" in page
+    # The words are the shared templates, never written inline.
+    assert '<script src="js/evidence-view.js?v=' in page
+    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EV.markParts("):
+        assert fn in page, fn
+
+
+def test_evidence_page_keeps_the_starting_point_notice_and_one_testing_slot():
+    page = _evidence_page()
+    assert "<b>This is a starting point, not a verdict.</b>" in page
+    assert page.count("data-testing-notice") == 1
+    # The preliminary chip is the server's own field, shown only when it was sent.
+    assert "renderChip(d.result.preliminary)" in page
+    assert "if(!isObj(pre)||typeof pre.label!=='string') return '';" in page
+
+
+def test_evidence_page_is_keyboard_and_motion_friendly():
+    page = _evidence_page()
+    assert "@media (prefers-reduced-motion:reduce)" in page
+    assert ".paper summary:focus-visible" in page
+    assert '<details class="m"' in page
+    # Section headings are real headings, in order.
+    heads = re.findall(r'<h2 class="sec-t" id="(h-[a-z]+)"', page)
+    assert heads == ["h-summary", "h-diff", "h-steady", "h-all", "h-past"]
+
+
+def test_writing_state_links_to_the_side_by_side_page_only_with_evidence():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    link = re.search(r'<a [^>]*id="tri-evidence"[^>]*>', state).group(0)
+    assert " hidden" in link and 'href="evidence.html"' in link
+    assert ".tri-btn[hidden]{display:none;}" in state
+    assert "const hasEvidence=r=>!!(r&&r.evidence&&typeof r.evidence==='object'&&Array.isArray(r.evidence.all_features));" in state
+    assert "a.hidden=!on;" in state
+    # Kept for the side-by-side page only when the server sent it.
+    assert "if(hasEvidence(r)) keep.result.evidence=r.evidence;" in state
+    assert "if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;" in state
+
+
+def test_evidence_templates_carry_none_of_the_banned_wording_outside_the_check():
+    code = (SUITE / "js" / "evidence-view.js").read_text(encoding="utf-8")
+    # The banned list itself names the phrases; every other line is clean.
+    body = code[code.index("function isClean(") :]
+    for rx in (r"\bai[- ]detect", r"\bcheat", r"authorship verification", r"\baccura(te|cy)\b", r"generated prose"):
+        assert not re.search(rx, body, re.I), rx

@@ -1,5 +1,6 @@
 import React from 'react';
-import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE } from './components.jsx';
+import { BB_API, MockupFonts, TextSettingsButton, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
+import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -22,7 +23,7 @@ const EXAM_META = {
   blockCopy: true,
   spellChk:  false,
   phoneBlk:  true,
-  aiDetect:  true,
+  aiDetect:  false,
 };
 
 // Merge any instructor-configured settings saved from the New Examination form.
@@ -31,7 +32,9 @@ function getExamConfig() {
   return {
     ...EXAM_META,
     ...cfg,
-    duration: (cfg.duration ? cfg.duration * 60 : EXAM_META.duration),
+    // An untimed collection (conditions.timed === false) has no local clock:
+    // 0 here; a close time, when set, still arrives as the server deadline.
+    duration: cfg.timed === false ? 0 : (cfg.duration ? cfg.duration * 60 : EXAM_META.duration),
     minWords: cfg.minWords != null ? cfg.minWords : EXAM_META.minWords,
     maxWords: cfg.maxWords != null ? cfg.maxWords : EXAM_META.maxWords,
     prompt:   cfg.prompt || EXAM_META.prompt,
@@ -62,6 +65,26 @@ export function examToConfig(detail, extra = {}) {
     loaded:      true,
     ...extra,
   };
+}
+
+// A refresh (or a crash) during a sitting reloads the app on the student's
+// home. The exam screen remembers, for this tab only, which exam is being
+// written, so the home takes the student straight back to its briefing,
+// where "Resume Examination" continues with the writing saved on the device.
+// The memory is used once: a student who then chooses "My exams" stays there.
+const BB_RESUME_KEY = 'bb_resume_exam';
+export function rememberSitting(examId) {
+  try {
+    if (examId) sessionStorage.setItem(BB_RESUME_KEY, String(examId));
+    else sessionStorage.removeItem(BB_RESUME_KEY);
+  } catch (e) {}
+}
+export function takeSittingToResume(exams) {
+  let id = '';
+  try { id = sessionStorage.getItem(BB_RESUME_KEY) || ''; sessionStorage.removeItem(BB_RESUME_KEY); } catch (e) {}
+  if (!id) return null;
+  const e = (exams || []).find(x => x && x.exam_id === id);
+  return e && e.session && !e.submitted ? e : null;
 }
 
 // The on-device draft for one exam (see ExamScreen's draft persistence).
@@ -150,6 +173,12 @@ export function bbLockOriginalDecision(cfg, withOriginal) {
   } catch (e) { return null; }
 }
 
+// What a student in a workspace that holds Original is told about their
+// sealed booklet (NORTH_STAR rule 10): it may become reference writing. Said
+// without scoring words; whether this exam compares anything is a separate
+// line, shown only when the teacher switched writing consistency on.
+export const REFERENCE_WRITING_LINE = 'Your teacher may choose to keep this booklet as reference writing, a sample of your own writing, and can undo that.';
+
 // Build the enforced-conditions list from a config object. Each line says
 // what this page actually does. A web page cannot block other applications
 // or AI tools, so it says what is not permitted and what is recorded,
@@ -163,8 +192,9 @@ function buildConditions(cfg, withOriginal) {
     cfg.blockCopy && 'Copy and paste are turned off in the answer box.',
     withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
     cfg.phoneBlk  && 'Please silence your phone and other devices.',
+    cfg.phonePark === true && 'Before you begin, you park your phone by scanning your own code on this page. The phone page reports only whether it is open.',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
-    withOriginal  && 'Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.',
+    withOriginal  && REFERENCE_WRITING_LINE,
   ].filter(Boolean);
 }
 
@@ -254,6 +284,32 @@ export function bbSealRetryable(err) {
   if (!s) return true;
   if (s === 408 || s === 425 || s === 429) return true;
   return !(s >= 400 && s < 500);
+}
+
+// Server-kept drafts (resume from any browser). Which copy a resuming page
+// should use: the server's only when it is strictly newer than the one on
+// this device and the local one is not already final (a confirmed seal is
+// finished as it stands). Returns the server draft to adopt, or null.
+export function bbPickServerDraft(local, server) {
+  if (!server || typeof server !== 'object') return null;
+  const answers = Array.isArray(server.answers) ? server.answers : [];
+  if (!answers.some(a => typeof a === 'string' && a.trim()) && !(server.content || '').trim()) return null;
+  if (local && local.seal && local.seal.confirmedAt) return null;
+  const localAt = (local && Number(local.savedAt)) || 0;
+  const hasLocal = !!(local && Array.isArray(local.answers) && local.answers.some(a => (a || '').trim()));
+  if (hasLocal && Number(server.client_saved_at || 0) <= localAt) return null;
+  return server;
+}
+
+// Only a signed-in student account with a stored exam keeps a server draft.
+export function bbServerDraftsOn(cfg, isStudentAccount) {
+  return !!(cfg && cfg.id && isStudentAccount);
+}
+export const BB_SERVER_DRAFT_MS = 30000;
+
+// A seal refused because the sign-in lapsed (401) for a student account.
+export function bbSealNeedsSignIn(err, result, isStudentAccount) {
+  return !(result && result.ok) && !!isStudentAccount && !!err && err.status === 401;
 }
 
 // ─── Lockdown helpers (browser-level enforcement) ─────────────────────────────
@@ -432,6 +488,12 @@ export async function bbScoreWithOriginal(studentId, text, assignment, submissio
       }),
     });
     if (r.status === 403) return BB_ORIGINAL_OFF;
+    if (r.status === 422) {
+      // Fewer than 3 approved baseline papers: Original returns no score.
+      const err = await r.json().catch(() => null);
+      if (err && err.detail && err.detail.code === 'insufficient_baseline') return BB_NOT_ENOUGH_REFERENCE;
+      return null;
+    }
     if (!r.ok) return null;
     const data = await r.json();
     const a = data && data.authorship;
@@ -455,6 +517,88 @@ export function bbSealStatus(withOriginal, seal) {
   if (!withOriginal) return 'SUBMITTED';
   if (seal.inconclusive) return 'INCONCLUSIVE';
   return seal.aiScore != null && seal.aiScore < 70 ? 'FLAGGED' : 'SUBMITTED';
+}
+
+// ─── Phone parking (2026-10) ─────────────────────────────────────────────────
+// Only for a collection where the teacher switched it on. The code is the
+// student's own: it parks a phone for them, on this collection, and nobody
+// else. It lasts a few minutes, so it is refreshed while the page is open.
+const BB_PHONE_POLL_MS = 3000;
+const BB_PHONE_CODE_REFRESH_MS = 8 * 60 * 1000;
+
+export function bbPhoneParkCleared(st) {
+  return !!(st && (!st.required || st.parked || st.overridden));
+}
+
+function PhoneParkPanel({ examId, onCleared }) {
+  const [st, setSt] = useExState(null);
+  const [qr, setQr] = useExState('');
+  const [err, setErr] = useExState('');
+  useExEffect(() => {
+    let live = true;
+    let poll = null;
+    let refresh = null;
+    const apply = (d) => {
+      if (!live || !d) return;
+      setSt(d);
+      if (d.qr_url) setQr(d.qr_url);
+      onCleared(bbPhoneParkCleared(d));
+      if (bbPhoneParkCleared(d)) { clearInterval(poll); clearInterval(refresh); }
+    };
+    const fail = () => { if (live) setErr('We could not reach Collections just now. This page will keep trying.'); };
+    BB_API.myPhonePark(examId, true).then(d => { setErr(''); apply(d); }).catch(fail);
+    poll = setInterval(() => {
+      BB_API.myPhonePark(examId, false).then(d => { setErr(''); apply(d); }).catch(fail);
+    }, BB_PHONE_POLL_MS);
+    refresh = setInterval(() => {
+      BB_API.myPhonePark(examId, true).then(apply).catch(fail);
+    }, BB_PHONE_CODE_REFRESH_MS);
+    return () => { live = false; clearInterval(poll); clearInterval(refresh); };
+  }, [examId]);
+
+  if (!st || !st.required) {
+    return err ? <p role="alert" className="bk-cover-note state">{err}</p> : null;
+  }
+  const cleared = bbPhoneParkCleared(st);
+  return (
+    <div className="bk-conditions bk-phone-park" data-testid="phone-park">
+      <div className="bk-phone-park-head">
+        <h2>Park your phone</h2>
+        <span role="status" className={'bk-phone-park-badge' + (cleared ? ' is-cleared' : '')}>
+          {cleared ? (st.parked ? 'Phone parked' : 'Ready to begin') : 'Waiting for your phone…'}
+        </span>
+      </div>
+      {cleared ? (
+        <p className="bk-cover-note state">
+          {st.parked
+            ? 'Your phone is parked. Leave it where it is, with the page open, until you hand in.'
+            : 'Your teacher has let you begin without a parked phone.'}
+        </p>
+      ) : (
+        <div className="bk-phone-park-body">
+          <p className="bk-phone-park-lead">Your teacher asks everyone to park their phone before beginning.</p>
+          {qr && (
+            <div className="bk-phone-qr-wrap">
+              <div className="bk-phone-qr-card">
+                <QrCode value={qr} px={180} label="Your own code for parking your phone. Point your phone’s camera at it." />
+              </div>
+              <span className="bk-phone-qr-caption">Scan with your phone’s camera</span>
+            </div>
+          )}
+          <ol>
+            <li>Open your phone’s camera and point it at this code, then tap the link that appears. No app and no sign-in are needed.</li>
+            <li>Put your phone face down where your teacher asks: at the front of the room, or on the corner of your desk if they have not said. Leave the page open.</li>
+            <li>When this page says your phone is parked, you can begin.</li>
+          </ol>
+          <p className="bk-conditions-note">No phone with you, or the code will not scan? Tell your teacher. They can let you begin without one.</p>
+        </div>
+      )}
+      {err && <p role="alert" className="bk-conditions-note">{err}</p>}
+      <p className="bk-conditions-note bk-phone-park-foot">
+        The phone page reports only whether it is open, for your account on this exam. Nothing else about your phone is kept.
+      </p>
+    </div>
+  );
 }
 
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
@@ -501,6 +645,10 @@ export function BriefingScreen({ onNavigate }) {
   const conditions = buildConditions(cfg, withOriginal);
   const studentAccount = BB_API.isStudentAccount();
   const cannotBegin = cfg.loaded && cfg.state && cfg.state !== 'open';
+  // Phone parking: a student's new sitting waits for their phone. A sitting
+  // already under way is never held up, and a teacher previewing is not asked.
+  const needsPhone = !!(cfg.phonePark === true && cfg.id && bbIsStudent() && !cfg.inProgress && !cannotBegin);
+  const [phoneCleared, setPhoneCleared] = useExState(false);
   if (loadState !== 'ready') {
     return (
       <div className="bk-stage bb-screen">
@@ -528,7 +676,7 @@ export function BriefingScreen({ onNavigate }) {
   return (
     <div className="bk-stage bb-screen">
       <MockupFonts hand />
-      <div className="bk-booklet">
+      <div className="bk-booklet bk-briefing">
         <div className="bk-cover">
           {/* A launch-link student has nowhere else to go; an account student
               goes back to their exams; staff previewing go back to the list. */}
@@ -540,6 +688,7 @@ export function BriefingScreen({ onNavigate }) {
           )}
 
           <div className="bk-cover-inner">
+            <div className="bk-briefing-textbtn"><TextSettingsButton className="bk-textbtn" /></div>
             <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />
@@ -552,9 +701,14 @@ export function BriefingScreen({ onNavigate }) {
             </div>
 
             <p className="bk-meta">
-              <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration / 60} minutes.</b>
+              <b>{questionCount} question{questionCount === 1 ? '' : 's'} · {cfg.duration ? `${cfg.duration / 60} minutes` : 'no time limit'}.</b>
               {limits && ` ${limits}`} Your work saves itself on this device as you write. The clock starts when you open the booklet.
             </p>
+            {cfg.inProgress && (
+              <p role="status" className="bk-cover-note state">
+                You have already started this exam. Your writing is saved on this device, and the clock has kept running. Choose Resume to carry on.
+              </p>
+            )}
             {cfg.closesAt && (
               <p className="bk-closes">Closes {new Date(cfg.closesAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
             )}
@@ -573,6 +727,11 @@ export function BriefingScreen({ onNavigate }) {
               </p>
             </div>
 
+            {needsPhone && <PhoneParkPanel examId={cfg.id} onCleared={setPhoneCleared} />}
+            {cfg.phonePark === true && !bbIsStudent() && (
+              <p className="bk-cover-note">Phone parking is on: each student sees their own code here and parks their phone before beginning.</p>
+            )}
+
             {cannotBegin ? (
               <p role="status" className="bk-cover-note state">
                 {cfg.state === 'upcoming'
@@ -580,12 +739,12 @@ export function BriefingScreen({ onNavigate }) {
                   : 'This exam has closed. If you think that is a mistake, please talk to your teacher.'}
               </p>
             ) : (
-              <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
+              <button type="button" className="bk-begin" disabled={needsPhone && !phoneCleared} onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
                 {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
               </button>
             )}
             <p className="bk-cover-note">Once you begin, the clock keeps running, even if you close this page</p>
-            <p className="bk-cover-note">{withOriginal ? 'Original · Collections · quiet by design' : 'Collections · quiet by design'}</p>
+            <p className="bk-cover-note">Collections · quiet by design</p>
           </div>
         </div>
       </div>
@@ -619,7 +778,7 @@ export const BB_NOTICE = {
   paste_blocked:   'Pasting is turned off for this exam, so nothing was added.',
 };
 
-export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
+export function ExamScreen({ onNavigate, writingSize = 17, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
   const candidateLabel = bbCandidateLabel(cfg);
   // Draft persistence: a sitting must survive a crash, a refresh, a dropped
@@ -659,6 +818,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   const textareaRef = useExRef(null);
   const saveTimer   = useExRef(null);
   const deadlineRef = useExRef(null);   // { deadlineMs, offsetMs } once the session lands
+  // An untimed collection shows a clock only when the server pinned a
+  // deadline (its close time); with neither there is no time limit.
+  const [hasDeadline, setHasDeadline] = useExState(false);
+  const untimed = !cfg.duration && !hasDeadline;
   // Seal progress survives refreshes so a retried seal is idempotent end to
   // end: the same uuid, and completed steps never re-run.
   const sealRef     = useExRef((restored && restored.seal) || { uuid: null, aiScore: undefined, baselineData: null });
@@ -832,7 +995,9 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         }
         setSealNote(attempt ? `Still submitting (try ${attempt + 1} of ${attempts}). Your answers are saved on this device.` : 'Submitting your answers…');
         // 1) Score against the EXISTING baseline (skipped on retry once known).
-        if (withOriginal && seal.aiScore === undefined) {
+        // Only when the teacher switched writing consistency on for this exam
+        // (conditions.aiDetect, off by default).
+        if (withOriginal && cfg.aiDetect && seal.aiScore === undefined) {
           const scored = await bbScoreWithOriginal(studentId, finalText, cfg.title, seal.uuid, seal.summary);
           if (scored === BB_ORIGINAL_OFF) {
             // The workspace no longer holds Original (switched off since this
@@ -890,6 +1055,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       // Sealed and delivered: the on-device draft has served its purpose.
       try { localStorage.removeItem(draftKey); } catch (e) {}
     }
+    // Sealed, or refused for good (already submitted): nothing to come back to.
+    if ((result && result.ok) || bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message)) rememberSitting(null);
     window.BB_LAST_SUBMISSION = {
       words: wordCount(finalText),
       title: cfg.title,
@@ -900,12 +1067,24 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       error: (result && result.ok) ? null : String((lastError && lastError.message) || lastError || 'seal failed'),
       aiScore: seal.aiScore,
       withOriginal,
+      // Whether this sitting was compared at all: only when the teacher
+      // switched writing consistency on for the exam.
+      compared: !!(withOriginal && cfg.aiDetect),
       expired: !!seal.expired,
       alreadySubmitted: !(result && result.ok) && bbAlreadySubmitted(lastError && lastError.status, lastError && lastError.message),
       draftKey,
     };
     sealingRef.current = false;
     setSubmitting(false);
+    // A signed-in student whose sign-in lapsed: the seal was refused (401)
+    // and will not succeed on retry. The answers are final in the draft on
+    // this device, so send them to sign in; after signing in, their home
+    // reopens this exam and the confirmed seal finishes on entry.
+    if (bbSealNeedsSignIn(lastError, result, BB_API.isStudentAccount())) {
+      rememberSitting(cfg.id || null);
+      window.dispatchEvent(new CustomEvent(BB_SIGNED_OUT_EVENT, { detail: { student: true } }));
+      return;
+    }
     onNavigate('submitted');
   }
 
@@ -931,6 +1110,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
         }
       } else if (sess) {
         deadlineRef.current = sess;
+        setHasDeadline(true);
       }
       clockReadyRef.current = true;
     })();
@@ -982,9 +1162,15 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // silently at 00:00 with the seal button still disabled below the word
   // minimum, and the student was stranded.
   useExEffect(() => {
-    if (timeLeft > 0 || !cfg.duration) return;
+    if (timeLeft > 0 || (!cfg.duration && !deadlineRef.current)) return;
     handleSubmit({ force: true, expired: true });
   }, [timeLeft]);
+
+  // A student's refresh reloads the app on their home screen, which brings
+  // them back to this exam's briefing (Account.jsx, takeSittingToResume).
+  useExEffect(() => {
+    if (bbIsStudent() && cfg.id) rememberSitting(cfg.id);
+  }, []);
 
   // Persist a sitting decision taken on this mount at once, so a reload keeps
   // it before the student has written anything. Silent: with no writing
@@ -1030,6 +1216,57 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onHidden);
     };
+  }, []);
+
+  // Server-kept draft (signed-in students, stored exams): about every 30s
+  // and when the page is hidden or closed, the answers also go to the
+  // server, so the sitting can resume from another browser. The copy on
+  // this device stays in charge; the server copy is used only when it is
+  // newer (bbPickServerDraft). Nothing is sent once the answers are final.
+  const serverDrafts = bbServerDraftsOn(cfg, BB_API.isStudentAccount());
+  const lastPushedRef = useExRef('');
+  const initialAnswersRef = useExRef(JSON.stringify(answers));
+  function pushServerDraft(keepalive) {
+    if (!serverDrafts || lockedRef.current || alreadySubmittedRef.current || !hasWriting()) return;
+    const sig = JSON.stringify(answersRef.current);
+    if (sig === lastPushedRef.current) return;
+    lastPushedRef.current = sig;
+    BB_API.putExamDraft(cfg.id, {
+      content: contentRef.current, answers: answersRef.current, client_saved_at: Date.now(),
+    }, { keepalive }).then(st => { if (st !== 200) lastPushedRef.current = ''; });
+  }
+  useExEffect(() => {
+    if (!serverDrafts) return;
+    const id = setInterval(() => pushServerDraft(false), BB_SERVER_DRAFT_MS);
+    const onHide = () => { if (document.hidden) pushServerDraft(true); };
+    const onClose = () => pushServerDraft(true);
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onClose);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onClose);
+    };
+  }, []);
+  useExEffect(() => {
+    if (!serverDrafts || resumeRef.current) return;
+    let live = true;
+    BB_API.getExamDraft(cfg.id).then(res => {
+      if (!live || !res || !res.draft || lockedRef.current) return;
+      // The student has typed since this page opened: what is on screen wins.
+      if (JSON.stringify(answersRef.current) !== initialAnswersRef.current) return;
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem(draftKey) || 'null'); } catch (e) {}
+      const pick = bbPickServerDraft(local, res.draft);
+      if (!pick) return;
+      const saved = (pick.answers && pick.answers.length) ? pick.answers : [pick.content || ''];
+      const next = questions.map((_, i) => saved[i] || '');
+      answersRef.current = next;
+      lastPushedRef.current = JSON.stringify(next);
+      setAnswers(next);
+      setLiveMsg('Your writing from your last session was restored.');
+    });
+    return () => { live = false; };
   }, []);
 
   // Polite word-count milestones: the minimum reached, the limit passed.
@@ -1080,7 +1317,16 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
       on(document, 'contextmenu', (e) => e.preventDefault());
       on(document, 'keydown', (e) => {
         const k = (e.key || '').toLowerCase();
-        if ((e.ctrlKey || e.metaKey) && (k === 'c' || k === 'x' || k === 'v')) e.preventDefault();
+        if ((e.ctrlKey || e.metaKey) && (k === 'c' || k === 'x' || k === 'v')) {
+          e.preventDefault();
+          // A paste stopped at the key press never reaches the answer box's
+          // onPaste, so the student would press Ctrl/Cmd+V and see nothing
+          // happen. Say why and note the attempt, exactly as onPaste does.
+          if (k === 'v' && !e.repeat && !lockedRef.current) {
+            pastesRef.current += 1;
+            recordWarning(BB_NOTICE.paste_blocked, 'paste_blocked');
+          }
+        }
       });
     }
     return () => off.forEach(([t, ty, fn, o]) => t.removeEventListener(ty, fn, o));
@@ -1106,8 +1352,8 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
     setTimeout(() => textareaRef.current && textareaRef.current.focus(), 0);
   }
 
-  const isLow     = timeLeft <= 300;
-  const isVeryLow = timeLeft <= 60;
+  const isLow     = !untimed && timeLeft <= 300;
+  const isVeryLow = !untimed && timeLeft <= 60;
   const overMax   = cfg.maxWords && words > cfg.maxWords;
   const atMin     = words >= cfg.minWords;
   const sealHint  = submitting || locked ? null : bbSealHint(words, cfg.minWords);
@@ -1163,6 +1409,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             )}
             <div className="bk-bar-right">
               <span className="bk-cand">{candidateLabel}</span>
+              <TextSettingsButton className="bk-textbtn" />
               {cfg.blockWeb && fsLost && (
                 <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>
                   <span aria-hidden="true">↺ </span>Restore full-screen
@@ -1173,8 +1420,12 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
               </span>
               <span className={'bk-timer' + (isVeryLow ? ' vlow' : isLow ? ' low' : '')}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>
-                <span className="bk-timer-lbl" aria-hidden="true">Time left</span>
-                <span role="timer" aria-label={`Time remaining: ${bbSpokenTime(timeLeft)}`}>{bbClock(timeLeft)}</span>
+                {untimed
+                  ? <span className="bk-timer-lbl">No time limit</span>
+                  : <>
+                    <span className="bk-timer-lbl" aria-hidden="true">Time left</span>
+                    <span role="timer" aria-label={`Time remaining: ${bbSpokenTime(timeLeft)}`}>{bbClock(timeLeft)}</span>
+                  </>}
               </span>
             </div>
           </div>
@@ -1248,7 +1499,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 )}
               </section>
 
-              <div className="bk-writing" style={{ '--bk-fs': `${writingSize}px`, '--bk-lh': `${writingSize + 16}px` }}>
+              <div className="bk-writing" style={{ '--bk-fs': `${writingSize / 16}rem` }}>
                 <textarea
                   key={qIndex}
                   ref={textareaRef}
@@ -1342,7 +1593,11 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
   const transmitFailed = sub.ok === false;
   const isStudent = bbIsStudent();
   const studentAccount = BB_API.isStudentAccount();
-  const compared = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
+  // A booklet is compared only when the teacher switched writing consistency
+  // on for the exam; in any workspace that holds Original it may become
+  // reference writing. Neither is said in a Bluebook-only workspace.
+  const withOriginal = sub.withOriginal !== undefined ? sub.withOriginal : BB_API.hasOriginal();
+  const compared = withOriginal && sub.compared === true;
   // Focus the result, so a keyboard or screen-reader user arriving from the
   // seal button (now gone) starts here rather than at the top of the page.
   const headRef = useExRef(null);
@@ -1393,7 +1648,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                 <h1 ref={headRef} tabIndex={-1}>Examination Sealed</h1>
                 <p>
                   Your examination has been received, sealed, and submitted
-                  for your teacher to read.{compared && ' Your writing will be compared with your own past work. Your teacher may choose to add this booklet to your writing profile (the past writing your new work is compared with), and can undo that.'}
+                  for your teacher to read.{compared && ' Your writing will be compared with your own past work, as a starting point for your teacher, never proof of anything.'}{withOriginal && ` ${REFERENCE_WRITING_LINE}`}
                 </p>
                 {sub.expired && (
                   <p>Time ran out, so your booklet was sealed with everything you had written.</p>

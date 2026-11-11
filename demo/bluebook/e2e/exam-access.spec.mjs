@@ -145,6 +145,10 @@ test.describe('Exam screen access @a11y', () => {
     const seal = studentPage.getByRole('button', { name: 'Seal & Submit' })
     await expect(seal).toBeDisabled()
     await expect(seal).toHaveAccessibleDescription('Write 12 more words to submit.')
+    // The one-off start announcement ("N remaining.") waits for the server
+    // clock; let it land first so it cannot overwrite the milestone below.
+    await expect(studentPage.locator('.bk-sr[role="status"][aria-live="polite"]'))
+      .toHaveText(/remaining\./)
 
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
     await expect(box).toHaveAccessibleDescription(/You have reached the 12-word minimum\./)

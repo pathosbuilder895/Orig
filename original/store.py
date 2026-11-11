@@ -612,6 +612,85 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             used_at     TEXT NOT NULL
         )
     """)
+    # Past papers a student shared from their Collections account, waiting
+    # for the teacher (2026-10 alpha) — mirrors alembic revision b5e1f7c3a9d2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS student_past_papers (
+            paper_id        TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            student_id      TEXT NOT NULL,
+            title           TEXT NOT NULL,
+            text            TEXT NOT NULL,
+            word_count      INTEGER NOT NULL,
+            filename        TEXT,
+            baseline_source TEXT NOT NULL DEFAULT 'independent',
+            parent_title    TEXT,
+            status          TEXT NOT NULL DEFAULT 'pending',
+            created_at      TEXT NOT NULL,
+            reviewed_at     TEXT,
+            reviewed_by     TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_student_past_papers_student
+            ON student_past_papers(tenant_id, student_id)
+    """)
+    # A student's unsealed exam draft, kept so a sitting resumes from any
+    # browser (2026-10) — mirrors alembic revision c9f2a4e6b8d1.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_exam_drafts (
+            exam_id         TEXT NOT NULL,
+            student_key     TEXT NOT NULL,
+            tenant_id       TEXT NOT NULL,
+            content         TEXT NOT NULL DEFAULT '',
+            answers         TEXT NOT NULL DEFAULT '[]',
+            client_saved_at INTEGER NOT NULL DEFAULT 0,
+            updated_at      TEXT NOT NULL,
+            PRIMARY KEY (exam_id, student_key)
+        )
+    """)
+    # Where each signed-in account last was, for cross-device resume
+    # (2026-10) — mirrors alembic revision d4b8e2f6a1c3.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_last_location (
+            account_key     TEXT PRIMARY KEY,
+            tenant_id       TEXT NOT NULL,
+            role            TEXT NOT NULL,
+            screen          TEXT NOT NULL,
+            entity_kind     TEXT NOT NULL DEFAULT '',
+            entity_id       TEXT NOT NULL DEFAULT '',
+            tab             TEXT NOT NULL DEFAULT '',
+            scroll_fraction REAL NOT NULL DEFAULT 0,
+            scroll_anchor   TEXT NOT NULL DEFAULT '',
+            updated_at      TEXT NOT NULL
+        )
+    """)
+    # Each account's chosen text font and size (2026-11) — mirrors alembic
+    # revision a1d5f3c7e9b2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_display_prefs (
+            account_key TEXT PRIMARY KEY,
+            font        TEXT NOT NULL DEFAULT 'serif',
+            size        TEXT NOT NULL DEFAULT 'default',
+            updated_at  TEXT NOT NULL
+        )
+    """)
+    # A student's own parked phone per collection (2026-10) — mirrors alembic
+    # revision a7e3c5d9f2b4.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_phone_parks (
+            exam_id       TEXT NOT NULL,
+            student_key   TEXT NOT NULL,
+            tenant_id     TEXT NOT NULL,
+            state         TEXT NOT NULL DEFAULT '',
+            parked_at     TEXT,
+            last_seen_at  TEXT,
+            override_by   TEXT NOT NULL DEFAULT '',
+            override_at   TEXT,
+            override_note TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (exam_id, student_key)
+        )
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -681,6 +760,23 @@ def _init_schema(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
             ON bluebook_invites(user_id)
+    """)
+    # Forwardable course sign-up links (2026-10). Only the sha256 of the
+    # token is stored; voided_at set = turned off or replaced.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_join_links (
+            link_id     TEXT PRIMARY KEY,
+            tenant_id   TEXT NOT NULL,
+            course_id   TEXT NOT NULL,
+            token_hash  TEXT NOT NULL UNIQUE,
+            created_by  TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            voided_at   TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_join_links_course
+            ON bluebook_join_links(course_id)
     """)
     conn.commit()
 
@@ -1778,6 +1874,11 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM bluebook_enrollments WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_invites WHERE user_id = ? LIMIT 1",
     "SELECT 1 FROM users WHERE user_id = ? AND role = 'student' LIMIT 1",
+    "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
+    "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM user_display_prefs WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
 )
 
 
@@ -1818,6 +1919,8 @@ def delete_student(student_id: str) -> bool:
     - bluebook_invites      (SQLite — set-password links, by user_id)
     - users                 (SQLite — the student's own login row, role
                              'student' only)
+    - student_past_papers   (SQLite — past papers the student shared for
+                             teacher approval, 2026-10)
 
     A student with no Original profile still counts as found when they hold
     any Bluebook row (a Bluebook-only workspace never creates a profile);
@@ -1877,6 +1980,16 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_enrollments WHERE student_id = ?", (student_id,))
             conn.execute("DELETE FROM bluebook_invites WHERE user_id = ?", (student_id,))
             conn.execute("DELETE FROM users WHERE user_id = ? AND role = 'student'", (student_id,))
+            # Past papers the student shared (2026-10): their own text.
+            conn.execute("DELETE FROM student_past_papers WHERE student_id = ?", (student_id,))
+            # Unsealed exam drafts kept on the server (2026-10).
+            conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
+            # Where the student last was in the app (2026-10).
+            conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
+            # The student's chosen text font and size (2026-11).
+            conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (student_id,))
+            # The student's own parked-phone records (2026-10).
+            conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -2945,7 +3058,13 @@ def set_user_password_hash(user_id: str, password_hash: str) -> bool:
 
 
 def delete_bluebook_exam(exam_id: str) -> bool:
+    """Delete the exam and what hangs off it before a seal: unsealed drafts,
+    sittings and phone parks. The route refuses an exam with submissions, so
+    this never orphans sealed work; without it a student's unsealed text
+    outlived the exam and only erasing the whole student removed it."""
     with _get_conn() as conn:
+        for table in ("bluebook_exam_drafts", "bluebook_sessions", "bluebook_phone_parks"):
+            conn.execute(f"DELETE FROM {table} WHERE exam_id = ?", (exam_id,))
         cur = conn.execute("DELETE FROM bluebook_exams WHERE exam_id = ?", (exam_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3049,6 +3168,7 @@ def delete_bluebook_course(course_id: str) -> bool:
     """Delete a course and its roster. Callers refuse first when exams use it."""
     with _get_conn() as conn:
         conn.execute("DELETE FROM bluebook_enrollments WHERE course_id = ?", (course_id,))
+        conn.execute("DELETE FROM bluebook_join_links WHERE course_id = ?", (course_id,))
         cur = conn.execute("DELETE FROM bluebook_courses WHERE course_id = ?", (course_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3214,6 +3334,70 @@ def redeem_invite(invite_id: str) -> bool:
         )
         conn.commit()
     return cur.rowcount == 1
+
+
+_JOIN_LINK_COLS = "link_id, tenant_id, course_id, token_hash, created_by, created_at, voided_at"
+
+
+def _join_link_to_dict(row) -> dict:
+    return {
+        "link_id": row[0],
+        "tenant_id": row[1],
+        "course_id": row[2],
+        "token_hash": row[3],
+        "created_by": row[4],
+        "created_at": row[5],
+        "voided_at": row[6],
+    }
+
+
+def put_join_link(rec: dict) -> None:
+    """Insert one course join link. Timestamps are ISO."""
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO bluebook_join_links ({_JOIN_LINK_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                rec["link_id"],
+                rec["tenant_id"],
+                rec["course_id"],
+                rec["token_hash"],
+                rec["created_by"],
+                rec["created_at"],
+                None,
+            ),
+        )
+        conn.commit()
+
+
+def get_join_link_by_hash(token_hash: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def active_join_link_for_course(course_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links "
+            "WHERE course_id = ? AND voided_at IS NULL ORDER BY created_at DESC LIMIT 1",
+            (course_id,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def void_join_links_for_course(course_id: str) -> int:
+    """Void every active join link for this course."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_join_links SET voided_at = ? "
+            "WHERE course_id = ? AND voided_at IS NULL",
+            (datetime.now(UTC).isoformat(), course_id),
+        )
+        conn.commit()
+    return cur.rowcount
 
 
 def list_tenants(environment: str | None = None) -> list[dict]:
@@ -4162,3 +4346,276 @@ def park_purge(before: datetime) -> int:
         ).rowcount
         conn.commit()
     return int(beats) + int(sessions)
+
+
+# ── Student-shared past papers (2026-10 alpha) ────────────────────────────────
+
+_PAST_PAPER_COLS = (
+    "paper_id, tenant_id, student_id, title, text, word_count, filename, "
+    "baseline_source, parent_title, status, created_at, reviewed_at, reviewed_by"
+)
+
+
+def _past_paper_row(row) -> dict:
+    keys = [k.strip() for k in _PAST_PAPER_COLS.split(",")]
+    return dict(zip(keys, row, strict=True))
+
+
+def put_past_paper(rec: dict) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO student_past_papers ({_PAST_PAPER_COLS}) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)",
+            (
+                rec["paper_id"],
+                rec["tenant_id"],
+                rec["student_id"],
+                rec["title"],
+                rec["text"],
+                int(rec["word_count"]),
+                rec.get("filename"),
+                rec.get("baseline_source") or "independent",
+                rec.get("parent_title"),
+                rec.get("status") or "pending",
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        conn.commit()
+
+
+def get_past_paper(paper_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_PAST_PAPER_COLS} FROM student_past_papers WHERE paper_id = ?",
+            (paper_id,),
+        ).fetchone()
+    return _past_paper_row(row) if row else None
+
+
+def list_past_papers(tenant_id: str, student_id: str | None = None) -> list[dict]:
+    sql = f"SELECT {_PAST_PAPER_COLS} FROM student_past_papers WHERE tenant_id = ?"
+    args: list = [tenant_id]
+    if student_id is not None:
+        sql += " AND student_id = ?"
+        args.append(student_id)
+    with _get_conn() as conn:
+        rows = conn.execute(sql + " ORDER BY created_at DESC", args).fetchall()
+    return [_past_paper_row(r) for r in rows]
+
+
+def count_past_papers_since(student_id: str, since_iso: str) -> int:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM student_past_papers WHERE student_id = ? AND created_at >= ?",
+            (student_id, since_iso),
+        ).fetchone()
+    return int(row[0] if row else 0)
+
+
+def set_past_paper_status(paper_id: str, status: str, reviewed_by: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "UPDATE student_past_papers SET status = ?, reviewed_at = ?, reviewed_by = ? "
+            "WHERE paper_id = ?",
+            (status, datetime.now(UTC).isoformat(), reviewed_by, paper_id),
+        )
+        conn.commit()
+
+
+# ── Unsealed exam drafts (2026-10) ─────────────────────────────────────────────
+
+
+def put_exam_draft(
+    exam_id: str, student_key: str, tenant_id: str, content: str, answers: str, client_saved_at: int
+) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT INTO bluebook_exam_drafts "
+            "(exam_id, student_key, tenant_id, content, answers, client_saved_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(exam_id, student_key) DO UPDATE SET content = excluded.content, "
+            "answers = excluded.answers, client_saved_at = excluded.client_saved_at, "
+            "updated_at = excluded.updated_at, tenant_id = excluded.tenant_id",
+            (exam_id, student_key, tenant_id, content, answers, int(client_saved_at), now),
+        )
+        conn.commit()
+    return get_exam_draft(exam_id, student_key) or {}
+
+
+def get_exam_draft(exam_id: str, student_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT exam_id, student_key, tenant_id, content, answers, client_saved_at, updated_at "
+            "FROM bluebook_exam_drafts WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        ).fetchone()
+    if not row:
+        return None
+    keys = (
+        "exam_id",
+        "student_key",
+        "tenant_id",
+        "content",
+        "answers",
+        "client_saved_at",
+        "updated_at",
+    )
+    return dict(zip(keys, row, strict=True))
+
+
+def delete_exam_draft(exam_id: str, student_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            "DELETE FROM bluebook_exam_drafts WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        )
+        conn.commit()
+
+
+# ── Last location, for cross-device resume (2026-10) ──────────────────────────
+
+LAST_LOCATION_FIELDS = (
+    "account_key",
+    "tenant_id",
+    "role",
+    "screen",
+    "entity_kind",
+    "entity_id",
+    "tab",
+    "scroll_fraction",
+    "scroll_anchor",
+    "updated_at",
+)
+
+
+def put_last_location(account_key: str, tenant_id: str, role: str, loc: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    row = (
+        account_key,
+        tenant_id,
+        role,
+        loc["screen"],
+        loc.get("entity_kind", ""),
+        loc.get("entity_id", ""),
+        loc.get("tab", ""),
+        float(loc.get("scroll_fraction", 0.0)),
+        loc.get("scroll_anchor", ""),
+        now,
+    )
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT OR REPLACE INTO user_last_location ({', '.join(LAST_LOCATION_FIELDS)}) "
+            f"VALUES ({', '.join('?' * len(LAST_LOCATION_FIELDS))})",
+            row,
+        )
+        conn.commit()
+    return get_last_location(account_key) or {}
+
+
+def get_last_location(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(LAST_LOCATION_FIELDS)} FROM user_last_location "
+            "WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return dict(zip(LAST_LOCATION_FIELDS, row, strict=True)) if row else None
+
+
+def delete_last_location(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
+        conn.commit()
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+
+
+def put_display_prefs(account_key: str, prefs: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_display_prefs (account_key, font, size, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (account_key, prefs["font"], prefs["size"], now),
+        )
+        conn.commit()
+    return get_display_prefs(account_key) or {}
+
+
+def get_display_prefs(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT font, size, updated_at FROM user_display_prefs WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return {"font": row[0], "size": row[1], "updated_at": row[2]} if row else None
+
+
+def delete_display_prefs(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (account_key,))
+        conn.commit()
+
+
+# ── A student's own parked phone, per collection (2026-10) ────────────────────
+
+PHONE_PARK_FIELDS = (
+    "exam_id",
+    "student_key",
+    "tenant_id",
+    "state",
+    "parked_at",
+    "last_seen_at",
+    "override_by",
+    "override_at",
+    "override_note",
+)
+
+
+def put_phone_park(exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
+    """Upsert one (exam, student) row, changing only the keys in ``fields``.
+    Timestamps are ISO strings (or None)."""
+    row = get_phone_park(exam_id, student_key) or {
+        "exam_id": exam_id,
+        "student_key": student_key,
+        "tenant_id": tenant_id,
+        "state": "",
+        "parked_at": None,
+        "last_seen_at": None,
+        "override_by": "",
+        "override_at": None,
+        "override_note": "",
+    }
+    for k, v in fields.items():
+        if k in PHONE_PARK_FIELDS and k not in ("exam_id", "student_key", "tenant_id"):
+            row[k] = v
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT OR REPLACE INTO bluebook_phone_parks ({', '.join(PHONE_PARK_FIELDS)}) "
+            f"VALUES ({', '.join('?' * len(PHONE_PARK_FIELDS))})",
+            tuple(row[k] for k in PHONE_PARK_FIELDS),
+        )
+        conn.commit()
+    return get_phone_park(exam_id, student_key) or {}
+
+
+def get_phone_park(exam_id: str, student_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        ).fetchone()
+    return dict(zip(PHONE_PARK_FIELDS, row, strict=True)) if row else None
+
+
+def list_phone_parks(exam_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? ORDER BY student_key",
+            (exam_id,),
+        ).fetchall()
+    return [dict(zip(PHONE_PARK_FIELDS, r, strict=True)) for r in rows]
