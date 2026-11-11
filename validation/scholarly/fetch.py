@@ -294,7 +294,8 @@ def build_manifest(collection: str, authors: List[dict], state: Dict[str, PaperR
         ok = [r for r in results if r.status == "ok"]
         ok = [r for r in ok if seen_hash.get(r.sha, a["author_id"]) == a["author_id"]][:max_ok]
         if len(ok) < min_ok:
-            if results:
+            # logged as dropped only when truly hopeless; an author interrupted mid-run is neither
+            if results and decide(len(ok), len(results), len(a["papers"]), min_ok, max_ok) == "abandon":
                 dropped.append({"author_id": a["author_id"], "n_candidates": a["n_candidates"],
                                 "tried": len(results), "usable": len(ok),
                                 "reason": "fewer than %d usable papers" % min_ok})

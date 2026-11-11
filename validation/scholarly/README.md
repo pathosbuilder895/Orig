@@ -60,6 +60,22 @@ rate limited per host (arXiv: one request per 3 seconds, single connection, per 
 API terms), and sends the generic User-Agent `scholarly-corpus-builder/0.1` with no
 contact details. Re-running continues where it stopped and rebuilds the manifest.
 
+## Build state (2026-11-11)
+
+| | humanities | science |
+|---|---|---|
+| authors screened (at least 8 candidates) | 1,031 | 6,828 (top 2,000 listed in `candidates/science.json`) |
+| authors fetched so far | 1,031 (complete) | 127 of the ranked list, then stopped |
+| **usable authors in the manifest** | **387** (dev 157, calibration 112, locked 118) | **107** (dev 48, calibration 32, locked 27) |
+
+The 1,000-author target is **not reached**. Humanities is capped by the source pool
+(1,031 screened authors, 38% of which survived fetching). Science has ample pool
+but fetching is limited by arXiv's one-request-per-3-seconds rule; continue with
+`fetch.py --collection science --limit-authors 2000` (resumable, about 8 worker
+papers per usable author, roughly 500 worker-seconds of arXiv-limited time each).
+Failure reasons are in `cache/<collection>/state.jsonl`; dropped authors in
+`manifest/<collection>_dropped.json`. Baselines: `baseline_<collection>_2026-11-11.json`.
+
 ## Using the corpus
 
 ```python
