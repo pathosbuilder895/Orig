@@ -381,6 +381,9 @@
     },
     "total_probability": 0.931087247
   },
+  "opportunity_deviation_preview": null,
+  "opportunity_mask_applied": false,
+  "opportunity_mode": null,
   "recommendation": {
     "action": "monitor",
     "confidence": 0.833921387,
@@ -405,5 +408,6 @@
   "typicality_n": 0,
   "typicality_p_central": null,
   "typicality_p_far": null,
-  "typicality_source": null
+  "typicality_source": null,
+  "unmeasured_features": null
 }

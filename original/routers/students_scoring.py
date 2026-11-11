@@ -354,6 +354,20 @@ def score_submission(
         tuned_action_thresholds=_tuned_action_thresholds,
     )
 
+    # ── Opportunity mask (OPPORTUNITY_MASK, default off) ──────────────────────
+    # Which share-type measurements this paper gave no chance to occur
+    # (features/opportunity.py). Computed only when the flag is not "off": it
+    # re-runs a handful of the extractors' own counts over the text. A failure
+    # here leaves the mask None, which score() treats exactly as flag-off.
+    _unmeasured_mask = None
+    if _scoring_config_env.opportunity_mask != "off":
+        try:
+            from ..features.opportunity import unmeasured_mask
+
+            _unmeasured_mask = unmeasured_mask(req.text)
+        except Exception:
+            logging.getLogger(__name__).exception("opportunity mask failed: scored without it")
+
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -364,7 +378,25 @@ def score_submission(
         n_tokens=_n_tokens,
         impostor_stats=_impostor_stats,
         scoring_config=_scoring_config,
+        unmeasured_mask=_unmeasured_mask,
     )
+
+    # ── Opportunity mask audit line ───────────────────────────────────────────
+    # One INFO line per scoring call whenever OPPORTUNITY_MASK is not "off".
+    # n_unmeasured=0 means the paper measured everything the student is
+    # compared on, so the flag was inert for it: a soak that returns mostly
+    # zeros says the fault is rare in real traffic, whatever a corpus shows.
+    # Same privacy rule as the lines below: no student id, counts only.
+    if _scoring_config_env.opportunity_mask != "off":
+        logging.getLogger(__name__).info(
+            "opportunity_mask mode=%s n_unmeasured=%d n_tokens=%d deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.opportunity_mask,
+            len(result.unmeasured_features or ()),
+            _n_tokens,
+            result.authorship.deviation_score,
+            result.opportunity_deviation_preview,
+        )
 
     # ── Topic-adaptive variance inflation audit line ───────────────────────────
     # One INFO line per scoring call whenever TOPIC_VARIANCE_INFLATION is not
@@ -570,7 +602,17 @@ def score_submission(
     # topic_inflation_applied (set from the same _sigma_was_inflated there),
     # so this can only skip on the "on" path -- shadow never sets it and
     # stays byte-identical.
-    if result.authorship.quantum_fidelity > 0 and not result.topic_inflation_applied:
+    #
+    # The opportunity mask has the same hazard: under "on", a paper with
+    # unmeasured features has its fidelity encoded over fewer features than
+    # every stored one. scoring.py withholds the p-value for that paper; the
+    # write is skipped here so the value cannot contaminate later papers
+    # either. "on" only: shadow never sets opportunity_mask_applied.
+    if (
+        result.authorship.quantum_fidelity > 0
+        and not result.topic_inflation_applied
+        and not result.opportunity_mask_applied
+    ):
         try:
             _repo().put_fidelity_score(
                 submission_id=submission_id,
