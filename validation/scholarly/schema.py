@@ -27,6 +27,7 @@ class ScholarlyPaper(BaseModel):
     word_count: int = Field(..., description="Words of prose after cleaning.")
     text_sha256: str = Field(..., description="SHA-256 of the cleaned text (UTF-8).")
     partition: str
+    cleaner_version: str = "1"  # clean.CLEAN_VERSION that produced text_sha256; papers that predate the field are v1
 
     @field_validator("text_sha256")
     @classmethod

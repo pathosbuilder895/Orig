@@ -18,6 +18,7 @@ details. Only text is kept; PDFs are never stored.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import http.client
 import json
@@ -69,10 +70,11 @@ class PaperResult:
     sha: str = ""
     seconds: float = 0.0
     requests: int = 0
+    cleaner_version: str = "1"   # results recorded before the field existed were cleaned by v1
     text: Optional[str] = field(default=None, repr=False)
 
     def record(self) -> dict:
-        d = {k: getattr(self, k) for k in ("work_id", "author_id", "status", "reason", "words", "sha", "seconds", "requests")}
+        d = {k: getattr(self, k) for k in ("work_id", "author_id", "status", "reason", "words", "sha", "seconds", "requests", "cleaner_version")}
         d["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         return d
 
@@ -89,7 +91,7 @@ class AuthorOutcome:
 
 def shingles(text: str, k: int = 6) -> set:
     w = text.lower().split()
-    return {hash(tuple(w[i:i + k])) for i in range(0, max(len(w) - k + 1, 0), 3)}
+    return {hash(tuple(w[i:i + k])) for i in range(max(len(w) - k + 1, 0))}  # every position: no phase lock
 
 
 def is_duplicate(text: str, others: List[set], threshold: float = 0.25) -> bool:
@@ -151,22 +153,34 @@ def process_author(author: dict, fetch_one: Callable[[dict], PaperResult],
 
 # -------------------------------------------------------------- networking --
 class HostLimiter:
+    """Per-host politeness: ONE request at a time per host, spaced by ``interval`` seconds from
+    the end of the previous one. ``slot(host)`` holds the host lock for the whole request, so two
+    downloads from the same host can never overlap (arXiv terms: one connection, one request
+    per 3 seconds)."""
+
     def __init__(self, intervals: Dict[str, float] = HOST_INTERVAL, default: float = DEFAULT_INTERVAL):
         self.intervals, self.default = intervals, default
         self._last: Dict[str, float] = {}
         self._lock = threading.Lock()
         self._host_locks: Dict[str, threading.Lock] = {}
 
-    def wait(self, host: str) -> None:
+    @contextlib.contextmanager
+    def slot(self, host: str):
         with self._lock:
             hl = self._host_locks.setdefault(host, threading.Lock())
-        with hl:  # one connection per host at a time (arXiv terms), spaced by the interval
+        with hl:
             gap = self.intervals.get(host, self.default)
-            now = time.monotonic()
-            sleep = self._last.get(host, 0) + gap - now
+            sleep = self._last.get(host, 0) + gap - time.monotonic()
             if sleep > 0:
                 time.sleep(sleep)
-            self._last[host] = time.monotonic()
+            try:
+                yield
+            finally:
+                self._last[host] = time.monotonic()
+
+    def wait(self, host: str) -> None:  # spacing only, no hold; kept for callers that do not download
+        with self.slot(host):
+            pass
 
 
 def http_get(url: str, limiter: HostLimiter, timeout: int = 60, tries: int = 2):
@@ -176,12 +190,12 @@ def http_get(url: str, limiter: HostLimiter, timeout: int = 60, tries: int = 2):
     reqs = 0
     reason = "error"
     for attempt in range(tries):
-        limiter.wait(host)
         reqs += 1
         try:
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/pdf,*/*;q=0.5"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                body = r.read(MAX_PDF_BYTES + 1)
+            with limiter.slot(host):  # held until the body is fully read
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    body = r.read(MAX_PDF_BYTES + 1)
             if len(body) > MAX_PDF_BYTES:
                 return "too_large", None, reqs
             return "ok", body, reqs
@@ -221,7 +235,7 @@ class Fetcher:
     def __call__(self, paper: dict, author_id: str) -> PaperResult:
         t0 = time.time()
         wid = paper["work_id"]
-        res = PaperResult(wid, author_id, "fail")
+        res = PaperResult(wid, author_id, "fail", cleaner_version=clean.CLEAN_VERSION)
         status, body, reqs = http_get(paper["url"], self.limiter)
         res.requests = reqs
         try:
@@ -267,7 +281,8 @@ def load_state(path: Path) -> Dict[str, PaperResult]:
             if line.strip():
                 d = json.loads(line)
                 out[d["work_id"]] = PaperResult(**{k: d[k] for k in
-                    ("work_id", "author_id", "status", "reason", "words", "sha", "seconds", "requests")})
+                    ("work_id", "author_id", "status", "reason", "words", "sha", "seconds", "requests")},
+                    cleaner_version=d.get("cleaner_version", "1"))
     return out
 
 
@@ -307,7 +322,8 @@ def build_manifest(collection: str, authors: List[dict], state: Dict[str, PaperR
             papers.append(ScholarlyPaper(
                 source="openalex", source_paper_id=r.work_id, author_id=a["author_id"],
                 year=m["year"], field=m["field"], licence=m["licence"], url=m["url"],
-                word_count=r.words, text_sha256=r.sha, partition=policy.partition_of(a["author_id"])))
+                word_count=r.words, text_sha256=r.sha, partition=policy.partition_of(a["author_id"]),
+                cleaner_version=r.cleaner_version))
     papers.sort(key=lambda p: (p.author_id, p.source_paper_id))
     manifest = ScholarlyManifest(collection=collection, created_at=time.strftime("%Y-%m-%d"), papers=papers)
     return manifest, dropped
@@ -401,6 +417,10 @@ def restore(collection: str, cache: Path, workers: int = 8, manifest_dir: Option
     with ThreadPoolExecutor(max_workers=workers) as ex:
         list(ex.map(one, todo))
     out["already_present"] = len(m.papers) - len(todo)
+    old = sum(p.cleaner_version != clean.CLEAN_VERSION for p in m.papers)
+    if old:
+        out["warning"] = (f"{old} papers were cleaned by an older cleaner than v{clean.CLEAN_VERSION}: "
+                          "those the cleaner change touched will report as mismatch")
     return out
 
 

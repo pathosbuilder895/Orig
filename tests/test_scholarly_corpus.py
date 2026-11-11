@@ -434,15 +434,16 @@ def test_loader_refuses_an_author_with_fewer_than_six_papers(corpus):
         loader.load_trials("humanities", "development", manifest=bad, cache=cache)
 
 
-def test_loader_refuses_missing_or_tampered_cache(corpus):
+def test_loader_skips_an_author_with_a_missing_or_tampered_cache_and_says_why(corpus):
     m, cache, authors = corpus
     f = next((cache / "humanities" / "texts" / authors[0]).glob("*.txt"))
     f.write_text("tampered " * 2000, encoding="utf-8")
-    with pytest.raises(loader.ThinAuthorError, match="hash"):
-        loader.load_trials("humanities", "development", manifest=m, cache=cache)
+    ts = loader.load_trials("humanities", "development", manifest=m, cache=cache)
+    assert authors[0] in ts.skipped and "hash" in ts.skipped[authors[0]]
+    assert authors[0] not in [t.student_id for t in ts.trials] and len(ts.trials) == 3   # the others still load
     f.unlink()
-    with pytest.raises(loader.ThinAuthorError, match="missing"):
-        loader.load_trials("humanities", "development", manifest=m, cache=cache)
+    ts = loader.load_trials("humanities", "development", manifest=m, cache=cache)
+    assert "missing" in ts.skipped[authors[0]]
 
 
 def test_loader_reports_authors_it_cannot_cut_instead_of_dropping_them_silently(corpus):
@@ -533,8 +534,11 @@ def test_baseline_never_touches_locked_partition():
 
 
 def test_clean_drops_footnote_markers_and_other_language_paragraphs():
-    assert clean.strip_inline("It ended at Ravenna.1 The two fleets2 were large, see Dan 1-6.") == \
+    assert clean.strip_inline("It ended at Ravenna.1 The two fleets were large, see Dan 1-6.") == \
         "It ended at Ravenna. The two fleets were large, see Dan 1-6."
+    # digits glued to letters are NOT footnote markers (v1 turned p53 into p and dropped it)
+    assert clean.strip_inline("The p53 protein and log2 scale and mp3 files were used here") == \
+        "The p53 protein and log2 scale and mp3 files were used here"
     afr = ("Die verhale in die Danielboek vertoon nie apokaliptiese eienskappe nie, met die uitsondering van "
            "Daniel wat oor Nebukadnesar se droom handel en die groter geheel van die boek.")
     xml = "<doc>" + _page([_line(BODY, 72, 100) + _line(BODY, 72, 112), _line(afr, 72, 160) + _line(afr, 72, 172)]) + "</doc>"
@@ -602,3 +606,38 @@ def test_verify_and_restore_round_trip(corpus, tmp_path, monkeypatch):
     files[0].unlink()
     r = fetch.restore("humanities", cache, 2, mdir, fetch_url=lambda u: b"x")
     assert r["restored"] == 0 and r["mismatch"] == 1 and not files[0].exists()
+
+
+def test_host_limiter_never_overlaps_two_requests_on_one_host():
+    import threading, time as _t
+    lim = fetch.HostLimiter(intervals={"h": 0.0}, default=0.0)
+    active, peak, lock = [0], [0], threading.Lock()
+
+    def req():
+        with lim.slot("h"):
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            _t.sleep(0.02)
+            with lock:
+                active[0] -= 1
+
+    ts = [threading.Thread(target=req) for _ in range(8)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert peak[0] == 1
+
+
+def test_duplicate_detection_survives_a_one_word_offset():
+    base = " ".join(f"tok{i % 997}z{i}" for i in range(2000))
+    shifted = "Running head " + base           # same paper, two extra leading words
+    assert fetch.is_duplicate(shifted, [fetch.shingles(base)])
+
+
+def test_restore_warns_when_papers_were_cleaned_by_an_older_cleaner(corpus, tmp_path):
+    m, cache, _ = corpus
+    mdir = tmp_path / "manifest"
+    mdir.mkdir()
+    (mdir / "humanities.json").write_text(m.model_dump_json(), encoding="utf-8")  # papers default to cleaner v1
+    r = fetch.restore("humanities", cache, 1, mdir, fetch_url=lambda u: None)
+    assert "warning" in r and "older cleaner" in r["warning"]

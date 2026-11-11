@@ -65,8 +65,8 @@ contact details. Re-running continues where it stopped and rebuilds the manifest
 | | humanities | science |
 |---|---|---|
 | authors screened (at least 8 candidates) | 1,031 | 6,828 (top 2,000 listed in `candidates/science.json`) |
-| authors fetched so far | 1,031 (complete) | 127 of the ranked list, then stopped |
-| **usable authors in the manifest** | **387** (dev 157, calibration 112, locked 118) | **107** (dev 48, calibration 32, locked 27) |
+| authors fetched so far | 1,031 (complete) | the top 155 of the ranked list, then stopped |
+| **usable authors in the manifest** | **385** (dev 157, calibration 112, locked 116) | **130** (dev 61, calibration 36, locked 33) |
 
 The 1,000-author target is **not reached**. Humanities is capped by the source pool
 (1,031 screened authors, 38% of which survived fetching). Science has ample pool
@@ -84,6 +84,8 @@ The manifest is the durable record; the cache is disposable and rebuildable.
 .venv/bin/python -m validation.scholarly.fetch --collection humanities --verify    # offline: cache vs manifest hashes
 .venv/bin/python -m validation.scholarly.fetch --collection humanities --restore   # re-download missing papers, hash-checked
 ```
+
+Each manifest paper records the cleaner version that produced its hash (`cleaner_version`; `clean.CLEAN_VERSION`). The first build used v1; a later fix (v2) stopped the footnote rule stripping digits glued to letters (`p53`, `log2`), so `--restore` warns about papers cleaned by an older version and any the change touched may report `mismatch`.
 
 `--restore` fetches only the manifest's papers and keeps a text only when its SHA-256
 equals the recorded one. A changed publisher file or a changed cleaner shows up as a

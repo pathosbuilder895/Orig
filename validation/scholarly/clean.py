@@ -20,6 +20,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
+# Bump when a change alters cleaned text; manifests record the version they were built with.
+# v1: first build (2026-11-11). v2: footnote-marker rule no longer strips digits glued to letters.
+CLEAN_VERSION = "2"
+
 # ---------------------------------------------------------------- parsing --
 _PAGE = re.compile(r'<page width="([\d.]+)" height="([\d.]+)">(.*?)</page>', re.S)
 _BLOCK = re.compile(r"<block [^>]*>(.*?)</block>", re.S)
@@ -100,7 +104,9 @@ def is_english(text: str) -> bool:
     return stopword_fraction(text) >= 0.18
 
 
-_NOTE_MARK = re.compile(r"(?<=[.,;:!?”’)\"])\d{1,3}(?=\s|$)|(?<=[a-z])\d{1,2}(?=[\s.,;:)])")
+# Footnote markers only after sentence punctuation. (v1 also stripped digits glued to lowercase
+# letters, which corrupted "p53", "log2", "mp3"; see CLEAN_VERSION.)
+_NOTE_MARK = re.compile(r"(?<=[.,;:!?”’)\"])\d{1,3}(?=\s|$)")
 
 
 def strip_inline(text: str) -> str:

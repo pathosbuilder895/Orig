@@ -134,7 +134,11 @@ def load_trials(collection: str, partition: str, *, n_past: int = 4, n_new: int 
         if len(papers) < policy.MIN_USABLE_PAPERS:
             raise ThinAuthorError(f"author {aid} has {len(papers)} usable papers; "
                                   f"the floor is {policy.MIN_USABLE_PAPERS}")
-        texts = {p.source_paper_id: _read(cache, collection, p) for p in papers}
+        try:
+            texts = {p.source_paper_id: _read(cache, collection, p) for p in papers}
+        except ThinAuthorError as e:   # a rotted link or stale cache costs this author, not the run
+            skipped[aid] = f"unusable cache: {e}"
+            continue
         order = sorted(papers, key=lambda p: _rank(seed, p.source_paper_id))
         rng = random.Random(_rank(seed, aid))
         past = [p for p in order if p.word_count >= past_words][:n_past]
