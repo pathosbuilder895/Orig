@@ -54,6 +54,7 @@ def test_request_log_records_token_links_without_the_token(live_client, caplog):
         ("/bluebook/", f"invite={SECRET}"),
         ("/bluebook/", f"reset={SECRET}"),
         ("/bluebook/parked.html", f"t={SECRET}"),
+        ("/bluebook/parked.html", f"s={SECRET}"),
     ]
     for path, query in links:
         live_client.get(f"{path}?{query}")

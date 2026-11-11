@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Original — Professor</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<!-- Self-hosted (NORTH_STAR rule 7): the same files Collections serves. -->
+<link rel="stylesheet" href="bluebook/fonts.css">
 <script>
 /* Auth bridge (ADR-003): attach the principal token to same-origin API calls.
    No token (the zero-login demo) → no header → demo principal, unchanged. */
@@ -882,7 +882,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .panel-close-btn{width:24px;height:24px;border-radius:4px;background:none;border:none;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0}
 .panel-close-btn:hover{background:var(--cream-border);color:var(--text-primary)}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Chart.js 4.4.0 (MIT), served from this deploy: no third-party script runs beside student writing (NORTH_STAR rule 7). -->
+<script src="assets/vendor/chart.umd-4.4.0.js"></script>
 <style>
 .toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .toast{background:var(--green-deepest);color:var(--text-cream);border:1px solid var(--green-border);padding:11px 18px;border-radius:10px;font-size:0.82rem;font-weight:500;max-width:320px;opacity:0;transform:translateY(12px);transition:opacity 0.25s,transform 0.25s;pointer-events:auto}
@@ -995,7 +996,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         </div>
         <span class="logo-wordmark">Original</span>
       </div>
-      <div class="logo-school">Authorship Verification</div>
+      <div class="logo-school">Writing consistency · in testing</div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section-label">Workspace</div>
@@ -1028,9 +1029,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings
       </a>
-      <a class="nav-item" href="bluebook/" target="_blank" title="Bluebook — secure examinations" style="opacity:0.85">
+      <a class="nav-item" href="bluebook/" target="_blank" title="Collections: writing sessions" style="opacity:0.85">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        Bluebook ↗
+        Collections ↗
       </a>
       <div class="nav-section-label" style="margin-top:8px" data-demo-only hidden>Research</div>
       <a class="nav-item" href="#" title="Registered Institutions" onclick="showTenants();return false" data-operator-only data-demo-only hidden>
@@ -1183,7 +1184,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             <div class="load-step" id="ls1"><span class="ls-icon"></span> Surface stylometrics (TTR, sentence length, hapax…)</div>
             <div class="load-step" id="ls2"><span class="ls-icon"></span> Discourse &amp; cohesion analysis…</div>
             <div class="load-step" id="ls3"><span class="ls-icon"></span> Rhetorical register &amp; theological vocabulary…</div>
-            <div class="load-step" id="ls4"><span class="ls-icon"></span> Character &amp; punctuation fingerprint…</div>
+            <div class="load-step" id="ls4"><span class="ls-icon"></span> Character &amp; punctuation habits…</div>
             <div class="load-step" id="ls5"><span class="ls-icon"></span> POS/syntax &amp; idiosyncratic patterns…</div>
             <div class="load-step" id="ls6"><span class="ls-icon"></span> Matching against the student’s voice baseline…</div>
           </div>
@@ -1251,7 +1252,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- Catastrophic drift alert (hidden until API returns catastrophic_drift=true) -->
           <div id="driftAlert" style="display:none;margin-bottom:12px;padding:14px 18px;border-radius:12px;
                background:var(--red-l);border:1.5px solid var(--red);color:var(--red)">
-            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">⚠ Sudden style shift detected</div>
+            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">A large change from this student’s earlier writing</div>
             <div id="driftAlertBody" style="font-size:0.82rem;line-height:1.5;color:var(--text-muted)"></div>
           </div>
 
@@ -1270,7 +1271,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <button class="action-btn" onclick="recordProfessorAction('no_action')">Voice Confirmed</button>
               <button class="action-btn warn" onclick="recordProfessorAction('schedule_conversation')">Schedule a Conversation</button>
               <button class="action-btn danger" onclick="recordProfessorAction('escalate')">Needs Review</button>
-              <button class="action-btn" id="correctBtn" style="margin-left:auto;background:var(--cream-warm)" onclick="openCorrectionForm()">Correct verdict</button>
+              <button class="action-btn" id="correctBtn" style="margin-left:auto;background:var(--cream-warm)" onclick="openCorrectionForm()">Correct this reading</button>
               <button class="action-btn" id="blendBtn" style="background:var(--cream-warm)" onclick="runBlendCheck()">Run blend check</button>
             </div>
           </div>
@@ -1321,12 +1322,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- Collapsed by default. Click to expand. Loads AUC + FPR from
                the most recent completed calibration run and translates them
                into plain language the professor can use to calibrate trust. -->
-          <div id="proofCard" style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:12px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm)">
+          <div id="proofCard" data-demo-only hidden style="background:var(--surface);border:1px solid var(--cream-border);border-radius:10px;padding:12px 18px;margin-bottom:14px;box-shadow:var(--shadow-sm)">
             <a href="#" onclick="toggleProofCard(event)"
                style="display:flex;align-items:center;justify-content:space-between;text-decoration:none;color:var(--text-primary)">
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:1rem"></span>
-                <span style="font-family:'EB Garamond',serif;font-size:0.95rem;font-weight:500">How accurate is this system?</span>
+                <span style="font-family:'EB Garamond',serif;font-size:0.95rem;font-weight:500">How has this been tested?</span>
                 <span id="proofAucBadge" style="display:none;font-size:0.75rem;padding:2px 8px;border-radius:3px;background:var(--flag-green-bg);color:var(--flag-green);font-weight:600"></span>
               </div>
               <span id="proofArrow" style="font-size:0.75rem;color:var(--text-muted)">▶ Show</span>
@@ -1347,11 +1348,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
           <!-- ── Blend timeline (lazy-rendered when "Run blend" clicked) ─── -->
           <div id="blendCard" style="display:none;background:var(--surface);border:1px solid var(--cream-border);border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)">
-            <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;margin-bottom:4px">Sliding-window blend detection</div>
-            <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Per 300-token window. Red dashes mark detected fingerprint shifts.</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;margin-bottom:4px">Style changes within this paper</div>
+            <div style="font-family:'EB Garamond',serif;font-style:italic;font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Per 300-token window. Red dashes mark where the style changes most.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px">
               <div class="metric-card" style="padding:10px 14px">
-                <div class="metric-label">Detected</div>
+                <div class="metric-label">Change found</div>
                 <div class="metric-value" id="blendDetectedV" style="font-size:1.2rem">—</div>
               </div>
               <div class="metric-card" style="padding:10px 14px">
@@ -1369,16 +1370,16 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- ── Correction modal ───────────────────────────────────────── -->
           <div id="correctionModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,30,23,0.55);z-index:1000;align-items:center;justify-content:center">
             <div style="background:var(--cream);border-radius:12px;padding:24px 28px;max-width:520px;width:90%;box-shadow:var(--shadow-md)">
-              <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;margin-bottom:6px">Correct this verdict</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:1.2rem;margin-bottom:6px">Correct Original’s reading</div>
               <div style="font-family:'EB Garamond',serif;font-style:italic;color:var(--text-muted);font-size:0.85rem;margin-bottom:14px">Your feedback feeds the retraining loop in the Lab.</div>
               <div style="margin-bottom:14px">
-                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Was the original verdict correct?</label>
+                <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px">Was Original’s reading right?</label>
                 <label style="margin-right:18px"><input type="radio" name="cIsCorrect" value="true"/> Yes — leave alone</label>
                 <label><input type="radio" name="cIsCorrect" value="false" checked/> No — change it</label>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
                 <div>
-                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cVerdict">Corrected verdict</label>
+                  <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cVerdict">Corrected reading</label>
                   <select id="cVerdict" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
                     <option value="">—</option>
                     <option value="authentic">authentic</option>
@@ -1423,7 +1424,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
           <!-- Compare toggle -->
           <div style="display:flex;justify-content:flex-end">
             <button class="compare-toggle" id="compareToggleBtn" onclick="toggleCompare()" style="display:none">
-              Compare Voice Fingerprints
+              Compare voice profiles
             </button>
           </div>
 
@@ -1557,14 +1558,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
         </button>
       </div>
       <div class="panel-3d-title" id="panelStudentName">Marcus Whitfield</div>
-      <div class="panel-3d-sub">Voice fingerprint</div>
+      <div class="panel-3d-sub">Voice profile</div>
     </div>
 
     <div class="panel-student">
       <div class="panel-s-avatar" id="panelAvatar" style="background:var(--cream-warm);color:var(--text-primary)">MW</div>
       <div>
         <div class="panel-s-name" id="panelName">Marcus Whitfield</div>
-        <div class="panel-s-meta" id="panelMeta">5 baselines · 78% baseline confidence</div>
+        <div class="panel-s-meta" id="panelMeta">—</div>
       </div>
     </div>
 
@@ -1945,15 +1946,15 @@ const TIER_META = [
   {key:'T5', name:'POS & Syntax',           sub:'grammar patterns & sentence structure', c:'#2563EB'},
   {key:'T6', name:'Idiosyncratic Patterns', sub:'unique phrases & word choices',      c:'#B08D3C'},
   {key:'T7', name:'Voice Authenticity',     sub:'AI-associated & uncharacteristic patterns', c:'#4A6B5C'},
-  {key:'T8', name:'Prosodic Rhythm',       sub:'sentence-level stress patterns, cadence variation, and rhythmic fingerprint', c:'#7c3aed'},
+  {key:'T8', name:'Prosodic Rhythm',       sub:'sentence-level stress patterns, cadence variation, and rhythmic habits', c:'#7c3aed'},
   {key:'T9', name:'Cognitive Sequencing',  sub:'order of idea presentation, argument scaffolding, and conceptual flow logic', c:'#0891b2'},
   {key:'T10', name:'Semantic Gravity',      sub:'abstraction level shifts, grounding moves, and conceptual density per sentence', c:'#be185d'},
-  {key:'T11', name:'Error Ecology',         sub:'systematic error patterns (comma splices, adj chains) as authenticity fingerprint', c:'#b45309'},
+  {key:'T11', name:'Error Ecology',         sub:'systematic error patterns (comma splices, adjective chains)', c:'#b45309'},
   {key:'T12', name:'Tension Arc',           sub:'catastrophe index κ: structural unresolved tension across document paragraphs', c:'#1d4ed8'},
   {key:'T13', name:'Prosodic Depth',        sub:'clausula types, vowel sonority, breath-group regularity, arc resolution',       c:'#6d28d9'},
-  {key:'T14', name:'Error Topology',        sub:'article omission, pronoun ambiguity, comma splices — positional error fingerprint', c:'#b45309'},
+  {key:'T14', name:'Error Topology',        sub:'article omission, pronoun ambiguity, comma splices: where errors fall', c:'#b45309'},
   {key:'T15', name:'Lexical Architecture',  sub:'polysyndeton, chiasmus, Latinate ratio, nominalization — structural vocabulary habits', c:'#0f766e'},
-  {key:'T16', name:'Citation Fingerprint',  sub:'signal verb entropy, source loyalty, ibid. habit, paraphrase density',          c:'#9333ea'},
+  {key:'T16', name:'Citation Patterns',    sub:'signal verb entropy, source loyalty, ibid. habit, paraphrase density',          c:'#9333ea'},
   {key:'T17', name:'Behavioral Biometrics', sub:'keystroke rhythm, burst typing, deletion rate — live-proctor identity signal',    c:'#0369a1'},
 ];
 function apiResponseToResult(resp) {
@@ -2319,7 +2320,7 @@ function rescoreSubmission(submissionId) {
 
 /* The three quick-action buttons under a verdict. A LOCAL note on the
    submission record — deliberately not the corrections endpoint, which
-   writes calibration ground truth and stays behind "Correct verdict". */
+   writes calibration ground truth and stays behind "Correct this reading". */
 function recordProfessorAction(action) {
   if (!window._PR10_currentSubmissionId && !window._LAST_PROF_ENTRY_ID) {
     showToast('Run an analysis first — the note attaches to a scored submission.', 'info');
@@ -2899,7 +2900,7 @@ function buildInterpretation(r, student) {
     'Voice Authenticity':      'Uncharacteristic writing patterns',
   };
   const actionNextStep = {
-    no_action:             'Voice confirmed — return this submission with confidence.',
+    no_action:             'Consistent with this student’s earlier writing. Nothing here calls for a conversation.',
     monitor:               'Watch the next submission. If a pattern develops, a brief conversation can quickly resolve it.',
     schedule_conversation: '10 minutes of open questions about their writing process usually clarifies what happened.',
     escalate:              'Speak with the student before returning the paper — a direct conversation is the clearest path forward.',

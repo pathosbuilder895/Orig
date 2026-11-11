@@ -45,7 +45,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -71,6 +71,10 @@ class DocScore:
     catastrophic_drift_rms_z: float
     scoring_time_ms: float
     error: Optional[str] = None
+    # The engine's own "furthest from the usual range" list (interference.
+    # destructive_features, in the engine's order). Staff evidence reports
+    # (original/evidence.py, ADR-013) explain these; nothing else reads them.
+    destructive_features: List[dict] = field(default_factory=list)
 
 
 # ── Text extraction ──────────────────────────────────────────────────────────
@@ -229,6 +233,7 @@ def score_one(client, student_id: str, path: Path) -> DocScore:
         catastrophic_drift=bool(j.get("catastrophic_drift", False)),
         catastrophic_drift_rms_z=float(j.get("catastrophic_drift_rms_z", 0.0)),
         scoring_time_ms=round(elapsed_ms, 2),
+        destructive_features=list((j.get("interference") or {}).get("destructive_features") or []),
     )
 
 

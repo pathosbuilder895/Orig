@@ -13,7 +13,7 @@ const bundle = async (file) => {
 
 globalThis.window = { BB_API_BASE: '' };
 globalThis.localStorage = { getItem: () => 'test-session', setItem() {}, removeItem() {} };
-const { BB_API } = await bundle('../components.jsx');
+const { BB_API, ORIGINAL_TESTING_NOTICE } = await bundle('../components.jsx');
 const { baselineSummary } = await bundle('../Teacher.jsx');
 
 test('baseline API methods call the approval routes', async () => {
@@ -35,7 +35,8 @@ test('the bulk summary counts every outcome and names students not added', () =>
   assert.equal(
     baselineSummary({ added: 2, already_in_baseline: 1, held: 1, nothing_written: 0, errors: 0,
       results: [{ status: 'held', student: 'Ana' }, { status: 'added', student: 'Ben' }] }),
-    '2 added · 1 already in baseline · 1 not added (differ strongly from earlier samples). Not added: Ana.',
+    '2 added · 1 already in baseline · 1 not added (differ strongly from earlier samples). Not added: Ana. '
+      + ORIGINAL_TESTING_NOTICE,
   );
   assert.equal(
     baselineSummary({ added: 0, already_in_baseline: 0, held: 0, nothing_written: 1, errors: 1, results: [] }),
@@ -47,7 +48,17 @@ test('the bulk summary never speaks of a review queue', () => {
   const text = baselineSummary({ added: 0, already_in_baseline: 0, held: 2, nothing_written: 0, errors: 0,
     results: [{ status: 'held', student: 'Ana' }, { status: 'held', student: 'Ben' }] });
   assert.doesNotMatch(text, /review|held/i);
-  assert.match(text, /Not added: Ana, Ben\.$/);
+  assert.match(text, /Not added: Ana, Ben\. Testing phase:/);
+});
+
+test('a "not added" result carries the testing-phase label, and only then', () => {
+  // "Not added" is Original's comparison with earlier samples (NORTH_STAR rule 10).
+  const held = baselineSummary({ added: 0, already_in_baseline: 0, held: 1, nothing_written: 0, errors: 0,
+    results: [{ status: 'held', student: 'Ana' }] });
+  assert.ok(held.endsWith(ORIGINAL_TESTING_NOTICE), held);
+  const none = baselineSummary({ added: 1, already_in_baseline: 0, held: 0, nothing_written: 0, errors: 0,
+    results: [{ status: 'added', student: 'Ana' }] });
+  assert.ok(!none.includes(ORIGINAL_TESTING_NOTICE), none);
 });
 
 test('the bulk summary lists sittings set aside for review', () => {

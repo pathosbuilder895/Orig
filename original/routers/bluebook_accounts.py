@@ -12,16 +12,20 @@ Sections 3-4 and the 2026-09-28 amendment.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Body, HTTPException, Request
+from pydantic import BaseModel, Field, ValidationError
 
 from .. import bluebook_rules as rules
 from .. import invites as invites_mod
+from .. import join_links as join_links_mod
 from .. import mailer, student_auth
 from .. import principal as principal_mod
 from .. import users as users_mod
-from ..schemas import RosterAddRequest, SendEmailRequest
+from ..schemas import JoinLinkInfoRequest, RosterAddRequest, SendEmailRequest
+from . import phone_park
 from ._shared import _bluebook_tenant, _exam_submissions, _repo, _require_staff
 from .bluebook import _owned_course, _owned_exam
 
@@ -180,6 +184,10 @@ def roster_remove(course_id: str, student_id: str, request: Request):
     course = _owned_course(course_id, request)
     if not _repo().delete_enrollment(course_id, student_id):
         raise HTTPException(status_code=404, detail="student is not on this course")
+    # An unused set-password link would re-enrol the student on redemption;
+    # void it so removal also revokes the link (matters when links never
+    # expire, INVITE_NO_EXPIRY=1). Accounts already set up are unaffected.
+    _repo().void_invites_for_user(student_id)
     _repo().log_audit(
         action="bluebook_roster_remove",
         tenant_id=course["tenant_id"],
@@ -260,6 +268,80 @@ def roster_reissue_pending(course_id: str, request: Request, body: SendEmailRequ
         },
     )
     return {"students": out}
+
+
+# ── Teacher: the course's forwardable sign-up link (2026-10) ─────────────────
+
+
+def _request_base(request: Request) -> str:
+    """The origin the teacher reached us on. Behind Render's proxy the
+    socket scheme is http, so the forwarded scheme wins when it is https."""
+    base = str(request.base_url)
+    if (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip() == "https":
+        base = "https://" + base.split("://", 1)[-1]
+    return base
+
+
+def _join_link_out(request: Request, view: dict) -> dict:
+    path = view.get("join_path")
+    return {
+        **view,
+        "join_url": mailer.absolute_url(path, _request_base(request)) if path else None,
+    }
+
+
+@router.get("/bluebook/courses/{course_id}/join-link")
+def join_link_get(course_id: str, request: Request):
+    """The course's sign-up link, if it is on. Off until the teacher turns it on."""
+    _require_staff(request)
+    _owned_course(course_id, request)
+    return _join_link_out(request, join_links_mod.current(course_id))
+
+
+@router.post("/bluebook/courses/{course_id}/join-link")
+def join_link_enable(course_id: str, request: Request):
+    """Turn the sign-up link on. Keeps a link that is already on."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    view = join_links_mod.enable(course["tenant_id"], course_id, staff.user_id)
+    _repo().log_audit(
+        action="bluebook_join_link_enable",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, view)
+
+
+@router.post("/bluebook/courses/{course_id}/join-link/regenerate")
+def join_link_regenerate(course_id: str, request: Request):
+    """Replace the sign-up link. The old link stops working at once;
+    accounts already made with it are unaffected."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    view = join_links_mod.regenerate(course["tenant_id"], course_id, staff.user_id)
+    _repo().log_audit(
+        action="bluebook_join_link_regenerate",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, view)
+
+
+@router.delete("/bluebook/courses/{course_id}/join-link")
+def join_link_disable(course_id: str, request: Request):
+    """Turn the sign-up link off. Accounts already made with it are unaffected."""
+    staff = _require_staff(request)
+    course = _owned_course(course_id, request)
+    join_links_mod.disable(course_id)
+    _repo().log_audit(
+        action="bluebook_join_link_disable",
+        tenant_id=course["tenant_id"],
+        actor=staff.user_id,
+        details={"course_id": course_id},
+    )
+    return _join_link_out(request, join_links_mod.current(course_id))
 
 
 # ── Teacher: everyone in the workspace ────────────────────────────────────────
@@ -463,6 +545,8 @@ def _exam_summary(exam: dict, state: str, session: dict | None, submitted: bool)
         "course": exam.get("course"),
         "course_id": exam.get("course_id"),
         "duration": exam.get("duration"),
+        "timed": rules.is_timed(exam),
+        "setting": rules.setting(exam),
         "min_words": exam.get("minWords"),
         "max_words": exam.get("maxWords"),
         "opens_at": exam.get("opens_at"),
@@ -514,6 +598,35 @@ def me(request: Request):
         "has_account": user is not None,
         "courses": courses,
     }
+
+
+@router.post("/bluebook/me/join")
+def me_join(body: JoinLinkInfoRequest, request: Request):
+    """A signed-in student opens a course sign-up link: join that course.
+    Only a course in the student's own workspace, and only with an account
+    (a launch-link session has none)."""
+    from .auth import JOIN_LINK_DEAD, JOIN_OTHER_ACCOUNT, join_enrol, join_link_target
+
+    p = _require_student(request)
+    user = _repo().get_user(p.user_id)
+    if user is None:
+        raise HTTPException(status_code=403, detail="Student account required.")
+    target = join_link_target(body.token)
+    if not target:
+        raise HTTPException(status_code=404, detail=JOIN_LINK_DEAD)
+    link, course = target
+    if course["tenant_id"] != p.tenant_id:
+        raise HTTPException(status_code=403, detail=JOIN_OTHER_ACCOUNT)
+    join_enrol(link, course, p.user_id, user)
+    _repo().log_audit(
+        action="join_link_enrol",
+        student_id=p.user_id,
+        tenant_id=p.tenant_id,
+        actor=user["email"],
+        result="ok",
+        details={"course_id": course["id"], "link_id": link["link_id"]},
+    )
+    return {"course_id": course["id"], "name": course.get("name") or ""}
 
 
 @router.get("/bluebook/me/exams")
@@ -574,8 +687,16 @@ def my_exam_start(exam_id: str, request: Request):
             "This exam has not opened yet." if state == rules.UPCOMING else "This exam is closed."
         )
         raise HTTPException(status_code=409, detail=detail)
+    if existing is None:
+        # Phone parking (only if the teacher switched it on): a new sitting
+        # waits for the phone; one already under way is never held up.
+        phone_park.require_cleared(exam, exam_id, p.user_id)
     seconds = rules.session_seconds(exam, now)
-    s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
+    if seconds is None:
+        # Untimed and never closes: nothing to pin (see rules.session_seconds).
+        s = {"started_at": now.isoformat(), "deadline_at": None, "created": existing is None}
+    else:
+        s = _repo().get_or_create_bluebook_session(exam_id, p.user_id, p.tenant_id, seconds)
     proctor_token = None
     if "original" in p.products:
         proctor_token = student_auth.mint_proctor_attestation(p.user_id, exam_id)
@@ -586,7 +707,7 @@ def my_exam_start(exam_id: str, request: Request):
         details={"exam_id": exam_id, "resumed": not s.get("created", True)},
     )
     return {
-        "exam": _exam_detail(exam, rules.OPEN, s, False),
+        "exam": _exam_detail(exam, rules.OPEN, s if s.get("deadline_at") else existing, False),
         "started_at": s["started_at"],
         "deadline_at": s["deadline_at"],
         "server_now": datetime.now(UTC).isoformat(),
@@ -619,3 +740,209 @@ def my_submission(submission_id: str, request: Request):
         raise HTTPException(status_code=404, detail="submission not found")
     exam = _repo().get_bluebook_exam(rec["exam_id"]) if rec.get("exam_id") else None
     return rules.student_view(rec, released=bool((exam or {}).get("results_released_at")))
+
+
+# ── Resume where you left off, across devices (2026-10) ───────────────────────
+# One saved location per signed-in account: the screen, the item it shows,
+# the tab and the scroll position. The browser saves it (debounced, and when
+# the page is hidden); sign-in on any device reads it back. It is read back
+# only after checking, now, that the account may still open that item, so a
+# deleted or no-longer-shared item falls back to the home screen. A student
+# never resumes into a sitting: an exam location comes back as that exam's
+# briefing, where the normal start rules apply. Only the account's own row is
+# ever read (the key is the caller's id, never a path or body field), and the
+# fields are short identifiers, so a link token or any text cannot be stored.
+
+_SCREENS = {
+    # screen -> the entity kind it shows ("" for none, None if it needs none)
+    "staff": {
+        "dashboard": "",
+        "sessions": "",
+        "courses": "",
+        "students": "student",
+        "results": "",
+        "account": "",
+        "proctor": "exam",
+        "manage-exam": "exam",
+        "roster": "course",
+    },
+    "student": {
+        "student-home": "",
+        "student-account": "",
+        "student-submission": "submission",
+        "briefing": "exam",
+        # Saved while writing; always read back as the briefing.
+        "exam": "exam",
+    },
+}
+# Screens that cannot be shown without their item.
+_NEEDS_ENTITY = {"proctor", "manage-exam", "roster", "student-submission", "briefing", "exam"}
+_ID_RE = r"^[A-Za-z0-9_:@-][A-Za-z0-9_:@.-]{0,127}$"
+_TAB_RE = r"^[a-z0-9_-]{1,32}$"
+
+
+class LastLocationBody(BaseModel):
+    screen: str = Field(max_length=32)
+    entity_kind: str = Field(default="", max_length=16)
+    entity_id: str = Field(default="", max_length=128)
+    tab: str = Field(default="", max_length=32)
+    scroll_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    scroll_anchor: str = Field(default="", max_length=128)
+
+
+def _location_account(request: Request) -> tuple[principal_mod.Principal, str]:
+    """(principal, "staff"|"student") for a real signed-in account. The
+    anonymous demo principal is shared by every visitor, so it never has a
+    saved location."""
+    p = getattr(request.state, "principal", None)
+    if p is None or p.is_demo or not p.user_id:
+        raise HTTPException(status_code=401, detail="Sign in to save your place.")
+    if p.role == "student":
+        return p, "student"
+    _require_staff(request)
+    return p, "staff"
+
+
+def _looks_like_token(value: str) -> bool:
+    # A signed token (JWT-style a.b.c) or anything carrying a link query.
+    return value.count(".") >= 2 or "?" in value or "=" in value
+
+
+def _clean_location(body: LastLocationBody, kind: str) -> dict:
+    screens = _SCREENS[kind]
+    if body.screen not in screens:
+        raise HTTPException(status_code=422, detail="That screen is not kept.")
+    want = screens[body.screen]
+    ek, eid = body.entity_kind, body.entity_id
+    if (ek or eid) and (ek != want or not eid):
+        raise HTTPException(status_code=422, detail="That item does not belong on this screen.")
+    if body.screen in _NEEDS_ENTITY and not eid:
+        raise HTTPException(status_code=422, detail="This screen needs its item.")
+    for value in (eid, body.scroll_anchor):
+        if value and (not re.match(_ID_RE, value) or _looks_like_token(value)):
+            raise HTTPException(status_code=422, detail="Only short identifiers are kept.")
+    if body.tab and not re.match(_TAB_RE, body.tab):
+        raise HTTPException(status_code=422, detail="Only short identifiers are kept.")
+    return {
+        "screen": body.screen,
+        "entity_kind": ek,
+        "entity_id": eid,
+        "tab": body.tab,
+        "scroll_fraction": round(float(body.scroll_fraction), 4),
+        "scroll_anchor": body.scroll_anchor,
+    }
+
+
+@router.put("/bluebook/me/location")
+def put_last_location(request: Request, body: dict | None = Body(default=None)):
+    """Save where the signed-in account is now (one row per account). The
+    sign-in is checked before the body, so a caller who is not signed in
+    learns nothing about the shape."""
+    p, kind = _location_account(request)
+    try:
+        parsed = LastLocationBody.model_validate(body or {})
+    except ValidationError:
+        raise HTTPException(status_code=422, detail="That location is not valid.") from None
+    loc = _clean_location(parsed, kind)
+    saved = _repo().put_last_location(p.user_id, p.tenant_id, p.role, loc)
+    return {"saved": True, "updated_at": saved.get("updated_at")}
+
+
+def _resolve_location(request: Request, p, kind: str, loc: dict) -> dict | None:
+    """The saved location as it may be opened now, or None (go home)."""
+    screen, ek, eid = loc.get("screen"), loc.get("entity_kind") or "", loc.get("entity_id") or ""
+    if screen not in _SCREENS[kind] or loc.get("tenant_id") != p.tenant_id:
+        return None
+    out = {
+        "screen": screen,
+        "entity_kind": ek,
+        "entity_id": eid,
+        "entity": None,
+        "tab": loc.get("tab") or "",
+        "scroll_fraction": float(loc.get("scroll_fraction") or 0.0),
+        "scroll_anchor": loc.get("scroll_anchor") or "",
+        "updated_at": loc.get("updated_at"),
+    }
+    try:
+        if kind == "staff":
+            if ek == "exam":
+                exam = _owned_exam(eid, request)
+                out["entity"] = {"id": exam["id"], "title": exam.get("title")}
+            elif ek == "course":
+                course = _owned_course(eid, request)
+                out["entity"] = {
+                    "id": course["id"],
+                    "name": course.get("name"),
+                    "code": course.get("code"),
+                }
+            elif ek == "student":
+                _, by_student = _tenant_rosters(_bluebook_tenant(request))
+                if eid not in by_student:
+                    return None
+                out["entity"] = {"id": eid}
+        else:
+            if ek == "submission":
+                rec = _repo().get_bluebook_submission(eid)
+                if rec is None or rec.get("student_id") != p.user_id:
+                    return None
+                out["entity"] = {"id": eid}
+            elif ek == "exam":
+                exam, state = _visible_exam(p, eid, rules.now_utc())
+                submitted = any(
+                    s.get("exam_id") == eid
+                    for s in _repo().list_bluebook_submissions_for_student(p.user_id)
+                )
+                if submitted:
+                    return None
+                # Never straight into a sitting: the briefing is the exam's
+                # start/resume screen, and it applies the start rules.
+                out.update(screen="briefing", tab="", scroll_fraction=0.0, scroll_anchor="")
+                out["entity"] = {"id": exam["id"], "title": exam.get("title"), "state": state}
+    except HTTPException:
+        return None
+    return out
+
+
+@router.get("/bluebook/me/location")
+def get_last_location(request: Request):
+    """Where the signed-in account last was, if it may still go there; null
+    sends the app to its home screen. Only the caller's own row is read."""
+    p, kind = _location_account(request)
+    loc = _repo().get_last_location(p.user_id)
+    if not loc:
+        return {"location": None}
+    if loc.get("role") != p.role and not (kind == "staff" and loc.get("role") != "student"):
+        return {"location": None}
+    return {"location": _resolve_location(request, p, kind, loc)}
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+# Display only. The chosen font and size change how the app is shown to this
+# person; they never touch submitted text, word counts, timers or anything
+# measured. The browser also keeps the choice locally so it applies before
+# sign-in; this copy lets it follow the account to another device.
+
+DISPLAY_FONTS = ("serif", "sans", "readable", "classic")
+DISPLAY_SIZES = ("small", "default", "large", "xlarge", "xxlarge")
+
+
+@router.get("/bluebook/me/display")
+def get_display_prefs(request: Request):
+    """The signed-in account's own text font and size, or null (defaults)."""
+    p, _ = _location_account(request)
+    prefs = _repo().get_display_prefs(p.user_id)
+    if not prefs:
+        return {"display": None}
+    return {"display": {"font": prefs["font"], "size": prefs["size"]}}
+
+
+@router.put("/bluebook/me/display")
+def put_display_prefs(request: Request, body: dict | None = Body(default=None)):
+    """Save the signed-in account's text font and size. Only known values are kept."""
+    p, _ = _location_account(request)
+    body = body or {}
+    font, size = body.get("font"), body.get("size")
+    if font not in DISPLAY_FONTS or size not in DISPLAY_SIZES:
+        raise HTTPException(status_code=422, detail="That text setting is not available.")
+    saved = _repo().put_display_prefs(p.user_id, {"font": font, "size": size})
+    return {"saved": True, "display": {"font": saved.get("font"), "size": saved.get("size")}}

@@ -106,8 +106,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
+    // The window, lockdown and extra conditions live under More options.
+    await staffPage.locator('#neMore summary').click()
 
     // The ToggleRow states the WS-9 doc calls out explicitly. Defaults
     // first: the lockdown trio is the secure baseline (ON), spell check
@@ -118,7 +120,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       ['Block copy & paste', 'true'],
       ['Allow spell check', 'false'],
       ['Phone blocker', 'true'],
-      ['Authorship comparison (Original)', 'true'],
+      ['Writing consistency (in testing)', 'false'],
     ]
     for (const [name, checked] of SWITCH_DEFAULTS) {
       await expect(staffPage.getByRole('switch', { name })).toHaveAttribute('aria-checked', checked)
@@ -128,6 +130,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     await expect(staffPage.getByRole('switch', { name: 'Allow spell check' })).toHaveAttribute('aria-checked', 'true')
     await staffPage.getByRole('switch', { name: 'Phone blocker' }).click()
     await expect(staffPage.getByRole('switch', { name: 'Phone blocker' })).toHaveAttribute('aria-checked', 'false')
+    // Writing consistency starts OFF; switch it on so the later steps score.
+    await staffPage.getByRole('switch', { name: 'Writing consistency (in testing)' }).click()
+    await expect(staffPage.getByRole('switch', { name: 'Writing consistency (in testing)' })).toHaveAttribute('aria-checked', 'true')
 
     await staffPage.locator('#neTitle').fill(examTitle)
     // #neCourse defaults to HARDCODED_COURSE_CODE already — leave as-is.
@@ -137,7 +142,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const [createExamResponse] = await Promise.all([
       staffPage.waitForResponse(r => r.url().includes('/bluebook/exams') && r.request().method() === 'POST'),
-      staffPage.getByRole('button', { name: 'Publish Examination' }).click(),
+      staffPage.getByRole('button', { name: 'Publish Collection' }).click(),
     ])
     const createdExam = await createExamResponse.json()
     expect(createdExam.id).toBeTruthy()
@@ -145,9 +150,11 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
-      spellChk: true, phoneBlk: false, aiDetect: true,
+      spellChk: true, phoneBlk: false, phonePark: false, aiDetect: true,
+      // Collection options: the in-class, timed default (no size chosen).
+      timed: true, setting: 'in_class',
     })
-    await expect(staffPage.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     journey.exam = createdExam
   })
@@ -157,8 +164,8 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant, request,
   }) => {
     const { draftTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
     await staffPage.locator('#neTitle').fill(draftTitle)
     await staffPage.locator('#nePrompt0').fill('Outline the sources of constitutional authority.')
 
@@ -168,7 +175,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     ])
     const draftExam = await draftResponse.json()
     expect(draftExam.status).toBe('DRAFT')
-    await expect(staffPage.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(draftTitle)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText('draft', { exact: true })).toBeVisible()
 
@@ -185,7 +192,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
+    await openScreen(staffPage, 'Collections')
     // Clicking the row opens the exam's manage screen (Teacher.jsx); its
     // Preview button loads the exam's config and enters the briefing — the
     // same screen a candidate sees (Dashboard.jsx openExam()).
@@ -223,6 +230,18 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
     }
 
+    // The exam sits on the course the professor created above, and a student
+    // sits only an exam on a course they are enrolled on (the session and
+    // seal routes apply the dashboard's rules). Add this worker's student to
+    // that course from the roster, as the teacher would.
+    if (journey.exam.course_id) {
+      const enrolled = await request.post(
+        `/bluebook/courses/${encodeURIComponent(journey.exam.course_id)}/students`,
+        { headers: staffAuth(workerTenant), data: { students: [{ email: workerTenant.student.email, name: candidateName }] } },
+      )
+      expect(enrolled.ok(), await enrolled.text()).toBe(true)
+    }
+
     // Mirrors exam-flow.spec.mjs's bootInExam(): inject BB_EXAM_CONFIG so
     // the briefing→exam transition is immediate, using the real exam id
     // captured from the publish step (and the same toggle states).
@@ -240,6 +259,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
         blockWeb: true,
         blockCopy: true,
         spellChk: true,
+        aiDetect: true, // the exam above switched writing consistency on
       }
     }, [journey.exam, workerTenant.student.student_id, candidateName])
 
@@ -309,7 +329,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission\b/)).toBeVisible({ timeout: 10_000 })
     await expect(staffPage.getByText(candidateName)).toBeVisible()
     // The teacher's Results screen no longer shows Original's score: the
     // percentage the API reported at seal time must not be rendered anywhere.
@@ -367,7 +387,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // having graded the exam (graded_at), the rule the Original suite uses too.
     const { candidateName } = names(workerTenant)
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission · \d+ worth a look · 0 reviewed/)).toBeVisible({ timeout: 10_000 })
 
     const graded = await request.patch(`/bluebook/submissions/${encodeURIComponent(journey.submission.id)}/feedback`, {
       headers: staffAuth(workerTenant),
@@ -376,7 +396,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     expect(graded.ok()).toBe(true)
 
     await openScreen(staffPage, 'Results')
-    await expect(staffPage.getByText(/1 submissions · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByText(/1 submission · \d+ worth a look · 1 reviewed/)).toBeVisible({ timeout: 10_000 })
     await staffPage.getByRole('button', { name: 'Reviewed', exact: true }).click()
     await expect(staffPage.getByText(candidateName)).toBeVisible()
     await staffPage.getByRole('button', { name: 'Submitted', exact: true }).click()
@@ -408,7 +428,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     staffPage, workerTenant,
   }) => {
     const { examTitle } = names(workerTenant)
-    await openScreen(staffPage, 'Examinations')
+    await openScreen(staffPage, 'Collections')
     const row = staffPage.getByRole('button', { name: examTitle })
     await expect(row).toBeVisible({ timeout: 10_000 })
     await row.focus()
@@ -563,10 +583,10 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
 test.describe('New Examination form gating', () => {
   test('Publish and Save as Draft stay gated until a title and a prompt exist', async ({ staffPage }) => {
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
 
-    const publish = staffPage.getByRole('button', { name: 'Publish Examination' })
+    const publish = staffPage.getByRole('button', { name: 'Publish Collection' })
     const draft = staffPage.getByRole('button', { name: 'Save as Draft' })
     await expect(publish).toBeDisabled()
     await expect(draft).toBeDisabled()
@@ -583,8 +603,8 @@ test.describe('New Examination form gating', () => {
   })
 
   test('prompt questions can be added and removed', async ({ staffPage }) => {
-    await openScreen(staffPage, 'Examinations')
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
+    await openScreen(staffPage, 'Collections')
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
 
     await expect(staffPage.getByText('Question I', { exact: true })).toBeVisible()
     await expect(staffPage.getByRole('button', { name: 'Remove' })).toHaveCount(0)

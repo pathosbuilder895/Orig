@@ -25,13 +25,12 @@ import numpy as np
 from ..constants import (
     ALL_FEATURE_CODES,
     BASE_FEATURE_CODES,
-    COMPARISON_CODES,
     DISABLED_FEATURE_GROUPS,
-    MUSICAL_COMPARISON_CODES,
     NORM_BOUNDS,
     TIER17_CODES,
     TIER18_CODES,
 )
+from .baseline_scope import NOT_COMPUTED_FOR_BASELINES
 from .preprocess import preprocess  # backmatter strip + citation data
 from .prosodic import extract_prosodic  # Tiers 13–15
 from .tier1 import TextDoc, extract_tier1
@@ -87,29 +86,16 @@ def _extract_catastrophe_index(doc: TextDoc) -> float:
 # ── Feature extraction ────────────────────────────────────────────────────────
 
 
-def extract_features(
+def extract_raw_features(
     text: str,
     keystroke_data: dict | None = None,
 ) -> dict[str, float]:
     """
-    Extract and normalise all base features from raw text.
+    Every base feature's raw extractor value, before ``NORM_BOUNDS``.
 
-    Returns a dict {feature_code: normalised_value ∈ [0,1]}.
-    Comparison features (COMPARISON_CODES + MUSICAL_COMPARISON_CODES) are set
-    to 0.5 (neutral placeholder) and computed at scoring time.
-
-    Args:
-        text:           Raw submission text.
-        keystroke_data: Optional Bbook stylemetry JSON (keystrokes, pauses,
-                        revisions, deletionRate, wordCount, …).  When provided,
-                        Tier 17 behavioral biometric features are computed from
-                        this data.  When absent, all Tier 17 features default to
-                        0.5 (neutral) so they do not influence the density matrix.
-
-    Preprocessing steps (before feature extraction):
-    - Strip bibliography, appendix, and notes sections
-    - Extract citation fingerprint data (for Tier 16)
-    - Strip parenthetical citations, footnote markers, and block quotes from prose
+    ``extract_features`` is exactly ``_normalise`` over this dict plus the
+    comparison placeholders, so the two can never drift apart. The staff
+    evidence pages (ADR-013) use the raw values to show plain units.
     """
     # ── Preprocessing: strip back-matter + clean citations from prose ─────────
     prose, citation_data = preprocess(text)
@@ -156,12 +142,43 @@ def extract_features(
             lo, hi = NORM_BOUNDS[code]
             raw[code] = (lo + hi) / 2  # midpoint → 0.5 after normalisation
 
+    return raw
+
+
+def extract_features(
+    text: str,
+    keystroke_data: dict | None = None,
+) -> dict[str, float]:
+    """
+    Extract and normalise all base features from raw text.
+
+    Returns a dict {feature_code: normalised_value ∈ [0,1]}.
+    Comparison features (COMPARISON_CODES + MUSICAL_COMPARISON_CODES) are set
+    to 0.5 (neutral placeholder) and computed at scoring time.
+
+    Args:
+        text:           Raw submission text.
+        keystroke_data: Optional Bbook stylemetry JSON (keystrokes, pauses,
+                        revisions, deletionRate, wordCount, …).  When provided,
+                        Tier 17 behavioral biometric features are computed from
+                        this data.  When absent, all Tier 17 features default to
+                        0.5 (neutral) so they do not influence the density matrix.
+
+    Preprocessing steps (before feature extraction):
+    - Strip bibliography, appendix, and notes sections
+    - Extract citation fingerprint data (for Tier 16)
+    - Strip parenthetical citations, footnote markers, and block quotes from prose
+    """
+    raw = extract_raw_features(text, keystroke_data)
+
     # Normalise base features (Tiers 8–12 standalone already output [0,1];
     # _normalise() is a no-op clip for bounds=(0.0, 1.0))
     result = {code: _normalise(raw[code], code) for code in BASE_FEATURE_CODES}
 
-    # All comparison features: placeholder until scoring time
-    for code in MUSICAL_COMPARISON_CODES + list(COMPARISON_CODES):
+    # All comparison features: placeholder until scoring time. A past paper's
+    # vector is made here, so it never has a value for these; scoring leaves
+    # them out of the comparison (features/baseline_scope.py).
+    for code in NOT_COMPUTED_FOR_BASELINES:
         result[code] = 0.5
 
     return result

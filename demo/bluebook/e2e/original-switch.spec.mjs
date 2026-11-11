@@ -44,6 +44,8 @@ async function provisionExam(request, { examTitle, question, id }) {
     data: {
       title: examTitle, course: course.code, course_id: course.id,
       duration: 30, minWords: 5, prompt: question, status: 'ACTIVE',
+      // Writing consistency is off by default; these specs exercise it on.
+      conditions: { aiDetect: true },
     },
   })
   expect(exam.status(), await exam.text()).toBe(201)
@@ -84,6 +86,8 @@ async function redeemInvite(student, invitePath, examTitle) {
   await student.goto(invitePath)
   await student.getByLabel('New password').fill('e2e-student-pass-1')
   await student.getByLabel('Confirm password').fill('e2e-student-pass-1')
+  // A student's invitation asks them to read the student notice and accept the terms.
+  await student.getByRole('checkbox').check()
   await student.getByRole('button', { name: 'Save and continue' }).click()
   await expect(student.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
 }

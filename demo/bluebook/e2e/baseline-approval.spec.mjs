@@ -72,7 +72,7 @@ async function teacherPage(browser, baseURL, { tenant, staff }, products) {
 
 async function openExam(page, examTitle) {
   await page.goto('/bluebook/')
-  await page.getByRole('button', { name: 'Examinations' }).first().click()
+  await page.getByRole('button', { name: 'Collections' }).first().click()
   await page.getByRole('button', { name: examTitle }).click()
 }
 

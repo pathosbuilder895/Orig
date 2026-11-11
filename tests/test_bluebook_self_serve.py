@@ -1796,3 +1796,127 @@ def test_a_foreign_row_on_my_exam_is_not_exported_or_shown_live(live_client):
     assert "outsider" not in live.text and "Foreign Candidate" not in live.text
     audit = get_repository().list_audit(action="bluebook_export")["items"][0]
     assert audit["details"]["rows"] == 1
+
+
+# ── The older session and seal routes apply the dashboard's rules ─────────────
+# POST /bluebook/exams/{id}/session (launch links, staff previews) and
+# POST /bluebook/submissions used to check only the workspace for a student
+# caller. A hand-made request could open a sitting on an upcoming exam (after
+# which /bluebook/me/exams/{id} showed the prompt and the dashboard start
+# skipped its open check), or seal a draft, closed or other-course exam, or
+# seal under any typed name with no student_id.
+
+
+def _legacy_session(client, token, exam_id, student_id):
+    return client.post(
+        f"/bluebook/exams/{exam_id}/session",
+        headers=_auth(token),
+        json={"student_id": student_id},
+    )
+
+
+def test_student_session_route_refuses_an_upcoming_exam_and_keeps_its_prompt_hidden(
+    live_client, classroom
+):
+    s = classroom["student"]
+    up = classroom["exams"]["upcoming"]["id"]
+    r = _legacy_session(live_client, s["token"], up, s["student_id"])
+    assert r.status_code == 409
+    assert r.json()["detail"] == "This exam has not opened yet."
+    h = _auth(s["token"])
+    assert live_client.get(f"/bluebook/me/exams/{up}", headers=h).json()["prompt"] is None
+    assert live_client.post(f"/bluebook/me/exams/{up}/start", headers=h).status_code == 409
+
+
+@pytest.mark.parametrize("key,status", [("draft", 404), ("other", 404), ("closed", 409)])
+def test_student_session_route_refuses_exams_the_dashboard_would(
+    live_client, classroom, key, status
+):
+    s = classroom["student"]
+    r = _legacy_session(live_client, s["token"], classroom["exams"][key]["id"], s["student_id"])
+    assert r.status_code == status, r.text
+
+
+def test_student_session_route_clips_the_deadline_to_the_close(live_client, classroom):
+    s = classroom["student"]
+    r = _legacy_session(live_client, s["token"], classroom["exams"]["open"]["id"], s["student_id"])
+    assert r.status_code == 200, r.text
+    # 90-minute exam closing in 20 minutes: the sitting ends at the close.
+    assert r.json()["duration_seconds"] <= 20 * 60
+
+
+def test_student_session_route_resumes_a_sitting_already_under_way(live_client, classroom):
+    s = classroom["student"]
+    ex = classroom["exams"]["open"]["id"]
+    first = live_client.post(f"/bluebook/me/exams/{ex}/start", headers=_auth(s["token"]))
+    assert first.status_code == 200
+    again = _legacy_session(live_client, s["token"], ex, "")
+    assert again.status_code == 200, again.text
+    assert again.json()["deadline_at"] == first.json()["deadline_at"]
+
+
+def test_staff_preview_session_is_unchanged(live_client, classroom):
+    t = classroom["teacher"]
+    r = live_client.post(
+        f"/bluebook/exams/{classroom['exams']['draft']['id']}/session",
+        headers=_auth(t["token"]),
+        json={"candidate": "Preview"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["duration_seconds"] == 90 * 60
+
+
+@pytest.mark.parametrize("key,status", [("draft", 404), ("other", 404), ("upcoming", 409)])
+def test_student_cannot_seal_an_exam_they_could_not_sit(live_client, classroom, key, status):
+    s = classroom["student"]
+    r = live_client.post(
+        "/bluebook/submissions",
+        headers=_auth(s["token"]),
+        json={"exam_id": classroom["exams"][key]["id"], "student_id": s["student_id"], "text": "x"},
+    )
+    assert r.status_code == status, r.text
+
+
+def test_a_seal_after_the_close_is_kept_and_marked_late(live_client, classroom):
+    s = classroom["student"]
+    body = _seal(
+        live_client,
+        s["token"],
+        classroom["exams"]["closed"]["id"],
+        s["student_id"],
+        text="written offline, sealed after the close",
+    )
+    assert body["late"] == 1
+
+
+def test_a_seal_in_a_sitting_under_way_is_not_late(live_client, classroom):
+    s = classroom["student"]
+    ex = classroom["exams"]["open"]["id"]
+    started = live_client.post(f"/bluebook/me/exams/{ex}/start", headers=_auth(s["token"]))
+    assert started.status_code == 200
+    assert _seal(live_client, s["token"], ex, s["student_id"], text="on time")["late"] == 0
+
+
+def test_a_student_seal_is_always_their_own(live_client, classroom):
+    s = classroom["student"]
+    ex = classroom["exams"]["open"]["id"]
+    h = _auth(s["token"])
+    first = live_client.post(
+        "/bluebook/submissions",
+        headers=h,
+        json={"exam_id": ex, "student_id": "", "candidate": "Classmate Jones", "text": "a"},
+    )
+    assert first.status_code == 201, first.text
+    # Omitting student_id no longer escapes the one-sitting rule.
+    second = live_client.post(
+        "/bluebook/submissions",
+        headers=h,
+        json={"exam_id": ex, "student_id": "", "candidate": "Classmate Jones", "text": "b"},
+    )
+    assert second.status_code == 409
+    rows = live_client.get(
+        "/bluebook/submissions", headers=_auth(classroom["teacher"]["token"])
+    ).json()["submissions"]
+    assert len(rows) == 1
+    # Filed under the signed-in student's own account whatever name was typed.
+    assert rows[0]["student_id"] == s["student_id"]
