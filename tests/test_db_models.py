@@ -36,6 +36,7 @@ from original.db.models.live import (
     BluebookEnrollment,
     BluebookExam,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -49,6 +50,11 @@ from original.db.models.live import (
     ParkSession,
     StaffUser,
     StudentName,
+    StudentPastPaper,
+    BluebookExamDraft,
+    UserDisplayPrefs,
+    UserLastLocation,
+    BluebookPhonePark,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -80,6 +86,12 @@ EXPECTED_TABLES = {
     # T8 phone-park — authored against this schema, not ported from SQLite.
     "park_sessions",
     "park_beats",
+    "student_past_papers",  # student-shared past papers awaiting approval (2026-10)
+    "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
+    "user_last_location",  # where each account last was, for cross-device resume (2026-10)
+    "user_display_prefs",  # each account's chosen text font and size (2026-11)
+    "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
+    "bluebook_join_links",  # forwardable course sign-up links (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -335,6 +347,15 @@ REPRESENTATIVE_ROWS = {
         redeemed_at=None,
         voided_at=None,
     ),
+    BluebookJoinLink: dict(
+        link_id="jl-001",
+        tenant_id=TENANT_ID,
+        course_id="c-001",
+        token_hash="c" * 64,
+        created_by="prof-001",
+        created_at=NOW,
+        voided_at=None,
+    ),
     FormationPathway: dict(
         tenant_id=TENANT_ID,
         student_id="marcus",
@@ -387,6 +408,57 @@ REPRESENTATIVE_ROWS = {
         first_seen_at=NOW,
         last_seen_at=NOW,
         transitions_json=[{"state": "parked", "at": "2026-07-08T12:00:00.000000+00:00"}],
+    ),
+    StudentPastPaper: dict(
+        paper_id="p" * 16,
+        tenant_id=TENANT_ID,
+        student_id=f"{TENANT_ID}:marcus",
+        title="An old essay",
+        text="Writing the student shared for review.",
+        word_count=6,
+        filename="essay.docx",
+        baseline_source="split",
+        parent_title="A longer paper",
+        status="pending",
+        created_at=NOW,
+    ),
+    BluebookExamDraft: dict(
+        exam_id="e" * 16,
+        student_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        content="Unsealed words.",
+        answers='["Unsealed words."]',
+        client_saved_at=1792589233313,
+        updated_at=NOW,
+    ),
+    UserLastLocation: dict(
+        account_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        role="student",
+        screen="student-submission",
+        entity_kind="submission",
+        entity_id="s" * 16,
+        tab="",
+        scroll_fraction=0.42,
+        scroll_anchor="",
+        updated_at=NOW,
+    ),
+    UserDisplayPrefs: dict(
+        account_key=f"{TENANT_ID}:marcus",
+        font="readable",
+        size="large",
+        updated_at=NOW,
+    ),
+    BluebookPhonePark: dict(
+        exam_id="exam-1",
+        student_key=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        state="parked",
+        parked_at=NOW,
+        last_seen_at=NOW,
+        override_by="",
+        override_at=None,
+        override_note="",
     ),
 }
 

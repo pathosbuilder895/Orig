@@ -258,9 +258,10 @@ class BluebookStartSessionRequest(BaseModel):
 class BluebookSessionResponse(BaseModel):
     exam_id: str
     started_at: str
-    deadline_at: str
+    # None for an untimed collection that never closes: no deadline.
+    deadline_at: str | None
     server_now: str
-    duration_seconds: int
+    duration_seconds: int | None
 
 
 class BluebookCreateCourseRequest(BaseModel):
@@ -310,6 +311,25 @@ class InviteRedeemRequest(BaseModel):
     accept_terms: bool = Field(
         False,
         description="Required when an invited professor sets their first password",
+    )
+
+
+class JoinLinkInfoRequest(BaseModel):
+    """POST /auth/join/info and POST /bluebook/me/join — a course sign-up link."""
+
+    token: str
+
+
+class JoinLinkRequest(BaseModel):
+    """POST /auth/join — create a student account from a course sign-up link."""
+
+    token: str
+    name: str
+    email: str
+    password: str
+    accept_terms: bool = Field(
+        False,
+        description="Must be true: the student notice, terms and privacy policy",
     )
 
 
@@ -1054,6 +1074,18 @@ class FusedScoreOut(BaseModel):
     trained_on: str
 
 
+class PreliminaryScoreOut(BaseModel):
+    """Optional preliminary score (ADR-013). Staff and teachers only, never a
+    student session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from
+    the deviation score and action band this response already carries."""
+
+    label: str
+    score: float | None
+    band: str | None
+    band_words: str
+    note: str
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1130,6 +1162,13 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    # ADR-013 explainability, staff/teacher only and never on a student
+    # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
+    # differing habits with verbatim located passages from this paper and the
+    # baseline papers for countable habits (original/evidence.py). Null when
+    # the flag is off, so the default response is unchanged.
+    evidence: dict[str, Any] | None = None
+    preliminary: PreliminaryScoreOut | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

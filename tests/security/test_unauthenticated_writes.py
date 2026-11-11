@@ -88,6 +88,17 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/auth/invite/redeem"): (
         "authenticates via its own one-time invite token (sha256-matched, single use)"
     ),
+    # Forwardable course sign-up links (2026-10): both authenticate via the
+    # link's own token (sha256-matched against an active link), throttled
+    # per IP and per email, and never write an account that has a password
+    # (tests/test_bluebook_join_links.py).
+    ("POST", "/auth/join/info"): (
+        "read-only lookup of an active course sign-up link by its own token"
+    ),
+    ("POST", "/auth/join"): (
+        "authenticates via the course sign-up link's own token; creates or "
+        "activates only a password-less student account in that link's workspace"
+    ),
     ("POST", "/lti/launch"): (
         "LTI launch endpoint; authenticates via its own RSA-signed id_token/state "
         "verification (original/lti.py), not a principal header"
@@ -106,6 +117,19 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
     ("POST", "/proctor/park/beat"): (
         "capability-token authenticated (park_token is the credential, not a "
         "principal); documented anonymous-by-design in original/routers/proctor.py"
+    ),
+    # Signed-grant authenticated (2026-10): the phone never signs in. The scan
+    # code and the beat grant are HMAC-signed, expiring, and name exactly one
+    # student and one collection (student_auth.mint_phone_scan_token /
+    # mint_phone_beat_token); tests/alpha/test_phone_park_accounts.py proves
+    # forged, expired and wrong-kind grants are refused.
+    ("POST", "/bluebook/phone-park/scan"): (
+        "signed-grant authenticated (short-lived scan code for one student and "
+        "one collection); see original/routers/phone_park.py"
+    ),
+    ("POST", "/bluebook/phone-park/beat"): (
+        "signed-grant authenticated (beat grant for one student and one "
+        "collection); see original/routers/phone_park.py"
     ),
 }
 
@@ -143,6 +167,9 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/auth/password"),
     ("POST", "/bluebook/courses"),
     ("POST", "/bluebook/courses/{course_id}/invites/reissue-pending"),
+    ("POST", "/bluebook/courses/{course_id}/join-link"),
+    ("POST", "/bluebook/courses/{course_id}/join-link/regenerate"),
+    ("DELETE", "/bluebook/courses/{course_id}/join-link"),
     ("POST", "/bluebook/courses/{course_id}/students"),
     ("POST", "/bluebook/courses/{course_id}/students/{student_id}/invite"),
     ("POST", "/bluebook/exams"),
@@ -150,6 +177,14 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/exams/{exam_id}/release"),
     ("POST", "/bluebook/exams/{exam_id}/unrelease"),
     ("POST", "/bluebook/me/exams/{exam_id}/start"),
+    ("PUT", "/bluebook/exams/{exam_id}/draft"),
+    ("PUT", "/bluebook/me/location"),
+    ("PUT", "/bluebook/me/display"),
+    ("POST", "/bluebook/me/join"),
+    ("POST", "/bluebook/exams/{exam_id}/phone-park/{student_id}/override"),
+    ("POST", "/bluebook/me/papers"),
+    ("POST", "/bluebook/past-papers/{paper_id}/approve"),
+    ("POST", "/bluebook/past-papers/{paper_id}/decline"),
     ("POST", "/bluebook/submissions/{submission_id}/baseline"),
     ("POST", "/canvas/baseline/{student_id}/fetch-submission-text"),
     ("POST", "/canvas/baseline/{student_id}/import-baseline"),
@@ -188,6 +223,7 @@ JSON_BODIES: dict[str, dict] = {
     "/auth/password": {"current_password": "x" * 8, "new_password": "y" * 8},
     "/bluebook/courses/{course_id}/students": {"students": [{"email": "s@x.edu"}]},
     "/tenants/{tenant_id}": {"products": ["bluebook"]},
+    "/bluebook/me/join": {"token": "x"},
 }
 
 # UploadFile-based routes: (form field name, is-list).

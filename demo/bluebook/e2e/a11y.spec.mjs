@@ -113,7 +113,8 @@ const ALL_SCREENS = [
   'Account',
   // Self-serve screens, each scanned at desktop and at phone width (375px).
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
-    'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
+    'Manage examination', 'Student home', 'Student account', 'Exam with separate answers',
+    'Instructions (teacher)', 'Instructions (student)']
     .flatMap(l => [l, `${l} (375px)`]),
   // The student writing screen in each state a student can meet it in
   // (exam-access.spec.mjs checks what axe cannot: keyboard, focus, zoom).
@@ -127,7 +128,7 @@ const ALL_SCREENS = [
  * Every label here was measured at zero violations, settled (see `settle()`),
  * against the committed `bluebook.bundle.js` at this commit. That measurement
  * is the entire entry criterion: a screen is listed because it passes, not
- * because it is expected to. All 30 currently do, so the list is complete —
+ * because it is expected to. All 39 currently do, so the list is complete,
  * which means the next screen added to this file starts outside the gate and
  * has to earn its way in, exactly as these did.
  *
@@ -180,6 +181,9 @@ const MIGRATED_SCREENS = [
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
     'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
     .flatMap(l => [l, `${l} (375px)`]),
+  // Measured at zero violations on 2026-10-30, at desktop and 375px, when the
+  // Instructions guide was added.
+  ...['Instructions (teacher)', 'Instructions (student)'].flatMap(l => [l, `${l} (375px)`]),
   // Measured at zero violations on 2026-10-13, when the writing screen got
   // its accessibility and reliability pass.
   ...WRITING_SCREENS,
@@ -260,11 +264,11 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // scan of whatever screen was already showing.
   const SCREENS = [
     { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome back|Begin with the writing)/ },
-    { label: 'Examinations', navLabel: 'Examinations', heading: 'Examinations' },
+    { label: 'Examinations', navLabel: 'Collections', heading: 'Collections' },
     { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
     { label: 'Students', navLabel: 'Students', heading: 'Students' },
-    { label: 'Results', navLabel: 'Submissions', heading: 'Results' },
-    { label: 'Proctor', navLabel: 'Proctor', heading: 'Live examination' },
+    { label: 'Results', navLabel: 'Submissions', heading: 'Submissions' },
+    { label: 'Proctor', navLabel: 'Proctor', heading: 'Live sitting' },
     { label: 'Account', navLabel: 'Account', heading: 'Your account' },
   ]
 
@@ -322,10 +326,10 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     await createCourse(request, workerTenant.staff.token, { code: 'A11Y 100', name: 'A11y Scan Course' })
     await staffPage.goto('/bluebook/')
     await staffPage.waitForLoadState('networkidle')
-    await staffPage.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await expect(staffPage.getByRole('heading', { name: 'Examinations' })).toBeVisible()
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
-    await expect(staffPage.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Collections' })).toBeVisible()
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
+    await expect(staffPage.getByRole('heading', { name: 'New Collection' })).toBeVisible()
     // The picker itself, not the empty-state fallback — settle() would
     // otherwise be timing the difference rather than the animation.
     await expect(staffPage.locator('#neCourse')).toHaveJSProperty('tagName', 'SELECT')
@@ -342,10 +346,10 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     const page = await context.newPage()
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Examinations' })).toBeVisible()
-    await page.getByRole('button', { name: '+ New examination' }).click()
-    await expect(page.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    await page.getByRole('button', { name: 'Collections', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
+    await page.getByRole('button', { name: '+ New collection' }).click()
+    await expect(page.getByRole('heading', { name: 'New Collection' })).toBeVisible()
     await expect(page.getByText('No courses yet')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
     checkA11y(results, 'New Examination (no courses yet)')
@@ -448,7 +452,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       const exam = await createExam(request, workerTenant.staff.token, { title: `A11y Manage ${Date.now()}` })
       await staffPage.goto('/bluebook/')
       await staffPage.waitForLoadState('networkidle')
-      await staffPage.getByRole('button', { name: 'Examinations', exact: true }).click()
+      await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
       await staffPage.getByRole('button', { name: exam.title }).click()
       await expect(staffPage.getByRole('button', { name: 'Save changes' })).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(staffPage), 'Manage examination' + tag)
@@ -467,6 +471,35 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.getByRole('button', { name: 'Account' }).click()
       await expect(page.getByLabel('Current password')).toBeVisible()
       checkA11y(await runAxe(page), 'Student account' + tag)
+      await context.close()
+    })
+
+    // The Instructions guide (instructions.jsx), scanned open: a modal dialog
+    // over the teacher frame, then over the student shell. Escape closes it
+    // and hands focus back to the button that opened it.
+    tenancyTest(`Instructions guide${tag}`, async ({ staffPage, browser, baseURL, workerTenant }) => {
+      await staffPage.goto('/bluebook/')
+      await staffPage.waitForLoadState('networkidle')
+      await staffPage.getByRole('button', { name: 'Instructions' }).click()
+      await expect(staffPage.getByRole('dialog', { name: 'Using Collections' })).toBeVisible()
+      checkA11y(await runAxe(staffPage), 'Instructions (teacher)' + tag)
+      await staffPage.keyboard.press('Escape')
+      await expect(staffPage.getByRole('dialog')).toBeHidden()
+      await expect(staffPage.getByRole('button', { name: 'Instructions' })).toBeFocused()
+
+      const context = await browser.newContext({
+        storageState: studentAccountState(baseURL, workerTenant.student),
+        ...(viewport ? { viewport } : {}),
+      })
+      const page = await context.newPage()
+      await page.goto('/bluebook/')
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible({ timeout: 10_000 })
+      await page.getByRole('button', { name: 'Instructions' }).click()
+      await expect(page.getByRole('dialog', { name: 'Alpha test: what to do' })).toBeVisible()
+      checkA11y(await runAxe(page), 'Instructions (student)' + tag)
+      await page.getByRole('button', { name: 'Close' }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
       await context.close()
     })
 

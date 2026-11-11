@@ -939,12 +939,26 @@
       "BluebookSessionResponse": {
         "properties": {
           "deadline_at": {
-            "title": "Deadline At",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
           },
           "duration_seconds": {
-            "title": "Duration Seconds",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
           },
           "exam_id": {
             "title": "Exam Id",
@@ -1194,6 +1208,44 @@
           "file"
         ],
         "title": "Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
+        "type": "object"
+      },
+      "Body_share_past_paper_bluebook_me_papers_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "is_section": {
+            "default": "",
+            "title": "Is Section",
+            "type": "string"
+          },
+          "parent_title": {
+            "default": "",
+            "title": "Parent Title",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "Body_share_past_paper_bluebook_me_papers_post",
         "type": "object"
       },
       "Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post": {
@@ -2195,6 +2247,30 @@
         "title": "EntanglementAnomalyOut",
         "type": "object"
       },
+      "ExamDraftBody": {
+        "description": "The student's unsealed writing for one exam, as the booklet holds it.",
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "client_saved_at": {
+            "default": 0,
+            "title": "Client Saved At",
+            "type": "integer"
+          },
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "title": "ExamDraftBody",
+        "type": "object"
+      },
       "FeatureContributionOut": {
         "properties": {
           "baseline_value": {
@@ -2460,6 +2536,55 @@
         "title": "InviteRedeemRequest",
         "type": "object"
       },
+      "JoinLinkInfoRequest": {
+        "description": "POST /auth/join/info and POST /bluebook/me/join — a course sign-up link.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "JoinLinkInfoRequest",
+        "type": "object"
+      },
+      "JoinLinkRequest": {
+        "description": "POST /auth/join — create a student account from a course sign-up link.",
+        "properties": {
+          "accept_terms": {
+            "default": false,
+            "description": "Must be true: the student notice, terms and privacy policy",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "JoinLinkRequest",
+        "type": "object"
+      },
       "Layer7OutputResponse": {
         "properties": {
           "ai_likelihood": {
@@ -2588,6 +2713,18 @@
               }
             ]
           },
+          "evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
           "feature_vector": {
             "additionalProperties": {
               "type": "number"
@@ -2619,6 +2756,16 @@
           },
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreliminaryScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "recommendation": {
             "$ref": "#/components/schemas/RecommendedActionOut"
@@ -3091,6 +3238,96 @@
           "email"
         ],
         "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PhoneBeatBody": {
+        "properties": {
+          "beat_token": {
+            "title": "Beat Token",
+            "type": "string"
+          },
+          "state": {
+            "default": "parked",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "beat_token"
+        ],
+        "title": "PhoneBeatBody",
+        "type": "object"
+      },
+      "PhoneOverrideBody": {
+        "properties": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "PhoneOverrideBody",
+        "type": "object"
+      },
+      "PhoneScanBody": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PhoneScanBody",
+        "type": "object"
+      },
+      "PreliminaryScoreOut": {
+        "description": "Optional preliminary score (ADR-013). Staff and teachers only, never a\nstudent session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from\nthe deviation score and action band this response already carries.",
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "band_words": {
+            "title": "Band Words",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "label",
+          "score",
+          "band",
+          "band_words",
+          "note"
+        ],
+        "title": "PreliminaryScoreOut",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -5346,6 +5583,80 @@
         "summary": "Auth Invite Redeem"
       }
     },
+    "/auth/join": {
+      "post": {
+        "description": "Create (or finish setting up) a student account from a course sign-up\nlink, enrol it on the course, and sign the student in.\n\n- A new email: the account is created in the course's workspace, with the\n  same student id a roster add would give it (derive_student_id).\n- Any email that already has an account is refused: one with a password\n  (sign in instead), one the teacher added that has never set a password\n  (use the personal invite link), and a teacher's or another workspace's.\n  The link only ever sets the password on an account it just created.\n\nThe student must tick the consent box; nothing is created without it.\nFailures count against a per-IP and per-email budget like invite\nredemption; successes do not, so a class on one school network is not\nthrottled by its own sign-ups.",
+        "operationId": "auth_join_auth_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join"
+      }
+    },
+    "/auth/join/info": {
+      "post": {
+        "description": "What the sign-up screen shows before anyone types: the course and\nits teacher. One answer for every link that cannot be used.",
+        "operationId": "auth_join_info_auth_join_info_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join Info"
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "auth_login_auth_login_post",
@@ -5769,6 +6080,154 @@
         "summary": "Roster Reissue Pending"
       }
     },
+    "/bluebook/courses/{course_id}/join-link": {
+      "delete": {
+        "description": "Turn the sign-up link off. Accounts already made with it are unaffected.",
+        "operationId": "join_link_disable_bluebook_courses__course_id__join_link_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Disable"
+      },
+      "get": {
+        "description": "The course's sign-up link, if it is on. Off until the teacher turns it on.",
+        "operationId": "join_link_get_bluebook_courses__course_id__join_link_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Get"
+      },
+      "post": {
+        "description": "Turn the sign-up link on. Keeps a link that is already on.",
+        "operationId": "join_link_enable_bluebook_courses__course_id__join_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Enable"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link/regenerate": {
+      "post": {
+        "description": "Replace the sign-up link. The old link stops working at once;\naccounts already made with it are unaffected.",
+        "operationId": "join_link_regenerate_bluebook_courses__course_id__join_link_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Regenerate"
+      }
+    },
     "/bluebook/courses/{course_id}/students": {
       "get": {
         "operationId": "roster_list_bluebook_courses__course_id__students_get",
@@ -6170,7 +6629,7 @@
         "summary": "Exam Baseline Status"
       },
       "post": {
-        "description": "Add every sealed submission of an examination to its student's baseline, except late or warned sittings, which are set aside for the professor's review.",
+        "description": "Add every sealed submission of an examination to its student's baseline, except late, warned or take-home sittings, which are set aside for the professor's review.",
         "operationId": "approve_exam_baselines_bluebook_exams__exam_id__baseline_post",
         "parameters": [
           {
@@ -6204,6 +6663,90 @@
           }
         },
         "summary": "Approve Exam Baselines"
+      }
+    },
+    "/bluebook/exams/{exam_id}/draft": {
+      "get": {
+        "description": "The signed-in student's own unsealed draft of this exam, or null.\n\nLets a sitting resume from another browser. Once the exam is sealed the\ndraft is gone (and any left over is deleted here), so a sealed exam\nnever reopens with text.",
+        "operationId": "bluebook_get_draft_bluebook_exams__exam_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Get Draft"
+      },
+      "put": {
+        "description": "Save the signed-in student's unsealed draft (about every 30 seconds and\nwhen the page is hidden or closed). Refused once the exam is sealed. The\ndraft is never scored, never shown to staff and never becomes part of a\nbaseline; the sealed submission is the only record that counts.",
+        "operationId": "bluebook_put_draft_bluebook_exams__exam_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamDraftBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Put Draft"
       }
     },
     "/bluebook/exams/{exam_id}/export": {
@@ -6280,6 +6823,101 @@
           }
         },
         "summary": "Exam Live"
+      }
+    },
+    "/bluebook/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "One entry per student who may sit this collection (its course roster,\nor every rostered student for a collection with no course), plus anyone\nwho has already parked, so the teacher can see who is still waiting and\nlet a student without a phone begin.",
+        "operationId": "exam_phone_parks_bluebook_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exam Phone Parks"
+      }
+    },
+    "/bluebook/exams/{exam_id}/phone-park/{student_id}/override": {
+      "post": {
+        "description": "Let one student begin without a parked phone (for example, they have\nnone with them). Recorded on their row with who and when, and in the\naudit log. It says nothing about the student and changes no score.",
+        "operationId": "override_phone_park_bluebook_exams__exam_id__phone_park__student_id__override_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneOverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Override Phone Park"
       }
     },
     "/bluebook/exams/{exam_id}/release": {
@@ -6462,6 +7100,66 @@
         "summary": "Me"
       }
     },
+    "/bluebook/me/display": {
+      "get": {
+        "description": "The signed-in account's own text font and size, or null (defaults).",
+        "operationId": "get_display_prefs_bluebook_me_display_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Display Prefs"
+      },
+      "put": {
+        "description": "Save the signed-in account's text font and size. Only known values are kept.",
+        "operationId": "put_display_prefs_bluebook_me_display_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Display Prefs"
+      }
+    },
     "/bluebook/me/exams": {
       "get": {
         "operationId": "my_exams_bluebook_me_exams_get",
@@ -6515,6 +7213,54 @@
         "summary": "My Exam"
       }
     },
+    "/bluebook/me/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "Whether this collection asks the student to park their phone, whether\nthey have, and (``code=1``) a fresh QR code that parks it for them alone.\nPolling with ``code=0`` reads the status without minting a code.",
+        "operationId": "my_phone_park_bluebook_me_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Code",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Phone Park"
+      }
+    },
     "/bluebook/me/exams/{exam_id}/start": {
       "post": {
         "description": "Begin (or resume) a sitting from the dashboard. Pins the server\ndeadline exactly as the launch-link path does, clipped so it never\npasses the exam's closes_at. A tenant that bought Original also gets a\nproctor attestation, which the seal's report-only comparison sends; the\nseal never adds to the student's baseline (a professor approves which\nsealed exams do). A Bluebook-only workspace gets none, because it never\nprofiles.",
@@ -6551,6 +7297,154 @@
           }
         },
         "summary": "My Exam Start"
+      }
+    },
+    "/bluebook/me/join": {
+      "post": {
+        "description": "A signed-in student opens a course sign-up link: join that course.\nOnly a course in the student's own workspace, and only with an account\n(a launch-link session has none).",
+        "operationId": "me_join_bluebook_me_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Me Join"
+      }
+    },
+    "/bluebook/me/location": {
+      "get": {
+        "description": "Where the signed-in account last was, if it may still go there; null\nsends the app to its home screen. Only the caller's own row is read.",
+        "operationId": "get_last_location_bluebook_me_location_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Last Location"
+      },
+      "put": {
+        "description": "Save where the signed-in account is now (one row per account). The\nsign-in is checked before the body, so a caller who is not signed in\nlearns nothing about the shape.",
+        "operationId": "put_last_location_bluebook_me_location_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Last Location"
+      }
+    },
+    "/bluebook/me/papers": {
+      "get": {
+        "description": "The signed-in student's own shared papers: title and review status only.",
+        "operationId": "my_past_papers_bluebook_me_papers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Past Papers"
+      },
+      "post": {
+        "description": "Share one past paper (a PDF, DOCX or TXT file, or pasted text) for the\nteacher to review. Stored as pending; never scored.",
+        "operationId": "share_past_paper_bluebook_me_papers_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_share_past_paper_bluebook_me_papers_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Share Past Paper"
       }
     },
     "/bluebook/me/submissions": {
@@ -6604,6 +7498,243 @@
           }
         },
         "summary": "My Submission"
+      }
+    },
+    "/bluebook/past-papers": {
+      "get": {
+        "description": "Every paper students in this workspace have shared, newest first.",
+        "operationId": "list_shared_papers_bluebook_past_papers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Shared Papers"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}": {
+      "get": {
+        "description": "One shared paper with its text, for the teacher to read before deciding.",
+        "operationId": "read_shared_paper_bluebook_past_papers__paper_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/approve": {
+      "post": {
+        "description": "Add the paper to the student's baseline (as a self-upload).",
+        "operationId": "approve_shared_paper_bluebook_past_papers__paper_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/decline": {
+      "post": {
+        "description": "Leave the paper out of the baseline.",
+        "operationId": "decline_shared_paper_bluebook_past_papers__paper_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Shared Paper"
+      }
+    },
+    "/bluebook/phone-park/beat": {
+      "post": {
+        "description": "\"This page is still open\" from a parked phone.",
+        "operationId": "phone_beat_bluebook_phone_park_beat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneBeatBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Beat"
+      }
+    },
+    "/bluebook/phone-park/scan": {
+      "post": {
+        "description": "A phone opened a student's QR code. The signed code names the student\nand the collection; nothing about the phone is read or kept. Returns the\ngrant the page uses to say it is still open.",
+        "operationId": "phone_scan_bluebook_phone_park_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Scan"
       }
     },
     "/bluebook/students": {

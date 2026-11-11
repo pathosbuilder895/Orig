@@ -117,6 +117,132 @@ def verify_session(token: str) -> dict | None:
     return body
 
 
+# ── Phone parking, tied to the student's account (2026-10) ────────────────────
+# Two narrow, signed grants. Neither is a login session (``verify_session``
+# rejects anything with a ``typ``), and each names exactly one student and one
+# collection, so a code scanned from one student's screen can only ever park a
+# phone for that student on that collection.
+#
+#   scan  — shown as a QR code on the student's own briefing. Short-lived: a
+#           photo of someone else's screen is useless a few minutes later.
+#   beat  — handed to the phone once it has scanned, kept only in that page's
+#           memory, and good for one sitting's worth of "the page is open".
+
+PHONE_SCAN_TTL = 10 * 60
+PHONE_BEAT_TTL = 6 * 3600
+
+
+def _mint_typed(typ: str, student_id: str, exam: str, ttl_seconds: int) -> str:
+    body = {"typ": typ, "sid": student_id, "exam": exam, "exp": int(time.time()) + ttl_seconds}
+    payload = _b64(json.dumps(body, separators=(",", ":")).encode())
+    return f"{payload}.{_sign(payload)}"
+
+
+def _verify_typed(token: str, typ: str) -> dict | None:
+    if not token or not isinstance(token, str) or "." not in token:
+        return None
+    payload, sig = token.split(".", 1)
+    if not hmac.compare_digest(sig, _sign(payload)):
+        return None
+    try:
+        body = json.loads(_unb64(payload))
+    except Exception:
+        return None
+    if not isinstance(body, dict) or body.get("typ") != typ:
+        return None
+    if not body.get("sid") or not body.get("exam"):
+        return None
+    if float(body.get("exp", 0)) < time.time():
+        return None
+    return body
+
+
+_URL_SAFE = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+
+
+def _compact(value: str) -> str:
+    """A token field as itself when it is URL-safe, else ``~`` + base64."""
+    if value and all(c in _URL_SAFE for c in value):
+        return value
+    return "~" + _b64(value.encode())
+
+
+def _uncompact(value: str) -> str | None:
+    if value.startswith("~"):
+        try:
+            return _unb64(value[1:]).decode()
+        except Exception:
+            return None
+    return value
+
+
+def _scan_sig(payload: str) -> str:
+    # Domain-separated from every other grant, and cut to 128 bits so the QR
+    # code stays small enough to scan easily from a laptop screen.
+    raw = hmac.new(_secret(), ("phonescan|" + payload).encode(), hashlib.sha256).digest()
+    return _b64(raw[:16])
+
+
+def mint_phone_scan_token(student_id: str, exam: str, ttl_seconds: int = PHONE_SCAN_TTL) -> str:
+    """A compact signed code ``<student>.<exam>.<expiry>.<sig>`` for a QR code.
+
+    The student's workspace prefix (``tenant:``) is left out: it is always the
+    collection's own workspace (the only caller checks that), and the scan
+    route puts it back from the collection. Short codes scan far more easily.
+    """
+    tenant, sep, local = student_id.partition(":")
+    who = (
+        local
+        if sep and local and all(c in _URL_SAFE for c in local)
+        else "~" + _b64(student_id.encode())
+    )
+    exp = int(time.time()) + ttl_seconds
+    exp36 = ("-" if exp < 0 else "") + _base36(abs(exp))
+    payload = f"{who}.{_compact(exam)}.{exp36}"
+    return f"{payload}.{_scan_sig(payload)}"
+
+
+def _base36(n: int) -> str:
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    while True:
+        n, r = divmod(n, 36)
+        out = digits[r] + out
+        if not n:
+            return out
+
+
+def verify_phone_scan_token(token: str) -> dict | None:
+    """``{student, student_is_full, exam, exp}`` for a valid, unexpired scan
+    code, else None. ``student_is_full`` is False when the workspace prefix
+    was left out and must be taken from the collection."""
+    if not token or not isinstance(token, str) or token.count(".") != 3:
+        return None
+    who, exam_c, exp36, sig = token.split(".")
+    if not hmac.compare_digest(sig, _scan_sig(f"{who}.{exam_c}.{exp36}")):
+        return None
+    try:
+        exp = -int(exp36[1:], 36) if exp36.startswith("-") else int(exp36, 36)
+    except ValueError:
+        return None
+    if exp < time.time():
+        return None
+    exam = _uncompact(exam_c)
+    full = who.startswith("~")
+    student = _uncompact(who) if full else who
+    if not exam or not student:
+        return None
+    return {"student": student, "student_is_full": full, "exam": exam, "exp": exp}
+
+
+def mint_phone_beat_token(student_id: str, exam: str, ttl_seconds: int = PHONE_BEAT_TTL) -> str:
+    return _mint_typed("phonebeat", student_id, exam, ttl_seconds)
+
+
+def verify_phone_beat_token(token: str) -> dict | None:
+    return _verify_typed(token, "phonebeat")
+
+
 # ── Proctor attestation ───────────────────────────────────────────────────────
 # A short-lived, signed grant that a *proctored* baseline write for a specific
 # student is authorized. Minted server-side at exam launch (see lti.py) and

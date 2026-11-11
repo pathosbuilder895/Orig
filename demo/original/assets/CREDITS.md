@@ -48,3 +48,15 @@ with its longest side at 1600 px (`sips`), same framing, so it fits the 700 KB c
 `codrington-library.jpeg` is the handoff file copied unchanged (643 x 476, 55 KB). It is byte-identical to
 `demo/assets/codrington-library.jpeg`, which the Bluebook teacher screens already use. It shows a library interior
 with no caption printed in it. No credit text is known, and none is shown on the page.
+
+`codrington-library.jpeg` (the copy in `demo/assets/`) is also the full-frame background photograph of the Collections
+teacher screens (`demo/bluebook/teacher-workspace.css`, `.teacher-frame::before`, shared by the live teacher app and
+`demo/bluebook/teacher-demo.html`). On 2026-10-20 the owner asked for it to be clearly visible, as in the mockup
+`docs/design/2026-10-mocks/original-bluebook-teacher.html`, so the dimming was reduced. Same terms as above: no credit
+text is shown. No other image was added.
+
+On 2026-10-21 the owner asked for the mockup photographs on every teacher screen. The Collections teacher frame
+(`demo/bluebook/teacher-workspace.css`) now shows `radcliffe-night-stars.jpeg` on Overview, `st-andrews-quad.jpg` on
+Students, `radcliffe-interior.avif` on Submissions and `gonville-caius-facade.jpg` on Reports (as in the mockups), and
+the navy demo suite (`demo/prototypes/navy/assets/`) carries copies of the same files under the same terms.
+The images removed in a470b86 are not used.

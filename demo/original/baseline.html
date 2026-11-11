@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-11.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-11.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -231,6 +231,23 @@
   .add-msg.err{color:var(--flag);font-style:normal;}
   .add-msg div+div{margin-top:.25rem;}
   .pick-card{padding:1.2rem 1.4rem;max-width:30rem;pointer-events:auto;}
+  /* Reference papers by student (no student chosen) */
+  .ref-card{padding:1.1rem 1.3rem;background:rgba(9,15,36,0.5);}
+  .ref-table{width:100%;border-collapse:collapse;font-size:.92rem;}
+  .ref-table th{font-family:var(--mono);font-weight:400;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--line-soft);}
+  .ref-table td{padding:.6rem .5rem;border-bottom:1px solid var(--line-soft);vertical-align:top;}
+  .ref-table td.n,.ref-table th.n{text-align:right;font-family:var(--mono);}
+  .ref-table a{color:var(--cream);}
+  .ref-table .em{display:block;color:var(--dim-2);font-size:.78rem;word-break:break-all;}
+  .ref-table .why{display:block;color:var(--dim);font-size:.78rem;margin-top:.2rem;white-space:normal;}
+  .ref-table .st{white-space:nowrap;}
+  .min-note{font-size:.84rem;line-height:1.5;margin:.6rem 0 1rem;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--line-soft);color:var(--dim);}
+  .min-note.warn,.min-note.bad{color:var(--warn);border-color:rgba(216,176,74,0.35);background:rgba(216,176,74,0.06);}
+  .min-note.ok{color:var(--ok);border-color:rgba(107,191,138,0.3);}
+  @media (max-width:600px){
+    .ref-table th.w,.ref-table td.w{display:none;}
+    .ref-card{padding:.9rem .8rem;}
+  }
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
@@ -280,6 +297,7 @@
         <div class="side-links">
           <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
           <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
+          <a class="side-link" id="all-link" href="baseline.html" hidden>All students</a>
         </div>
       </div>
 
@@ -295,6 +313,10 @@
         <div class="row">
           <div class="lab">Baseline<b id="s-verdict-sub">from the readiness check</b></div>
           <div class="val txt" id="s-verdict">-</div>
+        </div>
+        <div class="row">
+          <div class="lab">Minimum for a reading<b id="s-min-sub">3 papers and 300 words in all</b></div>
+          <div class="val txt" id="s-min">-</div>
         </div>
       </div>
 
@@ -340,6 +362,22 @@
           </div>
         </div>
 
+        <div id="ref-overview" hidden>
+          <div class="sec-h"><b>Reference papers by student</b><span id="ref-sum"></span></div>
+          <div class="card ref-card">
+            <div class="rule-note" id="ref-rule"></div>
+            <div id="ref-list"><div class="live-empty">Loading</div></div>
+          </div>
+        </div>
+
+        <div id="shared-sec" style="margin-top:1.3rem;" hidden>
+          <div class="sec-h"><b>Papers students shared</b><span id="shared-sub"></span></div>
+          <div class="card ex-card">
+            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
+            <div id="shared-list"><div class="live-empty">Loading</div></div>
+          </div>
+        </div>
+
         <div id="sections">
           <div>
             <div class="sec-h"><b>The short version</b><span>what the baseline holds, in plain words</span></div>
@@ -382,9 +420,10 @@
               <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
+                <div class="min-note" id="add-min" role="status" hidden></div>
                 <div class="seg" role="group" aria-label="How to add writing">
                   <button type="button" data-tab="paste" aria-pressed="true">Paste text</button>
-                  <button type="button" data-tab="files" aria-pressed="false">Upload files</button>
+                  <button type="button" data-tab="files" aria-pressed="false">Import papers</button>
                 </div>
 
                 <div class="fld" id="prov-wrap">
@@ -417,7 +456,7 @@
                   </label>
                   <div class="queue" id="queue"></div>
                   <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
-                  <button class="btn" id="files-go" type="button" disabled>Add files to baseline</button>
+                  <button class="btn" id="files-go" type="button" disabled>Import</button>
                 </div>
 
                 <div class="save-note" id="save-note-add" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
@@ -430,9 +469,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-10-11.1"></script>
-<script src="js/feature-data.js?v=2026-10-11.1"></script>
-<script src="live.js?v=2026-10-11.1"></script>
+<script src="js/fingerprint.js?v=2026-10-26.1"></script>
+<script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-10-26.1"></script>
 <script>
 (function(){
   'use strict';
@@ -516,7 +555,7 @@
   const provOf=p=>has(PROV,p)?PROV[p]:{word:'Other source',color:'#8a8a8a',tag:n=>n+' other'};
 
   // The server's readiness rule, in full (original/routers/students.py).
-  const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 2 counted samples.';
+  const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 3 counted samples. Below 3, Original does not compare new writing.';
 
   // The words are the suite's one map (Live.VERDICT_WORDS); this only adds a colour and a sentence.
   const VERDICT={
@@ -571,6 +610,7 @@
     $('analyse-link').href='writing-state.html?student='+enc(ID);
     $('analyse-link').hidden=!(isOpen()&&(S.known||S.status==='ok'));
     $('add-link').hidden=!canAdd();
+    $('all-link').hidden=false;
   }
 
   function renderStats(){
@@ -583,6 +623,44 @@
     vv.className='val txt'+(v?' '+VERDICT[v].cls:'');
     vv.textContent=Live.verdictWord(v);
     $('s-verdict-sub').textContent=v?VERDICT[v].sub:'from the readiness check';
+    renderMinimum(n);
+  }
+
+  // Where the student stands against the minimum for a reading (Live.referenceStatus):
+  // a short value in the stats card and, above the add-writing forms, what to add.
+  function renderMinimum(n){
+    const r=S.ready;
+    const papers=n!==null?n:(S.status==='none'?0:null);
+    const words=r?Live.referenceWords(r):(S.status==='none'?0:null);
+    const m=Live.referenceStatus(papers,words);
+    const mv=$('s-min');
+    mv.className='val txt'+(m.tone==='ok'?' ok':m.tone==='off'?'':' warn');
+    mv.textContent=m.met===true?'Met':papers===0?'No papers':m.met===false?'Below':'-';
+    $('s-min-sub').textContent=papers===null?'3 papers and 300 words in all':
+      papers+' of 3 papers · '+(words===null?'words not known':words+' of 300 words');
+    const note=$('add-min');
+    note.hidden=!(ID&&isOpen()&&papers!==null);
+    note.className='min-note '+m.tone;
+    note.textContent=(nm()&&nm()!==ID?nm()+': ':'')+m.text;
+  }
+
+  // ── reference papers by student (no student chosen) ──
+  function renderOverview(list){
+    $('ref-overview').hidden=false;
+    $('ref-rule').textContent='Each student needs '+Live.REFERENCE_MINIMUM+' before Original compares new writing with theirs; below that, its reading is inconclusive. Choose a name to add or read their papers.';
+    const rows=list.map(s=>({s:s,m:Live.referenceStatus(s.samples,s.words)}));
+    const met=rows.filter(x=>x.m.met===true).length;
+    $('ref-sum').textContent=met+' of '+plural(list.length,'student')+' meet the minimum';
+    const cls={ok:'in',warn:'wait',bad:'wait',off:'off'};
+    $('ref-list').innerHTML='<table class="ref-table" aria-label="Reference papers by student"><thead><tr>'+
+      '<th scope="col">Student</th><th scope="col" class="n">Papers</th><th scope="col" class="n w">Words</th><th scope="col">Minimum</th>'+
+      '</tr></thead><tbody>'+rows.map(x=>{
+        const s=x.s, m=x.m;
+        return '<tr><td><a href="baseline.html?student='+esc(enc(s.id))+'">'+esc(String(s.name))+'</a>'+(s.email?'<span class="em">'+esc(s.email)+'</span>':'')+'</td>'+
+          '<td class="n">'+(num(s.samples)===null?'-':esc(s.samples))+'</td>'+
+          '<td class="n w">'+(num(s.words)===null?'-':esc(s.words))+'</td>'+
+          '<td><span class="st '+cls[m.tone]+'"><span class="d"></span>'+esc(m.short)+'</span>'+(m.need?'<span class="why">'+esc(m.need)+'</span>':'')+'</td></tr>';
+      }).join('')+'</tbody></table>';
   }
 
   function renderPurity(){
@@ -827,7 +905,7 @@
     const on=!!S.saving;
     const pg=$('paste-go'), fg=$('files-go');
     pg.disabled=on; pg.textContent=S.saving==='paste'?'Saving...':'Add to baseline';
-    fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Add files to baseline';
+    fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Import';
     $('file-in').disabled=on;
     ['save-note-add','save-note-sealed'].forEach(id=>{ $(id).hidden=!on; });
     renderQueue();
@@ -1205,6 +1283,7 @@
     const list=ro.students.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'})||(a.id<b.id?-1:a.id>b.id?1:0));
     sel.innerHTML='<option value="">Choose a student</option>'+list.map(s=>'<option value="'+esc(s.id)+'">'+esc(String(s.name))+'</option>').join('');
     sel.disabled=false;
+    renderOverview(list);
     sel.addEventListener('change',()=>{ if(sel.value) location.href='baseline.html?student='+enc(sel.value); });
   }
 
@@ -1214,6 +1293,55 @@
     window.Fingerprint(c,{rings:17,particlesPerRing:100,noiseAmp:6,lineColor:'rgba(245,239,224,0.42)',goldColor:'rgba(201,160,40,0.9)',mouseRepel:70});
   }
 
+  // ── papers students shared (2026-10 alpha) ──
+  // Pending papers a student shared from their Collections account. Approve adds the paper
+  // as a student upload through the server's baseline write; Decline leaves it out. With a
+  // student chosen, only theirs; on the all-students view, everyone's.
+  const SH={rows:[],busy:'',msg:{}};
+  const SHARED_STATUS={pending:'Waiting for approval',approved:'In the baseline',declined:'Declined',held:'Held back'};
+  function renderShared(){
+    const sec=$('shared-sec'), el=$('shared-list');
+    const rows=ID?SH.rows.filter(r=>r.student_id===ID):SH.rows;
+    sec.hidden=false;
+    const waiting=rows.filter(r=>r.status==='pending').length;
+    $('shared-sub').textContent=waiting?plural(waiting,'paper')+' waiting for your approval':'none waiting for your approval';
+    if(!rows.length){ Live.empty(el,'No shared papers yet.'); return; }
+    const dis=SH.busy?' disabled':'';
+    el.innerHTML=rows.map(r=>{
+      const src=r.baseline_source==='split'?('Section of a longer paper'+(r.parent_title?': '+r.parent_title:'')+' (split-derived)'):'Whole paper (independent)';
+      const meta=[ID?'':(r.student||'Student'), fmtDate(r.shared_at), plural(num(r.word_count)||0,'word'), src].filter(Boolean).join(' · ');
+      const st='<span class="st '+(r.status==='approved'?'in':r.status==='pending'?'wait':'off')+'"><span class="d"></span>'+esc(SHARED_STATUS[r.status]||r.status)+'</span>';
+      const btns=(r.status==='pending'||r.status==='held')?('<div class="ex-btns">'+
+        (r.status==='pending'?'<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(SH.busy===r.paper_id?'Saving...':'Approve')+'</button>':'')+
+        '<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button></div>'):'';
+      const m=SH.msg[r.paper_id];
+      return '<div class="ex" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
+        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div></div>';
+    }).join('');
+  }
+  async function loadShared(){
+    const res=await Live.api('/bluebook/past-papers');
+    if(!res.ok||!res.data||!Array.isArray(res.data.papers)){ $('shared-sec').hidden=true; return; }
+    SH.rows=res.data.papers; renderShared();
+  }
+  $('shared-list').addEventListener('click',async e=>{
+    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled||SH.busy) return;
+    const id=b.getAttribute('data-id'), act=b.getAttribute('data-sact');
+    const r=SH.rows.find(x=>x.paper_id===id); if(!r) return;
+    SH.busy=id; renderShared();
+    try{
+      const res=await Live.api('/bluebook/past-papers/'+enc(id)+'/'+act,{method:'POST'});
+      if(res.ok&&res.data&&typeof res.data.status==='string'){
+        r.status=res.data.status;
+        SH.msg[id]=r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
+          r.status==='held'?{text:'Not added: this paper differs strongly from the student’s existing samples. Approval does not override this check.',kind:'err'}:
+          {text:'Declined. It is not used.',kind:'ok'};
+        if(r.status==='approved'&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
+      } else if(res.status===401){ SH.msg[id]={text:'Your sign-in has ended. Sign in again, then try once more.',kind:'err'}; }
+      else { SH.msg[id]={text:detailText(res.data)||'That did not go through, so nothing changed.',kind:'err'}; }
+    }finally{ SH.busy=''; renderShared(); }
+  });
+
   // ── go ──
   Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
@@ -1221,6 +1349,7 @@
     startFingerprint();
     $('paste-date').value=today();
     setTab('paste');
+    loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }
     renderAll();
     // The roster and the sealed exams are slower (the sealed list is three requests,

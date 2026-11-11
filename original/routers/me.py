@@ -8,6 +8,7 @@ writing becomes baseline); the piece is compared and not stored.
 
 from __future__ import annotations
 
+import os
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
@@ -34,6 +35,15 @@ router = APIRouter()
 # unchanged — they remain the STAFF surface, just unreachable by this client.
 
 
+def _student_voice_pages_on() -> bool:
+    """Whether students may open their own Original pages (the voice portrait).
+
+    Off unless ``STUDENT_ORIGINAL_PAGES=1``: the pilot hides My voice / My work
+    from students (``SHOW_STUDENT_ORIGINAL_PAGES = false`` in Account.jsx), so
+    the server refuses the read-model too. Read per request for tests."""
+    return os.environ.get("STUDENT_ORIGINAL_PAGES", "0").strip() == "1"
+
+
 @router.get("/me/voice", response_model=VoiceView)
 def my_voice(request: Request):
     """
@@ -46,6 +56,11 @@ def my_voice(request: Request):
     enums, or thresholds ever cross the wire.
     """
     session = _require_student_session(request)
+    if not _student_voice_pages_on():
+        raise HTTPException(
+            status_code=403,
+            detail="The voice portrait isn't available to students during the pilot.",
+        )
     sid = str(session["sid"])
     name = str(session.get("name", "") or "")
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BB_API, devToolsEnabled } from './components.jsx';
+import { BB_API, BB_SIGNED_OUT_EVENT, TextSettingsButton, devToolsEnabled, syncDisplayWithAccount } from './components.jsx';
+import { expiryWarnDelay, tokenExpiryMs } from './form-drafts.jsx';
 import { LandingScreen, LoginScreen } from './Landing.jsx';
 import { DashboardLayout } from './Dashboard.jsx';
 import { BriefingScreen, ExamScreen, SubmittedScreen } from './Exam.jsx';
@@ -8,7 +9,7 @@ import './booklet.css';
 import { ResultsScreen } from './Results.jsx';
 import { NewExamScreen } from './NewExam.jsx';
 import {
-  AccountScreen, InviteScreen, SignupScreen, StudentAccountScreen,
+  AccountScreen, InviteScreen, JoinScreen, SignupScreen, StudentAccountScreen,
   StudentHomeScreen, StudentSubmissionScreen, ForgotPasswordScreen,
 } from './Account.jsx';
 import {
@@ -16,7 +17,8 @@ import {
 } from './Teacher.jsx';
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
-import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink } from './deep-link.jsx';
+import { installResumeTracking, trackScreen } from './resume-location.jsx';
+import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, rememberScreen } from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -28,12 +30,16 @@ const { useState } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "currentScreen": "",
-  "writingSize": 18,
+  "writingSize": 17,
   "parchmentColor": "#F4EFE6"
 }/*EDITMODE-END*/;
 
 // The screens a visitor sees before they have signed in (or while they are signing in or up).
-const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'forgot'];
+const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
+// Screens whose own bar or sidebar already carries the Text button.
+const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
+  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
+const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -43,12 +49,64 @@ function App() {
   // that exam the next time they land on the dashboard. A visitor who is not signed in yet keeps
   // it: the sign-in flow carries it to the exam. That includes the navigation right after sign-in
   // or sign-up, which happens with the session already stored, so it is the screen the move starts
-  // from that tells the two apart, not the session alone.
+  // from that tells the two apart, not the session alone. The address bar keeps it too: sign-in
+  // reads it there (resumeOrHome), so a followed link wins over the place saved on another device.
+  // Sign-in also takes the waiting link from the address bar. After a lapsed sign-in the one held
+  // here was dropped when the teacher first moved on, and only the address still names their screen.
   const navigate = (next) => {
-    clearDeepLink();
-    if (BB_API.isAuthed() && !PRE_AUTH_SCREENS.includes(screen)) setDeepLink(null);
+    const signingIn = PRE_AUTH_SCREENS.includes(screen);
+    clearDeepLink({ signingIn });
+    if (signingIn) setDeepLink(parseDeepLink(window.location.hash));
+    else if (BB_API.isAuthed()) setDeepLink(null);
+    if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) rememberScreen(next);
     setTweak('currentScreen', next);
   };
+  // One browser holds one sign-in (localStorage is shared by every tab). If
+  // another tab signs in as someone else (typically the teacher testing a
+  // student invite), this tab's token is gone and every request would come
+  // back empty or refused. Say so plainly instead of showing empty pages.
+  // The account this tab last rendered with (its own sign-ins do not fire
+  // storage events, so this follows them; another tab's change does not).
+  const shownSession = React.useRef(BB_API.sessionSignature());
+  const [switched, setSwitched] = useState(false);
+  React.useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== null && !BB_SESSION_WATCH.includes(e.key)) return;
+      if (shownSession.current && BB_API.sessionSignature() !== shownSession.current) setSwitched(true);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  // A lapsed teacher sign-in (401) goes to the sign-in page with a reason,
+  // never to empty lists. A screen that keeps its place (rememberScreen in
+  // deep-link.jsx) is still named in the hash, so signing back in returns
+  // there (navigate); from any other screen it goes to the place last saved
+  // for resuming (resume-location.jsx).
+  const [expired, setExpired] = useState(false);
+  const [expiredStudent, setExpiredStudent] = useState(false);
+  React.useEffect(() => {
+    const onExpired = (e) => {
+      setExpiredStudent(!!(e && e.detail && e.detail.student));
+      BB_API._clearSession();
+      setExpired(true);
+      setTweak('currentScreen', 'login');
+    };
+    window.addEventListener(BB_SIGNED_OUT_EVENT, onExpired);
+    return () => window.removeEventListener(BB_SIGNED_OUT_EVENT, onExpired);
+  }, []);
+  // A teacher's sign-in lasts 8 hours. About 10 minutes before it ends, say
+  // so, so nothing is typed into a form that will be refused. Form drafts
+  // (form-drafts.jsx) are kept on this computer either way.
+  const [expirySoon, setExpirySoon] = useState(false);
+  React.useEffect(() => {
+    let tok = '';
+    try { tok = localStorage.getItem('original_principal_token') || ''; } catch (e) {}
+    const delay = expiryWarnDelay(tokenExpiryMs(tok), Date.now());
+    if (delay === null) { setExpirySoon(false); return; }
+    const id = setTimeout(() => setExpirySoon(true), delay);
+    return () => clearTimeout(id);
+  }, [t.currentScreen]);
+
   // A deep link (#exam/<id>, #live/<id>) waiting to be opened. It opens only
   // on a signed-in teacher's dashboard: straight away for a teacher who is
   // already signed in, after sign-in for one who is not, and never for a
@@ -59,11 +117,15 @@ function App() {
   // signed-in teacher → dashboard; otherwise the public landing.
   const [autoScreen] = useState(() => {
     let invite = false;
+    let join = false;
     try {
       const q = new URLSearchParams(window.location.search);
       invite = q.has('invite') || q.has('reset');
+      join = q.has('join');
     } catch (e) {}
     if (invite) return 'invite';
+    // A course sign-up link: make an account (or, signed in, join the course).
+    if (join) return 'join';
     if (BB_API.isStudentLaunch()) return 'briefing';
     if (BB_API.isStudentAccount()) return 'student-home';
     if (BB_API.isAuthed()) return 'dashboard';
@@ -111,6 +173,12 @@ function App() {
     });
     return () => { live = false; };
   }, [deepLink, teacherHome]);
+  // Where this account is, saved for resuming on another device
+  // (resume-location.jsx). Only kept screens are saved; the rest are ignored.
+  React.useEffect(() => { installResumeTracking(); }, []);
+  React.useEffect(() => { trackScreen(screen); }, [screen]);
+  // The Text setting follows the signed-in account (display only).
+  React.useEffect(() => { syncDisplayWithAccount(); }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
@@ -124,30 +192,36 @@ function App() {
   let content;
   switch (screen) {
     case 'login':
-      content = <LoginScreen onNavigate={navigate} />;
+      content = <>
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your exam. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
+        <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
+      </>;
       break;
-    case 'sessions':
     case 'dashboard':
       // While a deep link is being checked, say so instead of flashing the
       // dashboard first.
       if (deepLink && teacherHome) {
         const toScreen = deepLink.kind === 'screen';
         content = (
-          <DashboardLayout activeScreen={toScreen ? deepLink.screen : (DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'exams')} onNavigate={navigate}>
-            <div className="bb-page"><p role="status" className="bb-meta">{toScreen ? 'Opening…' : 'Opening the examination…'}</p></div>
+          <DashboardLayout activeScreen={toScreen ? deepLink.screen : (DEEP_LINK_SCREEN[deepLink.kind] === 'proctor' ? 'proctor' : 'sessions')} onNavigate={navigate}>
+            <div className="bb-page"><p role="status" className="bb-meta">{toScreen ? 'Opening…' : 'Opening the collection…'}</p></div>
           </DashboardLayout>
         );
         break;
       }
       content = (
         <DashboardLayout activeScreen={screen} onNavigate={navigate}>
-          <LiveTeacherSessions onNavigate={navigate} overview={screen === 'dashboard'} />
+          <LiveTeacherSessions onNavigate={navigate} overview />
         </DashboardLayout>
       );
       break;
+    // One Collections area: the old Sessions and Examinations screens (and
+    // the 'collections' alias) all open the same list.
+    case 'sessions':
+    case 'collections':
     case 'exams':
       content = (
-        <DashboardLayout activeScreen="exams" onNavigate={navigate}>
+        <DashboardLayout activeScreen="sessions" onNavigate={navigate}>
           <ExamsListScreen onNavigate={navigate} />
         </DashboardLayout>
       );
@@ -159,7 +233,7 @@ function App() {
       content = (
         <ExamScreen
           onNavigate={navigate}
-          writingSize={Number(t.writingSize) || 18}
+          writingSize={Number(t.writingSize) || 17}
           parchmentColor={t.parchmentColor || '#F4EFE6'}
         />
       );
@@ -197,7 +271,7 @@ function App() {
       break;
     case 'manage-exam':
       content = (
-        <DashboardLayout activeScreen="exams" onNavigate={navigate}>
+        <DashboardLayout activeScreen="sessions" onNavigate={navigate}>
           <ManageExamScreen onNavigate={navigate} onPreview={exam => openExam(exam, navigate)} />
         </DashboardLayout>
       );
@@ -222,6 +296,9 @@ function App() {
     case 'invite':
       content = <InviteScreen onNavigate={navigate} />;
       break;
+    case 'join':
+      content = <JoinScreen onNavigate={navigate} />;
+      break;
     case 'forgot':
       content = <ForgotPasswordScreen onNavigate={navigate} />;
       break;
@@ -241,11 +318,32 @@ function App() {
       content = <LandingScreen onNavigate={navigate} />;
   }
 
+  if (!switched) shownSession.current = BB_API.sessionSignature();
+  if (switched) {
+    const who = BB_API.identity();
+    return (
+      <div role="alert" data-testid="session-switched" style={{ maxWidth: 560, margin: '15vh auto', padding: '0 1.5rem', fontFamily: 'Georgia, serif', lineHeight: 1.55 }}>
+        <h1 style={{ fontWeight: 400 }}>You were signed out in this tab</h1>
+        <p>Another tab in this browser signed in{who.email ? <> as <strong>{who.email}</strong></> : null}{who.role ? ` (${who.role})` : ''}. A browser holds one sign-in at a time, so this tab's account was signed out. Nothing you or your students submitted was lost.</p>
+        <p>To use a teacher and a student account at the same time, open the student's link in a private (incognito) window or a different browser.</p>
+        <button onClick={() => window.location.reload()}>Reload this tab</button>
+      </div>
+    );
+  }
+
   return (
     <>
+      {expirySoon && screen !== 'login' && BB_API.isAuthed() && !BB_API.isStudentAccount() && (
+        <div role="status" data-testid="signin-expiring" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, background: '#1b2347', color: '#F3EBD8', borderBottom: '1px solid #C9A028', padding: '0.6rem 1rem', textAlign: 'center', fontFamily: 'Georgia, serif' }}>
+          Your sign-in ends in about 10 minutes. Anything typed in the New collection form is kept on this computer.{' '}
+          <button onClick={() => { BB_API._clearSession(); setExpirySoon(false); setTweak('currentScreen', 'login'); }} style={{ marginLeft: 8 }}>Sign in again now</button>
+        </div>
+      )}
       <div key={screen} style={{ animation: 'bbFadeIn 0.65s ease both' }}>
         {content}
       </div>
+      {/* Screens without a navigation bar get a floating Text button. */}
+      {!TEXT_IN_NAV.has(screen) && <TextSettingsButton floating />}
 
       {devTools && (
       <TweaksPanel>
@@ -257,13 +355,13 @@ function App() {
             { label: '① Landing',              value: 'landing'   },
             { label: '② Sign In',               value: 'login'     },
             { label: '③ Dashboard',             value: 'dashboard' },
-            { label: '④ Examinations',          value: 'exams'     },
+            { label: '④ Collections',           value: 'sessions'  },
             { label: '④b Courses',              value: 'courses'   },
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
             { label: '⑤ Exam Briefing',         value: 'briefing'  },
-            { label: '⑥ New Examination',        value: 'new-exam'  },
+            { label: '⑥ New Collection',         value: 'new-exam'  },
             { label: '⑦ Active Examination',    value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}
@@ -273,7 +371,7 @@ function App() {
         <TweakSection label="Writing Surface" />
         <TweakSlider
           label="Font size"
-          value={Number(t.writingSize) || 18}
+          value={Number(t.writingSize) || 17}
           min={14} max={22} step={1} unit="px"
           onChange={(v) => setTweak('writingSize', v)}
         />
