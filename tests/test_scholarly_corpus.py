@@ -578,3 +578,27 @@ def test_post_rules_science_only_exclusions():
     assert openalex.post_rules(c, "humanities") and not openalex.post_rules(c, "science")
     d = {"title": "A good title", "host": "arXiv", "url": "https://arxiv.org/pdf/1", "subfield": "2607"}
     assert not openalex.post_rules(d, "science")
+
+
+def test_verify_and_restore_round_trip(corpus, tmp_path, monkeypatch):
+    m, cache, authors = corpus
+    mdir = tmp_path / "manifest"
+    mdir.mkdir()
+    (mdir / "humanities.json").write_text(m.model_dump_json(), encoding="utf-8")
+    assert fetch.verify("humanities", cache, mdir)["ok"] == len(m.papers)
+    # lose one text and tamper with another
+    files = sorted((cache / "humanities" / "texts" / authors[0]).glob("*.txt"))
+    wanted = files[0].read_text(encoding="utf-8")
+    files[0].unlink()
+    files[1].write_text("changed", encoding="utf-8")
+    v = fetch.verify("humanities", cache, mdir)
+    assert v["missing"] == 1 and v["hash_mismatch"] == 1 and v["ok"] == len(m.papers) - 2
+    # restore re-creates only the missing one, and only when the hash matches
+    url_text = {p.url: None for p in m.papers}
+    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="": body.decode())
+    r = fetch.restore("humanities", cache, 2, mdir, fetch_url=lambda u: wanted.encode())
+    assert r["restored"] == 1 and r["mismatch"] == 0 and r["already_present"] == len(m.papers) - 1
+    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="": "other text")
+    files[0].unlink()
+    r = fetch.restore("humanities", cache, 2, mdir, fetch_url=lambda u: b"x")
+    assert r["restored"] == 0 and r["mismatch"] == 1 and not files[0].exists()

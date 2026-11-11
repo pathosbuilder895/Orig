@@ -76,6 +76,26 @@ papers per usable author, roughly 500 worker-seconds of arXiv-limited time each)
 Failure reasons are in `cache/<collection>/state.jsonl`; dropped authors in
 `manifest/<collection>_dropped.json`. Baselines: `baseline_<collection>_2026-11-11.json`.
 
+## Reusing it (fresh checkout, repeated tests)
+
+The manifest is the durable record; the cache is disposable and rebuildable.
+
+```bash
+.venv/bin/python -m validation.scholarly.fetch --collection humanities --verify    # offline: cache vs manifest hashes
+.venv/bin/python -m validation.scholarly.fetch --collection humanities --restore   # re-download missing papers, hash-checked
+```
+
+`--restore` fetches only the manifest's papers and keeps a text only when its SHA-256
+equals the recorded one. A changed publisher file or a changed cleaner shows up as a
+`mismatch` count, never as silently different text; `loader.py` also refuses a cached
+text whose hash disagrees. Expect a few unreachable or mismatched papers over time
+(links rot); authors that fall under 6 verified papers are then refused by the loader,
+so re-run `fetch.py` to top them up and rewrite the manifest.
+
+For repeated tests, vary `seed` in `load_trials` (it changes which papers are past or new
+and where each cut starts) and keep everything else fixed. Use `development` for iterating,
+`calibration` for settling thresholds, and open `locked_test` once per pre-registered study.
+
 ## Using the corpus
 
 ```python

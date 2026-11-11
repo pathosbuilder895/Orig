@@ -355,6 +355,55 @@ def run(collection: str, cache: Path, limit_authors: int, start_rank: int, worke
             "dropped_total": len(dropped), "seconds": round(time.time() - t0)}
 
 
+def verify(collection: str, cache: Path, manifest_dir: Optional[Path] = None) -> dict:
+    """Offline: does the cache hold every manifest paper with the recorded SHA-256?"""
+    from .loader import load_manifest
+    m = load_manifest(collection, manifest_dir)
+    ok, missing, bad = 0, [], []
+    for p in m.papers:
+        f = cache / collection / "texts" / p.author_id / f"{p.source_paper_id}.txt"
+        if not f.exists():
+            missing.append(p.source_paper_id)
+        elif hashlib.sha256(f.read_bytes()).hexdigest() != p.text_sha256:
+            bad.append(p.source_paper_id)
+        else:
+            ok += 1
+    return {"papers": len(m.papers), "ok": ok, "missing": len(missing), "hash_mismatch": len(bad),
+            "missing_ids": missing[:20], "mismatch_ids": bad[:20]}
+
+
+def restore(collection: str, cache: Path, workers: int = 8, manifest_dir: Optional[Path] = None,
+            fetch_url: Optional[Callable[[str], Optional[bytes]]] = None) -> dict:
+    """Rebuild the cache from the manifest alone (fresh checkout). Each missing paper is fetched
+    from its manifest URL, cleaned, and kept only if its SHA-256 equals the recorded one; a
+    changed publisher file or cleaner shows up as a mismatch, never as silently different text."""
+    from .loader import load_manifest
+    m = load_manifest(collection, manifest_dir)
+    fetcher = Fetcher(collection, cache)
+    todo = [p for p in m.papers if not fetcher.text_path(p.author_id, p.source_paper_id).exists()]
+    out = {"restored": 0, "mismatch": 0, "unreachable": 0}
+    lock = threading.Lock()
+
+    def one(p):
+        body = fetch_url(p.url) if fetch_url else http_get(p.url, fetcher.limiter)[1]
+        text = None if body is None else clean.pdf_bytes_to_text(body, fetcher.tmp, name=f"r_{p.source_paper_id}")
+        with lock:
+            if text is None:
+                out["unreachable"] += 1
+            elif hashlib.sha256(text.encode("utf-8")).hexdigest() != p.text_sha256:
+                out["mismatch"] += 1
+            else:
+                f = fetcher.text_path(p.author_id, p.source_paper_id)
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(text, encoding="utf-8")
+                out["restored"] += 1
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one, todo))
+    out["already_present"] = len(m.papers) - len(todo)
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--collection", choices=("humanities", "science"), required=True)
@@ -365,7 +414,16 @@ def main(argv=None) -> int:
     ap.add_argument("--partitions", nargs="+", default=list(policy.PARTITIONS), choices=policy.PARTITIONS)
     ap.add_argument("--cache", type=Path, default=DEFAULT_CACHE)
     ap.add_argument("--out-dir", type=Path, default=HERE / "manifest")
+    ap.add_argument("--verify", action="store_true", help="offline: check the cache against the manifest hashes")
+    ap.add_argument("--restore", action="store_true", help="re-download manifest papers into an empty cache, hash-checked")
     a = ap.parse_args(argv)
+    if a.verify:
+        r = verify(a.collection, a.cache)
+        print(json.dumps(r, indent=1))
+        return 0 if r["ok"] == r["papers"] else 1
+    if a.restore:
+        print(json.dumps(restore(a.collection, a.cache, a.workers), indent=1))
+        return 0
     print(json.dumps(run(a.collection, a.cache, a.limit_authors, a.start_rank, a.workers,
                          a.max_papers, a.partitions, a.out_dir), indent=1))
     return 0
