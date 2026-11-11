@@ -505,8 +505,40 @@ jobs:
         # EN_CORE_WEB_SM_VERSION there.
         run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
+      - name: Refresh apt cache
+        # Playwright 1.65+ `--with-deps` installs system packages via apt.
+        # On GitHub runners, stale or broken apt sources can cause "Some index
+        # files failed to download" (exit 100). Run `apt-get update` with retries
+        # to refresh the package index before Playwright's own apt calls.
+        run: |
+          for attempt in 1 2 3; do
+            echo "apt-get update attempt $attempt"
+            if sudo apt-get update; then
+              echo "apt cache refreshed successfully"
+              exit 0
+            fi
+            echo "apt-get update failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::apt-get update failed after 3 attempts"
+          exit 1
+
       - name: Install Playwright browsers
-        run: cd demo/bluebook && npx playwright install --with-deps chromium
+        # Retry wrapper: the install itself can fail transiently even after a
+        # successful apt-get update if a mirror is slow or unavailable mid-fetch.
+        run: |
+          cd demo/bluebook
+          for attempt in 1 2 3; do
+            echo "Playwright install attempt $attempt"
+            if npx playwright install --with-deps chromium; then
+              echo "Playwright browsers installed successfully"
+              exit 0
+            fi
+            echo "Playwright install failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::Playwright install failed after 3 attempts"
+          exit 1
 
       - name: Start Original demo server in pilot mode
         env:
