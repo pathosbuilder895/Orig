@@ -20,7 +20,7 @@ python-jose[cryptography]>=3.4.0,<4.0
 # The original-pg-backup job Fernet-encrypts every dump. Declared directly so it
 # does not depend on python-jose (kept above only for deferred LTI) pulling it
 # in; pinned at the version the lock already resolved.
-cryptography==50.0.0
+cryptography==50.0.2
 
 # ── Postgres (original/postgres_repository.py, REPO_BACKEND=postgres) ─────────
 # Unlike the local demo, the pilot deploy is exactly where REPO_BACKEND is
