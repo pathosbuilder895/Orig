@@ -294,9 +294,42 @@ def evaluate(collection: str, partition: str, names: list[str], workers: int, n_
     return out
 
 
+def calibrate(collection: str, names: list[str], workers: int, n_boot: int) -> dict:
+    """Step 4: for the chosen candidates only, fix a threshold per configuration on the
+    calibration partition (5% honest flags there), report calibration once, then apply the
+    same thresholds to development as a transfer check. Nothing is chosen after this."""
+    from .intended_use import bootstrap_at, pool_by_author, rates_at
+    cal = evaluate(collection, "calibration", names, workers, n_boot, keep_rows=True)
+    dev = evaluate(collection, "development", names, workers, n_boot, keep_rows=True)
+    out = {"collection": collection, "date": cal["date"], "candidates": {},
+           "skipped": {"calibration": cal["skipped"], "development": dev["skipped"]},
+           "rule": "threshold = 95th percentile of calibration honest decision statistic (seeds pooled); "
+                   "flag = strictly above"}
+    thresholds = {}
+    for c in names:
+        res = {"reason": CANDIDATES[c].reason, "configs": {}}
+        for name, _, _ in CONFIGS:
+            cal_pool = pool_by_author(cal["candidates"][c]["configs"][name].pop("rows"))
+            dev_pool = pool_by_author(dev["candidates"][c]["configs"][name].pop("rows"))
+            thr = catch_at_rate(cal_pool)["threshold"]
+            thresholds.setdefault(c, {})[name] = round(thr, 6)
+            res["configs"][name] = {
+                "threshold": round(thr, 6),
+                "calibration": {**cal["candidates"][c]["configs"][name]["pooled"],
+                                "at_threshold": {**{k: round(v, 4) for k, v in rates_at(cal_pool, thr).items()},
+                                                 "ci95_author_bootstrap": bootstrap_at(cal_pool, thr, n_boot)}},
+                "development_at_calibration_threshold": {
+                    **{k: round(v, 4) for k, v in rates_at(dev_pool, thr).items()},
+                    "ci95_author_bootstrap": bootstrap_at(dev_pool, thr, n_boot)},
+            }
+        out["candidates"][c] = res
+    out["thresholds"] = thresholds
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("step", choices=("features", "evaluate"))
+    ap.add_argument("step", choices=("features", "evaluate", "calibrate"))
     ap.add_argument("--collection", choices=("humanities", "science"), required=True)
     ap.add_argument("--partition", default="development")
     ap.add_argument("--candidates", nargs="+", default=["flags_off"])
@@ -313,6 +346,12 @@ def main(argv=None) -> int:
         reset_research_flags()
         sets = trial_sets(a.collection, a.partition)
         print("extracted", FeatureStore(a.collection).ensure(all_texts(sets), a.workers))
+        return 0
+    if a.step == "calibrate":
+        res = calibrate(a.collection, a.candidates, a.workers, a.n_boot)
+        out = a.out or HERE / f"adjust_{a.collection}_calibration_{res['date']}.json"
+        out.write_text(json.dumps(res, indent=1) + "\n", encoding="utf-8")
+        print("wrote", out)
         return 0
     res = evaluate(a.collection, a.partition, a.candidates, a.workers, a.n_boot)
     out = a.out or HERE / f"adjust_{a.collection}_{a.partition}_{res['date']}.json"
