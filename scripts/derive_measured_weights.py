@@ -688,7 +688,9 @@ def main(argv=None) -> int:
         subset = {
             a: [t] for a, t in author_texts.items() if author_corpus.get(a) == corpus_name
         }
-        provenance = "student_pilot" if corpus_name == "seminary" else "real_historical"
+        provenance = (
+            "synthetic_template+real_historical" if corpus_name == "seminary" else "real_historical"
+        )
         corpora_summary[corpus_name] = summarize_author_docs(subset, provenance)
 
     # Task 8: the genre-balance skew travels with every number derived from
