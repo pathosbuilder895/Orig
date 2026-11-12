@@ -505,8 +505,39 @@ jobs:
         # EN_CORE_WEB_SM_VERSION there.
         run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
+      - name: Configure apt for transient source failures
+        # Playwright 1.65+ `--with-deps` installs system packages via apt.
+        # GitHub runners can have broken or slow apt sources. Configure apt to
+        # tolerate missing package indexes and continue with available sources.
+        run: |
+          echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries
+          echo 'Acquire::http::Timeout "10";' | sudo tee -a /etc/apt/apt.conf.d/80-retries
+          echo 'Acquire::https::Timeout "10";' | sudo tee -a /etc/apt/apt.conf.d/80-retries
+          sudo apt-get update || echo "apt-get update completed with warnings (expected)"
+
       - name: Install Playwright browsers
-        run: cd demo/bluebook && npx playwright install --with-deps chromium
+        # Retry wrapper with timeout: each attempt has 6 minutes to complete.
+        # Without the timeout, a hanging apt source makes each attempt take ~10min
+        # and the job hits its 30min limit. With timeout, failed attempts exit
+        # quickly and the retry can succeed on a different mirror.
+        run: |
+          cd demo/bluebook
+          for attempt in 1 2 3; do
+            echo "Playwright install attempt $attempt (max 6 minutes)"
+            if timeout 360 npx playwright install --with-deps chromium; then
+              echo "Playwright browsers installed successfully"
+              exit 0
+            fi
+            exitcode=$?
+            if [ $exitcode -eq 124 ]; then
+              echo "Playwright install timed out after 6 minutes, retrying..."
+            else
+              echo "Playwright install failed (exit $exitcode), retrying in 5s..."
+            fi
+            sleep 5
+          done
+          echo "::error::Playwright install failed after 3 attempts"
+          exit 1
 
       - name: Start Original demo server in pilot mode
         env:
