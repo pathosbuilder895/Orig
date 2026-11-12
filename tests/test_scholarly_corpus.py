@@ -737,3 +737,43 @@ def test_diagnosis_labels_need_the_80th_percentile():
     assert diagnose.label_feature(0, ranks) == "house" and diagnose.label_feature(1, ranks) == "genuine"
     assert diagnose.label_feature(1, ranks, z_full=4.0, z_matched=1.5) == "length"     # excess vanishes at matched length
     assert diagnose.label_feature(0, ranks, z_full=4.0, z_matched=3.0) == "house"
+
+
+# ------------------------------------------------------------------- verifier --
+def test_mask_topic_keeps_function_words_and_shapes_only():
+    from validation.scholarly import verifier
+    out = verifier.mask_topic("The Eucharist, in 1999, was central to the theology of Calvin.")
+    assert out.startswith("The ") and "Eucharist" not in out and "Calvin" not in out
+    assert "*********," in out and "####," in out and " to the " in out
+
+
+def test_relative_rank_and_z():
+    import numpy as np
+    from validation.scholarly import verifier
+    own, z, rank = verifier._relative(0.9, np.array([0.1, 0.2, 0.3]), higher_is_closer=True)
+    assert own == 0.9 and z > 0 and rank == 0.0
+    own, z, rank = verifier._relative(0.5, np.array([0.1, 0.2, 0.3]), higher_is_closer=False)
+    assert z < 0 and rank == 1.0
+
+
+def test_fold_rule_keeps_probe_source_in_the_same_fold():
+    from validation.scholarly import verifier
+    a = next(f"A{i}" for i in range(100) if verifier.split_of(f"A{i}") == 0)
+    b = next(f"A{i}" for i in range(100) if verifier.split_of(f"A{i}") == 1)
+    assert verifier._fold_ok({"author": a, "src": None}, 0)
+    assert not verifier._fold_ok({"author": a, "src": b}, 0) and not verifier._fold_ok({"author": a, "src": b}, 1)
+    assert verifier.split_of(a) == verifier.split_of(a)
+
+
+def test_per_author_tallies_by_probe_kind():
+    from validation.scholarly import verifier
+    rows = [{"author": "A", "label": 0, "kind": "honest"}, {"author": "A", "label": 1, "kind": "random"},
+            {"author": "A", "label": 1, "kind": "same_field"}]
+    pa = verifier._per_author(rows, [0.1, 0.8, 0.6], kinds=("same_field",))
+    assert pa == [{"author": "A", "honest": [0.1], "probe": [0.6]}]
+
+
+def test_verifier_cannot_read_locked_test():
+    from validation.scholarly import verifier
+    with pytest.raises(ValueError):
+        verifier.build_rows("humanities", "locked_test")
