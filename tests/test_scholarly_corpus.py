@@ -798,3 +798,41 @@ def test_ablation_column_masks_and_fixed_combination():
     x = np.zeros(len(names))
     x[names.index("char:centroid:z")] = 2.0
     assert ablation.fixed_combination(x, names) < 0      # closer to the author than peers = more honest-looking
+
+
+# --------------------------------------------------------------------- rule D --
+def test_rule_d_formula_signs_and_equal_component_weights():
+    from validation.scholarly import rule_d
+    assert rule_d.rule_d(0, 0, 0, 0, 0) == 0.0
+    assert rule_d.rule_d(1, 1, 1, 1, 1) == -1.0                      # closer to the author than peers: honest-looking
+    # each component carries one third, whatever its two halves
+    assert rule_d.rule_d(3, 3, 0, 0, 0) == rule_d.rule_d(0, 0, 3, 3, 0) == rule_d.rule_d(0, 0, 0, 0, 3) == -1.0
+    assert rule_d.rule_d(2, 0, 0, 0, 0) == rule_d.rule_d(0, 2, 0, 0, 0)
+
+
+def test_rule_d_rms_against_and_relative_z():
+    import numpy as np
+    from validation.scholarly import rule_d
+    x = np.array([1.0, 1.0, 1.0])
+    means = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
+    stds = np.ones((2, 3))
+    act = np.array([[1, 1, 1], [1, 1, 0]], dtype=float)
+    r = rule_d.rms_against(x, means, stds, act)
+    assert r[0] == 0.0 and r[1] == 1.0
+    assert rule_d.rel_z(2.0, np.array([0.0, 1.0, 2.0])) > 0
+
+
+def test_rule_d_pass_bar():
+    from validation.scholarly import rule_d
+    ok = {"catch_rate": 0.9, "catch_ci95": [0.82, 0.95], "honest_ci95": [0.02, 0.09]}
+    assert rule_d.passes(ok)["pass"]
+    assert not rule_d.passes({**ok, "catch_rate": 0.84})["pass"]
+    assert not rule_d.passes({**ok, "catch_ci95": [0.79, 0.95]})["pass"]
+    assert not rule_d.passes({**ok, "honest_ci95": [0.02, 0.11]})["pass"]
+    assert len(rule_d.COUNTING_CELLS) == 5
+
+
+def test_rule_d_cannot_read_locked_test():
+    import inspect
+    from validation.scholarly import rule_d
+    assert "allow_locked_for" not in inspect.getsource(rule_d)

@@ -136,6 +136,21 @@ def dominant_subfields(collection: str) -> dict:
             for a in cand["authors"]}
 
 
+def probe_docs(t, authors, honest_of, field, hosts, seed) -> list:
+    """(text, label, probe source author, kind) for one trial: its 2 honest papers, the
+    loader's 5 random probes, and up to MAX_SAME_FIELD_PROBES same-subfield and same-venue
+    probes (each another author's first held-out paper), chosen by a seeded hash."""
+    mates = sorted((a for a in authors if a != t.student_id and field.get(a) and field.get(a) == field.get(t.student_id)),
+                   key=lambda a: hashlib.sha256(f"{seed}:{t.student_id}>{a}".encode()).hexdigest())
+    docs = ([(h, 0, None, "honest") for h in t.honest]
+            + [(p, 1, src, "random") for p, src in zip(t.probes, t.probe_sources)]
+            + [(honest_of[a], 1, a, "same_field") for a in mates[:MAX_SAME_FIELD_PROBES]])
+    venue_mates = sorted((a for a in authors if a != t.student_id and hosts.get(a, set()) & hosts.get(t.student_id, set())),
+                         key=lambda a: hashlib.sha256(f"v{seed}:{t.student_id}>{a}".encode()).hexdigest())
+    docs += [(honest_of[a], 1, a, "same_venue") for a in venue_mates[:MAX_SAME_FIELD_PROBES]]
+    return docs
+
+
 def _hosts(collection: str) -> dict:
     """author id -> set of URL hosts their manifest papers come from (journal / repository)."""
     from urllib.parse import urlparse
@@ -238,14 +253,7 @@ def build_rows(collection: str, partition: str, char_vectorizer=None, fw_stats=N
         for t in trials:
             st = states[t.student_id]
             active = st.active_feature_mask
-            mates = sorted((a for a in authors if a != t.student_id and field.get(a) and field.get(a) == field.get(t.student_id)),
-                           key=lambda a: hashlib.sha256(f"{seed}:{t.student_id}>{a}".encode()).hexdigest())
-            docs = ([(h, 0, None, "honest") for h in t.honest]
-                    + [(p, 1, src, "random") for p, src in zip(t.probes, t.probe_sources)]
-                    + [(honest_of[a], 1, a, "same_field") for a in mates[:MAX_SAME_FIELD_PROBES]])
-            venue_mates = sorted((a for a in authors if a != t.student_id and hosts.get(a, set()) & hosts.get(t.student_id, set())),
-                                 key=lambda a: hashlib.sha256(f"v{seed}:{t.student_id}>{a}".encode()).hexdigest())
-            docs += [(honest_of[a], 1, a, "same_venue") for a in venue_mates[:MAX_SAME_FIELD_PROBES]]
+            docs = probe_docs(t, authors, honest_of, field, hosts, seed)
             for j, (text, label, src, kind) in enumerate(docs):
                 excluded = {t.student_id} | ({src} if src else set())
                 others = [a for a in authors if a not in excluded]
