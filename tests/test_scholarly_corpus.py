@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import random
 from collections import Counter
@@ -641,3 +642,50 @@ def test_restore_warns_when_papers_were_cleaned_by_an_older_cleaner(corpus, tmp_
     (mdir / "humanities.json").write_text(m.model_dump_json(), encoding="utf-8")  # papers default to cleaner v1
     r = fetch.restore("humanities", cache, 1, mdir, fetch_url=lambda u: None)
     assert "warning" in r and "older cleaner" in r["warning"]
+
+
+# ---------------------------------------------------------------- intended use --
+def _pa(author, honest, probe):
+    return {"author": author, "honest": honest, "honest_flag": [False] * len(honest),
+            "probe": probe, "probe_flag": [True] * len(probe)}
+
+
+def test_intended_use_refuses_locked_and_unknown_partitions():
+    from validation.scholarly import intended_use
+    assert intended_use.check_partition("development") == "development"
+    for bad in ("locked_test", "test", ""):
+        with pytest.raises(ValueError):
+            intended_use.check_partition(bad)
+    import inspect
+    assert "allow_locked_for" not in inspect.getsource(intended_use)
+
+
+def test_intended_use_pools_seeds_by_author():
+    from validation.scholarly import intended_use
+    s1 = [_pa("A1", [0.1], [0.5]), _pa("A2", [0.2], [0.6])]
+    s2 = [_pa("A1", [0.3], [0.7])]
+    pooled = intended_use.pool_by_author([s1, s2])
+    assert [a["author"] for a in pooled] == ["A1", "A2"]
+    assert pooled[0]["honest"] == [0.1, 0.3] and pooled[0]["probe"] == [0.5, 0.7]
+
+
+def test_intended_use_threshold_gives_target_rate_and_transfers():
+    from validation.scholarly import intended_use
+    cal = [_pa(f"A{i}", [i / 100], [1.5]) for i in range(100)]
+    thr = intended_use.pick_threshold(cal, 0.05)
+    r = intended_use.rates_at(cal, thr)
+    assert r["honest_flag_rate"] <= 0.05 and r["other_writer_catch_rate"] == 1.0
+    dev = [_pa("B", [thr + 0.01, thr - 0.01], [thr - 0.5, thr + 0.5])]
+    assert intended_use.rates_at(dev, thr) == {"honest_flag_rate": 0.5, "other_writer_catch_rate": 0.5}
+    ci = intended_use.bootstrap_at(cal, thr, n_boot=50)
+    assert ci["honest_flag_rate"][0] <= ci["honest_flag_rate"][1]
+    with pytest.raises(ValueError):
+        intended_use.pick_threshold([_pa("C", [], [0.1])])
+
+
+def test_intended_use_reset_clears_research_flags(monkeypatch):
+    from validation.scholarly import intended_use
+    monkeypatch.setenv("NULL_MODEL", "impostor")
+    monkeypatch.setenv("RANK_REMEDIATION", "shrinkage")
+    removed = intended_use.reset_research_flags()
+    assert set(removed) >= {"NULL_MODEL", "RANK_REMEDIATION"} and "NULL_MODEL" not in os.environ
