@@ -158,3 +158,6 @@ validation/genre_crossgenre_2026-08/vectors_meta.json
 # Written locally by the certification tests; not yet uploaded by CI.
 certification-report.json
 dist-teacher-demo/
+
+# Scholarly same-author corpus: fetched paper texts (never committed; see validation/scholarly/README.md)
+validation/scholarly/cache/
