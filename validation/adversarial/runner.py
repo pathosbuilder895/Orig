@@ -10,9 +10,12 @@ Connects the offline red-team harness built across Tasks 13-17
     `BaselineSample`s and calls `original.quantum.scoring.score()`
     in-process — the exact call pattern `validation/calibration.py`
     already uses (see its lines ~180-260). No HTTP, no drift gate, no
-    auth — just the scoring math. This is what a σ-inflation sweep
-    across many victims/N should use: it is cheap enough to run
-    thousands of times.
+    auth — just the scoring math. NOT the live path: it extracts the
+    submission with `compute_full_features(text, baselines)` where the
+    live route (manifest off) uses `extract_features`, and the two differ
+    on a handful of comparison features (measured 7 on one holdout,
+    2026-10-21 review). No gate reads this path; report.py scores every
+    cell with path="api".
 
   - "api" (deployment-shaped): drives the REAL FastAPI app in-process
     via `fastapi.testclient.TestClient` against
@@ -149,6 +152,12 @@ poisoned baseline if the gate held some of the poisoned samples. Task
 "api" numbers for a poisoning attack — a non-zero count means the two
 paths were not actually scoring against the same baseline content.
 
+If the gate holds enough of the baseline to leave fewer than
+`MIN_BASELINE_SAMPLES` admitted, the score route refuses with a 422
+`insufficient_baseline` and the result carries `scoring_refused=True` with
+empty action lists: the live system abstained, and a caller must count that
+as neither a flag nor a pass.
+
 Student-id isolation: `run_attack` mints a fresh
 `f"adv-{victim_id}-{attack}-{uuid4().hex}"` student id for every
 `path="api"` call (see `_new_student_id`), so repeated calls — from a
@@ -251,8 +260,47 @@ class AttackResult:
     baseline_rejected_count
         `path="api"` only: how many of the (possibly poisoned) baseline
         documents the real Phase 8 drift gate held (202/409) rather
-        than admitting — see module docstring §4. Always `0` for
+        than admitting, see module docstring §4. Always `0` for
         `path="score"`, which has no drift gate.
+    holdout_scores, impostor_scores
+        The `deviation_score` behind each entry of `holdout_actions` /
+        `impostor_actions`, same order. The gates' separation legs (an
+        AUROC of attack vs. genuine scores) need the continuous score,
+        not just the action band it falls in.
+    mean_baseline_std
+        The real-feature spread of the baseline actually scored against
+        (after any drift-gate holds, on the API path): the mean, over the
+        features `validation.measurability.measurable_indices()` lists, of
+        the per-feature standard deviation across the contributing
+        samples, WITHOUT `StudentState.baseline_std`'s `0.15 / sqrt(N)`
+        floor. This is what the sigma-inflation gate (G-A5) reads as
+        "did sigma grow", as opposed to `sigma_proxy`'s text-level
+        stand-in. Floored or dead features would confound it: the floor
+        RISES when the drift gate holds a sample (fewer samples admitted),
+        so a held injection would read as growth. A fixed feature set
+        (not the active mask, which itself changes under poisoning) keeps
+        conditions comparable. `None` below two contributing samples.
+    baseline_integrity
+        The report-only `baseline_integrity` block (dict) for that
+        baseline: read from the live `/score` response on the API path,
+        built with `original.baseline_integrity.build_baseline_integrity`
+        on the fast path. `None` when it abstained.
+    held_baseline_indices
+        `path="api"` only: positions (into the scored baseline text
+        list) of the documents the drift gate held. Lets a caller tell
+        whether the gate held the INJECTED document of a poisoned
+        baseline or an innocent one.
+    scoring_refused
+        `path="api"` only: True when the route declined to score at all
+        because the drift gate left fewer admitted baselines than
+        `MIN_BASELINE_SAMPLES` (a 422 `insufficient_baseline`). The action
+        and score lists are then empty: the live system abstained, which
+        is neither a false positive nor a catch.
+    holdout_probabilities, impostor_probabilities
+        `authorship.authorship_probability` per scored document, same
+        order. Collections (Bluebook) marks a sealed exam "worth a look"
+        from this number, not from the action (`bbSealStatus` in
+        demo/bluebook/Exam.jsx), so the report can show that mark too.
     """
 
     victim_id: str
@@ -267,6 +315,14 @@ class AttackResult:
     poisoning_success: float | None
     sigma_proxy: float | None
     baseline_rejected_count: int = 0
+    holdout_scores: tuple[float, ...] = ()
+    impostor_scores: tuple[float, ...] = ()
+    mean_baseline_std: float | None = None
+    baseline_integrity: dict | None = None
+    held_baseline_indices: tuple[int, ...] = ()
+    scoring_refused: bool = False
+    holdout_probabilities: tuple[float, ...] = ()
+    impostor_probabilities: tuple[float, ...] = ()
 
 
 def _max_action(actions: tuple[str, ...]) -> str | None:
@@ -331,13 +387,13 @@ def run_attack(
     impostor_texts = _maybe_transform(profile.impostor_docs, obfuscator)
 
     if path == "score":
-        holdout_actions, impostor_actions, rejected = _run_fast_path(
-            profile.victim_id, baseline_texts, holdout_texts, impostor_texts
-        )
+        outcome = _run_fast_path(profile.victim_id, baseline_texts, holdout_texts, impostor_texts)
     else:
-        holdout_actions, impostor_actions, rejected = _run_api_path(
+        outcome = _run_api_path(
             profile.victim_id, attack, baseline_texts, holdout_texts, impostor_texts, client
         )
+    holdout_actions = [action for action, _, _ in outcome.holdout]
+    impostor_actions = [action for action, _, _ in outcome.impostor]
 
     imitation_success = None
     poisoning_success = None
@@ -362,8 +418,43 @@ def run_attack(
         imitation_success=imitation_success,
         poisoning_success=poisoning_success,
         sigma_proxy=baseline_variance_proxy(baseline_texts),
-        baseline_rejected_count=rejected,
+        baseline_rejected_count=len(outcome.held_indices),
+        holdout_scores=tuple(score for _, score, _ in outcome.holdout),
+        impostor_scores=tuple(score for _, score, _ in outcome.impostor),
+        mean_baseline_std=outcome.mean_baseline_std,
+        baseline_integrity=outcome.baseline_integrity,
+        held_baseline_indices=tuple(outcome.held_indices),
+        scoring_refused=outcome.scoring_refused,
+        holdout_probabilities=tuple(p for _, _, p in outcome.holdout),
+        impostor_probabilities=tuple(p for _, _, p in outcome.impostor),
     )
+
+
+@dataclass(frozen=True)
+class _PathOutcome:
+    """What one scoring path hands back to `run_attack`: (action,
+    deviation_score, authorship_probability) per scored document, plus what
+    the path can say about the baseline it scored against."""
+
+    holdout: list[tuple[str, float, float]]
+    impostor: list[tuple[str, float, float]]
+    held_indices: list[int]
+    mean_baseline_std: float | None
+    baseline_integrity: dict | None
+    scoring_refused: bool = False
+
+
+def _mean_baseline_std(state: StudentState | None) -> float | None:
+    """See `AttackResult.mean_baseline_std`."""
+    from validation.measurability import measurable_indices
+
+    if state is None:
+        return None
+    contributing = [s for s in state.samples if s.auth_weight > 0]
+    if len(contributing) < 2:
+        return None
+    vectors = np.stack([s.vector for s in contributing])[:, measurable_indices()]
+    return float(vectors.std(axis=0).mean())
 
 
 def _submission_seed(victim_id: str) -> int:
@@ -407,7 +498,7 @@ def _build_state(victim_id: str, baseline_texts: list[str]) -> StudentState:
 
 def _score_fast(
     state: StudentState, text: str, baseline_texts: list[str], submission_id: str
-) -> str:
+) -> tuple[str, float, float]:
     features = compute_full_features(text, baseline_texts)
     sub_vector = np.array([features[c] for c in ALL_FEATURE_CODES], dtype=np.float64)
     result = quantum_score(
@@ -417,7 +508,11 @@ def _score_fast(
         submission_id=submission_id,
         n_tokens=len(text.split()),
     )
-    return result.recommendation.action
+    return (
+        result.recommendation.action,
+        float(result.authorship.deviation_score),
+        float(result.authorship.authorship_probability),
+    )
 
 
 def _run_fast_path(
@@ -425,17 +520,26 @@ def _run_fast_path(
     baseline_texts: list[str],
     holdout_texts: list[str],
     impostor_texts: list[str],
-) -> tuple[list[str], list[str], int]:
+) -> _PathOutcome:
+    from dataclasses import asdict
+
+    from original.baseline_integrity import build_baseline_integrity
+
     state = _build_state(victim_id, baseline_texts)
-    holdout_actions = [
-        _score_fast(state, text, baseline_texts, f"{victim_id}-holdout-{i}")
-        for i, text in enumerate(holdout_texts)
-    ]
-    impostor_actions = [
-        _score_fast(state, text, baseline_texts, f"{victim_id}-impostor-{i}")
-        for i, text in enumerate(impostor_texts)
-    ]
-    return holdout_actions, impostor_actions, 0  # no drift gate on this path
+    integrity = build_baseline_integrity(state)
+    return _PathOutcome(
+        holdout=[
+            _score_fast(state, text, baseline_texts, f"{victim_id}-holdout-{i}")
+            for i, text in enumerate(holdout_texts)
+        ],
+        impostor=[
+            _score_fast(state, text, baseline_texts, f"{victim_id}-impostor-{i}")
+            for i, text in enumerate(impostor_texts)
+        ],
+        held_indices=[],  # no drift gate on this path
+        mean_baseline_std=_mean_baseline_std(state),
+        baseline_integrity=asdict(integrity) if integrity is not None else None,
+    )
 
 
 # ── API path ──────────────────────────────────────────────────────────────
@@ -486,16 +590,34 @@ def _post_baseline(client, student_id: str, text: str, assignment: str) -> bool:
     return False
 
 
-def _post_score(client, student_id: str, text: str, submission_id: str) -> str:
+def _post_score(client, student_id: str, text: str, submission_id: str) -> dict | None:
+    """One `/score` call. Returns `None` when the route declines to score
+    because too few baselines were admitted (422 `insufficient_baseline`,
+    `students_scoring._require_min_baseline`): the drift gate can hold
+    enough of a poisoned baseline to drop below the minimum, and the live
+    system then abstains. That is an outcome to record, not a crash."""
     resp = client.post(
         f"/students/{student_id}/score",
         json={"text": text, "submission_id": submission_id},
     )
+    if resp.status_code == 422:
+        detail = resp.json().get("detail")
+        if isinstance(detail, dict) and detail.get("code") == "insufficient_baseline":
+            return None
     if resp.status_code != 200:
         raise RuntimeError(
             f"unexpected score POST failure for {student_id!r}: {resp.status_code} {resp.text}"
         )
-    return resp.json()["recommendation"]["action"]
+    return resp.json()
+
+
+def _action_and_score(body: dict) -> tuple[str, float, float]:
+    authorship = body["authorship"]
+    return (
+        body["recommendation"]["action"],
+        float(authorship["deviation_score"]),
+        float(authorship["authorship_probability"]),
+    )
 
 
 def _run_api_path(
@@ -505,26 +627,44 @@ def _run_api_path(
     holdout_texts: list[str],
     impostor_texts: list[str],
     client,
-) -> tuple[list[str], list[str], int]:
+) -> _PathOutcome:
+    from original.routers._shared import _repo
+
     if client is None:
         client = _default_api_client()
 
     student_id = _new_student_id(victim_id, attack)
 
-    rejected = 0
-    for i, text in enumerate(baseline_texts):
-        if _post_baseline(client, student_id, text, assignment=f"baseline-{i}"):
-            rejected += 1
+    held = [
+        i
+        for i, text in enumerate(baseline_texts)
+        if _post_baseline(client, student_id, text, assignment=f"baseline-{i}")
+    ]
 
-    holdout_actions = [
+    holdout_bodies = [
         _post_score(client, student_id, text, submission_id=f"{student_id}-holdout-{i}")
         for i, text in enumerate(holdout_texts)
     ]
-    impostor_actions = [
+    impostor_bodies = [
         _post_score(client, student_id, text, submission_id=f"{student_id}-impostor-{i}")
         for i, text in enumerate(impostor_texts)
     ]
-    return holdout_actions, impostor_actions, rejected
+    # The baseline is fixed once the uploads finish, so either every score
+    # call was refused or none was.
+    refused = any(b is None for b in holdout_bodies + impostor_bodies)
+    holdout_bodies = [b for b in holdout_bodies if b is not None]
+    impostor_bodies = [b for b in impostor_bodies if b is not None]
+    # Scoring never changes the baseline, so every response carries the same
+    # integrity block; read it off the first one.
+    first = (holdout_bodies + impostor_bodies)[:1]
+    return _PathOutcome(
+        holdout=[_action_and_score(b) for b in holdout_bodies],
+        impostor=[_action_and_score(b) for b in impostor_bodies],
+        held_indices=held,
+        mean_baseline_std=_mean_baseline_std(_repo().get(student_id)),
+        baseline_integrity=first[0].get("baseline_integrity") if first else None,
+        scoring_refused=refused,
+    )
 
 
 # ── Aggregation ───────────────────────────────────────────────────────────

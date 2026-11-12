@@ -215,6 +215,20 @@ has no cache path, and baseline-dependent comparison dimensions are always recom
     # inflation under test cannot fire at all, which G7 detects and reports
     # rather than scoring the un-inflated pipeline and calling it a pass.
 
+    # adversarial verification gates G-A1..G-A6 (SP1 red-team harness,
+    # validation/adversarial/). Unlike G1-G6 these score through the LIVE
+    # path (pilot flags, typicality off) in parallel workers
+    # (ADVERSARIAL_WORKERS, default cores-2). G-A2/G-A3 are UNINFORMATIVE
+    # until validation/adversarial/corpus/llm_attacks/ exists: generating it
+    # needs an API key and the owner's approval (gen_llm_attacks.py), and the
+    # gates must never read as covered without it.
+    .venv/bin/python -m validation.calibration_gate --strict \
+        --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"
+    # the same harness with its report-only cells, raw rows to JSON; --reuse
+    # recomputes the summary and gates from saved rows without rescoring.
+    # First run: docs/research/ADVERSARIAL_BASELINE_FINDINGS_2026-09-20.md
+    .venv/bin/python -m validation.adversarial.report --out /tmp/adversarial.json
+
     # what would GENRE_RESOLVER_V2 change? (committed corpora)
     .venv/bin/python validation/genre_2026-08/measure_shadow.py
 

@@ -336,3 +336,65 @@ class TestG1pWitness:
         assert result.detail["pooled_flagged_rate"] > 0.05
         assert result.detail["reachability"]["observed"] is False
         assert "power" not in result.detail
+
+
+class TestAdversarialWitnesses:
+    """G-A1…G-A6 (SP1): each witness fails on the leg it was built to break,
+    with the other legs passing, so a fail cannot come from somewhere else."""
+
+    def test_g_a1_fails_on_n3_although_the_pooled_rate_passes(self):
+        result = GATE_CONTRACTS["evaluate_g_a1_cold_start_fpr"].failure_witness()
+        assert result.detail["failed_legs"] == ["FPR@N=3"]
+        legs = {leg["label"]: leg for leg in result.detail["legs"]}
+        pooled = sum(leg["successes"] for leg in legs.values()) / sum(
+            leg["n"] for leg in legs.values()
+        )
+        assert pooled <= 0.05 < legs["FPR@N=3"]["rate"]
+
+    @pytest.mark.parametrize(
+        "name, failing_leg",
+        [
+            ("evaluate_g_a2_imitation", "llm_imitation N=3 catch"),
+            ("evaluate_g_a3_paraphrase", "llm_roundtrip_de N=3 catch"),
+            ("evaluate_g_a4_peer_imitation", "public_authors/peer_swap N=3 AUROC"),
+        ],
+    )
+    def test_catch_gate_witnesses_fail_on_one_leg_only(self, name, failing_leg):
+        result = GATE_CONTRACTS[name].failure_witness()
+        assert result.detail["failed_legs"] == [failing_leg]
+        assert result.detail["unmeasured_legs"] == []
+
+    def test_g_a4_witness_is_the_flag_everything_shape(self):
+        result = GATE_CONTRACTS["evaluate_g_a4_peer_imitation"].failure_witness()
+        catch, auroc = result.detail["legs"]
+        assert catch["rate"] == 1.0 and catch["state"] is True
+        assert auroc["auc"] < 0.5
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "evaluate_g_a2_imitation",
+            "evaluate_g_a3_paraphrase",
+            "evaluate_g_a4_peer_imitation",
+            "evaluate_g_a5_sigma_inflation",
+        ],
+    )
+    def test_label_destruction_breaks_separation(self, name):
+        result = GATE_CONTRACTS[name].label_destruction()
+        aucs = [leg for leg in result.detail["legs"] if "auc" in leg]
+        assert aucs and all(leg["auc"] == pytest.approx(0.5) for leg in aucs)
+        assert any(leg["label"] in result.detail["failed_legs"] for leg in aucs)
+
+    def test_g_a5_fails_on_the_drop_leg_with_sigma_grown(self):
+        result = GATE_CONTRACTS["evaluate_g_a5_sigma_inflation"].failure_witness()
+        (cell,) = result.detail["cells"]
+        assert cell["inflated_mean_sigma"] > cell["clean_mean_sigma"] and cell["n_pairs"] > 0
+        assert result.detail["failed_legs"] == ["N=10 inflated catch vs clean 90.0%"]
+
+    def test_g_a6_fails_on_detection_alone(self):
+        result = GATE_CONTRACTS["evaluate_g_a6_baseline_integrity"].failure_witness()
+        assert result.detail["failed_legs"] == ["public_authors/outsourced_baselines N=3 detected"]
+
+    def test_g_a6_label_destruction_misses_both_bars(self):
+        result = GATE_CONTRACTS["evaluate_g_a6_baseline_integrity"].label_destruction()
+        assert len(result.detail["failed_legs"]) == 2
