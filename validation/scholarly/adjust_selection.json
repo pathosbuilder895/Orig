@@ -1,0 +1,17 @@
+{
+ "chosen": [
+  "f_length_matched_llr",
+  "a_length_matched"
+ ],
+ "applied_rule": "validation/scholarly/adjust_selection_rule.json",
+ "mean_catch_at_5pct_1200_300": {
+  "flags_off": 0.3228,
+  "a_length_matched": 0.4169,
+  "b_length_adaptive": 0.2959,
+  "c_topic_inflation": 0.3182,
+  "d_characteristic": 0.3045,
+  "e_impostor_llr": 0.3513,
+  "f_length_matched_llr": 0.5538
+ },
+ "eligibility": "every candidate eligible: in both collections and both matched configs each candidate's upper 95% bound for catch@5% is at least the flags_off point estimate"
+}

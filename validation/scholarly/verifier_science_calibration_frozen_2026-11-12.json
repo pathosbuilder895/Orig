@@ -1,0 +1,320 @@
+{
+ "collection": "science",
+ "date": "2026-11-12",
+ "model": "boosted",
+ "pooled_configs": true,
+ "rule": "threshold = 95th percentile of development out-of-fold honest scores per configuration; final model trained on all development authors; calibration scored once, unchanged",
+ "configs": {
+  "matched_300_300": {
+   "threshold_from_development": 0.981033,
+   "random_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1019,
+     "catch_rate": 0.9444,
+     "n_honest": 216,
+     "n_probe": 540,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0556,
+       0.1528
+      ],
+      "other_writer_catch_rate": [
+       0.9241,
+       0.9648
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.8648,
+     "catch_at_5pct_ci95": [
+      0.6981,
+      0.95
+     ],
+     "auc": 0.9773,
+     "auc_ci95": [
+      0.9623,
+      0.988
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 540
+    }
+   },
+   "same_field_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1019,
+     "catch_rate": 0.9124,
+     "n_honest": 216,
+     "n_probe": 696,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0556,
+       0.1528
+      ],
+      "other_writer_catch_rate": [
+       0.8788,
+       0.9404
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.7787,
+     "catch_at_5pct_ci95": [
+      0.6131,
+      0.91
+     ],
+     "auc": 0.9674,
+     "auc_ci95": [
+      0.9501,
+      0.9814
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 696
+    }
+   },
+   "same_venue_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1019,
+     "catch_rate": 0.9495,
+     "n_honest": 216,
+     "n_probe": 1227,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0556,
+       0.1528
+      ],
+      "other_writer_catch_rate": [
+       0.9346,
+       0.9655
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.8786,
+     "catch_at_5pct_ci95": [
+      0.7479,
+      0.95
+     ],
+     "auc": 0.9799,
+     "auc_ci95": [
+      0.9676,
+      0.989
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 1227
+    }
+   }
+  },
+  "matched_1200_1200": {
+   "threshold_from_development": 0.01815,
+   "random_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1991,
+     "catch_rate": 1.0,
+     "n_honest": 216,
+     "n_probe": 540,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.1157,
+       0.287
+      ],
+      "other_writer_catch_rate": [
+       1.0,
+       1.0
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.9833,
+     "catch_at_5pct_ci95": [
+      0.9537,
+      0.9926
+     ],
+     "auc": 0.9958,
+     "auc_ci95": [
+      0.9917,
+      0.9986
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 540
+    }
+   },
+   "same_field_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1991,
+     "catch_rate": 0.9971,
+     "n_honest": 216,
+     "n_probe": 696,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.1157,
+       0.287
+      ],
+      "other_writer_catch_rate": [
+       0.9918,
+       1.0
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.967,
+     "catch_at_5pct_ci95": [
+      0.8878,
+      0.9842
+     ],
+     "auc": 0.9909,
+     "auc_ci95": [
+      0.984,
+      0.9962
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 696
+    }
+   },
+   "same_venue_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1991,
+     "catch_rate": 0.9984,
+     "n_honest": 216,
+     "n_probe": 1227,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.1157,
+       0.287
+      ],
+      "other_writer_catch_rate": [
+       0.9959,
+       1.0
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.9861,
+     "catch_at_5pct_ci95": [
+      0.9564,
+      0.9943
+     ],
+     "auc": 0.9959,
+     "auc_ci95": [
+      0.9927,
+      0.9985
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 1227
+    }
+   }
+  },
+  "long_past_1200_short_new_300": {
+   "threshold_from_development": 0.859323,
+   "random_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1065,
+     "catch_rate": 0.9833,
+     "n_honest": 216,
+     "n_probe": 540,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0554,
+       0.1713
+      ],
+      "other_writer_catch_rate": [
+       0.9722,
+       0.9926
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.9185,
+     "catch_at_5pct_ci95": [
+      0.8759,
+      0.9815
+     ],
+     "auc": 0.9877,
+     "auc_ci95": [
+      0.9781,
+      0.9956
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 540
+    }
+   },
+   "same_field_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1065,
+     "catch_rate": 0.9641,
+     "n_honest": 216,
+     "n_probe": 696,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0554,
+       0.1713
+      ],
+      "other_writer_catch_rate": [
+       0.9417,
+       0.9804
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.8305,
+     "catch_at_5pct_ci95": [
+      0.7566,
+      0.9563
+     ],
+     "auc": 0.9753,
+     "auc_ci95": [
+      0.96,
+      0.9883
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 696
+    }
+   },
+   "same_venue_probes": {
+    "at_frozen_threshold": {
+     "honest_flag_rate": 0.1065,
+     "catch_rate": 0.9829,
+     "n_honest": 216,
+     "n_probe": 1227,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0554,
+       0.1713
+      ],
+      "other_writer_catch_rate": [
+       0.974,
+       0.9907
+      ]
+     }
+    },
+    "rate_matched_5pct": {
+     "catch_at_5pct_honest": 0.9193,
+     "catch_at_5pct_ci95": [
+      0.8746,
+      0.9791
+     ],
+     "auc": 0.9868,
+     "auc_ci95": [
+      0.9774,
+      0.9943
+     ],
+     "n_authors": 36,
+     "n_honest": 216,
+     "n_probe": 1227
+    }
+   }
+  }
+ },
+ "thresholds": {
+  "matched_300_300": 0.981033,
+  "matched_1200_1200": 0.01815,
+  "long_past_1200_short_new_300": 0.859323
+ }
+}

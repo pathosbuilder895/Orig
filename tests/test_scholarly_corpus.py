@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import random
 from collections import Counter
@@ -641,3 +642,211 @@ def test_restore_warns_when_papers_were_cleaned_by_an_older_cleaner(corpus, tmp_
     (mdir / "humanities.json").write_text(m.model_dump_json(), encoding="utf-8")  # papers default to cleaner v1
     r = fetch.restore("humanities", cache, 1, mdir, fetch_url=lambda u: None)
     assert "warning" in r and "older cleaner" in r["warning"]
+
+
+# ---------------------------------------------------------------- intended use --
+def _pa(author, honest, probe):
+    return {"author": author, "honest": honest, "honest_flag": [False] * len(honest),
+            "probe": probe, "probe_flag": [True] * len(probe)}
+
+
+def test_intended_use_refuses_locked_and_unknown_partitions():
+    from validation.scholarly import intended_use
+    assert intended_use.check_partition("development") == "development"
+    for bad in ("locked_test", "test", ""):
+        with pytest.raises(ValueError):
+            intended_use.check_partition(bad)
+    import inspect
+    assert "allow_locked_for" not in inspect.getsource(intended_use)
+
+
+def test_intended_use_pools_seeds_by_author():
+    from validation.scholarly import intended_use
+    s1 = [_pa("A1", [0.1], [0.5]), _pa("A2", [0.2], [0.6])]
+    s2 = [_pa("A1", [0.3], [0.7])]
+    pooled = intended_use.pool_by_author([s1, s2])
+    assert [a["author"] for a in pooled] == ["A1", "A2"]
+    assert pooled[0]["honest"] == [0.1, 0.3] and pooled[0]["probe"] == [0.5, 0.7]
+
+
+def test_intended_use_threshold_gives_target_rate_and_transfers():
+    from validation.scholarly import intended_use
+    cal = [_pa(f"A{i}", [i / 100], [1.5]) for i in range(100)]
+    thr = intended_use.pick_threshold(cal, 0.05)
+    r = intended_use.rates_at(cal, thr)
+    assert r["honest_flag_rate"] <= 0.05 and r["other_writer_catch_rate"] == 1.0
+    dev = [_pa("B", [thr + 0.01, thr - 0.01], [thr - 0.5, thr + 0.5])]
+    assert intended_use.rates_at(dev, thr) == {"honest_flag_rate": 0.5, "other_writer_catch_rate": 0.5}
+    ci = intended_use.bootstrap_at(cal, thr, n_boot=50)
+    assert ci["honest_flag_rate"][0] <= ci["honest_flag_rate"][1]
+    with pytest.raises(ValueError):
+        intended_use.pick_threshold([_pa("C", [], [0.1])])
+
+
+def test_intended_use_reset_clears_research_flags(monkeypatch):
+    from validation.scholarly import intended_use
+    monkeypatch.setenv("NULL_MODEL", "impostor")
+    monkeypatch.setenv("RANK_REMEDIATION", "shrinkage")
+    removed = intended_use.reset_research_flags()
+    assert set(removed) >= {"NULL_MODEL", "RANK_REMEDIATION"} and "NULL_MODEL" not in os.environ
+
+
+# --------------------------------------------------------------- adjustments --
+def test_length_matched_cuts_past_papers_into_new_paper_sized_pieces():
+    from validation.scholarly import adjust
+    t = loader.ScholarlyTrial("A1", [" ".join(f"w{i}" for i in range(1200))] * 2, ["n " * 300], [],
+                              baseline_ids=["P1", "P2"], honest_ids=["P3"])
+    lm = adjust.length_matched(t, 300)
+    assert len(lm.baseline) == 8 and all(len(x.split()) == 300 for x in lm.baseline)
+    assert lm.baseline_ids[:2] == ["P1#0", "P1#1"] and lm.honest == t.honest
+    assert set(lm.baseline_ids).isdisjoint(t.honest_ids)
+
+
+def test_catch_at_rate_and_its_bootstrap():
+    from validation.scholarly import adjust
+    per = [{"author": f"A{i}", "honest": [i / 100], "probe": [2.0]} for i in range(100)]
+    c = adjust.catch_at_rate(per, 0.05)
+    assert c["honest_above"] <= 0.05 and c["catch"] == 1.0
+    lo, hi = adjust.bootstrap_catch(per, n_boot=30)
+    assert lo <= hi == 1.0
+
+
+def test_candidates_default_to_flags_off_and_combinations_merge():
+    from validation.scholarly import adjust
+    base = adjust.CANDIDATES["flags_off"]
+    assert not any([base.length_matched, base.length_adaptive, base.topic_inflation, base.characteristic, base.llr])
+    c = adjust.register_combination("f_test", "because", "a_length_matched", "e_impostor_llr")
+    assert c.length_matched and c.llr and c.needs_pool and not c.topic_inflation
+    adjust.CANDIDATES.pop("f_test")
+
+
+def test_adjust_refuses_locked_partition():
+    from validation.scholarly import adjust
+    with pytest.raises(ValueError):
+        adjust.trial_sets("humanities", "locked_test")
+
+
+def test_diagnosis_labels_need_the_80th_percentile():
+    import numpy as np
+    from validation.scholarly import diagnose
+    active = np.array([True, True, True, True, True, False])
+    r = diagnose.percentile_ranks(np.array([5.0, 1.0, 3.0, 2.0, 4.0, 99.0]), active)
+    assert r[0] == 1.0 and r[1] == 0.0 and r[5] == 0.0
+    ranks = {"length": np.array([0.9, 0.1]), "topic": np.array([0.5, 0.79]),
+             "section": np.array([0.2, 0.3]), "house": np.array([0.95, 0.0])}
+    assert diagnose.label_feature(0, ranks) == "house" and diagnose.label_feature(1, ranks) == "genuine"
+    assert diagnose.label_feature(1, ranks, z_full=4.0, z_matched=1.5) == "length"     # excess vanishes at matched length
+    assert diagnose.label_feature(0, ranks, z_full=4.0, z_matched=3.0) == "house"
+
+
+# ------------------------------------------------------------------- verifier --
+def test_mask_topic_keeps_function_words_and_shapes_only():
+    from validation.scholarly import verifier
+    out = verifier.mask_topic("The Eucharist, in 1999, was central to the theology of Calvin.")
+    assert out.startswith("The ") and "Eucharist" not in out and "Calvin" not in out
+    assert "*********," in out and "####," in out and " to the " in out
+
+
+def test_relative_rank_and_z():
+    import numpy as np
+    from validation.scholarly import verifier
+    own, z, rank = verifier._relative(0.9, np.array([0.1, 0.2, 0.3]), higher_is_closer=True)
+    assert own == 0.9 and z > 0 and rank == 0.0
+    own, z, rank = verifier._relative(0.5, np.array([0.1, 0.2, 0.3]), higher_is_closer=False)
+    assert z < 0 and rank == 1.0
+
+
+def test_fold_rule_keeps_probe_source_in_the_same_fold():
+    from validation.scholarly import verifier
+    a = next(f"A{i}" for i in range(100) if verifier.split_of(f"A{i}") == 0)
+    b = next(f"A{i}" for i in range(100) if verifier.split_of(f"A{i}") == 1)
+    assert verifier._fold_ok({"author": a, "src": None}, 0)
+    assert not verifier._fold_ok({"author": a, "src": b}, 0) and not verifier._fold_ok({"author": a, "src": b}, 1)
+    assert verifier.split_of(a) == verifier.split_of(a)
+
+
+def test_per_author_tallies_by_probe_kind():
+    from validation.scholarly import verifier
+    rows = [{"author": "A", "label": 0, "kind": "honest"}, {"author": "A", "label": 1, "kind": "random"},
+            {"author": "A", "label": 1, "kind": "same_field"}]
+    pa = verifier._per_author(rows, [0.1, 0.8, 0.6], kinds=("same_field",))
+    assert pa == [{"author": "A", "honest": [0.1], "probe": [0.6]}]
+
+
+def test_verifier_cannot_read_locked_test():
+    from validation.scholarly import verifier
+    with pytest.raises(ValueError):
+        verifier.build_rows("humanities", "locked_test")
+
+
+# ------------------------------------------------------------------- ablation --
+def test_ablation_column_masks_and_fixed_combination():
+    import numpy as np
+    from validation.scholarly import ablation, verifier
+    names = verifier.column_names()
+    assert len(names) == 3 + 3 * 6 + 3 + 2 * 109
+    full = np.ones(len(names), dtype=bool)
+    for ing in ablation.INGREDIENTS:
+        if ing == "1_length_matched":
+            continue
+        keep = ablation.drop_mask(names, ing)
+        assert 0 < keep.sum() < full.sum(), ing
+    assert not any(n.startswith("pos:") for n, k in zip(names, ablation.drop_mask(names, "5_pos")) if k)
+    imp = ablation.drop_mask(names, "6_impostor")
+    assert all(not (n.endswith(":z") or n.endswith(":rank")) for n, k in zip(names, imp) if k)
+    assert ablation.alone_mask(names, "7_nearest_piece").sum() == 9
+    x = np.zeros(len(names))
+    x[names.index("char:centroid:z")] = 2.0
+    assert ablation.fixed_combination(x, names) < 0      # closer to the author than peers = more honest-looking
+
+
+# --------------------------------------------------------------------- rule D --
+def test_rule_d_formula_signs_and_equal_component_weights():
+    from validation.scholarly import rule_d
+    assert rule_d.rule_d(0, 0, 0, 0, 0) == 0.0
+    assert rule_d.rule_d(1, 1, 1, 1, 1) == -1.0                      # closer to the author than peers: honest-looking
+    # each component carries one third, whatever its two halves
+    assert rule_d.rule_d(3, 3, 0, 0, 0) == rule_d.rule_d(0, 0, 3, 3, 0) == rule_d.rule_d(0, 0, 0, 0, 3) == -1.0
+    assert rule_d.rule_d(2, 0, 0, 0, 0) == rule_d.rule_d(0, 2, 0, 0, 0)
+
+
+def test_rule_d_rms_against_and_relative_z():
+    import numpy as np
+    from validation.scholarly import rule_d
+    x = np.array([1.0, 1.0, 1.0])
+    means = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
+    stds = np.ones((2, 3))
+    act = np.array([[1, 1, 1], [1, 1, 0]], dtype=float)
+    r = rule_d.rms_against(x, means, stds, act)
+    assert r[0] == 0.0 and r[1] == 1.0
+    assert rule_d.rel_z(2.0, np.array([0.0, 1.0, 2.0])) > 0
+
+
+def test_rule_d_pass_bar():
+    from validation.scholarly import rule_d
+    ok = {"catch_rate": 0.9, "catch_ci95": [0.82, 0.95], "honest_ci95": [0.02, 0.09]}
+    assert rule_d.passes(ok)["pass"]
+    assert not rule_d.passes({**ok, "catch_rate": 0.84})["pass"]
+    assert not rule_d.passes({**ok, "catch_ci95": [0.79, 0.95]})["pass"]
+    assert not rule_d.passes({**ok, "honest_ci95": [0.02, 0.11]})["pass"]
+    assert len(rule_d.COUNTING_CELLS) == 5
+
+
+def test_rule_d_locked_step_refuses_any_other_study():
+    from validation.scholarly import rule_d
+    with pytest.raises(SystemExit, match="pre-registered"):
+        rule_d.locked("humanities", "some-other-study", n_boot=10)
+    with pytest.raises(SystemExit, match="pre-registered"):
+        rule_d.locked("humanities", "", n_boot=10)
+
+
+def test_load_trial_grid_logs_the_locked_opening_once(corpus, monkeypatch, tmp_path):
+    m, cache, _ = corpus
+    log = tmp_path / "LOCKED_OPENINGS.tsv"
+    monkeypatch.setattr(loader, "LOCKED_LOG", log)
+    grid = [("a", 1200, 300, 7), ("a", 1200, 300, 11), ("b", 300, 300, 7)]
+    with pytest.raises(loader.LockedPartitionError):
+        loader.load_trial_grid("humanities", "locked_test", grid, manifest=m, cache=cache, n_probes=0)
+    sets = loader.load_trial_grid("humanities", "locked_test", grid, allow_locked_for="study-x",
+                                  manifest=m, cache=cache, n_probes=0)
+    assert len(sets) == 3 and log.read_text().count("study-x") == 1
