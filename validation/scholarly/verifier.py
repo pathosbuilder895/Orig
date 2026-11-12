@@ -146,7 +146,21 @@ def _hosts(collection: str) -> dict:
     return out
 
 
-def build_rows(collection: str, partition: str, char_vectorizer=None, fw_stats=None):
+def column_names(channels=("char", "masked", "pos")) -> list[str]:
+    """Name of every column of a row's signal vector, in order (used by the ablation)."""
+    from original.constants import ALL_FEATURE_CODES
+    names = ["orig:rms_self", "orig:rms_peer", "orig:contrast"]
+    for k in channels:
+        for part in ("centroid", "nearest"):
+            names += [f"{k}:{part}:own", f"{k}:{part}:z", f"{k}:{part}:rank"]
+    names += ["fw:centroid:own", "fw:centroid:z", "fw:centroid:rank"]
+    names += [f"orig:zself:{c}" for c in ALL_FEATURE_CODES]
+    names += [f"orig:zcontrast:{c}" for c in ALL_FEATURE_CODES]
+    return names
+
+
+def build_rows(collection: str, partition: str, char_vectorizer=None, fw_stats=None,
+               length_match: bool = True, original_scores: bool = False):
     """Signal vectors for every new paper in every (configuration, seed) trial set.
 
     Probes come in two kinds: the loader's 5 random other authors (``random``), and up to 5
@@ -187,7 +201,8 @@ def build_rows(collection: str, partition: str, char_vectorizer=None, fw_stats=N
     rows = []
     for (name, seed), ts in sorted(sets.items()):
         new_w = dict((n, w) for n, _, w in CONFIGS)[name]
-        trials = [length_matched(t, new_w) for t in ts.trials]
+        trials = [length_matched(t, new_w) for t in ts.trials] if length_match else list(ts.trials)
+        full = {t.student_id: t for t in ts.trials}   # un-cut baselines, for Original's own scores
         authors = [t.student_id for t in trials]
         a_index = {a: i for i, a in enumerate(authors)}
         # per-author baselines in every representation
@@ -256,9 +271,44 @@ def build_rows(collection: str, partition: str, char_vectorizer=None, fw_stats=N
                            float((z_self ** 2 - z_peer ** 2).sum() / n_act)]
                 feat = np.concatenate([summary, char_feats, _relative(own_f, dists[oi], False),
                                        z_self, z_self - z_peer])
-                rows.append({"author": t.student_id, "config": name, "seed": seed, "label": label,
-                             "kind": kind, "src": src, "x": feat.astype(np.float32)})
+                row = {"author": t.student_id, "config": name, "seed": seed, "label": label,
+                       "kind": kind, "src": src, "x": feat.astype(np.float32)}
+                if original_scores:
+                    row["original"] = _original_scores(full[t.student_id], full, others, text, store, new_w, st)
+                rows.append(row)
     return rows, char_vectorizer, fw_stats
+
+
+_FULL_STATES: dict = {}
+
+
+def _original_scores(trial, full, others, text, store, new_w, lm_state) -> dict:
+    """Original's own flags-off scores for one paper: deviation against the un-cut baseline,
+    the LLR deviation against a peer pool of ``others`` (probe author already excluded), and
+    deviation against the length-matched baseline. Validation only; no flag is set."""
+    from original.quantum.null_pool import fit_impostor_gaussian
+    from original.quantum.scoring import ScoringConfig
+    from original.quantum.scoring import score as quantum_score
+    from original.quantum.state import BaselineSample, StudentState
+    key = (trial.student_id, tuple(trial.baseline_ids), new_w)
+    st = _FULL_STATES.get(key)
+    if st is None:
+        st = StudentState(student_id=trial.student_id)
+        for b in trial.baseline:
+            st.add_sample(BaselineSample(text=b, vector=store[b][0], provenance="verified", auth_weight=1.0, genre="essay"))
+        _FULL_STATES.clear()
+        _FULL_STATES[key] = st
+    vec, fd = store[text]
+    pool = fit_impostor_gaussian([store[b][0] for a in others for b in full[a].baseline])
+    off = quantum_score(state=st, submission_vector=vec, feature_dict=fd, submission_id="abl", n_tokens=new_w,
+                        scoring_config=ScoringConfig())
+    llr = quantum_score(state=st, submission_vector=vec, feature_dict=fd, submission_id="abl", n_tokens=new_w,
+                        impostor_stats=pool, scoring_config=ScoringConfig(null_model="impostor"))
+    lm = quantum_score(state=lm_state, submission_vector=vec, feature_dict=fd, submission_id="abl", n_tokens=new_w,
+                       scoring_config=ScoringConfig())
+    return {"dev_off": float(off.authorship.deviation_score),
+            "llr_off": float(llr.authorship.llr_deviation_score) if llr.authorship.llr_deviation_score is not None else float(off.authorship.deviation_score),
+            "dev_lm": float(lm.authorship.deviation_score)}
 
 
 MODEL = "logistic"

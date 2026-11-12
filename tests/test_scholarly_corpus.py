@@ -777,3 +777,24 @@ def test_verifier_cannot_read_locked_test():
     from validation.scholarly import verifier
     with pytest.raises(ValueError):
         verifier.build_rows("humanities", "locked_test")
+
+
+# ------------------------------------------------------------------- ablation --
+def test_ablation_column_masks_and_fixed_combination():
+    import numpy as np
+    from validation.scholarly import ablation, verifier
+    names = verifier.column_names()
+    assert len(names) == 3 + 3 * 6 + 3 + 2 * 109
+    full = np.ones(len(names), dtype=bool)
+    for ing in ablation.INGREDIENTS:
+        if ing == "1_length_matched":
+            continue
+        keep = ablation.drop_mask(names, ing)
+        assert 0 < keep.sum() < full.sum(), ing
+    assert not any(n.startswith("pos:") for n, k in zip(names, ablation.drop_mask(names, "5_pos")) if k)
+    imp = ablation.drop_mask(names, "6_impostor")
+    assert all(not (n.endswith(":z") or n.endswith(":rank")) for n, k in zip(names, imp) if k)
+    assert ablation.alone_mask(names, "7_nearest_piece").sum() == 9
+    x = np.zeros(len(names))
+    x[names.index("char:centroid:z")] = 2.0
+    assert ablation.fixed_combination(x, names) < 0      # closer to the author than peers = more honest-looking
