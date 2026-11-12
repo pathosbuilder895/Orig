@@ -21,7 +21,8 @@ the past papers cut into pieces of the new paper's length (``adjust.length_match
 
 The TF-IDF vectorizers are fit once on development texts (unsupervised, no labels), saved, and
 reused unchanged. Thresholds: 95th percentile of calibration honest D per collection and
-configuration. No weights are trained anywhere. This module cannot read ``locked_test``.
+configuration. No weights are trained anywhere. ``locked`` is the single pre-registered
+opening of ``locked_test`` (study ``scholarly-rule-d-2026-11-12``) and refuses to run twice.
 """
 from __future__ import annotations
 
@@ -239,12 +240,57 @@ def calibrate(collection: str, n_boot: int) -> dict:
     return out
 
 
+def locked(collection: str, study: str, n_boot: int) -> dict:
+    """The single pre-registered opening of locked_test (study ``STUDY_ID``). Refuses any other
+    study id, refuses to run if a result file already exists, and uses the committed
+    thresholds and frozen vectorizers unchanged."""
+    from .loader import load_trial_grid
+    if study != STUDY_ID:
+        raise SystemExit(f"locked_test may only be opened for the pre-registered study {STUDY_ID!r}")
+    out_path = HERE / f"rule_d_{collection}_locked_test_2026-11-12.json"
+    if out_path.exists():
+        raise SystemExit(f"{out_path.name} exists: the locked partition has already been opened for this study")
+    thr_file = json.loads((HERE / f"rule_d_thresholds_{collection}.json").read_text(encoding="utf-8"))
+    vecs, vec_sha = fit_or_load_vectorizers(collection)
+    if vec_sha != thr_file["vectorizers_sha256"]:
+        raise SystemExit("frozen vectorizers changed since calibration; refusing to open")
+    grid = [(n, pw, nw, s) for n, pw, nw in CONFIGS for s in SEEDS]
+    sets = load_trial_grid(collection, "locked_test", grid, allow_locked_for=study,
+                           n_past=4, n_new=2, n_probes=5)
+    rows = build_scores(collection, sets, vecs)
+    out = {"collection": collection, "partition": "locked_test", "study_id": study, "date": time.strftime("%Y-%m-%d"),
+           "vectorizers_sha256": vec_sha, "thresholds": thr_file["thresholds"], "seeds": list(SEEDS),
+           "authors_per_partition": partition_author_counts(collection),
+           "skipped": {f"{n}/seed{s}/{a}": why for (n, s), ts in sets.items() for a, why in ts.skipped.items()},
+           "cells": {}, "counting_cells_passed": 0, "counting_cells": len(COUNTING_CELLS)}
+    for name, _, _ in CONFIGS:
+        R = [r for r in rows if r["config"] == name]
+        thr = thr_file["thresholds"][name]
+        out["cells"][name] = {}
+        for kind in KINDS:
+            cell = cell_report(R, thr, kind, n_boot)
+            cell["counts_toward_goal"] = (name, kind) in COUNTING_CELLS
+            if cell["counts_toward_goal"]:
+                cell["pre_registered_bar"] = passes(cell)
+                out["counting_cells_passed"] += cell["pre_registered_bar"]["pass"]
+            out["cells"][name][kind] = cell
+            print(collection, name, kind, json.dumps({k: cell[k] for k in ("honest_flag_rate", "honest_ci95",
+                                                                             "catch_rate", "catch_ci95", "auc")}), flush=True)
+    out_path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    print("wrote", out_path)
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("step", choices=("calibrate",))
+    ap.add_argument("step", choices=("calibrate", "locked"))
+    ap.add_argument("--study", default="")
     ap.add_argument("--collection", choices=("humanities", "science"), required=True)
     ap.add_argument("--n-boot", type=int, default=1000)
     a = ap.parse_args(argv)
+    if a.step == "locked":
+        locked(a.collection, a.study, a.n_boot)
+        return 0
     res = calibrate(a.collection, a.n_boot)
     (HERE / f"rule_d_thresholds_{a.collection}.json").write_text(json.dumps({
         "collection": a.collection, "study_id": STUDY_ID, "chosen_on": "calibration",

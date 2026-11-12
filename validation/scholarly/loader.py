@@ -104,7 +104,8 @@ def _open_locked(collection: str, study: Optional[str]) -> None:
 def load_trials(collection: str, partition: str, *, n_past: int = 4, n_new: int = 2,
                 past_words: int = 1200, new_words: int = 300, n_probes: int = 5, seed: int = 7,
                 manifest: Optional[ScholarlyManifest] = None, cache: Optional[Path] = None,
-                max_authors: Optional[int] = None, allow_locked_for: Optional[str] = None) -> TrialSet:
+                max_authors: Optional[int] = None, allow_locked_for: Optional[str] = None,
+                _opening_logged: bool = False) -> TrialSet:
     """Build trials for the authors of one partition.
 
     Authors that cannot supply ``n_past + n_new`` papers long enough for the
@@ -112,7 +113,7 @@ def load_trials(collection: str, partition: str, *, n_past: int = 4, n_new: int 
     """
     if partition not in policy.PARTITIONS:
         raise ValueError(f"partition must be one of {policy.PARTITIONS}")
-    if partition == "locked_test":
+    if partition == "locked_test" and not _opening_logged:
         _open_locked(collection, allow_locked_for)
     if n_past + n_new < 2 or n_past < 1 or n_new < 1:
         raise ValueError("need at least one past and one new paper")
@@ -164,3 +165,18 @@ def load_trials(collection: str, partition: str, *, n_past: int = 4, n_new: int 
             t.student_id, t.baseline, t.honest, [o.honest[0] for o in others],
             t.baseline_ids, t.honest_ids, [o.student_id for o in others]))
     return TrialSet(final, skipped)
+
+
+def load_trial_grid(collection: str, partition: str, grid, *, allow_locked_for: Optional[str] = None,
+                    **kwargs) -> Dict[tuple, TrialSet]:
+    """Every (config name, past words, new words, seed) trial set of one partition, opened ONCE.
+
+    ``grid`` is an iterable of (name, past_words, new_words, seed). For ``locked_test`` the
+    pre-registered study id is checked and the opening is logged exactly once for the whole
+    grid, so one study run leaves one line per collection in ``LOCKED_OPENINGS.tsv``."""
+    grid = list(grid)
+    if partition == "locked_test":
+        _open_locked(collection, allow_locked_for)
+    return {(name, seed): load_trials(collection, partition, past_words=pw, new_words=nw, seed=seed,
+                                      allow_locked_for=allow_locked_for, _opening_logged=True, **kwargs)
+            for name, pw, nw, seed in grid}

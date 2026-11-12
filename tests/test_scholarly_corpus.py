@@ -832,7 +832,21 @@ def test_rule_d_pass_bar():
     assert len(rule_d.COUNTING_CELLS) == 5
 
 
-def test_rule_d_cannot_read_locked_test():
-    import inspect
+def test_rule_d_locked_step_refuses_any_other_study():
     from validation.scholarly import rule_d
-    assert "allow_locked_for" not in inspect.getsource(rule_d)
+    with pytest.raises(SystemExit, match="pre-registered"):
+        rule_d.locked("humanities", "some-other-study", n_boot=10)
+    with pytest.raises(SystemExit, match="pre-registered"):
+        rule_d.locked("humanities", "", n_boot=10)
+
+
+def test_load_trial_grid_logs_the_locked_opening_once(corpus, monkeypatch, tmp_path):
+    m, cache, _ = corpus
+    log = tmp_path / "LOCKED_OPENINGS.tsv"
+    monkeypatch.setattr(loader, "LOCKED_LOG", log)
+    grid = [("a", 1200, 300, 7), ("a", 1200, 300, 11), ("b", 300, 300, 7)]
+    with pytest.raises(loader.LockedPartitionError):
+        loader.load_trial_grid("humanities", "locked_test", grid, manifest=m, cache=cache, n_probes=0)
+    sets = loader.load_trial_grid("humanities", "locked_test", grid, allow_locked_for="study-x",
+                                  manifest=m, cache=cache, n_probes=0)
+    assert len(sets) == 3 and log.read_text().count("study-x") == 1
