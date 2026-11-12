@@ -689,3 +689,51 @@ def test_intended_use_reset_clears_research_flags(monkeypatch):
     monkeypatch.setenv("RANK_REMEDIATION", "shrinkage")
     removed = intended_use.reset_research_flags()
     assert set(removed) >= {"NULL_MODEL", "RANK_REMEDIATION"} and "NULL_MODEL" not in os.environ
+
+
+# --------------------------------------------------------------- adjustments --
+def test_length_matched_cuts_past_papers_into_new_paper_sized_pieces():
+    from validation.scholarly import adjust
+    t = loader.ScholarlyTrial("A1", [" ".join(f"w{i}" for i in range(1200))] * 2, ["n " * 300], [],
+                              baseline_ids=["P1", "P2"], honest_ids=["P3"])
+    lm = adjust.length_matched(t, 300)
+    assert len(lm.baseline) == 8 and all(len(x.split()) == 300 for x in lm.baseline)
+    assert lm.baseline_ids[:2] == ["P1#0", "P1#1"] and lm.honest == t.honest
+    assert set(lm.baseline_ids).isdisjoint(t.honest_ids)
+
+
+def test_catch_at_rate_and_its_bootstrap():
+    from validation.scholarly import adjust
+    per = [{"author": f"A{i}", "honest": [i / 100], "probe": [2.0]} for i in range(100)]
+    c = adjust.catch_at_rate(per, 0.05)
+    assert c["honest_above"] <= 0.05 and c["catch"] == 1.0
+    lo, hi = adjust.bootstrap_catch(per, n_boot=30)
+    assert lo <= hi == 1.0
+
+
+def test_candidates_default_to_flags_off_and_combinations_merge():
+    from validation.scholarly import adjust
+    base = adjust.CANDIDATES["flags_off"]
+    assert not any([base.length_matched, base.length_adaptive, base.topic_inflation, base.characteristic, base.llr])
+    c = adjust.register_combination("f_test", "because", "a_length_matched", "e_impostor_llr")
+    assert c.length_matched and c.llr and c.needs_pool and not c.topic_inflation
+    adjust.CANDIDATES.pop("f_test")
+
+
+def test_adjust_refuses_locked_partition():
+    from validation.scholarly import adjust
+    with pytest.raises(ValueError):
+        adjust.trial_sets("humanities", "locked_test")
+
+
+def test_diagnosis_labels_need_the_80th_percentile():
+    import numpy as np
+    from validation.scholarly import diagnose
+    active = np.array([True, True, True, True, True, False])
+    r = diagnose.percentile_ranks(np.array([5.0, 1.0, 3.0, 2.0, 4.0, 99.0]), active)
+    assert r[0] == 1.0 and r[1] == 0.0 and r[5] == 0.0
+    ranks = {"length": np.array([0.9, 0.1]), "topic": np.array([0.5, 0.79]),
+             "section": np.array([0.2, 0.3]), "house": np.array([0.95, 0.0])}
+    assert diagnose.label_feature(0, ranks) == "house" and diagnose.label_feature(1, ranks) == "genuine"
+    assert diagnose.label_feature(1, ranks, z_full=4.0, z_matched=1.5) == "length"     # excess vanishes at matched length
+    assert diagnose.label_feature(0, ranks, z_full=4.0, z_matched=3.0) == "house"
