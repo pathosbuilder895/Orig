@@ -1,0 +1,387 @@
+{
+ "collection": "humanities",
+ "date": "2026-11-12",
+ "candidates": {
+  "f_length_matched_llr": {
+   "reason": "diagnosis: about 70% of driving features are length-driven (fixed by a); the LLR decision is peer-relative, so inflation shared by honest papers and probes partly cancels",
+   "configs": {
+    "matched_300_300": {
+     "threshold": 0.690788,
+     "calibration": {
+      "catch_at_5pct_honest": 0.3274,
+      "catch_at_5pct_ci95": [
+       0.2303,
+       0.3822
+      ],
+      "product_honest_flag_rate": 0.1071,
+      "product_catch_rate": 0.3512,
+      "auc": 0.797,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0848,
+        0.1295
+       ],
+       "other_writer_catch_rate": [
+        0.3202,
+        0.3833
+       ],
+       "auc": [
+        0.7713,
+        0.8231
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.3274,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0342,
+         0.0655
+        ],
+        "other_writer_catch_rate": [
+         0.2958,
+         0.3637
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.0552,
+      "other_writer_catch_rate": 0.3257,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0403,
+        0.0701
+       ],
+       "other_writer_catch_rate": [
+        0.2977,
+        0.358
+       ]
+      }
+     }
+    },
+    "matched_1200_1200": {
+     "threshold": 0.676269,
+     "calibration": {
+      "catch_at_5pct_honest": 0.494,
+      "catch_at_5pct_ci95": [
+       0.4286,
+       0.5905
+      ],
+      "product_honest_flag_rate": 0.058,
+      "product_catch_rate": 0.4452,
+      "auc": 0.8837,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0387,
+        0.0804
+       ],
+       "other_writer_catch_rate": [
+        0.4113,
+        0.4786
+       ],
+       "auc": [
+        0.865,
+        0.9027
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.494,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0327,
+         0.067
+        ],
+        "other_writer_catch_rate": [
+         0.4542,
+         0.5333
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.0265,
+      "other_writer_catch_rate": 0.4955,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0159,
+        0.0393
+       ],
+       "other_writer_catch_rate": [
+        0.4616,
+        0.5282
+       ]
+      }
+     }
+    },
+    "long_past_1200_short_new_300": {
+     "threshold": 0.641984,
+     "calibration": {
+      "catch_at_5pct_honest": 0.4202,
+      "catch_at_5pct_ci95": [
+       0.3661,
+       0.4857
+      ],
+      "product_honest_flag_rate": 0.0461,
+      "product_catch_rate": 0.247,
+      "auc": 0.8464,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0297,
+        0.064
+       ],
+       "other_writer_catch_rate": [
+        0.2137,
+        0.2827
+       ],
+       "auc": [
+        0.8247,
+        0.8657
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.4202,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0327,
+         0.067
+        ],
+        "other_writer_catch_rate": [
+         0.378,
+         0.4667
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.034,
+      "other_writer_catch_rate": 0.4306,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0223,
+        0.0456
+       ],
+       "other_writer_catch_rate": [
+        0.3949,
+        0.4658
+       ]
+      }
+     }
+    }
+   }
+  },
+  "a_length_matched": {
+   "reason": "past papers cut into pieces the size of the new paper, so the baseline mean and spread are estimated at the length being compared",
+   "configs": {
+    "matched_300_300": {
+     "threshold": 0.631955,
+     "calibration": {
+      "catch_at_5pct_honest": 0.2024,
+      "catch_at_5pct_ci95": [
+       0.141,
+       0.2524
+      ],
+      "product_honest_flag_rate": 0.1071,
+      "product_catch_rate": 0.3512,
+      "auc": 0.7447,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0848,
+        0.1295
+       ],
+       "other_writer_catch_rate": [
+        0.3202,
+        0.3833
+       ],
+       "auc": [
+        0.719,
+        0.7708
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.2024,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0327,
+         0.0655
+        ],
+        "other_writer_catch_rate": [
+         0.1762,
+         0.2298
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.0456,
+      "other_writer_catch_rate": 0.217,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0329,
+        0.0584
+       ],
+       "other_writer_catch_rate": [
+        0.1945,
+        0.2412
+       ]
+      }
+     }
+    },
+    "matched_1200_1200": {
+     "threshold": 0.604764,
+     "calibration": {
+      "catch_at_5pct_honest": 0.4161,
+      "catch_at_5pct_ci95": [
+       0.3262,
+       0.5214
+      ],
+      "product_honest_flag_rate": 0.058,
+      "product_catch_rate": 0.4452,
+      "auc": 0.8565,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0387,
+        0.0804
+       ],
+       "other_writer_catch_rate": [
+        0.4113,
+        0.4786
+       ],
+       "auc": [
+        0.8358,
+        0.8763
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.4161,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0342,
+         0.0655
+        ],
+        "other_writer_catch_rate": [
+         0.3827,
+         0.4494
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.0541,
+      "other_writer_catch_rate": 0.4259,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0382,
+        0.069
+       ],
+       "other_writer_catch_rate": [
+        0.3966,
+        0.4556
+       ]
+      }
+     }
+    },
+    "long_past_1200_short_new_300": {
+     "threshold": 0.594515,
+     "calibration": {
+      "catch_at_5pct_honest": 0.2714,
+      "catch_at_5pct_ci95": [
+       0.197,
+       0.3595
+      ],
+      "product_honest_flag_rate": 0.0461,
+      "product_catch_rate": 0.247,
+      "auc": 0.7846,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0297,
+        0.064
+       ],
+       "other_writer_catch_rate": [
+        0.2137,
+        0.2827
+       ],
+       "auc": [
+        0.757,
+        0.8099
+       ]
+      },
+      "n_authors": 112,
+      "n_honest": 672,
+      "n_probe": 1680,
+      "llr_missing": 0,
+      "at_threshold": {
+       "honest_flag_rate": 0.0491,
+       "other_writer_catch_rate": 0.2714,
+       "ci95_author_bootstrap": {
+        "honest_flag_rate": [
+         0.0312,
+         0.067
+        ],
+        "other_writer_catch_rate": [
+         0.2369,
+         0.3095
+        ]
+       }
+      }
+     },
+     "development_at_calibration_threshold": {
+      "honest_flag_rate": 0.0393,
+      "other_writer_catch_rate": 0.2582,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0265,
+        0.051
+       ],
+       "other_writer_catch_rate": [
+        0.234,
+        0.287
+       ]
+      }
+     }
+    }
+   }
+  }
+ },
+ "skipped": {
+  "calibration": {},
+  "development": {}
+ },
+ "rule": "threshold = 95th percentile of calibration honest decision statistic (seeds pooled); flag = strictly above",
+ "thresholds": {
+  "f_length_matched_llr": {
+   "matched_300_300": 0.690788,
+   "matched_1200_1200": 0.676269,
+   "long_past_1200_short_new_300": 0.641984
+  },
+  "a_length_matched": {
+   "matched_300_300": 0.631955,
+   "matched_1200_1200": 0.604764,
+   "long_past_1200_short_new_300": 0.594515
+  }
+ }
+}
