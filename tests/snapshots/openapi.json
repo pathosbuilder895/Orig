@@ -2757,6 +2757,33 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "opportunity_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Deviation Preview"
+          },
+          "opportunity_mask_applied": {
+            "default": false,
+            "title": "Opportunity Mask Applied",
+            "type": "boolean"
+          },
+          "opportunity_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Mode"
+          },
           "preliminary": {
             "anyOf": [
               {
@@ -2907,6 +2934,20 @@
               }
             ],
             "title": "Typicality Source"
+          },
+          "unmeasured_features": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unmeasured Features"
           }
         },
         "required": [
