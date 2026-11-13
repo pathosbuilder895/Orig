@@ -115,6 +115,9 @@
   .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
   .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
   .ex-src{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;color:var(--ink-2);margin-top:.5rem;overflow-wrap:anywhere;}
   .ex-vals{list-style:none;font-size:.95rem;}
   .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
@@ -355,13 +358,16 @@
     if(!isObj(q)) return '';
     const parts=EV.markParts(q);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const body=esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
+    const tiny=parts.mark.trim().length<=3||!/[A-Za-z0-9]/.test(parts.mark);
+    const body=esc(parts.before)+(parts.mark?'<mark'+(tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
     const src=[q.paper==='this paper'?'This paper':pastSource(q.paper)];
-    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
     if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
+    if(tiny&&parts.mark) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
     if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    // Character offsets stay out of the visible line; they are in the tooltip.
+    const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
-      '<div class="ex-src">'+esc(src.join(' · '))+'</div>';
+      '<div class="ex-src"'+at+'>'+esc(src.join(' · '))+'</div>';
   }
   function baseLabel(examples){
     const ps=[];

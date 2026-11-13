@@ -331,6 +331,9 @@
   .evi-q{font-family:var(--body);font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,.88);overflow-wrap:anywhere;}
   .evi-q mark{background:var(--evc-bg,rgba(201,160,40,.24));color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px var(--evc-line,rgba(201,160,40,.35));}
   .evi-col.base .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .evi-q mark.tiny{background:var(--evc-bg,rgba(201,160,40,.32));box-shadow:none;border-bottom:2px solid var(--evc,#c9a028);padding:0 .24em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .evi-col.base .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
   .evi-tab:focus-visible,.evi-side:focus-visible,.tgrp-h:focus-visible,.hbnd:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .evi-foot{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
   .evi-notice{flex:1;min-width:16rem;font-size:.9rem;line-height:1.55;color:var(--dim);}
@@ -953,10 +956,21 @@
       const name=typeof p.assignment==='string'&&p.assignment.trim()?p.assignment.trim():EV.paperName(label,[]);
       return [name,sampleDay(p.submitted_at)].filter(Boolean).join(' · ');
     }
+    const isTiny=m=>m.trim().length<=3||!/[A-Za-z0-9]/.test(m);
     function quoteHTML(q){
       const parts=EV.markParts(q);
       const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(isTiny(parts.mark)?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+    }
+    // A quote's source line: where it is from, its length, and a short match spelled out.
+    // Character offsets stay out of the visible line; they are in the tooltip.
+    function setSource(id,q,label){
+      const el=$(id), parts=EV.markParts(q), src=[label];
+      if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
+      if(parts.mark&&isTiny(parts.mark)) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
+      if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+      el.textContent=src.join(' · ');
+      if(num(q.start)!=null&&num(q.end)!=null) el.title='characters '+q.start+' to '+q.end;
     }
     const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
     // The plain sentence a side shows when it has no passage to quote.
@@ -996,6 +1010,7 @@
       $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
       numbersCols(f,v,s,out,within);
+      $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
       // "This paper" beside quoted passages; without them the label stays as before.
       $('evi-sub-lbl').textContent=e?'This paper':'This submission';
       const foot=$('evi-foot'), tabs=$('evi-tabs'), one=$('evi-one');
@@ -1021,14 +1036,14 @@
       const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
       if(q1){
         $('evi-sub').innerHTML=quoteHTML(q1);
-        $('evi-sub-src').textContent=S.assignment||'This paper';
+        setSource('evi-sub-src',q1,S.assignment||'This paper');
       } else if(e.kind!=='not_compared'){
         // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
         addNone('evi-sub',noTextWords(e,'this'));
       }
       if(q2){
         $('evi-base').innerHTML=quoteHTML(q2);
-        $('evi-base-src').textContent=pastLabel(q2.paper);
+        setSource('evi-base-src',q2,pastLabel(q2.paper));
       } else if(e.kind==='not_compared'){
         // evidence-view's own wording (as evidence.html's notUsedWhy).
         $('evi-base').innerHTML='<p class="none">'+esc(EV.noteFor(e,papers()))+'</p>';
