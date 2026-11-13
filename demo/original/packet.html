@@ -106,6 +106,8 @@
   .ex-col{min-width:0;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
   .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
   .ex-note p+p{margin-top:.35rem;}
   .ex-note .nums-line{font-size:.86rem;}
   .more-note{font-size:.88rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
@@ -500,8 +502,9 @@
   }
   function quoteBlock(q,label,side,papers){
     const parts=EV.markParts(q);
+    const tiny=parts.mark.trim().length<=3||!/[A-Za-z0-9]/.test(parts.mark);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
+    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
     const src=[];
     if(side==='this') src.push('This paper');
     else{
@@ -509,11 +512,12 @@
       const day=p?dayOf(p.submitted_at):'';
       src.push(EV.paperName(q.paper,papers)+(day?', '+day:''));
     }
-    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
     if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
+    if(tiny&&parts.mark) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
     if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-col"><div class="ex-lbl '+(side==='this'?'this':'base')+'">'+esc(side==='this'?'This paper':label)+'</div>'+
-      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src">'+esc(src.join(' · '))+'</div></div>';
+      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src"'+at+'>'+esc(src.join(' · '))+'</div></div>';
   }
   function sideBySideHTML(d){
     const ev=d.result.evidence;
@@ -522,12 +526,14 @@
     const byCode=new Map();
     ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode.set(f.code,f); });
     const cards=[];
+    const skipped=[];
     ev.features.slice(0,SHOW_HABITS).forEach(top=>{
       const f=isObj(top)&&byCode.get(top.code);
-      if(!f||f.kind!=='located') return;
+      const skip=()=>{ const nm=EV.clean(String((f&&f.name)||(isObj(top)&&top.name)||''),''); if(nm) skipped.push(nm); };
+      if(!f||f.kind!=='located'){ skip(); return; }
       const tq=isObj(f.this_paper)&&Array.isArray(f.this_paper.examples)?f.this_paper.examples[0]:null;
       const pq=isObj(f.past_papers)&&Array.isArray(f.past_papers.examples)?f.past_papers.examples[0]:null;
-      if(!isObj(tq)||!isObj(pq)||typeof tq.passage!=='string'||typeof pq.passage!=='string') return;
+      if(!isObj(tq)||!isObj(pq)||typeof tq.passage!=='string'||typeof pq.passage!=='string'){ skip(); return; }
       const notice=EV.noticeFor(f), nums=EV.noteFor(f,papers);
       cards.push('<div class="ex">'+
         '<div class="ex-h"><b>'+esc(EV.clean(String(f.name||'This habit'),'This habit'))+'</b><span>'+esc(EV.oneLine(f))+'</span></div>'+
@@ -535,7 +541,8 @@
         ((notice||nums)?'<div class="ex-note">'+(notice?'<p><b>What to notice:</b> '+esc(notice)+'</p>':'')+(nums?'<p class="nums-line">'+esc(nums)+'</p>':'')+'</div>':'')+
       '</div>');
     });
-    return cards.join('');
+    const miss=skipped.length?'<p class="more-note">'+esc('Not shown here because there is no quotable text on both sides: '+skipped.join(', ')+'. Their numbers are in the list under \u201cFurthest from their usual range\u201d above.')+'</p>':'';
+    return cards.join('')+miss;
   }
   function addSideBySide(d,anchor){
     const html=sideBySideHTML(d);
