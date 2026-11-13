@@ -1016,7 +1016,8 @@
       const foot=$('evi-foot'), tabs=$('evi-tabs'), one=$('evi-one');
       tabs.hidden=true; tabs.innerHTML='';
       if(!e){ one.hidden=true; one.textContent=''; foot.hidden=true; return; }
-      const line=EV.oneLine(e);
+      // A habit Original does not compare has no past range: the one line would only repeat this paper's number.
+      const line=e.kind==='not_compared'?'':EV.oneLine(e);
       one.hidden=!line; one.textContent=line;
       const tp=e.kind==='located'?examplesOf(e.this_paper):[], pp=e.kind==='located'?examplesOf(e.past_papers):[];
       const n=Math.max(tp.length,pp.length);
@@ -1045,8 +1046,8 @@
         $('evi-base').innerHTML=quoteHTML(q2);
         setSource('evi-base-src',q2,pastLabel(q2.paper));
       } else if(e.kind==='not_compared'){
-        // evidence-view's own wording (as evidence.html's notUsedWhy).
-        $('evi-base').innerHTML='<p class="none">'+esc(EV.noteFor(e,papers()))+'</p>';
+        // Why there is nothing here; this paper's number is already in the column beside it.
+        $('evi-base').innerHTML='<p class="none">'+esc('Not compared: past papers have no value for this.')+'</p>';
         $('evi-base-src').textContent='';
       } else if(e.kind==='located'){
         addNone('evi-base',noTextWords(e,'base'));
