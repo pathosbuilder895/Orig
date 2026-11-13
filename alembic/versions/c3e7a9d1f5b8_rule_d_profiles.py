@@ -4,7 +4,7 @@ Additive only: one new table, nothing existing is altered. One row per student p
 teacher-approved past paper, keyed by the full scoped student id plus the SHA-256 of the
 paper's text. Holds character n-gram and topic-masked profiles, feature vectors and
 punctuation rates for the report-only, testing-phase rule D observation
-(RULE_D_OBSERVATION, default off). No paper text. Deleted with the student's data and when
+(RULE_D_OBSERVATION; on by default while testing). No paper text. Deleted with the student's data and when
 the approval is withdrawn.
 
 Revision ID: c3e7a9d1f5b8

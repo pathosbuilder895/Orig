@@ -644,14 +644,17 @@ def score_submission(
     except Exception:
         pass
 
-    # Rule D (RULE_D_OBSERVATION, report-only, default off). Computed after the
-    # score and action are final and from separate inputs, so it cannot change
-    # either. Only for HTTP callers (``/me/work`` passes request=None).
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing). Computed
+    # after the score and action are final and from separate inputs, so it cannot change
+    # either. Only for staff HTTP callers: not computed at all for ``/me/work``
+    # (request=None) or a student principal, who could never be shown it.
     from ..rule_d import mode as _rule_d_mode
 
     _rd_mode = _rule_d_mode()
     _rule_d_obs = None
-    if _rd_mode != "off" and request is not None:
+    _rd_principal = getattr(getattr(request, "state", None), "principal", None)
+    _rd_staff = request is not None and getattr(_rd_principal, "role", None) != "student"
+    if _rd_mode != "off" and _rd_staff:
         try:
             from ..rule_d.service import observe_for
 

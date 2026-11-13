@@ -234,7 +234,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     _persist_or_503(state)  # persist to SQLite
 
-    # Rule D (RULE_D_OBSERVATION, report-only, default off): derive the new paper's
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing): derive the new paper's
     # statistics now so scoring does not have to. Off: nothing is computed or stored.
     from ..rule_d import mode as _rule_d_mode
 

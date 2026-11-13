@@ -376,3 +376,20 @@ def test_same_vector_treats_missing_or_reshaped_vectors_as_stale():
     assert not service._same_vector([0.5], None)
     assert not service._same_vector([0.5, 0.5], [0.5])
     assert service._same_vector([0.5, 0.25], np.array([0.5, 0.25]))
+
+
+def test_rule_d_is_not_even_computed_for_a_student_principal(live_client, store_reset, monkeypatch):
+    """Not attached is not enough: a student principal's scoring call never runs rule D."""
+    calls = []
+    monkeypatch.setenv("RULE_D_OBSERVATION", "on")
+    monkeypatch.setattr("original.rule_d.service.observe_for",
+                        lambda *a, **k: calls.append(1) or core.inconclusive("x."))
+    _approve(live_client, "rd_stu", _papers("mill", 2, 320))
+    text = _papers("mill", 3, 320)[2]
+    r = live_client.post("/students/rd_stu/score", json={"text": text, "submission_id": "rs1"},
+                         headers={"x-demo-role": "student"})
+    if r.status_code == 200:
+        assert r.json()["rule_d"] is None
+    assert calls == []
+    staff = _score(live_client, "rd_stu", text, 2)
+    assert calls == [1] and staff["rule_d"]["status"] == "inconclusive"

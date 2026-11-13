@@ -588,11 +588,14 @@ def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
 
             def call(env: dict[str, str] | None = None) -> dict:
                 env = dict(env or {})
-                key = tuple(sorted(env.items()))
+                key = tuple(sorted((k, "\0unset" if v is None else v) for k, v in env.items()))
                 if key not in cache:
                     with pytest.MonkeyPatch.context() as mp:
                         for name, value in env.items():
-                            mp.setenv(name, value)
+                            if value is None:  # None = truly unset (the code default)
+                                mp.delenv(name, raising=False)
+                            else:
+                                mp.setenv(name, value)
                         response = client.post(
                             f"/students/{STUDENT_ID}/score",
                             json={"text": SUBMISSION_TEXT, "submission_id": SUBMISSION_ID},
@@ -673,7 +676,8 @@ def test_unit_default_matches_snapshot(unit_env):
 
 
 def test_api_default_matches_snapshot(api_call):
-    """`POST /students/{id}/score` with every flag unset must byte-match."""
+    """`POST /students/{id}/score` with every flag off must byte-match: unset, except the
+    DEFAULT_ON_FLAGS, which are set to their off literal (see clean_flag_env)."""
     current = serialise(api_call({}))
     snapshot = API_SNAPSHOT_PATH.read_text(encoding="utf-8")
     if current != snapshot:
@@ -1709,3 +1713,13 @@ def test_default_on_flags_read_as_on(monkeypatch):
     assert set(DEFAULT_ON_FLAGS) <= set(FLAG_OFF_VALUES)
     for name, off in DEFAULT_ON_FLAGS.items():
         assert FLAG_OFF_VALUES[name] == off
+
+
+def test_api_unset_default_changes_only_evidence_and_rule_d(api_call, api_snapshot):
+    """The real code default (DEFAULT_ON_FLAGS truly unset) may add the two staff-only
+    report blocks and nothing else: no score, action or other field moves."""
+    unset = api_call({name: None for name in DEFAULT_ON_FLAGS})
+    changed = changed_paths(api_snapshot, unset)
+    assert unset["evidence"] is not None and unset["rule_d"] is not None, "default-on flags inert"
+    stray = sorted(p for p in changed if re.split(r"[.\[]", p, maxsplit=1)[0] not in {"evidence", "rule_d"})
+    assert stray == [], stray
