@@ -1305,6 +1305,7 @@
     // behind EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED).
     if(hasEvidence(r)) keep.result.evidence=r.evidence;
     if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;
+    if(r.rule_d&&typeof r.rule_d==='object') keep.result.rule_d=r.rule_d;
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
   }
 

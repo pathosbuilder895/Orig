@@ -150,6 +150,9 @@
   .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
   .prov .len{white-space:nowrap;}
   .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .rd-list{list-style:disc;padding-left:1.1rem;font-size:.95rem;line-height:1.55;}
+  .rd-list li+li{margin-top:.4rem;}
+  .rd-sum{font-size:1rem;line-height:1.6;margin:.6rem 0 1rem;}
   .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
   .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;gap:1rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
 
@@ -215,12 +218,17 @@
         <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how this paper compares with the student&rsquo;s own past papers. A difference is a reason to read both closely and talk with the student; on its own it is never evidence of anything.</div>
         <div data-testing-notice="on-paper"></div>
         <nav class="toc" aria-label="On this page">
-          <a href="#s-summary">Summary</a><a href="#s-diff">Biggest differences</a><a href="#s-steady">Where it held steady</a><a href="#s-all">Every measurement</a><a href="#s-past">Past papers</a>
+          <a href="#s-summary">Summary</a><a href="#s-ruled" id="toc-ruled" hidden>Reads like this student?</a><a href="#s-diff">Biggest differences</a><a href="#s-steady">Where it held steady</a><a href="#s-all">Every measurement</a><a href="#s-past">Past papers</a>
         </nav>
 
         <section id="s-summary" aria-labelledby="h-summary">
           <h2 class="sec-t" id="h-summary">What the comparison found <span>from the numbers only</span></h2>
           <div class="summary" id="p-summary"></div>
+        </section>
+
+        <section id="s-ruled" aria-labelledby="h-ruled" hidden>
+          <h2 class="sec-t" id="h-ruled">Does it read like this student? <span>rule D, a class-relative consistency observation</span></h2>
+          <div id="p-ruled"></div>
         </section>
 
         <section id="s-diff" aria-labelledby="h-diff">
@@ -499,6 +507,27 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
+  // Rule D (RULE_D_OBSERVATION=on, staff only): the server's own sentences, each passed
+  // through the banned-wording check, under its testing-phase label. Shown only when sent.
+  function renderRuleD(rd){
+    if(!isObj(rd)||typeof rd.status!=='string') return;
+    const label=EV.clean(rd.testing_phase_label,'Testing phase · not validated on student writing');
+    const items=a=>(Array.isArray(a)?a:[]).map(t=>EV.clean(t,'')).filter(Boolean).map(t=>'<li>'+esc(t)+'</li>').join('');
+    const col=(cls,title,a)=>'<div class="ex-col"><div class="ex-lbl '+cls+'">'+esc(title)+'</div>'+
+      (items(a)?'<ul class="rd-list">'+items(a)+'</ul>':'<p class="ex-unit">Nothing to note.</p>')+'</div>';
+    let html='<span class="chip" id="ruled-chip"><span class="lbl">'+esc(label)+'</span></span>'+
+      '<p class="rd-sum" id="ruled-summary">'+esc(EV.clean(rd.summary,''))+'</p>';
+    if(rd.status==='observed'){
+      html+='<div class="ex" id="ruled-reasons"><div class="ex-h"><b>Why</b><span>reasons both ways, from the writing itself</span></div>'+
+        col('base','Reads like this student',rd.reads_like)+col('this','Reads less like this student',rd.reads_less_like)+
+        (rd.configuration_note?'<div class="ex-note">'+esc(EV.clean(rd.configuration_note,''))+'</div>':'')+'</div>';
+    }
+    html+='<p class="prov-note" id="ruled-confidence">'+esc(EV.clean(rd.confidence_note,''))+'</p>';
+    $('p-ruled').innerHTML=html;
+    $('s-ruled').hidden=false;
+    $('toc-ruled').hidden=false;
+  }
+
   async function render(sess,d){
     const id=d.student_id.trim();
     const ev=d.result.evidence;
@@ -525,6 +554,7 @@
     if(!sum.pastCount){
       $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="insufficient">No past papers with stored text are on file for this analysis, so there is nothing to set beside it. Add past papers on the Reference papers by student page, then analyse again.</p>');
     }
+    renderRuleD(d.result.rule_d);
     renderTop(ev,byCode);
     renderSteady(ev);
     renderAll(ev);
