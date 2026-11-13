@@ -1,4 +1,5 @@
 import React from 'react';
+import { clearCollectionsTab } from './deep-link.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Design System Components
@@ -783,6 +784,8 @@ export const BB_API = {
   logout() {
     this._clearSession();
     bbClearKeptPapers();
+    // The next sign-in in this tab starts at the staff home again (deep-link.jsx).
+    clearCollectionsTab();
   },
   // Which account this browser is signed in as, for noticing a switch made
   // in another tab. Token-based, so a re-login as a different user counts.
