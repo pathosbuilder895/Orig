@@ -471,6 +471,8 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
             text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
         except ImportError as exc:
             raise HTTPException(status_code=500, detail="python-docx not installed") from exc
+        except Exception as exc:  # corrupt file: the caller's input
+            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
     elif ext == "pdf":
         try:
             from pypdf import PdfReader
@@ -479,6 +481,8 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
             text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
         except ImportError as exc:
             raise HTTPException(status_code=500, detail="pypdf not installed") from exc
+        except Exception as exc:  # corrupt file: the caller's input
+            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
     else:
         raise HTTPException(
             status_code=422,

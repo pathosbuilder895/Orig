@@ -92,6 +92,16 @@ async function openPage(browser, request, testTenant) {
 }
 
 test.describe('Writing State opens .docx and .pdf', () => {
+  test('a corrupt .docx says it could not be read and leaves the box alone', async ({ browser, request, testTenant }) => {
+    test.setTimeout(90_000)
+    const page = await openPage(browser, request, testTenant)
+    await page.locator('#an-text').fill('My own words.')
+    await page.locator('#an-file').setInputFiles({ name: 'corrupt.docx', mimeType: 'application/octet-stream', buffer: Buffer.from('garbage, not a document') })
+    await expect(page.locator('#an-msg')).toHaveText('That file could not be read. Try pasting the text instead.', { timeout: 20_000 })
+    await expect(page.locator('#an-text')).toHaveValue('My own words.')
+    await expect(page.locator('#an-go')).toBeEnabled()
+  })
+
   test('a .docx fills the paper box, then analyses', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const page = await openPage(browser, request, testTenant)

@@ -4099,8 +4099,11 @@ def test_writing_state_sends_docx_and_pdf_only_to_the_extraction_route():
     assert "upload-batch" not in state and "/baseline/upload" not in state
     assert "fetch(" not in state
     # .txt stays in the browser; docx/pdf take the server path.
-    assert "if(ext==='docx'||ext==='pdf'){ openDocument(f,ext); return; }" in state
+    assert "openDocument(f,ext); return;" in state
     assert "rd.readAsText(f)" in state
     # Honest failures.
     assert "This file has no text Original can read. If it is a scan, paste the text instead." in state
-    assert "FILE_LIMIT=10*1024*1024" in state
+    assert "FILE_LIMIT=10*1024*1024" in state and "TXT_LIMIT=1048576" in state
+    # A late server reply never overwrites newer input.
+    assert "const my=++openSeq;" in state and "if(my!==openSeq) return;" in state
+    assert "$('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });" in state

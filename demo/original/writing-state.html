@@ -1515,14 +1515,22 @@
 
   // .docx and .pdf are read by the server (it extracts the text and stores
   // nothing); .txt is read in the browser. Same 10 MB cap as the server's body limit.
-  const FILE_LIMIT=10*1024*1024;
+  const FILE_LIMIT=10*1024*1024, TXT_LIMIT=1048576;
+  // Bumped by every newer way the paper box can change, so a late server reply never overwrites it.
+  let openSeq=0, reading=0;
   async function openDocument(f,ext){
+    const my=++openSeq;
     if(!S.id){ msg('Choose a student first, then open the file.',true); return; }
     msg('Reading '+f.name+'...');
     const fd=new FormData(); fd.append('file',f);
-    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd});
+    reading++; $('an-go').disabled=true;
+    let res;
+    try{ res=await Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd}); }
+    finally{ if(--reading===0) $('an-go').disabled=false; }
+    if(my!==openSeq) return;
     if(res.status===0){ msg('Original could not be reached. Check your connection and try again.',true); return; }
     if(res.status===413){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+    if(res.status===422&&res.data&&/could not be read/i.test(String(res.data.detail||''))){ msg('That file could not be read. Try pasting the text instead.',true); return; }
     if(res.status===422){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
     if(!res.ok||!res.data||typeof res.data.text!=='string'){ msg('That file could not be read. Try pasting the text instead.',true); return; }
     const text=res.data.text;
@@ -1536,7 +1544,7 @@
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
-    $('an-text').addEventListener('input',updateWords);
+    $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
     $('an-again').addEventListener('click',()=>{ setCard('form'); note(thinNote()); $('an-text').focus(); });
     $('an-file').addEventListener('change',e=>{
       const input=e.target, f=input.files&&input.files[0];
@@ -1544,10 +1552,14 @@
       if(!f) return;
       const m=/\.([a-z0-9]+)$/i.exec(f.name), ext=m?m[1].toLowerCase():'';
       if(ext!=='txt'&&ext!=='docx'&&ext!=='pdf'&&f.type!=='text/plain'){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
-      if(f.size>FILE_LIMIT){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
-      if(ext==='docx'||ext==='pdf'){ openDocument(f,ext); return; }
+      if(ext==='docx'||ext==='pdf'){
+        if(f.size>FILE_LIMIT){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+        openDocument(f,ext); return;
+      }
+      if(f.size>TXT_LIMIT){ msg('That file is too large to analyse here.',true); return; }
+      const my=++openSeq;
       const rd=new FileReader();
-      rd.onload=()=>{ $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
+      rd.onload=()=>{ if(my!==openSeq) return; $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
       rd.onerror=()=>msg('That file could not be read.',true);
       rd.readAsText(f);
     });
