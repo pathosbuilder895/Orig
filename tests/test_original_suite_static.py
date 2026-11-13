@@ -4073,3 +4073,34 @@ def test_evidence_templates_carry_none_of_the_banned_wording_outside_the_check()
     body = code[code.index("function isClean(") :]
     for rx in (r"\bai[- ]detect", r"\bcheat", r"authorship verification", r"\baccura(te|cy)\b", r"generated prose"):
         assert not re.search(rx, body, re.I), rx
+
+
+# ── Writing State opens .docx and .pdf ────────────────────────────────────────
+
+
+def test_writing_state_file_control_accepts_docx_pdf_and_txt():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    ctl = re.search(r'<label class="an-file">(.*?)</label>', state).group(1)
+    assert "or open a .docx, .pdf or .txt file" in ctl
+    accept = re.search(r'accept="([^"]*)"', ctl).group(1).split(",")
+    assert {".docx", ".pdf", ".txt"} <= set(accept)
+    # Errors land in the existing role=status element.
+    assert 'id="an-msg" role="status"' in state
+
+
+def test_writing_state_sends_docx_and_pdf_only_to_the_extraction_route():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    posts = re.findall(r"\+'(/[a-z]+)',\{method:'POST'", state)
+    # The paper itself only ever goes to /score; a file goes to /upload and nowhere else.
+    assert sorted(posts) == ["/score", "/upload"]
+    assert "fd.append('file',f)" in state
+    assert "Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd})" in state
+    # Never the baseline routes: analysing a paper adds nothing to a baseline.
+    assert "upload-batch" not in state and "/baseline/upload" not in state
+    assert "fetch(" not in state
+    # .txt stays in the browser; docx/pdf take the server path.
+    assert "if(ext==='docx'||ext==='pdf'){ openDocument(f,ext); return; }" in state
+    assert "rd.readAsText(f)" in state
+    # Honest failures.
+    assert "This file has no text Original can read. If it is a scan, paste the text instead." in state
+    assert "FILE_LIMIT=10*1024*1024" in state

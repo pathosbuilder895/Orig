@@ -392,7 +392,7 @@
           <label class="an-lbl" for="an-text">The paper</label>
           <textarea class="an-field" id="an-text" rows="7" placeholder="Paste the paper here"></textarea>
           <div class="an-row">
-            <label class="an-file">or open a .txt file<input id="an-file" type="file" accept=".txt,text/plain" /></label>
+            <label class="an-file">or open a .docx, .pdf or .txt file<input id="an-file" type="file" accept=".docx,.pdf,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label>
             <span class="an-words" id="an-words"></span>
           </div>
           <div class="an-row">
@@ -1513,6 +1513,25 @@
     return true;
   }
 
+  // .docx and .pdf are read by the server (it extracts the text and stores
+  // nothing); .txt is read in the browser. Same 10 MB cap as the server's body limit.
+  const FILE_LIMIT=10*1024*1024;
+  async function openDocument(f,ext){
+    if(!S.id){ msg('Choose a student first, then open the file.',true); return; }
+    msg('Reading '+f.name+'...');
+    const fd=new FormData(); fd.append('file',f);
+    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd});
+    if(res.status===0){ msg('Original could not be reached. Check your connection and try again.',true); return; }
+    if(res.status===413){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+    if(res.status===422){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+    if(!res.ok||!res.data||typeof res.data.text!=='string'){ msg('That file could not be read. Try pasting the text instead.',true); return; }
+    const text=res.data.text;
+    if(!text.trim()){ msg('This file has no text Original can read. If it is a scan, paste the text instead.',true); return; }
+    $('an-text').value=text; updateWords();
+    if(!$('an-assign').value.trim()){ const base=f.name.replace(/\.[^.]*$/,'').slice(0,200); if(base) $('an-assign').value=base; }
+    msg('Read '+plural(res.data.word_count>=0?res.data.word_count:countWords(text),'word')+' from '+f.name+'.');
+  }
+
   function start(){
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
@@ -1523,8 +1542,10 @@
       const input=e.target, f=input.files&&input.files[0];
       input.value='';
       if(!f) return;
-      if(!/\.txt$/i.test(f.name)&&f.type!=='text/plain'){ msg('Only .txt files open here. For a .docx or .pdf, copy the text and paste it in.',true); return; }
-      if(f.size>1048576){ msg('That file is too large to analyse here.',true); return; }
+      const m=/\.([a-z0-9]+)$/i.exec(f.name), ext=m?m[1].toLowerCase():'';
+      if(ext!=='txt'&&ext!=='docx'&&ext!=='pdf'&&f.type!=='text/plain'){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+      if(f.size>FILE_LIMIT){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+      if(ext==='docx'||ext==='pdf'){ openDocument(f,ext); return; }
       const rd=new FileReader();
       rd.onload=()=>{ $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
       rd.onerror=()=>msg('That file could not be read.',true);
