@@ -991,7 +991,7 @@
       box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
       $('evi-name').textContent=f.name;
       $('evi-flag').hidden=!out;
-      $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-nums').innerHTML=e?eviNums(e):(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
       numbersCols(f,v,s,out,within);
       $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
@@ -1044,6 +1044,13 @@
       side.hidden=!hasEvidence(S.result);
       side.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(code);
       foot.hidden=!nt&&side.hidden;
+    }
+    // With an evidence entry, the header carries the same numbers and unit as the
+    // one line under it (EvidenceView.numbersOf), so the two never disagree.
+    function eviNums(e){
+      const n=EV.numbersOf(e);
+      const range=n.lo==null?'':(n.lo===n.hi?EV.fmt(n.lo):EV.fmt(n.lo)+' to '+EV.fmt(n.hi));
+      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(EV.fmt(n.thisValue))+'</b>'+esc(EV.clean(n.unit?' ('+n.unit+')':'',''));
     }
     // The two numbers, as the panel showed before passages existed.
     function numbersCols(f,v,s,out,within){
