@@ -186,3 +186,69 @@ test('past papers are called by their stored title when there is one', () => {
   assert.equal(EV.isActive({ kind: 'not_compared' }), false);
   assert.equal(EV.position({ engine_scale: {} }), 'none');
 });
+
+// The plain-language "What to notice" line (noticeFor): one or two short
+// sentences from the entry's own direction, range and kind, plus a fixed
+// caution. It never names a cause specific to the student.
+const CAUTION = 'A shift like this can come from a new topic, genre, length, revision or permitted help; on its own it does not show who wrote the paper.';
+
+test('noticeFor: a located measurement above or below the past range says which way, by how much, and the fixed caution', () => {
+  assert.equal(EV.noticeFor(feature(), []),
+    'This paper is lower than the past papers on comma rate (3.25 against 8.01 to 8.23 per 100 words). ' + CAUTION);
+  const above = feature({ engine_scale: { ...feature().engine_scale, difference: 0.3 } });
+  assert.match(EV.noticeFor(above, []), /^This paper is higher than the past papers on comma rate \(/);
+  // One past paper: a single value, not a range. Original's 0 to 1 scale when no plain units were sent.
+  const scale = feature({ plain: null, engine_scale: { ...feature().engine_scale, past_papers: past([0.5]), past_range: [0.5, 0.5], difference: 0.3 } });
+  assert.equal(EV.noticeFor(scale, []),
+    'This paper is higher than the past papers on comma rate (0.2 against 0.5 on Original’s 0 to 1 scale). ' + CAUTION);
+  // No numbers to quote: the direction alone.
+  const bare = feature({ plain: null, engine_scale: { ...feature().engine_scale, this_paper: null, past_range: null } });
+  assert.equal(EV.noticeFor(bare, []), 'This paper is lower than the past papers on comma rate. ' + CAUTION);
+  // Acronym-style names keep their capitals; a missing name falls back to "this habit".
+  assert.match(EV.noticeFor(feature({ name: 'TTR Level' }), []), /^This paper is lower than the past papers on TTR Level/);
+  assert.match(EV.noticeFor(feature({ name: '' }), []), /^This paper is lower than the past papers on this habit/);
+});
+
+test('noticeFor: within the range, one plain sentence (plus the whole-text note when there is no sentence to quote)', () => {
+  const inside = feature({ engine_scale: { ...feature().engine_scale, outside_past_range: false } });
+  assert.equal(EV.noticeFor(inside, []), 'This habit is in line with the past papers.');
+  const whole = { ...inside, kind: 'whole_text' };
+  assert.equal(EV.noticeFor(whole, []),
+    'This habit is in line with the past papers. It is measured across the whole text, so there is no single sentence to quote.');
+});
+
+test('noticeFor: a whole-text shift says there is no single sentence to quote', () => {
+  const whole = feature({ kind: 'whole_text', name: 'Burstiness' });
+  assert.equal(EV.noticeFor(whole, []),
+    'This paper is lower than the past papers on burstiness (3.25 against 8.01 to 8.23 per 100 words). ' +
+    'It is measured across the whole text, so there is no single sentence to quote. ' + CAUTION);
+});
+
+test('noticeFor: no past papers, not compared and switched off each get a plain reason', () => {
+  const none = feature({ engine_scale: { ...feature().engine_scale, past_papers: [], past_range: null } });
+  assert.equal(EV.noticeFor(none, []), 'There are no past papers to compare this with.');
+  const nc = feature({ kind: 'not_compared', engine_scale: notCompared({}) });
+  assert.equal(EV.noticeFor(nc, []), 'Original does not compare this one: past papers have no value for it, so it plays no part in the score.');
+  const off = feature({ kind: 'off', engine_scale: flat(0.5) });
+  assert.equal(EV.noticeFor(off, []), 'This measurement is switched off, so it plays no part in the score.');
+  assert.equal(EV.noticeFor(null, []), '');
+  assert.equal(EV.noticeFor('x', []), '');
+  assert.equal(EV.noticeFor({ kind: 'mystery' }, []), '');
+});
+
+test('noticeFor: banned wording from a server name falls back to a generic sentence and every output is clean', () => {
+  const sneaky = feature({ name: 'cheating rate' });
+  const out = EV.noticeFor(sneaky, []);
+  assert.equal(out, 'This paper is lower than the past papers on this habit (3.25 against 8.01 to 8.23 per 100 words). ' + CAUTION);
+  const bad = feature({ plain: { unit: 'AI units', this_paper: 1, past_papers: past([2]), past_range: [2, 2] } });
+  assert.equal(EV.noticeFor(bad, []), 'This paper is lower than the past papers on comma rate. ' + CAUTION);
+  const all = [
+    feature(), feature({ kind: 'whole_text' }), feature({ engine_scale: { ...feature().engine_scale, outside_past_range: false } }),
+    feature({ engine_scale: { ...feature().engine_scale, past_papers: [], past_range: null } }),
+    feature({ kind: 'not_compared', engine_scale: notCompared({}) }), feature({ kind: 'off', engine_scale: flat(0.5) }), sneaky,
+  ].map((f) => EV.noticeFor(f, []));
+  for (const s of all) {
+    assert.equal(EV.isClean(s), true, s);
+    assert.doesNotMatch(s, /fingerprint|proves|verifies|cheat|\bAI\b|accura|\u2014|\u2015/i);
+  }
+});

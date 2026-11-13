@@ -175,6 +175,51 @@
     return clean(parts.join(' '), positionSentence(f));
   }
 
+  // "What to notice", in plain words: which way this paper sits against the
+  // past papers, how far (this paper's number beside the past range), and a
+  // fixed caution chosen by where it sits. No cause is named that the numbers
+  // do not show. noteFor stays the numbers line; this is the sentence above it.
+  var CAUTION = 'A shift like this can come from a new topic, genre, length, revision or permitted help; on its own it does not show who wrote the paper.';
+  var WHOLE_TEXT_WORDS = 'It is measured across the whole text, so there is no single sentence to quote.';
+  function habitName(f) {
+    var nm = String(f.name == null ? '' : f.name).trim();
+    if (!nm) return 'this habit';
+    return /[A-Z]{2,}/.test(nm) ? nm : nm.toLowerCase();
+  }
+  function rangeBrackets(f) {
+    var n = numbersOf(f);
+    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var against = n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi);
+    return ' (' + fmt(n.thisValue) + ' against ' + against + ' ' + n.unit + ')';
+  }
+  function noticeFor(f) {
+    if (!f || typeof f !== 'object') return '';
+    if (isNotCompared(f)) return clean('Original does not compare this one: past papers have no value for it, so it plays no part in the score.', '');
+    if (f.kind === 'off') return clean('This measurement is switched off, so it plays no part in the score.', '');
+    if (!isActive(f)) return '';
+    var pos = position(f);
+    var whole = f.kind === 'whole_text';
+    if (pos === 'none') return clean('There are no past papers to compare this with.', '');
+    if (pos === 'within') {
+      return clean('This habit is in line with the past papers.' + (whole ? ' ' + WHOLE_TEXT_WORDS : ''), '');
+    }
+    var dir = pos === 'above' ? 'higher' : 'lower';
+    var tail = (whole ? ' ' + WHOLE_TEXT_WORDS : '') + ' ' + CAUTION;
+    // The habit's own name and numbers when they pass the wording check,
+    // else the generic name, else no numbers.
+    var tries = [
+      [habitName(f), rangeBrackets(f)],
+      ['this habit', rangeBrackets(f)],
+      [habitName(f), ''],
+      ['this habit', ''],
+    ];
+    for (var i = 0; i < tries.length; i++) {
+      var s = 'This paper is ' + dir + ' than the past papers on ' + tries[i][0] + tries[i][1] + '.' + tail;
+      if (isClean(s)) return s;
+    }
+    return '';
+  }
+
   // The summary at the top, from the full list's own flags and kinds.
   // groupName(group number) gives a readable name, or '' to leave it out.
   function summarize(ev, groupName) {
@@ -271,7 +316,7 @@
   var API = {
     BANNED: BANNED, isClean: isClean, clean: clean, fmt: fmt, signed: signed, plural: plural,
     paperName: paperName, isActive: isActive, isNotCompared: isNotCompared, NOT_COMPARED_WORDS: NOT_COMPARED_WORDS, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
-    positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor,
+    positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor, noticeFor: noticeFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

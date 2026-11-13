@@ -103,7 +103,7 @@
   .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
-  .ex-col{padding:1rem 1.2rem;min-width:0;}
+  .ex-col{padding:1.1rem 1.3rem;min-width:0;}
   .ex-col+.ex-col{border-left:1px solid var(--rule);}
   .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;overflow-wrap:anywhere;}
   .ex-lbl.this{color:var(--flag);}
@@ -112,15 +112,20 @@
   .ex-big.base{color:var(--base);}
   .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
   .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);overflow-wrap:anywhere;}
-  .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
   .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
-  .ex-src{font-family:var(--mono);font-size:.64rem;color:var(--ink-2);margin-top:.45rem;overflow-wrap:anywhere;}
+  .ex-src{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;color:var(--ink-2);margin-top:.5rem;overflow-wrap:anywhere;}
   .ex-vals{list-style:none;font-size:.95rem;}
   .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
   .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
-  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note{grid-column:1/-1;padding:.8rem 1.1rem .9rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
+  .ex{transition:border-color .18s,box-shadow .18s;}
+  .ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
+  .m:target>summary{background:#f6f0e0;}
   /* every measurement */
   .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
   .m>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:2.4rem 1fr auto;gap:.8rem;align-items:baseline;padding:.6rem .9rem;}
@@ -340,12 +345,18 @@
   // ── pieces ──
   const PAPERS={list:[]};
   const nameOf=label=>EV.paperName(label,PAPERS.list);
+  // A past quote's source: the paper's stored title and date, else "Past paper N".
+  function pastSource(label){
+    const p=PAPERS.list.filter(x=>x.paper===label)[0];
+    const day=p?sampleDay(p.submitted_at):'';
+    return nameOf(label)+(day?', '+day:'');
+  }
   function quoteHTML(q,side){
     if(!isObj(q)) return '';
     const parts=EV.markParts(q);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
     const body=esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
-    const src=[q.paper==='this paper'?'This paper':nameOf(q.paper)];
+    const src=[q.paper==='this paper'?'This paper':pastSource(q.paper)];
     if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
     if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
     if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
@@ -374,6 +385,14 @@
         '</ul><div class="ex-unit">'+esc(n.unit)+'</div></div>';
   }
   const hasText=f=>f.kind==='located'&&isObj(f.this_paper)&&isObj(f.past_papers)&&Array.isArray(f.this_paper.examples)&&Array.isArray(f.past_papers.examples);
+  // "What to notice": the plain-language line first, then the numbers line.
+  function noticeHTML(f,whole){
+    const plain=EV.noticeFor(f,PAPERS.list);
+    // The server's whole-text note repeats what noticeFor already says.
+    const numbers=EV.noteFor(f,PAPERS.list)+(plain?'':whole);
+    return (plain?'<p><b>What to notice:</b> '+esc(plain)+'</p>':'')+
+      '<p class="nums-line">'+(plain?'':'<b>What to notice:</b> ')+esc(numbers)+'</p>';
+  }
   function card(f,opts){
     const o=opts||{};
     const name=EV.clean(f.name,f.code);
@@ -381,7 +400,7 @@
     const cols=hasText(f)?textCols(f):numberCols(f);
     const whole=f.kind==='whole_text'?' '+esc(EV.clean(f.note,'')):'';
     return '<div class="ex" data-code="'+esc(f.code)+'">'+head+cols+
-      '<div class="ex-note"><b>What to notice:</b> '+esc(EV.noteFor(f,PAPERS.list))+whole+'</div></div>';
+      '<div class="ex-note">'+noticeHTML(f,whole)+'</div></div>';
   }
 
   // How the two lists are ordered, in the words of the server's own ordering
@@ -531,6 +550,24 @@
     renderPast(ev,d);
     $('status').hidden=true;
     $('paper').hidden=false;
+    openFromHash();
+  }
+  // evidence.html#m-<code> (Writing State links here): open that row, scroll to it.
+  function openFromHash(){
+    let h='';
+    try{ h=decodeURIComponent(window.location.hash||''); }catch(e){ return; }
+    if(!/^#m-.+/.test(h)) return;
+    const el=document.getElementById(h.slice(1));
+    if(el&&el.tagName==='DETAILS'){
+      el.open=true;
+      el.scrollIntoView({block:'start'});
+      return;
+    }
+    const li=document.querySelector('#m-not-used li[data-code="'+h.slice(3).replace(/["\\]/g,'')+'"]');
+    if(li){
+      document.getElementById('m-not-used').open=true;
+      li.scrollIntoView({block:'center'});
+    }
   }
 
   // ── go ──
