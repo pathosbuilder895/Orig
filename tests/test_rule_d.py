@@ -369,3 +369,10 @@ def test_pick_stops_at_non_positive_scores_and_skips_fragments():
     terms = [" of ", "the", ", or ", " of"]
     assert explain._pick({0: 0.5, 1: 0.4, 2: 0.3, 3: 0.0}, terms) == [" of ", ", or "]
     assert explain._pick({0: -1.0}, terms) == []
+
+
+def test_same_vector_treats_missing_or_reshaped_vectors_as_stale():
+    assert not service._same_vector(None, [0.5])
+    assert not service._same_vector([0.5], None)
+    assert not service._same_vector([0.5, 0.5], [0.5])
+    assert service._same_vector([0.5, 0.25], np.array([0.5, 0.25]))
