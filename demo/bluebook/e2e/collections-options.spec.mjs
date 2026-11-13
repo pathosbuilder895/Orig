@@ -7,10 +7,11 @@
 
 import { test, expect } from './fixtures/tenancy.mjs'
 import { isolatedTest } from './fixtures/tenancy.mjs'
+import { COLLECTIONS_HOME } from './fixtures/api-setup.mjs'
 
 test('a take-home Great is untimed, starts above 1,000 words and is listed as such', async ({ staffPage, workerTenant }) => {
   const title = `E2E Take-home Great ${workerTenant.tenant.tenant_id}`
-  await staffPage.goto('/bluebook/')
+  await staffPage.goto(COLLECTIONS_HOME)
   await staffPage.waitForLoadState('networkidle')
   await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
   await staffPage.getByRole('button', { name: '+ New collection' }).click()

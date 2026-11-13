@@ -15,6 +15,15 @@
  * the live auth path.
  */
 
+/**
+ * The Collections dashboard, named on purpose. A signed-in teacher whose
+ * workspace has Original who opens the bare /bluebook/ address is sent to
+ * Original (staffOriginalHome in demo/bluebook/deep-link.jsx); a spec that
+ * means to exercise Collections opens it here instead, the way Original's own
+ * links into Collections carry a hash.
+ */
+export const COLLECTIONS_HOME = '/bluebook/#dashboard'
+
 let _uniqueCounter = 0
 function unique(prefix) {
   _uniqueCounter += 1

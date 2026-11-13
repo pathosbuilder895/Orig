@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createCourse, provisionStaff, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, createCourse, provisionStaff, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 const ANSWER =
@@ -71,7 +71,7 @@ async function teacherPage(browser, baseURL, { tenant, staff }, products) {
 }
 
 async function openExam(page, examTitle) {
-  await page.goto('/bluebook/')
+  await page.goto(COLLECTIONS_HOME)
   await page.getByRole('button', { name: 'Collections' }).first().click()
   await page.getByRole('button', { name: examTitle }).click()
 }
