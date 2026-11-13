@@ -645,11 +645,13 @@ def score_submission(
         pass
 
     response = _to_response(result, arc, report=report)
-    _attach_staff_explainability(response, request, req.text, state, result)
+    _attach_staff_explainability(response, request, req.text, state, result, student_id)
     return response
 
 
-def _attach_staff_explainability(response, request, text: str, state, result) -> None:
+def _attach_staff_explainability(
+    response, request, text: str, state, result, student_id: str | None = None
+) -> None:
     """ADR-013: located evidence and the preliminary score, both off by default.
 
     Only for an HTTP caller that is not a student session. In-process callers
@@ -696,6 +698,19 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
             )
             # Where each "past paper N" came from, for the teacher's side-by-side
             # view: only what the sample already stores, nothing derived.
+            # How each past paper got into the baseline, read now (staff wording
+            # only), so an analysis kept for later still says what was true
+            # when it ran. No student id (in-process callers): no source.
+            by_sample: dict[int, str] = {}
+            if student_id:
+                from .students import _sample_sources
+
+                by_sample = {
+                    id(sample): src
+                    for sample, src in zip(
+                        state.samples, _sample_sources(student_id, state.samples), strict=True
+                    )
+                }
             response.evidence["baseline_papers"] = [
                 {
                     "paper": label,
@@ -703,6 +718,7 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
                     "submitted_at": getattr(s, "submitted_at", "") or None,
                     "provenance": getattr(s, "provenance", None),
                     "word_count": getattr(s, "word_count", None),
+                    **({"source": by_sample[id(s)]} if id(s) in by_sample else {}),
                 }
                 for (label, _), s in zip(baselines, used, strict=True)
             ]

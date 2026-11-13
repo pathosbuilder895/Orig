@@ -787,7 +787,7 @@
       if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
     }
     if(bits.length) paras.push(bits.join(' '));
-    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home exams and shared papers you approved count at a lower weight.':''));
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home exams and shared papers you approved count at the same lower weight as uploads.':''));
     el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
   }
 

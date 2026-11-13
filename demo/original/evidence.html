@@ -518,7 +518,8 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
-  // The analysis names each past paper's provenance only. When exactly one sample on the
+  // A current server records each past paper's `source` in the analysis itself. This is
+  // only the fallback for an older one that sends provenance only. When exactly one sample on the
   // student's record matches a paper (same title, date and provenance), or every match
   // says the same, that sample's `source` is copied on so the table can say a take-home
   // exam or shared paper was approved by you. No match: the provenance rule applies.
@@ -526,6 +527,7 @@
     const sm=st&&st.ok&&st.data&&Array.isArray(st.data.samples)?st.data.samples.filter(isObj):[];
     if(!Array.isArray(ev.baseline_papers)) return;
     ev.baseline_papers.filter(isObj).forEach(p=>{
+      if(typeof p.source==='string') return;   // the analysis recorded it when it ran
       const hit=sm.filter(s=>(s.assignment||'')===(p.assignment||'')&&(s.submitted_at||'')===(p.submitted_at||'')&&s.provenance===p.provenance);
       if(hit.length&&typeof hit[0].source==='string'&&hit.every(s=>s.source===hit[0].source)) p.source=hit[0].source;
     });

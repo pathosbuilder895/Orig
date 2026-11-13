@@ -330,3 +330,87 @@ def test_take_home_through_the_real_approve_and_undo_routes(live_client, monkeyp
         ("unverified", "student_upload"),
         ("unverified", "student_upload"),
     ]
+
+
+@pytest.mark.slow
+def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_client, monkeypatch):
+    """The staff score response records how each past paper got in as of the
+    analysis (take_home and student_upload here). A student scoring their own
+    work never gets evidence, and with the flag off no lookup runs."""
+    from original import principal
+    from tests.alpha.test_past_papers import _ok, _workspace
+
+    monkeypatch.setenv("INVITE_NO_EXPIRY", "1")
+    monkeypatch.delenv("MIN_BASELINE_SAMPLES", raising=False)
+    principal.invalidate_tenant_cache()
+    T, [(sid, S), _] = _workspace(live_client, "src4@example.test")
+    tenant = principal.tenant_of(sid)
+    repo = get_repository()
+    repo.put_bluebook_exam(
+        {
+            "id": "exam-ev",
+            "tenant_id": tenant,
+            "title": "Take-home",
+            "conditions": {"setting": "take_home"},
+        }
+    )
+    kept, own = _paper(0, TOPICS[1]), _paper(0, TOPICS[2])
+    repo.put_bluebook_submission(
+        {
+            "id": "bbsub-ev",
+            "tenant_id": tenant,
+            "exam_id": "exam-ev",
+            "student_id": sid,
+            "candidate": "S0",
+            "answers": [kept],
+            "text": kept,
+        }
+    )
+    for k in range(3, 6):
+        _ok(
+            live_client.post(
+                f"/students/{sid}/baseline",
+                json={"text": _paper(0, TOPICS[k]), "provenance": "verified"},
+                headers=T,
+            )
+        )
+    assert (
+        _ok(live_client.post("/bluebook/submissions/bbsub-ev/baseline", headers=T))["status"]
+        == "added"
+    )
+    _ok(
+        live_client.post(
+            f"/students/{sid}/baseline", json={"text": own, "provenance": "unverified"}, headers=T
+        )
+    )
+    paper = _paper(1, TOPICS[0])
+
+    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
+    calls = _counting(monkeypatch)
+    off = _ok(
+        live_client.post(
+            f"/students/{sid}/score", json={"text": paper, "submission_id": "ev0"}, headers=T
+        )
+    )
+    assert off["evidence"] is None
+    assert calls == {"audit": 0, "subs": 0, "papers": 0}
+
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
+    on = _ok(
+        live_client.post(
+            f"/students/{sid}/score", json={"text": paper, "submission_id": "ev1"}, headers=T
+        )
+    )
+    got = [(p["provenance"], p["source"]) for p in on["evidence"]["baseline_papers"]]
+    assert got == [("verified", "staff_or_supervised")] * 3 + [
+        ("unverified", "take_home"),
+        ("unverified", "student_upload"),
+    ]
+
+    # A student principal never receives evidence: refused outright on a take-home
+    # workspace, and an answer without the field wherever it is allowed.
+    mine = live_client.post(
+        f"/students/{sid}/score", json={"text": paper, "submission_id": "ev2"}, headers=S
+    )
+    assert mine.status_code == 403 or mine.json().get("evidence") is None
+    assert "baseline_papers" not in mine.text
