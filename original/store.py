@@ -3123,6 +3123,24 @@ def list_bluebook_submissions_for_student(student_id: str) -> list[dict]:
     return [_bluebook_sub_to_dict(r) for r in rows]
 
 
+def list_bluebook_submission_texts_for_student(student_id: str) -> list[dict]:
+    """A student's sealed submissions WITH ``text`` and ``answers``: what
+    GET /students/{id} hashes to say a sample is approved take-home work."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
+            "WHERE student_id = ? ORDER BY created_at",
+            (student_id,),
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = _bluebook_sub_to_dict(r)
+        d["text"] = r[20]
+        d["answers"] = json.loads(r[21] or "[]")
+        out.append(d)
+    return out
+
+
 def list_bluebook_submissions_for_exam(exam_id: str) -> list[dict]:
     """Every submission for one exam, oldest first, WITH ``text`` (export)."""
     with _get_conn() as conn:

@@ -59,9 +59,57 @@ def list_students(request: Request, tenant_id: str = ""):
 
 # ── Student state ─────────────────────────────────────────────────────────────
 
+_SUPERVISED = frozenset({"verified", "proctored", "canvas"})
+
+
+def _sample_sources(student_id: str, samples) -> list[str]:
+    """How each sample got into the baseline, for staff wording only.
+
+    Derived at read time from what is already stored; provenance and weight
+    are untouched and nothing here reaches scoring. An ``unverified`` sample
+    is ``take_home`` when its text hash is one a sealed Collections
+    submission of this student has in a baseline (the approval's own text
+    forms, ``bluebook_baselines._fingerprints``), ``shared_paper`` when it is
+    the text of one of their approved past papers, else ``student_upload``.
+    At most one read of each kind, and none when nothing is unverified.
+    """
+    from .bluebook_baselines import _fingerprints
+    from .past_papers import _sha
+    from .students_baseline import _hashes_from_samples
+
+    unverified = [s.provenance == "unverified" for s in samples]
+    take_home: set[str] = set()
+    shared: set[str] = set()
+    if any(unverified):
+        repo = _repo()
+        for rec in repo.list_bluebook_submission_texts_for_student(student_id):
+            take_home |= _fingerprints(rec)
+        tenant = principal_mod.tenant_of(student_id)
+        if tenant:
+            shared = {
+                _sha(p["text"])
+                for p in repo.list_past_papers(tenant, student_id)
+                if p.get("status") == "approved" and p.get("text")
+            }
+    out = []
+    for s, is_unverified in zip(samples, unverified, strict=True):
+        if s.provenance in _SUPERVISED:
+            out.append("staff_or_supervised")
+        elif not is_unverified:
+            out.append("unknown")
+        else:
+            hashes = _hashes_from_samples([s])
+            if hashes & take_home:
+                out.append("take_home")
+            elif hashes & shared:
+                out.append("shared_paper")
+            else:
+                out.append("student_upload")
+    return out
+
 
 @router.get("/students/{student_id}", response_model=StudentStateResponse)
-def get_student(student_id: str):
+def get_student(student_id: str, request: Request):
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
@@ -74,6 +122,14 @@ def get_student(student_id: str):
         )
     }
 
+    # The route's access rule lets a student read their own record; the
+    # derived source is staff wording, so a student gets "unknown" throughout
+    # and no lookup runs on their behalf.
+    principal = getattr(request.state, "principal", None)
+    if principal is not None and principal.role == "student":
+        sources = ["unknown"] * len(state.samples)
+    else:
+        sources = _sample_sources(student_id, state.samples)
     samples_out = [
         SampleSummary(
             index=i,
@@ -81,6 +137,7 @@ def get_student(student_id: str):
             provenance=s.provenance,
             submitted_at=s.submitted_at,
             auth_weight=s.auth_weight,
+            source=sources[i],
         )
         for i, s in enumerate(state.samples)
     ]

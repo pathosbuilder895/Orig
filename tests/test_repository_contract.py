@@ -3367,3 +3367,38 @@ class TestPhoneParks:
         repo.delete_student(sid)
         assert repo.get_phone_park("exam-p", sid) is None
         assert repo.get_phone_park("exam-p", other) is not None
+
+
+class TestSampleSourceLookups:
+    """The two reads GET /students/{id} uses to say how a self-upload got in
+    (2026-11): a student's sealed submissions WITH their text and answers,
+    and their past papers with text and status, on every backend."""
+
+    def test_submission_texts_for_student(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        repo.put_bluebook_exam({"id": "exam-src", "tenant_id": "sem", "title": "Take-home"})
+        base = {"tenant_id": "sem", "exam_id": "exam-src", "candidate": "Alice"}
+        repo.put_bluebook_submission({**base, "id": "bbsub-s1", "student_id": "sem:alice",
+                                      "text": "Question 1.\n\nOne.", "answers": ["One.", "Two."]})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s2", "student_id": "sem:alice",
+                                      "text": "Plain text."})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s3", "student_id": "sem:bob",
+                                      "text": "Bob's.", "answers": ["Bob's."]})
+        rows = {r["id"]: r for r in repo.list_bluebook_submission_texts_for_student("sem:alice")}
+        assert set(rows) == {"bbsub-s1", "bbsub-s2"}
+        assert rows["bbsub-s1"]["text"] == "Question 1.\n\nOne."
+        assert rows["bbsub-s1"]["answers"] == ["One.", "Two."]
+        assert rows["bbsub-s2"]["text"] == "Plain text." and rows["bbsub-s2"]["answers"] == []
+        assert repo.list_bluebook_submission_texts_for_student("sem:nobody") == []
+
+    def test_past_papers_for_student_carry_text_and_status(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for pid, sid, status in (("pp-1", "sem:alice", "approved"), ("pp-2", "sem:alice", "pending"),
+                                 ("pp-3", "sem:bob", "approved")):
+            repo.put_past_paper({"paper_id": pid, "tenant_id": "sem", "student_id": sid,
+                                 "title": pid, "text": f"text of {pid}", "word_count": 3,
+                                 "status": status})
+        rows = {r["paper_id"]: r for r in repo.list_past_papers("sem", "sem:alice")}
+        assert set(rows) == {"pp-1", "pp-2"}
+        assert rows["pp-1"]["text"] == "text of pp-1" and rows["pp-1"]["status"] == "approved"
+        assert rows["pp-2"]["status"] == "pending"

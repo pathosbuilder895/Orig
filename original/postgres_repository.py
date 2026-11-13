@@ -2242,6 +2242,21 @@ class PostgresRepository:
             ).scalars()
             return [self._bluebook_sub_to_dict(r) for r in rows]
 
+    def list_bluebook_submission_texts_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.student_id == student_id)
+                .order_by(BluebookSubmission.created_at)
+            ).scalars()
+            out = []
+            for r in rows:
+                d = self._bluebook_sub_to_dict(r)
+                d["text"] = r.text
+                d["answers"] = r.answers_json or []
+                out.append(d)
+            return out
+
     def list_bluebook_submissions_for_exam(self, exam_id):
         with session_scope() as session:
             rows = session.execute(

@@ -1180,6 +1180,14 @@ class SampleSummary(BaseModel):
     provenance: str
     submitted_at: str
     auth_weight: float
+    source: str = Field(
+        "unknown",
+        description=(
+            "How the sample got into the baseline, derived at read time: "
+            "'staff_or_supervised' | 'take_home' | 'shared_paper' | "
+            "'student_upload' | 'unknown'. Wording only; never read by scoring."
+        ),
+    )
 
 
 class StudentStateResponse(BaseModel):
