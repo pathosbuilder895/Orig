@@ -1593,7 +1593,12 @@ def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
             "original_portfolio": "not a kept paper: no trailing underscore",
             "another_site_key": "left alone",
         },
-        session={"original_last_result": '{"result":{}}', "unrelated": "left alone"},
+        # bluebook_collections_tab: Collections' per-tab mark (deep-link.jsx).
+        session={
+            "original_last_result": '{"result":{}}',
+            "bluebook_collections_tab": "1",
+            "unrelated": "left alone",
+        },
     )
     assert sorted(out["local"]) == ["another_site_key", "original_portfolio"]
     assert out["session"] == ["unrelated"]
@@ -1915,6 +1920,7 @@ STUDENT_TAIL = r"""
     const s = await window.Live.gate(el, sc.opts);
     out.session = s ? { role: s.role, mode: s.mode } : null;
     out.html = el.innerHTML;
+    out.products = window.localStorage.getItem('original_products');
   } else if (sc.call === 'api') {
     out.res = await window.Live.api(sc.path, sc.opts);
   }
@@ -1988,6 +1994,46 @@ def test_student_gate_sends_everyone_else_to_bluebooks_sign_in(health):
     assert out["replaced"] == []
     assert "Sign in to continue" in out["html"]
     assert 'href="/bluebook/"' in out["html"]
+
+
+@needs_node
+def test_a_staff_gate_without_original_points_at_the_collections_dashboard_and_heals_products():
+    # Collections sends a teacher at the bare /bluebook/ address to Original while
+    # the stored products say Original. A workspace that lost it would bounce
+    # between the two: the panel names the Collections dashboard (#dashboard),
+    # and the server's products replace the stale stored list.
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": ["bluebook"], "tenant_id": "t"}],
+    )
+    assert out["session"] is None and out["replaced"] == []
+    assert "Original is off for this workspace" in out["html"]
+    assert 'href="/bluebook/#dashboard"' in out["html"]
+    assert 'href="/bluebook/"' not in out["html"]
+    assert json.loads(out["products"]) == ["bluebook"]
+
+
+@needs_node
+def test_a_staff_gate_with_original_stores_the_servers_products():
+    out = _student(call="gate", local={"original_principal_token": "p"}, me=STAFF_ME)
+    assert out["session"] == {"role": "professor", "mode": "signed-in"}
+    assert json.loads(out["products"]) == ["original", "bluebook"]
+
+
+@needs_node
+def test_a_gate_whose_server_lists_no_products_keeps_what_sign_in_stored():
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": [], "tenant_id": "t"}],
+    )
+    assert out["products"] == '["original","bluebook"]'
+
+
+def test_professor_page_collections_link_names_the_collections_dashboard():
+    page = (DEMO / "professor.html").read_text(encoding="utf-8")
+    assert 'href="bluebook/#dashboard" target="_blank" title="Collections: writing sessions"' in page
 
 
 @needs_node

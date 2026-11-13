@@ -240,6 +240,9 @@ test.describe('Deep links into one exam', () => {
   // main sign-in page sends them). Any hash, /collections/, or a workspace
   // without Original stays in Collections.
   test('a signed-in teacher at the bare address opens Original; a named Collections screen stays', async ({ staffPage }) => {
+    // The site root sends a real deploy to /bluebook/ (run.py), so it lands in Original too.
+    await staffPage.goto('/')
+    await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
     await staffPage.goto('/bluebook/')
     await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
     await staffPage.goto(COLLECTIONS_HOME)
@@ -258,6 +261,25 @@ test.describe('Deep links into one exam', () => {
 
   test('a teacher whose workspace has no Original stays on the Collections dashboard', async ({ staffPage }) => {
     await staffPage.addInitScript(() => localStorage.setItem('original_products', JSON.stringify(['bluebook'])))
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+  })
+
+  // Stored products said Original, the server no longer does: Original's gate
+  // stores the server's list and its panel names the Collections dashboard, so
+  // the teacher is not bounced between the two.
+  test('a workspace that lost Original after sign-in is not bounced back to Original', async ({ staffPage }) => {
+    await staffPage.route('**/auth/me', async route => {
+      const res = await route.fetch()
+      const body = await res.json()
+      await route.fulfill({ response: res, json: { ...body, products: ['bluebook'] } })
+    })
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
+    const open = staffPage.getByRole('link', { name: 'Open Collections' })
+    await expect(open).toHaveAttribute('href', '/bluebook/#dashboard', { timeout: 10_000 })
+    await expect.poll(() => staffPage.evaluate(() => localStorage.getItem('original_products'))).toBe('["bluebook"]')
     await staffPage.goto('/bluebook/')
     await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
     expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
