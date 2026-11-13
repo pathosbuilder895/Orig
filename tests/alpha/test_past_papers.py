@@ -231,7 +231,8 @@ def test_undo_takes_only_that_paper_out_and_can_be_repeated(live_client):
     ids = _ids(live_client, T)
     for k in range(4):
         _ok(live_client.post(f"/bluebook/past-papers/{ids[f'Paper {k}']}/approve", headers=T))
-    _ok(live_client.post(f"/bluebook/past-papers/{ids["Other's paper"]}/approve", headers=T))
+    others = ids["Other's paper"]
+    _ok(live_client.post(f"/bluebook/past-papers/{others}/approve", headers=T))
     assert get_repository().get(sid).sample_count == 4
     other_before = _texts(other)
 
