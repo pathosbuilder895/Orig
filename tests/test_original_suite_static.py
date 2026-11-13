@@ -423,6 +423,38 @@ def test_students_page_loads_through_live_roster():
         assert endpoint not in page, f"students.html calls {endpoint} itself"
 
 
+def test_students_page_adds_a_writer_by_name_inline():
+    page = (SUITE / "students.html").read_text(encoding="utf-8")
+    # The button opens a labelled inline form; the Collections link keeps its href.
+    assert (
+        '<button type="button" class="add-btn ghost" id="writer-btn" aria-expanded="false" '
+        'aria-controls="writer-form">'
+    ) in page
+    assert ">Add a writer</button>" in page
+    assert '<form class="writer" id="writer-form" hidden' in page
+    assert '<label for="writer-name">Their name</label>' in page
+    assert '<input id="writer-name" type="text" maxlength="120"' in page
+    assert '<button type="submit" class="add-btn" id="writer-go">Add</button>' in page
+    assert '<button type="button" class="w-cancel" id="writer-cancel">Cancel</button>' in page
+    assert '<div class="w-msg" id="writer-msg" role="alert"></div>' in page
+    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in page
+    assert ">Add to a Collections course</a>" in page
+    script = page[page.index("// ── add a writer ──") : page.index("// ── go ──")]
+    assert "Live.api('/students',{method:'POST',body:{name:n}})" in script
+    # One request at a time: a double click makes one writer.
+    assert "if(busy) return;" in script and "go.disabled=true" in script
+    assert (
+        "window.location.assign('baseline.html?student='+encodeURIComponent(id)+'#add-writing')"
+        in script
+    )
+    # Escape closes it, and focus goes into the form and back to the button.
+    assert "e.key==='Escape'" in script
+    assert "name.focus()" in script and "btn.focus()" in script
+    # Errors are plain words set as text, never markup.
+    assert "innerHTML" not in script
+    assert chr(0x2014) not in page and chr(0x2015) not in page
+
+
 # ── Writing State (writing-state.html) ────────────────────────────────────────
 # The page that shows an Original result: the testing label sits on it, purity
 # is only ever shown inside a <details> that carries the T-01 caveat, and the
