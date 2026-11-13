@@ -4183,3 +4183,21 @@ def test_a_sealed_exam_link_wins_over_the_kept_last_analysis():
     assert "collections_submission:S.resultSub," in state
     assert "S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';" in state
 
+
+def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8")
+    row = page[page.index("  function rowHTML(r){") :]
+    row = row[: row.index("\n  }\n")]
+    # The action follows the closing </a>: no link nested in the row link.
+    assert "'</a>'+actHTML(r)+'</div>'" in row
+    act = page[page.index("  function actHTML(r){") :]
+    act = act[: act.index("\n  }\n")]
+    assert "'writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id))" in act
+    assert ">Analyse against baseline</a>" in act
+    assert "'baseline.html?student='+encodeURIComponent(sid)+'#add-writing'" in act
+    assert ">Add writing first</a>" in act
+    # Who has a baseline comes from the shared roster, never a request of its own.
+    assert "await Live.roster()" in page and "Live.api(" not in page
+    assert "(counted.get(sid)||0)>0" in act
+    # Nothing until the roster answers: no action is offered on a guess.
+    assert "if(!counted||!sid" in act

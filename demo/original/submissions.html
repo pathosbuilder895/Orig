@@ -71,8 +71,9 @@
   .q-head{background:rgba(255,255,255,0.025);border-bottom:1px solid var(--line-soft);}
   .q-head div{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);}
   .q-head .r{text-align:right;}
-  .q-row{border-top:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background .13s;position:relative;color:inherit;text-decoration:none;}
-  .q-row:first-of-type{border-top:none;}
+  .q-item{border-top:1px solid rgba(255,255,255,0.04);}
+  .q-item:first-child{border-top:none;}
+  .q-row{cursor:pointer;transition:background .13s;position:relative;color:inherit;text-decoration:none;}
   .q-row:hover{background:rgba(201,160,40,0.055);}
   .q-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:transparent;}
   .q-row:hover::before{background:var(--gold);}
@@ -98,6 +99,10 @@
   .go{width:16px;height:16px;flex-shrink:0;}
   .go svg{width:16px;height:16px;stroke:var(--dim-2);fill:none;stroke-width:1.8;transition:stroke .13s,transform .13s;}
   .q-row:hover .go svg{stroke:var(--gold-2);transform:translateX(2px);}
+  .q-act{display:flex;justify-content:flex-end;gap:.8rem;padding:0 1.2rem .75rem;margin-top:-.35rem;font-size:.84rem;font-style:italic;}
+  .q-act a{color:var(--gold-2);text-decoration:none;border-bottom:1px solid rgba(224,190,85,0.35);}
+  .q-act a:hover{color:var(--gold);}
+  .q-act a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:3px;}
   .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
   .reassure{margin-top:1rem;font-size:.86rem;color:var(--dim);font-style:italic;text-align:center;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
   .reassure a{color:var(--gold-2);}
@@ -206,6 +211,9 @@
   const docIco='<svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>';
   const goIco='<span class="go"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>';
 
+  // Who has a baseline, from the shared roster (Live.roster): student id to the
+  // number of samples it counts. null until the roster answers, or if it fails.
+  let counted=null;
   let rows=[], curF='all', loaded=false, emptyText='No sealed exams yet. They appear here when a student seals an exam in Collections.';
 
   function rowHTML(r){
@@ -216,13 +224,27 @@
     const date=fmtDate(r.created_at);
     // The exam the booklet was sealed in (Collections's #exam/<id> link); a row with no exam id opens the Collections list (#collections), so it stays in Collections rather than going home to Original.
     const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/#collections';
-    return '<a class="q-row" href="'+esc(href)+'" title="Opens this exam in Collections">'+
+    return '<div class="q-item"><a class="q-row" href="'+esc(href)+'" title="Opens this exam in Collections">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
       '<div class="when">'+esc(date||DASH)+(r.late?'<span class="late">Late</span>':'')+'</div>'+
       '<div class="dev"><span class="dev-n none">'+DASH+'</span></div>'+
       '<div class="status">'+badge+goIco+'</div>'+
-    '</a>';
+    '</a>'+actHTML(r)+'</div>';
+  }
+
+  // Beside the row link, never inside it: the sealed exam opened in Writing
+  // State against the student's baseline (the teacher still presses Analyse),
+  // or, with no baseline yet, where to add writing first.
+  function actHTML(r){
+    const sid=r.student_id!=null?String(r.student_id):'';
+    if(!counted||!sid||r.id==null||r.id==='') return '';
+    if((counted.get(sid)||0)>0){
+      const href='writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id));
+      return '<div class="q-act"><a class="q-analyse" href="'+esc(href)+'">Analyse against baseline</a></div>';
+    }
+    const add='baseline.html?student='+encodeURIComponent(sid)+'#add-writing';
+    return '<div class="q-act"><a class="q-add" href="'+esc(add)+'" title="'+esc(r.who)+' has no baseline yet">Add writing first</a></div>';
   }
 
   function applyF(){
@@ -293,6 +315,12 @@
       return r;
     });
     render('ok',subs);
+    // The roster answers after the rows are shown: then each row gets its action.
+    const ro=await Live.roster();
+    if(!ro||!ro.ok) return;
+    counted=new Map();
+    ro.students.forEach(st=>counted.set(st.id,st.counted||0));
+    applyF();
   }
 
   // ── go ──
