@@ -474,6 +474,8 @@
     // A row opens that student's Writing State (as the name link does); the stats button keeps the summary here.
     document.querySelectorAll('.flag-row').forEach(tr=>tr.addEventListener('click',e=>{
       if(e.target.closest('a,button')) return;
+      // Selecting text in a row (a drag) is not a click to open it.
+      if(String(window.getSelection()||'')) return;
       const h=tr.getAttribute('data-href'); if(h) location.href=h;
     }));
   }
