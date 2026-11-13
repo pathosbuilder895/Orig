@@ -43,6 +43,7 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g_rule_d_report_only,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
@@ -401,6 +402,24 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "downgrade path never runs and both are plain criterion fails "
             "rather than 'uninformative' outcomes that merely happen not to "
             "be passes."
+        ),
+    ),
+    "evaluate_g_rule_d_report_only": GateContract(
+        gate="G-RD",
+        claims="RULE_D_OBSERVATION never changes deviation_score or the recommended action, "
+        "and returns no index below the class-size floor",
+        failure_witness=lambda: evaluate_g_rule_d_report_only(
+            {"off": (0.41, "monitor"), "shadow": (0.41, "monitor"), "on": (0.41, "schedule_conversation")},
+            {"status": "observed", "index": 0.2},
+        ),
+        notes=(
+            "The failure witness is the two ways rule D could stop being report-only: the "
+            "`on` arm moves the recommended action one step, and a workspace under the "
+            "3-student / 5-paper floor still gets an index. Each alone fails the gate "
+            "(pinned in tests/test_rule_d.py). Label destruction does not apply: this gate "
+            "checks an invariant of the wiring, not a measurement of authorship; rule D's "
+            "discrimination was measured once, on the pre-registered locked test "
+            "(docs/research/2026-11-12-scholarly-rule-d-locked-test-results.md)."
         ),
     ),
 }
