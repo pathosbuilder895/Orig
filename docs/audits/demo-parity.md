@@ -144,11 +144,20 @@ Image pairs:
 | Packet, Side by side section (new) | none | [after/06b-packet-side-by-side.jpg](demo-parity/after/06b-packet-side-by-side.jpg) |
 | Voice baseline | [before/07-voice-baseline.jpg](demo-parity/before/07-voice-baseline.jpg) | [after/07-voice-baseline.jpg](demo-parity/after/07-voice-baseline.jpg) |
 
-The habit-open shot opens the first heatmap bar, which the engine may rank as a
-whole-text habit (no single sentence to quote). For such a habit the panel now says so in
-plain words; the located-passage case (highlighted quotes beside past work, "Where it
-appears" tabs) is in `after/06b-packet-side-by-side.jpg`, `after/05-side-by-side.jpg` and
-the `@evidence-on` e2e specs.
+The after set was re-shot in the final fix wave. What each new shot shows:
+
+- `after/04-writing-state-habit-open.jpg`: the script opens heatmap bars in order and stops
+  at the first whose panel marks words on both sides (it fails if none does). Here that is
+  Mean Sentence Length: this paper's marked sentence beside a marked sentence from "On
+  Liberty, part 1" (dated 14 Jan 2026), "Where it appears" tabs 1 to 3, the header numbers
+  in the same words-per-sentence units as the line under it, the "What to notice" line, and
+  the in-panel "See it side by side" link.
+- `after/05-side-by-side.jpg`: scrolled to the first quote card under "Biggest differences"
+  (Comma Rate): marked commas in this paper beside marked commas in two dated past papers,
+  each with its source line.
+- `after/06b-packet-side-by-side.jpg`: the packet's Side by side section with the Comma Rate
+  and First-Person Ratio cards, marked words on both sides, each card's "What to notice" and
+  numbers lines, and the note naming the top habits left out for lack of quotable text.
 
 ### 1. Writing State (status after)
 
@@ -171,7 +180,7 @@ the `@evidence-on` e2e specs.
 | "What to notice" line | `works` | From `EvidenceView.noticeFor`, built from real numbers only, no invented reasons. |
 | In-panel link to Side by side | `works` | Added. |
 | Voice baseline link, Change student, Analyse another | `works` | Unchanged. |
-| Avatar menu, nav pills | `works` | Unchanged. Collections pill still opens the Collections sessions page. |
+| Avatar menu, nav pills | `works` | The avatar menu on every staff page now starts with "Open Collections" (`/bluebook/#dashboard`), since bare `/bluebook/` sends a teacher to Original. Collections pill still opens the Collections sessions page. |
 
 ### 2. Packet (status after)
 
@@ -194,7 +203,7 @@ the `@evidence-on` e2e specs.
 | Sensitivity options | `unchanged by design` | No engine controls on a real page. |
 | Notifications menu item | `unchanged by design` | The demo's is a dead end; none added. |
 | Row hover | `works` | Gold edge and tint present. |
-| Dragging to select row text | `not done` | Selecting text on a row still triggers navigation (minor, deferred in review: needs a `getSelection` guard). |
+| Dragging to select row text | `works` | A row click with text selected no longer navigates (`getSelection` guard, final fix wave). |
 
 ### 4. Students (status after)
 
@@ -220,7 +229,7 @@ the `@evidence-on` e2e specs.
 | Submissions (`submissions.html`) | `unchanged by design` | No stored analyses, so no severity chips. |
 | Reports (`reports.html`) | `unchanged by design` | Week columns unchanged: there is no week filter on Submissions to send them to. |
 | Voice (`voice.html`) | `unchanged by design` | Student-facing, shows no scores (constraint 3). |
-| Collections pill (`bluebook.html`) | `unchanged by design` | Still the Collections sessions page; the Collections app links are what changed. |
+| Collections pill (`bluebook.html`) | `works` | Still the Collections sessions page; its head now carries an "Open Collections" link to the Collections dashboard (`/bluebook/#dashboard`). |
 
 ### Landing (Task 6, not a table row above)
 
@@ -232,10 +241,10 @@ opens Collections. The admin and operator sign-ins mirror the main sign-in (ruli
 
 ### Still open
 
-- Overview row drag-select navigates (above).
-- Minor review items deferred by the ledger: `habitName` lower-cases proper nouns,
-  `isTiny` is duplicated in three pages, the not-compared tail on Writing State is
-  hard-coded, `.r-ws` has no `title`.
+- Minor review item deferred by the ledger: `.r-ws` has no `title`. (The drag-select
+  guard, `habitName` keeping acronyms and proper nouns, one shared quote rule in
+  `EvidenceView`, and the not-compared line built from `EvidenceView` were fixed in the
+  final fix wave.)
 - Not validated against real student submissions: the sentences quoted are real engine
   output on public-domain test papers only.
 

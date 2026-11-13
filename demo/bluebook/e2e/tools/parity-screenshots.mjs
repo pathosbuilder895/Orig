@@ -81,28 +81,43 @@ async function realPages() {
   await page.locator('#an-done').waitFor({ state: 'visible', timeout: 30_000 })
   await shot(page, OUT, '03-writing-state-result')
 
-  // First habit: the first heatmap bar (a real habit, whatever the engine ranks).
-  await page.locator('#heatmap [data-code]').first().click()
+  // First habit whose panel quotes a marked passage on both sides (this paper
+  // and a past paper), in heatmap order, whatever the engine ranks.
+  const bars = page.locator('#heatmap [data-code]')
+  const nBars = await bars.count()
+  let found = false
+  for (let i = 0; i < nBars && !found; i++) {
+    await bars.nth(i).click()
+    await page.locator('#hero-evi.show').waitFor({ state: 'visible', timeout: 5_000 })
+    found = (await page.locator('#evi-sub mark').count()) > 0 && (await page.locator('#evi-base mark').count()) > 0
+  }
+  if (!found) throw new Error(`none of the ${nBars} habit bars shows marked passages on both sides`)
   await shot(page, OUT, '04-writing-state-habit-open')
   await page.keyboard.press('Escape')
 
   // Packet and Side by side take the result Writing State stored for them.
-  async function viaButton(sel, name, urlRe) {
+  async function viaButton(sel, name, urlRe, before) {
     await page.goto(`/original/writing-state.html?student=${sid}`)
     await page.locator('#an-done').waitFor({ state: 'visible', timeout: 30_000 })
     await page.locator(sel).click({ timeout: 10_000 })
     await page.waitForURL(urlRe, { timeout: 15_000 })
     await page.waitForLoadState('networkidle')
+    if (before) await before()
     await shot(page, OUT, name)
   }
-  await viaButton('#tri-evidence', '05-side-by-side', /evidence\.html/)
+  // Side by side, scrolled to the first quote card so the pair of passages shows.
+  await viaButton('#tri-evidence', '05-side-by-side', /evidence\.html/, async () => {
+    const quote = page.locator('.ex .ex-q mark').first()
+    await quote.waitFor({ state: 'visible', timeout: 15_000 })
+    await quote.scrollIntoViewIfNeeded()
+  })
   await viaButton('#tri-packet', '06-packet', /packet\.html/)
   // Packet "Side by side" section scrolled into view (extra shot, no before pair).
-  const sbs = page.getByText('Side by side', { exact: false }).first()
-  if (await sbs.count()) {
-    await sbs.scrollIntoViewIfNeeded()
-    await shot(page, OUT, '06b-packet-side-by-side')
-  }
+  // It is there whenever the evidence flag is on; its absence is a failure.
+  const sbs = page.locator('#p-side')
+  if (!(await sbs.count())) throw new Error('the packet has no "Side by side" section (#p-side): is EVIDENCE_PASSAGES_ENABLED on?')
+  await sbs.scrollIntoViewIfNeeded()
+  await shot(page, OUT, '06b-packet-side-by-side')
 
   await page.goto(`/original/baseline.html?student=${sid}`)
   await page.waitForLoadState('networkidle')
