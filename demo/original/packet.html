@@ -88,6 +88,7 @@
   .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
   /* habits, this paper beside their own writing (numbers, never quoted text) */
   .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
+  @media screen{.ex{transition:border-color .18s,box-shadow .18s;}.ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}}
   .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
