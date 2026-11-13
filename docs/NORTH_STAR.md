@@ -46,7 +46,7 @@ Milestones, in order:
 ## Non-negotiables
 
 1. **Decision support, not a verdict.** Original recommends; people decide. No automatic grade changes or misconduct referrals. Every result is framed as a consistency observation, never an accusation.
-2. **Honest claims only.** No feature counts, accuracy figures, probabilities or "AI-written" labels that the code and measured evidence don't support. No invented demo numbers presented as real, and fictional data is always labelled as fictional. Passing tests prove the engineering works. They do not prove the science.
+2. **Honest claims only.** No feature counts, accuracy figures, probabilities or "AI-written" labels that the code and measured evidence don't support. No invented demo numbers presented as real, and fictional data is always labelled as fictional. Passing tests prove the engineering works. They do not prove the science. Rule D's measured results (its locked-test numbers on published scholarly prose, with their limits) may be shown to teachers, always labelled testing-phase and "not validated on student writing".
 3. **"Inconclusive" is a valid answer.** With thin baselines, short texts or missing peers, the system should say it can't tell, not guess.
 4. **Protect honest students first.** A false alarm on an honest student is the worst failure. Students may legitimately write differently because they learned, changed genre, revised heavily, used permitted help, or needed accommodations. Score-changing mechanisms ship off by default and are only enabled after their validation gate passes and a human approves.
 5. **Build the student's own skill.** Features should help students write better themselves. No feature should rewrite or "fix" a student's work for them, and no result should push a student to imitate a baseline.
@@ -72,7 +72,7 @@ Milestones, in order:
 
 - Canvas/LTI integration. The code stays in the repo, but nothing links to it and it is not configured in the pilot.
 - Keystroke or behavioural biometrics in any form. This means PR #160-style Tier 17 work is off the table.
-- Turning on any research flag that changes scores. This includes the AI-likelihood detector, fused score, topic inflation and characteristic weights.
+- Turning on any research flag that changes scores. This includes the AI-likelihood detector, fused score, topic inflation and characteristic weights. Exception: rule D (`RULE_D_OBSERVATION`) may be built and shown as a report-only, default-off, testing-phase consistency observation; it never changes a score or a recommended action.
 - Claims to detect cheating or AI authorship. Any "authorship probability" presentation.
 - AI that rewrites or corrects student work.
 - Billing automation; "My Voice" longitudinal graphics; writer-similarity percentages; class-wide unlocks or leaderboards.
