@@ -282,7 +282,14 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # so a page loaded from cache next to a newer live.js would run the old code
 # against new markup. Every page therefore asks for these files with one shared
 # ?v= query; change the version (on every page at once) when any of them changes.
-VERSIONED = ("live.js", "js/feature-data.js", "js/fingerprint.js", "suite.css", "fonts.css")
+VERSIONED = (
+    "live.js",
+    "js/feature-data.js",
+    "js/fingerprint.js",
+    "js/evidence-view.js",
+    "suite.css",
+    "fonts.css",
+)
 
 
 def _versioned_refs(path: Path) -> list[tuple[str, str, str]]:
@@ -310,7 +317,7 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
     # Every page carries the suite's stylesheet, font file and shared script; the
-    # others (feature-data.js, fingerprint.js) appear where the page uses them.
+    # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
     assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
