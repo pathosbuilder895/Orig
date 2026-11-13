@@ -602,7 +602,8 @@
 
     // habits
     $('p-habits').innerHTML=habitCards(d,poss,nUsed);
-    addSideBySide(d,$('p-habits').closest('section'));
+    // Staff-only: nothing here runs, or touches the page, unless the server sent evidence.
+    if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(d,$('p-habits').parentNode);
 
     // baseline
     // The thin-baseline caution is shown whether or not the sample list loaded.

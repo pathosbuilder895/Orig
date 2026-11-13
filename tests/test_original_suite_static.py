@@ -738,9 +738,13 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "<title>Original · Conversation packet</title>" in page
     title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
     assert "flag" not in title
-    # No case numbers, no quoted passages (no text positions exist to quote).
+    # No case numbers. Quoted passages appear only as the staff-only "Side by side"
+    # section, built from the server's evidence: marks come only from
+    # EvidenceView.markParts, and nothing is built unless evidence is present.
     assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
-    assert "<mark" not in page
+    assert page.count("<mark") == 1 and "EV.markParts(q)" in page
+    assert "if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(" in page
+    assert '<script src="js/evidence-view.js?v=' in page
     # Outcome and signature are blank form lines for the teacher, never data.
     assert page.count('<div class="line"></div>') == 2
     assert "Teacher signature" in page and "Outcome of the conversation" in page
