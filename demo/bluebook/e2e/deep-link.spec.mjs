@@ -206,6 +206,19 @@ test.describe('Deep links into one exam', () => {
     expect(new URL(staffPage.url()).hash).toBe('#students')
   })
 
+  test('a course join link still opens the join screen for a signed-in teacher', async ({ staffPage, workerTenant, request }) => {
+    const course = await createCourse(request, workerTenant.staff.token, { name: `Join staff ${workerTenant.tenant.tenant_id}` })
+    const enabled = await request.post(`/bluebook/courses/${encodeURIComponent(course.id)}/join-link`, {
+      headers: { Authorization: `Bearer ${workerTenant.staff.token}` },
+    })
+    expect(enabled.ok()).toBe(true)
+    const { join_path: joinPath } = await enabled.json()
+    expect(joinPath).toContain('join=')
+    await staffPage.goto(joinPath)
+    await expect(staffPage.getByTestId('join-signs-out-teacher')).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+  })
+
   test("the hash changes nothing for a student", async ({ browser, workerTenant, request }) => {
     const title = `Deep link student ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
@@ -283,5 +296,7 @@ test.describe('Deep links into one exam', () => {
     await staffPage.goto('/bluebook/')
     await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
     expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+    // Let any in-flight intercepted /auth/me finish before the context closes.
+    await staffPage.unrouteAll({ behavior: 'ignoreErrors' })
   })
 })

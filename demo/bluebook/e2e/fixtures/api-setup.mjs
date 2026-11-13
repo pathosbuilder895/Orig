@@ -132,11 +132,11 @@ export async function studentLogin(request, { staffToken, email, name } = {}) {
  */
 export async function addBaselineFor(request, studentId, studentToken, {
   text = 'A baseline writing sample used to seed this e2e student before scoring.',
-  provenance = 'verified', assignment = 'E2E baseline seed',
+  provenance = 'verified', assignment = 'E2E baseline seed', submittedAt = '',
 } = {}) {
   const res = await request.post(`/students/${encodeURIComponent(studentId)}/baseline`, {
     headers: { Authorization: `Bearer ${studentToken}` },
-    data: { text, provenance, assignment },
+    data: { text, provenance, assignment, ...(submittedAt ? { submitted_at: submittedAt } : {}) },
   })
   return okJson(res, `addBaselineFor(${studentId})`)
 }
