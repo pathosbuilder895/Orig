@@ -103,8 +103,9 @@ const SPA_ENTRY = /^\/bluebook(\/(index\.html)?)?$/;
 // RELOADABLE_SCREENS do), so a reload of the Proctor screen or the dashboard
 // is the bare /bluebook/ address again: without this a teacher working in
 // Collections would be sent to Original by a reload. Per tab (sessionStorage),
-// so a new tab or a new visit still starts in Original. Signing out clears it
-// (BB_API.logout in components.jsx).
+// so a new tab or a new visit still starts in Original (a duplicated tab copies
+// sessionStorage, so it stays in Collections too). Signing out clears it
+// (BB_API.logout in components.jsx, Live.signOut in demo/original/live.js).
 export const COLLECTIONS_TAB_KEY = 'bluebook_collections_tab';
 export function markCollectionsTab() {
   try { sessionStorage.setItem(COLLECTIONS_TAB_KEY, '1'); } catch (e) {}
