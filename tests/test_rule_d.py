@@ -83,7 +83,7 @@ def test_configuration_maps_to_the_nearest_measured_setting():
 
 
 def test_mode_parsing_fails_closed(monkeypatch):
-    for raw, want in [("off", "off"), ("shadow", "shadow"), ("on", "on"), (" ON ", "on"), ("1", "on"),
+    for raw, want in [("off", "off"), ("shadow", "shadow"), ("on", "on"), (" ON ", "on"), ("1", "off"),
                       ("yes", "off"), ("", "off")]:
         monkeypatch.setenv("RULE_D_OBSERVATION", raw)
         assert rule_d.mode() == want
@@ -239,6 +239,19 @@ def _approve(client, sid, texts):
         assert r.status_code == 200, r.text[:300]
 
 
+def _canon(obj):
+    """The byte-identity matrix's normalisation: only ``created_at`` is volatile."""
+    import json
+
+    def strip(o):
+        if isinstance(o, dict):
+            return {k: strip(v) for k, v in o.items() if k != "created_at"}
+        if isinstance(o, list):
+            return [strip(v) for v in o]
+        return o
+    return json.dumps(strip(obj), sort_keys=True)
+
+
 def _score(client, sid, text, n):
     r = client.post(f"/students/{sid}/score", json={"text": text, "submission_id": f"rd{n}"})
     assert r.status_code == 200, r.text[:300]
@@ -262,7 +275,9 @@ def test_route_modes_off_shadow_on_and_gate(live_client, store_reset, monkeypatc
 
     monkeypatch.setenv("RULE_D_OBSERVATION", "shadow")
     with caplog.at_level("INFO"):
-        shadow = _score(live_client, "rd_alice", new, 2)
+        shadow = _score(live_client, "rd_alice", new, 1)
+    # Shadow with a real computed observation: the whole response is byte-identical to off.
+    assert _canon(shadow) == _canon(off)
     assert shadow["rule_d"] is None
     assert any("rule_d_observation mode=shadow status=observed" in m for m in caplog.messages)
     assert not any("rd_alice" in m for m in caplog.messages if "rule_d_observation" in m)
@@ -306,6 +321,26 @@ def test_a_failing_observation_never_fails_scoring(live_client, store_reset, mon
     monkeypatch.setattr("original.rule_d.service.observe_for", lambda *a, **k: 1 / 0)
     _approve(live_client, "rd_err", _papers("mill", 2, 320))
     assert _score(live_client, "rd_err", _papers("mill", 3, 320)[2], 9)["rule_d"] is None
+    # A failure while attaching (e.g. a field the schema rejects) is caught too.
+    monkeypatch.setattr("original.rule_d.service.observe_for", lambda *a, **k: core.inconclusive("x."))
+    monkeypatch.setattr("original.routers.students_scoring._attach_rule_d", lambda *a, **k: 1 / 0)
+    assert _score(live_client, "rd_err", _papers("mill", 3, 320)[2], 10)["rule_d"] is None
+
+
+def test_profiles_rebuild_when_features_were_re_extracted(store_reset):
+    from original.quantum.state import BaselineSample, StudentState
+    from original.repository import SqliteRepository
+
+    repo = SqliteRepository()
+    st = StudentState(student_id="ws:carol")
+    t = _papers("newman", 1, 320)[0]
+    st.add_sample(BaselineSample(text=t, vector=_fake_feature(t), provenance="verified", auth_weight=1.0,
+                                 genre="essay"))
+    first = service.sync_profiles(repo, st, _fake_feature)[0]
+    assert service.sync_profiles(repo, st, _fake_feature)[0] == first
+    st.samples[0].vector = np.asarray(st.samples[0].vector) + 0.01
+    again = service.sync_profiles(repo, st, _fake_feature)[0]
+    assert np.allclose(again["vector"], st.samples[0].vector)
 
 
 # ------------------------------------------------------------------ the gate --

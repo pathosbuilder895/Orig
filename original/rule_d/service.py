@@ -39,6 +39,13 @@ def current_shas(state) -> set:
     return {core.text_sha256(s.text) for _, s in _papers(state)}
 
 
+def _same_vector(stored, current) -> bool:
+    if stored is None or current is None:
+        return False
+    a, b = np.asarray(stored, dtype=float), np.asarray(current, dtype=float)
+    return a.shape == b.shape and bool(np.allclose(a, b, rtol=0, atol=1e-9))
+
+
 def prune_profiles(repo, state) -> int:
     """Delete stored profiles for papers no longer in the student's approved set."""
     return repo.delete_rule_d_profiles(state.student_id, keep=current_shas(state))
@@ -55,6 +62,8 @@ def sync_profiles(repo, state, feature_fn: Callable[[str], np.ndarray]) -> list[
     out = []
     for sha, (i, s) in want.items():
         prof = stored.get(sha)
+        if prof is not None and not _same_vector(prof.get("vector"), s.vector):
+            prof = None  # features were re-extracted since: rebuild, never compare stale vectors
         if prof is None:
             prof = core.build_paper_profile(s.text, s.vector, _label(s, i), feature_fn)
             repo.put_rule_d_profile(state.student_id, sha, prof)

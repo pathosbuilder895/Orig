@@ -671,7 +671,11 @@ def score_submission(
     response = _to_response(result, arc, report=report)
     _attach_staff_explainability(response, request, req.text, state, result)
     if _rd_mode == "on" and _rule_d_obs is not None:
-        _attach_rule_d(response, request, _rule_d_obs)
+        try:
+            _attach_rule_d(response, request, _rule_d_obs)
+        except Exception:  # a report-only field must never fail a score request
+            logging.getLogger(__name__).exception("rule_d attach failed; omitted")
+            response.rule_d = None
     return response
 
 

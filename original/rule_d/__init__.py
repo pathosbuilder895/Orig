@@ -18,6 +18,6 @@ def mode() -> str:
     """Read RULE_D_OBSERVATION. Anything unrecognised is ``off``: an unparseable value must
     never switch a new mechanism on."""
     raw = os.environ.get("RULE_D_OBSERVATION", "off").strip().lower()
-    if raw == "1":
-        return "on"
+    # "1" is deliberately NOT an alias for on: the teacher-visible mode must be asked for
+    # by name, so shadow comes first (unlike the *_ENABLED flags).
     return raw if raw in MODES else "off"
