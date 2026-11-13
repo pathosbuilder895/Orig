@@ -820,6 +820,26 @@ def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
     assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
 
 
+@pytest.mark.parametrize(
+    "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
+)
+def test_account_menu_opens_the_collections_dashboard_first(path):
+    # Bare /bluebook/ sends a teacher to Original, so the way back to the
+    # Collections dashboard is a named link: the first item, before Settings.
+    links = _account_menu(path)
+    texts = [text for _, text in links]
+    assert texts.count("Open Collections") == 1, f"{path.name}: {texts}"
+    assert links[0] == ("/bluebook/#dashboard", "Open Collections"), f"{path.name}: {links}"
+    assert texts[1] == "Settings", f"{path.name}: {texts}"
+
+
+def test_collections_page_head_links_to_the_collections_dashboard():
+    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
+    head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
+    assert '<a class="head-link" href="/bluebook/#dashboard">' in head
+    assert "Open Collections</a>" in head
+
+
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
 def test_student_account_menu_is_sign_out_only(name):
     # A student has no Settings page and no classic analysis page; both are
