@@ -20,6 +20,18 @@
                      uses: ready Ready, developing Building, insufficient Needs more
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
    Live.sealed()     the teacher's sealed exams, copied through one allowlist
+   Live.sampleKind(s)  how one baseline sample got in, from GET /students/{id}: its server
+                     `source`, else (an old server sends none) its provenance. One of
+                     proctored, verified, canvas, take_home, shared_paper, unverified (a
+                     student upload) or other
+   Live.approvals(samples)  counts of the baseline samples by who approved them:
+                     {counted, byYou, supervised, takeHome, shared, uploads, unknown}.
+                     byYou = supervised + takeHome + shared; take-home exams and shared
+                     papers count at a lower weight
+   Live.approvalWords(a, o)  those counts in plain words ("all approved by you (...)",
+                     "1 approved by you, 2 student uploads"); '' when nothing is known.
+                     {note:false} leaves out the lower-weight note
+   Live.howAdded(s)  one sample's "how it got in" label, for a table cell
    Live.signOut()    forget the session and the kept papers, go to the sign-in page
                      (a student's is Collections', a teacher's the main one) */
 (function (window, document) {
@@ -657,6 +669,67 @@
     }
   }
 
+  // ── who approved each baseline sample (staff pages) ──────────────────────────
+  // GET /students/{id} gives each sample a `source`: staff_or_supervised, take_home (a
+  // sealed take-home exam a teacher approved), shared_paper (a past paper the student
+  // shared and a teacher accepted), student_upload, or unknown. Only the first three
+  // are "approved by you". take_home and shared_paper are stored as unverified at a
+  // lower weight on purpose; this is wording only and changes no score. An old server
+  // sends no `source`: the provenance rule then applies (proctored, verified and canvas
+  // are approved by you, unverified is a student upload).
+  var SUPERVISED = ['proctored', 'verified', 'canvas'];
+  var HOW = { proctored: 'Supervised sitting', verified: 'Verified by teacher', canvas: 'Imported',
+              take_home: 'Take-home exam approved by you', shared_paper: 'Shared paper approved by you',
+              unverified: 'Student upload', other: 'Other source' };
+
+  function sampleKind(s) {
+    if (!s || typeof s !== 'object') return 'other';
+    var src = s.source, prov = s.provenance;
+    if (src === 'take_home') return 'take_home';
+    if (src === 'shared_paper') return 'shared_paper';
+    if (src === 'student_upload') return 'unverified';
+    if (src === 'staff_or_supervised') return SUPERVISED.indexOf(prov) >= 0 ? prov : 'proctored';
+    if (src === 'unknown') return 'other';
+    if (SUPERVISED.indexOf(prov) >= 0) return prov;
+    return prov === 'unverified' ? 'unverified' : 'other';
+  }
+
+  function approvals(samples) {
+    var a = { counted: 0, byYou: 0, supervised: 0, takeHome: 0, shared: 0, uploads: 0, unknown: 0 };
+    (Array.isArray(samples) ? samples : []).forEach(function (s) {
+      if (!s || typeof s !== 'object') return;
+      var k = sampleKind(s);
+      a.counted += 1;
+      if (k === 'take_home') a.takeHome += 1;
+      else if (k === 'shared_paper') a.shared += 1;
+      else if (k === 'unverified') a.uploads += 1;
+      else if (k === 'other') a.unknown += 1;
+      else a.supervised += 1;
+    });
+    a.byYou = a.supervised + a.takeHome + a.shared;
+    return a;
+  }
+
+  function plur(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+  function approvalWords(a, o) {
+    if (!a || !a.counted || a.unknown === a.counted) return '';
+    var parts = [];
+    if (a.byYou === a.counted) parts.push('all approved by you');
+    else parts.push((a.byYou ? a.byYou : 'none') + ' approved by you');
+    var low = [];
+    if (a.takeHome) low.push(plur(a.takeHome, 'take-home exam'));
+    if (a.shared) low.push(plur(a.shared, 'shared paper'));
+    if (low.length && !(o && o.note === false)) {
+      parts[0] += ' (' + low.join(' and ') + (a.takeHome + a.shared === 1 ? ' counts' : ' count') + ' at a lower weight)';
+    }
+    if (a.uploads) parts.push(plur(a.uploads, 'student upload'));
+    if (a.unknown) parts.push(a.unknown + ' from another source');
+    return parts.join(', ');
+  }
+
+  function howAdded(s) { return HOW[sampleKind(s)]; }
+
   function ready() { notices(); pillFade(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
   else ready();
@@ -678,6 +751,10 @@
     referenceWords: wordsIn,
     REFERENCE_MINIMUM: MIN_RULE,
     sealed: sealed,
+    sampleKind: sampleKind,
+    approvals: approvals,
+    approvalWords: approvalWords,
+    howAdded: howAdded,
     signOut: signOut
   };
 })(window, document);

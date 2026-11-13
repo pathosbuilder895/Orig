@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -256,8 +256,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-13.1"></script>
-<script src="js/evidence-view.js?v=2026-11-13.1"></script>
+<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/evidence-view.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   'use strict';
@@ -274,7 +274,7 @@
   // writing-state.html and packet.html use (repeated here, as packet.html does).
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const groupName=g=>g===0?PLAIN_TIER.tiercomp:(PLAIN_TIER['tier'+g]||'');
-  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
+  // Past papers come from the analysis (provenance only); the student record says how each got in (Live.howAdded).
   const KIND_WORDS={located:'Quoted',whole_text:'Whole text'};
   // Why a measurement is not used, with the value every paper has.
   function notUsedWhy(f){
@@ -486,12 +486,13 @@
       const prov=typeof p.provenance==='string'?p.provenance:'';
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(EV.paperName(l,[]))+'</td>'+
         (anyName?'<td>'+esc(p.assignment||'')+'</td>':'')+(anyDay?'<td>'+esc(sampleDay(p.submitted_at))+'</td>':'')+
-        (anyHow?'<td>'+(prov?'<span class="how">'+esc(has(HOW,prov)?HOW[prov]:prov)+'</span>':'')+'</td>':'')+
+        (anyHow?'<td>'+(prov?'<span class="how">'+esc(Live.howAdded(p))+'</span>':'')+'</td>':'')+
         (anyLen?'<td class="len">'+(num(m.stored_words)!=null?esc(EV.plural(m.stored_words,'word'))+(num(m.measured_words)!=null&&m.measured_words!==m.stored_words?esc(' ('+m.measured_words+' measured)'):''):'')+'</td>':'')+'</tr>';
     }).join('');
     const tp=isObj(ev.measured)&&isObj(ev.measured.this_paper)?ev.measured.this_paper:null;
     const tpLine=tp&&num(tp.stored_words)!=null?'<p class="prov-note">'+esc('This paper: '+EV.plural(tp.stored_words,'word')+(num(tp.measured_words)!=null&&tp.measured_words!==tp.stored_words?' ('+tp.measured_words+' measured)':'')+'.')+'</p>':'';
     $('p-past').innerHTML='<table class="prov"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+tpLine+
+      (papers.some(p=>{const k=Live.sampleKind(p);return k==='take_home'||k==='shared_paper';})?'<p class="prov-note">Take-home exams and shared papers you approved count in the baseline at a lower weight.</p>':'')+
       '<p class="prov-note">Only past papers whose text is stored are shown and counted here. Lengths are the words stored; any text set aside from measuring (quotations, references) is left out of the measured count.</p>'+thinNote(d,labels.length);
   }
   // The server's readiness rule, as packet.html applies it to the counts
@@ -517,12 +518,25 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
+  // The analysis names each past paper's provenance only. When exactly one sample on the
+  // student's record matches a paper (same title, date and provenance), or every match
+  // says the same, that sample's `source` is copied on so the table can say a take-home
+  // exam or shared paper was approved by you. No match: the provenance rule applies.
+  function addSources(ev,st){
+    const sm=st&&st.ok&&st.data&&Array.isArray(st.data.samples)?st.data.samples.filter(isObj):[];
+    if(!Array.isArray(ev.baseline_papers)) return;
+    ev.baseline_papers.filter(isObj).forEach(p=>{
+      const hit=sm.filter(s=>(s.assignment||'')===(p.assignment||'')&&(s.submitted_at||'')===(p.submitted_at||'')&&s.provenance===p.provenance);
+      if(hit.length&&typeof hit[0].source==='string'&&hit.every(s=>s.source===hit[0].source)) p.source=hit[0].source;
+    });
+  }
   async function render(sess,d){
     const id=d.student_id.trim();
     const ev=d.result.evidence;
     if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }
     const st=await Live.api('/students/'+encodeURIComponent(id));
     if(st.status===403||st.status===404){ showEmpty('access'); return; }
+    addSources(ev,st);
     PAPERS.list=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];
     const byCode={};
     ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode[f.code]=f; });

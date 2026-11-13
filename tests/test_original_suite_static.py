@@ -2532,8 +2532,10 @@ def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
 
 def test_baseline_page_says_what_the_baseline_holds_without_overclaiming():
     page = _baseline_page()
-    # "Approved" is a teacher's act: only supervised, verified and imported samples.
-    assert "const APPROVED=['proctored','verified','canvas']" in page
+    # "Approved by you" is a teacher's act, and comes from the one shared rule in live.js
+    # (supervised, verified, imported, a take-home exam or a shared paper), not a copy of it.
+    assert "Live.approvals(samples())" in page and "Live.approvalWords(" in page
+    assert "const APPROVED=" not in page
     # The server's authenticated_count is "counted" (student uploads are in it); it is
     # never called approved, and the server's own sentences say "counted" too.
     assert "replace(/authenticated/gi,'counted')" in page
@@ -2714,9 +2716,9 @@ def test_baseline_page_takes_one_write_at_a_time_and_says_it_is_saving():
 def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_servers_count_counted():
     out = _baseline_run()["before"]
     # 5 samples: one student upload (never "approved") and 4 supervised sittings.
-    assert out["meta"] == "4 teacher-approved samples · 1 student upload"
-    assert "5 counted samples (4 teacher-approved, 1 student upload)" in out["short"]
-    assert "approved sample" not in out["short"].replace("teacher-approved", "")
+    assert out["meta"] == "5 samples: 4 approved by you, 1 student upload"
+    assert "5 counted samples (4 approved by you, 1 student upload)" in out["short"]
+    assert "teacher-approved" not in out["short"] and "approved sample" not in out["short"]
     # The server's sentence is shown with its "authenticated" read as "counted", and no dash.
     assert "Collect 1 more counted sample(s): more is better." in out["traj"]
     assert "authenticated" not in out["traj"] and chr(0x2014) not in out["traj"]
@@ -2872,8 +2874,8 @@ _APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baselin
 
 COUNTED_LABELS = {
     "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
-    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "' teacher-approved'"),
-    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "' teacher-approved)'"),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "Live.approvalWords("),
+    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "Live.approvalWords("),
     "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
 }
 
@@ -3017,7 +3019,7 @@ def _verdicts(cases: list[dict]) -> list[dict]:
     src = "\n".join(
         _extract(script, name)
         for name in (
-            "num", "plural", "baselineHref", "APPROVED", "counted", "teacherApproved", "countedPhrase",
+            "num", "plural", "baselineHref", "counted", "teacherApproved", "approvalLine", "lowerWeightNote", "countedPhrase",
             "READY_NEEDS", "rated", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
         )
     )
@@ -3110,11 +3112,42 @@ def _record(counted: int, *provenances: str) -> dict:
     return {"authenticated_count": counted, "samples": [{"provenance": p} for p in provenances]}
 
 
+def _sourced(*pairs: tuple[str, str]) -> dict:
+    """A record whose samples say how they got in: ``(provenance, source)`` each."""
+    return {
+        "authenticated_count": len(pairs),
+        "samples": [{"provenance": p, "source": src} for p, src in pairs],
+    }
+
+
 @needs_node
-def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones():
+def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a_lower_weight():
+    take_home = ("unverified", "take_home")
+    all_you, mixed, upload_only, missing = _verdicts(
+        [
+            _scored(3, 2, student=_sourced(("proctored", "staff_or_supervised"), ("verified", "staff_or_supervised"), take_home)),
+            _scored(3, 2, student=_sourced(("proctored", "staff_or_supervised"), take_home, ("unverified", "student_upload"))),
+            _scored(2, 2, student=_sourced(("unverified", "student_upload"), ("unverified", "student_upload"))),
+            # An old server sends no source: the provenance rule decides.
+            _scored(3, 2, student=_record(3, "proctored", "unverified", "unverified")),
+        ]
+    )
+    assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
+    # The lower-weight note is its own sentence, after the bracket, whenever a take-home exam is counted.
+    assert all_you["line"].endswith("Take-home exams and shared papers you approved count at a lower weight.")
+    assert all_you["note"].count("count at a lower weight.") == 1
+    assert "lower weight" not in mixed["line"].replace("Take-home exams and shared papers you approved count at a lower weight.", "")
+    assert "(3 counted samples, 2 approved by you, 1 student upload; ready needs" in mixed["line"]
+    assert "(2 counted samples, none approved by you, 2 student uploads; ready needs" in upload_only["line"]
+    assert "(3 counted samples, 1 approved by you, 2 student uploads; ready needs" in missing["line"]
+    assert "teacher-approved" not in all_you["line"] + mixed["line"] + upload_only["line"] + missing["line"]
+
+
+@needs_node
+def test_writing_state_counts_samples_approved_by_you_apart_from_counted_ones():
     # authenticated_count is every sample the server weighs, a student upload included: it is
-    # "counted". The sample list says which of them a teacher approved (proctored, verified,
-    # canvas), and that number is shown beside it, never in its place.
+    # "counted". The sample list says which of them you approved (supervised, verified,
+    # imported, or a take-home exam or shared paper), and that is shown beside it, never in its place.
     split, no_list, stale = _verdicts(
         [
             _scored(3, 2, student=_record(3, "proctored", "verified", "unverified")),
@@ -3122,11 +3155,70 @@ def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones()
             _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
         ]
     )
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["line"]
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["note"]
-    assert "teacher-approved" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
+    rule = "ready needs 5 or more counted samples and an effective count of 3 or more"
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["line"]
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["note"]
+    assert "approved by you" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
     # The analysis counted 3 and the record now says 5: splitting 5 by provenance beside a 3 would mislead.
-    assert "teacher-approved" not in stale["line"] and "(3 counted samples;" in stale["line"]
+    assert "approved by you" not in stale["line"] and "(3 counted samples;" in stale["line"]
+
+
+APPROVALS_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const window = {};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(sc.live, 'utf8'))(window, document);
+process.stdout.write(JSON.stringify(sc.cases.map((c) => {
+  const a = window.Live.approvals(c);
+  return { a, words: window.Live.approvalWords(a), bare: window.Live.approvalWords(a, { note: false }), how: c.map((s) => window.Live.howAdded(s)) };
+})));
+"""
+
+
+@needs_node
+def test_live_approvals_counts_who_approved_each_sample_and_says_so_in_plain_words():
+    def smp(prov, source=None):
+        d = {"provenance": prov}
+        if source:
+            d["source"] = source
+        return d
+
+    cases = [
+        [smp("proctored", "staff_or_supervised"), smp("unverified", "take_home"), smp("unverified", "take_home"), smp("unverified", "shared_paper")],
+        [smp("verified", "staff_or_supervised"), smp("unverified", "student_upload"), smp("unverified", "student_upload")],
+        [smp("proctored"), smp("canvas"), smp("unverified")],  # an old server: no source, provenance rule
+        [smp("unverified", "take_home")],
+        [smp("unverified", "unknown"), smp("unverified", "unknown")],  # nothing known: no split to give
+        [],
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", APPROVALS_RUN],
+        input=json.dumps({"live": str(SUITE / "live.js"), "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    mixed, uploads, old, one, unknown, empty = json.loads(run.stdout)
+    assert mixed["a"] == {"counted": 4, "byYou": 4, "supervised": 1, "takeHome": 2, "shared": 1, "uploads": 0, "unknown": 0}
+    assert mixed["words"] == "all approved by you (2 take-home exams and 1 shared paper count at a lower weight)"
+    assert mixed["bare"] == "all approved by you"
+    assert uploads["a"]["byYou"] == 1 and uploads["a"]["uploads"] == 2
+    assert uploads["words"] == "1 approved by you, 2 student uploads"
+    assert old["a"] == {"counted": 3, "byYou": 2, "supervised": 2, "takeHome": 0, "shared": 0, "uploads": 1, "unknown": 0}
+    assert old["words"] == "2 approved by you, 1 student upload"
+    assert old["how"] == ["Supervised sitting", "Imported", "Student upload"]
+    assert one["words"] == "all approved by you (1 take-home exam counts at a lower weight)"
+    assert one["how"] == ["Take-home exam approved by you"]
+    assert unknown["a"]["unknown"] == 2 and unknown["words"] == ""
+    assert empty["a"]["counted"] == 0 and empty["words"] == ""
+    for c in (mixed, uploads, old, one):
+        assert "teacher-approved" not in c["words"]
+
+
+def test_side_by_side_past_paper_table_says_how_each_paper_was_approved():
+    page = _evidence_page()
+    assert "Live.howAdded(p)" in page and "addSources(ev,st)" in page
+    assert "teacher-approved" not in page
 
 
 # The packet's inline script, run for real under node: the stored analysis is in
@@ -3281,6 +3373,22 @@ def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(
     assert "\u201cNeeds more\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
 
 
+@needs_node
+def test_packet_says_a_take_home_exam_was_approved_by_you_and_a_student_upload_was_not():
+    counts = {"authenticated_count": 3, "effective_sample_count": 3}
+    samples = [
+        {"index": 0, "assignment": "Exam", "provenance": "unverified", "source": "take_home", "submitted_at": "2025-01-20"},
+        {"index": 1, "assignment": "Shared", "provenance": "unverified", "source": "shared_paper", "submitted_at": "2025-01-21"},
+        {"index": 2, "assignment": "Own", "provenance": "unverified", "source": "student_upload", "submitted_at": "2025-01-22"},
+    ]
+    out = _packet_run(counts, student=[200, {"authenticated_count": 3, "samples": samples}])
+    assert "<b>3 counted samples</b> (2 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 3 samples, 2 approved by you (1 take-home exam and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
+    assert '<span class="how">Take-home exam approved by you</span>' in out["baseline"]
+    assert '<span class="how">Shared paper approved by you</span>' in out["baseline"]
+    assert out["baseline"].count('<span class="how">Student upload</span>') == 1
+
+
 def _mixed_samples() -> list:
     """Four supervised or verified or imported samples and one student upload."""
     kinds = ["proctored", "verified", "canvas", "proctored", "unverified"]
@@ -3291,14 +3399,14 @@ def _mixed_samples() -> list:
 
 
 @needs_node
-def test_packet_counts_teacher_approved_samples_apart_from_counted_ones_and_uses_baseline_words():
+def test_packet_counts_samples_approved_by_you_apart_from_counted_ones_and_uses_baseline_words():
     counts = {"authenticated_count": 5, "effective_sample_count": 4}
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    # The server's count is "counted"; the sample list says how many of them a teacher approved.
-    assert "<b>5 counted samples</b> (4 teacher-approved)" in out["sub"]
-    assert "On file now: 5 samples, 4 teacher-approved and 1 student upload." in out["baseline"]
+    # The server's count is "counted"; the sample list says how many of them you approved.
+    assert "<b>5 counted samples</b> (4 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 5 samples, 4 approved by you, 1 student upload." in out["baseline"]
     # The provenance words are the ones baseline.html uses.
     for word in ("Supervised sitting", "Verified by teacher", "Imported", "Student upload"):
         assert f'<span class="how">{word}</span>' in out["baseline"], word
@@ -3313,7 +3421,7 @@ def test_packet_gives_no_teacher_approved_split_beside_a_count_the_record_no_lon
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    assert "<b>4 counted samples</b>" in out["sub"] and "teacher-approved" not in out["sub"]
+    assert "<b>4 counted samples</b>" in out["sub"] and "approved by you" not in out["sub"]
     assert "This analysis compared the paper with 4 counted samples; 5 are on file now." in out["baseline"]
 
 
@@ -3350,7 +3458,7 @@ def test_baseline_page_draws_the_student_before_the_sealed_list_has_loaded():
     # student's own baseline needs only two, so it is drawn without waiting for it.
     out = _baseline_run(early=300, delay={"/bluebook/submissions": 900})
     early = out["early"]
-    assert early["meta"] == "4 teacher-approved samples \u00b7 1 student upload"
+    assert early["meta"] == "5 samples: 4 approved by you, 1 student upload"
     assert "5 counted samples" in early["short"]
     assert 'data-act="approve"' not in early["sealed"]
     # ...and the sealed exams are there once they arrive.
@@ -3362,13 +3470,13 @@ def test_baseline_page_does_not_say_how_many_samples_a_student_has_when_it_could
     out = _baseline_run(failStudentAfterWrite=True)
     lines = out["after"]["lines"]
     assert lines[0] == "Added as sample 6. The count could not be refreshed just now. Reload the page to see it."
-    assert not [line for line in lines if "now has" in line or "teacher-approved sample" in line]
+    assert not [line for line in lines if "now has" in line or "approved by you" in line]
 
 
 @needs_node
 def test_baseline_page_still_says_how_many_when_the_follow_up_read_works():
     out = _baseline_run()
-    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 teacher-approved samples."
+    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 samples approved by you."
 
 
 @needs_node

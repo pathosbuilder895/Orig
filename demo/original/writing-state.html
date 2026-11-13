@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -510,10 +510,10 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-13.1"></script>
-<script src="js/feature-data.js?v=2026-11-13.1"></script>
-<script src="js/fingerprint.js?v=2026-11-13.1"></script>
-<script src="js/evidence-view.js?v=2026-11-13.1"></script>
+<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/feature-data.js?v=2026-11-13.2"></script>
+<script src="js/fingerprint.js?v=2026-11-13.2"></script>
+<script src="js/evidence-view.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   'use strict';
@@ -563,9 +563,9 @@
   const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
   // "Counted" is the server's authenticated_count: every sample it weighs above zero,
   // whether a teacher approved it or the student uploaded it. Only the sample list of
-  // GET /students/{id} says which, so the teacher-approved count comes from there (the
-  // same rule as baseline.html's approvedN(): proctored, verified or canvas).
-  const APPROVED=['proctored','verified','canvas'];
+  // GET /students/{id} says which, so the split comes from there (Live.approvals: a sample
+  // is approved by you when it was supervised, verified, imported, or a take-home exam or
+  // shared paper you approved; a student's own upload is not).
   function counted(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null;
@@ -577,11 +577,22 @@
   function teacherApproved(){
     const st=S.student, sm=st&&Array.isArray(st.samples)?st.samples:null;
     if(!sm||counted()!==num(st.authenticated_count)) return null;
-    return sm.filter(x=>x&&typeof x==='object'&&APPROVED.indexOf(x.provenance)>=0).length;
+    return Live.approvals(sm);
   }
-  function countedPhrase(){
+  // The split in words, or '' when there is none to give. note=false leaves out the
+  // lower-weight note, for a sentence that already sits inside brackets.
+  function approvalLine(note){
     const a=teacherApproved();
-    return plural(counted()||0,'counted sample')+(a!=null?', '+a+' teacher-approved':'');
+    return a?Live.approvalWords(a,{note:note}):'';
+  }
+  // One plain sentence, only when a take-home exam or shared paper is in the baseline.
+  function lowerWeightNote(){
+    const a=teacherApproved();
+    return a&&a.takeHome+a.shared?' Take-home exams and shared papers you approved count at a lower weight.':'';
+  }
+  function countedPhrase(note){
+    const w=approvalLine(note);
+    return plural(counted()||0,'counted sample')+(w?', '+w:'');
   }
   const READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more';
   const hasBaseline=()=>!!S.student&&(counted()||0)>0;
@@ -1172,7 +1183,7 @@
   // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
+    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+'), so treat this reading as inconclusive.'+lowerWeightNote();
     if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
@@ -1186,9 +1197,9 @@
       pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
       return;
     }
-    const n=counted()||0, a=teacherApproved();
+    const n=counted()||0, w=approvalLine(false);
     if(!S.result){
-      let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
+      let h='<b>'+plural(n,'counted sample')+'</b>'+(w?' ('+esc(w)+')':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.'+lowerWeightNote();
       if(S.verdict==='developing') h+=' Original rates this baseline '+rated('developing')+' ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
       else if(S.verdict==='insufficient') h+=' Original rates this baseline '+rated('insufficient')+' ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
@@ -1236,7 +1247,7 @@
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
