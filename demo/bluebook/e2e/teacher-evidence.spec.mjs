@@ -318,6 +318,8 @@ test.describe('side by side, flags on @evidence-on', () => {
     // The top habit's first sentences, exactly.
     const top = ev.features.map(t => byCode.get(t.code)).find(f => f.kind === 'located' && examples(f, 'this_paper').length && examples(f, 'past_papers').length)
     await expect(page.locator('#p-side .ex').first().locator('.ex-q mark').first()).toHaveText(slice(examples(top, 'this_paper')[0]))
+    // No page along the way (the panel, the side-by-side link, the packet) threw.
+    expect(errors).toEqual([])
     await context.close()
   })
 
