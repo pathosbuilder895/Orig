@@ -280,6 +280,14 @@ def remove_submission_baseline(submission_id: str, request: Request):
     fusion_peers = sys.modules.get("original.fusion.peers")
     if fusion_peers is not None:
         fusion_peers.clear_student(rec["student_id"])
+    # Rule D keeps derived statistics per approved paper (RULE_D_OBSERVATION);
+    # a withdrawn paper's row goes with the approval, whatever the flag says.
+    try:
+        from ..rule_d.service import prune_profiles
+
+        prune_profiles(_repo(), state)
+    except Exception:  # pragma: no cover - logged; the next rule D run drops stale rows too
+        log.exception("rule_d profile prune failed after baseline removal")
     _repo().log_audit(
         action="baseline_remove",
         student_id=rec["student_id"],

@@ -83,6 +83,7 @@ from original.db.models.live import (
     StudentPastPaper,
     BluebookExamDraft,
     UserDisplayPrefs,
+    RuleDProfile,
     UserLastLocation,
     BluebookPhonePark,
     StudentProfile,
@@ -1621,6 +1622,38 @@ class _UserDisplayPrefsMigrator(_Migrator):
         return out
 
 
+class _RuleDProfileMigrator(_Migrator):
+    """Rule D profiles, one per approved past paper (2026-11). Keyed by the full scoped
+    student id plus the text hash, verbatim in both schemas."""
+
+    name = "rule_d_profiles"
+    model = RuleDProfile
+    pk = "profile_key"
+    _COLS = ("profile_key", "student_id", "tenant_id", "text_sha256", "data", "created_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM rule_d_profiles").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["created_at"] = _canon_ts(row["created_at"])
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["created_at"] = _parse_ts(row["created_at"])
+        return RuleDProfile(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(RuleDProfile).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["created_at"] = _canon_ts(row["created_at"])
+            out.append(row)
+        return out
+
+
 class _BluebookPhoneParkMigrator(_Migrator):
     """A student's own parked phone per collection (2026-10). Composite key,
     like bluebook_exam_drafts."""
@@ -1686,6 +1719,7 @@ MIGRATORS: list[_Migrator] = [
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
     _UserDisplayPrefsMigrator(),
+    _RuleDProfileMigrator(),
     _BluebookPhoneParkMigrator(),
 ]
 

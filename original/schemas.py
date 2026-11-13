@@ -1086,6 +1086,34 @@ class PreliminaryScoreOut(BaseModel):
     note: str
 
 
+class RuleDObservationOut(BaseModel):
+    """Rule D (RULE_D_OBSERVATION=on), staff and teachers only, never a student session.
+
+    A report-only, testing-phase consistency observation: does the new paper read like the
+    student's earlier approved writing, compared with the same workspace's other students?
+    Plain-English reasons both ways and a confidence note tied to measured results on
+    published scholarly prose. Never a probability, never a verdict, and it never changes
+    ``deviation_score`` or the recommended action. "inconclusive" below the class-size floor
+    or for a very short paper."""
+
+    status: str
+    testing_phase_label: str
+    study_id: str
+    reason: str | None = None
+    reads_less_like_student: bool | None = None
+    summary: str
+    configuration: str | None = None
+    configuration_note: str = ""
+    index: float | None = None
+    threshold: float | None = None
+    components: dict[str, float] = {}
+    reads_like: list[str] = []
+    reads_less_like: list[str] = []
+    confidence_note: str
+    classmates: int = 0
+    classmate_papers: int = 0
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1169,6 +1197,9 @@ class Layer7OutputResponse(BaseModel):
     # the flag is off, so the default response is unchanged.
     evidence: dict[str, Any] | None = None
     preliminary: PreliminaryScoreOut | None = None
+    # Rule D (RULE_D_OBSERVATION=on): report-only consistency observation for staff.
+    # Null when the flag is off or shadow, so the default response is unchanged.
+    rule_d: RuleDObservationOut | None = None
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

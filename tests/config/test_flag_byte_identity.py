@@ -270,6 +270,8 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # ADR-013 staff explainability: report-only, never moves a score.
     "EVIDENCE_PASSAGES_ENABLED": "0",
     "PRELIMINARY_SCORE_ENABLED": "0",
+    # Rule D: report-only, staff-only consistency observation; never moves a score.
+    "RULE_D_OBSERVATION": "off",
 }
 
 
@@ -438,13 +440,24 @@ def unit_payload(*, with_pool: bool = False, **config_kwargs: Any) -> dict:
     return _quantize(json.loads(json.dumps(dataclasses.asdict(output), default=_json_default)))
 
 
+# Flags whose CODE default is on while testing (2026-11, owner decision). The committed
+# snapshot is "every flag off", so these are set to their off literal instead of unset;
+# test_default_on_flags_read_as_on pins the unset default itself.
+DEFAULT_ON_FLAGS: dict[str, str] = {
+    "EVIDENCE_PASSAGES_ENABLED": "0",
+    "RULE_D_OBSERVATION": "off",
+}
+
+
 @contextlib.contextmanager
 def clean_flag_env() -> Iterator[None]:
-    """Every flag unset (SECRET_KEY blanked), restored on exit."""
+    """Every flag off (unset, or its off literal for DEFAULT_ON_FLAGS; SECRET_KEY blanked),
+    restored on exit."""
     saved = {name: os.environ.get(name) for name in FLAG_OFF_VALUES}
     try:
         for name in FLAG_OFF_VALUES:
             os.environ.pop(name, None)
+        os.environ.update(DEFAULT_ON_FLAGS)
         os.environ["SECRET_KEY"] = ""
         yield
     finally:
@@ -575,11 +588,14 @@ def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
 
             def call(env: dict[str, str] | None = None) -> dict:
                 env = dict(env or {})
-                key = tuple(sorted(env.items()))
+                key = tuple(sorted((k, "\0unset" if v is None else v) for k, v in env.items()))
                 if key not in cache:
                     with pytest.MonkeyPatch.context() as mp:
                         for name, value in env.items():
-                            mp.setenv(name, value)
+                            if value is None:  # None = truly unset (the code default)
+                                mp.delenv(name, raising=False)
+                            else:
+                                mp.setenv(name, value)
                         response = client.post(
                             f"/students/{STUDENT_ID}/score",
                             json={"text": SUBMISSION_TEXT, "submission_id": SUBMISSION_ID},
@@ -660,7 +676,8 @@ def test_unit_default_matches_snapshot(unit_env):
 
 
 def test_api_default_matches_snapshot(api_call):
-    """`POST /students/{id}/score` with every flag unset must byte-match."""
+    """`POST /students/{id}/score` with every flag off must byte-match: unset, except the
+    DEFAULT_ON_FLAGS, which are set to their off literal (see clean_flag_env)."""
     current = serialise(api_call({}))
     snapshot = API_SNAPSHOT_PATH.read_text(encoding="utf-8")
     if current != snapshot:
@@ -821,6 +838,8 @@ API_SHADOW_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str]]] = {
     ),
     "AI_LIKELIHOOD_SHADOW=1": ({}, {"AI_LIKELIHOOD_SHADOW": "1"}, set()),
     "FUSED_SCORE_SHADOW=1": ({}, {"FUSED_SCORE_SHADOW": "1"}, set()),
+    # Rule D shadow computes and logs but attaches nothing.
+    "RULE_D_OBSERVATION=shadow": ({}, {"RULE_D_OBSERVATION": "shadow"}, set()),
     "CHARACTERISTIC_WEIGHTS=shadow": (
         {},
         {"CHARACTERISTIC_WEIGHTS": "shadow"},
@@ -1164,6 +1183,14 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {},
         {"STYLE_AUTHORSHIP_ENABLED": "1"},
         {"style_authorship", "style_authorship.probability_same_author"},
+        "",
+    ),
+    # Rule D on: the staff-only `rule_d` block appears (inconclusive for the
+    # single-student fixture, which is below the class-size floor).
+    "RULE_D_OBSERVATION=on": (
+        {},
+        {"RULE_D_OBSERVATION": "on"},
+        {"rule_d"},
         "",
     ),
     "TYPICALITY_SCORING=1": (
@@ -1672,3 +1699,27 @@ def test_every_scoring_config_field_has_an_off_arm():
     """Every `ScoringConfig` field is pinned at its default by an off-arm."""
     fields = {f.name for f in dataclasses.fields(ScoringConfig)}
     assert fields == set(UNIT_OFF_ARMS), sorted(fields ^ set(UNIT_OFF_ARMS))
+
+
+def test_default_on_flags_read_as_on(monkeypatch):
+    """The two report-only, staff-only flags that are on by default while testing."""
+    from original.evidence import evidence_enabled
+    from original.rule_d import mode
+
+    for name in DEFAULT_ON_FLAGS:
+        monkeypatch.delenv(name, raising=False)
+    assert evidence_enabled() is True
+    assert mode() == "on"
+    assert set(DEFAULT_ON_FLAGS) <= set(FLAG_OFF_VALUES)
+    for name, off in DEFAULT_ON_FLAGS.items():
+        assert FLAG_OFF_VALUES[name] == off
+
+
+def test_api_unset_default_changes_only_evidence_and_rule_d(api_call, api_snapshot):
+    """The real code default (DEFAULT_ON_FLAGS truly unset) may add the two staff-only
+    report blocks and nothing else: no score, action or other field moves."""
+    unset = api_call({name: None for name in DEFAULT_ON_FLAGS})
+    changed = changed_paths(api_snapshot, unset)
+    assert unset["evidence"] is not None and unset["rule_d"] is not None, "default-on flags inert"
+    stray = sorted(p for p in changed if re.split(r"[.\[]", p, maxsplit=1)[0] not in {"evidence", "rule_d"})
+    assert stray == [], stray

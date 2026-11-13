@@ -234,6 +234,18 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     _persist_or_503(state)  # persist to SQLite
 
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing): derive the new paper's
+    # statistics now so scoring does not have to. Off: nothing is computed or stored.
+    from ..rule_d import mode as _rule_d_mode
+
+    if _rule_d_mode() != "off":
+        try:
+            from ..rule_d.service import sync_profiles
+
+            sync_profiles(_repo(), state, feature_vector)
+        except Exception:  # never let a report-only mechanism fail an approval
+            logging.getLogger(__name__).exception("rule_d profile build failed at baseline add")
+
     # Audit log — record the baseline addition
     _repo().log_audit(
         action="baseline_add",

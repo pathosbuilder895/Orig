@@ -116,6 +116,10 @@ def test_shadow_pool_scan_is_cached_but_baseline_write_busts_it(charw_tenant, mo
     """The soak must not deserialize the full cohort on every request."""
     from original.quantum import impostor_cache
 
+    # Rule D (on by default while testing) reads the workspace once per request on its own;
+    # this test pins the impostor-pool cache, so rule D is switched off here.
+    monkeypatch.setenv("RULE_D_OBSERVATION", "off")
+
     repo = get_repository()
     real_all_states = repo.all_states
     calls = []

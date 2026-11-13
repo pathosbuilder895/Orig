@@ -675,6 +675,22 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             updated_at  TEXT NOT NULL
         )
     """)
+    # Rule D character profiles, one row per student per approved past paper
+    # (2026-11) — mirrors alembic revision c3e7a9d1f5b8. Derived n-gram and
+    # feature statistics only; deleted with the student and with the approval.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS rule_d_profiles (
+            profile_key  TEXT PRIMARY KEY,
+            student_id   TEXT NOT NULL,
+            tenant_id    TEXT,
+            text_sha256  TEXT NOT NULL,
+            data         TEXT NOT NULL,
+            created_at   TEXT NOT NULL
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS ix_rule_d_profiles_student ON rule_d_profiles (student_id)"
+    )
     # A student's own parked phone per collection (2026-10) — mirrors alembic
     # revision a7e3c5d9f2b4.
     conn.execute("""
@@ -1988,6 +2004,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
             # The student's chosen text font and size (2026-11).
             conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (student_id,))
+            # Rule D profiles of the student's approved papers (2026-11).
+            conn.execute("DELETE FROM rule_d_profiles WHERE student_id = ?", (student_id,))
             # The student's own parked-phone records (2026-10).
             conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
@@ -3883,6 +3901,11 @@ def student_data_inventory(student_id: str) -> dict | None:
                 (student_id,),
             ).fetchone()[0]
 
+            rule_d_count = conn.execute(
+                "SELECT COUNT(*) FROM rule_d_profiles WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+
             name_row = conn.execute(
                 "SELECT display_name FROM student_names WHERE student_id = ?",
                 (student_id,),
@@ -3892,6 +3915,7 @@ def student_data_inventory(student_id: str) -> dict | None:
         fidelity_count = manifest_rows = correction_count = audit_count = 0
         ai_likelihood_count = 0
         fused_count = 0
+        rule_d_count = 0
         name_row = None
 
     manifests_by_action: dict = {}
@@ -3928,6 +3952,9 @@ def student_data_inventory(student_id: str) -> dict | None:
             },
             "fused_scores": {
                 "count": int(fused_count),
+            },
+            "rule_d_profiles": {
+                "count": int(rule_d_count),
             },
             "display_name": {
                 "on_file": bool(name_row and name_row[0]),
@@ -4557,6 +4584,57 @@ def delete_display_prefs(account_key: str) -> None:
     with _get_conn() as conn:
         conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (account_key,))
         conn.commit()
+
+
+# ── Rule D profiles: one per approved past paper (2026-11) ────────────────────
+
+
+def get_rule_d_profiles(student_id: str) -> dict:
+    """{text_sha256: profile dict} for one student."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT text_sha256, data FROM rule_d_profiles WHERE student_id = ?", (student_id,)
+        ).fetchall()
+    return {r[0]: json.loads(r[1]) for r in rows}
+
+
+def put_rule_d_profile(student_id: str, text_sha256: str, data: dict) -> None:
+    from original.principal import tenant_of
+
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO rule_d_profiles "
+            "(profile_key, student_id, tenant_id, text_sha256, data, created_at) VALUES (?, ?, "
+            "?, ?, ?, ?)",
+            (
+                f"{student_id}|{text_sha256}",
+                student_id,
+                tenant_of(student_id),
+                text_sha256,
+                json.dumps(data, separators=(",", ":")),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        conn.commit()
+
+
+def delete_rule_d_profiles(student_id: str, keep: set | None = None) -> int:
+    """Delete the student's profiles, except those whose text hash is in ``keep``."""
+    keep = set(keep or ())
+    with _get_conn() as conn:
+        shas = [
+            r[0]
+            for r in conn.execute(
+                "SELECT text_sha256 FROM rule_d_profiles WHERE student_id = ?", (student_id,)
+            ).fetchall()
+        ]
+        gone = [s for s in shas if s not in keep]
+        for s in gone:
+            conn.execute(
+                "DELETE FROM rule_d_profiles WHERE profile_key = ?", (f"{student_id}|{s}",)
+            )
+        conn.commit()
+    return len(gone)
 
 
 # ── A student's own parked phone, per collection (2026-10) ────────────────────

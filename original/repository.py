@@ -306,6 +306,11 @@ class Repository(Protocol):
     def get_display_prefs(self, account_key: str) -> dict | None: ...
     def delete_display_prefs(self, account_key: str) -> None: ...
 
+    # ── Rule D profiles: one per approved past paper (2026-11) ────────────
+    def get_rule_d_profiles(self, student_id: str) -> dict: ...
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None: ...
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int: ...
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
         self, exam_id: str, student_key: str, tenant_id: str, fields: dict
@@ -895,6 +900,15 @@ class SqliteRepository:
 
     def delete_display_prefs(self, account_key: str) -> None:
         store.delete_display_prefs(account_key)
+
+    def get_rule_d_profiles(self, student_id: str) -> dict:
+        return store.get_rule_d_profiles(student_id)
+
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None:
+        store.put_rule_d_profile(student_id, text_sha256, data)
+
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int:
+        return store.delete_rule_d_profiles(student_id, keep)
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:

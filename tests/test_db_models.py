@@ -53,6 +53,7 @@ from original.db.models.live import (
     StudentPastPaper,
     BluebookExamDraft,
     UserDisplayPrefs,
+    RuleDProfile,
     UserLastLocation,
     BluebookPhonePark,
     StudentProfile,
@@ -90,6 +91,7 @@ EXPECTED_TABLES = {
     "bluebook_exam_drafts",  # a student's unsealed exam draft, for resume (2026-10)
     "user_last_location",  # where each account last was, for cross-device resume (2026-10)
     "user_display_prefs",  # each account's chosen text font and size (2026-11)
+    "rule_d_profiles",  # rule D statistics per approved past paper (2026-11)
     "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
     "bluebook_join_links",  # forwardable course sign-up links (2026-10)
 }
@@ -448,6 +450,14 @@ REPRESENTATIVE_ROWS = {
         font="readable",
         size="large",
         updated_at=NOW,
+    ),
+    RuleDProfile: dict(
+        profile_key=f"{TENANT_ID}:marcus|" + "a" * 64,
+        student_id=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        text_sha256="a" * 64,
+        data="{}",
+        created_at=NOW,
     ),
     BluebookPhonePark: dict(
         exam_id="exam-1",

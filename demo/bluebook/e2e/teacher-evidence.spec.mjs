@@ -7,7 +7,9 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags off, the default): Writing State shows no new link,
+ * - the main run (flags set off; evidence and rule D default ON while testing,
+ *   so that server pins EVIDENCE_PASSAGES_ENABLED=0 and RULE_D_OBSERVATION=off):
+ *   Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
@@ -49,7 +51,7 @@ async function analyse(page, studentId) {
   return res.json()
 }
 
-test.describe('side by side, flags off (the default)', () => {
+test.describe('side by side, flags off', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student, baseURL } = testTenant

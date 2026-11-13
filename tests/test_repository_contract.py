@@ -2229,6 +2229,7 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        repo.put_rule_d_profile("sem:ferpa", "b" * 64, {"words": 300})
         # C1, 2026-09 fix pass: four more student-scoped tables the original
         # erasure pass missed — each carries FERPA-relevant PII (a display
         # name, an email + unredeemed magic link, or just identifying rows).
@@ -2285,6 +2286,7 @@ class TestDeleteStudentFullFootprint:
         assert repo.get_display_name("sem:ferpa") == ""
         assert "sem:ferpa" not in {r["id"] for r in repo.roster_for_tenant("sem")}
         assert repo.get_fused_scores(student_id="sem:ferpa") == []
+        assert repo.get_rule_d_profiles("sem:ferpa") == {}
         assert repo.get_ai_likelihood_scores(student_id="sem:ferpa") == []
         assert repo.get_authentic_fidelities("sem:ferpa") == []
         assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
@@ -2700,6 +2702,7 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
     repo.put_fused_score(                                       # fused_scores
         "sub-t08", scoped_id, 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
     )
+    repo.put_rule_d_profile(scoped_id, "a" * 64, {"words": 300})  # rule_d_profiles
     # A correction on a submission that has NO manifest, so this row can only
     # be reached through its student_id — the submission_id sweep both
     # backends also run would otherwise mask a student_id gap.

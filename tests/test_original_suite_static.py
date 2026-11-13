@@ -3867,7 +3867,7 @@ def test_evidence_page_is_keyboard_and_motion_friendly():
     assert '<details class="m"' in page
     # Section headings are real headings, in order.
     heads = re.findall(r'<h2 class="sec-t" id="(h-[a-z]+)"', page)
-    assert heads == ["h-summary", "h-diff", "h-steady", "h-all", "h-past"]
+    assert heads == ["h-summary", "h-ruled", "h-diff", "h-steady", "h-all", "h-past"]
 
 
 def test_writing_state_links_to_the_side_by_side_page_only_with_evidence():
@@ -3880,6 +3880,19 @@ def test_writing_state_links_to_the_side_by_side_page_only_with_evidence():
     # Kept for the side-by-side page only when the server sent it.
     assert "if(hasEvidence(r)) keep.result.evidence=r.evidence;" in state
     assert "if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;" in state
+    assert "if(r.rule_d&&typeof r.rule_d==='object') keep.result.rule_d=r.rule_d;" in state
+
+
+def test_evidence_page_shows_rule_d_only_when_sent_with_its_testing_label():
+    page = _evidence_page()
+    assert '<section id="s-ruled" aria-labelledby="h-ruled" hidden>' in page
+    assert '<a href="#s-ruled" id="toc-ruled" hidden>' in page
+    assert "if(!isObj(rd)||typeof rd.status!=='string') return;" in page
+    assert "renderRuleD(d.result.rule_d);" in page
+    # Every server sentence passes the banned-wording check before it is shown.
+    body = page[page.index("function renderRuleD(") : page.index("async function render(")]
+    assert "esc(t)" in body and "EV.clean(t,'')" in body
+    assert "EV.clean(rd.summary,'')" in body and "EV.clean(rd.confidence_note,'')" in body
 
 
 def test_evidence_templates_carry_none_of_the_banned_wording_outside_the_check():

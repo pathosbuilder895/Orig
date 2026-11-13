@@ -2269,6 +2269,43 @@ def evaluate_g_t4_coldstart(coldstart_rate: float, honest_rate: float, n: int) -
                            "cold-start honest-term rate <=2x honest rate")
 
 
+_RULE_D_CRITERION = (
+    "rule D is report-only: deviation_score and the recommended action are identical "
+    "with RULE_D_OBSERVATION off, shadow and on, and below the class-size floor the "
+    "observation is inconclusive with no index"
+)
+
+
+def evaluate_g_rule_d_report_only(score_by_mode: dict, below_floor: dict | None) -> GateResult:
+    """G-RD: the two promises RULE_D_OBSERVATION makes, checked on measured values.
+
+    ``score_by_mode`` maps each mode ("off", "shadow", "on") to the
+    ``(deviation_score, action)`` the live scoring route returned for the same request;
+    ``below_floor`` is the ``rule_d`` observation returned for a workspace under the
+    3-student / 5-paper floor. Not part of the corpus battery (run_all): it needs no
+    corpus, and tests/test_rule_d.py feeds it from real route calls on every test run.
+    """
+    if not score_by_mode or "off" not in score_by_mode or below_floor is None:
+        return GateResult(name="G-RD", passed=False, verdict="uninformative",
+                          criterion=_RULE_D_CRITERION,
+                          current_value="no measurement (need the off arm and a below-floor observation)",
+                          detail={"score_by_mode": score_by_mode, "below_floor": below_floor})
+    ref = tuple(score_by_mode["off"])
+    changed = sorted(m for m, v in score_by_mode.items() if tuple(v) != ref)
+    floor_ok = below_floor.get("status") == "inconclusive" and below_floor.get("index") is None
+    passed = not changed and floor_ok
+    bits = []
+    if changed:
+        bits.append("score or action changed under " + ", ".join(changed))
+    if not floor_ok:
+        bits.append("a below-floor observation was not inconclusive or carried an index")
+    return GateResult(name="G-RD", passed=passed, verdict="pass" if passed else "fail",
+                      criterion=_RULE_D_CRITERION,
+                      current_value="; ".join(bits) or "identical in every mode; inconclusive below the floor",
+                      detail={"score_by_mode": {k: list(v) for k, v in score_by_mode.items()},
+                              "changed_modes": changed, "below_floor": below_floor})
+
+
 def _compute_termsim_gates() -> list[GateResult]:
     path = _ROOT / "validation" / "termsim" / "reports" / "latest.json"
     if not path.exists():

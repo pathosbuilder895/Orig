@@ -4,7 +4,8 @@ What these pin:
 * every quote is a verbatim slice of the stored text at its recorded offsets;
 * located places are exactly what the engine's own measurement counted;
 * same input -> same evidence;
-* both features are off by default and never reach a student session.
+* evidence is on by default while testing, the preliminary score off; neither reaches a
+  student session.
 """
 from __future__ import annotations
 
@@ -268,10 +269,11 @@ def test_preliminary_score_is_the_engines_numbers_with_its_label():
         assert not banned.search(words), words
 
 
-def test_flags_default_off(monkeypatch):
+def test_flag_defaults_evidence_on_preliminary_off(monkeypatch):
+    # Evidence is on by default while testing (2026-11, owner decision); preliminary stays off.
     monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
     monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
-    assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
+    assert ev.evidence_enabled() is True and ev.preliminary_enabled() is False
     monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
     monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "true")
     assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
@@ -402,7 +404,7 @@ def _post_baselines(client, sid):
 
 
 def test_score_api_is_unchanged_with_flags_off_and_adds_evidence_when_on(live_client, store_reset, monkeypatch):
-    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")  # on by default while testing
     monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
     sid = "evidence_api_alice"
     _post_baselines(live_client, sid)

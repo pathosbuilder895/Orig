@@ -423,6 +423,7 @@
     "rationale": "Deviation score 0.568 (primary verdict signal). Born authorship probability 0.892 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.46 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
   },
   "report": null,
+  "rule_d": null,
   "student_id": "flagbi:alice",
   "style_authorship": null,
   "submission_id": "flagbi-sub-001",
