@@ -213,8 +213,8 @@
       ? '<span class="badge clear"><span class="d"></span>Reviewed'+(r.mark?'<span class="mk2">'+esc(r.mark)+'</span>':'')+'</span>'
       : '<span class="badge watch"><span class="d"></span>Awaiting review</span>';
     const date=fmtDate(r.created_at);
-    // The exam the booklet was sealed in (Collections's #exam/<id> link); a row with no exam id opens Collections.
-    const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/';
+    // The exam the booklet was sealed in (Collections's #exam/<id> link); a row with no exam id opens the Collections list (#collections), so it stays in Collections rather than going home to Original.
+    const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/#collections';
     return '<a class="q-row" href="'+esc(href)+'" title="Opens this exam in Collections">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
