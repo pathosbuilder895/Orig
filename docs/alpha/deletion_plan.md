@@ -2,7 +2,7 @@
 
 **Rule (exact consent wording):** each person's data is deleted **within 14 days after they withdraw or Andrew closes their participation, whichever comes first**; encrypted backups age out within about 30 days after that deletion. When Andrew closes the whole alpha, the same 14-day clock runs for everyone remaining. Do rolling deletions as people finish/withdraw; do not wait for a single test day that does not exist.
 
-1. **Keep only the aggregate report.** Keep `report.md`, with opaque ids and no texts, if Andrew wants it. Delete the export directory (all exam texts and reference papers), `per_submission.csv`, `labels.csv`, and any injected-sample files from every machine they were copied to. The batch scorer uses temporary directories for isolated SQLite files and removes them automatically when each scoring process finishes.
+1. **Keep only the aggregate report.** Keep `report.md`, with opaque ids and no texts, if Andrew wants it. Delete the export directory (all exam texts and reference papers), `per_submission.csv`, `labels.csv`, any injected-sample files, and Andrew's imitation pieces (four-paper design, 2026-11; including any copy left in the AI writing tool's history, as far as that tool allows) from every machine they were copied to. The batch scorer uses temporary directories for isolated SQLite files and removes them automatically when each scoring process finishes.
 2. **App data:** in the Render Shell, from the repository root, first inspect the exact target:
 
    ```sh

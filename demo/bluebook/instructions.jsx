@@ -37,25 +37,26 @@ export const STUDENT_NOTES = [
 ];
 
 // During the alpha pilot every student is an alpha tester, so students get
-// the alpha test's steps instead of the guide above. The alpha exam has two
-// questions and leaves copy and paste on. Only where the workspace holds
-// Original, as the alpha workspace does: elsewhere there is no Share a past
-// paper section for step 1 to point to. Set this to false when the alpha
-// closes.
+// the alpha test's steps instead of the guide above. Since 2026-11 the alpha
+// asks volunteers for four past papers and nothing else: no exam, no fourth
+// piece to write and no AI piece to make. The teacher running the test keeps
+// three papers as reference writing and sets one aside; any imitation used to
+// check the software is made by the teacher, never by the volunteer. Only
+// where the workspace holds Original, as the alpha workspace does: elsewhere
+// there is no Share a past paper section for step 1 to point to. Set this to
+// false when the alpha closes.
 export const SHOW_ALPHA_GUIDE = true;
 
 export const ALPHA_STEPS = [
-  ['Share three past papers', 'On your home page, under Share a past paper, send three papers you wrote yourself, one at a time: a PDF, Word or text file, or pasted text.'],
-  ['Get two pieces ready', 'Choose another piece of your own writing, not one of those three. Then ask an AI tool, such as ChatGPT or Claude, to write about the same topic. Give it the topic only, not your writing.'],
-  ['Open the exam', 'Under Examinations, choose Open, then Begin Examination.'],
-  ['Paste them in', 'Paste your own piece into question 1 (Q1) and the AI’s piece into question 2 (Q2).'],
-  ['Seal & Submit', 'Choose Seal & Submit when both answers are in. A sealed booklet cannot be changed.'],
+  ['Share four past papers', 'On your home page, under Share a past paper, send four papers you wrote yourself, one at a time: a PDF, Word or text file, or pasted text.'],
+  ['Take out anything private', 'Before you share a paper, remove names, grades, health details and anything else you would rather keep to yourself.'],
+  ['That is all', 'There is no exam to sit and nothing new to write. Your papers are reviewed one by one. Three become your reference writing and one is kept aside for the test, so one paper may keep saying it is waiting for review. That is expected.'],
 ];
 
 export const ALPHA_NOTES = [
-  'Note which AI tool you used. The feedback form asks for its name.',
-  'Remove anything private, such as names, grades or health details, before you share or paste.',
+  'To check the software, the person running the test writes one extra piece in the style of your papers, with help from an AI writing tool, and compares it and your set-aside paper with the other three. It is never shown as your work or shared with other volunteers.',
   'You will not see a score or any reading of your writing. This tests the software, not you.',
+  'You can stop at any time and ask for your papers to be deleted.',
 ];
 
 export function instructionsFor(who, hasOriginal, alpha = SHOW_ALPHA_GUIDE) {
