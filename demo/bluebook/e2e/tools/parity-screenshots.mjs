@@ -34,7 +34,8 @@ if (!OUT) { console.error('PARITY_OUT is required'); process.exit(2) }
 
 const FIXTURES = new URL('../fixtures/evidence/', import.meta.url)
 const read = name => readFileSync(new URL(name, FIXTURES), 'utf8')
-const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}` }))
+const DATES = ['2026-01-14', '2026-02-11', '2026-03-10']
+const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}`, submittedAt: DATES[i - 1] }))
 const PAPER = read('chesterton.txt')
 const VIEWPORT = { width: 1440, height: 1000 }
 
@@ -52,7 +53,7 @@ async function realPages() {
   const { staff } = await provisionTenantWithStaff(api, { role: 'professor' })
   const student = await studentLogin(api, { staffToken: staff.token })
   for (const p of PAST) {
-    await addBaselineFor(api, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment })
+    await addBaselineFor(api, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.submittedAt })
   }
   await api.dispose()
 
@@ -96,6 +97,12 @@ async function realPages() {
   }
   await viaButton('#tri-evidence', '05-side-by-side', /evidence\.html/)
   await viaButton('#tri-packet', '06-packet', /packet\.html/)
+  // Packet "Side by side" section scrolled into view (extra shot, no before pair).
+  const sbs = page.getByText('Side by side', { exact: false }).first()
+  if (await sbs.count()) {
+    await sbs.scrollIntoViewIfNeeded()
+    await shot(page, OUT, '06b-packet-side-by-side')
+  }
 
   await page.goto(`/original/baseline.html?student=${sid}`)
   await page.waitForLoadState('networkidle')

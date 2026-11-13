@@ -120,6 +120,125 @@ paper 0.00" with two large `0.00` numbers and large empty space beneath: that is
 | `original-voice.html` (student voice: family tabs `.fam`, `.w-row` links, "See what makes it yours" anchor) | `voice.html` | Student-facing: shows no scores, intentionally unchanged (constraint 3) | none |
 | Navy pages "Collections" pill | `bluebook.html` | Opens the Collections sessions page, not the SPA | 6 |
 
+## Status after (2026-11-13)
+
+Re-checked against the current code of branch `claude/original-demo-parity-fe7f3a`
+(commits `6ac92ea4..c3e127ba`) and a local pilot-mode server with both evidence flags on.
+Words: `works` (does what the demo does, from real data), `unchanged by design` (a
+deliberate difference, see the reason), `not done` (with the reason). Image pairs: the
+same script (`demo/bluebook/e2e/tools/parity-screenshots.mjs`) produced both sets, at
+1440x1000. Before: `docs/audits/demo-parity/before/`; after: `docs/audits/demo-parity/after/`;
+navy demo: `docs/audits/demo-parity/demo/`. In the after run the three past papers carry
+submitted dates (14 Jan, 11 Feb, 10 Mar 2026), so source lines show dated labels.
+
+Image pairs:
+
+| Page | Before | After |
+|---|---|---|
+| Overview | [before/01-overview.jpg](demo-parity/before/01-overview.jpg) | [after/01-overview.jpg](demo-parity/after/01-overview.jpg) |
+| Students | [before/02-students.jpg](demo-parity/before/02-students.jpg) | [after/02-students.jpg](demo-parity/after/02-students.jpg) |
+| Writing State, result | [before/03-writing-state-result.jpg](demo-parity/before/03-writing-state-result.jpg) | [after/03-writing-state-result.jpg](demo-parity/after/03-writing-state-result.jpg) |
+| Writing State, habit open | [before/04-writing-state-habit-open.jpg](demo-parity/before/04-writing-state-habit-open.jpg) | [after/04-writing-state-habit-open.jpg](demo-parity/after/04-writing-state-habit-open.jpg) |
+| Side by side | [before/05-side-by-side.jpg](demo-parity/before/05-side-by-side.jpg) | [after/05-side-by-side.jpg](demo-parity/after/05-side-by-side.jpg) |
+| Conversation packet | [before/06-packet.jpg](demo-parity/before/06-packet.jpg) | [after/06-packet.jpg](demo-parity/after/06-packet.jpg) |
+| Packet, Side by side section (new) | none | [after/06b-packet-side-by-side.jpg](demo-parity/after/06b-packet-side-by-side.jpg) |
+| Voice baseline | [before/07-voice-baseline.jpg](demo-parity/before/07-voice-baseline.jpg) | [after/07-voice-baseline.jpg](demo-parity/after/07-voice-baseline.jpg) |
+
+The habit-open shot opens the first heatmap bar, which the engine may rank as a
+whole-text habit (no single sentence to quote). For such a habit the panel now says so in
+plain words; the located-passage case (highlighted quotes beside past work, "Where it
+appears" tabs) is in `after/06b-packet-side-by-side.jpg`, `after/05-side-by-side.jpg` and
+the `@evidence-on` e2e specs.
+
+### 1. Writing State (status after)
+
+| Demo element | Status after | Note |
+|---|---|---|
+| Habit bar in State Vector | `works` | Opens the habit panel with real passages (this paper beside past work, marked words), a plain "What to notice" line, and a plain note for whole-text, off and not-compared habits (Task 2). Without evidence in the response it keeps today's numbers-only panel. |
+| Tier band label (`.hbnd`) | `works` | Unchanged. |
+| Tier chip | `works` | Pins as before; with evidence present a click also opens that tier's most different habit. Flags off: pin only, as today (Global Constraint 2). |
+| Family header | `works` | Unchanged. |
+| Radar | `works` | Subtitle reworded to "tier chips: click to pin", so nothing looks clickable that is not. |
+| Feature Detail row | `works` | Opens the panel (passages when present). |
+| "Largest differences" rows | `works` | Same. |
+| Particle-pattern toggle and canvas | `works` | Unchanged. |
+| "Prepare conversation packet" | `works` | Panel now sits in normal flow below the triage row; the buttons are no longer covered. |
+| "See it side by side" | `works` | Reachable with a panel open; also linked inside the panel. |
+| "Looks fine" / "Have a conversation" | `works` | No longer covered. |
+| Close ("Back to the pattern") | `unchanged by design` | Demo wording uses a banned word; real wording stays. |
+| "Where it appears" tabs | `works` | One tab per located passage, keyboard reachable. Only shown when the habit has more than one passage. |
+| This submission / past work columns with highlights and dated source | `works` | Real sentences at recorded offsets; short matches stay visible; source lines show paper title and date with no raw offsets. Habits with no located sentence show numbers and a plain reason. |
+| "What to notice" line | `works` | From `EvidenceView.noticeFor`, built from real numbers only, no invented reasons. |
+| In-panel link to Side by side | `works` | Added. |
+| Voice baseline link, Change student, Analyse another | `works` | Unchanged. |
+| Avatar menu, nav pills | `works` | Unchanged. Collections pill still opens the Collections sessions page. |
+
+### 2. Packet (status after)
+
+| Demo element | Status after | Note |
+|---|---|---|
+| Back, Print | `works` | Unchanged. |
+| "What the analysis found" | `works` | Wording differs by design (real data). |
+| "Side by side" example cards | `works` | New "Side by side" section with the first real quote from this paper and from past work for the habits furthest from usual, plus the "What to notice" line. Absent when the response has no evidence (page identical to before). |
+| Baseline provenance table | `works` | Already present; checked, unchanged. |
+| Worth doing / avoiding, signature, footer | `works` | Unchanged. |
+| Case number, "prepared for" block | `unchanged by design` | The demo's case number is invented; not copied. |
+
+### 3. Overview (status after)
+
+| Demo element | Status after | Note |
+|---|---|---|
+| Student/flag row | `works` | Clicking a row opens that student's Writing State (`writing-state.html?student=`). |
+| "stats" button | `works` | Keeps the in-page student summary (ruling: the row click goes to Writing State, the button keeps the old behaviour). |
+| "Back to term view" | `works` | Unchanged. |
+| Sensitivity options | `unchanged by design` | No engine controls on a real page. |
+| Notifications menu item | `unchanged by design` | The demo's is a dead end; none added. |
+| Row hover | `works` | Gold edge and tint present. |
+| Dragging to select row text | `not done` | Selecting text on a row still triggers navigation (minor, deferred in review: needs a `getSelection` guard). |
+
+### 4. Students (status after)
+
+| Demo element | Status after | Note |
+|---|---|---|
+| Student row | `works` | Still opens Voice baseline (existing destination kept); each row gains a "Writing State" link beside it. Deviation: the demo row goes to analysis. |
+| Filter chips | `unchanged by design` | Baseline-readiness chips are the honest set (no stored analyses). |
+| Find a student, stat strip | `works` | Unchanged. |
+| "Add student" | `works` | Opens the Collections roster; Collections links carry a hash so a teacher with Original stays in Collections instead of bouncing back. |
+| Deviation column | `unchanged by design` | Empty until Original keeps analysis results. |
+
+### 5. Voice baseline (status after)
+
+| Demo element | Status after | Note |
+|---|---|---|
+| Three cards, tier rows, back and cross links | `works` | Unchanged. |
+| "Add a fourth sample" | `works` | Links into Collections with the stay hash. |
+
+### 6. Other pages (status after)
+
+| Page | Status after | Note |
+|---|---|---|
+| Submissions (`submissions.html`) | `unchanged by design` | No stored analyses, so no severity chips. |
+| Reports (`reports.html`) | `unchanged by design` | Week columns unchanged: there is no week filter on Submissions to send them to. |
+| Voice (`voice.html`) | `unchanged by design` | Student-facing, shows no scores (constraint 3). |
+| Collections pill (`bluebook.html`) | `unchanged by design` | Still the Collections sessions page; the Collections app links are what changed. |
+
+### Landing (Task 6, not a table row above)
+
+A signed-in teacher whose workspace has Original now lands in Original (`/original/index.html`)
+from the bare pilot address `/bluebook/`, once per tab; Collections is reached by its own
+links (`#dashboard`, `#collections`) without a bounce. A workspace without Original still
+opens Collections. The admin and operator sign-ins mirror the main sign-in (ruling).
+`render.yaml` turns on the two staff-only evidence flags; a startup log line names them.
+
+### Still open
+
+- Overview row drag-select navigates (above).
+- Minor review items deferred by the ledger: `habitName` lower-cases proper nouns,
+  `isTiny` is duplicated in three pages, the not-compared tail on Writing State is
+  hard-coded, `.r-ws` has no `title`.
+- Not validated against real student submissions: the sentences quoted are real engine
+  output on public-domain test papers only.
+
 ## Wording gaps
 
 - Demo close button uses a banned word; real: "Back to the pattern". Banned words must not
@@ -178,7 +297,7 @@ paper 0.00" with two large `0.00` numbers and large empty space beneath: that is
 6. Task 6: Pilot root opens into Original for staff with Original; Collections links carry a
    "stay" hash; `render.yaml` flags; startup log line; student-never-sees-evidence test.
 7. Task 7: E2E coverage for all of the above.
-8. Task 8: "After" screenshots with the same script, "Status after" column here, STATUS.md.
+8. Task 8: "After" screenshots with the same script, "Status after" section here (see below), STATUS.md.
 
 ## How the screenshots were made
 
