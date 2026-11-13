@@ -2584,6 +2584,38 @@ class PostgresRepository:
         except Exception:
             log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
 
+    def list_audit_actions_for_student(self, student_id, actions):
+        if not student_id or not actions:
+            return []
+        with session_scope() as session:
+            rows = (
+                session.execute(
+                    select(AuditLogEntry)
+                    .where(*self._audit_scope_criteria(student_id))
+                    .where(AuditLogEntry.action.in_(list(actions)))
+                    .order_by(AuditLogEntry.created_at, AuditLogEntry.id)
+                )
+                .scalars()
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat(),
+                    "action": row.action,
+                    "student_id": (
+                        join_scoped_id(row.tenant_id, row.student_id)
+                        if row.tenant_id
+                        else row.student_id
+                    ),
+                    "tenant_id": row.tenant_id,
+                    "actor": row.actor,
+                    "result": row.result,
+                    "details": row.details_json or {},
+                }
+                for row in rows
+            ]
+
     def list_audit(self, student_id=None, action=None, limit=100, offset=0, tenant_id=None):
         limit = min(limit, 1000)
         try:

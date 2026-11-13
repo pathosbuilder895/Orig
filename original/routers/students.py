@@ -62,16 +62,41 @@ def list_students(request: Request, tenant_id: str = ""):
 _SUPERVISED = frozenset({"verified", "proctored", "canvas"})
 
 
+# What POST/DELETE /bluebook/submissions/{id}/baseline record
+# (routers/bluebook_baselines.py). An approval that found the text already in
+# the baseline still approved it; "held" and the refusals approved nothing.
+_APPROVED_RESULTS = frozenset({"added", "already_in_baseline"})
+
+
+def _approved_submission_ids(repo, student_id: str) -> set[str]:
+    """Submission ids a teacher approved into this student's baseline and has
+    not since removed, replayed oldest first from the audit log."""
+    approved: set[str] = set()
+    rows = repo.list_audit_actions_for_student(student_id, ["baseline_approve", "baseline_remove"])
+    for row in rows:
+        sub_id = (row.get("details") or {}).get("submission_id")
+        if not sub_id:
+            continue
+        if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
+            approved.add(sub_id)
+        elif row["action"] == "baseline_remove" and row.get("result") == "removed":
+            approved.discard(sub_id)
+    return approved
+
+
 def _sample_sources(student_id: str, samples) -> list[str]:
     """How each sample got into the baseline, for staff wording only.
 
     Derived at read time from what is already stored; provenance and weight
     are untouched and nothing here reaches scoring. An ``unverified`` sample
-    is ``take_home`` when its text hash is one a sealed Collections
-    submission of this student has in a baseline (the approval's own text
-    forms, ``bluebook_baselines._fingerprints``), ``shared_paper`` when it is
-    the text of one of their approved past papers, else ``student_upload``.
-    At most one read of each kind, and none when nothing is unverified.
+    is ``take_home`` when its text hash is one of the approval's own text
+    forms (``bluebook_baselines._fingerprints``) of a Collections submission
+    of this student that a teacher approved into the baseline and has not
+    since taken out. Nothing stores that state, so it is replayed from the
+    audit rows the approve and undo routes write. ``shared_paper`` is the
+    text of one of their approved past papers, else ``student_upload``.
+    One audit read and one past-papers read, plus one submissions read only
+    when something is approved; none at all when nothing is unverified.
     """
     from .bluebook_baselines import _fingerprints
     from .past_papers import _sha
@@ -82,8 +107,11 @@ def _sample_sources(student_id: str, samples) -> list[str]:
     shared: set[str] = set()
     if any(unverified):
         repo = _repo()
-        for rec in repo.list_bluebook_submission_texts_for_student(student_id):
-            take_home |= _fingerprints(rec)
+        approved = _approved_submission_ids(repo, student_id)
+        if approved:
+            for rec in repo.list_bluebook_submission_texts_for_student(student_id):
+                if rec.get("id") in approved:
+                    take_home |= _fingerprints(rec)
         tenant = principal_mod.tenant_of(student_id)
         if tenant:
             shared = {

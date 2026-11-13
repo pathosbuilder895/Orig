@@ -3391,6 +3391,30 @@ class TestSampleSourceLookups:
         assert rows["bbsub-s2"]["text"] == "Plain text." and rows["bbsub-s2"]["answers"] == []
         assert repo.list_bluebook_submission_texts_for_student("sem:nobody") == []
 
+    def test_audit_actions_for_student_oldest_first(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for action, sid, sub, result in (
+            ("baseline_approve", "sem:alice", "s1", "added"),
+            ("score", "sem:alice", "s1", "ok"),
+            ("baseline_remove", "sem:alice", "s1", "removed"),
+            ("baseline_approve", "sem:bob", "s2", "added"),
+            ("baseline_approve", "sem:alice", "s3", "held"),
+        ):
+            repo.log_audit(action=action, student_id=sid, tenant_id="sem", actor="prof",
+                           result=result, details={"submission_id": sub})
+        repo.log_audit(action="baseline_approve", student_id="other:alice", tenant_id="other",
+                       actor="prof", result="added", details={"submission_id": "s9"})
+        rows = repo.list_audit_actions_for_student(
+            "sem:alice", ["baseline_approve", "baseline_remove"]
+        )
+        assert [(r["action"], r["result"], r["details"]["submission_id"]) for r in rows] == [
+            ("baseline_approve", "added", "s1"),
+            ("baseline_remove", "removed", "s1"),
+            ("baseline_approve", "held", "s3"),
+        ]
+        assert repo.list_audit_actions_for_student("sem:nobody", ["baseline_approve"]) == []
+        assert repo.list_audit_actions_for_student("sem:alice", []) == []
+
     def test_past_papers_for_student_carry_text_and_status(self, repo):
         repo.put_tenant("sem", "Seminary", environment="demo")
         for pid, sid, status in (("pp-1", "sem:alice", "approved"), ("pp-2", "sem:alice", "pending"),

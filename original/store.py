@@ -3124,8 +3124,9 @@ def list_bluebook_submissions_for_student(student_id: str) -> list[dict]:
 
 
 def list_bluebook_submission_texts_for_student(student_id: str) -> list[dict]:
-    """A student's sealed submissions WITH ``text`` and ``answers``: what
-    GET /students/{id} hashes to say a sample is approved take-home work."""
+    """Every Collections submission stored for this student, oldest first,
+    WITH ``text`` and ``answers``. GET /students/{id} hashes only the ones a
+    teacher approved into the baseline (see the audit replay there)."""
     with _get_conn() as conn:
         rows = conn.execute(
             f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
@@ -3507,6 +3508,35 @@ def log_audit(
             conn.commit()
     except Exception:
         log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+
+def list_audit_actions_for_student(student_id: str, actions: list[str]) -> list[dict]:
+    """Every audit row of these actions for one student, oldest first, with
+    no page cap: GET /students/{id} replays baseline approvals and undos
+    from it. Same row shape as ``list_audit`` items."""
+    if not student_id or not actions:
+        return []
+    marks = ", ".join("?" for _ in actions)
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, action, student_id, tenant_id, actor, result, "
+            f"details_json FROM audit_log WHERE student_id = ? AND action IN ({marks}) "
+            "ORDER BY created_at, id",
+            [student_id, *actions],
+        ).fetchall()
+    return [
+        {
+            "id": r[0],
+            "created_at": r[1],
+            "action": r[2],
+            "student_id": r[3],
+            "tenant_id": r[4],
+            "actor": r[5],
+            "result": r[6],
+            "details": json.loads(r[7] or "{}"),
+        }
+        for r in rows
+    ]
 
 
 def list_audit(

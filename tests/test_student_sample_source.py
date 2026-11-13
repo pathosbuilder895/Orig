@@ -47,6 +47,30 @@ def _submission(sub_id, student_id, *, answers=None, text=None):
     )
 
 
+def _approve(sub_id, student_id, result="added"):
+    """The audit row POST /bluebook/submissions/{id}/baseline writes."""
+    get_repository().log_audit(
+        action="baseline_approve",
+        student_id=student_id,
+        tenant_id="demo",
+        actor="prof",
+        result=result,
+        details={"submission_id": sub_id},
+    )
+
+
+def _undo(sub_id, student_id):
+    """The audit row DELETE /bluebook/submissions/{id}/baseline writes."""
+    get_repository().log_audit(
+        action="baseline_remove",
+        student_id=student_id,
+        tenant_id="demo",
+        actor="prof",
+        result="removed",
+        details={"submission_id": sub_id, "samples_removed": 1, "sample_count_after": 0},
+    )
+
+
 def _past_paper(paper_id, student_id, text, status):
     get_repository().put_past_paper(
         {
@@ -78,6 +102,14 @@ def test_each_source_value(live_client):
         ("\n\n".join(take_home_parts), "unverified", "take_home"),
         # A sample the old seal-time write stored with "Question N." headings.
         (headed, "unverified", "take_home"),
+        # Sealed but never approved: the student uploading it is not approval.
+        (_paper(0, TOPICS[6]), "unverified", "student_upload"),
+        # Approved, then taken back out, then uploaded again by the student.
+        (_paper(0, TOPICS[7]), "unverified", "student_upload"),
+        # Approved a second time after being undone.
+        (_paper(1, TOPICS[5]), "unverified", "take_home"),
+        # An approval that did not add anything is no approval.
+        (_paper(1, TOPICS[6]), "unverified", "student_upload"),
         (_paper(1, TOPICS[0]), "unverified", "shared_paper"),
         # Shared but still pending: not teacher-approved.
         (_paper(1, TOPICS[1]), "unverified", "student_upload"),
@@ -87,11 +119,26 @@ def test_each_source_value(live_client):
     ]
     _submission("bbsub-th", SID, answers=take_home_parts)
     _submission("bbsub-legacy", SID, answers=[_paper(0, TOPICS[5])], text=headed)
+    _approve("bbsub-th", SID)
+    _approve("bbsub-legacy", SID, result="already_in_baseline")
+    _submission("bbsub-never", SID, answers=[_paper(0, TOPICS[6])])
+    _submission("bbsub-undone", SID, answers=[_paper(0, TOPICS[7])])
+    _approve("bbsub-undone", SID)
+    _undo("bbsub-undone", SID)
+    _submission("bbsub-again", SID, answers=[_paper(1, TOPICS[5])])
+    _approve("bbsub-again", SID)
+    _undo("bbsub-again", SID)
+    _approve("bbsub-again", SID)
+    _submission("bbsub-held", SID, answers=[_paper(1, TOPICS[6])])
+    _approve("bbsub-held", SID, result="held")
     _past_paper("pp-ok", SID, _paper(1, TOPICS[0]), "approved")
     _past_paper("pp-wait", SID, _paper(1, TOPICS[1]), "pending")
     _past_paper("pp-bob", OTHER, _paper(1, TOPICS[2]), "approved")
-    # Another student's sealed submission with this student's plain upload.
+    # Another student's approved submission with this student's plain upload.
     _submission("bbsub-bob", OTHER, answers=[_paper(1, TOPICS[3])])
+    _approve("bbsub-bob", OTHER)
+    # This student's approval row naming a submission that is not theirs.
+    _approve("bbsub-bob", SID)
     for text, provenance, _ in cases:
         _add(live_client, text, provenance)
     assert _sources(live_client) == [want for _, _, want in cases]
@@ -115,9 +162,14 @@ def test_source_does_not_change_the_rest_of_the_response(live_client):
 
 
 def _counting(monkeypatch):
-    calls = {"subs": 0, "papers": 0}
+    calls = {"audit": 0, "subs": 0, "papers": 0}
+    audit = SqliteRepository.list_audit_actions_for_student
     subs = SqliteRepository.list_bluebook_submission_texts_for_student
     papers = SqliteRepository.list_past_papers
+
+    def _audit(self, *a, **k):
+        calls["audit"] += 1
+        return audit(self, *a, **k)
 
     def _subs(self, *a, **k):
         calls["subs"] += 1
@@ -127,6 +179,7 @@ def _counting(monkeypatch):
         calls["papers"] += 1
         return papers(self, *a, **k)
 
+    monkeypatch.setattr(SqliteRepository, "list_audit_actions_for_student", _audit)
     monkeypatch.setattr(SqliteRepository, "list_bluebook_submission_texts_for_student", _subs)
     monkeypatch.setattr(SqliteRepository, "list_past_papers", _papers)
     return calls
@@ -137,21 +190,32 @@ def test_no_lookups_without_an_unverified_sample(live_client, monkeypatch):
     _add(live_client, _paper(0, TOPICS[1]), "proctored")
     calls = _counting(monkeypatch)
     assert _sources(live_client) == ["staff_or_supervised"] * 2
-    assert calls == {"subs": 0, "papers": 0}
+    assert calls == {"audit": 0, "subs": 0, "papers": 0}
 
 
 def test_one_lookup_each_however_many_unverified(live_client, monkeypatch):
     for k in range(4):
+        _submission(f"bbsub-{k}", SID, answers=[_paper(1, TOPICS[k])])
+        _approve(f"bbsub-{k}", SID)
         _add(live_client, _paper(1, TOPICS[k]), "unverified")
     calls = _counting(monkeypatch)
-    assert _sources(live_client) == ["student_upload"] * 4
-    assert calls == {"subs": 1, "papers": 1}
+    assert _sources(live_client) == ["take_home"] * 4
+    assert calls == {"audit": 1, "subs": 1, "papers": 1}
+
+
+def test_no_submission_read_without_an_approval(live_client, monkeypatch):
+    _submission("bbsub-never", SID, answers=[_paper(1, TOPICS[0])])
+    _add(live_client, _paper(1, TOPICS[0]), "unverified")
+    calls = _counting(monkeypatch)
+    assert _sources(live_client) == ["student_upload"]
+    assert calls == {"audit": 1, "subs": 0, "papers": 1}
 
 
 def test_unknown_for_a_provenance_it_does_not_know(monkeypatch):
     def _boom(*a, **k):
         raise AssertionError("no lookup when nothing is unverified")
 
+    monkeypatch.setattr(SqliteRepository, "list_audit_actions_for_student", _boom)
     monkeypatch.setattr(SqliteRepository, "list_bluebook_submission_texts_for_student", _boom)
     monkeypatch.setattr(SqliteRepository, "list_past_papers", _boom)
     samples = [
@@ -166,7 +230,7 @@ def test_legacy_flat_id_skips_past_papers(monkeypatch):
     calls = _counting(monkeypatch)
     samples = [SimpleNamespace(provenance="unverified", text="plain words")]
     assert students_router._sample_sources("flatid", samples) == ["student_upload"]
-    assert calls == {"subs": 1, "papers": 0}
+    assert calls == {"audit": 1, "subs": 0, "papers": 0}
 
 
 @pytest.mark.slow
@@ -198,7 +262,71 @@ def test_real_flow_and_who_may_read_it(live_client, monkeypatch):
     calls = _counting(monkeypatch)
     own = _ok(live_client.get(f"/students/{sid}", headers=S))
     assert [s["source"] for s in own["samples"]] == ["unknown"]
-    assert calls == {"subs": 0, "papers": 0}
+    assert calls == {"audit": 0, "subs": 0, "papers": 0}
     assert live_client.get(f"/students/{sid}", headers=S2).status_code == 403
     assert live_client.get(f"/students/{sid}", headers=T2).status_code == 403
     assert live_client.get(f"/students/{sid}").status_code == 403  # anonymous demo: real tenant
+
+
+@pytest.mark.slow
+def test_take_home_through_the_real_approve_and_undo_routes(live_client, monkeypatch):
+    """(1) sealed, never approved, same text uploaded: student_upload.
+    (2) approved take-home: take_home. (3) approved, undone, the same text
+    uploaded again: student_upload."""
+    from original import principal
+    from tests.alpha.test_past_papers import _ok, _workspace
+
+    monkeypatch.setenv("INVITE_NO_EXPIRY", "1")
+    monkeypatch.delenv("MIN_BASELINE_SAMPLES", raising=False)
+    principal.invalidate_tenant_cache()
+    T, [(sid, _S), _] = _workspace(live_client, "src3@example.test")
+    tenant = principal.tenant_of(sid)
+    repo = get_repository()
+    repo.put_bluebook_exam(
+        {
+            "id": "exam-th",
+            "tenant_id": tenant,
+            "title": "Take-home",
+            "conditions": {"setting": "take_home"},
+        }
+    )
+    texts = {name: _paper(0, TOPICS[k]) for k, name in enumerate(("never", "kept", "undone"))}
+    for name, text in texts.items():
+        repo.put_bluebook_submission(
+            {
+                "id": f"bbsub-{name}",
+                "tenant_id": tenant,
+                "exam_id": "exam-th",
+                "student_id": sid,
+                "candidate": "S0",
+                "answers": [text],
+                "text": text,
+            }
+        )
+
+    def _upload(text, provenance):
+        _ok(
+            live_client.post(
+                f"/students/{sid}/baseline",
+                json={"text": text, "provenance": provenance},
+                headers=T,
+            )
+        )
+
+    # Take-home work only extends an existing baseline.
+    for k in range(3, 6):
+        _upload(_paper(0, TOPICS[k]), "verified")
+    for name in ("kept", "undone"):
+        out = _ok(live_client.post(f"/bluebook/submissions/bbsub-{name}/baseline", headers=T))
+        assert out["status"] == "added", out
+    out = _ok(live_client.delete("/bluebook/submissions/bbsub-undone/baseline", headers=T))
+    assert out["status"] == "removed", out
+    _upload(texts["never"], "unverified")
+    _upload(texts["undone"], "unverified")
+    body = _ok(live_client.get(f"/students/{sid}", headers=T))
+    got = [(s["provenance"], s["source"]) for s in body["samples"]]
+    assert got == [("verified", "staff_or_supervised")] * 3 + [
+        ("unverified", "take_home"),
+        ("unverified", "student_upload"),
+        ("unverified", "student_upload"),
+    ]

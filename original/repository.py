@@ -324,6 +324,7 @@ class Repository(Protocol):
         result: str = "ok",
         details: dict | None = None,
     ) -> None: ...
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]: ...
     def list_audit(
         self,
         student_id: str | None = None,
@@ -928,6 +929,9 @@ class SqliteRepository:
             result=result,
             details=details,
         )
+
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]:
+        return store.list_audit_actions_for_student(student_id, actions)
 
     def list_audit(
         self,
