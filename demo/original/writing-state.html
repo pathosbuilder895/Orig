@@ -462,7 +462,7 @@
             <div class="evi-one" id="evi-one" hidden></div>
             <div class="evi-tabs" id="evi-tabs" hidden></div>
             <div class="evi-cols">
-              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+              <div class="evi-col"><div class="evi-lbl" id="evi-sub-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
               <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
             </div>
             <div class="evi-foot" id="evi-foot" hidden>
@@ -819,17 +819,29 @@
       const key=ch.dataset.tier;
       ch.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)apply(key);});
       ch.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
+      const topHabit=t=>{
+        const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
+        return t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+      };
       ch.addEventListener('click',e=>{
         const t=TIER_BY_KEY.get(key);
-        // Once a paper is analysed (or while a habit is open), the first click pins the
-        // tier and opens its most different habit; a click on the pinned tier unpins it.
-        const opens=(S.result||$('hero-evi').classList.contains('show'))&&S.base&&t&&t.features.length;
-        if(!opens||CROSS.pinned===key){ toggle(key); if(opens) EVI.close(); return; }
-        const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
-        const f=t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+        // With passages (the staff evidence field): the first click after an analysis pins
+        // the tier and opens its most different habit; a click on the pinned tier unpins
+        // it and closes the panel. A keyboard click (detail 0) moves focus into the panel.
+        if(hasEvidence(S.result)&&S.base&&t&&t.features.length){
+          if(CROSS.pinned===key){ toggle(key); EVI.close(); return; }
+          toggle(key);
+          EVI.open(topHabit(t).code,e.detail===0?ch:null);
+          return;
+        }
+        // Without them, as before: pin; while a habit is open, switch to this tier's top habit.
+        if($('hero-evi').classList.contains('show')&&S.base){
+          if(!t||!t.features.length) return;
+          if(CROSS.pinned!==key) toggle(key);
+          EVI.open(topHabit(t).code);
+          return;
+        }
         toggle(key);
-        // A keyboard click (detail 0) moves focus into the panel and back to the chip on close.
-        EVI.open(f.code,e.detail===0?ch:null);
       });
     });
     // Group headers: hover previews, click pins the whole section
@@ -944,7 +956,7 @@
     function quoteHTML(q){
       const parts=EV.markParts(q);
       const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-      return '<div class="evi-q" data-mark="'+esc(parts.mark)+'">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
     }
     const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
     // The plain sentence a side shows when it has no passage to quote.
@@ -984,6 +996,8 @@
       $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
       numbersCols(f,v,s,out,within);
+      // "This paper" beside quoted passages; without them the label stays as before.
+      $('evi-sub-lbl').textContent=e?'This paper':'This submission';
       const foot=$('evi-foot'), tabs=$('evi-tabs'), one=$('evi-one');
       tabs.hidden=true; tabs.innerHTML='';
       if(!e){ one.hidden=true; one.textContent=''; foot.hidden=true; return; }
@@ -1003,24 +1017,21 @@
       }
       // This paper: the passage on the current tab, else the numbers with a plain note.
       const addNone=(id,w)=>{ if(w) $(id).insertAdjacentHTML('beforeend','<p class="none">'+esc(w)+'</p>'); };
-      if(tp[place]){
-        $('evi-sub').innerHTML=quoteHTML(tp[place]);
-        $('evi-sub-src').textContent=S.assignment||'This paper';
-      } else if(tp.length){
-        $('evi-sub').innerHTML='<p class="none">'+esc('Original quoted '+plural(tp.length,'passage')+' from this paper: see passage 1.')+'</p>';
+      // A tab past a side's last passage keeps that side's last passage on screen.
+      const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
+      if(q1){
+        $('evi-sub').innerHTML=quoteHTML(q1);
         $('evi-sub-src').textContent=S.assignment||'This paper';
       } else if(e.kind!=='not_compared'){
         // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
         addNone('evi-sub',noTextWords(e,'this'));
       }
-      if(pp[place]){
-        $('evi-base').innerHTML=quoteHTML(pp[place]);
-        $('evi-base-src').textContent=pastLabel(pp[place].paper);
-      } else if(pp.length){
-        $('evi-base').innerHTML='<p class="none">'+esc('Original quoted '+plural(pp.length,'passage')+' from their past work: see passage 1.')+'</p>';
-        $('evi-base-src').textContent='';
+      if(q2){
+        $('evi-base').innerHTML=quoteHTML(q2);
+        $('evi-base-src').textContent=pastLabel(q2.paper);
       } else if(e.kind==='not_compared'){
-        $('evi-base').innerHTML='<p class="none">'+esc(EV.clean('Not compared: past papers have no value for this.',''))+'</p>';
+        // evidence-view's own wording (as evidence.html's notUsedWhy).
+        $('evi-base').innerHTML='<p class="none">'+esc(EV.noteFor(e,papers()))+'</p>';
         $('evi-base-src').textContent='';
       } else if(e.kind==='located'){
         addNone('evi-base',noTextWords(e,'base'));
