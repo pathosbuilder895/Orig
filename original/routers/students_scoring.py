@@ -644,9 +644,47 @@ def score_submission(
     except Exception:
         pass
 
+    # Rule D (RULE_D_OBSERVATION, report-only, default off). Computed after the
+    # score and action are final and from separate inputs, so it cannot change
+    # either. Only for HTTP callers (``/me/work`` passes request=None).
+    from ..rule_d import mode as _rule_d_mode
+
+    _rd_mode = _rule_d_mode()
+    _rule_d_obs = None
+    if _rd_mode != "off" and request is not None:
+        try:
+            from ..rule_d.service import observe_for
+
+            _rule_d_obs = observe_for(_repo(), state, _all_states(), req.text, vec, feature_vector)
+            logging.getLogger(__name__).info(
+                "rule_d_observation mode=%s status=%s configuration=%s reads_less_like=%s classmates=%d",
+                _rd_mode,
+                _rule_d_obs.status,
+                _rule_d_obs.configuration,
+                _rule_d_obs.reads_less_like_student,
+                _rule_d_obs.classmates,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("rule_d observation failed; omitted")
+            _rule_d_obs = None
+
     response = _to_response(result, arc, report=report)
     _attach_staff_explainability(response, request, req.text, state, result)
+    if _rd_mode == "on" and _rule_d_obs is not None:
+        _attach_rule_d(response, request, _rule_d_obs)
     return response
+
+
+def _attach_rule_d(response, request, obs) -> None:
+    """Rule D is for staff only: never for a student session, never in-process."""
+    if request is None:
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    from ..schemas import RuleDObservationOut
+
+    response.rule_d = RuleDObservationOut(**obs.as_dict())
 
 
 def _attach_staff_explainability(response, request, text: str, state, result) -> None:

@@ -270,6 +270,8 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # ADR-013 staff explainability: report-only, never moves a score.
     "EVIDENCE_PASSAGES_ENABLED": "0",
     "PRELIMINARY_SCORE_ENABLED": "0",
+    # Rule D: report-only, staff-only consistency observation; never moves a score.
+    "RULE_D_OBSERVATION": "off",
 }
 
 
@@ -821,6 +823,8 @@ API_SHADOW_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str]]] = {
     ),
     "AI_LIKELIHOOD_SHADOW=1": ({}, {"AI_LIKELIHOOD_SHADOW": "1"}, set()),
     "FUSED_SCORE_SHADOW=1": ({}, {"FUSED_SCORE_SHADOW": "1"}, set()),
+    # Rule D shadow computes and logs but attaches nothing.
+    "RULE_D_OBSERVATION=shadow": ({}, {"RULE_D_OBSERVATION": "shadow"}, set()),
     "CHARACTERISTIC_WEIGHTS=shadow": (
         {},
         {"CHARACTERISTIC_WEIGHTS": "shadow"},
@@ -1164,6 +1168,14 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {},
         {"STYLE_AUTHORSHIP_ENABLED": "1"},
         {"style_authorship", "style_authorship.probability_same_author"},
+        "",
+    ),
+    # Rule D on: the staff-only `rule_d` block appears (inconclusive for the
+    # single-student fixture, which is below the class-size floor).
+    "RULE_D_OBSERVATION=on": (
+        {},
+        {"RULE_D_OBSERVATION": "on"},
+        {"rule_d"},
         "",
     ),
     "TYPICALITY_SCORING=1": (

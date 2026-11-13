@@ -57,6 +57,7 @@ Make it one matrix, `tests/config/test_flag_byte_identity.py`:
 | `FUSED_SCORE_ENABLED` / `_SHADOW` | `0` | `_SHADOW=1` | `fused_score` |
 | `LONGITUDINAL_DRIFT_ENABLED` | `0` | — | report fields only |
 | `STYLE_AUTHORSHIP_ENABLED` | `0` | — | report fields only |
+| `RULE_D_OBSERVATION` | `off` | `shadow` | `rule_d` (staff only, report only) |
 | `SECRET_KEY` | `""` | — | amplitude path only, never `deviation_score` |
 
 The last row encodes a finding from TermSim: `SECRET_KEY` does not touch
