@@ -72,7 +72,7 @@ Milestones, in order:
 
 - Canvas/LTI integration. The code stays in the repo, but nothing links to it and it is not configured in the pilot.
 - Keystroke or behavioural biometrics in any form. This means PR #160-style Tier 17 work is off the table.
-- Turning on any research flag that changes scores. This includes the AI-likelihood detector, fused score, topic inflation and characteristic weights. Exception: rule D (`RULE_D_OBSERVATION`) may be built and shown as a report-only, default-off, testing-phase consistency observation; it never changes a score or a recommended action.
+- Turning on any research flag that changes scores. This includes the AI-likelihood detector, fused score, topic inflation and characteristic weights. Exception: rule D (`RULE_D_OBSERVATION`) may be built and shown as a report-only, testing-phase consistency observation, on by default for teachers while testing (`RULE_D_OBSERVATION=off` turns it off); it never changes a score or a recommended action.
 - Claims to detect cheating or AI authorship. Any "authorship probability" presentation.
 - AI that rewrites or corrects student work.
 - Billing automation; "My Voice" longitudinal graphics; writer-similarity percentages; class-wide unlocks or leaderboards.

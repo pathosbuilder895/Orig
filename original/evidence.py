@@ -97,8 +97,10 @@ NOT_LOCATED_NOTE = (
 
 
 def evidence_enabled() -> bool:
-    """EVIDENCE_PASSAGES_ENABLED=1 adds located evidence to staff score responses."""
-    return os.environ.get("EVIDENCE_PASSAGES_ENABLED", "0").strip() == "1"
+    """Located evidence on staff score responses. On by default while testing (2026-11,
+    owner decision, so rule D's side-by-side page opens); EVIDENCE_PASSAGES_ENABLED=0 turns
+    it off."""
+    return os.environ.get("EVIDENCE_PASSAGES_ENABLED", "1").strip() == "1"
 
 
 def preliminary_enabled() -> bool:

@@ -82,13 +82,13 @@ def test_configuration_maps_to_the_nearest_measured_setting():
     assert "nearest tested setting" in note and "310 words" in note
 
 
-def test_mode_parsing_fails_closed(monkeypatch):
+def test_mode_defaults_on_and_typed_values_fail_closed(monkeypatch):
     for raw, want in [("off", "off"), ("shadow", "shadow"), ("on", "on"), (" ON ", "on"), ("1", "off"),
                       ("yes", "off"), ("", "off")]:
         monkeypatch.setenv("RULE_D_OBSERVATION", raw)
         assert rule_d.mode() == want
     monkeypatch.delenv("RULE_D_OBSERVATION")
-    assert rule_d.mode() == "off"
+    assert rule_d.mode() == "on"  # on by default while testing (2026-11, owner decision)
 
 
 # ------------------------------------------------------------------ the floors --

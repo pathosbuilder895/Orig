@@ -440,13 +440,24 @@ def unit_payload(*, with_pool: bool = False, **config_kwargs: Any) -> dict:
     return _quantize(json.loads(json.dumps(dataclasses.asdict(output), default=_json_default)))
 
 
+# Flags whose CODE default is on while testing (2026-11, owner decision). The committed
+# snapshot is "every flag off", so these are set to their off literal instead of unset;
+# test_default_on_flags_read_as_on pins the unset default itself.
+DEFAULT_ON_FLAGS: dict[str, str] = {
+    "EVIDENCE_PASSAGES_ENABLED": "0",
+    "RULE_D_OBSERVATION": "off",
+}
+
+
 @contextlib.contextmanager
 def clean_flag_env() -> Iterator[None]:
-    """Every flag unset (SECRET_KEY blanked), restored on exit."""
+    """Every flag off (unset, or its off literal for DEFAULT_ON_FLAGS; SECRET_KEY blanked),
+    restored on exit."""
     saved = {name: os.environ.get(name) for name in FLAG_OFF_VALUES}
     try:
         for name in FLAG_OFF_VALUES:
             os.environ.pop(name, None)
+        os.environ.update(DEFAULT_ON_FLAGS)
         os.environ["SECRET_KEY"] = ""
         yield
     finally:
@@ -1684,3 +1695,17 @@ def test_every_scoring_config_field_has_an_off_arm():
     """Every `ScoringConfig` field is pinned at its default by an off-arm."""
     fields = {f.name for f in dataclasses.fields(ScoringConfig)}
     assert fields == set(UNIT_OFF_ARMS), sorted(fields ^ set(UNIT_OFF_ARMS))
+
+
+def test_default_on_flags_read_as_on(monkeypatch):
+    """The two report-only, staff-only flags that are on by default while testing."""
+    from original.evidence import evidence_enabled
+    from original.rule_d import mode
+
+    for name in DEFAULT_ON_FLAGS:
+        monkeypatch.delenv(name, raising=False)
+    assert evidence_enabled() is True
+    assert mode() == "on"
+    assert set(DEFAULT_ON_FLAGS) <= set(FLAG_OFF_VALUES)
+    for name, off in DEFAULT_ON_FLAGS.items():
+        assert FLAG_OFF_VALUES[name] == off
