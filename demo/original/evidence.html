@@ -311,11 +311,8 @@
 
   const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
   function parseTime(iso){ const d=new Date(String(iso||'')); return isNaN(d.getTime())?null:d; }
-  function sampleDay(s){
-    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
-    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
-    return '';
-  }
+  // A stored date as the calendar day it names (EvidenceView.dayOf, shared with the other pages).
+  const sampleDay=s=>EV.dayOf(s);
 
   // ── what Writing State left for us (sessionStorage, shape-checked) ──
   function readStored(){
@@ -349,26 +346,17 @@
   // ── pieces ──
   const PAPERS={list:[]};
   const nameOf=label=>EV.paperName(label,PAPERS.list);
-  // A past quote's source: the paper's stored title and date, else "Past paper N".
-  function pastSource(label){
-    const p=PAPERS.list.filter(x=>x.paper===label)[0];
-    const day=p?sampleDay(p.submitted_at):'';
-    return nameOf(label)+(day?', '+day:'');
-  }
   function quoteHTML(q,side){
     if(!isObj(q)) return '';
     const parts=EV.markParts(q);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const tiny=parts.mark.trim().length<=3||!/[A-Za-z0-9]/.test(parts.mark);
-    const body=esc(parts.before)+(parts.mark?'<mark'+(tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
-    const src=[q.paper==='this paper'?'This paper':pastSource(q.paper)];
-    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
-    if(tiny&&parts.mark) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
-    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    const body=esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
+    // The source line is EvidenceView.quoteSource, the rule all three pages share.
+    const src=EV.quoteSource(q,q.paper==='this paper'?'This paper':EV.pastSource(q.paper,PAPERS.list));
     // Character offsets stay out of the visible line; they are in the tooltip.
     const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
-      '<div class="ex-src"'+at+'>'+esc(src.join(' · '))+'</div>';
+      '<div class="ex-src"'+at+'>'+esc(src)+'</div>';
   }
   function baseLabel(examples){
     const ps=[];
@@ -393,10 +381,14 @@
   }
   const hasText=f=>f.kind==='located'&&isObj(f.this_paper)&&isObj(f.past_papers)&&Array.isArray(f.this_paper.examples)&&Array.isArray(f.past_papers.examples);
   // "What to notice": the plain-language line first, then the numbers line.
+  // `whole` is the server's whole-text note, raw; it is escaped once, here.
   function noticeHTML(f,whole){
-    const plain=EV.noticeFor(f,PAPERS.list);
-    // The server's whole-text note repeats what noticeFor already says.
-    const numbers=EV.noteFor(f,PAPERS.list)+(plain?'':whole);
+    // noticeFor is guarded like writing-state.html's call: noteFor alone without it.
+    const plain=typeof EV.noticeFor==='function'?EV.noticeFor(f,PAPERS.list):'';
+    // The server's whole-text note repeats what noticeFor says about a past range,
+    // so it is kept only when noticeFor said nothing or there are no past papers.
+    const keepWhole=whole&&(!plain||EV.position(f)==='none');
+    const numbers=EV.noteFor(f,PAPERS.list)+(keepWhole?' '+whole:'');
     return (plain?'<p><b>What to notice:</b> '+esc(plain)+'</p>':'')+
       '<p class="nums-line">'+(plain?'':'<b>What to notice:</b> ')+esc(numbers)+'</p>';
   }
@@ -405,7 +397,7 @@
     const name=EV.clean(f.name,f.code);
     const head=o.noHead?'':'<div class="ex-h"><b>'+esc(name)+'</b><span>'+esc(EV.oneLine(f))+'</span></div>';
     const cols=hasText(f)?textCols(f):numberCols(f);
-    const whole=f.kind==='whole_text'?' '+esc(EV.clean(f.note,'')):'';
+    const whole=f.kind==='whole_text'?EV.clean(f.note,''):'';
     return '<div class="ex" data-code="'+esc(f.code)+'">'+head+cols+
       '<div class="ex-note">'+noticeHTML(f,whole)+'</div></div>';
   }

@@ -79,6 +79,8 @@
   // this paper against the past papers, but past papers have no value for it,
   // so the score leaves it out and so does this page's comparison.
   var NOT_COMPARED_WORDS = 'not compared: past papers have no value for this';
+  // The same words as a sentence on their own: "Not compared: ... this."
+  var NOT_COMPARED_LINE = NOT_COMPARED_WORDS.charAt(0).toUpperCase() + NOT_COMPARED_WORDS.slice(1) + '.';
   function isNotCompared(f) { return !!f && f.kind === 'not_compared'; }
   // Every paper, this one and the past ones, has the same value.
   function isConstant(f) {
@@ -96,7 +98,7 @@
   function notComparedNote(f) {
     var v = num(((f && f.engine_scale) || {}).this_paper);
     return (v == null ? '' : 'This paper: ' + fmt(v) + ' (on Original\u2019s 0 to 1 scale). ') +
-      'Not compared: past papers have no value for this.';
+      NOT_COMPARED_LINE;
   }
 
   // The numbers a sentence about one measurement may use: plain units when the
@@ -181,10 +183,17 @@
   // do not show. noteFor stays the numbers line; this is the sentence above it.
   var CAUTION = 'A shift like this can come from a new topic, genre, length, revision or permitted help; on its own it does not show who wrote the paper.';
   var WHOLE_TEXT_WORDS = 'It is measured across the whole text, so there is no single sentence to quote.';
+  // A name inside a sentence: each word loses its capital only when it is an
+  // ordinary capitalised word (second letter lowercase), so acronyms ("POS")
+  // and the proper nouns below keep theirs.
+  var PROPER = { Flesch: true, Kincaid: true, Latin: true, English: true, Greek: true, Hebrew: true };
   function habitName(f) {
     var nm = String(f.name == null ? '' : f.name).trim();
     if (!nm) return 'this habit';
-    return /[A-Z]{2,}/.test(nm) ? nm : nm.toLowerCase();
+    return nm.replace(/[A-Za-z][A-Za-z.'\u2019]*/g, function (w) {
+      if (PROPER[w] || !/^[A-Z][a-z]/.test(w)) return w;
+      return w.charAt(0).toLowerCase() + w.slice(1);
+    });
   }
   function rangeBrackets(f) {
     var n = numbersOf(f);
@@ -309,8 +318,52 @@
     var a = num(q && q.match_start) - num(q && q.passage_start);
     var b = num(q && q.match_end) - num(q && q.passage_start);
     var ok = isFinite(a) && isFinite(b) && a >= 0 && b > a && b <= p.length && p.slice(a, b) === q.match;
-    if (!ok) return { before: p, mark: '', after: '' };
-    return { before: p.slice(0, a), mark: p.slice(a, b), after: p.slice(b) };
+    if (!ok) return { before: p, mark: '', after: '', tiny: false };
+    var mark = p.slice(a, b);
+    return { before: p.slice(0, a), mark: mark, after: p.slice(b), tiny: isShortMatch(mark) };
+  }
+
+  // A counted match too short to see in the highlight alone (a comma, "of"):
+  // the page marks it smaller and spells it out on the source line.
+  function isShortMatch(m) {
+    var s = String(m == null ? '' : m);
+    return !!s && (s.trim().length <= 3 || !/[A-Za-z0-9]/.test(s));
+  }
+
+  // A stored date ("2025-01-24" or a full timestamp) as the calendar day it
+  // names, e.g. "24 Jan 2025" in the reader's locale; '' when there is none.
+  function dayOf(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s == null ? '' : s));
+    if (!m) return '';
+    var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // One separator for every source line on the three pages.
+  var SEP = ' \u00b7 ';
+
+  // A past paper's source: its stored title (else "Past paper N") and its day.
+  function pastSource(label, papers) {
+    var p = null;
+    if (Array.isArray(papers)) {
+      for (var i = 0; i < papers.length; i++) {
+        if (papers[i] && typeof papers[i] === 'object' && papers[i].paper === label) { p = papers[i]; break; }
+      }
+    }
+    var day = p ? dayOf(p.submitted_at) : '';
+    return paperName(label, papers) + (day ? SEP + day : '');
+  }
+
+  // A quote's source line: where it is from, its length, a short match spelled
+  // out, and whether it runs into text set aside. `label` names the paper.
+  function quoteSource(q, label) {
+    var parts = markParts(q);
+    var src = [String(label == null ? '' : label)];
+    if (num(q && q.words) != null) src.push(plural(q.words, 'word'));
+    if (parts.tiny) src.push('Counted: \u201c' + parts.mark.trim() + '\u201d');
+    if (q && q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    return src.filter(Boolean).join(SEP);
   }
 
   var API = {
@@ -318,6 +371,8 @@
     paperName: paperName, isActive: isActive, isNotCompared: isNotCompared, NOT_COMPARED_WORDS: NOT_COMPARED_WORDS, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
     positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor, noticeFor: noticeFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
+    NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf,
+    SEP: SEP, pastSource: pastSource, quoteSource: quoteSource,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.EvidenceView = API;

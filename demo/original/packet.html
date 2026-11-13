@@ -497,29 +497,15 @@
   // out (their numbers are on the cards above and on the side-by-side page).
   const EV=window.EvidenceView;
   const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
-  function dayOf(s){
-    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
-    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
-    return '';
-  }
   function quoteBlock(q,label,side,papers){
     const parts=EV.markParts(q);
-    const tiny=parts.mark.trim().length<=3||!/[A-Za-z0-9]/.test(parts.mark);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
-    const src=[];
-    if(side==='this') src.push('This paper');
-    else{
-      const p=papers.filter(x=>isObj(x)&&x.paper===q.paper)[0];
-      const day=p?dayOf(p.submitted_at):'';
-      src.push(EV.paperName(q.paper,papers)+(day?', '+day:''));
-    }
-    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
-    if(tiny&&parts.mark) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
-    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
+    // The source line is EvidenceView.quoteSource, the rule all three pages share.
+    const src=EV.quoteSource(q,side==='this'?'This paper':EV.pastSource(q.paper,papers));
     const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-col"><div class="ex-lbl '+(side==='this'?'this':'base')+'">'+esc(side==='this'?'This paper':label)+'</div>'+
-      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src"'+at+'>'+esc(src.join(' · '))+'</div></div>';
+      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src"'+at+'>'+esc(src)+'</div></div>';
   }
   function sideBySideHTML(d){
     const ev=d.result.evidence;
@@ -536,7 +522,7 @@
       const tq=isObj(f.this_paper)&&Array.isArray(f.this_paper.examples)?f.this_paper.examples[0]:null;
       const pq=isObj(f.past_papers)&&Array.isArray(f.past_papers.examples)?f.past_papers.examples[0]:null;
       if(!isObj(tq)||!isObj(pq)||typeof tq.passage!=='string'||typeof pq.passage!=='string'){ skip(); return; }
-      const notice=EV.noticeFor(f), nums=EV.noteFor(f,papers);
+      const notice=typeof EV.noticeFor==='function'?EV.noticeFor(f,papers):'', nums=EV.noteFor(f,papers);
       cards.push('<div class="ex">'+
         '<div class="ex-h"><b>'+esc(EV.clean(String(f.name||'This habit'),'This habit'))+'</b><span>'+esc(EV.oneLine(f))+'</span></div>'+
         quoteBlock(tq,'','this',papers)+quoteBlock(pq,EV.paperName(pq.paper,papers),'base',papers)+

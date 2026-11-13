@@ -944,33 +944,16 @@
     // any other note on a whole-text habit says something more specific and is shown as sent.
     const SERVER_WHOLE='Whole-text measurement, no single sentence to point to.';
     const papers=()=>{ const ev=S.result&&S.result.evidence; return ev&&Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[]; };
-    const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
-    // A stored date as the calendar day it names (as evidence.html's sampleDay).
-    function sampleDay(s){
-      const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
-      if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
-      return '';
-    }
-    // "past paper 2" -> its stored assignment and day, else "Past paper 2".
-    function pastLabel(label){
-      const p=papers().find(x=>x.paper===label)||{};
-      const name=typeof p.assignment==='string'&&p.assignment.trim()?p.assignment.trim():EV.paperName(label,[]);
-      return [name,sampleDay(p.submitted_at)].filter(Boolean).join(' · ');
-    }
-    const isTiny=m=>m.trim().length<=3||!/[A-Za-z0-9]/.test(m);
     function quoteHTML(q){
       const parts=EV.markParts(q);
       const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(isTiny(parts.mark)?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
     }
-    // A quote's source line: where it is from, its length, and a short match spelled out.
+    // A quote's source line (EvidenceView.quoteSource, the rule all three pages share).
     // Character offsets stay out of the visible line; they are in the tooltip.
     function setSource(id,q,label){
-      const el=$(id), parts=EV.markParts(q), src=[label];
-      if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
-      if(parts.mark&&isTiny(parts.mark)) src.push('Counted: \u201c'+parts.mark.trim()+'\u201d');
-      if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
-      el.textContent=src.join(' · ');
+      const el=$(id);
+      el.textContent=EV.quoteSource(q,label);
       if(num(q.start)!=null&&num(q.end)!=null) el.title='characters '+q.start+' to '+q.end;
     }
     const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
@@ -1045,10 +1028,10 @@
       }
       if(q2){
         $('evi-base').innerHTML=quoteHTML(q2);
-        setSource('evi-base-src',q2,pastLabel(q2.paper));
+        setSource('evi-base-src',q2,EV.pastSource(q2.paper,papers()));
       } else if(e.kind==='not_compared'){
         // Why there is nothing here; this paper's number is already in the column beside it.
-        $('evi-base').innerHTML='<p class="none">'+esc('Not compared: past papers have no value for this.')+'</p>';
+        $('evi-base').innerHTML='<p class="none">'+esc(EV.NOT_COMPARED_LINE)+'</p>';
         $('evi-base-src').textContent='';
       } else if(e.kind==='located'){
         addNone('evi-base',noTextWords(e,'base'));
