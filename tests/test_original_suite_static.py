@@ -496,7 +496,11 @@ def test_writing_state_keeps_triage_local_and_names_each_analysis():
     # no_action when manifests are off (original/routers/admin.py). Each score
     # call sends its own submission_id so analyses cannot share one.
     page = (SUITE / "writing-state.html").read_text(encoding="utf-8")
-    assert "/submissions/" not in page
+    # The one submissions route it names is the read of a sealed Collections
+    # exam (GET, staff-only), never a write about an analysis.
+    read_sealed = "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))"
+    assert page.count(read_sealed) == 1
+    assert "/submissions/" not in page.replace(read_sealed, "")
     assert "/correct" not in page
     assert "submission_id" in page
     assert "original_portfolio_" in page
@@ -4107,3 +4111,75 @@ def test_writing_state_sends_docx_and_pdf_only_to_the_extraction_route():
     # A late server reply never overwrites newer input.
     assert "const my=++openSeq;" in state and "if(my!==openSeq) return;" in state
     assert "$('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });" in state
+
+
+# ── A sealed Collections exam analysed against the baseline ─────────────────
+
+
+SEALED_JOIN = re.compile(r"function sealedPaperText\(sub\)\{.*?\}\n")
+
+
+@needs_node
+def test_writing_state_joins_a_sealed_exam_exactly_as_the_baseline_approval_does():
+    from original.routers.bluebook_baselines import _baseline_text
+
+    fn = SEALED_JOIN.findall(_writing_state())
+    assert len(fn) == 1, "sealedPaperText must stay a one-line function"
+    samples = [
+        {"answers": ["  First answer.\n", "", "Second\nanswer.  ", "   "], "text": "Question 1.\nFirst"},
+        {"answers": ["Only one."], "text": "Only one."},
+        {"answers": [], "text": "  Question 1.\nOld text with headings.\n"},
+        {"answers": ["", "  "], "text": "Question 1.\nx"},
+        {"answers": [None, "Kept", "\tTabbed\t"], "text": ""},
+        {"text": None},
+        {},
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", fn[0] + "process.stdout.write(JSON.stringify("
+         "JSON.parse(require('fs').readFileSync(0,'utf8')).map(sealedPaperText)));"],
+        input=json.dumps(samples), capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [_baseline_text(s) for s in samples]
+
+
+def test_writing_state_loads_a_sealed_exam_but_never_analyses_it_by_itself():
+    state = _writing_state()
+    assert "get('submission')" in state
+    # The staff-only detail route, for this submission only.
+    assert "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))" in state
+    body = state[state.index("async function loadSealed(){") :]
+    body = body[: body.index("\n  }\n")]
+    # The paper is checked to be this student's before anything is filled.
+    assert "if(String(d.student_id||'')!==S.id){ sealedFail(" in body
+    assert body.index("String(d.student_id||'')!==S.id") < body.index("$('an-text').value=text;")
+    # The teacher presses Analyse: loading never scores, never touches a baseline.
+    for never in ("/score", "analyse(", "requestSubmit", ".submit(", "/baseline", "click()"):
+        assert never not in body, never
+    assert "'Loaded from Collections: '+label" in body
+    assert "label=exam+(date?', sealed '+date:'')" in body
+    # Every failure leaves the form empty and says so plainly.
+    fail = state[state.index("function sealedFail(text){") :]
+    fail = fail[: fail.index("\n  }\n")]
+    assert "$('an-text').value=''; $('an-assign').value='';" in fail and "msg(text,true)" in fail
+    for words in (
+        "This sealed exam was not found in your workspace, so nothing was loaded.",
+        "You do not have access to this sealed exam, so nothing was loaded.",
+        "This sealed exam was written by a different student, so it was not loaded.",
+    ):
+        assert words in body
+
+
+def test_a_sealed_exam_link_wins_over_the_kept_last_analysis():
+    state = _writing_state()
+    restore = state[state.index("  function restoreLast(){") :]
+    restore = restore[: restore.index("\n  }\n")]
+    # The kept record is shown on a ?submission= link only when it is that
+    # exam's own analysis; otherwise the sealed exam loads.
+    assert "if(S.subId&&recSub!==S.subId) return false;" in restore
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in state
+    # The record says which sealed exam it analysed, and only when the box
+    # still held exactly that exam's text.
+    assert "collections_submission:S.resultSub," in state
+    assert "S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';" in state
+

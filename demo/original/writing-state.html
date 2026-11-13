@@ -288,6 +288,7 @@
   .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
   .an-msg.err{color:#f0a690;}
+  .an-from{margin:.1rem 0 .55rem;font-size:.82rem;font-style:italic;color:var(--gold-2);}
   .an-note{margin-top:.6rem;font-size:.86rem;font-style:italic;line-height:1.5;color:var(--dim);}
   .an-note b{color:var(--cream);font-style:normal;font-weight:500;}
   .an-note a,.plain-read a{color:var(--gold-2);}
@@ -387,6 +388,7 @@
         </div>
         <div class="an-note" id="an-note" role="status"></div>
         <form id="an-form" hidden novalidate>
+          <p class="an-from" id="an-from" role="status" hidden></p>
           <label class="an-lbl" for="an-assign">Assignment</label>
           <input class="an-field" id="an-assign" type="text" maxlength="200" autocomplete="off" placeholder="Optional, for your own reference" />
           <label class="an-lbl" for="an-text">The paper</label>
@@ -556,7 +558,10 @@
   const S={
     id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
     base:null, sub:null, result:null, D:new Map(), C:new Map(), EVI:new Map(),
-    assignment:'', words:0, analysedAt:'', view:'baseline'
+    assignment:'', words:0, analysedAt:'', view:'baseline',
+    // A sealed Collections exam named in the address (?submission=), the text
+    // loaded from it, and the exam the shown analysis was made of ('' if none).
+    subId:'', fromText:'', fromSub:'', resultSub:''
   };
   const who=()=>S.name||S.id;
   const poss=()=>who()+'’s';
@@ -1251,7 +1256,45 @@
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
-  function updateWords(){ const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):''; }
+  function updateWords(){
+    const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):'';
+    // "Loaded from Collections" stays only while the box holds that exam's text.
+    $('an-from').hidden=!(S.fromSub&&$('an-text').value===S.fromText);
+  }
+
+  // ── a sealed Collections exam (?student=<id>&submission=<id>) ──
+  // The paper is the student's answers joined by a blank line, the same text
+  // the baseline approval uses (routers/bluebook_baselines.py _baseline_text),
+  // never the "Question N." headings the stored text carries. Nothing runs
+  // until the teacher presses Analyse.
+  function sealedPaperText(sub){ const raw=sub&&Array.isArray(sub.answers)?sub.answers:[]; if(raw.length) return raw.map(a=>String(a||'').trim()).filter(Boolean).join('\n\n'); return String((sub&&sub.text)||'').trim(); }
+  function sealedFail(text){
+    $('an-text').value=''; $('an-assign').value=''; S.fromSub=''; S.fromText='';
+    updateWords(); msg(text,true);
+  }
+  async function loadSealed(){
+    const my=++openSeq;
+    msg('Loading the sealed exam from Collections.');
+    const res=await Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId));
+    if(my!==openSeq) return;  // the teacher has typed or opened a file since
+    const d=res.data;
+    if(res.status===404){ sealedFail('This sealed exam was not found in your workspace, so nothing was loaded.'); return; }
+    if(res.status===401){ sealedFail('Your sign-in has ended. Sign in again, then open the exam from Collections.'); return; }
+    if(res.status===403){ sealedFail('You do not have access to this sealed exam, so nothing was loaded.'); return; }
+    if(!res.ok||!d||typeof d!=='object'){ sealedFail('The sealed exam could not be loaded just now. Try reloading the page.'); return; }
+    if(String(d.student_id||'')!==S.id){ sealedFail('This sealed exam was written by a different student, so it was not loaded. Open it from that student’s row in Submissions.'); return; }
+    const text=sealedPaperText(d);
+    if(!text){ sealedFail('This sealed exam has no written answers to analyse.'); return; }
+    const exam=String(d.exam||'').trim()||'Untitled exam';
+    const t=d.created_at?new Date(d.created_at):null;
+    const date=t&&!isNaN(t.getTime())?t.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+    const label=exam+(date?', sealed '+date:'');
+    S.fromSub=S.subId; S.fromText=text;
+    $('an-text').value=text;
+    $('an-assign').value=label.slice(0,200);
+    $('an-from').textContent='Loaded from Collections: '+label+'. Press Analyse to compare it with the baseline.';
+    updateWords(); msg('');
+  }
 
   async function loadPicker(){
     const sel=$('an-student');
@@ -1292,7 +1335,7 @@
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
-    else if(!restoreLast()){ note(thinNote()); setCard('form'); }
+    else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
@@ -1353,6 +1396,9 @@
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
       setResult(d,assignment,countWords(text));
+      // Analysed exactly as loaded from Collections: kept with the result, so
+      // Back to this page's sealed-exam link shows this analysis again.
+      S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
       S.entryId=appendAnalysis(d,text,assignment);
       setView('submission',true);
       renderAll();
@@ -1449,6 +1495,7 @@
     const keep={
       kind:'original_writing_state', version:1,
       student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
+      collections_submission:S.resultSub,
       habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
       summary:$('plain-read').textContent,
       result:{
@@ -1485,16 +1532,22 @@
     const id=(typeof rec.entry_id==='string'&&rec.entry_id)||(typeof rec.result.submission_id==='string'?rec.result.submission_id:'');
     return id?(entries.find(h=>h&&typeof h==='object'&&h.id===id)||null):null;
   }
+  // A sealed-exam link (?submission=) wins over the kept record: the record is
+  // shown again only when it is the analysis of that same exam, so a link never
+  // opens on an older analysis of a different paper.
   function restoreLast(){
     let raw=null;
     try{ raw=window.sessionStorage.getItem('original_last_result'); }catch(e){ return false; }
     const rec=lastRecord(raw,S.id);
     if(!rec) return false;
+    const recSub=typeof rec.collections_submission==='string'?rec.collections_submission:'';
+    if(S.subId&&recSub!==S.subId) return false;
     const entry=keptEntry(readPortfolio(),rec);
     const assignment=typeof rec.assignment==='string'?rec.assignment.slice(0,200):'';
     const at=typeof rec.analysed_at==='string'&&!isNaN(Date.parse(rec.analysed_at))?rec.analysed_at:'';
     if(typeof rec.student_name==='string'&&rec.student_name.trim()) S.name=rec.student_name.trim();
     setResult(rec.result,assignment,num(rec.word_count)||0,at);
+    S.resultSub=recSub;
     S.entryId=entry?entry.id:'';
     $('an-assign').value=assignment;
     $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
@@ -1571,6 +1624,7 @@
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }
     S.id=id; S.name=id;
+    S.subId=(new URLSearchParams(location.search).get('submission')||'').trim();
     renderAll(); setView('baseline',false);
     loadStudent();
   }
