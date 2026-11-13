@@ -9,12 +9,17 @@ What these pin:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 
+# Imported at collection, not inside a test: the import configures the root logger
+# (configure_logging), which would drop caplog's handler mid-test.
+from original import api as api_mod
 from original import evidence as ev
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 from original.evidence_features import feature_info
@@ -278,6 +283,41 @@ def test_flags_default_off(monkeypatch):
     monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
     monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
     assert ev.evidence_enabled() is True and ev.preliminary_enabled() is True
+
+
+@pytest.mark.parametrize(
+    ("evidence_flag", "preliminary_flag", "expected"),
+    [
+        (None, None, "staff_explainability evidence_passages=off preliminary_score=off"),
+        ("1", "1", "staff_explainability evidence_passages=on preliminary_score=on"),
+        ("1", "true", "staff_explainability evidence_passages=on preliminary_score=off"),
+        ("0", " 1 ", "staff_explainability evidence_passages=off preliminary_score=on"),
+    ],
+)
+def test_startup_logs_one_line_naming_both_staff_flags(monkeypatch, caplog, evidence_flag, preliminary_flag, expected):
+    """render.yaml turns both on for the pilot; the boot log says which are on, by
+    the same exact-"1" rule the score route uses."""
+    class _NoSqliteRepo:  # the Postgres shape: no in-app backup task is started
+        def db_path(self):
+            raise NotImplementedError
+
+    monkeypatch.setattr(api_mod, "_secret_key_pinned", True)
+    monkeypatch.setattr(api_mod, "_repo", lambda: _NoSqliteRepo())
+    monkeypatch.setattr(api_mod, "_GUARD_DESTRUCTIVE", False)
+    monkeypatch.delenv("AI_LIKELIHOOD_ENABLED", raising=False)
+    monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
+    for name, value in (("EVIDENCE_PASSAGES_ENABLED", evidence_flag), ("PRELIMINARY_SCORE_ENABLED", preliminary_flag)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    assert ev.staff_explainability_status() == expected
+    with caplog.at_level(logging.INFO, logger="original.api"):
+        with TestClient(api_mod.app):
+            pass
+    lines = [r for r in caplog.records if r.getMessage().startswith("staff_explainability ")]
+    assert [r.getMessage() for r in lines] == [expected]
+    assert lines[0].levelno == logging.INFO
 
 
 def test_html_report_has_two_columns_and_escapes_text():

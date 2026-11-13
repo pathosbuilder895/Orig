@@ -106,6 +106,17 @@ def preliminary_enabled() -> bool:
     return os.environ.get("PRELIMINARY_SCORE_ENABLED", "0").strip() == "1"
 
 
+def staff_explainability_status() -> str:
+    """The one startup log line naming both staff-only flags and whether each is on.
+
+    Same exact-"1" reading as the two functions above, so the line says what the
+    score route will do. Logged once from ``api.lifespan``.
+    """
+    evidence = "on" if evidence_enabled() else "off"
+    preliminary = "on" if preliminary_enabled() else "off"
+    return f"staff_explainability evidence_passages={evidence} preliminary_score={preliminary}"
+
+
 MAX_EXAMPLES = 3
 MAX_QUOTE_CHARS = 360
 DEFAULT_TOP_N = 5

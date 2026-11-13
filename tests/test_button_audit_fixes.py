@@ -509,7 +509,10 @@ def test_a_submissions_row_opens_its_own_exam_in_bluebook():
     rows = out["rows"]
     assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Collections"' in rows
     assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Collections"' in rows  # an id is encoded, never spliced in
-    assert 'href="/bluebook/" title="Opens this exam in Collections"' in rows  # a booklet with no exam id opens Bluebook itself
+    # A booklet with no exam id opens the Collections list. It carries a hash because the
+    # bare /bluebook/ address now sends a teacher whose workspace has Original home to
+    # Original (staffOriginalHome, demo/bluebook/deep-link.jsx).
+    assert 'href="/bluebook/#collections" title="Opens this exam in Collections"' in rows
     assert 'title="Opens Bluebook"' not in rows
 
 

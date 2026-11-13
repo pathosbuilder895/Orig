@@ -18,7 +18,10 @@ import {
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
 import { installResumeTracking, trackScreen } from './resume-location.jsx';
-import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, rememberScreen } from './deep-link.jsx';
+import {
+  DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, markCollectionsTab, rememberScreen,
+  staffHomeRedirect,
+} from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -179,6 +182,11 @@ function App() {
   React.useEffect(() => { trackScreen(screen); }, [screen]);
   // The Text setting follows the signed-in account (display only).
   React.useEffect(() => { syncDisplayWithAccount(); }, [screen]);
+  // A signed-in teacher is working in Collections in this tab: a reload of a
+  // screen the address does not name stays here (staffOriginalHome, deep-link.jsx).
+  React.useEffect(() => {
+    if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) markCollectionsTab();
+  }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
@@ -387,4 +395,11 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// A teacher whose workspace has Original opens Original, not the Collections
+// dashboard, when they arrive at the bare /bluebook/ address signed in
+// (staffOriginalHome in deep-link.jsx says exactly when). Decided before the
+// app draws anything, so the dashboard never flashes or saves itself as the
+// place to resume.
+const staffHome = staffHomeRedirect(BB_API);
+if (staffHome) window.location.replace(staffHome);
+else ReactDOM.createRoot(document.getElementById('root')).render(<App />);

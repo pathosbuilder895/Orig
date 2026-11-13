@@ -49,6 +49,9 @@
   // (sessionStorage). On a shared computer they must not outlive the session.
   var PORTFOLIO_PREFIX = 'original_portfolio_';
   var LAST_RESULT_KEY = 'original_last_result';
+  // Collections marks a tab a signed-in teacher has worked in, so a reload there
+  // stays in Collections (demo/bluebook/deep-link.jsx COLLECTIONS_TAB_KEY).
+  var COLLECTIONS_TAB_KEY = 'bluebook_collections_tab';
 
   var NOTICE = 'Testing phase: Original is not yet validated on real student writing. Treat any result as a reason for a conversation, never as evidence.';
 
@@ -129,6 +132,12 @@
     var me = token ? api('/auth/me') : Promise.resolve(null);
     return me.then(function (res) {
       if (res && res.ok && res.data) {
+        // The server's products replace what sign-in stored, in the JSON list
+        // Collections reads (BB_API.products, demo/bluebook/components.jsx), so
+        // a workspace that lost Original stops being sent here from /bluebook/.
+        if (Array.isArray(res.data.products) && res.data.products.length) {
+          try { window.localStorage.setItem('original_products', JSON.stringify(res.data.products)); } catch (e) { /* storage blocked */ }
+        }
         return {
           mode: 'signed-in',
           role: String(res.data.role || ''),
@@ -224,7 +233,7 @@
       if (s.products.indexOf('original') < 0) {
         panel(el, 'Original is off for this workspace',
           'Your workspace uses Collections only. Your classes and sealed exams are in Collections.',
-          '/bluebook/', 'Open Collections');
+          '/bluebook/#dashboard', 'Open Collections');
         return null;
       }
       return s;
@@ -618,6 +627,7 @@
       try { window.localStorage.removeItem(k); } catch (e) { /* storage blocked */ }
     });
     try { window.sessionStorage.removeItem(LAST_RESULT_KEY); } catch (e) { /* storage blocked */ }
+    try { window.sessionStorage.removeItem(COLLECTIONS_TAB_KEY); } catch (e) { /* storage blocked */ }
     window.location.replace(next);
   }
 

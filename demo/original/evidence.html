@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -103,7 +103,7 @@
   .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
-  .ex-col{padding:1rem 1.2rem;min-width:0;}
+  .ex-col{padding:1.1rem 1.3rem;min-width:0;}
   .ex-col+.ex-col{border-left:1px solid var(--rule);}
   .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;overflow-wrap:anywhere;}
   .ex-lbl.this{color:var(--flag);}
@@ -112,15 +112,23 @@
   .ex-big.base{color:var(--base);}
   .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
   .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);overflow-wrap:anywhere;}
-  .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
   .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
-  .ex-src{font-family:var(--mono);font-size:.64rem;color:var(--ink-2);margin-top:.45rem;overflow-wrap:anywhere;}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
+  .ex-src{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;color:var(--ink-2);margin-top:.5rem;overflow-wrap:anywhere;}
   .ex-vals{list-style:none;font-size:.95rem;}
   .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
   .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
-  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note{grid-column:1/-1;padding:.8rem 1.1rem .9rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
+  .ex{transition:border-color .18s,box-shadow .18s;}
+  .ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
+  .m:target>summary{background:#f6f0e0;}
   /* every measurement */
   .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
   .m>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:2.4rem 1fr auto;gap:.8rem;align-items:baseline;padding:.6rem .9rem;}
@@ -192,6 +200,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -247,8 +256,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/evidence-view.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-13.1"></script>
+<script src="js/evidence-view.js?v=2026-11-13.1"></script>
 <script>
 (function(){
   'use strict';
@@ -302,11 +311,8 @@
 
   const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
   function parseTime(iso){ const d=new Date(String(iso||'')); return isNaN(d.getTime())?null:d; }
-  function sampleDay(s){
-    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
-    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
-    return '';
-  }
+  // A stored date as the calendar day it names (EvidenceView.dayOf, shared with the other pages).
+  const sampleDay=s=>EV.dayOf(s);
 
   // ── what Writing State left for us (sessionStorage, shape-checked) ──
   function readStored(){
@@ -344,13 +350,13 @@
     if(!isObj(q)) return '';
     const parts=EV.markParts(q);
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const body=esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
-    const src=[q.paper==='this paper'?'This paper':nameOf(q.paper)];
-    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
-    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
-    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    const body=esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
+    // The source line is EvidenceView.quoteSource, the rule all three pages share.
+    const src=EV.quoteSource(q,q.paper==='this paper'?'This paper':EV.pastSource(q.paper,PAPERS.list));
+    // Character offsets stay out of the visible line; they are in the tooltip.
+    const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
-      '<div class="ex-src">'+esc(src.join(' · '))+'</div>';
+      '<div class="ex-src"'+at+'>'+esc(src)+'</div>';
   }
   function baseLabel(examples){
     const ps=[];
@@ -374,14 +380,26 @@
         '</ul><div class="ex-unit">'+esc(n.unit)+'</div></div>';
   }
   const hasText=f=>f.kind==='located'&&isObj(f.this_paper)&&isObj(f.past_papers)&&Array.isArray(f.this_paper.examples)&&Array.isArray(f.past_papers.examples);
+  // "What to notice": the plain-language line first, then the numbers line.
+  // `whole` is the server's whole-text note, raw; it is escaped once, here.
+  function noticeHTML(f,whole){
+    // noticeFor is guarded like writing-state.html's call: noteFor alone without it.
+    const plain=typeof EV.noticeFor==='function'?EV.noticeFor(f,PAPERS.list):'';
+    // The server's whole-text note repeats what noticeFor says about a past range,
+    // so it is kept only when noticeFor said nothing or there are no past papers.
+    const keepWhole=whole&&(!plain||EV.position(f)==='none');
+    const numbers=EV.noteFor(f,PAPERS.list)+(keepWhole?' '+whole:'');
+    return (plain?'<p><b>What to notice:</b> '+esc(plain)+'</p>':'')+
+      '<p class="nums-line">'+(plain?'':'<b>What to notice:</b> ')+esc(numbers)+'</p>';
+  }
   function card(f,opts){
     const o=opts||{};
     const name=EV.clean(f.name,f.code);
     const head=o.noHead?'':'<div class="ex-h"><b>'+esc(name)+'</b><span>'+esc(EV.oneLine(f))+'</span></div>';
     const cols=hasText(f)?textCols(f):numberCols(f);
-    const whole=f.kind==='whole_text'?' '+esc(EV.clean(f.note,'')):'';
+    const whole=f.kind==='whole_text'?EV.clean(f.note,''):'';
     return '<div class="ex" data-code="'+esc(f.code)+'">'+head+cols+
-      '<div class="ex-note"><b>What to notice:</b> '+esc(EV.noteFor(f,PAPERS.list))+whole+'</div></div>';
+      '<div class="ex-note">'+noticeHTML(f,whole)+'</div></div>';
   }
 
   // How the two lists are ordered, in the words of the server's own ordering
@@ -531,6 +549,24 @@
     renderPast(ev,d);
     $('status').hidden=true;
     $('paper').hidden=false;
+    openFromHash();
+  }
+  // evidence.html#m-<code> (Writing State links here): open that row, scroll to it.
+  function openFromHash(){
+    let h='';
+    try{ h=decodeURIComponent(window.location.hash||''); }catch(e){ return; }
+    if(!/^#m-.+/.test(h)) return;
+    const el=document.getElementById(h.slice(1));
+    if(el&&el.tagName==='DETAILS'){
+      el.open=true;
+      el.scrollIntoView({block:'start'});
+      return;
+    }
+    const li=document.querySelector('#m-not-used li[data-code="'+h.slice(3).replace(/["\\]/g,'')+'"]');
+    if(li){
+      document.getElementById('m-not-used').open=true;
+      li.scrollIntoView({block:'center'});
+    }
   }
 
   // ── go ──

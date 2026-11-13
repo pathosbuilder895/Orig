@@ -15,6 +15,15 @@
  * the live auth path.
  */
 
+/**
+ * The Collections dashboard, named on purpose. A signed-in teacher whose
+ * workspace has Original who opens the bare /bluebook/ address is sent to
+ * Original (staffOriginalHome in demo/bluebook/deep-link.jsx); a spec that
+ * means to exercise Collections opens it here instead, the way Original's own
+ * links into Collections carry a hash.
+ */
+export const COLLECTIONS_HOME = '/bluebook/#dashboard'
+
 let _uniqueCounter = 0
 function unique(prefix) {
   _uniqueCounter += 1
@@ -123,11 +132,11 @@ export async function studentLogin(request, { staffToken, email, name } = {}) {
  */
 export async function addBaselineFor(request, studentId, studentToken, {
   text = 'A baseline writing sample used to seed this e2e student before scoring.',
-  provenance = 'verified', assignment = 'E2E baseline seed',
+  provenance = 'verified', assignment = 'E2E baseline seed', submittedAt = '',
 } = {}) {
   const res = await request.post(`/students/${encodeURIComponent(studentId)}/baseline`, {
     headers: { Authorization: `Bearer ${studentToken}` },
-    data: { text, provenance, assignment },
+    data: { text, provenance, assignment, ...(submittedAt ? { submitted_at: submittedAt } : {}) },
   })
   return okJson(res, `addBaselineFor(${studentId})`)
 }

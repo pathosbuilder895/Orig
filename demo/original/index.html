@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your classes</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -114,7 +114,7 @@
   .stats-btn.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.55);color:var(--gold-2);}
   .hero{position:absolute;inset:0;}
   .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
-  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.7) brightness(.5) contrast(1.12) hue-rotate(-6deg);}
+  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.85) brightness(.85) contrast(1.12) hue-rotate(-6deg);}
   .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.96) 0%, rgba(10,16,36,0.4) 22%, transparent 46%),linear-gradient(0deg, rgba(7,11,28,0.96) 8%, transparent 42%),radial-gradient(80% 60% at 70% 30%, rgba(201,160,40,0.10), transparent 70%);}
   .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
@@ -144,8 +144,13 @@
   tbody td{padding:.7rem 0;border-top:1px solid rgba(255,255,255,0.05);font-size:.9rem;color:var(--cream);vertical-align:middle;white-space:nowrap;}
   tbody td:first-child{max-width:180px;overflow:hidden;text-overflow:ellipsis;}
   .flag-row{cursor:pointer;transition:background .14s;}
-  .flag-row:hover td{background:rgba(201,160,40,0.06);}
-  .flag-row:hover td:first-child{box-shadow:inset 2px 0 0 var(--gold);}
+  .flag-row td{transition:background .14s,box-shadow .14s;}
+  .flag-row:hover td,.flag-row:focus-within td{background:rgba(201,160,40,0.06);}
+  .flag-row:hover td:first-child,.flag-row:focus-within td:first-child{box-shadow:inset 2px 0 0 var(--gold);}
+  /* The name is the row's real link (keyboard: Tab to it, Enter opens); a click anywhere else on the row follows it too. */
+  .nm-a{color:inherit;text-decoration:none;border-radius:4px;}
+  .nm-a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .flag-row:hover .nm-a{color:var(--gold-2);}
   .doc{display:flex;align-items:center;gap:.55rem;min-width:0;}
   .doc .nm-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .doc .ic{width:30px;height:30px;border-radius:8px;background:rgba(201,160,40,0.12);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0;}
@@ -190,6 +195,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -255,8 +261,8 @@
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/fingerprint.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-13.1"></script>
+<script src="js/fingerprint.js?v=2026-11-13.1"></script>
 <script>
   (function(){
     function init(){
@@ -455,16 +461,23 @@
     if(!rows.length){ Live.empty($('ops-wrap'),'No students on your roster yet.'); return; }
     $('ops-body').innerHTML=rows.map(r=>{
       const last=r.last?fmtDate(r.last):'';
-      return '<tr class="flag-row" data-id="'+esc(r.id)+'" title="'+esc('Show '+r.name+'’s summary')+'">'+
-        '<td><div class="doc"><span class="ic">'+ICO+'</span><span class="nm-t">'+esc(r.name)+'</span></div></td>'+
+      const href='writing-state.html?student='+encodeURIComponent(r.id);
+      return '<tr class="flag-row" data-id="'+esc(r.id)+'" data-href="'+esc(href)+'" title="'+esc('Open '+r.name+'’s Writing State')+'">'+
+        '<td><div class="doc"><span class="ic">'+ICO+'</span><a class="nm-t nm-a" href="'+esc(href)+'">'+esc(r.name)+'</a></div></td>'+
         '<td class="crs">'+esc(r.courses.join(', '))+'</td>'+
         '<td>'+countedCell(r)+'</td>'+
         '<td style="color:var(--dim);">'+esc(bb==='ok'?(last||'None yet'):'-')+'</td>'+
-        '<td class="r"><button class="stats-btn" data-id="'+esc(r.id)+'">'+BARS+'stats</button></td>'+
+        '<td class="r"><button type="button" class="stats-btn" data-id="'+esc(r.id)+'" title="'+esc('Show '+r.name+'’s summary here')+'">'+BARS+'stats</button></td>'+
       '</tr>';
     }).join('');
     document.querySelectorAll('.stats-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openStudent(b.dataset.id);}));
-    document.querySelectorAll('.flag-row').forEach(tr=>tr.addEventListener('click',()=>openStudent(tr.dataset.id)));
+    // A row opens that student's Writing State (as the name link does); the stats button keeps the summary here.
+    document.querySelectorAll('.flag-row').forEach(tr=>tr.addEventListener('click',e=>{
+      if(e.target.closest('a,button')) return;
+      // Selecting text in a row (a drag) is not a click to open it.
+      if(String(window.getSelection()||'')) return;
+      const h=tr.getAttribute('data-href'); if(h) location.href=h;
+    }));
   }
 
   // ── one student: the left rail swaps to that student's own numbers ──
