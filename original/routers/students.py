@@ -11,18 +11,27 @@ students_scoring.py — same route group, split only for file size.
 from __future__ import annotations
 
 import io
+import secrets
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from .. import principal as principal_mod
+from .. import student_auth
 from ..repository import get_repository
 from ..schemas import (
     BaselineWordStats,
     ReadinessResponse,
     SampleSummary,
     StudentStateResponse,
+    WriterCreateRequest,
 )
-from ._shared import _repo, _require_guard, min_baseline_samples
+from ._shared import (
+    _bluebook_tenant,
+    _repo,
+    _require_guard,
+    _require_staff,
+    min_baseline_samples,
+)
 
 router = APIRouter()
 
@@ -55,6 +64,38 @@ def list_students(request: Request, tenant_id: str = ""):
     # render — only when scoped to a single tenant.
     roster = _repo().roster_for_tenant(roster_tenant) if roster_tenant else None
     return {"students": ids, "roster": roster}
+
+
+@router.post("/students", status_code=201)
+def create_writer(body: WriterCreateRequest, request: Request):
+    """Add a writer by name: no course, email, invite or account.
+
+    For a writer who sends papers by email. The id is minted in the caller's
+    own tenant by the rule every student id follows
+    (``student_auth.derive_student_id``: ``"{tenant}:{16 hex}"``), keyed on
+    a random value instead of an email, so nothing in a request can choose or
+    widen the tenant. The writer is then what a roster add makes for a tenant
+    with Original (an empty profile plus a stored name), so every Original
+    page treats them as a student, and ``DELETE /students/{id}`` erases them.
+    Names are not deduplicated: two people can share one.
+    """
+    staff = _require_staff(request)
+    tenant = _bluebook_tenant(request)
+    repo = _repo()
+    sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
+    while repo.get(sid) is not None:
+        sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
+    repo.get_or_create(sid)
+    repo.set_display_name(sid, body.name)
+    # The name lives in student_names only, never in the audit row.
+    repo.log_audit(
+        action="writer_create",
+        student_id=sid,
+        tenant_id=principal_mod.tenant_of(sid),
+        actor=staff.user_id if not staff.is_demo else "demo",
+        result="ok",
+    )
+    return {"student_id": sid, "name": body.name}
 
 
 # ── Student state ─────────────────────────────────────────────────────────────

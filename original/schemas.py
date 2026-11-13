@@ -7,9 +7,9 @@ can deserialise with a single fetch() call and no transformation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -285,6 +285,14 @@ class BluebookUpdateCourseRequest(BaseModel):
 class RosterStudent(BaseModel):
     email: str = Field(..., description="Student email; their login")
     name: str = Field("", description="Display name")
+
+
+class WriterCreateRequest(BaseModel):
+    """POST /students: a writer added by name, with no course or account."""
+
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)] = (
+        Field(..., description="The writer's name, 1-120 characters once trimmed")
+    )
 
 
 class RosterAddRequest(BaseModel):

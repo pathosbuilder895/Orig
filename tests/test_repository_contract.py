@@ -2044,6 +2044,23 @@ class TestRosterStatus:
         assert roster["sem:named"]["sample_count"] == 3
         assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
 
+    def test_a_named_writer_with_no_papers_is_listed_and_deleted(self, repo):
+        # POST /students (routers/students.py:create_writer) makes a writer
+        # from get_or_create + set_display_name only: no put(), no samples.
+        repo.get_or_create("sem:writer")
+        repo.set_display_name("sem:writer", "Ada Writer")
+        assert "sem:writer" in repo.list_ids_for_tenant("sem")
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:writer"]["name"] == "Ada Writer"
+        assert roster["sem:writer"]["has_name"] is True
+        assert roster["sem:writer"]["sample_count"] == 0
+        assert roster["sem:writer"]["status"] == "no_baseline"
+
+        assert repo.delete_student("sem:writer") is True
+        assert repo.get("sem:writer") is None
+        assert repo.get_display_name("sem:writer") == ""
+        assert "sem:writer" not in {r["id"] for r in repo.roster_for_tenant("sem")}
+
 
 # ── Manifest read-model gaps (WS-6 P1 gap closure, branch-coverage part 1,
 #    task 2: put_manifest / list_manifests / manifest_stats /

@@ -4725,6 +4725,23 @@
         ],
         "title": "WindowScoreOut",
         "type": "object"
+      },
+      "WriterCreateRequest": {
+        "description": "POST /students: a writer added by name, with no course or account.",
+        "properties": {
+          "name": {
+            "description": "The writer's name, 1-120 characters once trimmed",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WriterCreateRequest",
+        "type": "object"
       }
     }
   },
@@ -8640,6 +8657,41 @@
           }
         },
         "summary": "List Students"
+      },
+      "post": {
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.",
+        "operationId": "create_writer_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Writer"
       }
     },
     "/students/{student_id}": {
