@@ -102,6 +102,12 @@
   .ex-src{font-family:var(--mono);font-size:.62rem;color:var(--ink-2);margin-top:.55rem;overflow-wrap:anywhere;}
   .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.9rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-q{overflow-wrap:anywhere;}
+  .ex-col{min-width:0;}
+  .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
+  .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
   .more-note{font-size:.88rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
   /* where the baseline comes from */
   .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
@@ -279,6 +285,7 @@
 </div>
 <script src="live.js?v=2026-10-26.1"></script>
 <script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="js/evidence-view.js?v=2026-10-26.1"></script>
 <script>
 (function(){
   'use strict';
@@ -479,6 +486,67 @@
     return t;
   }
 
+  // ── side by side, with real quotes (only when the server sent evidence) ──
+  // Staff-only: result.evidence is stored by Writing State only when the server
+  // sent it. Each card shows the first quote on each side for a habit in the
+  // top list that has quotable text on both sides; habits without it are left
+  // out (their numbers are on the cards above and on the side-by-side page).
+  const EV=window.EvidenceView;
+  const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  function dayOf(s){
+    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
+    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
+    return '';
+  }
+  function quoteBlock(q,label,side,papers){
+    const parts=EV.markParts(q);
+    const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
+    const src=[];
+    if(side==='this') src.push('This paper');
+    else{
+      const p=papers.filter(x=>isObj(x)&&x.paper===q.paper)[0];
+      const day=p?dayOf(p.submitted_at):'';
+      src.push(EV.paperName(q.paper,papers)+(day?', '+day:''));
+    }
+    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
+    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
+    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    return '<div class="ex-col"><div class="ex-lbl '+(side==='this'?'this':'base')+'">'+esc(side==='this'?'This paper':label)+'</div>'+
+      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src">'+esc(src.join(' · '))+'</div></div>';
+  }
+  function sideBySideHTML(d){
+    const ev=d.result.evidence;
+    if(!EV||!isObj(ev)||!Array.isArray(ev.features)||!Array.isArray(ev.all_features)) return '';
+    const papers=Array.isArray(ev.baseline_papers)?ev.baseline_papers:[];
+    const byCode=new Map();
+    ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode.set(f.code,f); });
+    const cards=[];
+    ev.features.slice(0,SHOW_HABITS).forEach(top=>{
+      const f=isObj(top)&&byCode.get(top.code);
+      if(!f||f.kind!=='located') return;
+      const tq=isObj(f.this_paper)&&Array.isArray(f.this_paper.examples)?f.this_paper.examples[0]:null;
+      const pq=isObj(f.past_papers)&&Array.isArray(f.past_papers.examples)?f.past_papers.examples[0]:null;
+      if(!isObj(tq)||!isObj(pq)||typeof tq.passage!=='string'||typeof pq.passage!=='string') return;
+      const notice=EV.noticeFor(f), nums=EV.noteFor(f,papers);
+      cards.push('<div class="ex">'+
+        '<div class="ex-h"><b>'+esc(EV.clean(String(f.name||'This habit'),'This habit'))+'</b><span>'+esc(EV.oneLine(f))+'</span></div>'+
+        quoteBlock(tq,'','this',papers)+quoteBlock(pq,EV.paperName(pq.paper,papers),'base',papers)+
+        ((notice||nums)?'<div class="ex-note">'+(notice?'<p><b>What to notice:</b> '+esc(notice)+'</p>':'')+(nums?'<p class="nums-line">'+esc(nums)+'</p>':'')+'</div>':'')+
+      '</div>');
+    });
+    return cards.join('');
+  }
+  function addSideBySide(d,anchor){
+    const html=sideBySideHTML(d);
+    if(!html||!anchor) return;
+    const sec=document.createElement('section');
+    sec.id='p-side';
+    sec.innerHTML='<div class="sec-t">Side by side <span>this paper and past papers, in their own words</span></div>'+
+      '<p class="sec-lede">The marked words are the ones Original counted. A difference in wording is a reason to look, not a finding.</p>'+html;
+    anchor.parentNode.insertBefore(sec,anchor.nextSibling);
+  }
+
   async function render(sess,d){
     const id=d.student_id.trim();
     const who=(typeof d.student_name==='string'&&d.student_name.trim())||id;
@@ -526,6 +594,7 @@
 
     // habits
     $('p-habits').innerHTML=habitCards(d,poss,nUsed);
+    addSideBySide(d,$('p-habits').closest('section'));
 
     // baseline
     // The thin-baseline caution is shown whether or not the sample list loaded.
