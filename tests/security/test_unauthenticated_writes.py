@@ -185,6 +185,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/me/papers"),
     ("POST", "/bluebook/past-papers/{paper_id}/approve"),
     ("POST", "/bluebook/past-papers/{paper_id}/decline"),
+    ("POST", "/bluebook/past-papers/{paper_id}/unapprove"),
     ("POST", "/bluebook/submissions/{submission_id}/baseline"),
     ("POST", "/canvas/baseline/{student_id}/fetch-submission-text"),
     ("POST", "/canvas/baseline/{student_id}/import-baseline"),

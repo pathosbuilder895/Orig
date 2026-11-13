@@ -7663,6 +7663,44 @@
         "summary": "Decline Shared Paper"
       }
     },
+    "/bluebook/past-papers/{paper_id}/unapprove": {
+      "post": {
+        "description": "Undo an approval: take the paper back out of the student's baseline\nand leave it waiting for approval again. Safe to repeat: a paper that is\nalready pending stays pending and nothing is removed.",
+        "operationId": "unapprove_shared_paper_bluebook_past_papers__paper_id__unapprove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unapprove Shared Paper"
+      }
+    },
     "/bluebook/phone-park/beat": {
       "post": {
         "description": "\"This page is still open\" from a parked phone.",

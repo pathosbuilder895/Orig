@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
 <link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
 <link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
@@ -16,8 +18,8 @@
     --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
     --dim:rgba(245,239,224,0.58); --dim-2:rgba(245,239,224,0.4);
     --flag:#e0725a; --warn:#d8b04a; --ok:#6bbf8a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --display:var(--bb-font-display); --body:var(--bb-font-body);
+    --mono:var(--bb-font-label);
   }
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
@@ -180,6 +182,15 @@
   .ex-msg{font-size:.86rem;margin-top:.5rem;color:var(--dim);font-style:italic;line-height:1.45;}
   .ex-msg.ok{color:var(--ok);font-style:normal;}
   .ex-msg.err{color:var(--flag);font-style:normal;}
+  /* Shared papers: the text box takes the whole row, and the buttons wrap under the title when the Text size is large. */
+  .ex.sh{flex-wrap:wrap;}
+  .ex.sh .ex-main{flex:1 1 14rem;}
+  .ex.sh .ex-side{flex:0 1 auto;max-width:100%;}
+  .sh-read{flex:1 0 100%;min-width:0;border-top:1px solid var(--line-soft);padding-top:.7rem;}
+  .sh-read .pb{max-height:320px;overflow-y:auto;white-space:pre-wrap;font-size:.95rem;line-height:1.6;color:rgba(245,239,224,0.86);background:rgba(0,0,0,0.18);border:1px solid var(--line-soft);border-radius:10px;padding:.8rem 1rem;overflow-wrap:anywhere;}
+  .sh-read .sh-acts{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;}
+  .sh-read .sh-acts a{font-size:.88rem;color:var(--gold-2);}
+  .sh-read .sh-note{font-size:.8rem;color:var(--dim);font-style:italic;margin-top:.4rem;}
   .ex-ask{font-size:.84rem;color:var(--dim);line-height:1.45;margin-top:.5rem;}
   .ex-side{display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0;}
   .ex-btns{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;}
@@ -373,7 +384,7 @@
         <div id="shared-sec" style="margin-top:1.3rem;" hidden>
           <div class="sec-h"><b>Papers students shared</b><span id="shared-sub"></span></div>
           <div class="card ex-card">
-            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
+            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration. <b>Read this paper</b> shows its text without adding it. <b>Undo approval</b> takes an approved paper back out of the baseline, and it waits for your approval again; nothing else changes.</div>
             <div id="shared-list"><div class="live-empty">Loading</div></div>
           </div>
         </div>
@@ -1294,11 +1305,25 @@
   }
 
   // ── papers students shared (2026-10 alpha) ──
-  // Pending papers a student shared from their Collections account. Approve adds the paper
-  // as a student upload through the server's baseline write; Decline leaves it out. With a
-  // student chosen, only theirs; on the all-students view, everyone's.
-  const SH={rows:[],busy:'',msg:{}};
+  // Papers a student shared from their Collections account. Approve adds the paper as a
+  // student upload through the server's baseline write; Decline leaves it out. Read this
+  // paper shows its text (GET /bluebook/past-papers/{id}) without adding it, so a teacher
+  // can read a paper they keep aside; Undo approval takes an approved paper back out of
+  // the baseline and leaves it waiting again (2026-11, four-paper alpha). With a student
+  // chosen, only theirs; on the all-students view, everyone's.
+  const SH={rows:[],busy:'',msg:{},open:'',read:new Map(),copied:''};
   const SHARED_STATUS={pending:'Waiting for approval',approved:'In the baseline',declined:'Declined',held:'Held back'};
+  function sharedReadPanel(r){
+    const rec=SH.read.get(r.paper_id);
+    if(!rec||rec.state==='loading') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">Loading</div></div>';
+    if(rec.state!=='ok') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">'+esc(rec.status===404?'This paper is no longer available. Reload the page.':'This paper could not be loaded just now.')+'</div><div class="sh-acts"><button type="button" class="btn ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div></div>';
+    const who=r.student||'this student';
+    return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="pb" tabindex="0" aria-label="Text of '+esc(r.title||'the paper')+'"></div>'+
+      '<div class="sh-acts"><button type="button" class="btn ghost" data-sact="copy" data-id="'+esc(r.paper_id)+'">'+(SH.copied===r.paper_id?'Copied':'Copy text')+'</button>'+
+      '<a href="writing-state.html?student='+enc(r.student_id)+'">Open Writing State for '+esc(who)+'</a>'+
+      '<button type="button" class="btn ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div>'+
+      '<div class="sh-note">Reading a paper does not add it to the baseline or change its status.</div></div>';
+  }
   function renderShared(){
     const sec=$('shared-sec'), el=$('shared-list');
     const rows=ID?SH.rows.filter(r=>r.student_id===ID):SH.rows;
@@ -1311,32 +1336,70 @@
       const src=r.baseline_source==='split'?('Section of a longer paper'+(r.parent_title?': '+r.parent_title:'')+' (split-derived)'):'Whole paper (independent)';
       const meta=[ID?'':(r.student||'Student'), fmtDate(r.shared_at), plural(num(r.word_count)||0,'word'), src].filter(Boolean).join(' · ');
       const st='<span class="st '+(r.status==='approved'?'in':r.status==='pending'?'wait':'off')+'"><span class="d"></span>'+esc(SHARED_STATUS[r.status]||r.status)+'</span>';
-      const btns=(r.status==='pending'||r.status==='held')?('<div class="ex-btns">'+
-        (r.status==='pending'?'<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(SH.busy===r.paper_id?'Saving...':'Approve')+'</button>':'')+
-        '<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button></div>'):'';
+      const open=SH.open===r.paper_id;
+      const saving=SH.busy===r.paper_id;
+      const read='<button type="button" class="btn ghost" data-sact="read" data-id="'+esc(r.paper_id)+'" aria-expanded="'+(open?'true':'false')+'">'+(open?'Hide paper':'Read this paper')+'</button>';
+      let acts='';
+      if(r.status==='pending') acts='<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Approve')+'</button>';
+      if(r.status==='pending'||r.status==='held') acts+='<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button>';
+      const inBaseline=r.status==='approved';
+      if(inBaseline) acts='<button type="button" class="btn ghost" data-sact="unapprove" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Undo approval')+'</button>';
+      const btns='<div class="ex-btns">'+read+acts+'</div>';
       const m=SH.msg[r.paper_id];
-      return '<div class="ex" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
-        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div></div>';
+      return '<div class="ex sh" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
+        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div>'+(open?sharedReadPanel(r):'')+'</div>';
     }).join('');
+    // The paper's words go in as text, never as markup.
+    const rec=SH.open?SH.read.get(SH.open):null;
+    const box=rec&&rec.state==='ok'?el.querySelector('.sh-read[data-read-of="'+SH.open+'"] .pb'):null;
+    if(box) box.textContent=typeof rec.text==='string'&&rec.text?rec.text:'(empty)';
   }
   async function loadShared(){
     const res=await Live.api('/bluebook/past-papers');
     if(!res.ok||!res.data||!Array.isArray(res.data.papers)){ $('shared-sec').hidden=true; return; }
     SH.rows=res.data.papers; renderShared();
   }
+  async function readShared(id){
+    if(SH.open===id){ SH.open=''; renderShared(); return; }
+    SH.open=id; SH.copied='';
+    const have=SH.read.get(id);
+    if(have&&have.state!=='error'){ renderShared(); return; }
+    SH.read.set(id,{state:'loading'}); renderShared();
+    const res=await Live.api('/bluebook/past-papers/'+enc(id));
+    SH.read.set(id,res.ok&&res.data&&typeof res.data.text==='string'?{state:'ok',text:res.data.text}:{state:'error',status:res.status});
+    if(SH.open===id) renderShared();
+  }
+  async function copyShared(id){
+    const rec=SH.read.get(id); if(!rec||rec.state!=='ok') return;
+    let ok=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(rec.text); ok=true; } }catch(e){ ok=false; }
+    if(ok){ SH.copied=id; renderShared(); return; }
+    // No clipboard here (an insecure page, or permission refused): select the words instead.
+    const box=document.querySelector('.sh-read[data-read-of="'+id+'"] .pb');
+    if(box&&window.getSelection&&document.createRange){ const g=document.createRange(); g.selectNodeContents(box); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(g); }
+    SH.msg[id]={text:'Copying is not available in this browser. The text is selected: copy it with your keyboard.',kind:'err'};
+    renderShared();
+  }
   $('shared-list').addEventListener('click',async e=>{
-    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled||SH.busy) return;
+    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled) return;
     const id=b.getAttribute('data-id'), act=b.getAttribute('data-sact');
     const r=SH.rows.find(x=>x.paper_id===id); if(!r) return;
+    if(act==='read') return readShared(id);
+    if(act==='close'){ SH.open=''; renderShared(); return; }
+    if(act==='copy') return copyShared(id);
+    if(SH.busy) return;
     SH.busy=id; renderShared();
     try{
       const res=await Live.api('/bluebook/past-papers/'+enc(id)+'/'+act,{method:'POST'});
       if(res.ok&&res.data&&typeof res.data.status==='string'){
+        const was=r.status;
         r.status=res.data.status;
-        SH.msg[id]=r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
+        SH.msg[id]=act==='unapprove'?{text:'Taken back out of the baseline. It is waiting for your approval again.',kind:'ok'}:
+          r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
           r.status==='held'?{text:'Not added: this paper differs strongly from the student’s existing samples. Approval does not override this check.',kind:'err'}:
           {text:'Declined. It is not used.',kind:'ok'};
-        if(r.status==='approved'&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
+        const changed=r.status==='approved'||(was==='approved'&&act==='unapprove');
+        if(changed&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
       } else if(res.status===401){ SH.msg[id]={text:'Your sign-in has ended. Sign in again, then try once more.',kind:'err'}; }
       else { SH.msg[id]={text:detailText(res.data)||'That did not go through, so nothing changed.',kind:'err'}; }
     }finally{ SH.busy=''; renderShared(); }
