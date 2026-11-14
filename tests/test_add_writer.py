@@ -222,3 +222,22 @@ def test_a_principal_without_a_usable_tenant_is_400(live_client, principal_heade
     assert r.status_code == 400
     assert r.json()["detail"] == "Your account has no workspace to add a writer to."
     assert get_repository().list_ids() == []
+
+
+def test_a_collections_only_workspace_cannot_add_a_writer(live_client, staff):
+    from original import principal
+
+    repo = get_repository()
+    repo.put_tenant("acme", "Acme", environment="production", meta={})
+    repo.set_tenant_products("acme", ["bluebook"])
+    principal.invalidate_tenant_cache()
+    try:
+        r = _create(live_client, staff)
+        assert r.status_code == 403
+        assert "does not include Original" in r.json()["detail"]
+        assert repo.list_ids_for_tenant("acme") == []
+        repo.set_tenant_products("acme", ["bluebook", "original"])
+        principal.invalidate_tenant_cache()
+        assert _create(live_client, staff).status_code == 201
+    finally:
+        principal.invalidate_tenant_cache()

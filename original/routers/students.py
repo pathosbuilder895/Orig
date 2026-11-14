@@ -89,6 +89,10 @@ def create_writer(body: WriterCreateRequest, request: Request):
     """
     staff = _require_staff(request)
     tenant = _bluebook_tenant(request)
+    if "original" not in principal_mod.tenant_products(tenant):
+        raise HTTPException(
+            status_code=403, detail="This workspace's plan does not include Original."
+        )
     # An empty tenant would slugify to "default"; a tenant that is not its
     # own slug would mint an id outside the caller's tenant. Refuse both.
     if not tenant or student_auth.slugify(tenant) != tenant:

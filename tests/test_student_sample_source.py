@@ -414,3 +414,23 @@ def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_clie
     )
     assert mine.status_code == 403 or mine.json().get("evidence") is None
     assert "baseline_papers" not in mine.text
+
+    # A failed source lookup loses only `source`: the side-by-side and every
+    # score stay exactly as they were.
+    from original.routers import students as students_router
+
+    def _boom(*a, **k):
+        raise RuntimeError("lookup failed")
+
+    monkeypatch.setattr(students_router, "_sample_sources", _boom)
+    broken = _ok(
+        live_client.post(
+            f"/students/{sid}/score", json={"text": paper, "submission_id": "ev3"}, headers=T
+        )
+    )
+    assert broken["evidence"] is not None
+    papers = broken["evidence"]["baseline_papers"]
+    assert len(papers) == len(on["evidence"]["baseline_papers"])
+    assert all("source" not in p for p in papers)
+    assert broken["authorship"] == on["authorship"]
+    assert broken["recommendation"] == on["recommendation"]

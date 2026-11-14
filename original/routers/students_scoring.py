@@ -696,21 +696,28 @@ def _attach_staff_explainability(
                 baseline_vectors=[s.vector for s in used],
                 past_average=state.baseline_mean if complete else None,
             )
-            # Where each "past paper N" came from, for the teacher's side-by-side
-            # view: only what the sample already stores, nothing derived.
             # How each past paper got into the baseline, read now (staff wording
             # only), so an analysis kept for later still says what was true
-            # when it ran. No student id (in-process callers): no source.
+            # when it ran. No student id (in-process callers): no source. A
+            # failed lookup loses only `source`, never the side-by-side.
             by_sample: dict[int, str] = {}
             if student_id:
-                from .students import _sample_sources
+                try:
+                    from .students import _sample_sources
 
-                by_sample = {
-                    id(sample): src
-                    for sample, src in zip(
-                        state.samples, _sample_sources(student_id, state.samples), strict=True
+                    by_sample = {
+                        id(sample): src
+                        for sample, src in zip(
+                            state.samples,
+                            _sample_sources(student_id, state.samples),
+                            strict=True,
+                        )
+                    }
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "past paper sources failed; omitted from the evidence"
                     )
-                }
+                    by_sample = {}
             response.evidence["baseline_papers"] = [
                 {
                     "paper": label,
