@@ -144,12 +144,20 @@ test('a student session sees none of the add or analyse controls', async ({ brow
   for (const path of ['students.html', `writing-state.html?student=${encodeURIComponent(student.student_id)}`]) {
     await page.goto(`/original/${path}`)
     await page.waitForLoadState('networkidle')
+    // Intent: a student is sent off the staff page (the controls below are
+    // then trivially absent, so this is the real assertion).
+    await expect(page).not.toHaveURL(/original\/(writing-state|students)\.html/)
     await expect(page.getByRole('button', { name: 'Add a writer' })).toHaveCount(0)
     await expect(page.locator('#an-form, #writer-form, #an-go')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Analyse against baseline' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: /^Analyse/ })).toHaveCount(0)
     await expect(page.locator('body')).not.toContainText('deviation')
   }
+  // And the route itself refuses a student.
+  const refused = await context.request.post(`${baseURL}/students`, {
+    headers: { Authorization: `Bearer ${student.token}` }, data: { name: 'Nobody' },
+  })
+  expect(refused.status(), await refused.text()).toBe(401)
   await context.close()
 })
 
