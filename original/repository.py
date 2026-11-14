@@ -254,6 +254,7 @@ class Repository(Protocol):
     def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int: ...
     def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]: ...
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
@@ -323,6 +324,7 @@ class Repository(Protocol):
         result: str = "ok",
         details: dict | None = None,
     ) -> None: ...
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]: ...
     def list_audit(
         self,
         student_id: str | None = None,
@@ -782,6 +784,9 @@ class SqliteRepository:
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_student(student_id)
 
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]:
+        return store.list_bluebook_submission_texts_for_student(student_id)
+
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_exam(exam_id)
 
@@ -924,6 +929,9 @@ class SqliteRepository:
             result=result,
             details=details,
         )
+
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]:
+        return store.list_audit_actions_for_student(student_id, actions)
 
     def list_audit(
         self,

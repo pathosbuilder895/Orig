@@ -2044,6 +2044,23 @@ class TestRosterStatus:
         assert roster["sem:named"]["sample_count"] == 3
         assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
 
+    def test_a_named_writer_with_no_papers_is_listed_and_deleted(self, repo):
+        # POST /students (routers/students.py:create_writer) makes a writer
+        # from get_or_create + set_display_name only: no put(), no samples.
+        repo.get_or_create("sem:writer")
+        repo.set_display_name("sem:writer", "Ada Writer")
+        assert "sem:writer" in repo.list_ids_for_tenant("sem")
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:writer"]["name"] == "Ada Writer"
+        assert roster["sem:writer"]["has_name"] is True
+        assert roster["sem:writer"]["sample_count"] == 0
+        assert roster["sem:writer"]["status"] == "no_baseline"
+
+        assert repo.delete_student("sem:writer") is True
+        assert repo.get("sem:writer") is None
+        assert repo.get_display_name("sem:writer") == ""
+        assert "sem:writer" not in {r["id"] for r in repo.roster_for_tenant("sem")}
+
 
 # ── Manifest read-model gaps (WS-6 P1 gap closure, branch-coverage part 1,
 #    task 2: put_manifest / list_manifests / manifest_stats /
@@ -3367,3 +3384,62 @@ class TestPhoneParks:
         repo.delete_student(sid)
         assert repo.get_phone_park("exam-p", sid) is None
         assert repo.get_phone_park("exam-p", other) is not None
+
+
+class TestSampleSourceLookups:
+    """The two reads GET /students/{id} uses to say how a self-upload got in
+    (2026-11): a student's sealed submissions WITH their text and answers,
+    and their past papers with text and status, on every backend."""
+
+    def test_submission_texts_for_student(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        repo.put_bluebook_exam({"id": "exam-src", "tenant_id": "sem", "title": "Take-home"})
+        base = {"tenant_id": "sem", "exam_id": "exam-src", "candidate": "Alice"}
+        repo.put_bluebook_submission({**base, "id": "bbsub-s1", "student_id": "sem:alice",
+                                      "text": "Question 1.\n\nOne.", "answers": ["One.", "Two."]})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s2", "student_id": "sem:alice",
+                                      "text": "Plain text."})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s3", "student_id": "sem:bob",
+                                      "text": "Bob's.", "answers": ["Bob's."]})
+        rows = {r["id"]: r for r in repo.list_bluebook_submission_texts_for_student("sem:alice")}
+        assert set(rows) == {"bbsub-s1", "bbsub-s2"}
+        assert rows["bbsub-s1"]["text"] == "Question 1.\n\nOne."
+        assert rows["bbsub-s1"]["answers"] == ["One.", "Two."]
+        assert rows["bbsub-s2"]["text"] == "Plain text." and rows["bbsub-s2"]["answers"] == []
+        assert repo.list_bluebook_submission_texts_for_student("sem:nobody") == []
+
+    def test_audit_actions_for_student_oldest_first(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for action, sid, sub, result in (
+            ("baseline_approve", "sem:alice", "s1", "added"),
+            ("score", "sem:alice", "s1", "ok"),
+            ("baseline_remove", "sem:alice", "s1", "removed"),
+            ("baseline_approve", "sem:bob", "s2", "added"),
+            ("baseline_approve", "sem:alice", "s3", "held"),
+        ):
+            repo.log_audit(action=action, student_id=sid, tenant_id="sem", actor="prof",
+                           result=result, details={"submission_id": sub})
+        repo.log_audit(action="baseline_approve", student_id="other:alice", tenant_id="other",
+                       actor="prof", result="added", details={"submission_id": "s9"})
+        rows = repo.list_audit_actions_for_student(
+            "sem:alice", ["baseline_approve", "baseline_remove"]
+        )
+        assert [(r["action"], r["result"], r["details"]["submission_id"]) for r in rows] == [
+            ("baseline_approve", "added", "s1"),
+            ("baseline_remove", "removed", "s1"),
+            ("baseline_approve", "held", "s3"),
+        ]
+        assert repo.list_audit_actions_for_student("sem:nobody", ["baseline_approve"]) == []
+        assert repo.list_audit_actions_for_student("sem:alice", []) == []
+
+    def test_past_papers_for_student_carry_text_and_status(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for pid, sid, status in (("pp-1", "sem:alice", "approved"), ("pp-2", "sem:alice", "pending"),
+                                 ("pp-3", "sem:bob", "approved")):
+            repo.put_past_paper({"paper_id": pid, "tenant_id": "sem", "student_id": sid,
+                                 "title": pid, "text": f"text of {pid}", "word_count": 3,
+                                 "status": status})
+        rows = {r["paper_id"]: r for r in repo.list_past_papers("sem", "sem:alice")}
+        assert set(rows) == {"pp-1", "pp-2"}
+        assert rows["pp-1"]["text"] == "text of pp-1" and rows["pp-1"]["status"] == "approved"
+        assert rows["pp-2"]["status"] == "pending"

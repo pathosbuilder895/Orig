@@ -2242,6 +2242,21 @@ class PostgresRepository:
             ).scalars()
             return [self._bluebook_sub_to_dict(r) for r in rows]
 
+    def list_bluebook_submission_texts_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.student_id == student_id)
+                .order_by(BluebookSubmission.created_at)
+            ).scalars()
+            out = []
+            for r in rows:
+                d = self._bluebook_sub_to_dict(r)
+                d["text"] = r.text
+                d["answers"] = r.answers_json or []
+                out.append(d)
+            return out
+
     def list_bluebook_submissions_for_exam(self, exam_id):
         with session_scope() as session:
             rows = session.execute(
@@ -2568,6 +2583,38 @@ class PostgresRepository:
                 )
         except Exception:
             log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+    def list_audit_actions_for_student(self, student_id, actions):
+        if not student_id or not actions:
+            return []
+        with session_scope() as session:
+            rows = (
+                session.execute(
+                    select(AuditLogEntry)
+                    .where(*self._audit_scope_criteria(student_id))
+                    .where(AuditLogEntry.action.in_(list(actions)))
+                    .order_by(AuditLogEntry.created_at, AuditLogEntry.id)
+                )
+                .scalars()
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat(),
+                    "action": row.action,
+                    "student_id": (
+                        join_scoped_id(row.tenant_id, row.student_id)
+                        if row.tenant_id
+                        else row.student_id
+                    ),
+                    "tenant_id": row.tenant_id,
+                    "actor": row.actor,
+                    "result": row.result,
+                    "details": row.details_json or {},
+                }
+                for row in rows
+            ]
 
     def list_audit(self, student_id=None, action=None, limit=100, offset=0, tenant_id=None):
         limit = min(limit, 1000)
