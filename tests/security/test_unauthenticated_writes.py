@@ -193,6 +193,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/me/formation/advance"),
     ("POST", "/me/work"),
     ("POST", "/proctor/park/open"),
+    ("POST", "/students"),
     ("POST", "/students/{student_id}/baseline"),
     ("POST", "/students/{student_id}/baseline/upload-batch"),
     ("POST", "/students/{student_id}/formation"),
