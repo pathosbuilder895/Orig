@@ -78,22 +78,42 @@ def create_writer(body: WriterCreateRequest, request: Request):
     with Original (an empty profile plus a stored name), so every Original
     page treats them as a student, and ``DELETE /students/{id}`` erases them.
     Names are not deduplicated: two people can share one.
+
+    The open fictional demo (no sign-in, never a real deploy) may add a
+    writer anonymously, into the demo tenant, as it may use its other write
+    routes; on a real deploy only a signed-in staff account can.
+
+    ``set_display_name`` logs and swallows a write failure, so the name is
+    read back: a writer whose name did not save is erased again and the
+    caller gets a 503, never a 201 for a nameless writer.
     """
     staff = _require_staff(request)
     tenant = _bluebook_tenant(request)
+    # An empty tenant would slugify to "default"; a tenant that is not its
+    # own slug would mint an id outside the caller's tenant. Refuse both.
+    if not tenant or student_auth.slugify(tenant) != tenant:
+        raise HTTPException(
+            status_code=400, detail="Your account has no workspace to add a writer to."
+        )
     repo = _repo()
+    actor = staff.user_id if not staff.is_demo else "demo"
     sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
     while repo.get(sid) is not None:
         sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
     repo.get_or_create(sid)
     repo.set_display_name(sid, body.name)
+    if repo.get_display_name(sid) != body.name:
+        repo.delete_student(sid)
+        repo.log_audit(
+            action="writer_create", student_id=sid, tenant_id=tenant, actor=actor, result="failed"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="The writer could not be saved just now. Nothing was added. Try again.",
+        )
     # The name lives in student_names only, never in the audit row.
     repo.log_audit(
-        action="writer_create",
-        student_id=sid,
-        tenant_id=principal_mod.tenant_of(sid),
-        actor=staff.user_id if not staff.is_demo else "demo",
-        result="ok",
+        action="writer_create", student_id=sid, tenant_id=tenant, actor=actor, result="ok"
     )
     return {"student_id": sid, "name": body.name}
 

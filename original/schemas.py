@@ -290,8 +290,18 @@ class RosterStudent(BaseModel):
 class WriterCreateRequest(BaseModel):
     """POST /students: a writer added by name, with no course or account."""
 
-    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)] = (
-        Field(..., description="The writer's name, 1-120 characters once trimmed")
+    # No control characters: Postgres refuses a NUL in text, and a tab or
+    # newline is never part of a name a page should print.
+    name: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=120,
+            pattern=r"^[^\x00-\x1f\x7f]*$",
+        ),
+    ] = Field(
+        ..., description="The writer's name, 1-120 characters once trimmed, no control characters"
     )
 
 

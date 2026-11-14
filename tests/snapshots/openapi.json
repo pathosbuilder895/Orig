@@ -4730,9 +4730,10 @@
         "description": "POST /students: a writer added by name, with no course or account.",
         "properties": {
           "name": {
-            "description": "The writer's name, 1-120 characters once trimmed",
+            "description": "The writer's name, 1-120 characters once trimmed, no control characters",
             "maxLength": 120,
             "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
             "title": "Name",
             "type": "string"
           }
@@ -8659,7 +8660,7 @@
         "summary": "List Students"
       },
       "post": {
-        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.",
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.\n\nThe open fictional demo (no sign-in, never a real deploy) may add a\nwriter anonymously, into the demo tenant, as it may use its other write\nroutes; on a real deploy only a signed-in staff account can.\n\n``set_display_name`` logs and swallows a write failure, so the name is\nread back: a writer whose name did not save is erased again and the\ncaller gets a 503, never a 201 for a nameless writer.",
         "operationId": "create_writer_students_post",
         "requestBody": {
           "content": {

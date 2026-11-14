@@ -194,3 +194,31 @@ def test_a_minted_id_already_taken_is_never_reused(live_client, staff, monkeypat
     assert r.status_code == 201
     assert r.json()["student_id"] == "acme:" + "f" * 16
     assert get_repository().get_display_name(first) == "First"
+
+
+@pytest.mark.parametrize(
+    "name", ["\x00", "\n", "Ada\x00Lovelace", "Ada\nLovelace", "Ada\tL", "Ada\x7f"]
+)
+def test_a_name_with_control_characters_is_422_and_creates_nothing(live_client, staff, name):
+    r = _create(live_client, staff, name)
+    assert r.status_code == 422
+    assert get_repository().list_ids_for_tenant("acme") == []
+
+
+def test_a_name_that_did_not_save_erases_the_writer_and_is_503(live_client, staff, monkeypatch):
+    # PostgresRepository.set_display_name logs and swallows a write failure.
+    repo = get_repository()
+    monkeypatch.setattr(type(repo), "set_display_name", lambda self, sid, name: None)
+    r = _create(live_client, staff)
+    assert r.status_code == 503
+    assert "Nothing was added" in r.json()["detail"]
+    assert repo.list_ids_for_tenant("acme") == []
+    assert live_client.get("/students", headers=staff).json()["roster"] == []
+
+
+@pytest.mark.parametrize("tenant", ["", "Not A Slug"])
+def test_a_principal_without_a_usable_tenant_is_400(live_client, principal_headers, tenant):
+    r = _create(live_client, principal_headers("prof-x", "professor", tenant))
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Your account has no workspace to add a writer to."
+    assert get_repository().list_ids() == []
