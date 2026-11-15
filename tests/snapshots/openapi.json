@@ -2757,6 +2757,44 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "length_match_applied": {
+            "default": false,
+            "title": "Length Match Applied",
+            "type": "boolean"
+          },
+          "length_match_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Deviation Preview"
+          },
+          "length_match_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Mode"
+          },
+          "length_match_pieces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Pieces"
+          },
           "opportunity_deviation_preview": {
             "anyOf": [
               {

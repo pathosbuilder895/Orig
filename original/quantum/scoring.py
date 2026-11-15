@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -67,6 +67,7 @@ from ..constants import (
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
+from .length_match import LengthMatchedState
 from .state import StudentState, _unit
 
 log = logging.getLogger(__name__)
@@ -547,6 +548,30 @@ def _parse_characteristic_mode(raw: str) -> str:
 _OPPORTUNITY_MASK_MODES = frozenset({"off", "shadow", "on"})
 
 
+def _length_match_preview(run) -> float | None:
+    """The deviation_score ``run()`` produces under "on", or None if it
+    raised. Shadow must never fail a request that off would have served."""
+    try:
+        return float(run().authorship.deviation_score)
+    except Exception:
+        log.exception("length-match shadow preview failed: reported without it")
+        return None
+
+
+def _parse_length_matched_baseline_mode(raw: str) -> str:
+    """
+    Map LENGTH_MATCHED_BASELINE to a mode. Same rules as the parsers around
+    it: "1" is an alias for "on", and anything unrecognised is "off", so a
+    typo can never enable a score-changing correction.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _OPPORTUNITY_MASK_MODES:
+        return value
+    return "off"
+
+
 def _parse_opportunity_mask_mode(raw: str) -> str:
     """
     Map OPPORTUNITY_MASK to a mode. Same shape as the two parsers above,
@@ -665,6 +690,17 @@ class ScoringConfig:
     #              Not validated on real student writing.
     # Only takes effect when the caller passes score(unmeasured_mask=...).
     opportunity_mask: str = "off"
+    # Compare a paper much shorter than the student's past papers with those
+    # papers re-measured in pieces of its own length (see
+    # original/quantum/length_match.py). Whole long papers give a mean and a
+    # spread that a short paper cannot match whoever wrote it.
+    #   "off"    : DEFAULT. Byte-identical, whatever state the caller passes.
+    #   "shadow" : nothing changes; the score "on" would produce is attached
+    #              report-only as length_match_deviation_preview.
+    #   "on"     : CHANGES SCORES. Mean, spread and active set come from the
+    #              pieces. Not validated on real student writing.
+    # Only takes effect when the caller passes score(length_matched_state=...).
+    length_matched_baseline: str = "off"
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -709,6 +745,9 @@ class ScoringConfig:
                 os.environ.get("CHARACTERISTIC_WEIGHTS", "0")
             ),
             opportunity_mask=_parse_opportunity_mask_mode(os.environ.get("OPPORTUNITY_MASK", "0")),
+            length_matched_baseline=_parse_length_matched_baseline_mode(
+                os.environ.get("LENGTH_MATCHED_BASELINE", "0")
+            ),
         )
 
 
@@ -827,6 +866,24 @@ class Layer7Output:
     # Shadow only: the deviation_score "on" would have produced. Never
     # influences `recommendation`.
     opportunity_deviation_preview: float | None = field(default=None)
+
+    # ── Length-matched baseline (audit trail) ─────────────────────────────────
+    # All four stay at their defaults unless config.length_matched_baseline
+    # is "on"/"shadow" AND the caller supplied a length-matched state (one or
+    # more past papers were at least twice the length of this paper).
+    #
+    # True only in "on" mode: the reported deviation_score compared this
+    # paper with pieces of its own length.
+    length_match_applied: bool = field(default=False)
+    # "on" | "shadow". None when the flag is off or no past paper was long
+    # enough to cut, so a None in a shadow soak means the paper taught the
+    # soak nothing.
+    length_match_mode: str | None = field(default=None)
+    # How many pieces the reference was built from (uncut papers count one).
+    length_match_pieces: int | None = field(default=None)
+    # Shadow only: the deviation_score "on" would have produced. Never
+    # influences `recommendation`.
+    length_match_deviation_preview: float | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
@@ -1054,6 +1111,7 @@ def score(
     pooled_states: dict | None = None,
     student_id: str = "",
     unmeasured_mask: np.ndarray | None = None,
+    length_matched_state: StudentState | None = None,
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -1124,8 +1182,52 @@ def score(
                          a wrong shape, or a mask that marks nothing the
                          student would otherwise be compared on leaves every
                          output exactly as with the flag off.
+    length_matched_state : optional ``LengthMatchedState`` for this student
+                         and this paper's length (quantum/length_match.py).
+                         Only read when ``config.length_matched_baseline`` is
+                         "on" or "shadow"; None, another type, or another
+                         student's state leaves every output exactly as with
+                         the flag off.
     """
     config = scoring_config or ScoringConfig()
+
+    # ── Length-matched reference (LENGTH_MATCHED_BASELINE) ────────────────────
+    # Under "on" the caller's length-matched state replaces `state` for the
+    # whole call: it carries the student's real papers (counts, trajectory,
+    # density matrix) and overrides only the comparison reference. Under
+    # "shadow" the preview is this same function run under "on", so it is
+    # what "on" produces by construction, whatever other flags are set. It
+    # runs here, before any argument is rebound below.
+    _length_state: LengthMatchedState | None = None
+    _length_applied = False
+    _length_preview: float | None = None
+    if (
+        config.length_matched_baseline in ("on", "shadow")
+        and isinstance(length_matched_state, LengthMatchedState)
+        and length_matched_state.student_id == state.student_id
+    ):
+        _length_state = length_matched_state
+        if config.length_matched_baseline == "on":
+            state = _length_state
+            _length_applied = True
+        else:
+            _length_preview = _length_match_preview(
+                lambda: score(
+                    state=state,
+                    submission_vector=submission_vector,
+                    feature_dict=feature_dict,
+                    submission_id=submission_id,
+                    adaptive_weights=adaptive_weights,
+                    manifest=manifest,
+                    n_tokens=n_tokens,
+                    impostor_stats=impostor_stats,
+                    scoring_config=replace(config, length_matched_baseline="on"),
+                    pooled_states=pooled_states,
+                    student_id=student_id,
+                    unmeasured_mask=unmeasured_mask,
+                    length_matched_state=_length_state,
+                )
+            )
 
     # ── Measurements this paper gave no chance to occur ──────────────────────
     # `_unmeasured` is None unless the flag is on/shadow AND the mask marks at
@@ -1477,6 +1579,9 @@ def score(
         # drawn from that distribution. "on" only; shadow leaves `active`
         # alone, so its rms_z stays comparable and the band must survive.
         and not _opportunity_applied
+        # And again: loo_distances are distances between WHOLE past papers,
+        # not between pieces of this paper's length.
+        and not _length_applied
     ):
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
@@ -1600,6 +1705,10 @@ def score(
     # fidelity above was encoded over fewer features than every fidelity in
     # the student's calibration set. Withhold, for the same reason.
     if _opportunity_applied:
+        _conformal_p = None
+    # Length matching changes the mean and spread the fidelity is encoded
+    # against; the stored calibration fidelities used whole papers.
+    if _length_applied:
         _conformal_p = None
 
     # Map to [0,1] via tanh(rms_z / _DEVIATION_TANH_DIVISOR).
@@ -1850,6 +1959,12 @@ def score(
             else None
         ),
         opportunity_deviation_preview=opportunity_deviation_preview,
+        length_match_applied=_length_applied,
+        length_match_mode=(config.length_matched_baseline if _length_state is not None else None),
+        length_match_pieces=(
+            int(len(_length_state.piece_vectors)) if _length_state is not None else None
+        ),
+        length_match_deviation_preview=_length_preview,
     )
 
 

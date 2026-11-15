@@ -633,6 +633,11 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         opportunity_mode=getattr(r, "opportunity_mode", None),
         unmeasured_features=getattr(r, "unmeasured_features", None),
         opportunity_deviation_preview=getattr(r, "opportunity_deviation_preview", None),
+        # Length-matched baseline (LENGTH_MATCHED_BASELINE): same reasoning.
+        length_match_applied=getattr(r, "length_match_applied", False),
+        length_match_mode=getattr(r, "length_match_mode", None),
+        length_match_pieces=getattr(r, "length_match_pieces", None),
+        length_match_deviation_preview=getattr(r, "length_match_deviation_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))

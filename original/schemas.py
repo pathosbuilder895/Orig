@@ -1170,6 +1170,13 @@ class Layer7OutputResponse(BaseModel):
     opportunity_mode: str | None = None
     unmeasured_features: list[str] | None = None
     opportunity_deviation_preview: float | None = None
+    # Length-matched baseline (LENGTH_MATCHED_BASELINE) audit trail + shadow
+    # preview. Defaults match Layer7Output's own; the preview is report-only
+    # and never influences `recommendation`.
+    length_match_applied: bool = False
+    length_match_mode: str | None = None
+    length_match_pieces: int | None = None
+    length_match_deviation_preview: float | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the
