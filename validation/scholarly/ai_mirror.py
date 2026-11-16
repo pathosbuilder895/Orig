@@ -120,7 +120,13 @@ _REF_HEADS = frozenset({
 _SECTION_PREFIX = re.compile(r"^(?:\d+|[ivxlc]+)[.)]\s+", re.I)
 _BULLET = re.compile(r"^\s*(?:[-*+\u2022]|\d+[.)])\s+")
 _REF_YEAR = re.compile(r"\((?:1[5-9]|20)\d\d[a-z]?\)|\b(?:1[5-9]|20)\d\d\.")
-_REF_MARKERS = ("pp.", "Press", "Journal", "doi", "Vol.", "ed.", "eds.", "University", "Review")
+_REF_ENTRY = re.compile(r"^[A-Z][\w'’-]+,\s")   # a surname then a comma
+_REF_MARKER = re.compile(r"\b(?:pp\.|eds?\.|Vol\.|doi\b|Press\b|Journal\b|University\b|Review\b)")
+# chat-app wrapper text: a stock opening line, and offers of further help at the end
+_LEAD_IN = re.compile(r"^(?:certainly|sure|of course|absolutely|here is|here's|below is|"
+                      r"i've written|i have written)\b")
+_SIGN_OFF = re.compile(r"\b(?:let me know|would you like|if you'd like|if you would like|i hope this|"
+                       r"feel free|i can also|happy to)\b")
 
 
 def _is_ref_heading(line: str) -> bool:
@@ -139,7 +145,10 @@ def _unemphasise(line: str) -> str:
 
 
 def _reference_like(para: str) -> bool:
-    return bool(_REF_YEAR.search(para)) and any(m in para for m in _REF_MARKERS)
+    """A bibliography entry: starts "Surname, ", has a year like "(2010)" or "2010.", and a
+    word-bounded marker (so "restored." is not "ed." and "doing" is not "doi")."""
+    p = para.strip()
+    return bool(_REF_ENTRY.match(p) and _REF_YEAR.search(p) and _REF_MARKER.search(p))
 
 
 def _cut_trailing_references(paras: List[str]) -> tuple:
@@ -150,7 +159,26 @@ def _cut_trailing_references(paras: List[str]) -> tuple:
     return paras[:i], len(paras) - i
 
 
+def _wrapper_key(para: str) -> str:
+    return para.strip().lower().replace("’", "'")
+
+
+def _cut_wrapper(paras: List[str]) -> tuple:
+    """Drop a chat-app lead-in (the first paragraph, when it opens with a stock assistant phrase
+    or ends with a colon) and every trailing paragraph that offers further help; return (kept,
+    number dropped). Phrases match whole words, case-insensitively, either apostrophe."""
+    kept = list(paras)
+    if kept:
+        first = _wrapper_key(kept[0])
+        if _LEAD_IN.match(first) or first.endswith(":"):
+            kept = kept[1:]
+    while kept and _SIGN_OFF.search(_wrapper_key(kept[-1])):
+        kept = kept[:-1]
+    return kept, len(paras) - len(kept)
+
+
 def _normalise(raw: str, title: str) -> tuple:
+    """One reply -> (cleaned text, reference paragraphs cut, wrapper paragraphs cut)."""
     lines = raw.replace("\r\n", "\n").split("\n")
     for i, ln in enumerate(lines):
         if _is_ref_heading(ln):
@@ -165,13 +193,14 @@ def _normalise(raw: str, title: str) -> tuple:
         if ln.strip() and _alnum(ln) == want:
             continue
         kept.append(ln)
-    raws = re.split(r"\n\s*\n", "\n".join(kept))
+    raws = [r for r in re.split(r"\n\s*\n", "\n".join(kept)) if r.strip()]
+    raws, wrapper_cut = _cut_wrapper(raws)
     pairs = [(r, clean.strip_inline(r)) for r in raws]
     pairs = [(r, c) for r, c in pairs if len(c.split()) >= MIN_PARA_WORDS]
     _, cut = _cut_trailing_references([r for r, _ in pairs])
     if cut:
         pairs = pairs[:len(pairs) - cut]
-    return "\n\n".join(c for _, c in pairs), cut
+    return "\n\n".join(c for _, c in pairs), cut, wrapper_cut
 
 
 def normalise_ai_text(raw: str, title: str) -> str:
@@ -187,17 +216,26 @@ def load_ai_manifest(path: Optional[Path] = None) -> dict:
 
 
 def intake(author_id: str, model: str, date: str, route: str, continued: bool) -> dict:
-    """Clean ``raw/<author>.txt`` into ``texts/<author>.txt`` and upsert its manifest entry."""
+    """Clean ``raw/<author>.txt`` (and, when ``continued``, ``raw/<author>.cont.txt``, cleaned on
+    its own) into ``texts/<author>.txt`` and upsert its manifest entry."""
     if route not in ROUTES:
         raise ValueError(f"route must be one of {ROUTES}, got {route!r}")
     target = next((t for t in load_targets() if t.author_id == author_id), None)
     if target is None:
         raise ValueError(f"author {author_id!r} is not in the targets file")
     raw_path = AI_DIR / "raw" / f"{author_id}.txt"
+    cont_path = AI_DIR / "raw" / f"{author_id}.cont.txt"
     if not raw_path.exists():
         raise ValueError(f"missing raw reply: {raw_path}")
+    if continued and not cont_path.exists():
+        raise ValueError(f"--continued needs the continuation saved on its own to {cont_path}")
     raw_bytes = raw_path.read_bytes()
-    text, cut = _normalise(raw_bytes.decode("utf-8"), target.title)
+    text, cut, wrapper_cut = _normalise(raw_bytes.decode("utf-8"), target.title)
+    cont_bytes = cont_path.read_bytes() if continued else None
+    if cont_bytes is not None:
+        cont_text, cont_cut, cont_wrapper = _normalise(cont_bytes.decode("utf-8"), target.title)
+        text = "\n\n".join(t for t in (text, cont_text) if t)
+        cut, wrapper_cut = cut + cont_cut, wrapper_cut + cont_wrapper
     if not text.strip():
         raise ValueError(f"cleaned text for {author_id!r} is empty")
     out = AI_DIR / "texts" / f"{author_id}.txt"
@@ -207,8 +245,10 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
         "author_id": author_id, "paper_id": target.paper_id, "tool": target.tool,
         "model": model, "date": date, "route": route, "continued": bool(continued),
         "words": len(text.split()), "cut_reference_paragraphs": cut,
+        "cut_wrapper_paragraphs": wrapper_cut,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+        "cont_sha256": hashlib.sha256(cont_bytes).hexdigest() if cont_bytes is not None else None,
     }
     manifest = load_ai_manifest()
     manifest["papers"][author_id] = entry
@@ -216,8 +256,9 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
     (AI_DIR / f"manifest_{COLLECTION}.json").write_text(
         json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
     if entry["words"] < CONTINUE_BELOW and not continued:
-        print(f"{author_id}: only {entry['words']} words; send the continue prompt once "
-              f"in the same chat, save both replies, and re-run with --continued:\n  {CONTINUE_PROMPT}")
+        print(f"{author_id}: only {entry['words']} cleaned words; send the continue prompt below once "
+              f"in the same chat, save that reply on its own to validation/scholarly/ai_mirror/raw/"
+              f"{author_id}.cont.txt, and re-run intake with --continued:\n  {CONTINUE_PROMPT}")
     return entry
 
 

@@ -144,13 +144,15 @@ def test_normalise_numbered_and_underscore_markers_and_title_with_punctuation():
     assert out.count("\n\n") == 1
 
 
-def _setup(tmp_path, monkeypatch, raw_words=1500):
+def _setup(tmp_path, monkeypatch, raw_words=1500, cont_words=None):
     monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path)
     t = ai_mirror.Target(rank=0, author_id="A1", paper_id="P1", title="T", venue="V", tool="claude")
     (tmp_path / "targets_humanities.json").write_text(
         json.dumps({"targets": [ai_mirror.dataclasses.asdict(t)]}), encoding="utf-8")
     (tmp_path / "raw").mkdir()
     (tmp_path / "raw" / "A1.txt").write_text("para " * raw_words, encoding="utf-8")
+    if cont_words is not None:
+        (tmp_path / "raw" / "A1.cont.txt").write_text("more " * cont_words, encoding="utf-8")
 
 
 def test_intake_records_hash_and_word_count(tmp_path, monkeypatch):
@@ -161,13 +163,14 @@ def test_intake_records_hash_and_word_count(tmp_path, monkeypatch):
     assert e["sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
     assert e["raw_sha256"] == hashlib.sha256((tmp_path / "raw" / "A1.txt").read_bytes()).hexdigest()
     assert (e["paper_id"], e["tool"], e["route"], e["continued"]) == ("P1", "claude", "app", False)
+    assert (e["cont_sha256"], e["cut_reference_paragraphs"], e["cut_wrapper_paragraphs"]) == (None, 0, 0)
     m = ai_mirror.load_ai_manifest()
     assert m["study_id"] == ai_mirror.STUDY_ID and m["collection"] == "humanities"
     assert m["papers"]["A1"] == e
 
 
 def test_intake_upserts_and_is_stable(tmp_path, monkeypatch):
-    _setup(tmp_path, monkeypatch)
+    _setup(tmp_path, monkeypatch, cont_words=50)
     ai_mirror.intake("A1", "m1", "2026-11-17", "app", False)
     ai_mirror.intake("A1", "m2", "2026-11-18", "subagent", True)
     m = ai_mirror.load_ai_manifest()
@@ -193,15 +196,49 @@ def test_intake_rejects_unknown_author_bad_route_and_missing_raw(tmp_path, monke
 
 
 def test_intake_reminds_to_continue_when_short(tmp_path, monkeypatch, capsys):
-    _setup(tmp_path, monkeypatch, raw_words=100)
+    _setup(tmp_path, monkeypatch, raw_words=100, cont_words=100)
     ai_mirror.intake("A1", "m", "2026-11-17", "app", False)
-    assert "continue" in capsys.readouterr().out.lower()
+    out = capsys.readouterr().out
+    assert "continue" in out.lower() and "raw/A1.cont.txt" in out and "--continued" in out
     ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
     assert capsys.readouterr().out == ""
 
 
-def test_intake_cli(tmp_path, monkeypatch):
+def test_intake_continued_requires_the_continuation_file(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, raw_words=100)
+    with pytest.raises(ValueError, match=r"A1\.cont\.txt"):
+        ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
+    assert not (tmp_path / "texts" / "A1.txt").exists()
+
+
+def test_intake_cleans_reply_and_continuation_separately(tmp_path, monkeypatch):
+    # reply 1 ends in a reference heading, which must not swallow the continuation
     _setup(tmp_path, monkeypatch)
+    raw1 = f"{BODY}\n\nReferences\n\n{REF1}\n"
+    more = " ".join(["more"] * 700)
+    cont = f"{LEAD}\n\n{more}\n\n{REF2}\n\n{SIGN}\n"
+    (tmp_path / "raw" / "A1.txt").write_text(raw1, encoding="utf-8")
+    (tmp_path / "raw" / "A1.cont.txt").write_text(cont, encoding="utf-8")
+    e = ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
+    text = (tmp_path / "texts" / "A1.txt").read_text(encoding="utf-8")
+    assert text == f"{BODY}\n\n{more}" and e["words"] == 720
+    assert e["raw_sha256"] == hashlib.sha256(raw1.encode("utf-8")).hexdigest()
+    assert e["cont_sha256"] == hashlib.sha256(cont.encode("utf-8")).hexdigest()
+    assert (e["cut_reference_paragraphs"], e["cut_wrapper_paragraphs"]) == (1, 2)
+    assert e["continued"] is True
+
+
+def test_intake_cut_counts_are_summed_over_both_replies(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    (tmp_path / "raw" / "A1.txt").write_text(f"{LEAD}\n\n{BODY}\n\n{REF1}\n", encoding="utf-8")
+    (tmp_path / "raw" / "A1.cont.txt").write_text(f"{LEAD}\n\n{BODY}\n\n{REF2}\n\n{SIGN}\n", encoding="utf-8")
+    e = ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
+    assert (e["cut_reference_paragraphs"], e["cut_wrapper_paragraphs"]) == (2, 3)
+    assert (tmp_path / "texts" / "A1.txt").read_text(encoding="utf-8") == f"{BODY}\n\n{BODY}"
+
+
+def test_intake_cli(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch, cont_words=50)
     assert ai_mirror.main(["intake", "--author", "A1", "--model", "m", "--date", "2026-11-17",
                            "--route", "subagent", "--continued"]) == 0
     assert ai_mirror.load_ai_manifest()["papers"]["A1"]["continued"] is True
@@ -218,16 +255,98 @@ def test_formatted_reference_headings_cut_entries(head):
 
 def test_headingless_trailing_references_cut_and_counted(tmp_path, monkeypatch):
     raw = f"{BODY}\n\n{REF1}\n\n{REF2}\n"
-    text, cut = ai_mirror._normalise(raw, "Zed")
-    assert text == BODY and cut == 2
+    text, cut, wrapper = ai_mirror._normalise(raw, "Zed")
+    assert text == BODY and cut == 2 and wrapper == 0
     _setup(tmp_path, monkeypatch)
     (tmp_path / "raw" / "A1.txt").write_text(raw, encoding="utf-8")
-    assert ai_mirror.intake("A1", "m", "2026-11-17", "app", True)["cut_reference_paragraphs"] == 2
+    assert ai_mirror.intake("A1", "m", "2026-11-17", "app", False)["cut_reference_paragraphs"] == 2
 
 
 def test_reference_like_paragraph_before_body_is_kept():
     out = ai_mirror.normalise_ai_text(f"{REF1}\n\n{BODY}\n", "Zed")
     assert "Smith" in out and BODY in out
+
+
+# closing body paragraphs the substring markers used to cut: "ed." in "restored.", "doi" in "doing"
+CLOSING_1563 = ("The council ended its work in 1563. What it left behind was a church reshaped in doctrine "
+                "and discipline, and the unity of the West was never fully restored.")
+CLOSING_LUTHER = ("Luther (1520) argued that the church is always in need of reform, and that claim remains "
+                  "the best account of what it means for the church to be doing its theology.")
+ENTRY = ("Smith, J. (2010). Title of the book on grace and its many consequences. Oxford: Oxford "
+         "University Press, pp. 1-20.")
+
+
+@pytest.mark.parametrize("closing,ending", [(CLOSING_1563, "never fully restored."),
+                                            (CLOSING_LUTHER, "doing its theology.")])
+def test_dated_closing_body_paragraph_is_kept(closing, ending):
+    text, cut, _ = ai_mirror._normalise(f"{BODY}\n\n{closing}\n", "Zed")
+    assert cut == 0 and text.startswith(BODY + "\n\n") and text.endswith(ending)
+
+
+def test_real_reference_entry_in_trailing_block_is_cut():
+    text, cut, _ = ai_mirror._normalise(f"{BODY}\n\n{CLOSING_1563}\n\n{ENTRY}\n", "Zed")
+    assert cut == 1 and "Smith" not in text and text.endswith("never fully restored.")
+
+
+@pytest.mark.parametrize("para,ref", [
+    ("Trent, the city, closed the council in 1563. It was never fully restored.", False),   # ed.
+    ("Trent, the city, closed the council in 1563. It is what the church still needs.", False),   # eds.
+    ("Trent, the city, closed the council in 1563. It went on doing so.", False),   # doi
+    ("Trent, the city, closed the council in 1563. It is not an app.", False),   # pp.
+    ("Trent, the city, closed the council in 1563. Oxford University Press.", True),
+    ("Trent, the city, closed the council in 1563. pp. 1-20.", True),
+    ("Trent, the city, closed the council in 1563. Smith and Jones, eds. Rome.", True),
+    ("Trent, the city, closed the council in 1563. doi 10.1000/xyz.", True),
+    ("The council closed in 1563, see Oxford University Press, pp. 1-20.", False),   # no entry-like start
+    ("Smith, J. Title of the book. Oxford: Oxford University Press, pp. 1-20.", False),   # no year
+])
+def test_reference_like_needs_entry_start_year_and_word_bounded_marker(para, ref):
+    assert ai_mirror._reference_like(para) is ref
+
+
+# chat-app wrapper text around the article
+LEAD = "Certainly! Here is an original scholarly journal article of about 1,600 words on that topic."
+SIGN = "Let me know if you would like me to adjust the tone, length or focus of any part of this article."
+
+
+def test_wrapper_lead_in_and_sign_off_are_removed_and_counted():
+    text, cut, wrapper = ai_mirror._normalise(f"{LEAD}\n\n{BODY}\n\n{BODY}\n\n{SIGN}\n", "Zed")
+    assert text == f"{BODY}\n\n{BODY}" and (cut, wrapper) == (0, 2)
+
+
+@pytest.mark.parametrize("lead", [
+    "**Sure.** Below is the article you asked for.", "Of course. The article follows.",
+    "Absolutely, here it is.", "HERE IS the article, written as continuous prose in paragraphs.",
+    "Here’s an original article on the topic you named.", "Here's the article.",
+    "Below is an original article.", "I’ve written an original article for you.",
+    "I have written the article in continuous prose as you asked.",
+    "The article follows, written as continuous academic prose in paragraphs as requested:"])
+def test_wrapper_lead_ins(lead):
+    text, _, wrapper = ai_mirror._normalise(f"{lead}\n\n{BODY}\n", "Zed")
+    assert text == BODY and wrapper == 1
+
+
+def test_wrapper_sign_offs_are_dropped_repeatedly_from_the_end():
+    tail = ("I hope this article gives you a useful sense of the debate and its main lines of argument.\n\n"
+            "If you’d like, I can also add an abstract or expand any of the paragraphs above for you.\n\n"
+            "Would you like me to change anything?")
+    text, _, wrapper = ai_mirror._normalise(f"{BODY}\n\n{tail}\n", "Zed")
+    assert text == BODY and wrapper == 3
+
+
+@pytest.mark.parametrize("first", [
+    "The council of Trent closed in 1563, and its decrees shaped the church for four centuries after.",
+    "Surely the council of Trent did more to shape the modern church than any other gathering did.",
+    "Certainty about the council's aims is hard to come by, since its sessions spanned eighteen years."])
+def test_ordinary_first_body_paragraph_is_kept(first):
+    text, _, wrapper = ai_mirror._normalise(f"{first}\n\n{BODY}\n", "Zed")
+    assert text == f"{first}\n\n{BODY}" and wrapper == 0
+
+
+def test_offer_phrase_in_a_middle_paragraph_is_kept():
+    mid = "Erasmus was happy to leave the dispute to others, and he said so in letters to many friends."
+    text, _, wrapper = ai_mirror._normalise(f"{BODY}\n\n{mid}\n\n{BODY}\n", "Zed")
+    assert mid in text and wrapper == 0
 
 
 def test_intake_rejects_empty_cleaned_text(tmp_path, monkeypatch):
