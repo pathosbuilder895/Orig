@@ -104,8 +104,19 @@ def load_targets(path: Optional[Path] = None) -> List[Target]:
     return [Target(**t) for t in data["targets"]]
 
 
-_REF_HEAD = re.compile(r"^\s*(references|bibliography|works cited|notes|endnotes)\s*:?\s*$", re.I)
+_REF_HEADS = frozenset({
+    "references", "reference list", "bibliography", "select bibliography", "works cited",
+    "literature cited", "sources", "notes", "endnotes", "further reading"})
+_SECTION_PREFIX = re.compile(r"^(?:\d+|[ivxlc]+)[.)]\s+", re.I)
 _BULLET = re.compile(r"^\s*(?:[-*+\u2022]|\d+[.)])\s+")
+_REF_YEAR = re.compile(r"\((?:1[5-9]|20)\d\d[a-z]?\)|\b(?:1[5-9]|20)\d\d\.")
+_REF_MARKERS = ("pp.", "Press", "Journal", "doi", "Vol.", "ed.", "eds.", "University", "Review")
+
+
+def _is_ref_heading(line: str) -> bool:
+    s = line.strip().lstrip("#").strip(" *_")
+    s = _SECTION_PREFIX.sub("", s)
+    return s.rstrip(":").strip(" *_").lower() in _REF_HEADS
 
 
 def _alnum(s: str) -> str:
@@ -117,11 +128,22 @@ def _unemphasise(line: str) -> str:
     return re.sub(r"(?<!\w)_|_(?!\w)", "", line)
 
 
-def normalise_ai_text(raw: str, title: str) -> str:
-    """Make an AI reply look like a cleaned corpus paper: plain prose paragraphs only."""
+def _reference_like(para: str) -> bool:
+    return bool(_REF_YEAR.search(para)) and any(m in para for m in _REF_MARKERS)
+
+
+def _cut_trailing_references(paras: List[str]) -> tuple:
+    """Drop the trailing run of reference-like paragraphs; return (kept, number dropped)."""
+    i = len(paras)
+    while i > 0 and _reference_like(paras[i - 1]):
+        i -= 1
+    return paras[:i], len(paras) - i
+
+
+def _normalise(raw: str, title: str) -> tuple:
     lines = raw.replace("\r\n", "\n").split("\n")
     for i, ln in enumerate(lines):
-        if _REF_HEAD.match(ln):
+        if _is_ref_heading(ln):
             lines = lines[:i]
             break
     want = _alnum(title)
@@ -133,8 +155,18 @@ def normalise_ai_text(raw: str, title: str) -> str:
         if ln.strip() and _alnum(ln) == want:
             continue
         kept.append(ln)
-    paras = (clean.strip_inline(p) for p in re.split(r"\n\s*\n", "\n".join(kept)))
-    return "\n\n".join(p for p in paras if len(p.split()) >= MIN_PARA_WORDS)
+    raws = re.split(r"\n\s*\n", "\n".join(kept))
+    pairs = [(r, clean.strip_inline(r)) for r in raws]
+    pairs = [(r, c) for r, c in pairs if len(c.split()) >= MIN_PARA_WORDS]
+    _, cut = _cut_trailing_references([r for r, _ in pairs])
+    if cut:
+        pairs = pairs[:len(pairs) - cut]
+    return "\n\n".join(c for _, c in pairs), cut
+
+
+def normalise_ai_text(raw: str, title: str) -> str:
+    """Make an AI reply look like a cleaned corpus paper: plain prose paragraphs only."""
+    return _normalise(raw, title)[0]
 
 
 def load_ai_manifest(path: Optional[Path] = None) -> dict:
@@ -155,14 +187,16 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
     if not raw_path.exists():
         raise ValueError(f"missing raw reply: {raw_path}")
     raw_bytes = raw_path.read_bytes()
-    text = normalise_ai_text(raw_bytes.decode("utf-8"), target.title)
+    text, cut = _normalise(raw_bytes.decode("utf-8"), target.title)
+    if not text.strip():
+        raise ValueError(f"cleaned text for {author_id!r} is empty")
     out = AI_DIR / "texts" / f"{author_id}.txt"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
     entry = {
         "author_id": author_id, "paper_id": target.paper_id, "tool": target.tool,
         "model": model, "date": date, "route": route, "continued": bool(continued),
-        "words": len(text.split()),
+        "words": len(text.split()), "cut_reference_paragraphs": cut,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
     }

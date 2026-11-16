@@ -116,14 +116,20 @@ def test_load_targets_round_trips_and_main_writes(tmp_path, monkeypatch):
 
 
 # ------------------------------------------------------------- cleaning + intake --
+REF1 = ("Smith, John. (2010). A long study of grace and its many consequences in late antiquity. "
+        "Oxford University Press, pp. 1-300.")
+REF2 = ("Jones, Mary. (2012). Reading the fathers again for a new generation of scholars. "
+        "Journal of Early Christian Studies, Vol. 5, doi 10.1000/xyz.")
+BODY = " ".join(["grace"] * 20)
+
 RAW = ("# A Study of Grace\n\n**Introduction** " + "word " * 30 + "\n\n## Part two\n\n- "
        + "bullet words " * 10 + "see https://example.org now.\n\nshort para here\n\n"
-       "References\n\nSmith, J. (2010). A book.\n")
+       "References\n\n" + REF1 + "\n\n" + REF2 + "\n")
 
 
 def test_normalise_strips_markdown_title_short_paras_and_references():
     out = ai_mirror.normalise_ai_text(RAW, "A Study of Grace")
-    for bad in ("#", "**", "A Study of Grace", "References", "Smith, J.", "https://", "short para here"):
+    for bad in ("#", "**", "A Study of Grace", "References", "Smith, John", "Jones, Mary", "https://", "short para here"):
         assert bad not in out
     assert out.count("\n\n") == 1
     assert not out.lstrip().startswith("-")
@@ -131,7 +137,7 @@ def test_normalise_strips_markdown_title_short_paras_and_references():
 
 def test_normalise_numbered_and_underscore_markers_and_title_with_punctuation():
     raw = ("**A Study, of Grace!**\n\n1. " + "alpha " * 14 + "\n\n_" + "beta " * 13 + "gamma_ done here.\n\n"
-           "Works Cited:\n\nX.\n")
+           "Works Cited:\n\n" + REF1 + "\n\n" + REF2 + "\n")
     out = ai_mirror.normalise_ai_text(raw, "a study of grace")
     assert out.split("\n\n")[0].startswith("alpha")
     assert "_" not in out and "Works" not in out and "Study" not in out
@@ -199,3 +205,34 @@ def test_intake_cli(tmp_path, monkeypatch):
     assert ai_mirror.main(["intake", "--author", "A1", "--model", "m", "--date", "2026-11-17",
                            "--route", "subagent", "--continued"]) == 0
     assert ai_mirror.load_ai_manifest()["papers"]["A1"]["continued"] is True
+
+
+@pytest.mark.parametrize("head", [
+    "**References**", "**References:**", "## References", "7. References", "Reference List",
+    "**Works Cited**", "Select Bibliography", "Sources", "**Bibliography**"])
+def test_formatted_reference_headings_cut_entries(head):
+    out = ai_mirror.normalise_ai_text(f"{BODY}\n\n{head}\n\n{REF1}\n\n{REF2}\n", "Zed")
+    assert out == BODY
+    assert "Smith" not in out and "Jones" not in out
+
+
+def test_headingless_trailing_references_cut_and_counted(tmp_path, monkeypatch):
+    raw = f"{BODY}\n\n{REF1}\n\n{REF2}\n"
+    text, cut = ai_mirror._normalise(raw, "Zed")
+    assert text == BODY and cut == 2
+    _setup(tmp_path, monkeypatch)
+    (tmp_path / "raw" / "A1.txt").write_text(raw, encoding="utf-8")
+    assert ai_mirror.intake("A1", "m", "2026-11-17", "app", True)["cut_reference_paragraphs"] == 2
+
+
+def test_reference_like_paragraph_before_body_is_kept():
+    out = ai_mirror.normalise_ai_text(f"{REF1}\n\n{BODY}\n", "Zed")
+    assert "Smith" in out and BODY in out
+
+
+def test_intake_rejects_empty_cleaned_text(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    (tmp_path / "raw" / "A1.txt").write_text("too short\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        ai_mirror.intake("A1", "m", "2026-11-17", "app", False)
+    assert not (tmp_path / "texts" / "A1.txt").exists()
