@@ -102,8 +102,19 @@ def _unit_rows(X) -> np.ndarray:
     return X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
 
 
-def build_scores(collection: str, sets: dict, vecs: dict) -> list[dict]:
-    """Rule-D score and its components for every new paper in every trial set."""
+def _trial_docs(t, authors, honest_of, field, hosts, seed, extra=None):
+    """The trial's probe documents, plus any extra papers claimed for this author."""
+    docs = list(probe_docs(t, authors, honest_of, field, hosts, seed))
+    if extra:
+        docs += extra.get(t.student_id, [])
+    return docs
+
+
+def build_scores(collection: str, sets: dict, vecs: dict, extra_docs: dict | None = None) -> list[dict]:
+    """Rule-D score and its components for every new paper in every trial set.
+
+    extra_docs[(config_name, seed)][author_id] is a list of (text, label, src, kind)
+    scored alongside the probes; None leaves the rows exactly as before."""
     from original.quantum.state import BaselineSample, StudentState
     reset_research_flags()
     store = FeatureStore(collection)
@@ -112,6 +123,9 @@ def build_scores(collection: str, sets: dict, vecs: dict) -> list[dict]:
         new_w = dict((n, w) for n, _, w in CONFIGS)[name]
         for t in ts.trials:
             texts += length_matched(t, new_w).baseline + t.honest + t.probes
+    for per_author in (extra_docs or {}).values():
+        for docs in per_author.values():
+            texts += [d[0] for d in docs]
     store.ensure(texts)
     field, hosts = dominant_subfields(collection), _hosts(collection)
     rows = []
@@ -141,7 +155,8 @@ def build_scores(collection: str, sets: dict, vecs: dict) -> list[dict]:
         honest_of = {t.student_id: t.honest[0] for t in trials}
         for t in trials:
             a = idx[t.student_id]
-            for text, label, src, kind in probe_docs(t, authors, honest_of, field, hosts, seed):
+            extra = (extra_docs or {}).get((name, seed))
+            for text, label, src, kind in _trial_docs(t, authors, honest_of, field, hosts, seed, extra):
                 others = np.array([idx[o] for o in authors if o != t.student_id and o != src])
                 comps = {}
                 for k, vz in vecs.items():
