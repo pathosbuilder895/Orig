@@ -43,11 +43,13 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g_rebind,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
     evaluate_g_t4_coldstart,
 )
+from validation.rebind.harness import PairRecord
 from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
 
 
@@ -60,7 +62,29 @@ class GateContract:
     notes: str = ""
 
 
+def _rebind_inverted_records() -> list[PairRecord]:
+    """llr inverted: genuine pairs read impostor-like, impostors genuine-like."""
+    genuine = [PairRecord(f"g{k % 20}", True, 0.8, 0.9, "witness") for k in range(400)]
+    impostor = [PairRecord(f"i{k % 20}", False, 0.5, 0.1, "witness") for k in range(400)]
+    return genuine + impostor
+
+
+def _rebind_witness() -> GateResult:
+    from original.quantum.scoring import LLR_REBIND_THRESHOLDS
+
+    return evaluate_g_rebind(_rebind_inverted_records(), thresholds=LLR_REBIND_THRESHOLDS)
+
+
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_rebind": GateContract(
+        gate="G-REBIND",
+        claims="rebind catches more impostors at schedule_conversation+ than "
+        "gate on held-out writers without raising honest false alarms "
+        "(<= 5% and <= gate's at schedule_conversation+, <= gate's at escalate)",
+        failure_witness=_rebind_witness,
+        notes="Witness is inverted llr separation at n=400 per side: rebind "
+        "flags every genuine pair, so the false-alarm legs fail.",
+    ),
     "evaluate_g_t1_honest_term": GateContract(
         gate="T-1", claims="honest-term action budget",
         failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),

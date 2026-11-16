@@ -220,6 +220,17 @@ def run(
             "baseline_median_per_author_auc": baseline_report.median_per_author_auc,
             "baseline_iqr_per_author_auc": baseline_report.iqr_per_author_auc,
             "baseline_pooled_uncalibrated_auc": baseline_report.pooled_uncalibrated_auc,
+            # Per-pair rows for the G-REBIND harness (validation/rebind/):
+            # deviation_score and llr_deviation_score from the same score().
+            "pairs": [
+                {
+                    "baseline_author": b.baseline_author,
+                    "submission_author": b.submission_author,
+                    "deviation": b.deviation,
+                    "llr": lp.deviation,
+                }
+                for b, lp in zip(baseline_pairs, llr_pairs, strict=True)
+            ],
         },
     )
 
