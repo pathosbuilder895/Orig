@@ -31,3 +31,23 @@ def test_tier_bands():
     assert writer_line_action(1.5) == "monitor"
     assert writer_line_action(2.5) == "schedule_conversation"
     assert writer_line_action(9.0) == "escalate"
+
+
+def test_below_lowest_band_is_first_tier():
+    custom = {
+        "no_action": (0.0, 1.0),
+        "monitor": (1.0, 2.0),
+        "escalate": (2.0, 3.0),
+    }
+    assert writer_line_action(-5.0, custom) == "no_action"
+    assert writer_line_action(1e9, custom) == "escalate"
+
+
+def test_band_boundaries_are_inclusive_lower():
+    assert writer_line_action(1.0) == "monitor"
+    assert writer_line_action(2.0) == "schedule_conversation"
+    assert writer_line_action(3.0) == "escalate"
+
+
+def test_exactly_three_papers_returns_float():
+    assert isinstance(writer_z(0.7, [0.5, 0.6, 0.7]), float)

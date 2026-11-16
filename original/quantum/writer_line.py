@@ -23,11 +23,17 @@ def writer_z(rms_z: float, loo: list[float]) -> float | None:
     return (rms_z - float(np.mean(arr))) / spread
 
 
-def writer_line_action(z, thresholds=WRITER_LINE_Z_THRESHOLDS):
+def writer_line_action(
+    z: float | None, thresholds=WRITER_LINE_Z_THRESHOLDS
+) -> str | None:
     """Map a writer z to an action tier; None abstains."""
     if z is None or not math.isfinite(z):
         return None
-    for name, (lo, hi) in thresholds.items():
+    names = list(thresholds)
+    for name in names:
+        lo, hi = thresholds[name]
         if lo <= z < hi:
             return name
-    return list(thresholds)[-1]
+    if z < thresholds[names[0]][0]:
+        return names[0]
+    return names[-1]
