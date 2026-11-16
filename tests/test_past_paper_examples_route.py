@@ -13,8 +13,16 @@ from types import SimpleNamespace
 import pytest
 
 from original import principal
+from original.repository import reset_repository
 from tests.alpha.test_alpha_ready_e2e import TOPICS, _paper
 from tests.alpha.test_past_papers import _ok, _workspace
+
+
+@pytest.fixture(autouse=True)
+def _fresh(store_reset):
+    reset_repository()
+    yield
+    reset_repository()
 
 
 @pytest.fixture
