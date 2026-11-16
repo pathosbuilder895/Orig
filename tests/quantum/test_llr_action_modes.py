@@ -142,10 +142,11 @@ def test_unknown_mode_raises():
 
 def test_rebind_action_maps_tiers():
     assert _rebind_action(0.10) == "no_action"
-    assert _rebind_action(0.40) == "monitor"
-    assert _rebind_action(0.599) == "monitor"
-    assert _rebind_action(0.60) == "schedule_conversation"
-    assert _rebind_action(0.75) == "escalate"
+    assert _rebind_action(0.59) == "no_action"
+    assert _rebind_action(0.60) == "monitor"
+    assert _rebind_action(0.74) == "monitor"
+    assert _rebind_action(0.75) == "schedule_conversation"
+    assert _rebind_action(0.77) == "escalate"
     assert _rebind_action(1.0) == "escalate"
     assert _rebind_action(1.7) == "escalate"
 

@@ -214,3 +214,25 @@ def test_split_keeps_impostor_from_unclaimed_writer():
     records.append(PairRecord("a0", False, 0.5, 0.8, "c", submission_author="outsider"))
     d, h = split_by_author(records, seed=1)
     assert sum(not r.genuine for r in d + h) == 1
+
+
+def test_load_records_rejects_null_llr(tmp_path):
+    p = tmp_path / "nonull.json"
+    pair = {"baseline_author": "a", "submission_author": "a", "deviation": 0.3, "llr": None}
+    p.write_text(json.dumps({"label": "x", "extra": {"pairs": [pair]}}))
+    with pytest.raises(ValueError, match="NULL_MODEL=impostor"):
+        load_records(p)
+
+
+def test_run_cli_writes_report(tmp_path):
+    from validation.rebind.run import main
+
+    src = _separable(40)
+    p = tmp_path / "r.json"
+    _write_report(p, "seminary", src)
+    out = tmp_path / "report.json"
+    assert main(["--records", str(p), "--seed", "20261116", "--out", str(out)]) == 0
+    report = json.loads(out.read_text())
+    assert set(report["rates"]) == {"gate", "rebind"}
+    assert "seminary" in report["per_corpus"]
+    assert report["verdict"] in {"pass", "fail", "uninformative"}

@@ -2216,13 +2216,17 @@ LLR_ACTION_GENUINE_THRESHOLD = 0.35  # below → confidently more like the claim
 LLR_ACTION_IMPOSTOR_THRESHOLD = 0.65  # above → confidently more like the impostor pool
 
 # Action bands applied directly to llr_deviation_score by LLR_ACTION_MODE=rebind.
-# Keyed like constants.ACTION_THRESHOLDS. Placeholder values until calibrated
-# (Task 4); safe because rebind is off by default.
+# Keyed like constants.ACTION_THRESHOLDS. Selected 2026-11-16 by
+# validation/rebind/run.py (seed 20261116) on the derivation split of
+# seminary + public_authors + PAN20 cross-fandom records; see
+# validation/rebind/report_2026-11-16.json. G-REBIND is UNINFORMATIVE
+# (29 genuine hold-out pairs) and rebind caught fewer impostors than gate on
+# that hold-out, so this mode is not validated. Off by default.
 LLR_REBIND_THRESHOLDS: dict[str, tuple[float, float]] = {
-    "no_action": (0.0, 0.40),
-    "monitor": (0.40, 0.60),
-    "schedule_conversation": (0.60, 0.75),
-    "escalate": (0.75, 1.0),
+    "no_action": (0.0, 0.5925641849220357),
+    "monitor": (0.5925641849220357, 0.7425641849220357),
+    "schedule_conversation": (0.7425641849220357, 0.7694367004049205),
+    "escalate": (0.7694367004049205, 1.0),
 }
 
 

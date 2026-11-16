@@ -43,6 +43,12 @@ def load_records(path: Path) -> list[PairRecord]:
             "(per-pair records were added for G-REBIND)"
         )
     corpus = str(data.get("label", Path(path).stem))
+    null_llr = sum(1 for p in pairs if p.get("llr") is None)
+    if null_llr:
+        raise ValueError(
+            f"{path}: {null_llr} of {len(pairs)} pairs have llr=null — re-run "
+            "validation/verify/run_null_model.py with NULL_MODEL=impostor"
+        )
     return [
         PairRecord(
             author=str(p["baseline_author"]),
