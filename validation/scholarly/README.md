@@ -85,7 +85,7 @@ The manifest is the durable record; the cache is disposable and rebuildable.
 .venv/bin/python -m validation.scholarly.fetch --collection humanities --restore   # re-download missing papers, hash-checked
 ```
 
-Each manifest paper records the cleaner version that produced its hash (`cleaner_version`; `clean.CLEAN_VERSION`). The first build used v1; a later fix (v2) stopped the footnote rule stripping digits glued to letters (`p53`, `log2`), so `--restore` warns about papers cleaned by an older version and any the change touched may report `mismatch`.
+Each manifest paper records the cleaner version that produced its hash (`cleaner_version`; `clean.CLEAN_VERSION`). The first build used v1; a later fix (v2) stopped the footnote rule stripping digits glued to letters (`p53`, `log2`), and `--restore` re-cleans each paper with the version recorded for it, so a v1 paper still reproduces its hash.
 
 `--restore` fetches only the manifest's papers and keeps a text only when its SHA-256
 equals the recorded one. A changed publisher file or a changed cleaner shows up as a

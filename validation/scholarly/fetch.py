@@ -391,8 +391,9 @@ def verify(collection: str, cache: Path, manifest_dir: Optional[Path] = None) ->
 def restore(collection: str, cache: Path, workers: int = 8, manifest_dir: Optional[Path] = None,
             fetch_url: Optional[Callable[[str], Optional[bytes]]] = None) -> dict:
     """Rebuild the cache from the manifest alone (fresh checkout). Each missing paper is fetched
-    from its manifest URL, cleaned, and kept only if its SHA-256 equals the recorded one; a
-    changed publisher file or cleaner shows up as a mismatch, never as silently different text."""
+    from its manifest URL, cleaned with the cleaner version its hash was recorded under, and kept
+    only if its SHA-256 equals the recorded one; a changed publisher file shows up as a mismatch,
+    never as silently different text."""
     from .loader import load_manifest
     m = load_manifest(collection, manifest_dir)
     fetcher = Fetcher(collection, cache)
@@ -402,7 +403,8 @@ def restore(collection: str, cache: Path, workers: int = 8, manifest_dir: Option
 
     def one(p):
         body = fetch_url(p.url) if fetch_url else http_get(p.url, fetcher.limiter)[1]
-        text = None if body is None else clean.pdf_bytes_to_text(body, fetcher.tmp, name=f"r_{p.source_paper_id}")
+        text = None if body is None else clean.pdf_bytes_to_text(body, fetcher.tmp, name=f"r_{p.source_paper_id}",
+                                                          version=p.cleaner_version)
         with lock:
             if text is None:
                 out["unreachable"] += 1
@@ -417,10 +419,6 @@ def restore(collection: str, cache: Path, workers: int = 8, manifest_dir: Option
     with ThreadPoolExecutor(max_workers=workers) as ex:
         list(ex.map(one, todo))
     out["already_present"] = len(m.papers) - len(todo)
-    old = sum(p.cleaner_version != clean.CLEAN_VERSION for p in m.papers)
-    if old:
-        out["warning"] = (f"{old} papers were cleaned by an older cleaner than v{clean.CLEAN_VERSION}: "
-                          "those the cleaner change touched will report as mismatch")
     return out
 
 

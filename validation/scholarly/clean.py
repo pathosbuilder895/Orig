@@ -22,6 +22,8 @@ from typing import List, Optional
 
 # Bump when a change alters cleaned text; manifests record the version they were built with.
 # v1: first build (2026-11-11). v2: footnote-marker rule no longer strips digits glued to letters.
+# Both rules stay available (_NOTE_MARKS) so restore can re-clean each paper with the version
+# its manifest hash was recorded under.
 CLEAN_VERSION = "2"
 
 # ---------------------------------------------------------------- parsing --
@@ -106,13 +108,18 @@ def is_english(text: str) -> bool:
 
 # Footnote markers only after sentence punctuation. (v1 also stripped digits glued to lowercase
 # letters, which corrupted "p53", "log2", "mp3"; see CLEAN_VERSION.)
-_NOTE_MARK = re.compile(r"(?<=[.,;:!?”’)\"])\d{1,3}(?=\s|$)")
+_NOTE_MARKS = {
+    "1": re.compile(r"(?<=[.,;:!?”’)\"])\d{1,3}(?=\s|$)|(?<=[a-z])\d{1,2}(?=[\s.,;:)])"),
+    "2": re.compile(r"(?<=[.,;:!?”’)\"])\d{1,3}(?=\s|$)"),
+}
 
 
-def strip_inline(text: str) -> str:
+def strip_inline(text: str, version: str = CLEAN_VERSION) -> str:
     """Remove inline citations, footnote markers, URLs and formula residue from prose."""
+    if version not in _NOTE_MARKS:
+        raise ValueError(f"unknown cleaner version {version!r}; known: {sorted(_NOTE_MARKS)}")
     text = _CITE_PAREN.sub("", text)
-    text = _NOTE_MARK.sub("", text)
+    text = _NOTE_MARKS[version].sub("", text)
     text = _CITE_BRACKET.sub("", text)
     text = _URL.sub("", text)
     out = []
@@ -140,7 +147,7 @@ def _left_margin(lines: List[Line], body_h: float) -> float:
     return c.most_common(1)[0][0] * 4 if c else 0.0
 
 
-def clean_pages(pages: List[Page], min_para_words: int = 12) -> str:
+def clean_pages(pages: List[Page], min_para_words: int = 12, version: str = CLEAN_VERSION) -> str:
     """Prose of a parsed document: body-size text only, no formulas, tables,
     references, footnotes, headings, captions or block quotations."""
     lines = [ln for p in pages for ln in p.lines]
@@ -189,7 +196,7 @@ def clean_pages(pages: List[Page], min_para_words: int = 12) -> str:
                 text = (text + " " + t) if text else t
         if alpha_fraction(text) < 0.78:        # tables, display formulas, citation lists
             continue
-        text = strip_inline(text)
+        text = strip_inline(text, version)
         if re.match(r"^(fig(ure)?|table)\b\.?\s*\d", text, re.I):
             continue
         if len(text.split()) < min_para_words:  # headings, labels, orphan lines
@@ -228,12 +235,14 @@ def raw_stats(pages: List[Page]) -> tuple:
     return len(raw.split()), stopword_fraction(raw)
 
 
-def pdf_bytes_to_text(pdf: bytes, tmp_dir: Path, name: str = "doc", timeout: int = 120) -> Optional[str]:
-    ex = pdf_bytes_to_extraction(pdf, tmp_dir, name, timeout)
+def pdf_bytes_to_text(pdf: bytes, tmp_dir: Path, name: str = "doc", timeout: int = 120,
+                      version: str = CLEAN_VERSION) -> Optional[str]:
+    ex = pdf_bytes_to_extraction(pdf, tmp_dir, name, timeout, version)
     return None if ex is None else ex.text
 
 
-def pdf_bytes_to_extraction(pdf: bytes, tmp_dir: Path, name: str = "doc", timeout: int = 120) -> Optional["Extraction"]:
+def pdf_bytes_to_extraction(pdf: bytes, tmp_dir: Path, name: str = "doc", timeout: int = 120,
+                            version: str = CLEAN_VERSION) -> Optional["Extraction"]:
     """Run poppler on PDF bytes. None when the bytes are not a readable PDF."""
     if not pdf.startswith(b"%PDF"):
         return None
@@ -254,4 +263,4 @@ def pdf_bytes_to_extraction(pdf: bytes, tmp_dir: Path, name: str = "doc", timeou
         return None
     pages = parse_bbox(r.stdout.decode("utf-8", "replace"))
     n, stop = raw_stats(pages)
-    return Extraction(clean_pages(pages), n, stop)
+    return Extraction(clean_pages(pages, version=version), n, stop)

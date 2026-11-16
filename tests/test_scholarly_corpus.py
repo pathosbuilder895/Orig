@@ -600,10 +600,10 @@ def test_verify_and_restore_round_trip(corpus, tmp_path, monkeypatch):
     assert v["missing"] == 1 and v["hash_mismatch"] == 1 and v["ok"] == len(m.papers) - 2
     # restore re-creates only the missing one, and only when the hash matches
     url_text = {p.url: None for p in m.papers}
-    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="": body.decode())
+    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="", version=None: body.decode())
     r = fetch.restore("humanities", cache, 2, mdir, fetch_url=lambda u: wanted.encode())
     assert r["restored"] == 1 and r["mismatch"] == 0 and r["already_present"] == len(m.papers) - 1
-    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="": "other text")
+    monkeypatch.setattr(fetch.clean, "pdf_bytes_to_text", lambda body, tmp, name="", version=None: "other text")
     files[0].unlink()
     r = fetch.restore("humanities", cache, 2, mdir, fetch_url=lambda u: b"x")
     assert r["restored"] == 0 and r["mismatch"] == 1 and not files[0].exists()
@@ -633,15 +633,6 @@ def test_duplicate_detection_survives_a_one_word_offset():
     base = " ".join(f"tok{i % 997}z{i}" for i in range(2000))
     shifted = "Running head " + base           # same paper, two extra leading words
     assert fetch.is_duplicate(shifted, [fetch.shingles(base)])
-
-
-def test_restore_warns_when_papers_were_cleaned_by_an_older_cleaner(corpus, tmp_path):
-    m, cache, _ = corpus
-    mdir = tmp_path / "manifest"
-    mdir.mkdir()
-    (mdir / "humanities.json").write_text(m.model_dump_json(), encoding="utf-8")  # papers default to cleaner v1
-    r = fetch.restore("humanities", cache, 1, mdir, fetch_url=lambda u: None)
-    assert "warning" in r and "older cleaner" in r["warning"]
 
 
 # ---------------------------------------------------------------- intended use --
@@ -850,3 +841,37 @@ def test_load_trial_grid_logs_the_locked_opening_once(corpus, monkeypatch, tmp_p
     sets = loader.load_trial_grid("humanities", "locked_test", grid, allow_locked_for="study-x",
                                   manifest=m, cache=cache, n_probes=0)
     assert len(sets) == 3 and log.read_text().count("study-x") == 1
+
+
+# ------------------------------------------------------------------ cleaner versions --
+def test_strip_inline_v1_strips_digits_glued_to_letters():
+    assert clean.strip_inline("the church12 said it.", version="1") == "the church said it."
+    assert clean.strip_inline("the church12 said it.", version="2") == "the church12 said it."
+    assert clean.strip_inline("the church12 said it.") == clean.strip_inline("the church12 said it.", version="2")
+
+
+def test_strip_inline_rejects_unknown_version():
+    with pytest.raises(ValueError):
+        clean.strip_inline("text", version="3")
+
+
+def test_restore_cleans_each_paper_with_its_recorded_version(monkeypatch, tmp_path):
+    texts = {f"W{i}": f"paper text {i}" for i in range(6)}
+    papers = [
+        _paper(aid="A1", wid=f"W{i}", cleaner_version="1" if i < 3 else "2",
+               text_sha256=hashlib.sha256(texts[f"W{i}"].encode()).hexdigest())
+        for i in range(6)
+    ]
+    m = ScholarlyManifest(collection="humanities", created_at="2026-11-11", papers=papers)
+    monkeypatch.setattr(loader, "load_manifest", lambda collection, manifest_dir=None: m)
+    seen_versions = {}
+
+    def fake_pdf_bytes_to_text(pdf, tmp_dir, name="doc", timeout=120, version=clean.CLEAN_VERSION):
+        wid = name[len("r_"):]
+        seen_versions[wid] = version
+        return texts[wid]
+
+    monkeypatch.setattr(clean, "pdf_bytes_to_text", fake_pdf_bytes_to_text)
+    out = fetch.restore("humanities", tmp_path, workers=1, fetch_url=lambda url: b"%PDF")
+    assert seen_versions == {p.source_paper_id: p.cleaner_version for p in papers}
+    assert out["restored"] == 6 and out["mismatch"] == 0 and "warning" not in out
