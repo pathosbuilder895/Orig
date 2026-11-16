@@ -157,6 +157,9 @@ def test_on_still_lets_gate_lower_one_step():
 
 
 def test_on_catastrophic_drift_still_escalates(monkeypatch):
+    # Patching the module attribute works only because score() imports
+    # writer_line_action inside the function body, at call time. A natural
+    # rms_z >= 3 case always also gives a high writer z, so a low tier is forced.
     import original.quantum.writer_line as wl
 
     monkeypatch.setattr(wl, "writer_line_action", lambda z, thresholds=None: "no_action")
@@ -201,3 +204,12 @@ def test_zero_auth_weight_papers_do_not_count():
     s, b = _state(weights=[1.0, 1.0, 1.0, 0.0])
     assert len(s.loo_distances) == 3
     assert _score(s, b, writer_line="on").writer_line_z is not None
+
+
+def test_on_abstains_under_length_adaptive_weights():
+    s, b = _state()
+    off = _score(s, b, length_adaptive_weights=True)
+    s2, b2 = _state()
+    on = _score(s2, b2, length_adaptive_weights=True, writer_line="on")
+    assert on.writer_line_z is None and on.writer_line_action is None
+    assert on.recommendation == off.recommendation

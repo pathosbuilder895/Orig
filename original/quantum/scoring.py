@@ -1599,7 +1599,10 @@ def score(
     # step and catastrophic drift below still apply on top of it.
     writer_line_z: float | None = None
     writer_line_tier: str | None = None
-    if config.writer_line in ("shadow", "on") and _rms_z_comparable_to_loo:
+    # Length-adaptive weights also reweight rms_z (typicality's guard omits
+    # them, a pre-existing gap left alone here), so the writer line abstains.
+    _writer_line_comparable = _rms_z_comparable_to_loo and not config.length_adaptive_weights
+    if config.writer_line in ("shadow", "on") and _writer_line_comparable:
         from .writer_line import writer_line_action as _writer_line_action
         from .writer_line import writer_z as _writer_z
 
