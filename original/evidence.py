@@ -817,11 +817,15 @@ def _pick(places: Sequence[Place], limit: int) -> list[Place]:
     return picked
 
 
-def _length_pick(places: Sequence[Place], mode: str, direction: str, limit: int) -> list[Place]:
+def _typical_pick(places: Sequence[Place], mean: float, limit: int) -> list[Place]:
+    """Sentences closest to the paper's own mean length, ties in document order."""
+    return sorted(places, key=lambda p: (abs((p.words or 0) - mean), p.start))[:limit]
+
+
+def _spread_pick(places: Sequence[Place], limit: int) -> list[Place]:
+    """Interleave the longest and shortest sentences, never repeating one."""
     longest = sorted(places, key=lambda p: (-(p.words or 0), p.start))
     shortest = sorted(places, key=lambda p: ((p.words or 0), p.start))
-    if mode == "mean":
-        return list((longest if direction == "higher" else shortest)[:limit])
     picked: list[Place] = []
     for place in [x for pair in zip(longest, shortest, strict=False) for x in pair]:
         if place not in picked:
@@ -889,17 +893,19 @@ def build_feature_evidence(
         out["note"] = NOT_LOCATED_NOTE
         return out
 
-    def chosen(places):
+    def chosen(places, reading):
+        if spec.sentence_length == "mean":
+            return _typical_pick(places, reading.value, max_examples)
         if spec.sentence_length:
-            return _length_pick(places, spec.sentence_length, direction, max_examples)
+            return _spread_pick(places, max_examples)
         return _pick(places, max_examples)
 
     out["this_paper"] = {
         "count": len(this.places),
-        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places)],
+        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places, this)],
     }
     # Past papers: take examples round-robin across papers in their fixed order.
-    per_paper = [(label, text, chosen(r.places)) for label, text, r in past]
+    per_paper = [(label, text, chosen(r.places, r)) for label, text, r in past]
     examples: list[dict[str, Any]] = []
     depth = 0
     while len(examples) < max_examples and any(depth < len(c) for _, _, c in per_paper):

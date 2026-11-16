@@ -132,7 +132,8 @@ def test_every_quote_is_a_verbatim_slice_at_its_offsets():
         assert q["start"] <= q["match_start"] and q["match_end"] <= q["end"]
         assert len(q["passage"]) <= ev.MAX_QUOTE_CHARS + 40
     # Nothing the engine set aside is quoted as a counted place: the citation and back matter are gone.
-    assert not any("Smith, 2020" in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # (An in-sentence citation like "(Smith, 2020)" is part of a counted sentence; the reference entry is not.)
+    assert not any("Smith, J." in q["match"] or "Night markets" in q["match"] for q in quotes)
 
 
 def test_long_sentences_are_clipped_to_a_verbatim_window():
@@ -488,12 +489,35 @@ def test_overview_and_full_markdown_render():
     assert "Measured:" not in html_out
 
 
+TYPICAL = ("The dog ran. We walked down to the river and sat there quietly. "
+           "She said the old bridge had been closed for many years. "
+           "The long road ran on and on past every field and farm and river and town "
+           "until the light was gone and the night came down on all of us.")
+
+
+def test_mean_sentence_length_quotes_each_papers_typical_sentences():
+    r = ev.read_paper(TYPICAL, "mean_sentence_length")
+    assert r.value == 13.5 and [p.words for p in r.places] == [3, 10, 11, 30]
+    assert [p.words for p in ev._typical_pick(r.places, r.value, 3)] == [11, 10, 3]
+
+
+def test_sentence_length_examples_do_not_depend_on_direction():
+    past = [("past paper 1", PLAIN[0]), ("past paper 2", TYPICAL)]
+    low = ev.build_feature_evidence(_feature("mean_sentence_length", -0.3), TYPICAL, past, rank=1)
+    high = ev.build_feature_evidence(_feature("mean_sentence_length", 0.3), TYPICAL, past, rank=1)
+    assert low["this_paper"] == high["this_paper"] and low["past_papers"] == high["past_papers"]
+    assert [q["words"] for q in low["this_paper"]["examples"]] == [11, 10, 3]
+    # Round-robin across papers, each paper's own typical sentence first.
+    p1 = ev.read_paper(PLAIN[0], "mean_sentence_length")
+    first = ev._typical_pick(p1.places, p1.value, 1)[0].words
+    assert [(q["paper"], q["words"]) for q in low["past_papers"]["examples"]][:2] == [("past paper 1", first), ("past paper 2", 11)]
+
+
 def test_sentence_spread_examples_do_not_repeat_a_sentence():
     places = ev.read_paper("Only one sentence here.", "sentence_length_variance").places
-    assert len(ev._length_pick(places, "spread", "higher", 3)) == 1
+    assert len(ev._spread_pick(places, 3)) == 1
     many = ev.read_paper(PLAIN[0], "sentence_length_variance").places
-    assert len(ev._length_pick(many, "spread", "higher", 2)) == 2
-    assert ev._length_pick(many, "mean", "lower", 1)[0].words == min(p.words for p in many)
+    assert len(ev._spread_pick(many, 2)) == 2
 
 
 def test_engine_view_mirrors_paragraph_style_indentation():
