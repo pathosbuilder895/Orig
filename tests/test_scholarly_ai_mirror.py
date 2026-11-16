@@ -236,3 +236,49 @@ def test_intake_rejects_empty_cleaned_text(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         ai_mirror.intake("A1", "m", "2026-11-17", "app", False)
     assert not (tmp_path / "texts" / "A1.txt").exists()
+
+
+COMMITTED = {"matched_300_300": -0.529301, "matched_1200_1200": -1.244517,
+             "long_past_1200_short_new_300": -0.919008}
+
+
+def test_thresholds_match_equal_at_six_decimals():
+    assert ai_mirror.thresholds_match({**COMMITTED, "matched_300_300": -0.5293014}, COMMITTED) == []
+
+
+def test_thresholds_match_reports_difference_and_missing():
+    r = {"matched_300_300": -0.529302, "matched_1200_1200": -1.244517}
+    assert ai_mirror.thresholds_match(r, COMMITTED) == ["long_past_1200_short_new_300", "matched_300_300"]
+
+
+def _env(monkeypatch, tmp_path, thresholds):
+    monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path / "out")
+    monkeypatch.setattr(ai_mirror.fetch, "verify", lambda c, cache: {"ok": True})
+    monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({}, "deadbeef"))
+    monkeypatch.setattr(rule_d, "calibrate",
+                        lambda c, n: {"thresholds": thresholds, "vectorizers_sha256": "deadbeef"})
+
+
+def _committed_doc():
+    return json.loads((rule_d.HERE / "rule_d_thresholds_humanities.json").read_text(encoding="utf-8"))
+
+
+def test_check_environment_passes_when_thresholds_equal(monkeypatch, tmp_path):
+    doc = _committed_doc()
+    _env(monkeypatch, tmp_path, dict(doc["thresholds"]))
+    res = ai_mirror.check_environment(3)
+    assert res["passed"] is True and res["mismatches"] == []
+    assert res["sha_matches_committed"] == (doc["vectorizers_sha256"] == "deadbeef")
+    written = json.loads((tmp_path / "out" / "environment_humanities.json").read_text())
+    assert set(written) == {"date", "verify", "vectorizers_sha256", "sha_matches_committed",
+                            "recomputed", "committed", "mismatches", "passed"}
+
+
+def test_check_environment_fails_on_one_difference(monkeypatch, tmp_path):
+    doc = _committed_doc()
+    th = dict(doc["thresholds"])
+    name = sorted(th)[0]
+    th[name] += 0.001
+    _env(monkeypatch, tmp_path, th)
+    res = ai_mirror.check_environment(3)
+    assert res["passed"] is False and res["mismatches"] == [name]

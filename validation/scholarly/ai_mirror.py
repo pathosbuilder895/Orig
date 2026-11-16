@@ -15,11 +15,12 @@ import dataclasses
 import hashlib
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from . import clean, loader, policy
+from . import clean, fetch, loader, policy, rule_d
 from .schema import ScholarlyManifest, ScholarlyPaper
 
 HERE = Path(__file__).resolve().parent
@@ -211,10 +212,47 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
     return entry
 
 
+def thresholds_match(recomputed: dict, committed: dict) -> List[str]:
+    """Config names whose threshold differs at 6 decimals or is missing from ``recomputed``."""
+    bad = []
+    for name, want in committed.items():
+        got = recomputed.get(name)
+        if got is None or round(float(got), 6) != round(float(want), 6):
+            bad.append(name)
+    return sorted(bad)
+
+
+def check_environment(n_boot: int = 10) -> dict:
+    """Prove the rebuilt corpus and vectorizers reproduce the committed thresholds."""
+    verify = fetch.verify(COLLECTION, fetch.DEFAULT_CACHE)
+    _vecs, sha = rule_d.fit_or_load_vectorizers(COLLECTION)
+    recomputed = rule_d.calibrate(COLLECTION, n_boot)["thresholds"]
+    committed_doc = json.loads((rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json")
+                               .read_text(encoding="utf-8"))
+    committed = committed_doc["thresholds"]
+    mismatches = thresholds_match(recomputed, committed)
+    result = {
+        "date": time.strftime("%Y-%m-%d"),
+        "verify": verify,
+        "vectorizers_sha256": sha,
+        "sha_matches_committed": sha == committed_doc.get("vectorizers_sha256"),
+        "recomputed": recomputed,
+        "committed": committed,
+        "mismatches": mismatches,
+        "passed": mismatches == [],
+    }
+    AI_DIR.mkdir(parents=True, exist_ok=True)
+    (AI_DIR / f"environment_{COLLECTION}.json").write_text(
+        json.dumps(result, indent=1) + "\n", encoding="utf-8")
+    return result
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="ai_mirror")
     sub = ap.add_subparsers(dest="step", required=True)
     sub.add_parser("select")
+    cp = sub.add_parser("check-env")
+    cp.add_argument("--n-boot", type=int, default=10)
     ip = sub.add_parser("intake")
     ip.add_argument("--author", required=True)
     ip.add_argument("--model", required=True)
@@ -222,6 +260,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ip.add_argument("--route", required=True, choices=list(ROUTES))
     ip.add_argument("--continued", action="store_true")
     args = ap.parse_args(argv)
+    if args.step == "check-env":
+        result = check_environment(args.n_boot)
+        print(json.dumps(result, indent=1))
+        return 0 if result["passed"] else 1
     if args.step == "intake":
         intake(args.author, args.model, args.date, args.route, args.continued)
         return 0
