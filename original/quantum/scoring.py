@@ -1330,8 +1330,8 @@ def score(
     # the band would let shadow change an action via _recommend()'s
     # IDENTITY_AXIS wiring.
     _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
-    # Shared with the per-writer line below: rms_z is comparable to
-    # state.loo_distances only when no weighting or inflation modified it.
+    # rms_z is comparable to state.loo_distances only when no weighting or
+    # inflation modified it.
     _rms_z_comparable_to_loo = (
         adaptive_weights is None and not _sigma_was_inflated and not _characteristic_applied
     )
@@ -1599,14 +1599,26 @@ def score(
     # step and catastrophic drift below still apply on top of it.
     writer_line_z: float | None = None
     writer_line_tier: str | None = None
-    # Length-adaptive weights also reweight rms_z (typicality's guard omits
-    # them, a pre-existing gap left alone here), so the writer line abstains.
-    _writer_line_comparable = _rms_z_comparable_to_loo and not config.length_adaptive_weights
-    if config.writer_line in ("shadow", "on") and _writer_line_comparable:
+    # The reference is each baseline paper's leave-one-out deviation_score,
+    # scored under the same weights and flags as this submission, so no
+    # comparability guard is needed. Costs one score() call per paper.
+    if config.writer_line in ("shadow", "on"):
+        from .writer_line import loo_deviation_scores as _loo_deviation_scores
         from .writer_line import writer_line_action as _writer_line_action
         from .writer_line import writer_z as _writer_z
 
-        writer_line_z = _writer_z(rms_z, state.loo_distances)
+        _writer_ref = _loo_deviation_scores(
+            state,
+            score,
+            adaptive_weights=adaptive_weights,
+            manifest=manifest,
+            n_tokens=n_tokens,
+            impostor_stats=impostor_stats,
+            scoring_config=config,
+            pooled_states=pooled_states,
+            student_id=student_id,
+        )
+        writer_line_z = _writer_z(D_adjusted, _writer_ref)
         writer_line_tier = _writer_line_action(writer_line_z)
         if config.writer_line == "on" and writer_line_tier is not None:
             recommendation = RecommendedAction(

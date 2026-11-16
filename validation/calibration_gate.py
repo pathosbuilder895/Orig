@@ -2415,7 +2415,7 @@ def _compute_g_rebind_data(records_dir=None) -> GateResult:
 
 _G_WRITERLINE_FA_BAR = 0.05
 _G_WRITERLINE_SEED = 20261116
-_G_WRITERLINE_RECORDS_DIR = _HERE / "rebind" / "records"
+_G_WRITERLINE_RECORDS_DIR = _HERE / "writer_line" / "records"
 _G_WRITERLINE_CRITERION = (
     "On author-disjoint hold-out, with writer z cut-offs chosen on the "
     "derivation split only (pairs whose writer line abstains fall back to the "
@@ -2483,7 +2483,7 @@ def evaluate_g_writerline(holdout: list, thresholds: dict) -> GateResult:
 
 
 def _compute_g_writerline_data(records_dir=None) -> GateResult:
-    """Same records and split as G-REBIND; a missing directory is a loud
+    """Same corpora and split as G-REBIND (records in writer_line/records); a missing directory is a loud
     uninformative skip, never a pass."""
     from validation.rebind.harness import split_by_author
     from validation.writer_line.harness import (
@@ -2844,7 +2844,7 @@ def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
         _mark("G-REBIND")
 
     if _want("G-WRITERLINE"):
-        # G-WRITERLINE: per-writer line vs gate on the G-REBIND records.
+        # G-WRITERLINE: per-writer line vs gate on validation/writer_line/records.
         try:
             results.append(_compute_g_writerline_data())
         except Exception as exc:  # noqa: BLE001, see _machinery_error_result

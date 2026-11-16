@@ -18,6 +18,7 @@ from pathlib import Path
 
 from validation.rebind.harness import split_by_author
 from validation.writer_line.harness import (
+    exploratory_split_average,
     load_writer_records,
     rates,
     select_z_thresholds,
@@ -56,6 +57,7 @@ def build_report(record_paths: list[Path], seed: int) -> dict:
         },
         "verdict": result.verdict,
         "current_value": result.current_value,
+        "exploratory_200_split_average": exploratory_split_average(records),
     }
 
 

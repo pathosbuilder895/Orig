@@ -1,14 +1,16 @@
 """
-Pure harness for G-WRITERLINE: per-pair records carrying rms_z and the
-claimed writer's leave-one-out distances, z cut-offs chosen on the
-derivation split only, and catch / false-alarm rates for ``gate`` and
-``writer_line`` on any split.
+Pure harness for G-WRITERLINE: per-pair records carrying deviation, llr and
+the claimed writer's leave-one-out deviation reference (``loo_dev``: each
+baseline paper's deviation_score against the writer's other papers), z
+cut-offs chosen on the derivation split only, and catch / false-alarm rates
+for ``gate`` and ``writer_line`` on any split.
 
 Reuses ``validation.rebind.harness`` for the record shape, the author-disjoint
 split and the ``gate`` baseline action. ``writer_line`` mode is
-``writer_line_action(writer_z(rms_z, loo), thresholds)``; where that abstains
-(fewer than WRITER_LINE_MIN_PAPERS loo papers, non-finite input) the pair
-falls back to the gate baseline action, as production does.
+``writer_line_action(writer_z(deviation, loo_dev), thresholds)`` followed by
+the same one-step gate downgrade production applies; where the writer line
+abstains (fewer than WRITER_LINE_MIN_PAPERS loo papers, non-finite input) the
+pair falls back to the gate baseline action, as production does.
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from original.constants import WRITER_LINE_MIN_PAPERS, WRITER_LINE_STD_FLOOR
+from original.quantum.scoring import _llr_action_candidates
 from original.quantum.writer_line import writer_line_action, writer_z
 from validation.rebind.harness import PairRecord, load_records
 from validation.rebind.harness import _action as _rebind_mode_action
@@ -31,19 +34,18 @@ MONITOR_FPR_FACTOR = 2.0
 
 @dataclass(frozen=True)
 class WriterPairRecord(PairRecord):
-    rms_z: float = float("nan")
-    loo: tuple[float, ...] = ()
+    loo_dev: tuple[float, ...] = ()
 
 
 def load_writer_records(path: Path) -> list[WriterPairRecord]:
-    """Read one run_null_model.py report.json, requiring rms_z and loo."""
+    """Read one run_null_model.py report.json, requiring loo_dev."""
     base = load_records(path)
     pairs = json.loads(Path(path).read_text(encoding="utf-8"))["extra"]["pairs"]
-    missing = sum(1 for p in pairs if "rms_z" not in p or "loo" not in p)
+    missing = sum(1 for p in pairs if "loo_dev" not in p)
     if missing:
         raise ValueError(
-            f"{path}: {missing} of {len(pairs)} pairs lack rms_z/loo, so re-run "
-            "validation/verify/run_null_model.py (rms_z and loo were added for "
+            f"{path}: {missing} of {len(pairs)} pairs lack loo_dev, so re-run "
+            "validation/verify/run_null_model.py (loo_dev was added for "
             "G-WRITERLINE)"
         )
     return [
@@ -54,15 +56,14 @@ def load_writer_records(path: Path) -> list[WriterPairRecord]:
             llr=r.llr,
             corpus=r.corpus,
             submission_author=r.submission_author,
-            rms_z=float(p["rms_z"]),
-            loo=tuple(float(x) for x in p["loo"]),
+            loo_dev=tuple(float(x) for x in p["loo_dev"]),
         )
         for r, p in zip(base, pairs, strict=True)
     ]
 
 
 def record_z(r: WriterPairRecord) -> float | None:
-    return writer_z(r.rms_z, list(r.loo))
+    return writer_z(r.deviation, list(r.loo_dev))
 
 
 def _lowest_cut(values: list[float], candidates: list[float], max_fpr: float) -> float:
@@ -102,7 +103,7 @@ def _action(r: WriterPairRecord, mode: str, thresholds) -> tuple[str, bool]:
         tier = writer_line_action(record_z(r), thresholds)
         if tier is None:
             return _rebind_mode_action(r, "gate", None), True
-        return tier, False
+        return _llr_action_candidates(tier, r.deviation, r.llr)["gate"], False
     raise ValueError(f"unknown mode: {mode!r}")
 
 
@@ -125,20 +126,76 @@ def rates(records: list[WriterPairRecord], mode: str, thresholds) -> dict:
 
 
 def writers_escalate_unreachable(records: list[WriterPairRecord], thresholds) -> dict:
-    """Writers whose escalate line (loo mean + esc z * floored loo std) sits
-    above every rms_z scored against them, so nothing reaches escalate."""
+    """Writers whose escalate line (loo_dev mean + esc z * floored loo_dev
+    std) sits above every deviation scored against them, so nothing reaches
+    escalate (before the gate downgrade)."""
     esc = thresholds["escalate"][0]
     by_writer: dict[str, list[WriterPairRecord]] = {}
     for r in records:
         by_writer.setdefault(r.author, []).append(r)
     unreachable, eligible = [], 0
     for writer, rs in sorted(by_writer.items()):
-        loo = rs[0].loo
+        loo = rs[0].loo_dev
         if len(loo) < WRITER_LINE_MIN_PAPERS:
             continue
         eligible += 1
         line = float(np.mean(loo)) + esc * max(float(np.std(loo)), WRITER_LINE_STD_FLOOR)
-        finite = [r.rms_z for r in rs if math.isfinite(r.rms_z)]
+        finite = [r.deviation for r in rs if math.isfinite(r.deviation)]
         if not finite or max(finite) < line:
             unreachable.append(writer)
     return {"count": len(unreachable), "of": eligible, "writers": unreachable}
+
+
+def _cut_at(values: list[float], max_fpr: float) -> float:
+    candidates = sorted(set(values) | {max(values) + 1e-9})
+    return _lowest_cut(values, candidates, max_fpr)
+
+
+def exploratory_split_average(
+    records: list[WriterPairRecord], seeds: range = range(200), max_fpr: float = 0.05
+) -> dict:
+    """EXPLORATORY, not a gate input. For each seed, split author-disjoint,
+    cut each continuous score (gate: deviation; writer_line: writer z) at the
+    lowest value with derivation genuine false alarms <= max_fpr, then average
+    hold-out catch and genuine false-alarm rates at that cut over the seeds.
+    Pairs without a writer z are left out of the writer_line arm."""
+    from validation.rebind.harness import split_by_author
+
+    scores = {
+        "gate": lambda r: r.deviation,
+        "writer_line": record_z,
+    }
+    acc = {m: {"catch": [], "fa": []} for m in scores}
+    used = 0
+    for seed in seeds:
+        derivation, holdout = split_by_author(records, seed=seed)
+        rows = {}
+        for m, f in scores.items():
+            dg = [v for r in derivation if r.genuine and (v := f(r)) is not None]
+            hg = [v for r in holdout if r.genuine and (v := f(r)) is not None]
+            hi = [v for r in holdout if not r.genuine and (v := f(r)) is not None]
+            if not dg or not hg or not hi:
+                break
+            cut = _cut_at(dg, max_fpr)
+            rows[m] = (
+                sum(1 for v in hi if v >= cut) / len(hi),
+                sum(1 for v in hg if v >= cut) / len(hg),
+            )
+        else:
+            used += 1
+            for m, (c, fa) in rows.items():
+                acc[m]["catch"].append(c)
+                acc[m]["fa"].append(fa)
+    return {
+        "label": "exploratory (not a gate input)",
+        "seeds": [seeds[0], seeds[-1]],
+        "n_splits_used": used,
+        "max_fpr_derivation": max_fpr,
+        **{
+            m: {
+                "mean_holdout_catch": float(np.mean(a["catch"])) if a["catch"] else None,
+                "mean_holdout_fa": float(np.mean(a["fa"])) if a["fa"] else None,
+            }
+            for m, a in acc.items()
+        },
+    }

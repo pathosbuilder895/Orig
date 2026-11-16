@@ -78,21 +78,22 @@ def _rebind_witness() -> GateResult:
 
 
 def _writerline_witness() -> GateResult:
-    """Genuine papers sit far above their own spread (writer z ~12, escalate under fixed bands)
-    while gate leaves them at no_action; impostors sit inside it."""
+    """Genuine papers sit far above their own leave-one-out deviations (writer z ~6,
+    escalate under fixed bands) while gate leaves them at monitor; impostors sit
+    at their writer's mean."""
     bands = {
         "no_action": (float("-inf"), 1.0),
         "monitor": (1.0, 2.0),
         "schedule_conversation": (2.0, 3.0),
         "escalate": (3.0, float("inf")),
     }
-    loo = (0.5, 0.6, 0.7)
+    loo = (0.25, 0.3, 0.35)
     genuine = [
-        WriterPairRecord(f"g{k % 20}", True, 0.2, 0.5, "witness", rms_z=1.6, loo=loo)
+        WriterPairRecord(f"g{k % 20}", True, 0.55, 0.5, "witness", loo_dev=loo)
         for k in range(400)
     ]
     impostor = [
-        WriterPairRecord(f"i{k % 20}", False, 0.2, 0.5, "witness", rms_z=0.6, loo=loo)
+        WriterPairRecord(f"i{k % 20}", False, 0.3, 0.5, "witness", loo_dev=loo)
         for k in range(400)
     ]
     return evaluate_g_writerline(genuine + impostor, thresholds=bands)

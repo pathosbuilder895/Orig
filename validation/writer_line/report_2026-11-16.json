@@ -1,27 +1,27 @@
 {
   "seed": 20261116,
   "records": [
-    "validation/rebind/records/pan20_cross_fandom_nullmodel_N3.json",
-    "validation/rebind/records/public_authors_nullmodel_N3.json",
-    "validation/rebind/records/seminary_nullmodel_N3.json"
+    "validation/writer_line/records/pan20_cross_fandom_nullmodel_N3.json",
+    "validation/writer_line/records/public_authors_nullmodel_N3.json",
+    "validation/writer_line/records/seminary_nullmodel_N3.json"
   ],
   "n_derivation": 329,
   "n_holdout": 115,
   "thresholds": {
     "no_action": [
       "-inf",
-      11.971842225688471
+      3.094378993655378
     ],
     "monitor": [
-      11.971842225688471,
-      12.564559800260295
+      3.094378993655378,
+      5.373099254132627
     ],
     "schedule_conversation": [
-      12.564559800260295,
-      13.771075683353157
+      5.373099254132627,
+      6.9002992378269585
     ],
     "escalate": [
-      13.771075683353157,
+      6.9002992378269585,
       "inf"
     ]
   },
@@ -35,9 +35,9 @@
       "n_fallback": 0
     },
     "writer_line": {
-      "catch_sc": 0.46511627906976744,
-      "fa_sc": 0.06896551724137931,
-      "fa_esc": 0.06896551724137931,
+      "catch_sc": 0.32558139534883723,
+      "fa_sc": 0.10344827586206896,
+      "fa_esc": 0.0,
       "n_genuine": 29,
       "n_impostor": 86,
       "n_fallback": 0
@@ -54,9 +54,9 @@
         "n_fallback": 0
       },
       "writer_line": {
-        "catch_sc": 0.6666666666666666,
-        "fa_sc": 0.2222222222222222,
-        "fa_esc": 0.2222222222222222,
+        "catch_sc": 0.3333333333333333,
+        "fa_sc": 0.3333333333333333,
+        "fa_esc": 0.0,
         "n_genuine": 9,
         "n_impostor": 18,
         "n_fallback": 0
@@ -72,7 +72,7 @@
         "n_fallback": 0
       },
       "writer_line": {
-        "catch_sc": 0.5,
+        "catch_sc": 0.39285714285714285,
         "fa_sc": 0.0,
         "fa_esc": 0.0,
         "n_genuine": 14,
@@ -101,10 +101,11 @@
   },
   "writers_escalate_unreachable": {
     "pan20_cross_fandom_nullmodel_N3": {
-      "count": 1,
+      "count": 2,
       "of": 3,
       "writers": [
-        "pan20_00061789a54d"
+        "pan20_00061789a54d",
+        "pan20_8997a58b97e3"
       ]
     },
     "public_authors_nullmodel_N3": {
@@ -127,5 +128,22 @@
     }
   },
   "verdict": "uninformative",
-  "current_value": "n_genuine=29 too small: even 0 false alarms has Wilson 95% upper bound 11.7% > 5%"
+  "current_value": "n_genuine=29 too small: even 0 false alarms has Wilson 95% upper bound 11.7% > 5%",
+  "exploratory_200_split_average": {
+    "label": "exploratory (not a gate input)",
+    "seeds": [
+      0,
+      199
+    ],
+    "n_splits_used": 200,
+    "max_fpr_derivation": 0.05,
+    "gate": {
+      "mean_holdout_catch": 0.2932916412250555,
+      "mean_holdout_fa": 0.06786464919077544
+    },
+    "writer_line": {
+      "mean_holdout_catch": 0.19121934415790265,
+      "mean_holdout_fa": 0.0645163925327649
+    }
+  }
 }

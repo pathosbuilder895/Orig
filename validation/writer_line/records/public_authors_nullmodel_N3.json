@@ -1,0 +1,3288 @@
+{
+  "label": "public_authors_nullmodel_N3",
+  "generated_at": "2026-11-16T20:24:16.962837Z",
+  "extra": {
+    "pairs": [
+      {
+        "baseline_author": "augustine",
+        "submission_author": "augustine",
+        "deviation": 0.27749945440911,
+        "llr": 0.31488500254497076,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "augustine",
+        "deviation": 0.3369300636486408,
+        "llr": 0.32605547422374226,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "augustine",
+        "deviation": 0.4745304333211686,
+        "llr": 0.4167206482727817,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "boethius",
+        "deviation": 0.6808083365147363,
+        "llr": 0.6807425854994656,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "boethius",
+        "deviation": 0.6723953559912496,
+        "llr": 0.687094383192188,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "chesterton",
+        "deviation": 0.6908653777500312,
+        "llr": 0.7778713207674333,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "chesterton",
+        "deviation": 0.6639490499996172,
+        "llr": 0.7712895914345359,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "douglass",
+        "deviation": 0.7065606340346458,
+        "llr": 0.7360052475570916,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "douglass",
+        "deviation": 0.6973252146132731,
+        "llr": 0.7251061900720766,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "douglass",
+        "deviation": 0.7217885241130877,
+        "llr": 0.7681008340848914,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "edwards",
+        "deviation": 0.6865410299357857,
+        "llr": 0.6683864940141344,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "edwards",
+        "deviation": 0.6601930294900727,
+        "llr": 0.7269560103991469,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "edwards",
+        "deviation": 0.6045950402691193,
+        "llr": 0.6266246441782868,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "emerson",
+        "deviation": 0.6661759723299131,
+        "llr": 0.7317618466100503,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "emerson",
+        "deviation": 0.6703764559721858,
+        "llr": 0.7617340050978707,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "james",
+        "deviation": 0.6863149056315927,
+        "llr": 0.7655886766449687,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "james",
+        "deviation": 0.6738806402626588,
+        "llr": 0.8131015816583571,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "james",
+        "deviation": 0.7043587666023556,
+        "llr": 0.7913397804380765,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "james",
+        "deviation": 0.6369063656990877,
+        "llr": 0.7646755778125207,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "kempis",
+        "deviation": 0.6666849832796763,
+        "llr": 0.5940045543402117,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "kempis",
+        "deviation": 0.5683221023412468,
+        "llr": 0.5733015555861807,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "mill",
+        "deviation": 0.5845121732187858,
+        "llr": 0.6914435136892576,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "mill",
+        "deviation": 0.6292905967057736,
+        "llr": 0.6370147933193968,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "newman",
+        "deviation": 0.5588017536213356,
+        "llr": 0.6335700858608604,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "newman",
+        "deviation": 0.5412823578221788,
+        "llr": 0.6066944507579036,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "thoreau",
+        "deviation": 0.6869512773114065,
+        "llr": 0.8017739650195467,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "augustine",
+        "submission_author": "thoreau",
+        "deviation": 0.6818141522826315,
+        "llr": 0.7698541214490219,
+        "loo_dev": [
+          0.45832755826559535,
+          0.3065709335483352,
+          0.19943195887832196
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "augustine",
+        "deviation": 0.5477830869653049,
+        "llr": 0.5625771620305989,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "augustine",
+        "deviation": 0.585509755884908,
+        "llr": 0.5463099176327118,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "augustine",
+        "deviation": 0.5965061639188792,
+        "llr": 0.6069190564059926,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "boethius",
+        "deviation": 0.37340049131875835,
+        "llr": 0.32523405473885214,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "boethius",
+        "deviation": 0.4376582001977212,
+        "llr": 0.3859394513621529,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "chesterton",
+        "deviation": 0.5802319393475632,
+        "llr": 0.6507668865558143,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "chesterton",
+        "deviation": 0.6027838739698824,
+        "llr": 0.7135835179524539,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "douglass",
+        "deviation": 0.5803544016987675,
+        "llr": 0.5528331107842194,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "douglass",
+        "deviation": 0.5845367338582469,
+        "llr": 0.5791820527316485,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "douglass",
+        "deviation": 0.6097404373634187,
+        "llr": 0.6158567997463023,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "edwards",
+        "deviation": 0.6516135800241796,
+        "llr": 0.5946305580096656,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "edwards",
+        "deviation": 0.5648701636074409,
+        "llr": 0.6073177497313584,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "edwards",
+        "deviation": 0.5644560367320111,
+        "llr": 0.5819361210189467,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "emerson",
+        "deviation": 0.6038706259337404,
+        "llr": 0.6937316086323422,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "emerson",
+        "deviation": 0.5837034726995303,
+        "llr": 0.6665124704398646,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "james",
+        "deviation": 0.49928183468212506,
+        "llr": 0.5544276826498812,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "james",
+        "deviation": 0.5053275112368177,
+        "llr": 0.5639723197431458,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "james",
+        "deviation": 0.5315841468147156,
+        "llr": 0.5868676084332988,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "james",
+        "deviation": 0.5157217288636833,
+        "llr": 0.550638713199911,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "kempis",
+        "deviation": 0.5165250163562325,
+        "llr": 0.5230373902651194,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "kempis",
+        "deviation": 0.4525542190474365,
+        "llr": 0.46222978081521227,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "mill",
+        "deviation": 0.5092256367507162,
+        "llr": 0.6030568187898844,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "mill",
+        "deviation": 0.5941012060128461,
+        "llr": 0.6031542023693864,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "newman",
+        "deviation": 0.5358118294329484,
+        "llr": 0.6168021703958236,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "newman",
+        "deviation": 0.5648318238538508,
+        "llr": 0.634506581776729,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "thoreau",
+        "deviation": 0.6305215391576408,
+        "llr": 0.7505256071327491,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "boethius",
+        "submission_author": "thoreau",
+        "deviation": 0.5742348233268588,
+        "llr": 0.6425355695186415,
+        "loo_dev": [
+          0.4380131431857603,
+          0.3589270335462839,
+          0.5120219769842458
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "augustine",
+        "deviation": 0.6754286444965732,
+        "llr": 0.7197097243335334,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "augustine",
+        "deviation": 0.7188646807420743,
+        "llr": 0.746287210305894,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "augustine",
+        "deviation": 0.7606505912396371,
+        "llr": 0.8362467184639046,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "boethius",
+        "deviation": 0.7609832080545476,
+        "llr": 0.7609768338355037,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "boethius",
+        "deviation": 0.7751863738657045,
+        "llr": 0.7883734540548526,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "chesterton",
+        "deviation": 0.29649903480003864,
+        "llr": 0.36233986564561915,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "chesterton",
+        "deviation": 0.29944089381524625,
+        "llr": 0.4159361362328353,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "douglass",
+        "deviation": 0.72195623425123,
+        "llr": 0.7637773402080243,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "douglass",
+        "deviation": 0.679283247661718,
+        "llr": 0.6746402497764004,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "douglass",
+        "deviation": 0.678163460101593,
+        "llr": 0.7016658326393788,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "edwards",
+        "deviation": 0.7355726109580438,
+        "llr": 0.738509186009346,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "edwards",
+        "deviation": 0.6569996894211688,
+        "llr": 0.7127218256672306,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "edwards",
+        "deviation": 0.7250279201745705,
+        "llr": 0.7816522055291903,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "emerson",
+        "deviation": 0.5817633619352602,
+        "llr": 0.6715171303654153,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "emerson",
+        "deviation": 0.6086796228419666,
+        "llr": 0.7033350248555207,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "james",
+        "deviation": 0.6989216223125833,
+        "llr": 0.7861784395985804,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "james",
+        "deviation": 0.6092806470974905,
+        "llr": 0.7088665396878446,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "james",
+        "deviation": 0.6584759054074354,
+        "llr": 0.7264572552015589,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "james",
+        "deviation": 0.7001754893211921,
+        "llr": 0.7668006508151348,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "kempis",
+        "deviation": 0.7298161738278329,
+        "llr": 0.7651175971761841,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "kempis",
+        "deviation": 0.6916041684652168,
+        "llr": 0.7673527269094431,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "mill",
+        "deviation": 0.6319329438501088,
+        "llr": 0.7462542070438659,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "mill",
+        "deviation": 0.6879676759310238,
+        "llr": 0.7213568380031956,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "newman",
+        "deviation": 0.6597514071934794,
+        "llr": 0.7495891780737662,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "newman",
+        "deviation": 0.7018043789924429,
+        "llr": 0.8076349154094062,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "thoreau",
+        "deviation": 0.5782603520206829,
+        "llr": 0.689296832122779,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "chesterton",
+        "submission_author": "thoreau",
+        "deviation": 0.6310347581770828,
+        "llr": 0.7071550245622361,
+        "loo_dev": [
+          0.47173460558277075,
+          0.25877198895091946,
+          0.2333869137516499
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "augustine",
+        "deviation": 0.5428339663706268,
+        "llr": 0.5520818373556705,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "augustine",
+        "deviation": 0.6019379536509802,
+        "llr": 0.5722977746828645,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "augustine",
+        "deviation": 0.6445879213737696,
+        "llr": 0.669649929056817,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "boethius",
+        "deviation": 0.5935226758367238,
+        "llr": 0.6137695600238875,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "boethius",
+        "deviation": 0.5928536869708804,
+        "llr": 0.5846322021773295,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "chesterton",
+        "deviation": 0.5474113471302203,
+        "llr": 0.6359190987478465,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "chesterton",
+        "deviation": 0.5479480392259151,
+        "llr": 0.6766439514216567,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "douglass",
+        "deviation": 0.40646007617307806,
+        "llr": 0.37468412621592195,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "douglass",
+        "deviation": 0.30669273518097917,
+        "llr": 0.30268266326806686,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "douglass",
+        "deviation": 0.3843635333025239,
+        "llr": 0.3395295361968763,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "edwards",
+        "deviation": 0.6727281895775764,
+        "llr": 0.6729584627742315,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "edwards",
+        "deviation": 0.6132160601408106,
+        "llr": 0.6927664704674116,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "edwards",
+        "deviation": 0.5963544382306687,
+        "llr": 0.6631464456326599,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "emerson",
+        "deviation": 0.3995597724777841,
+        "llr": 0.5005278819167204,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "emerson",
+        "deviation": 0.35484321743488123,
+        "llr": 0.4343635845065517,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "james",
+        "deviation": 0.4912681526301485,
+        "llr": 0.5187500369313427,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "james",
+        "deviation": 0.5202517207422519,
+        "llr": 0.5585860467819902,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "james",
+        "deviation": 0.529351579991405,
+        "llr": 0.5133190005326178,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "james",
+        "deviation": 0.5272276876369517,
+        "llr": 0.5413292121965315,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "kempis",
+        "deviation": 0.61749805203647,
+        "llr": 0.5943918895229705,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "kempis",
+        "deviation": 0.5249582407847428,
+        "llr": 0.5685043868753449,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "mill",
+        "deviation": 0.5526032046906219,
+        "llr": 0.6454577255618844,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "mill",
+        "deviation": 0.561587169079661,
+        "llr": 0.5547830659662277,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "newman",
+        "deviation": 0.5727467080965492,
+        "llr": 0.6636527195353588,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "newman",
+        "deviation": 0.5709397299316329,
+        "llr": 0.6586795644237532,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "thoreau",
+        "deviation": 0.44577713740064556,
+        "llr": 0.5586572028016211,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "douglass",
+        "submission_author": "thoreau",
+        "deviation": 0.4121742877632179,
+        "llr": 0.490129688311007,
+        "loo_dev": [
+          0.5487440516300824,
+          0.2915077480524338,
+          0.43564742171594273
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "augustine",
+        "deviation": 0.6567709601822286,
+        "llr": 0.6604312729130842,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "augustine",
+        "deviation": 0.6871931463133609,
+        "llr": 0.6527752338791488,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "augustine",
+        "deviation": 0.6539834953161815,
+        "llr": 0.6386051793094547,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "boethius",
+        "deviation": 0.6612695890258361,
+        "llr": 0.6539721777447361,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "boethius",
+        "deviation": 0.6676725250465283,
+        "llr": 0.6496140393900727,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "chesterton",
+        "deviation": 0.6567200299852848,
+        "llr": 0.7413621320972973,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "chesterton",
+        "deviation": 0.6403324515938522,
+        "llr": 0.7262426865484851,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "douglass",
+        "deviation": 0.7203842686482055,
+        "llr": 0.7399802669176914,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "douglass",
+        "deviation": 0.7200554785795904,
+        "llr": 0.7382065766229085,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "douglass",
+        "deviation": 0.7604630593209942,
+        "llr": 0.8229706693067889,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "edwards",
+        "deviation": 0.4306954010393711,
+        "llr": 0.2841818642112621,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "edwards",
+        "deviation": 0.4725072146811231,
+        "llr": 0.41773623416960287,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "edwards",
+        "deviation": 0.4912061219679273,
+        "llr": 0.44248799654545035,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "emerson",
+        "deviation": 0.7236318118126135,
+        "llr": 0.8298363500732908,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "emerson",
+        "deviation": 0.7277197969330587,
+        "llr": 0.8265622540593942,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "james",
+        "deviation": 0.7010651771591659,
+        "llr": 0.7715124955322412,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "james",
+        "deviation": 0.7060239914379033,
+        "llr": 0.7905340860669409,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "james",
+        "deviation": 0.7277288558091489,
+        "llr": 0.7667341465349633,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "james",
+        "deviation": 0.7028506766238478,
+        "llr": 0.7426425876624165,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "kempis",
+        "deviation": 0.692374078714831,
+        "llr": 0.6810459321891285,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "kempis",
+        "deviation": 0.6520077803508848,
+        "llr": 0.6659540621138073,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "mill",
+        "deviation": 0.6421154203525284,
+        "llr": 0.7124247792372891,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "mill",
+        "deviation": 0.6722806052613864,
+        "llr": 0.6726196122083865,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "newman",
+        "deviation": 0.5982914752357695,
+        "llr": 0.6001355419628828,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "newman",
+        "deviation": 0.6102891036223127,
+        "llr": 0.6719264064784902,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "thoreau",
+        "deviation": 0.646015107959872,
+        "llr": 0.7428510266805501,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "edwards",
+        "submission_author": "thoreau",
+        "deviation": 0.6742870733499254,
+        "llr": 0.7384751511512125,
+        "loo_dev": [
+          0.4576641278385215,
+          0.2840011564223461,
+          0.497807420600215
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "augustine",
+        "deviation": 0.6428562494364259,
+        "llr": 0.6611414624102934,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "augustine",
+        "deviation": 0.6903279590428038,
+        "llr": 0.6926337827636864,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "augustine",
+        "deviation": 0.725394940829755,
+        "llr": 0.7589371238409535,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "boethius",
+        "deviation": 0.7024909373468197,
+        "llr": 0.6915920804938682,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "boethius",
+        "deviation": 0.6867978701836106,
+        "llr": 0.7456848996993414,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "chesterton",
+        "deviation": 0.6253176734675568,
+        "llr": 0.7156585692348774,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "chesterton",
+        "deviation": 0.6028306641597204,
+        "llr": 0.7223442028191842,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "douglass",
+        "deviation": 0.5438355835445561,
+        "llr": 0.5338599741820833,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "douglass",
+        "deviation": 0.5252191880521527,
+        "llr": 0.6021591966758877,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "douglass",
+        "deviation": 0.5406159934963994,
+        "llr": 0.5338902321716512,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "edwards",
+        "deviation": 0.7266907226419237,
+        "llr": 0.7123231150694149,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "edwards",
+        "deviation": 0.6970576812029229,
+        "llr": 0.778923448702092,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "edwards",
+        "deviation": 0.6866750103873871,
+        "llr": 0.7668896019499676,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "emerson",
+        "deviation": 0.28149511590551196,
+        "llr": 0.3827279536694813,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "emerson",
+        "deviation": 0.30348924121164483,
+        "llr": 0.399407174847937,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "james",
+        "deviation": 0.5377926924827892,
+        "llr": 0.634341338817314,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "james",
+        "deviation": 0.5008063042313253,
+        "llr": 0.6208542068234363,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "james",
+        "deviation": 0.48783985439654476,
+        "llr": 0.5742389035654449,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "james",
+        "deviation": 0.5295938218860021,
+        "llr": 0.6134362234321451,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "kempis",
+        "deviation": 0.7055289792846242,
+        "llr": 0.7439148255226472,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "kempis",
+        "deviation": 0.6007280610487451,
+        "llr": 0.678165385556928,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "mill",
+        "deviation": 0.6051860153264343,
+        "llr": 0.7093894869091599,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "mill",
+        "deviation": 0.6285214194344608,
+        "llr": 0.6436226943228466,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "newman",
+        "deviation": 0.6404143363265715,
+        "llr": 0.738655764523998,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "newman",
+        "deviation": 0.655127193573745,
+        "llr": 0.7402879564628487,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "thoreau",
+        "deviation": 0.47196259429655313,
+        "llr": 0.5868459179350143,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "emerson",
+        "submission_author": "thoreau",
+        "deviation": 0.48515432295360056,
+        "llr": 0.5710449527910537,
+        "loo_dev": [
+          0.36895854639408127,
+          0.33142777307964494,
+          0.43528355371590655
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "augustine",
+        "deviation": 0.6836719494964021,
+        "llr": 0.746954557887283,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "augustine",
+        "deviation": 0.6936173543923057,
+        "llr": 0.7199567120181753,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "augustine",
+        "deviation": 0.7186594927205819,
+        "llr": 0.7840998055329894,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "boethius",
+        "deviation": 0.7104328196737139,
+        "llr": 0.7365417161137574,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "boethius",
+        "deviation": 0.7080605283316872,
+        "llr": 0.7412858686893824,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "chesterton",
+        "deviation": 0.5790699610251683,
+        "llr": 0.6487117311645326,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "chesterton",
+        "deviation": 0.6081303176969899,
+        "llr": 0.719748264591917,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "douglass",
+        "deviation": 0.6431549087063,
+        "llr": 0.7022894140363574,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "douglass",
+        "deviation": 0.6702215742115907,
+        "llr": 0.7072168311013685,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "douglass",
+        "deviation": 0.6457736832303312,
+        "llr": 0.6868599138967879,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "edwards",
+        "deviation": 0.7493425033254633,
+        "llr": 0.803632890635467,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "edwards",
+        "deviation": 0.7070150043905875,
+        "llr": 0.797344712818792,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "edwards",
+        "deviation": 0.7073264217668812,
+        "llr": 0.784292385903688,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "emerson",
+        "deviation": 0.5994646910496834,
+        "llr": 0.6923649636043677,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "emerson",
+        "deviation": 0.6084782527246585,
+        "llr": 0.7211886552151032,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "james",
+        "deviation": 0.3216868570383366,
+        "llr": 0.3746341941110367,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "james",
+        "deviation": 0.33432794067600424,
+        "llr": 0.33616633447220623,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "james",
+        "deviation": 0.29403234923518035,
+        "llr": 0.28670984655665704,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "james",
+        "deviation": 0.2956085980038047,
+        "llr": 0.31802809716108693,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "kempis",
+        "deviation": 0.6850763366206839,
+        "llr": 0.6768122879068553,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "kempis",
+        "deviation": 0.6373828015263046,
+        "llr": 0.6886379790469808,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "mill",
+        "deviation": 0.5476653509074502,
+        "llr": 0.6359985903264584,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "mill",
+        "deviation": 0.6447813790636446,
+        "llr": 0.6601994134879899,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "newman",
+        "deviation": 0.676024997962783,
+        "llr": 0.763316863434193,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "newman",
+        "deviation": 0.6633880071379077,
+        "llr": 0.7586222190022105,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "thoreau",
+        "deviation": 0.6370370093441238,
+        "llr": 0.7563978907463669,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "james",
+        "submission_author": "thoreau",
+        "deviation": 0.5882545834048974,
+        "llr": 0.6752295466137266,
+        "loo_dev": [
+          0.2613642848536884,
+          0.2509675440115493,
+          0.26064063159769807
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "augustine",
+        "deviation": 0.6425074736825781,
+        "llr": 0.7040257117437703,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "augustine",
+        "deviation": 0.6541384083810634,
+        "llr": 0.6548989912043349,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "augustine",
+        "deviation": 0.6739626274021427,
+        "llr": 0.6909491248186641,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "boethius",
+        "deviation": 0.6875772382474479,
+        "llr": 0.6873036422851916,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "boethius",
+        "deviation": 0.6820716335188997,
+        "llr": 0.6937119631596708,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "chesterton",
+        "deviation": 0.5919799732672372,
+        "llr": 0.6619389505847092,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "chesterton",
+        "deviation": 0.610783231357686,
+        "llr": 0.7158754176750124,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "douglass",
+        "deviation": 0.6456476618114402,
+        "llr": 0.6502613550423302,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "douglass",
+        "deviation": 0.619455643095351,
+        "llr": 0.6416784732553633,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "douglass",
+        "deviation": 0.6201865823948649,
+        "llr": 0.6656005360329695,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "edwards",
+        "deviation": 0.683239142547507,
+        "llr": 0.7263038822428967,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "edwards",
+        "deviation": 0.6858954782226951,
+        "llr": 0.7629539809149957,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "edwards",
+        "deviation": 0.702677843916675,
+        "llr": 0.7562415158448301,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "emerson",
+        "deviation": 0.555399222397065,
+        "llr": 0.6173178861594192,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "emerson",
+        "deviation": 0.571026542843564,
+        "llr": 0.6360443305936422,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "james",
+        "deviation": 0.5113769784240153,
+        "llr": 0.52253793376116,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "james",
+        "deviation": 0.40527822146042686,
+        "llr": 0.5035981164109437,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "james",
+        "deviation": 0.4511374109512795,
+        "llr": 0.42694760593942604,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "james",
+        "deviation": 0.47233030043160945,
+        "llr": 0.4925008215609229,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "kempis",
+        "deviation": 0.506827502136655,
+        "llr": 0.408475577904934,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "kempis",
+        "deviation": 0.42146813194802923,
+        "llr": 0.36825758292045274,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "mill",
+        "deviation": 0.5716126938602082,
+        "llr": 0.6947127641109423,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "mill",
+        "deviation": 0.6316931086075772,
+        "llr": 0.6462884908627947,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "newman",
+        "deviation": 0.6407876624722464,
+        "llr": 0.7400249973262902,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "newman",
+        "deviation": 0.6611860695882567,
+        "llr": 0.7512557056446048,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "thoreau",
+        "deviation": 0.6212053030721,
+        "llr": 0.7241824172077573,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "kempis",
+        "submission_author": "thoreau",
+        "deviation": 0.59431852669859,
+        "llr": 0.684098250234316,
+        "loo_dev": [
+          0.3156752855649353,
+          0.2414351539943573,
+          0.4627582804790115
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "augustine",
+        "deviation": 0.6630906972852,
+        "llr": 0.7008675342126287,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "augustine",
+        "deviation": 0.6769761874136044,
+        "llr": 0.6783107138483713,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "augustine",
+        "deviation": 0.6987633150448505,
+        "llr": 0.740028172834676,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "boethius",
+        "deviation": 0.6590147898892684,
+        "llr": 0.6648947007110901,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "boethius",
+        "deviation": 0.6346692496715396,
+        "llr": 0.6866121152438126,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "chesterton",
+        "deviation": 0.670728056224452,
+        "llr": 0.7708788277317682,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "chesterton",
+        "deviation": 0.6628744500091865,
+        "llr": 0.7777351866073627,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "douglass",
+        "deviation": 0.6139163836606806,
+        "llr": 0.6320263727431783,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "douglass",
+        "deviation": 0.6326817371260582,
+        "llr": 0.7549973464376039,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "douglass",
+        "deviation": 0.6678426906726626,
+        "llr": 0.6549984683614563,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "edwards",
+        "deviation": 0.6422454407436909,
+        "llr": 0.6379879189917557,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "edwards",
+        "deviation": 0.6194370198533183,
+        "llr": 0.6731431821928933,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "edwards",
+        "deviation": 0.6112659388979966,
+        "llr": 0.6698424332595083,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "emerson",
+        "deviation": 0.6065777700282249,
+        "llr": 0.7029515745712908,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "emerson",
+        "deviation": 0.6104689179407531,
+        "llr": 0.7251524113447028,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "james",
+        "deviation": 0.5392161964502784,
+        "llr": 0.5763385561131682,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "james",
+        "deviation": 0.5854696692523934,
+        "llr": 0.63232238085462,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "james",
+        "deviation": 0.627811421799318,
+        "llr": 0.6810804615340855,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "james",
+        "deviation": 0.5334853068330158,
+        "llr": 0.5539893245941572,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "kempis",
+        "deviation": 0.6718734998944077,
+        "llr": 0.6989865568315717,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "kempis",
+        "deviation": 0.614844808817354,
+        "llr": 0.689536252245248,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "mill",
+        "deviation": 0.260313726206992,
+        "llr": 0.32073440299323813,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "mill",
+        "deviation": 0.27085953150879005,
+        "llr": 0.23259638859332799,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "newman",
+        "deviation": 0.5252625091832215,
+        "llr": 0.5988683112790989,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "newman",
+        "deviation": 0.48664436395430305,
+        "llr": 0.5403703983391617,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "thoreau",
+        "deviation": 0.6377988393669904,
+        "llr": 0.7680690061884763,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "mill",
+        "submission_author": "thoreau",
+        "deviation": 0.6824273901893642,
+        "llr": 0.8085315457592774,
+        "loo_dev": [
+          0.30271161666721313,
+          0.3180618487198195,
+          0.3417812480219853
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "augustine",
+        "deviation": 0.5507322559167346,
+        "llr": 0.6273209991587069,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "augustine",
+        "deviation": 0.6297992137410613,
+        "llr": 0.678496545751877,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "augustine",
+        "deviation": 0.5889505522812649,
+        "llr": 0.6144680364703352,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "boethius",
+        "deviation": 0.6693848290294901,
+        "llr": 0.6716573055616892,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "boethius",
+        "deviation": 0.6537868806139941,
+        "llr": 0.6449389994705623,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "chesterton",
+        "deviation": 0.6790419649980174,
+        "llr": 0.781007757554959,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "chesterton",
+        "deviation": 0.6641264225272585,
+        "llr": 0.7751503594288762,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "douglass",
+        "deviation": 0.624571606599341,
+        "llr": 0.6219818968917386,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "douglass",
+        "deviation": 0.6472507775664742,
+        "llr": 0.6651308770882384,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "douglass",
+        "deviation": 0.6537909559641117,
+        "llr": 0.6636210807759195,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "edwards",
+        "deviation": 0.6793160561325194,
+        "llr": 0.6861636338336736,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "edwards",
+        "deviation": 0.6308648346043959,
+        "llr": 0.7191571903720035,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "edwards",
+        "deviation": 0.5963944853019743,
+        "llr": 0.6437130863746238,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "emerson",
+        "deviation": 0.597634713578398,
+        "llr": 0.6764296347910619,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "emerson",
+        "deviation": 0.632167220439415,
+        "llr": 0.7384541645648495,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "james",
+        "deviation": 0.5910056364228782,
+        "llr": 0.628100010397716,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "james",
+        "deviation": 0.6190769339279565,
+        "llr": 0.6169728609234613,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "james",
+        "deviation": 0.6308967203598483,
+        "llr": 0.5986362365817325,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "james",
+        "deviation": 0.6192982481753205,
+        "llr": 0.6833887287986216,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "kempis",
+        "deviation": 0.6943325290300629,
+        "llr": 0.7506875830527729,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "kempis",
+        "deviation": 0.6051106877016634,
+        "llr": 0.7063276017544606,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "mill",
+        "deviation": 0.5045265997439999,
+        "llr": 0.5694833771355066,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "mill",
+        "deviation": 0.5188925849441399,
+        "llr": 0.4561673359700778,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "newman",
+        "deviation": 0.42930512922770797,
+        "llr": 0.4759722837585769,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "newman",
+        "deviation": 0.38481790440751285,
+        "llr": 0.4111559883023435,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "thoreau",
+        "deviation": 0.6683189519413953,
+        "llr": 0.7866284001843815,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "newman",
+        "submission_author": "thoreau",
+        "deviation": 0.6295485974200155,
+        "llr": 0.7207377148269549,
+        "loo_dev": [
+          0.46184901234759557,
+          0.43960148735840404,
+          0.2660282781912224
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "augustine",
+        "deviation": 0.5834249123651318,
+        "llr": 0.6051189348041447,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "augustine",
+        "deviation": 0.624991731685968,
+        "llr": 0.6147472446731354,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "augustine",
+        "deviation": 0.7009088198278765,
+        "llr": 0.7287332679263722,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "boethius",
+        "deviation": 0.6831195275564877,
+        "llr": 0.6959218818375942,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "boethius",
+        "deviation": 0.6677839784224553,
+        "llr": 0.7227503567402087,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "chesterton",
+        "deviation": 0.6330943042165195,
+        "llr": 0.7251123162527231,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "chesterton",
+        "deviation": 0.6270902711990949,
+        "llr": 0.7494714183679425,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "douglass",
+        "deviation": 0.5029268395002019,
+        "llr": 0.4959761777560344,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "douglass",
+        "deviation": 0.506155636037266,
+        "llr": 0.596219796867326,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "douglass",
+        "deviation": 0.5252231502627212,
+        "llr": 0.5023446673279122,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "edwards",
+        "deviation": 0.7180769714905458,
+        "llr": 0.7033799025505943,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "edwards",
+        "deviation": 0.6857871436310796,
+        "llr": 0.7523684992266031,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "edwards",
+        "deviation": 0.6459854771508147,
+        "llr": 0.72163913310896,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "emerson",
+        "deviation": 0.4167382654830887,
+        "llr": 0.506684938635646,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "emerson",
+        "deviation": 0.4088514178836789,
+        "llr": 0.5171557377713897,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "james",
+        "deviation": 0.48290588301991993,
+        "llr": 0.5650251321744695,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "james",
+        "deviation": 0.5371525234711213,
+        "llr": 0.6152815655100293,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "james",
+        "deviation": 0.500130498901165,
+        "llr": 0.5868343616557702,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "james",
+        "deviation": 0.4876230856733041,
+        "llr": 0.5614709655284443,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "kempis",
+        "deviation": 0.666911663882247,
+        "llr": 0.6959104472586262,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "kempis",
+        "deviation": 0.570622326917845,
+        "llr": 0.6399496746112083,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "mill",
+        "deviation": 0.5757672784827808,
+        "llr": 0.699613999720106,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "mill",
+        "deviation": 0.6070036228594378,
+        "llr": 0.6217553834823815,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "newman",
+        "deviation": 0.610570997630661,
+        "llr": 0.7164632735529486,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "newman",
+        "deviation": 0.5999198003656696,
+        "llr": 0.6822905633429611,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "thoreau",
+        "deviation": 0.49482995744454755,
+        "llr": 0.6148780680054435,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      },
+      {
+        "baseline_author": "thoreau",
+        "submission_author": "thoreau",
+        "deviation": 0.4083499686971477,
+        "llr": 0.5121499486946433,
+        "loo_dev": [
+          0.42688211146215865,
+          0.25384251705790944,
+          0.2806593591509531
+        ]
+      }
+    ],
+    "eligible_authors": [
+      "augustine",
+      "boethius",
+      "chesterton",
+      "douglass",
+      "edwards",
+      "emerson",
+      "james",
+      "kempis",
+      "mill",
+      "newman",
+      "thoreau"
+    ]
+  }
+}

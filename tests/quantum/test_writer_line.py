@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from original.constants import WRITER_LINE_Z_THRESHOLDS
-from original.quantum.writer_line import writer_line_action, writer_z
+from original.constants import WRITER_LINE_STD_FLOOR, WRITER_LINE_Z_THRESHOLDS
+from original.quantum.writer_line import loo_deviation_scores, writer_line_action, writer_z
 
 
 def test_too_few_papers_abstains():
@@ -11,12 +11,12 @@ def test_too_few_papers_abstains():
 
 def test_z_uses_own_mean_and_spread():
     assert writer_z(1.0, [0.5, 0.5, 0.8]) == pytest.approx(
-        (1.0 - 0.6) / max(np.std([0.5, 0.5, 0.8]), 0.05)
+        (1.0 - 0.6) / max(np.std([0.5, 0.5, 0.8]), WRITER_LINE_STD_FLOOR)
     )
 
 
 def test_spread_floor_caps_z():
-    assert writer_z(0.6, [0.5, 0.5, 0.5]) == pytest.approx(0.1 / 0.05)
+    assert writer_z(0.6, [0.5, 0.5, 0.5]) == pytest.approx(0.1 / WRITER_LINE_STD_FLOOR)
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf")])
@@ -187,16 +187,14 @@ def test_on_abstains_below_min_papers():
     assert on.recommendation == off.recommendation
 
 
-def test_on_abstains_when_weights_modify_rms_z():
+def test_on_computes_under_characteristic_weights():
     s, b = _state()
     peers = [_state(f"t:p{i}", 100 + i)[0] for i in range(5)]
     imp = build_impostor_stats(s.student_id, [s, *peers])
     on = _score(s, b, impostor_stats=imp, characteristic_weights="on", writer_line="on")
     assert on.characteristic_weighting_applied
-    assert on.writer_line_z is None and on.writer_line_action is None
-    plain = _score(s, b, impostor_stats=imp, characteristic_weights="on")
-    assert on.recommendation == plain.recommendation
-    # Same condition withholds typicality.
+    assert on.writer_line_z is not None
+    # Typicality keeps its own guard.
     typ = _score(
         s, b, impostor_stats=imp, characteristic_weights="on", typicality_scoring_enabled=True
     )
@@ -211,10 +209,77 @@ def test_zero_auth_weight_papers_do_not_count():
     assert _score(s, b, writer_line="on").writer_line_z is not None
 
 
-def test_on_abstains_under_length_adaptive_weights():
+def test_on_computes_under_length_adaptive_weights():
     s, b = _state()
-    off = _score(s, b, length_adaptive_weights=True)
-    s2, b2 = _state()
-    on = _score(s2, b2, length_adaptive_weights=True, writer_line="on")
-    assert on.writer_line_z is None and on.writer_line_action is None
-    assert on.recommendation == off.recommendation
+    on = _score(s, b, length_adaptive_weights=True, writer_line="on")
+    assert on.writer_line_z is not None and on.writer_line_action is not None
+
+
+# ── Task 3b: leave-one-out deviation reference ───────────────────────────────
+
+
+def test_loo_deviation_scores_needs_three_papers():
+    s, _ = _state(n=2)
+    assert loo_deviation_scores(s, score, scoring_config=ScoringConfig()) == []
+    s, _ = _state(n=3)
+    out = loo_deviation_scores(s, score, scoring_config=ScoringConfig())
+    assert len(out) == 3 and all(0.0 <= d <= 1.0 for d in out)
+
+
+def test_loo_deviation_scores_does_not_mutate_state():
+    s, _ = _state()
+    before = [(x.auth_weight, x.vector.copy(), x.genre) for x in s.samples]
+    n_before, rho = len(s.samples), s.density_matrix.copy()
+    loo_deviation_scores(s, score, scoring_config=ScoringConfig())
+    assert len(s.samples) == n_before
+    assert np.array_equal(s.density_matrix, rho)
+    for (w, v, g), x in zip(before, s.samples, strict=True):
+        assert x.auth_weight == w and np.array_equal(x.vector, v) and x.genre == g
+
+
+def test_loo_deviation_scores_uses_given_weights():
+    s, _ = _state(noise=0.05)
+    plain = loo_deviation_scores(s, score, scoring_config=ScoringConfig())
+    w = np.ones(FEATURE_DIM)
+    w[: FEATURE_DIM // 2] = 5.0
+    weighted = loo_deviation_scores(s, score, adaptive_weights=w, scoring_config=ScoringConfig())
+    assert plain != weighted
+
+
+def test_loo_deviation_scores_forces_writer_line_off():
+    s, _ = _state()
+    seen = []
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs["scoring_config"].writer_line)
+        return score(*args, **kwargs)
+
+    loo_deviation_scores(s, spy, scoring_config=ScoringConfig(writer_line="on"))
+    assert seen == ["off"] * 4
+
+
+def test_loo_deviation_scores_failure_returns_empty():
+    s, _ = _state()
+
+    def boom(*a, **k):
+        raise RuntimeError("x")
+
+    assert loo_deviation_scores(s, boom, scoring_config=ScoringConfig()) == []
+
+
+def test_off_never_computes_reference(monkeypatch):
+    import original.quantum.writer_line as wl
+
+    def fail(*a, **k):
+        raise AssertionError("loo_deviation_scores called under off")
+
+    monkeypatch.setattr(wl, "loo_deviation_scores", fail)
+    s, b = _state()
+    _score(s, b, writer_line="off")
+
+
+def test_z_is_on_final_deviation_score():
+    s, b = _state()
+    on = _score(s, b, writer_line="shadow")
+    ref = loo_deviation_scores(s, score, n_tokens=300, scoring_config=ScoringConfig())
+    assert on.writer_line_z == pytest.approx(writer_z(on.authorship.deviation_score, ref))
