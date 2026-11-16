@@ -1,0 +1,167 @@
+{
+  "study_id": "scholarly-ai-mirror-2026-11-16",
+  "collection": "humanities",
+  "seed": 7,
+  "targets": [
+    {
+      "rank": 0,
+      "author_id": "A5022809732",
+      "paper_id": "W7213519330",
+      "title": "The Role That Persecutions Against Christians Play in Creating Early Christian Identity",
+      "venue": "SingiLogos",
+      "tool": "claude"
+    },
+    {
+      "rank": 1,
+      "author_id": "A5057591164",
+      "paper_id": "W2768611086",
+      "title": "Catechesis in Italy between the Two Vatican Councils \u2013 1870\u20131962",
+      "venue": "The Person and the Challenges The Journal of Theology Education Canon Law and So",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 2,
+      "author_id": "A5047115320",
+      "paper_id": "W4400521929",
+      "title": "Roman glass bowls from Intercisa",
+      "venue": "Repository of the Academy's Library (Library of the Hungarian Academy of Science",
+      "tool": "gemini"
+    },
+    {
+      "rank": 3,
+      "author_id": "A5076341968",
+      "paper_id": "W2124094517",
+      "title": "On social justice: Comparing Paul with Plato, Aristotle and the Stoics",
+      "venue": "HTS Teologiese Studies / Theological Studies",
+      "tool": "claude"
+    },
+    {
+      "rank": 4,
+      "author_id": "A5056187576",
+      "paper_id": "W3040897044",
+      "title": "John Wesley and Methodist Responses to Slavery in America",
+      "venue": "Holiness",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 5,
+      "author_id": "A5107831469",
+      "paper_id": "W7203766679",
+      "title": "The sale of Joseph in Genesis 37 and contemporary human trafficking",
+      "venue": "Stellenbosch Theological Journal",
+      "tool": "gemini"
+    },
+    {
+      "rank": 6,
+      "author_id": "A5021243195",
+      "paper_id": "W2083279674",
+      "title": "Isaiah 1:2\u22123 and Isaiah 6: Isaiah \u2018a prophet like Moses\u2019 (Dt 18:18)",
+      "venue": "HTS Teologiese Studies / Theological Studies",
+      "tool": "claude"
+    },
+    {
+      "rank": 7,
+      "author_id": "A5067191187",
+      "paper_id": "W4362667898",
+      "title": "A Late Bronze Age \u2018Hoard\u2019 and Metal Stray Finds from Tiszal\u00f6k-R\u00e1zompuszta (Szabolcs-Szatm\u00e1r-Bereg County, Hungary)",
+      "venue": "Dissertationes Archaeologicae",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 8,
+      "author_id": "A5081037453",
+      "paper_id": "W4406228689",
+      "title": "Intercultural Interpretation of Scripture: Evaluating the Approach of Jean-Claude Loba-Mkole for Interpreting the Bible in Africa",
+      "venue": "Scriptura",
+      "tool": "gemini"
+    },
+    {
+      "rank": 9,
+      "author_id": "A5071222703",
+      "paper_id": "W4361290434",
+      "title": "A Commentary on Kant\u2019s Introduction of the Concept of Transcendental Deduction",
+      "venue": "Acta Universitatis Lodziensis Folia Iuridica",
+      "tool": "claude"
+    },
+    {
+      "rank": 10,
+      "author_id": "A5025732228",
+      "paper_id": "W2580912258",
+      "title": "LEFT DISLOCATION IN ARABIC: THE COMPLEXITY OF FORM AND MEANING",
+      "venue": "Stellenbosch Papers in Linguistics Plus",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 11,
+      "author_id": "A5030272032",
+      "paper_id": "W1578191311",
+      "title": "Light Symbolism in Gentile da Fabriano\u2019s Vatican Annunciation",
+      "venue": "Eikon / Imago",
+      "tool": "gemini"
+    },
+    {
+      "rank": 12,
+      "author_id": "A5073091672",
+      "paper_id": "W7134960359",
+      "title": "Enhancing Sentiment Analysis and Error Prediction in Lawyer Questioning Through Legal NLP Models: A Mixed-Methods Study in Australian Courtrooms",
+      "venue": "UNSWorks (University of New South Wales, Sydney, Australia)",
+      "tool": "claude"
+    },
+    {
+      "rank": 13,
+      "author_id": "A5046447025",
+      "paper_id": "W3198360402",
+      "title": "The Deuteronomic roots of postexilic prophetic eschatology in Malachi",
+      "venue": "In die Skriflig/In Luce Verbi",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 14,
+      "author_id": "A5088905867",
+      "paper_id": "W2059691078",
+      "title": "THE MYTH OF THESEUS IN PLATO\u2019S PHAEDO",
+      "venue": "Akroterion",
+      "tool": "gemini"
+    },
+    {
+      "rank": 15,
+      "author_id": "A5084995476",
+      "paper_id": "W2091607032",
+      "title": "Without a voice, with a violated body: Re-reading Judges 19 to challenge gender violence in sacred texts",
+      "venue": "Missionalia",
+      "tool": "claude"
+    },
+    {
+      "rank": 16,
+      "author_id": "A5051780975",
+      "paper_id": "W4386052163",
+      "title": "ancient catechumenate",
+      "venue": "Stellenbosch Theological Journal",
+      "tool": "chatgpt"
+    },
+    {
+      "rank": 17,
+      "author_id": "A5007243992",
+      "paper_id": "W3187201493",
+      "title": "An irresistible beauty in 1 Peter",
+      "venue": "Verbum et Ecclesia",
+      "tool": "gemini"
+    },
+    {
+      "rank": 18,
+      "author_id": "A5057064147",
+      "paper_id": "W2323521811",
+      "title": "Ritual Worship of the Narasi\u1e41hamantra as Depicted in the \"S\u0101tvatasa\u1e41hit\u0101\"",
+      "venue": "Cracow Indological Studies",
+      "tool": "claude"
+    },
+    {
+      "rank": 19,
+      "author_id": "A5038442133",
+      "paper_id": "W2905340705",
+      "title": "Rhetorical Syncrisis in the Johannine Presentation of Jesus and Peter",
+      "venue": "The Biblical Annals",
+      "tool": "chatgpt"
+    }
+  ]
+}
