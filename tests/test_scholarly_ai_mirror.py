@@ -429,17 +429,18 @@ def _locked_fixture(tmp_path, monkeypatch):
     return ai_dir, res
 
 
+# broken fixture -> a substring found only in that guard's own message
 GUARD_CASES = {
-    "wrong_study": "scholarly-ai-mirror-2026-11-16",
-    "result_exists": "ai_mirror_humanities_locked_test_2026-11-17.json",
-    "env_missing": "environment",
-    "env_failed": "environment",
-    "no_ai_paper": "A2",
-    "text_missing": "A2",
-    "text_hash_differs": "sha256",
-    "uncommitted": "uncommitted",
-    "already_opened": "LOCKED_OPENINGS.tsv",
-    "vectorizers_differ": "vectorizers",
+    "wrong_study": "may only be opened here for the pre-registered study",
+    "result_exists": "ai_mirror_humanities_locked_test_2026-11-17.json exists",
+    "already_opened": "already records an opening",
+    "env_missing": "is missing: run check-env",
+    "env_failed": "does not record passed: true",
+    "vectorizers_differ": "differs from the one that passed the gate",
+    "no_ai_paper": "has no entry in the AI manifest",
+    "text_missing": "A2.txt for target A2 is missing",
+    "text_hash_differs": "does not match the sha256 in its manifest entry",
+    "uncommitted": "uncommitted changes under",
 }
 
 
@@ -454,7 +455,8 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
     elif broken == "env_missing":
         (ai_dir / "environment_humanities.json").unlink()
     elif broken == "env_failed":
-        (ai_dir / "environment_humanities.json").write_text(json.dumps({"passed": False}), encoding="utf-8")
+        (ai_dir / "environment_humanities.json").write_text(   # sha still matches: only `passed` is broken
+            json.dumps({"passed": False, "vectorizers_sha256": "vecsha"}), encoding="utf-8")
     elif broken == "no_ai_paper":
         m = json.loads((ai_dir / "manifest_humanities.json").read_text(encoding="utf-8"))
         del m["papers"]["A2"]
@@ -474,7 +476,9 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
         monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: True)
     with pytest.raises(SystemExit) as exc:
         ai_mirror.open_locked(study)
-    assert GUARD_CASES[broken] in str(exc.value)
+    msg = str(exc.value)
+    assert GUARD_CASES[broken] in msg
+    assert not [k for k, v in GUARD_CASES.items() if k != broken and v in msg], msg
     if broken == "already_opened":
         assert ai_mirror.STUDY_ID in str(exc.value) and "approval" in str(exc.value)
     assert not list(res.glob("ai_mirror_humanities_locked_test_*.json")) or broken == "result_exists"

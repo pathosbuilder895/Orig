@@ -397,8 +397,10 @@ def _check_before_opening(study: str) -> tuple:
     texts = {}
     for t in sorted(targets, key=lambda t: t.rank):
         path = AI_DIR / "texts" / f"{t.author_id}.txt"
-        if t.author_id not in papers or not path.exists():
-            raise SystemExit(f"target {t.author_id} has no recorded AI paper (manifest entry and {path.name})")
+        if t.author_id not in papers:
+            raise SystemExit(f"target {t.author_id} has no entry in the AI manifest")
+        if not path.exists():
+            raise SystemExit(f"AI text file {path.name} for target {t.author_id} is missing")
         data = path.read_bytes()
         if hashlib.sha256(data).hexdigest() != papers[t.author_id]["sha256"]:
             raise SystemExit(f"AI text for {t.author_id} does not match the sha256 in its manifest entry")
