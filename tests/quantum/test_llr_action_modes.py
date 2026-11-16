@@ -393,3 +393,35 @@ def test_rebind_needs_impostor_null():
         scoring_config=ScoringConfig(null_model="none", llr_action_mode="gate"),
     )
     assert rebind.recommendation.action == gate.recommendation.action
+
+
+def test_rebind_changes_action_with_impostor_null():
+    # Same FAR fixture as the gate test: raw deviation escalates, llr reads
+    # confidently genuine, so rebind must land on the llr-derived tier.
+    submission = np.full(FEATURE_DIM, FAR)
+    impostor_stats = (np.full(FEATURE_DIM, IMPOSTOR_MEAN), np.full(FEATURE_DIM, IMPOSTOR_SIGMA))
+    result = score(
+        state=_baseline_state(0.30),
+        submission_vector=submission,
+        feature_dict={},
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(null_model="impostor", llr_action_mode="rebind"),
+    )
+    assert result.catastrophic_drift is False
+    llr = result.authorship.llr_deviation_score
+    assert llr is not None
+    assert result.recommendation.action == _rebind_action(llr)
+    assert result.recommendation.action != "escalate"
+    assert "LLR rebind" in result.recommendation.rationale
+
+
+def test_rebind_action_nan_is_no_action():
+    assert _rebind_action(float("nan")) == "no_action"
+
+
+def test_shadow_logs_rebind_would(caplog):
+    rec = _action("no_action")
+    with caplog.at_level("INFO", logger="original.quantum.scoring"):
+        out = _apply_llr_action_mode(rec, deviation=0.5, llr_deviation_score=0.8, mode="shadow")
+    assert out is rec
+    assert "rebind_would=escalate" in caplog.text

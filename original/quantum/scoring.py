@@ -2297,11 +2297,12 @@ def _apply_llr_action_mode(
     if mode == "shadow":
         log.info(
             "llr_action_shadow live=%s gate_would=%s trigger_would=%s blend_would=%s "
-            "llr=%.3f deviation=%.3f",
+            "rebind_would=%s llr=%.3f deviation=%.3f",
             recommendation.action,
             candidates["gate"],
             candidates["trigger"],
             candidates["blend"],
+            candidates["rebind"],
             llr_deviation_score,
             deviation,
         )
