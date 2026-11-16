@@ -171,8 +171,22 @@ def test_sheet_carries_exact_prompts():
     for t in TARGETS:
         assert ai_mirror.PROMPT.format(title=t.title, venue=t.venue) in sheet
         assert f"validation/scholarly/ai_mirror/raw/{t.author_id}.txt" in sheet
+        assert f"validation/scholarly/ai_mirror/raw/{t.author_id}.cont.txt" in sheet
     assert chr(0x2014) not in sheet and chr(0x2015) not in sheet
     assert ai_mirror.CONTINUE_PROMPT in sheet
+
+
+def test_sheet_steps_create_raw_save_intake_then_continue_only_if_short():
+    sheet = ai_mirror.render_sheet(TARGETS)
+    steps = ["Create the folder `validation/scholarly/ai_mirror/raw/`",
+             "Save the complete first reply", "`raw/<author_id>.txt`",
+             "-m validation.scholarly.ai_mirror intake --author <author_id>",
+             "Only if intake reports under 1,300 cleaned words", ai_mirror.CONTINUE_PROMPT,
+             "on its own to `raw/<author_id>.cont.txt`", "with `--continued`"]
+    at = [sheet.find(s) for s in steps]
+    assert -1 not in at and at == sorted(at), dict(zip(steps, at))
+    assert "both replies together" not in sheet
+    assert all(ln == ln.rstrip() for ln in sheet.splitlines())   # survives the trailing-whitespace hook
 
 
 def test_prompts_have_no_dashes_and_one_line():
@@ -310,6 +324,38 @@ def test_intake_cut_counts_are_summed_over_both_replies(tmp_path, monkeypatch):
     e = ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
     assert (e["cut_reference_paragraphs"], e["cut_wrapper_paragraphs"]) == (2, 3)
     assert (tmp_path / "texts" / "A1.txt").read_text(encoding="utf-8") == f"{BODY}\n\n{BODY}"
+
+
+def _one_error_line(capsys, needle):
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and err.startswith("error: ") and needle in err, err
+    assert "Traceback" not in err
+
+
+def test_intake_cli_reports_refusals_in_one_line(tmp_path, monkeypatch, capsys):
+    _setup(tmp_path, monkeypatch)
+    args = ["--model", "m", "--date", "2026-11-17", "--route", "app"]
+    assert ai_mirror.main(["intake", "--author", "NOPE"] + args) == 2
+    _one_error_line(capsys, "'NOPE' is not in the targets file")
+    assert ai_mirror.main(["intake", "--author", "A1", "--continued"] + args) == 2
+    _one_error_line(capsys, "A1.cont.txt")
+
+
+def test_select_cli_reports_refusals_in_one_line(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path)
+
+    def not_in_candidates(manifest, candidates):
+        raise KeyError("paper W1 (author A1) is not in the candidate list")
+    monkeypatch.setattr(ai_mirror, "select_targets", not_in_candidates)
+    assert ai_mirror.main(["select"]) == 2
+    _one_error_line(capsys, "error: paper W1 (author A1) is not in the candidate list")
+    assert not (tmp_path / "targets_humanities.json").exists()
+
+
+def test_locked_cli_keeps_refusals_as_system_exit(monkeypatch):
+    monkeypatch.setattr(loader, "load_trial_grid", lambda *a, **k: pytest.fail("load_trial_grid was called"))
+    with pytest.raises(SystemExit, match="pre-registered study"):   # the first guard: nothing else runs
+        ai_mirror.main(["locked", "--study", "not-this-study"])
 
 
 def test_intake_cli(tmp_path, monkeypatch):
@@ -539,6 +585,26 @@ def test_check_environment_reruns_over_an_uncommitted_or_passed_gate(passed, com
     assert ai_mirror.check_environment(3)["passed"] is True and calls == ["humanities"]
 
 
+@pytest.mark.parametrize("missing,mismatch,warned", [(0, 0, False), (2, 0, True), (0, 3, True)])
+def test_check_env_cli_warns_when_verify_finds_missing_or_mismatched(missing, mismatch, warned,
+                                                                     monkeypatch, capsys):
+    monkeypatch.setattr(ai_mirror, "check_environment", lambda n_boot=10, owner_approved=False: {
+        "passed": True, "verify": {"missing": missing, "hash_mismatch": mismatch}})
+    assert ai_mirror.main(["check-env"]) == 0
+    lines = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("warning:")]
+    assert len(lines) == int(warned)
+    if warned:
+        assert f"{missing} missing" in lines[0] and f"{mismatch} hash-mismatched" in lines[0]
+
+
+def test_check_env_cli_keeps_refusals_as_system_exit(monkeypatch):
+    def refuse(n_boot=10, owner_approved=False):
+        raise SystemExit("refused")
+    monkeypatch.setattr(ai_mirror, "check_environment", refuse)
+    with pytest.raises(SystemExit, match="refused"):
+        ai_mirror.main(["check-env"])
+
+
 def test_check_env_cli_passes_owner_approval(monkeypatch, capsys):
     got = []
     monkeypatch.setattr(ai_mirror, "check_environment", lambda n_boot=10, owner_approved=False: got.append(
@@ -560,6 +626,14 @@ def test_fingerprint_records_versions_platform_tools_and_head():
     assert isinstance(fp["sentence_transformers"], bool) and fp["platform"] == platform.platform()
     assert fp["pdftotext"] is None or isinstance(fp["pdftotext"], str)
     assert fp["git_head"] is None or (len(fp["git_head"]) == 40 and int(fp["git_head"], 16) >= 0)
+
+
+def test_importable_is_false_for_a_missing_or_broken_module(tmp_path, monkeypatch):
+    assert ai_mirror._importable("json") is True
+    assert ai_mirror._importable("no_such_module_for_ai_mirror_test") is False
+    (tmp_path / "broken_mod_for_ai_mirror_test.py").write_text("raise RuntimeError('broken')\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    assert ai_mirror._importable("broken_mod_for_ai_mirror_test") is False
 
 
 def test_first_output_line_is_none_for_a_missing_tool():

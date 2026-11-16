@@ -6,9 +6,11 @@ for that journal; later steps score the reply against the author's baseline.
 Only published titles and journal names are used; no student writing is involved.
 
     python -m validation.scholarly.ai_mirror select
-    python -m validation.scholarly.ai_mirror intake --author A... --model "..." --date YYYY-MM-DD --route app
-    python -m validation.scholarly.ai_mirror check-env
+    python -m validation.scholarly.ai_mirror intake --author A... --model "..." --date YYYY-MM-DD --route app [--continued]
+    python -m validation.scholarly.ai_mirror check-env [--owner-approved]
     python -m validation.scholarly.ai_mirror locked --study scholarly-ai-mirror-2026-11-16   (once)
+
+Steps, files and the owner-approval rule: README.md, "AI-mirror screen (rule D)".
 """
 from __future__ import annotations
 
@@ -22,12 +24,13 @@ import platform
 import random
 import re
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from . import clean, fetch, loader, policy, rule_d
+from . import clean, fetch, loader, rule_d
 from .schema import ScholarlyManifest, ScholarlyPaper
 
 HERE = Path(__file__).resolve().parent
@@ -105,19 +108,27 @@ def select_targets(manifest: ScholarlyManifest, candidates: dict) -> List[Target
 
 
 def render_sheet(targets: List[Target]) -> str:
+    raw = "validation/scholarly/ai_mirror/raw"
     lines = [
         f"# Prompt sheet: {STUDY_ID}", "",
-        "Paste each prompt into a fresh chat in the named tool, exactly as written.",
-        f"Save the complete reply as plain text to the path shown under it. If the reply is "
-        f"under {CONTINUE_BELOW:,} words, send this follow-up once, in the same chat, and save "
-        "both replies together in order:", "",
+        "Paste each prompt into a fresh chat in the named tool, exactly as written. For each one:", "",
+        f"1. Create the folder `{raw}/` if it does not exist yet.",
+        "2. Save the complete first reply as plain text to the path shown under its prompt "
+        "(`raw/<author_id>.txt`).",
+        "3. Run `.venv/bin/python -m validation.scholarly.ai_mirror intake --author <author_id> "
+        '--model "<model>" --date YYYY-MM-DD --route app` (`--route subagent` for the subagent route).',
+        f"4. Only if intake reports under {CONTINUE_BELOW:,} cleaned words, send this follow-up once, "
+        "in the same chat:", "",
         "```", CONTINUE_PROMPT, "```", "",
+        "   Save that second reply on its own to `raw/<author_id>.cont.txt` (never added to the first "
+        "file), then run the same intake command again with `--continued`.", "",
     ]
     for t in targets:
         lines += [
             f"## {t.rank + 1}. {t.tool}", "",
             "```", PROMPT.format(title=t.title, venue=t.venue), "```", "",
-            f"Save to: `validation/scholarly/ai_mirror/raw/{t.author_id}.txt`", "",
+            f"Save to: `{raw}/{t.author_id}.txt`", "",
+            f"Continuation, only if intake asks for it: `{raw}/{t.author_id}.cont.txt`", "",
         ]
     return "\n".join(lines)
 
@@ -622,6 +633,19 @@ def open_locked(study: str, n_boot: int = 1000) -> dict:
     return out
 
 
+def _select() -> None:
+    """Pick the targets from the committed manifest and candidates; write them and the sheet."""
+    manifest = loader.load_manifest(COLLECTION)
+    candidates = json.loads((loader.HERE / "candidates" / f"{COLLECTION}.json")
+                            .read_text(encoding="utf-8"))
+    targets = select_targets(manifest, candidates)
+    AI_DIR.mkdir(parents=True, exist_ok=True)
+    (AI_DIR / f"targets_{COLLECTION}.json").write_text(json.dumps(
+        {"study_id": STUDY_ID, "collection": COLLECTION, "seed": SEED,
+         "targets": [dataclasses.asdict(t) for t in targets]}, indent=2) + "\n", encoding="utf-8")
+    (AI_DIR / f"prompts_{COLLECTION}.md").write_text(render_sheet(targets), encoding="utf-8")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="ai_mirror")
     sub = ap.add_subparsers(dest="step", required=True)
@@ -640,25 +664,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     ip.add_argument("--route", required=True, choices=list(ROUTES))
     ip.add_argument("--continued", action="store_true")
     args = ap.parse_args(argv)
-    if args.step == "check-env":
+    if args.step == "check-env":   # refusals stay SystemExit
         result = check_environment(args.n_boot, owner_approved=args.owner_approved)
         print(json.dumps(result, indent=1))
+        verify = result.get("verify") or {}
+        if verify.get("missing", 0) or verify.get("hash_mismatch", 0):
+            print(f"warning: verify reports {verify.get('missing', 0)} missing and "
+                  f"{verify.get('hash_mismatch', 0)} hash-mismatched papers in the restored cache")
         return 0 if result["passed"] else 1
-    if args.step == "intake":
-        intake(args.author, args.model, args.date, args.route, args.continued)
-        return 0
-    if args.step == "locked":
+    if args.step == "locked":   # refusals stay SystemExit
         open_locked(args.study, args.n_boot)
         return 0
-    manifest = loader.load_manifest(COLLECTION)
-    candidates = json.loads((loader.HERE / "candidates" / f"{COLLECTION}.json")
-                            .read_text(encoding="utf-8"))
-    targets = select_targets(manifest, candidates)
-    AI_DIR.mkdir(parents=True, exist_ok=True)
-    (AI_DIR / f"targets_{COLLECTION}.json").write_text(json.dumps(
-        {"study_id": STUDY_ID, "collection": COLLECTION, "seed": SEED,
-         "targets": [dataclasses.asdict(t) for t in targets]}, indent=2) + "\n", encoding="utf-8")
-    (AI_DIR / f"prompts_{COLLECTION}.md").write_text(render_sheet(targets), encoding="utf-8")
+    try:   # intake and select: a refusal is one line, not a traceback
+        if args.step == "intake":
+            intake(args.author, args.model, args.date, args.route, args.continued)
+        else:
+            _select()
+    except (ValueError, KeyError) as e:
+        message = e.args[0] if isinstance(e, KeyError) and e.args else e
+        print("error:", " ".join(str(message).splitlines()), file=sys.stderr)
+        return 2
     return 0
 
 

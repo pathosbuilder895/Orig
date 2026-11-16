@@ -125,6 +125,49 @@ is given, and each opening is appended to `LOCKED_OPENINGS.tsv` (a tracked file,
 so it shows up in review). Nothing in this task reads it. `baseline.py` loads
 `development` only.
 
+## AI-mirror screen (rule D)
+
+`ai_mirror.py` asks whether rule D flags a paper that an AI chat tool wrote with the same
+title, for the same journal, as one of a `locked_test` author's own held-out papers. It is a
+20-paper screen, not a catch-rate estimate. Design:
+`docs/superpowers/specs/2026-11-16-rule-d-ai-mirror-design.md`. Results are measured on
+published humanities scholarship, not student writing.
+
+Order of steps (study `scholarly-ai-mirror-2026-11-16`):
+
+1. `select` writes the targets and the prompt sheet, before any AI paper exists.
+2. Pre-register: commit the pre-registration with the SHA-256 of the targets file. Nothing
+   about the targets, prompts, rule or decision changes after that commit.
+3. Paste each prompt from the sheet into its tool and run `intake` on each reply. Only if
+   intake reports under 1,300 cleaned words, send the continuation once in the same chat,
+   save it on its own, and run `intake` again with `--continued`. Look at any non-zero
+   `cut_reference_paragraphs` or `cut_wrapper_paragraphs` in the manifest.
+4. Commit the raw replies, the cleaned texts and the AI manifest.
+5. In one Claude Code cloud session (Linux, `poppler-utils`): `fetch --restore`, then
+   `fetch --verify`, then `check-env`; commit and push the environment file; then `locked`,
+   once.
+
+```bash
+.venv/bin/python -m validation.scholarly.ai_mirror select
+.venv/bin/python -m validation.scholarly.ai_mirror intake --author A... --model "..." --date YYYY-MM-DD --route app [--continued]
+.venv/bin/python -m validation.scholarly.ai_mirror check-env
+.venv/bin/python -m validation.scholarly.ai_mirror locked --study scholarly-ai-mirror-2026-11-16
+```
+
+Files, all committed, under `validation/scholarly/ai_mirror/`: `targets_humanities.json`,
+`prompts_humanities.md`, `raw/<author_id>.txt` (the first reply), `raw/<author_id>.cont.txt`
+(the continuation, if one was sent), `texts/<author_id>.txt` (cleaned),
+`manifest_humanities.json` and `environment_humanities.json`. The opening appends one line to
+`LOCKED_OPENINGS.tsv`, saves its raw rows to the git-ignored `cache/ai_mirror_rows_<date>.json`
+before summarising them, and writes `ai_mirror_humanities_locked_test_<date>.json` here.
+
+The gate and the opening refuse unless `rule_d_thresholds_humanities.json` equals the
+thresholds pinned in `ai_mirror.COMMITTED_THRESHOLDS`, and the opening refuses unless the gate
+passed with the same Python, numpy, scikit-learn and sentence-transformers. **A re-run after a
+crash or a failed gate needs the owner's approval.** Once the opening is logged, `locked`
+refuses to run again; `check-env` refuses to re-run over a committed `passed: false` unless
+`--owner-approved` is given, and that flag is only for the owner's explicit yes.
+
 ## Licences
 
 Permitted: CC BY, BY-SA, BY-NC, BY-NC-SA, BY-ND, BY-NC-ND, CC0, public domain

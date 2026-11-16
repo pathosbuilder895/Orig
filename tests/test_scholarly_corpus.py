@@ -850,6 +850,17 @@ def test_strip_inline_v1_strips_digits_glued_to_letters():
     assert clean.strip_inline("the church12 said it.") == clean.strip_inline("the church12 said it.", version="2")
 
 
+def test_clean_pages_uses_the_requested_cleaner_version():
+    para = ("The church12 said that the argument proceeds in three steps and each step depends on the "
+            "previous one so that the whole chain can be examined.")
+    xml = "<doc>" + _page([_line(para, 72, 100) + _line(BODY, 72, 112)]) + "</doc>"
+    pages = clean.parse_bbox(xml)
+    v1, v2 = clean.clean_pages(pages, version="1"), clean.clean_pages(pages, version="2")
+    assert "The church said" in v1 and "church12" not in v1
+    assert "The church12 said" in v2
+    assert clean.clean_pages(pages) == v2
+
+
 def test_strip_inline_rejects_unknown_version():
     with pytest.raises(ValueError):
         clean.strip_inline("text", version="3")
