@@ -110,7 +110,8 @@ def _write_report(path, label, records):
     pairs = [
         {
             "baseline_author": r.author,
-            "submission_author": r.author if r.genuine else r.author + "_other",
+            "submission_author": r.submission_author
+            or (r.author if r.genuine else r.author + "_other"),
             "deviation": r.deviation,
             "llr": r.llr,
         }
@@ -169,3 +170,47 @@ def test_run_all_g_rebind_crash_is_machinery_error(monkeypatch):
     monkeypatch.setattr(cg, "_compute_g_rebind_data", boom)
     (res,) = [r for r in cg.run_all(only={"G-REBIND"}) if r.name == "G-REBIND"]
     assert res.verdict != "pass" and not res.passed
+
+
+def test_split_drops_cross_side_impostors():
+    authors = [f"a{k}" for k in range(10)]
+    records = [PairRecord(a, True, 0.5, 0.2, "c", submission_author=a) for a in authors]
+    records += [
+        PairRecord(a, False, 0.5, 0.8, "c", submission_author=b)
+        for a in authors for b in authors if a != b
+    ]
+    d, h = split_by_author(records, seed=3)
+    d_auth, h_auth = {r.author for r in d}, {r.author for r in h}
+    assert all(r.submission_author in d_auth for r in d)
+    assert all(r.submission_author in h_auth for r in h)
+    n_d, n_h = len(d_auth), len(h_auth)
+    assert sum(not r.genuine for r in d + h) == n_d * (n_d - 1) + n_h * (n_h - 1)
+
+
+def test_select_thresholds_ignores_impostor_llr():
+    gen = [PairRecord(f"a{k}", True, 0.5, k / 100, "c") for k in range(100)]
+    imp = [PairRecord("b", False, 0.5, 0.955, "c")]
+    assert select_thresholds(gen + imp) == select_thresholds(gen)
+
+
+@pytest.mark.parametrize(
+    ("deviation", "expected"),
+    [(0.0, "no_action"), (0.3999, "no_action"), (0.40, "monitor"),
+     (0.60, "schedule_conversation"), (0.75, "escalate"), (1.0, "escalate"),
+     (1.7, "escalate")],
+)
+def test_gate_base_action_matches_recommend_bands(deviation, expected):
+    # llr 0.5 is between the gate thresholds, so gate == base action, which
+    # must match _recommend's deviation bands (lo <= x < hi; >= 1.0 escalate).
+    from validation.rebind.harness import _action
+
+    r = PairRecord("a", True, deviation, 0.5, "c")
+    assert _action(r, "gate", LLR_REBIND_THRESHOLDS) == expected
+
+
+def test_split_keeps_impostor_from_unclaimed_writer():
+    records = [PairRecord(f"a{k}", True, 0.5, 0.2, "c", submission_author=f"a{k}")
+               for k in range(5)]
+    records.append(PairRecord("a0", False, 0.5, 0.8, "c", submission_author="outsider"))
+    d, h = split_by_author(records, seed=1)
+    assert sum(not r.genuine for r in d + h) == 1

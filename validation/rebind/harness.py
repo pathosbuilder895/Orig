@@ -30,6 +30,7 @@ class PairRecord:
     deviation: float
     llr: float
     corpus: str
+    submission_author: str = ""  # real author of the scored text; "" = author
 
 
 def load_records(path: Path) -> list[PairRecord]:
@@ -49,6 +50,7 @@ def load_records(path: Path) -> list[PairRecord]:
             deviation=float(p["deviation"]),
             llr=float(p["llr"]),
             corpus=corpus,
+            submission_author=str(p["submission_author"]),
         )
         for p in pairs
     ]
@@ -58,13 +60,29 @@ def split_by_author(
     records: list[PairRecord], seed: int, derivation_frac: float = 0.6
 ) -> tuple[list[PairRecord], list[PairRecord]]:
     """Split by (corpus, author) group; refuse if an author name lands on both
-    sides (the same writer filed under two corpora would leak across)."""
+    sides (the same writer filed under two corpora would leak across). An
+    impostor pair is kept only when its submission's real author sits on the
+    same side as its claimed author, so no writer's text crosses the split."""
     groups = sorted({(r.corpus, r.author) for r in records})
     random.Random(seed).shuffle(groups)
     n_deriv = round(len(groups) * derivation_frac)
     deriv_keys = set(groups[:n_deriv])
-    derivation = [r for r in records if (r.corpus, r.author) in deriv_keys]
-    holdout = [r for r in records if (r.corpus, r.author) not in deriv_keys]
+
+    def _side(corpus: str, author: str) -> bool:
+        return (corpus, author) in deriv_keys
+
+    group_set = set(groups)
+    kept = [
+        r
+        for r in records
+        if r.genuine
+        # A submission author who is no claimed author anywhere has no group,
+        # so their text cannot sit on the other side.
+        or (r.corpus, r.submission_author) not in group_set
+        or _side(r.corpus, r.submission_author) == _side(r.corpus, r.author)
+    ]
+    derivation = [r for r in kept if _side(r.corpus, r.author)]
+    holdout = [r for r in kept if not _side(r.corpus, r.author)]
     shared = {r.author for r in derivation} & {r.author for r in holdout}
     if shared:
         raise ValueError(f"author(s) on both sides of the split: {sorted(shared)}")
@@ -90,7 +108,8 @@ def select_thresholds(
         raise ValueError("select_thresholds needs at least one genuine record")
     # A cut just above the largest genuine value always admits zero of them.
     above_max = max(genuine) + 1e-9
-    candidates = sorted({r.llr for r in derivation} | {above_max})
+    # Genuine values only: impostor rows must not place the cut-off.
+    candidates = sorted(set(genuine) | {above_max})
     sc = _lowest_cut(genuine, candidates, max_fpr)
     esc = _lowest_cut(genuine, candidates, max_fpr / 5)
     mon = max(sc - MONITOR_OFFSET, 0.0)
