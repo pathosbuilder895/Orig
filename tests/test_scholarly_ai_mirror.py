@@ -29,6 +29,81 @@ def test_build_scores_extra_docs_defaults_to_none():
     assert inspect.signature(rule_d.build_scores).parameters["extra_docs"].default is None
 
 
+class _FakeStore:
+    """Deterministic stand-in for adjust.FeatureStore: a seeded vector per text, and a KeyError for
+    any text that was never passed to ``ensure`` (as the real store raises). No disk is touched."""
+
+    def __init__(self, collection):
+        self.seen = set()
+
+    def ensure(self, texts, workers=4):
+        new = set(texts) - self.seen
+        self.seen |= new
+        return len(new)
+
+    def __getitem__(self, text):
+        import numpy as np
+        from original.constants import FEATURE_DIM
+        if text not in self.seen:
+            raise KeyError("text was never ensured")
+        seed = int(hashlib.sha256(text.encode("utf-8")).hexdigest()[:16], 16)
+        return np.random.default_rng(seed).random(FEATURE_DIM), {}
+
+
+def _synthetic_paper(vocab, key, paras=3, words=110):
+    import random
+    r = random.Random(key)
+    return "\n\n".join(" ".join(r.choice(vocab) for _ in range(words)) + "." for _ in range(paras))
+
+
+def _synthetic_sets():
+    common = "the of and to in a is that for it as with was on be by this are from or".split()
+    vocab = {a: common + [f"{a.lower()}word{i}" for i in range(30)] for a in "ABC"}
+    papers = {a: [_synthetic_paper(vocab[a], f"{a}{k}") for k in range(6)] for a in "ABC"}
+
+    def cut(text, n):
+        return " ".join(text.split()[:n])
+    trials = []
+    for a in "ABC":
+        others = [o for o in "ABC" if o != a]
+        trials.append(loader.ScholarlyTrial(
+            student_id=a, baseline=papers[a][:4], honest=[cut(p, 300) for p in papers[a][4:]],
+            probes=[cut(papers[o][4], 300) for o in others], baseline_ids=[f"{a}{k}" for k in range(4)],
+            honest_ids=[f"{a}4", f"{a}5"], probe_sources=others))
+    ts = loader.TrialSet(trials, {})
+    ai = cut(_synthetic_paper(common + [f"aiword{i}" for i in range(30)], "ai"), 300)
+    return {("matched_300_300", 7): ts, ("matched_300_300", 11): ts}, ai
+
+
+def test_build_scores_with_extra_docs_end_to_end(monkeypatch):
+    import math
+    import numpy as np
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from validation.scholarly import intended_use
+    from validation.scholarly.verifier import mask_topic
+    for flag in intended_use.RESEARCH_FLAGS:   # build_scores pops these; keep the process env as it was
+        monkeypatch.delenv(flag, raising=False)
+    monkeypatch.setattr(rule_d, "FeatureStore", _FakeStore)
+    monkeypatch.setattr(rule_d, "dominant_subfields", lambda c: {"A": "x", "B": "x", "C": "y"})
+    monkeypatch.setattr(rule_d, "_hosts", lambda c: {"A": {"h1"}, "B": {"h1"}, "C": {"h2"}})
+    sets, ai = _synthetic_sets()
+    texts = list(dict.fromkeys(x for ts in sets.values() for t in ts.trials
+                               for x in t.baseline + t.honest + t.probes))
+    vecs = {"char": TfidfVectorizer(analyzer="char", ngram_range=(3, 5), sublinear_tf=True, min_df=1,
+                                    dtype=np.float32).fit(texts),
+            "masked": TfidfVectorizer(analyzer="char", ngram_range=(3, 6), sublinear_tf=True, min_df=1,
+                                      dtype=np.float32, preprocessor=mask_topic).fit(texts)}
+    base = rule_d.build_scores("humanities", sets, vecs)
+    extra = {("matched_300_300", 7): {"A": [(ai, 1, None, "ai")]}}
+    with_ai = rule_d.build_scores("humanities", sets, vecs, extra_docs=extra)
+    assert {r["kind"] for r in base} == {"honest", "random", "same_field", "same_venue"}
+    assert [r for r in with_ai if r["kind"] != "ai"] == base   # every key and value, same order
+    [row] = [r for r in with_ai if r["kind"] == "ai"]
+    assert (row["author"], row["config"], row["seed"], row["label"], row["src"]) == (
+        "A", "matched_300_300", 7, 1, None)
+    assert list(row) == list(base[0]) and math.isfinite(row["D"])
+
+
 # ----------------------------------------------------------- selection + sheet --
 CANDIDATES = json.loads((loader.HERE / "candidates" / "humanities.json").read_text(encoding="utf-8"))
 MANIFEST = loader.load_manifest("humanities")
