@@ -890,10 +890,12 @@
       };
       ch.addEventListener('click',e=>{
         const t=TIER_BY_KEY.get(key);
-        // With passages (the staff evidence field): the first click after an analysis pins
-        // the tier and opens its most different habit; a click on the pinned tier unpins
-        // it and closes the panel. A keyboard click (detail 0) moves focus into the panel.
-        if(hasEvidence(S.result)&&S.base&&t&&t.features.length){
+        // With passages (the staff evidence field after an analysis, or past-paper mode
+        // before one): the first click pins the tier and opens its most different habit
+        // (before an analysis, its first); a click on the pinned tier unpins it and closes
+        // the panel. A keyboard click (detail 0) moves focus into the panel.
+        const pastMode=!S.result&&PP.state==='on';
+        if((hasEvidence(S.result)||pastMode)&&S.base&&t&&t.features.length){
           if(CROSS.pinned===key){ toggle(key); EVI.close(); return; }
           toggle(key);
           EVI.open(topHabit(t).code,e.detail===0?ch:null);
@@ -1171,17 +1173,22 @@
     // how: 'open' from elsewhere on the page (brought into view; focus moves in when a keyboard
     // opened it), 'switch' from inside the panel, 'reopen' after a re-render (no scroll, no focus).
     // A family not yet asked for is fetched once; a failed request shows the numbers-only panel.
+    // Resolves true when it changed the panel, false when a newer choice had replaced it.
     async function openPast(code,fam,from,how){
       let d=PP.cache.get(fam)||null;
       if(!d){
         const my=++PP.seq;
         d=await fetchPastFamily(code);
-        if(my!==PP.seq||S.result||(how==='switch'&&!pastOn)) return;
+        if(my!==PP.seq||S.result||(how==='switch'&&!pastOn)) return false;
       }
-      if(!d||!pastFeature(d,code)){ openPlain(code,from); return; }
+      if(!d||!pastFeature(d,code)){ openPlain(code,from); return true; }
       showPast(code,d,from,how);
+      return true;
     }
     function showPast(code,d,from,how){
+      // A habit shown now, even from the cache, is newer than any family request still on its way.
+      // A re-render's reopen is not a choice, so it leaves a pending request alone.
+      if(how!=='reopen') PP.seq++;
       PP.habit=code; openCode=code; pastOn=true;
       if(how!=='switch') opener=from||null;
       renderPast(d);
@@ -1263,18 +1270,22 @@
       $('evi-pcols').focus({preventScroll:true});
     }
     // A family button opens that family's first habit; focus stays on the button just pressed.
+    // A reply a newer choice replaced moves nothing, focus included.
     function pickFamily(name){
       const fam=PP.families.find(x=>x.name===name);
       if(!fam||!fam.habits.length) return;
-      openPast(fam.habits[0],name,null,'switch').then(()=>{
+      openPast(fam.habits[0],name,null,'switch').then(changed=>{
+        if(!changed) return;
         const on=$('evi-fams').querySelector('.evi-fam[aria-pressed="true"]');
         if(pastOn&&on) on.focus();
         else if(box.classList.contains('show')) $('evi-close').focus();
       });
     }
-    function close(back){
-      // Closed by the teacher (back===true): a family request still on its way does not reopen it.
-      if(back===true&&PP.state==='on') PP.seq++;
+    // back===true: focus returns to what opened it. rerender: renderAll's close, reopened at once.
+    function close(back,rerender){
+      // Closed by the teacher (the button, Escape, a pinned tier chip): a family request still
+      // on its way does not reopen it. A re-render is not a choice, so it leaves one alone.
+      if(!rerender&&PP.state==='on') PP.seq++;
       box.classList.remove('show');
       openCode=''; pastOn=false; pastParts(false); markExpanded(null);
       if(back===true&&opener&&opener.isConnected) opener.focus();
@@ -1421,7 +1432,7 @@
     renderResultChrome();
     // Past-paper mode outlives a re-render (the roster's late one), never an analysis.
     const past=EVI.pastHabit();
-    EVI.close();
+    EVI.close(false,true);
     CHIPS.unpin();
     HM.build();
     RADAR.draw();

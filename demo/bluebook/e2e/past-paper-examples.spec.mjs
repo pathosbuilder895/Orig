@@ -21,38 +21,13 @@
  * Orthodoxy (1908) as the paper analysed.
  */
 
-import { readFileSync } from 'node:fs'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor, staffStorageState } from './fixtures/api-setup.mjs'
+import { DATES, PAST, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
 
-const FIXTURES = new URL('./fixtures/evidence/', import.meta.url)
-const read = name => readFileSync(new URL(name, FIXTURES), 'utf8')
-const DATES = ['2026-01-14', '2026-02-11', '2026-03-10']
-const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}`, date: DATES[i - 1] }))
-const PAPER = read('chesterton.txt')
 // The name the roster gives the student (fixtures/api-setup.mjs studentLogin).
 const ROSTER_NAME = 'E2E Student'
 const JUDGMENT = /suspicious|does(n.t| not) match|deviation/i
-
-async function seedPastPapers(request, student) {
-  for (const p of PAST) {
-    await addBaselineFor(request, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.date })
-  }
-}
-
-// Analyse the paper on Writing State as the teacher; returns the score response.
-async function analyse(page, studentId) {
-  await page.goto(`/original/writing-state.html?student=${encodeURIComponent(studentId)}`)
-  await expect(page.locator('#an-form')).toBeVisible({ timeout: 20_000 })
-  await page.locator('#an-assign').fill('Orthodoxy, chapter 1')
-  await page.locator('#an-text').fill(PAPER)
-  const scored = page.waitForResponse(r => r.url().endsWith('/score') && r.request().method() === 'POST', { timeout: 90_000 })
-  await page.locator('#an-go').click()
-  const res = await scored
-  expect(res.ok()).toBe(true)
-  await expect(page.locator('#an-done')).toBeVisible({ timeout: 30_000 })
-  return res.json()
-}
 
 const isExamples = url => url.includes('/past-paper-examples')
 const slice = q => q.passage.slice(q.match_start - q.passage_start, q.match_end - q.passage_start)
@@ -86,6 +61,11 @@ test.describe('past-paper examples, flags off (the default)', () => {
     await expect(page.locator('#hero-name')).toHaveText(ROSTER_NAME, { timeout: 20_000 })
     await expect(page.locator('#hero-evi')).toBeHidden()
     await expect(page.locator('#evi-past')).toBeHidden()
+    // A tier chip only pins its tier, as before.
+    const chip = page.locator('.tchip[data-tier="tier2"]')
+    await chip.click()
+    await expect(chip).toHaveClass(/\bon\b/)
+    await expect(page.locator('#hero-evi')).toBeHidden()
     await context.close()
   })
 })
@@ -297,6 +277,70 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     await page.locator('#heatmap [data-code="question_ratio"]').click()
     await expect(page.locator('#evi-past')).toBeVisible()
     await expect(page.locator('#evi-fams button[aria-pressed="true"]')).toHaveText('Voice')
+    expect(errors).toEqual([])
+    await context.close()
+  })
+
+  test('a choice from the cache wins over a slow family, and a tier chip opens its family @evidence-on', async ({ browser, request, testTenant }) => {
+    test.setTimeout(120_000)
+    const { staff, student } = testTenant
+    await seedPastPapers(request, student)
+    const { context, page } = await staffPage(browser, testTenant)
+    const errors = []
+    page.on('pageerror', e => errors.push(String(e)))
+    const shape = await examplesFor(page, staff, student.student_id, 'mean_sentence_length')
+    const name = code => shape.features.find(f => f.code === code).name
+    // Hold the Voice and Claims and confidence families until told.
+    const gates = new Map([['first_person_ratio', null], ['hedging_density', null]])
+    const opened = new Map()
+    for (const habit of gates.keys()) opened.set(habit, new Promise(r => gates.set(habit, r)))
+    await page.route(url => isExamples(url.href) && [...gates.keys()].some(h => url.href.includes(`habit=${h}`)), async route => {
+      const habit = [...gates.keys()].find(h => route.request().url().includes(`habit=${h}`))
+      await opened.get(habit)
+      await route.continue()
+    })
+    const late = habit => page.waitForResponse(r => r.url().includes(`habit=${habit}`), { timeout: 30_000 })
+    await page.goto(`/original/writing-state.html?student=${encodeURIComponent(student.student_id)}`)
+    await expect(page.locator('#evi-past')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('#hero-name')).toHaveText(ROSTER_NAME, { timeout: 20_000 })
+
+    // The Voice button asks for its family; a related row from the cached family is chosen
+    // before it answers. The row's habit stays, and the late reply moves no focus.
+    const voiceAnswer = late('first_person_ratio')
+    await page.locator('#evi-fams button', { hasText: 'Voice' }).click()
+    await page.locator('#evi-rel .evi-rel-row[data-code="sentence_length_variance"]').click()
+    await expect(page.locator('#evi-name')).toHaveText(name('sentence_length_variance'))
+    gates.get('first_person_ratio')()
+    await (await voiceAnswer).finished()
+    await page.waitForTimeout(1_000)
+    await expect(page.locator('#evi-name')).toHaveText(name('sentence_length_variance'))
+    await expect(page.locator('#evi-fams button[aria-pressed="true"]')).toHaveText('Sentence shape')
+    expect(await page.evaluate(() => document.activeElement && document.activeElement.id)).toBe('evi-pcols')
+
+    // A bar in a family not yet asked for, then a bar in a cached one: the cached one stays.
+    const claimsAnswer = late('hedging_density')
+    await page.locator('#heatmap [data-code="hedging_density"]').click()
+    await page.locator('#heatmap [data-code="comma_rate"]').click()
+    await expect(page.locator('#evi-name')).toHaveText(name('comma_rate'))
+    gates.get('hedging_density')()
+    await (await claimsAnswer).finished()
+    await page.waitForTimeout(1_000)
+    await expect(page.locator('#evi-name')).toHaveText(name('comma_rate'))
+    await expect(page.locator('#evi-fams button[aria-pressed="true"]')).toHaveText('Sentence shape')
+
+    // With the panel closed, a tier chip opens it on that tier's first habit, in its family;
+    // a second click on the pinned chip unpins it and closes the panel, as after an analysis.
+    await page.locator('#evi-close').click()
+    await expect(page.locator('#hero-evi')).toBeHidden()
+    const chip = page.locator('.tchip[data-tier="tier2"]')
+    await chip.click()
+    await expect(page.locator('#hero-evi')).toBeVisible()
+    await expect(page.locator('#evi-past')).toBeVisible()
+    await expect(page.locator('#evi-fams button[aria-pressed="true"]')).toHaveText('Linking ideas')
+    await expect(chip).toHaveClass(/\bon\b/)
+    await chip.click()
+    await expect(page.locator('#hero-evi')).toBeHidden()
+    await expect(chip).not.toHaveClass(/\bon\b/)
     expect(errors).toEqual([])
     await context.close()
   })
