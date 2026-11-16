@@ -969,7 +969,8 @@ def family_of(code: str) -> str | None:
 def _extremes_pick(places: Sequence[Place]) -> list[tuple[str | None, Place]]:
     """The longest and the shortest sentence, always two different sentences.
 
-    A lone sentence is neither, so it carries no role.
+    A lone sentence is neither, so it carries no role; nor do two sentences
+    of the same length (every sentence is then one length).
     """
     if not places:
         return []
@@ -977,6 +978,8 @@ def _extremes_pick(places: Sequence[Place]) -> list[tuple[str | None, Place]]:
         return [(None, places[0])]
     longest = min(places, key=lambda p: (-(p.words or 0), p.start))
     shortest = min((p for p in places if p is not longest), key=lambda p: ((p.words or 0), p.start))
+    if (longest.words or 0) == (shortest.words or 0):
+        return [(None, longest), (None, shortest)]
     return [("longest", longest), ("shortest", shortest)]
 
 
@@ -994,13 +997,17 @@ def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) 
     family = family_of(habit)
     if habit not in LOCATABLE or family is None:
         raise ValueError(f"{habit!r} is not a quotable habit")
+    codes = FAMILIES[family]
+    # Each paper is read for every habit in the family together, so its
+    # engine_view stays cached while it is used, however many papers there are.
+    readings = [[read_paper(text, code) for code in codes] for _, text in baselines]
     features: list[dict[str, Any]] = []
-    for code in FAMILIES[family]:
+    for i, code in enumerate(codes):
         spec = LOCATABLE[code]
         name, description = _name_and_description(code)
         per_paper: list[dict[str, Any]] = []
-        for label, text in baselines:
-            r = read_paper(text, code)
+        for (label, text), paper_readings in zip(baselines, readings, strict=True):
+            r = paper_readings[i]
             if r.places is None:
                 picks: list[tuple[str | None, Place]] = []
             elif spec.sentence_length == "mean":

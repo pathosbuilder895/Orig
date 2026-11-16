@@ -134,6 +134,9 @@ def test_every_quote_is_a_verbatim_slice_at_its_offsets():
     # Nothing the engine set aside is quoted as a counted place: the citation and back matter are gone.
     # (An in-sentence citation like "(Smith, 2020)" is part of a counted sentence; the reference entry is not.)
     assert not any("Smith, J." in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # Every quote that touches the inline citation still says it runs into set-aside text.
+    assert any("Smith, 2020" in q["match"] for q in quotes)
+    assert all(q["crosses_set_aside"] for q in quotes if "Smith, 2020" in q["match"])
 
 
 def test_long_sentences_are_clipped_to_a_verbatim_window():
@@ -575,6 +578,33 @@ def test_a_single_sentence_paper_gets_one_variation_quote_without_a_role():
     out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", "Only one sentence here.")])
     var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
     assert [(e["role"], e["quote"]["words"]) for e in var["per_paper"][0]["examples"]] == [(None, 4)]
+
+
+def test_sentences_of_one_length_are_neither_longest_nor_shortest():
+    text = "The cat sat on the mat today. The dog ran in the park now."
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    examples = var["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in examples] == [(None, 7), (None, 7)]
+    assert [e["quote"]["passage"] for e in examples] == ["The cat sat on the mat today.", "The dog ran in the park now."]
+
+
+def test_past_paper_examples_rebuild_each_paper_once_however_many_papers():
+    # More papers than engine_view's cache holds: each is still rebuilt once, not once per habit.
+    baselines = [(f"past paper {i + 1}", f"Paper {i} starts here. " + PLAIN[i % 3]) for i in range(70)]
+    ev.engine_view.cache_clear()
+    ev.build_past_paper_examples("comma_rate", baselines)
+    assert ev.engine_view.cache_info().misses == 70
+
+
+@pytest.mark.parametrize("text", ["References\nSmith, J. (2020). Night markets. Press.", "   \n  "])
+def test_a_past_paper_with_no_measured_sentence_reads_count_zero(text):
+    # Back matter only, or whitespace only: the engine measures no sentence at all.
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    (paper,) = var["per_paper"]
+    assert paper["count"] == 0
+    assert paper["examples"] == []
 
 
 def test_a_paper_that_cannot_be_located_has_no_examples_and_says_so(monkeypatch):
