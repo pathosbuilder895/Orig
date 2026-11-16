@@ -713,6 +713,8 @@ def _locked_fixture(tmp_path, monkeypatch):
         json.dumps({"passed": True, "vectorizers_sha256": "vecsha", "fingerprint": FP}), encoding="utf-8")
     monkeypatch.setattr(ai_mirror, "_fingerprint", lambda: dict(FP))
     monkeypatch.setattr(ai_mirror, "THRESHOLDS_PATH", _thresholds_file(tmp_path, dict(COMMITTED)))
+    monkeypatch.setattr(ai_mirror, "ROWS_DIR", tmp_path / "rows")   # never the repo's cache
+    monkeypatch.setattr(ai_mirror, "_git_head", lambda: "c" * 40)
     monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: False)
     monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({"char": "VEC"}, "vecsha"))
     log = tmp_path / "LOCKED_OPENINGS.tsv"   # earlier openings, none by this study for humanities
@@ -812,7 +814,10 @@ def test_open_locked_guards_pass_through_to_the_opening(tmp_path, monkeypatch):
     assert kwargs == {"allow_locked_for": ai_mirror.STUDY_ID, "n_past": 4, "n_new": 2, "n_probes": 5}
 
 
-def test_open_locked_writes_result(tmp_path, monkeypatch):
+MEASURED_ON = "published humanities scholarship, not student writing"
+
+
+def test_open_locked_writes_result(tmp_path, monkeypatch, capsys):
     ai_dir, res = _locked_fixture(tmp_path, monkeypatch)
     published = json.loads((rule_d.HERE / "rule_d_humanities_locked_test_2026-11-12.json")
                            .read_text(encoding="utf-8"))["cells"]
@@ -831,6 +836,7 @@ def test_open_locked_writes_result(tmp_path, monkeypatch):
             rows += [_row("A1", name, 50.0),
                      _row("A1", name, -50.0, label=0, kind="honest"),
                      _row("A2", name, 50.0, label=0, kind="honest")]
+        seen["rows"] = rows
         return rows
     monkeypatch.setattr(rule_d, "build_scores", scores)
 
@@ -856,8 +862,52 @@ def test_open_locked_writes_result(tmp_path, monkeypatch):
     c = out["ai"]["matched_1200_1200"]
     assert (c["caught"], c["n"], c["missing_authors"]) == (1, 1, ["A2"])
     assert out["ai"]["honest_same_authors"]["matched_1200_1200"] == {"flagged": 1, "n": 2}
+    assert out["measured_on"] == MEASURED_ON and out["git_head"] == "c" * 40
+    assert out["roles"] == {"matched_1200_1200": "primary", "long_past_1200_short_new_300": "secondary",
+                            "matched_300_300": "reported only"}
+    saved = json.loads((tmp_path / "rows" / f"ai_mirror_rows_{out['date']}.json").read_text(encoding="utf-8"))
+    assert saved["rows"] == seen["rows"] and saved["study_id"] == ai_mirror.STUDY_ID
+    printed = [ln for ln in capsys.readouterr().out.splitlines()
+               if ln.split(" ")[0].rstrip(":") in out["roles"] or ln.startswith("reproduction")]
+    assert len(printed) == 4 and all(ln.endswith(MEASURED_ON) for ln in printed), printed
     with pytest.raises(SystemExit):   # a second opening is refused
         ai_mirror.open_locked(ai_mirror.STUDY_ID)
+
+
+def test_open_locked_goes_on_when_rows_cannot_be_saved(tmp_path, monkeypatch, capsys):
+    _, res = _locked_fixture(tmp_path, monkeypatch)
+    (tmp_path / "blocked").write_text("a file, not a directory", encoding="utf-8")
+    monkeypatch.setattr(ai_mirror, "ROWS_DIR", tmp_path / "blocked")
+    monkeypatch.setattr(loader, "load_trial_grid", lambda c, p, grid, **k: {
+        (n, s): loader.TrialSet([], {}) for n, _, _, s in grid})
+    monkeypatch.setattr(rule_d, "build_scores", lambda *a, **k: [])
+    monkeypatch.setattr(rule_d, "cell_report", lambda R, thr, kind, n_boot: {})
+    ai_mirror.open_locked(ai_mirror.STUDY_ID, n_boot=3)
+    assert "warning: could not save the rows" in capsys.readouterr().out
+    assert len(list(res.glob("ai_mirror_humanities_locked_test_*.json"))) == 1
+
+
+def test_rows_dir_is_the_git_ignored_cache():
+    import subprocess
+    assert ai_mirror.ROWS_DIR == rule_d.HERE / "cache"
+    probe = ai_mirror.ROWS_DIR / "ai_mirror_rows_2026-11-20.json"
+    assert subprocess.run(["git", "check-ignore", "-q", str(probe)], cwd=ai_mirror._REPO).returncode == 0
+
+
+def test_open_locked_saves_rows_before_summarising(tmp_path, monkeypatch):
+    _locked_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(loader, "load_trial_grid", lambda c, p, grid, **k: {
+        (n, s): loader.TrialSet([], {}) for n, _, _, s in grid})
+    rows = [_row("A1", n, 0.5) for n, _, _ in rule_d.CONFIGS]
+    monkeypatch.setattr(rule_d, "build_scores", lambda *a, **k: rows)
+
+    def crash(*a, **k):
+        raise RuntimeError("summary crashed")
+    monkeypatch.setattr(rule_d, "cell_report", crash)
+    with pytest.raises(RuntimeError):
+        ai_mirror.open_locked(ai_mirror.STUDY_ID, n_boot=3)
+    [path] = (tmp_path / "rows").glob("ai_mirror_rows_*.json")
+    assert json.loads(path.read_text(encoding="utf-8"))["rows"] == rows
 
 
 def test_open_locked_reports_reproduction_differences(tmp_path, monkeypatch):

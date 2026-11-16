@@ -60,6 +60,10 @@ COMMITTED_THRESHOLDS = {"matched_300_300": -0.529301, "matched_1200_1200": -1.24
 THRESHOLDS_PATH = rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json"
 # fingerprint fields the opening requires to match check-env's; the others are recorded only
 FINGERPRINT_COMPARED = ("python", "numpy", "scikit_learn", "sentence_transformers")
+MEASURED_ON = "published humanities scholarship, not student writing"
+ROLES = {"matched_1200_1200": "primary", "long_past_1200_short_new_300": "secondary",
+         "matched_300_300": "reported only"}
+ROWS_DIR = rule_d.HERE / "cache"   # git-ignored; the opening's raw rows are saved here first
 _REPO = HERE.parent.parent
 
 
@@ -553,6 +557,27 @@ def _check_before_opening(study: str) -> tuple:
     return targets, texts, vecs, vec_sha, protocol_notes(targets, papers)
 
 
+def _json_scalar(o):
+    """numpy scalars -> plain numbers; anything else -> its string, so saving rows never crashes."""
+    return o.item() if hasattr(o, "item") else str(o)
+
+
+def _save_rows(rows: List[dict], date: str, git_head: Optional[str]) -> Optional[Path]:
+    """Write the opening's raw rows to the git-ignored cache before anything summarises them.
+    A failure here is reported and the run goes on: the rows are insurance, not the result."""
+    path = Path(ROWS_DIR) / f"ai_mirror_rows_{date}.json"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"study_id": STUDY_ID, "collection": COLLECTION, "date": date,
+                                    "git_head": git_head, "rows": rows}, default=_json_scalar) + "\n",
+                        encoding="utf-8")
+    except (OSError, TypeError, ValueError) as e:
+        print(f"warning: could not save the rows to {path} ({e}); going on to the summary", flush=True)
+        return None
+    print("rows saved to", path, flush=True)
+    return path
+
+
 def open_locked(study: str, n_boot: int = 1000) -> dict:
     """The single opening of locked_test for this study. Every guard runs, and every input is
     read, before ``loader.load_trial_grid`` (which logs the opening) is called."""
@@ -562,17 +587,20 @@ def open_locked(study: str, n_boot: int = 1000) -> dict:
     thresholds = dict(COMMITTED_THRESHOLDS)   # the guard has checked the file equals the pin
     published = json.loads((rule_d.HERE / PUBLISHED_LOCKED).read_text(encoding="utf-8"))["cells"]
     extra, left_out = ai_extra_docs(texts)
+    git_head = _git_head()
+    date = time.strftime("%Y-%m-%d")
     grid = [(n, pw, nw, s) for n, pw, nw in rule_d.CONFIGS for s in rule_d.SEEDS]
     sets = loader.load_trial_grid(COLLECTION, "locked_test", grid, allow_locked_for=study,
                                   n_past=4, n_new=2, n_probes=5)
     rows = rule_d.build_scores(COLLECTION, sets, vecs, extra_docs=extra)
+    _save_rows(rows, date, git_head)
     cells = {}
     for name, _, _ in rule_d.CONFIGS:
         R = [r for r in rows if r["config"] == name and r["kind"] != "ai"]
         cells[name] = {kind: rule_d.cell_report(R, thresholds[name], kind, n_boot) for kind in rule_d.KINDS}
     diffs = reproduction_diff(cells, published)
-    date = time.strftime("%Y-%m-%d")
     out = {"study_id": study, "collection": COLLECTION, "partition": "locked_test", "date": date,
+           "measured_on": MEASURED_ON, "git_head": git_head, "roles": dict(ROLES),
            "vectorizers_sha256": vec_sha, "thresholds": thresholds, "n_boot": n_boot,
            "targets_sha256": targets_sha, "ai_manifest_sha256": manifest_sha,
            "reproduction": {"equal": diffs == [], "diffs": diffs, "published": PUBLISHED_LOCKED,
@@ -586,9 +614,11 @@ def open_locked(study: str, n_boot: int = 1000) -> dict:
         print("protocol note:", note, flush=True)
     for name, _, _ in rule_d.CONFIGS:
         c, h = out["ai"][name], out["ai"]["honest_same_authors"][name]
-        print(f"{name}: AI caught {c['caught']}/{c['n']} ({c['outcome']}); "
-              f"same authors' own papers flagged {h['flagged']}/{h['n']}", flush=True)
-    print("reproduction equal:", out["reproduction"]["equal"], "| wrote", path)
+        print(f"{name} ({ROLES[name]}): AI caught {c['caught']}/{c['n']} ({c['outcome']}); "
+              f"same authors' own papers flagged {h['flagged']}/{h['n']}; measured on {MEASURED_ON}",
+              flush=True)
+    print(f"reproduction equal: {out['reproduction']['equal']}; measured on {MEASURED_ON}", flush=True)
+    print("wrote", path)
     return out
 
 
