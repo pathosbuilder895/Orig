@@ -603,6 +603,11 @@ class ScoringConfig:
     #               deviation_score and llr_deviation_score. DO NOT ENABLE:
     #               looked best on false-positive rate alone, but collapsed
     #               genuine-impostor severity when checked at a matched bar.
+    #   "rebind"  — action tier is set from llr_deviation_score alone, via
+    #               LLR_REBIND_THRESHOLDS (can raise or lower any number of
+    #               steps). Only applies with null_model="impostor" and a real
+    #               llr_deviation_score. Thresholds are placeholders pending
+    #               calibration; off unless explicitly selected.
     llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
     # Topic-adaptive variance inflation (see original/constants.py's
     # TOPIC_SENSITIVITY block and the 2026-08 topic-invariance spec).
@@ -2210,6 +2215,30 @@ _ACTION_SEVERITY = ["no_action", "monitor", "schedule_conversation", "escalate"]
 LLR_ACTION_GENUINE_THRESHOLD = 0.35  # below → confidently more like the claimed author
 LLR_ACTION_IMPOSTOR_THRESHOLD = 0.65  # above → confidently more like the impostor pool
 
+# Action bands applied directly to llr_deviation_score by LLR_ACTION_MODE=rebind.
+# Keyed like constants.ACTION_THRESHOLDS. Placeholder values until calibrated
+# (Task 4); safe because rebind is off by default.
+LLR_REBIND_THRESHOLDS: dict[str, tuple[float, float]] = {
+    "no_action": (0.0, 0.40),
+    "monitor": (0.40, 0.60),
+    "schedule_conversation": (0.60, 0.75),
+    "escalate": (0.75, 1.0),
+}
+
+
+def _rebind_action(
+    llr_deviation_score: float,
+    thresholds: dict[str, tuple[float, float]] = LLR_REBIND_THRESHOLDS,
+) -> str:
+    """Action tier read straight off llr_deviation_score (peer-relative)."""
+    action = "no_action"
+    for act, (lo, hi) in thresholds.items():
+        if lo <= llr_deviation_score < hi:
+            action = act
+    if llr_deviation_score >= 1.0:
+        action = "escalate"
+    return action
+
 
 def _llr_action_candidates(
     action: str,
@@ -2240,7 +2269,12 @@ def _llr_action_candidates(
     if blended >= 1.0:
         blend_action = "escalate"
 
-    return {"gate": gate_action, "trigger": trigger_action, "blend": blend_action}
+    return {
+        "gate": gate_action,
+        "trigger": trigger_action,
+        "blend": blend_action,
+        "rebind": _rebind_action(llr_deviation_score),
+    }
 
 
 def _apply_llr_action_mode(
@@ -2280,7 +2314,7 @@ def _apply_llr_action_mode(
     if new_action == recommendation.action:
         return recommendation
 
-    _verbs = {"gate": "downgraded", "trigger": "raised", "blend": "re-derived"}
+    _verbs = {"gate": "downgraded", "trigger": "raised", "blend": "re-derived", "rebind": "rebound"}
     _reasons = {
         "gate": (
             f"llr_deviation_score={llr_deviation_score:.3f} indicates this is more "
@@ -2293,6 +2327,9 @@ def _apply_llr_action_mode(
         "blend": (
             f"action tier re-derived from a 50/50 blend of deviation_score and "
             f"llr_deviation_score={llr_deviation_score:.3f}."
+        ),
+        "rebind": (
+            f"action tier set from llr_deviation_score={llr_deviation_score:.3f} (peer-relative)."
         ),
     }
     return RecommendedAction(
