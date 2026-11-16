@@ -351,6 +351,20 @@ def _uncommitted(path: Path) -> bool:
     return bool(proc.stdout.strip())
 
 
+def _opened_before() -> bool:
+    """True when the opening log (``loader.LOCKED_LOG``, read now) already has a line for this
+    study and collection, even if no result file was written (a crash after the opening)."""
+    log = Path(loader.LOCKED_LOG)
+    if not log.exists():
+        return False
+    for line in log.read_text(encoding="utf-8").splitlines():
+        parts = line.split("\t")
+        if not line.startswith("#") and len(parts) >= 3 \
+                and parts[1].strip() == COLLECTION and parts[2].strip() == STUDY_ID:
+            return True
+    return False
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -363,12 +377,21 @@ def _check_before_opening(study: str) -> tuple:
     existing = sorted(RESULTS_DIR.glob(f"ai_mirror_{COLLECTION}_locked_test_*.json"))
     if existing:
         raise SystemExit(f"{existing[0].name} exists: locked_test has already been opened for this study")
+    if _opened_before():
+        raise SystemExit(f"{Path(loader.LOCKED_LOG).name} already records an opening of {COLLECTION} "
+                         f"locked_test for study {STUDY_ID!r}; a re-run (for example after a crash) "
+                         "needs the owner's approval and must not be done from here")
     env_path = AI_DIR / f"environment_{COLLECTION}.json"
     if not env_path.exists():
         raise SystemExit(f"{env_path.name} is missing: run check-env and pass the environment gate first")
-    if json.loads(env_path.read_text(encoding="utf-8")).get("passed") is not True:
+    env = json.loads(env_path.read_text(encoding="utf-8"))
+    if env.get("passed") is not True:
         raise SystemExit(f"{env_path.name} does not record passed: true; the environment gate failed, "
                          "so locked_test stays closed")
+    vecs, vec_sha = rule_d.fit_or_load_vectorizers(COLLECTION)
+    if vec_sha != env.get("vectorizers_sha256"):
+        raise SystemExit(f"vectorizers sha256 {vec_sha} differs from the one that passed the gate in "
+                         f"{env_path.name} ({env.get('vectorizers_sha256')}); refusing to open")
     targets = load_targets()
     papers = load_ai_manifest()["papers"]
     texts = {}
@@ -383,20 +406,19 @@ def _check_before_opening(study: str) -> tuple:
     if _uncommitted(AI_DIR):
         raise SystemExit(f"uncommitted changes under {AI_DIR}: commit the AI papers, manifest and "
                          "environment file before opening (git status -- that directory)")
-    return targets, texts
+    return targets, texts, vecs, vec_sha
 
 
 def open_locked(study: str, n_boot: int = 1000) -> dict:
     """The single opening of locked_test for this study. Every guard runs, and every input is
     read, before ``loader.load_trial_grid`` (which logs the opening) is called."""
-    targets, texts = _check_before_opening(study)
+    targets, texts, vecs, vec_sha = _check_before_opening(study)
     targets_sha = _sha256_file(AI_DIR / f"targets_{COLLECTION}.json")
     manifest_sha = _sha256_file(AI_DIR / f"manifest_{COLLECTION}.json")
     thresholds = json.loads((rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json")
                             .read_text(encoding="utf-8"))["thresholds"]
     published = json.loads((rule_d.HERE / PUBLISHED_LOCKED).read_text(encoding="utf-8"))["cells"]
     extra, left_out = ai_extra_docs(texts)
-    vecs, vec_sha = rule_d.fit_or_load_vectorizers(COLLECTION)
     grid = [(n, pw, nw, s) for n, pw, nw in rule_d.CONFIGS for s in rule_d.SEEDS]
     sets = loader.load_trial_grid(COLLECTION, "locked_test", grid, allow_locked_for=study,
                                   n_past=4, n_new=2, n_probes=5)

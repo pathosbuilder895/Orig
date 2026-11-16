@@ -414,9 +414,14 @@ def _locked_fixture(tmp_path, monkeypatch):
                                "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
     (ai_dir / "manifest_humanities.json").write_text(json.dumps(
         {"study_id": ai_mirror.STUDY_ID, "collection": "humanities", "papers": papers}), encoding="utf-8")
-    (ai_dir / "environment_humanities.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+    (ai_dir / "environment_humanities.json").write_text(
+        json.dumps({"passed": True, "vectorizers_sha256": "vecsha"}), encoding="utf-8")
     monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: False)
-    monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({}, "vecsha"))
+    monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({"char": "VEC"}, "vecsha"))
+    log = tmp_path / "LOCKED_OPENINGS.tsv"   # earlier openings, none by this study for humanities
+    log.write_text("# header\n2026-11-12T21:56:08\thumanities\tscholarly-rule-d-2026-11-12\n"
+                   f"2026-11-17T09:00:00\tscience\t{ai_mirror.STUDY_ID}\n", encoding="utf-8")
+    monkeypatch.setattr(loader, "LOCKED_LOG", log)
 
     def never(*a, **k):
         pytest.fail("load_trial_grid was called: the locked partition would have been opened")
@@ -433,6 +438,8 @@ GUARD_CASES = {
     "text_missing": "A2",
     "text_hash_differs": "sha256",
     "uncommitted": "uncommitted",
+    "already_opened": "LOCKED_OPENINGS.tsv",
+    "vectorizers_differ": "vectorizers",
 }
 
 
@@ -457,11 +464,19 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
     elif broken == "text_hash_differs":
         with (ai_dir / "texts" / "A2.txt").open("a", encoding="utf-8") as f:
             f.write(" edited")
+    elif broken == "already_opened":
+        with loader.LOCKED_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"2026-11-18T10:00:00\thumanities\t{ai_mirror.STUDY_ID}\n")
+    elif broken == "vectorizers_differ":
+        (ai_dir / "environment_humanities.json").write_text(
+            json.dumps({"passed": True, "vectorizers_sha256": "othersha"}), encoding="utf-8")
     elif broken == "uncommitted":
         monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: True)
     with pytest.raises(SystemExit) as exc:
         ai_mirror.open_locked(study)
     assert GUARD_CASES[broken] in str(exc.value)
+    if broken == "already_opened":
+        assert ai_mirror.STUDY_ID in str(exc.value) and "approval" in str(exc.value)
     assert not list(res.glob("ai_mirror_humanities_locked_test_*.json")) or broken == "result_exists"
 
 
@@ -489,8 +504,12 @@ def test_open_locked_writes_result(tmp_path, monkeypatch):
         (n, s): loader.TrialSet([], {"AX": "unusable cache"} if s == 7 else {}) for n, _, _, s in grid})
     seen = {}
 
+    loads = []
+    monkeypatch.setattr(rule_d, "fit_or_load_vectorizers",
+                        lambda c: loads.append(c) or ({"char": "VEC"}, "vecsha"))
+
     def scores(collection, sets, vecs, extra_docs=None):
-        seen["extra"] = extra_docs
+        seen["extra"], seen["vecs"] = extra_docs, vecs
         rows = []
         for name, _, _ in rule_d.CONFIGS:
             rows += [_row("A1", name, 50.0),
@@ -516,6 +535,7 @@ def test_open_locked_writes_result(tmp_path, monkeypatch):
         (ai_dir / "manifest_humanities.json").read_bytes()).hexdigest()
     assert out["skipped"] == {f"{n}/seed7/AX": "unusable cache" for n, _, _ in rule_d.CONFIGS}
     assert set(seen["extra"]) == {(n, 7) for n, _, _ in rule_d.CONFIGS}
+    assert loads == ["humanities"] and seen["vecs"] == {"char": "VEC"}
     assert set(seen["extra"][("matched_1200_1200", 7)]) == {"A1", "A2"}
     c = out["ai"]["matched_1200_1200"]
     assert (c["caught"], c["n"], c["missing_authors"]) == (1, 1, ["A2"])
@@ -571,3 +591,16 @@ def test_locked_cli(monkeypatch):
     assert ai_mirror.main(["locked", "--study", "x"]) == 0
     assert ai_mirror.main(["locked", "--study", "y", "--n-boot", "5"]) == 0
     assert got == [("x", 1000), ("y", 5)]
+
+
+def test_opened_before_reads_the_log_at_call_time(tmp_path, monkeypatch):
+    monkeypatch.setattr(loader, "LOCKED_LOG", tmp_path / "absent.tsv")
+    assert ai_mirror._opened_before() is False
+    log = tmp_path / "log.tsv"
+    log.write_text(f"# c\n2026-11-12T00:00:00\thumanities\tother\n"
+                   f"2026-11-12T00:00:00\tscience\t{ai_mirror.STUDY_ID}\n", encoding="utf-8")
+    monkeypatch.setattr(loader, "LOCKED_LOG", log)
+    assert ai_mirror._opened_before() is False
+    with log.open("a", encoding="utf-8") as f:
+        f.write(f"2026-11-18T00:00:00\thumanities\t{ai_mirror.STUDY_ID}\n")
+    assert ai_mirror._opened_before() is True
