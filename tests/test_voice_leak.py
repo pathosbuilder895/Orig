@@ -647,6 +647,12 @@ def test_evidence_and_preliminary_are_staff_only_with_both_flags_on(monkeypatch)
     assert as_staff.json()["authorship"]["deviation_score"] == as_student.json()["authorship"]["deviation_score"]
     assert as_staff.json()["recommendation"] == as_student.json()["recommendation"]
 
+    # The past-paper examples route: refused to the student, open to staff.
+    assert client.get(f"/students/{sid}/past-paper-examples", headers=hdr).status_code == 403
+    examples = client.get(f"/students/{sid}/past-paper-examples")
+    assert examples.status_code == 200, examples.text
+    assert len(examples.json()["features"]) == 7
+
     work = client.post("/me/work", headers=hdr, json={"text": piece["text"], "title": "A piece"})
     assert work.status_code == 200, work.text
     blob = json.dumps(work.json())
