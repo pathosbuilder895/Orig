@@ -113,3 +113,89 @@ def test_load_targets_round_trips_and_main_writes(tmp_path, monkeypatch):
     assert ai_mirror.load_targets() == TARGETS
     assert ai_mirror.load_targets(tmp_path / "targets_humanities.json") == TARGETS
     assert (tmp_path / "prompts_humanities.md").read_text(encoding="utf-8") == ai_mirror.render_sheet(TARGETS)
+
+
+# ------------------------------------------------------------- cleaning + intake --
+RAW = ("# A Study of Grace\n\n**Introduction** " + "word " * 30 + "\n\n## Part two\n\n- "
+       + "bullet words " * 10 + "see https://example.org now.\n\nshort para here\n\n"
+       "References\n\nSmith, J. (2010). A book.\n")
+
+
+def test_normalise_strips_markdown_title_short_paras_and_references():
+    out = ai_mirror.normalise_ai_text(RAW, "A Study of Grace")
+    for bad in ("#", "**", "A Study of Grace", "References", "Smith, J.", "https://", "short para here"):
+        assert bad not in out
+    assert out.count("\n\n") == 1
+    assert not out.lstrip().startswith("-")
+
+
+def test_normalise_numbered_and_underscore_markers_and_title_with_punctuation():
+    raw = ("**A Study, of Grace!**\n\n1. " + "alpha " * 14 + "\n\n_" + "beta " * 13 + "gamma_ done here.\n\n"
+           "Works Cited:\n\nX.\n")
+    out = ai_mirror.normalise_ai_text(raw, "a study of grace")
+    assert out.split("\n\n")[0].startswith("alpha")
+    assert "_" not in out and "Works" not in out and "Study" not in out
+    assert out.count("\n\n") == 1
+
+
+def _setup(tmp_path, monkeypatch, raw_words=1500):
+    monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path)
+    t = ai_mirror.Target(rank=0, author_id="A1", paper_id="P1", title="T", venue="V", tool="claude")
+    (tmp_path / "targets_humanities.json").write_text(
+        json.dumps({"targets": [ai_mirror.dataclasses.asdict(t)]}), encoding="utf-8")
+    (tmp_path / "raw").mkdir()
+    (tmp_path / "raw" / "A1.txt").write_text("para " * raw_words, encoding="utf-8")
+
+
+def test_intake_records_hash_and_word_count(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    e = ai_mirror.intake("A1", "GPT-x", "2026-11-17", "app", False)
+    text = (tmp_path / "texts" / "A1.txt").read_text(encoding="utf-8")
+    assert e["words"] == len(text.split())
+    assert e["sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert e["raw_sha256"] == hashlib.sha256((tmp_path / "raw" / "A1.txt").read_bytes()).hexdigest()
+    assert (e["paper_id"], e["tool"], e["route"], e["continued"]) == ("P1", "claude", "app", False)
+    m = ai_mirror.load_ai_manifest()
+    assert m["study_id"] == ai_mirror.STUDY_ID and m["collection"] == "humanities"
+    assert m["papers"]["A1"] == e
+
+
+def test_intake_upserts_and_is_stable(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    ai_mirror.intake("A1", "m1", "2026-11-17", "app", False)
+    ai_mirror.intake("A1", "m2", "2026-11-18", "subagent", True)
+    m = ai_mirror.load_ai_manifest()
+    assert list(m["papers"]) == ["A1"] and m["papers"]["A1"]["model"] == "m2"
+    assert (tmp_path / "manifest_humanities.json").read_text(encoding="utf-8").endswith("}\n")
+
+
+def test_load_ai_manifest_empty_when_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path)
+    assert ai_mirror.load_ai_manifest() == {
+        "study_id": ai_mirror.STUDY_ID, "collection": "humanities", "papers": {}}
+
+
+def test_intake_rejects_unknown_author_bad_route_and_missing_raw(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    with pytest.raises(ValueError):
+        ai_mirror.intake("NOPE", "m", "2026-11-17", "app", False)
+    with pytest.raises(ValueError):
+        ai_mirror.intake("A1", "m", "2026-11-17", "web", False)
+    (tmp_path / "raw" / "A1.txt").unlink()
+    with pytest.raises(ValueError):
+        ai_mirror.intake("A1", "m", "2026-11-17", "app", False)
+
+
+def test_intake_reminds_to_continue_when_short(tmp_path, monkeypatch, capsys):
+    _setup(tmp_path, monkeypatch, raw_words=100)
+    ai_mirror.intake("A1", "m", "2026-11-17", "app", False)
+    assert "continue" in capsys.readouterr().out.lower()
+    ai_mirror.intake("A1", "m", "2026-11-17", "app", True)
+    assert capsys.readouterr().out == ""
+
+
+def test_intake_cli(tmp_path, monkeypatch):
+    _setup(tmp_path, monkeypatch)
+    assert ai_mirror.main(["intake", "--author", "A1", "--model", "m", "--date", "2026-11-17",
+                           "--route", "subagent", "--continued"]) == 0
+    assert ai_mirror.load_ai_manifest()["papers"]["A1"]["continued"] is True

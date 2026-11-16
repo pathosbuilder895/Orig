@@ -6,17 +6,20 @@ for that journal; later steps score the reply against the author's baseline.
 Only published titles and journal names are used; no student writing is involved.
 
     python -m validation.scholarly.ai_mirror select
+    python -m validation.scholarly.ai_mirror intake --author A... --model "..." --date YYYY-MM-DD --route app
 """
 from __future__ import annotations
 
 import argparse
 import dataclasses
+import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from . import loader, policy
+from . import clean, loader, policy
 from .schema import ScholarlyManifest, ScholarlyPaper
 
 HERE = Path(__file__).resolve().parent
@@ -35,6 +38,8 @@ CONTINUE_PROMPT = (
     "more words."
 )
 CONTINUE_BELOW = 1300
+MIN_PARA_WORDS = 12
+ROUTES = ("app", "subagent")
 AI_DIR = HERE / "ai_mirror"
 
 
@@ -99,10 +104,93 @@ def load_targets(path: Optional[Path] = None) -> List[Target]:
     return [Target(**t) for t in data["targets"]]
 
 
+_REF_HEAD = re.compile(r"^\s*(references|bibliography|works cited|notes|endnotes)\s*:?\s*$", re.I)
+_BULLET = re.compile(r"^\s*(?:[-*+\u2022]|\d+[.)])\s+")
+
+
+def _alnum(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _unemphasise(line: str) -> str:
+    line = line.replace("**", "").replace("__", "").replace("*", "")
+    return re.sub(r"(?<!\w)_|_(?!\w)", "", line)
+
+
+def normalise_ai_text(raw: str, title: str) -> str:
+    """Make an AI reply look like a cleaned corpus paper: plain prose paragraphs only."""
+    lines = raw.replace("\r\n", "\n").split("\n")
+    for i, ln in enumerate(lines):
+        if _REF_HEAD.match(ln):
+            lines = lines[:i]
+            break
+    want = _alnum(title)
+    kept: List[str] = []
+    for ln in lines:
+        if ln.lstrip().startswith("#"):
+            continue
+        ln = _unemphasise(_BULLET.sub("", ln))
+        if ln.strip() and _alnum(ln) == want:
+            continue
+        kept.append(ln)
+    paras = (clean.strip_inline(p) for p in re.split(r"\n\s*\n", "\n".join(kept)))
+    return "\n\n".join(p for p in paras if len(p.split()) >= MIN_PARA_WORDS)
+
+
+def load_ai_manifest(path: Optional[Path] = None) -> dict:
+    path = Path(path) if path else AI_DIR / f"manifest_{COLLECTION}.json"
+    if not path.exists():
+        return {"study_id": STUDY_ID, "collection": COLLECTION, "papers": {}}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def intake(author_id: str, model: str, date: str, route: str, continued: bool) -> dict:
+    """Clean ``raw/<author>.txt`` into ``texts/<author>.txt`` and upsert its manifest entry."""
+    if route not in ROUTES:
+        raise ValueError(f"route must be one of {ROUTES}, got {route!r}")
+    target = next((t for t in load_targets() if t.author_id == author_id), None)
+    if target is None:
+        raise ValueError(f"author {author_id!r} is not in the targets file")
+    raw_path = AI_DIR / "raw" / f"{author_id}.txt"
+    if not raw_path.exists():
+        raise ValueError(f"missing raw reply: {raw_path}")
+    raw_bytes = raw_path.read_bytes()
+    text = normalise_ai_text(raw_bytes.decode("utf-8"), target.title)
+    out = AI_DIR / "texts" / f"{author_id}.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    entry = {
+        "author_id": author_id, "paper_id": target.paper_id, "tool": target.tool,
+        "model": model, "date": date, "route": route, "continued": bool(continued),
+        "words": len(text.split()),
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+    }
+    manifest = load_ai_manifest()
+    manifest["papers"][author_id] = entry
+    manifest["papers"] = dict(sorted(manifest["papers"].items()))
+    (AI_DIR / f"manifest_{COLLECTION}.json").write_text(
+        json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
+    if entry["words"] < CONTINUE_BELOW and not continued:
+        print(f"{author_id}: only {entry['words']} words; send the continue prompt once "
+              f"in the same chat, save both replies, and re-run with --continued:\n  {CONTINUE_PROMPT}")
+    return entry
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="ai_mirror")
-    ap.add_argument("step", choices=["select"])
-    ap.parse_args(argv)
+    sub = ap.add_subparsers(dest="step", required=True)
+    sub.add_parser("select")
+    ip = sub.add_parser("intake")
+    ip.add_argument("--author", required=True)
+    ip.add_argument("--model", required=True)
+    ip.add_argument("--date", required=True)
+    ip.add_argument("--route", required=True, choices=list(ROUTES))
+    ip.add_argument("--continued", action="store_true")
+    args = ap.parse_args(argv)
+    if args.step == "intake":
+        intake(args.author, args.model, args.date, args.route, args.continued)
+        return 0
     manifest = loader.load_manifest(COLLECTION)
     candidates = json.loads((loader.HERE / "candidates" / f"{COLLECTION}.json")
                             .read_text(encoding="utf-8"))
