@@ -524,3 +524,77 @@ def test_engine_view_mirrors_paragraph_style_indentation():
     text = "\tMy first paragraph, typed with a tab.\n\n\tMy second paragraph, also tabbed, goes on."
     view = ev.engine_view(text)
     assert view is not None and view.prose.text == pp.preprocess(text)[0]
+
+
+def test_every_locatable_habit_is_in_exactly_one_family():
+    assert list(ev.FAMILIES) == ["Sentence shape", "Linking ideas", "Voice", "Claims and confidence"]
+    codes = [c for group in ev.FAMILIES.values() for c in group]
+    assert len(codes) == len(set(codes))
+    assert sorted(codes) == sorted(ev.LOCATABLE)
+    assert ev.family_of("comma_rate") == "Sentence shape"
+    assert ev.family_of("typing_speed_cv") is None
+
+
+@pytest.mark.parametrize("code", list(ev.LOCATABLE))
+def test_past_paper_examples_return_the_whole_family_in_order(code):
+    out = ev.build_past_paper_examples(code, [("past paper 1", PLAIN[0])])
+    assert out["habit"] == code
+    assert out["family"] == ev.family_of(code)
+    assert [f["code"] for f in out["features"]] == list(ev.FAMILIES[out["family"]])
+    assert out["features"][0]["name"] == ev._name_and_description(out["features"][0]["code"])[0]
+    assert out["families"][0] == {"name": "Sentence shape", "habits": list(ev.FAMILIES["Sentence shape"])}
+
+
+@pytest.mark.parametrize("habit", ["discourse_marker_density", "mean_sentence_length"])
+def test_past_paper_examples_label_papers_in_order_and_quote_verbatim(habit):
+    baselines = [(f"past paper {i + 1}", t) for i, t in enumerate(PLAIN)]
+    texts = dict(baselines)
+    out = ev.build_past_paper_examples(habit, baselines)
+    for feature in out["features"]:
+        assert [p["paper"] for p in feature["per_paper"]] == ["past paper 1", "past paper 2", "past paper 3"]
+        for paper in feature["per_paper"]:
+            text = texts[paper["paper"]]
+            assert len(paper["examples"]) <= 3
+            for example in paper["examples"]:
+                q = example["quote"]
+                assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+                if feature["code"] not in ("mean_sentence_length", "sentence_length_variance"):
+                    assert example["role"] is None
+
+
+def test_sentence_length_is_typical_and_variation_is_longest_and_shortest():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", TYPICAL)])
+    by_code = {f["code"]: f for f in out["features"]}
+    mean = by_code["mean_sentence_length"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in mean] == [("typical", 11), ("typical", 10), ("typical", 3)]
+    var = by_code["sentence_length_variance"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in var] == [("longest", 30), ("shortest", 3)]
+
+
+def test_a_single_sentence_paper_gets_one_variation_quote_without_a_role():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", "Only one sentence here.")])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    assert [(e["role"], e["quote"]["words"]) for e in var["per_paper"][0]["examples"]] == [(None, 4)]
+
+
+def test_a_paper_that_cannot_be_located_has_no_examples_and_says_so(monkeypatch):
+    monkeypatch.setattr(ev, "_original_sentences", lambda view: None)
+    out = ev.build_past_paper_examples("comma_rate", [("past paper 1", PLAIN[0])])
+    for feature in out["features"]:
+        assert feature["note"] == ev.NOT_LOCATED_NOTE
+        for paper in feature["per_paper"]:
+            assert paper["examples"] == [] and paper["count"] is None
+            assert isinstance(paper["value"], float)
+
+
+def test_no_past_papers_gives_empty_lists():
+    out = ev.build_past_paper_examples("comma_rate", [])
+    assert len(out["features"]) == 7
+    for feature in out["features"]:
+        assert feature["per_paper"] == [] and "note" not in feature
+
+
+def test_unknown_habit_is_refused():
+    for habit in ("typing_speed_cv", "nope"):
+        with pytest.raises(ValueError):
+            ev.build_past_paper_examples(habit, [])
