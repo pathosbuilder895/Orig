@@ -24,9 +24,11 @@ export async function seedPastPapers(request, student) {
 }
 
 // Analyse the paper on Writing State as the teacher; returns the score response.
-export async function analyse(page, studentId) {
+// `beforeFill` runs once the form is on the page, before anything is typed into it.
+export async function analyse(page, studentId, { beforeFill } = {}) {
   await page.goto(`/original/writing-state.html?student=${encodeURIComponent(studentId)}`)
   await expect(page.locator('#an-form')).toBeVisible({ timeout: 20_000 })
+  if (beforeFill) await beforeFill()
   await page.locator('#an-assign').fill('Orthodoxy, chapter 1')
   await page.locator('#an-text').fill(PAPER)
   const scored = page.waitForResponse(r => r.url().endsWith('/score') && r.request().method() === 'POST', { timeout: 90_000 })

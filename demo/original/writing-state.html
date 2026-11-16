@@ -180,12 +180,13 @@
   .evi-past .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
   .evi-past .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
   .evi-past .none{font-style:italic;color:var(--dim);font-size:.94rem;}
-  .evi-rel{display:flex;flex-direction:column;gap:.5rem;}
+  /* Related habits stay compact: a bounded box with its own scroll, like the columns above. */
+  .evi-rel{display:flex;flex-direction:column;gap:.5rem;max-height:32rem;overflow-y:auto;}
   .evi-rel-h{font-family:var(--display);font-size:1.02rem;color:var(--cream);}
   .evi-rel-row{display:block;width:100%;text-align:left;background:rgba(255,255,255,0.025);border:1px solid var(--line-soft);border-radius:10px;padding:.65rem .85rem;cursor:pointer;font-family:var(--body);color:var(--cream);transition:all .14s;}
   .evi-rel-row:hover{border-color:rgba(139,168,221,.5);background:rgba(255,255,255,0.05);}
   .evi-rel-name{display:block;font-weight:600;font-size:.92rem;margin-bottom:.4rem;}
-  .evi-rel-cells{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .9rem;}
+  .evi-rel-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(16rem,100%),1fr));gap:.5rem .9rem;}
   .evi-rel-cell{display:flex;flex-direction:column;gap:.15rem;min-width:0;}
   .evi-rel-paper{font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:#8ba8dd;}
   .evi-rel-num{font-family:var(--mono);font-size:.74rem;color:var(--cream);}
@@ -193,6 +194,7 @@
   .evi-rel-row .none{font-size:.86rem;}
   .evi-pline{font-size:.9rem;line-height:1.55;font-style:italic;color:var(--dim);}
   .evi-fam:focus-visible,.evi-rel-row:focus-visible,.evi-pcols:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .evi-rel-row:focus-visible{outline-offset:-2px;} /* inside the scroll box, so the ring is not clipped */
   @media (max-width:900px){.evi-pcols,.evi-rel-cells{grid-template-columns:1fr;}}
   /* Plain-English read + triage */
   .plain-read{margin-top:.6rem;max-width:62ch;font-size:.95rem;line-height:1.55;color:var(--dim);}
@@ -1244,6 +1246,45 @@
       else h+=pastExamples(p).slice(0,3).map(x=>'<div class="evi-pq">'+quoteHTML(x.quote)+pickSource(x)+'</div>').join('');
       return h+'</div>';
     }
+    // A related row's quote: a short verbatim window of the passage, about REL_CHARS long,
+    // cut at spaces ("…" where cut). The counted part is kept whole and centred, its mark
+    // still checked against the server's offsets (EV.markParts). A counted part longer than
+    // the window (a whole sentence, for sentence length) cannot be whole, so the window is
+    // the sentence's start with no mark; the source line still gives its role and length.
+    const REL_CHARS=140, isSpace=c=>/\s/.test(c);
+    function relWindow(q){
+      const p=q.passage;
+      if(p.length<=REL_CHARS) return q;
+      const parts=EV.markParts(q), a=parts.before.length, b=a+parts.mark.length;
+      const whole=!!parts.mark&&b-a<=REL_CHARS;
+      let w0=0, w1;
+      if(whole){
+        w0=Math.max(0,a-Math.floor((REL_CHARS-(b-a))/2));
+        w1=Math.min(p.length,w0+REL_CHARS);
+        w0=Math.max(0,Math.min(w0,w1-REL_CHARS));
+        // Start at a word: after the first space between w0 and the mark, else after the last one before w0.
+        if(w0>0&&!isSpace(p[w0-1])){
+          let k=w0; while(k<a&&!isSpace(p[k])) k++;
+          if(k<a) w0=k+1;
+          else { k=w0-1; while(k>=0&&!isSpace(p[k])) k--; w0=k+1; }
+        }
+        while(w0<a&&isSpace(p[w0])) w0++;
+      } else w1=REL_CHARS;
+      // End at a word: at the last space between the mark (or the first character) and w1, else at the next one after w1.
+      const from=whole?b:1;
+      if(w1<p.length&&!isSpace(p[w1])){
+        let k=w1-1; while(k>=from&&!isSpace(p[k])) k--;
+        if(k>=from) w1=k;
+        else { k=w1; while(k<p.length&&!isSpace(p[k])) k++; w1=k; }
+      }
+      while(w1>from&&isSpace(p[w1-1])) w1--;
+      const out=Object.assign({},q,{
+        passage:p.slice(w0,w1), passage_start:q.passage_start+w0, passage_end:q.passage_start+w1,
+        clipped_start:!!q.clipped_start||w0>0, clipped_end:!!q.clipped_end||w1<p.length,
+      });
+      if(!whole){ out.match=''; out.match_start=null; out.match_end=null; }
+      return out;
+    }
     // One compact row: the habit's name, then per paper its number and one quote (for
     // variation, its longest and shortest). The whole row opens the habit in full.
     function relatedRow(f,papers){
@@ -1255,10 +1296,12 @@
         if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit))+'</span>';
         if(p.count===0) h+='<span class="none">none in this paper</span>';
         else if(num(p.count)==null) h+='<span class="none">numbers only</span>';
-        else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(x.quote,'span')+pickSource(x,'span')).join('');
+        else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(relWindow(x.quote),'span')+pickSource(x,'span')).join('');
         return h+'</span>';
       }).join('');
-      return '<button type="button" class="evi-rel-row" data-code="'+esc(f.code)+'"><span class="evi-rel-name">'+esc(String(f.name||f.code))+'</span><span class="evi-rel-cells">'+cells+'</span></button>';
+      // Named by its habit alone: read out whole, the row's quotes would be its name.
+      const name=String(f.name||f.code);
+      return '<button type="button" class="evi-rel-row" data-code="'+esc(f.code)+'" aria-label="'+esc(name+', show in full')+'"><span class="evi-rel-name">'+esc(name)+'</span><span class="evi-rel-cells">'+cells+'</span></button>';
     }
     // A related row becomes the habit in full, from the same answer (no request).
     function pickRelated(code,d){

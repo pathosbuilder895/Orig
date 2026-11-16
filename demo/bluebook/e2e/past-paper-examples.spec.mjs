@@ -31,6 +31,10 @@ const JUDGMENT = /suspicious|does(n.t| not) match|deviation/i
 
 const isExamples = url => url.includes('/past-paper-examples')
 const slice = q => q.passage.slice(q.match_start - q.passage_start, q.match_end - q.passage_start)
+// A related row quotes about this many characters of each passage (writing-state.html REL_CHARS).
+const REL_CHARS = 140
+// The quotes a related row shows for one paper: one, or the longest and the shortest.
+const relShown = p => p.examples.slice(0, p.examples.some(x => x.role === 'longest' || x.role === 'shortest') ? 2 : 1)
 
 // The route's own answer, read with the teacher's token, for comparison.
 async function examplesFor(page, staff, studentId, habit) {
@@ -115,11 +119,48 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     // The first marked words are the API's first example, exactly; its source says why it was picked.
     await expect(cols.first().locator('.evi-q mark').first()).toHaveText(slice(first.quote))
     await expect(cols.first().locator('.evi-psrc').first()).toContainText('Typical')
+    expect(msl.unit).toBeTruthy()
     await expect(cols.first()).toContainText(`${msl.unit}`)
 
-    // The family's other habits, one compact row each.
+    // The family's other habits, one compact row each, in a box of bounded height.
     await expect(page.locator('#evi-rel .evi-rel-row')).toHaveCount(6)
     await expect(page.locator('#evi-rel')).toContainText('Related: how these sentences are built')
+    const relBox = await page.locator('#evi-rel').boundingBox()
+    expect(relBox.height).toBeLessThanOrEqual(600)
+    // Each row's quotes are short verbatim windows of the API's passages. A counted part
+    // that fits is marked whole, exactly the API's slice; one longer than the window (a
+    // long sentence, for sentence length) shows the sentence's start with no mark.
+    // The button's name is the habit's, not the whole row's text.
+    let marked = 0, windowed = 0
+    for (const f of api.features.filter(x => x.code !== msl.code)) {
+      const row = page.locator(`#evi-rel .evi-rel-row[data-code="${f.code}"]`)
+      await expect(row).toHaveAccessibleName(`${f.name}, show in full`)
+      for (const [i, p] of f.per_paper.entries()) {
+        const quotes = row.locator('.evi-rel-cell').nth(i).locator('.evi-q')
+        const shown = p.count ? relShown(p) : []
+        await expect(quotes).toHaveCount(shown.length)
+        for (const [k, x] of shown.entries()) {
+          const q = quotes.nth(k), m = slice(x.quote)
+          if (x.quote.passage.length <= REL_CHARS || m.length <= REL_CHARS) {
+            await expect(q.locator('mark')).toHaveText(m)
+            marked++
+          } else {
+            await expect(q.locator('mark')).toHaveCount(0)
+          }
+          if (x.quote.passage.length <= REL_CHARS) continue
+          // Cut at spaces with "…" where cut; what is left is the passage's own characters.
+          const text = await q.textContent()
+          expect(text).toContain('\u2026')
+          const inner = text.replace(/^\u2026 /, '').replace(/ \u2026$/, '')
+          expect(x.quote.passage).toContain(inner)
+          expect(inner.length).toBeLessThan(x.quote.passage.length)
+          expect(inner.length).toBeLessThanOrEqual(REL_CHARS + 40)
+          windowed++
+        }
+      }
+    }
+    expect(marked, 'some related quote is marked').toBeGreaterThan(0)
+    expect(windowed, 'some related quote is a window of a long passage').toBeGreaterThan(0)
 
     // One plain line, and no wording of judgment or score anywhere in the panel's own
     // words. The quoted sentences are the student's and are left out of this check:
@@ -352,7 +393,10 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
-    const body = await analyse(page, student.student_id)
+    // Past papers are on the panel first, so the analysis is what takes them away.
+    const body = await analyse(page, student.student_id, {
+      beforeFill: () => expect(page.locator('#evi-past')).toBeVisible({ timeout: 30_000 }),
+    })
     expect(body.evidence, 'this run needs a server started with EVIDENCE_PASSAGES_ENABLED=1').toBeTruthy()
     await expect(page.locator('#hero-name')).toHaveText(ROSTER_NAME, { timeout: 20_000 })
     await expect(page.locator('#hero-evi')).toBeHidden()
