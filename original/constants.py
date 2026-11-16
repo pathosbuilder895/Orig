@@ -712,6 +712,17 @@ ACTION_THRESHOLDS = {
     "escalate":             (0.75, 1.00),
 }
 
+# Per-writer line: a paper's rms_z judged against the writer's own
+# leave-one-out spread. Bands are placeholders until calibrated.
+WRITER_LINE_MIN_PAPERS = 3
+WRITER_LINE_STD_FLOOR = 0.05
+WRITER_LINE_Z_THRESHOLDS: dict[str, tuple[float, float]] = {
+    "no_action":             (float("-inf"), 1.0),
+    "monitor":               (1.0, 2.0),
+    "schedule_conversation": (2.0, 3.0),
+    "escalate":              (3.0, float("inf")),
+}
+
 # ── Lexicons ─────────────────────────────────────────────────────────────────
 
 FUNCTION_WORDS = {
