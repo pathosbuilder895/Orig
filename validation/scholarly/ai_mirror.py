@@ -7,6 +7,8 @@ Only published titles and journal names are used; no student writing is involved
 
     python -m validation.scholarly.ai_mirror select
     python -m validation.scholarly.ai_mirror intake --author A... --model "..." --date YYYY-MM-DD --route app
+    python -m validation.scholarly.ai_mirror check-env
+    python -m validation.scholarly.ai_mirror locked --study scholarly-ai-mirror-2026-11-16   (once)
 """
 from __future__ import annotations
 
@@ -14,7 +16,10 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import math
+import random
 import re
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +47,10 @@ CONTINUE_BELOW = 1300
 MIN_PARA_WORDS = 12
 ROUTES = ("app", "subagent")
 AI_DIR = HERE / "ai_mirror"
+RESULTS_DIR = HERE
+PUBLISHED_LOCKED = "rule_d_humanities_locked_test_2026-11-12.json"
+REPRODUCED_KEYS = ("honest_flag_rate", "catch_rate", "auc", "n_authors", "n_honest", "n_probe")
+_REPO = HERE.parent.parent
 
 
 @dataclass(frozen=True)
@@ -247,12 +256,183 @@ def check_environment(n_boot: int = 10) -> dict:
     return result
 
 
+# ------------------------------------------------------------ scoring summary --
+def wilson(k: int, n: int, z: float = 1.96) -> tuple:
+    """Wilson score interval for k successes out of n; (0.0, 1.0) when n is 0."""
+    if n == 0:
+        return (0.0, 1.0)
+    p = k / n
+    den = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / den
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
+def decide(k: int, n: int) -> str:
+    """The pre-registered outcome: is a 95% catch rate ruled out by the Wilson upper end?"""
+    if n == 0:
+        return "no_papers"
+    return "below_95" if wilson(k, n)[1] < 0.95 else "95_not_ruled_out"
+
+
+def ai_cut(text: str, words: int, author_id: str) -> str:
+    """The AI paper cut to ``words`` at a paragraph start seeded by the author id."""
+    return loader.cut_words(text, words, random.Random(loader._rank(SEED, "ai:" + author_id)))
+
+
+def ai_extra_docs(texts: dict) -> tuple:
+    """``extra_docs`` for the seed-7 trial of every config, and per config the authors whose
+    AI text is shorter than that config's new-paper length (left out, never padded)."""
+    extra, left_out = {}, {}
+    for name, _past_w, new_w in rule_d.CONFIGS:
+        per_author, short = {}, []
+        for aid, text in texts.items():
+            if len(text.split()) < new_w:
+                short.append(aid)
+                continue
+            per_author[aid] = [(ai_cut(text, new_w, aid), 1, None, "ai")]
+        extra[(name, SEED)] = per_author
+        left_out[name] = short
+    return extra, left_out
+
+
+def summarise_ai(rows: List[dict], thresholds: dict, targets: List[Target], left_out: dict) -> dict:
+    """Caught (D strictly above the committed threshold) out of n per config, seed 7 only,
+    with the same authors' own new papers flagged in the same trials beside it."""
+    targets = sorted(targets, key=lambda t: t.rank)
+    ids = {t.author_id for t in targets}
+    out, honest = {}, {}
+    for name, _, _ in rule_d.CONFIGS:
+        thr = thresholds[name]
+        mine = [r for r in rows if r["config"] == name and r["seed"] == SEED]
+        papers, missing = [], []
+        per_tool = {tool: [0, 0] for tool in TOOLS}
+        for t in targets:
+            ai_rows = [r for r in mine if r["author"] == t.author_id and r["kind"] == "ai"]
+            if not ai_rows:
+                missing.append(t.author_id)
+            for r in ai_rows:
+                caught = float(r["D"]) > thr
+                papers.append({"author": t.author_id, "tool": t.tool, "D": float(r["D"]), "caught": caught})
+                tally = per_tool.setdefault(t.tool, [0, 0])
+                tally[0] += int(caught)
+                tally[1] += 1
+        k, n = sum(p["caught"] for p in papers), len(papers)
+        out[name] = {"caught": k, "n": n, "rate": (k / n) if n else None,
+                     "wilson95": list(wilson(k, n)), "outcome": decide(k, n), "per_tool": per_tool,
+                     "missing_authors": missing, "left_out_short": list(left_out.get(name, [])),
+                     "papers": papers}
+        h = [r for r in mine if not r["label"] and r["author"] in ids]
+        honest[name] = {"flagged": sum(float(r["D"]) > thr for r in h), "n": len(h)}
+    out["honest_same_authors"] = honest
+    return out
+
+
+def reproduction_diff(cells: dict, published: dict) -> List[str]:
+    """``config/kind/key`` for every reproduced figure that differs from the published cell."""
+    diffs = []
+    for name in dict.fromkeys(list(published) + list(cells)):
+        pub_c, new_c = published.get(name, {}), cells.get(name, {})
+        for kind in dict.fromkeys(list(pub_c) + list(new_c)):
+            pub_k, new_k = pub_c.get(kind, {}), new_c.get(kind, {})
+            for key in REPRODUCED_KEYS:
+                if (key in pub_k or key in new_k) and pub_k.get(key) != new_k.get(key):
+                    diffs.append(f"{name}/{kind}/{key}")
+    return diffs
+
+
+# --------------------------------------------------------------- the opening --
+def _uncommitted(path: Path) -> bool:
+    """True when ``git status`` shows any change, tracked or untracked, under ``path``."""
+    proc = subprocess.run(["git", "status", "--porcelain", "--", str(path)], cwd=_REPO,
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise SystemExit(f"git status failed for {path}: {proc.stderr.strip()}")
+    return bool(proc.stdout.strip())
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _check_before_opening(study: str) -> tuple:
+    """Every guard of the opening. Raises SystemExit naming what failed; touches nothing locked."""
+    if study != STUDY_ID:
+        raise SystemExit(f"locked_test may only be opened here for the pre-registered study {STUDY_ID!r}, "
+                         f"not {study!r}")
+    existing = sorted(RESULTS_DIR.glob(f"ai_mirror_{COLLECTION}_locked_test_*.json"))
+    if existing:
+        raise SystemExit(f"{existing[0].name} exists: locked_test has already been opened for this study")
+    env_path = AI_DIR / f"environment_{COLLECTION}.json"
+    if not env_path.exists():
+        raise SystemExit(f"{env_path.name} is missing: run check-env and pass the environment gate first")
+    if json.loads(env_path.read_text(encoding="utf-8")).get("passed") is not True:
+        raise SystemExit(f"{env_path.name} does not record passed: true; the environment gate failed, "
+                         "so locked_test stays closed")
+    targets = load_targets()
+    papers = load_ai_manifest()["papers"]
+    texts = {}
+    for t in sorted(targets, key=lambda t: t.rank):
+        path = AI_DIR / "texts" / f"{t.author_id}.txt"
+        if t.author_id not in papers or not path.exists():
+            raise SystemExit(f"target {t.author_id} has no recorded AI paper (manifest entry and {path.name})")
+        data = path.read_bytes()
+        if hashlib.sha256(data).hexdigest() != papers[t.author_id]["sha256"]:
+            raise SystemExit(f"AI text for {t.author_id} does not match the sha256 in its manifest entry")
+        texts[t.author_id] = data.decode("utf-8")
+    if _uncommitted(AI_DIR):
+        raise SystemExit(f"uncommitted changes under {AI_DIR}: commit the AI papers, manifest and "
+                         "environment file before opening (git status -- that directory)")
+    return targets, texts
+
+
+def open_locked(study: str, n_boot: int = 1000) -> dict:
+    """The single opening of locked_test for this study. Every guard runs, and every input is
+    read, before ``loader.load_trial_grid`` (which logs the opening) is called."""
+    targets, texts = _check_before_opening(study)
+    targets_sha = _sha256_file(AI_DIR / f"targets_{COLLECTION}.json")
+    manifest_sha = _sha256_file(AI_DIR / f"manifest_{COLLECTION}.json")
+    thresholds = json.loads((rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json")
+                            .read_text(encoding="utf-8"))["thresholds"]
+    published = json.loads((rule_d.HERE / PUBLISHED_LOCKED).read_text(encoding="utf-8"))["cells"]
+    extra, left_out = ai_extra_docs(texts)
+    vecs, vec_sha = rule_d.fit_or_load_vectorizers(COLLECTION)
+    grid = [(n, pw, nw, s) for n, pw, nw in rule_d.CONFIGS for s in rule_d.SEEDS]
+    sets = loader.load_trial_grid(COLLECTION, "locked_test", grid, allow_locked_for=study,
+                                  n_past=4, n_new=2, n_probes=5)
+    rows = rule_d.build_scores(COLLECTION, sets, vecs, extra_docs=extra)
+    cells = {}
+    for name, _, _ in rule_d.CONFIGS:
+        R = [r for r in rows if r["config"] == name and r["kind"] != "ai"]
+        cells[name] = {kind: rule_d.cell_report(R, thresholds[name], kind, n_boot) for kind in rule_d.KINDS}
+    diffs = reproduction_diff(cells, published)
+    date = time.strftime("%Y-%m-%d")
+    out = {"study_id": study, "collection": COLLECTION, "partition": "locked_test", "date": date,
+           "vectorizers_sha256": vec_sha, "thresholds": thresholds, "n_boot": n_boot,
+           "targets_sha256": targets_sha, "ai_manifest_sha256": manifest_sha,
+           "reproduction": {"equal": diffs == [], "diffs": diffs, "published": PUBLISHED_LOCKED,
+                            "cells": cells},
+           "ai": summarise_ai(rows, thresholds, targets, left_out),
+           "skipped": {f"{n}/seed{s}/{a}": why for (n, s), ts in sets.items() for a, why in ts.skipped.items()}}
+    path = RESULTS_DIR / f"ai_mirror_{COLLECTION}_locked_test_{date}.json"
+    path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    for name, _, _ in rule_d.CONFIGS:
+        c, h = out["ai"][name], out["ai"]["honest_same_authors"][name]
+        print(f"{name}: AI caught {c['caught']}/{c['n']} ({c['outcome']}); "
+              f"same authors' own papers flagged {h['flagged']}/{h['n']}", flush=True)
+    print("reproduction equal:", out["reproduction"]["equal"], "| wrote", path)
+    return out
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(prog="ai_mirror")
     sub = ap.add_subparsers(dest="step", required=True)
     sub.add_parser("select")
     cp = sub.add_parser("check-env")
     cp.add_argument("--n-boot", type=int, default=10)
+    lp = sub.add_parser("locked")
+    lp.add_argument("--study", required=True)
+    lp.add_argument("--n-boot", type=int, default=1000)
     ip = sub.add_parser("intake")
     ip.add_argument("--author", required=True)
     ip.add_argument("--model", required=True)
@@ -266,6 +446,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0 if result["passed"] else 1
     if args.step == "intake":
         intake(args.author, args.model, args.date, args.route, args.continued)
+        return 0
+    if args.step == "locked":
+        open_locked(args.study, args.n_boot)
         return 0
     manifest = loader.load_manifest(COLLECTION)
     candidates = json.loads((loader.HERE / "candidates" / f"{COLLECTION}.json")

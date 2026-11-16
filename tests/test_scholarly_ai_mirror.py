@@ -282,3 +282,292 @@ def test_check_environment_fails_on_one_difference(monkeypatch, tmp_path):
     _env(monkeypatch, tmp_path, th)
     res = ai_mirror.check_environment(3)
     assert res["passed"] is False and res["mismatches"] == [name]
+
+
+# ------------------------------------------------- scoring summary + the opening --
+def test_wilson_and_decide():
+    assert tuple(round(x, 3) for x in ai_mirror.wilson(19, 20)) == (0.764, 0.991)
+    assert round(ai_mirror.wilson(20, 20)[0], 3) == 0.839
+    assert ai_mirror.wilson(20, 20)[1] <= 1.0 and ai_mirror.wilson(0, 20)[0] >= 0.0
+    assert ai_mirror.decide(17, 20) == "below_95" and ai_mirror.decide(18, 20) == "95_not_ruled_out"
+    assert ai_mirror.wilson(0, 0) == (0.0, 1.0) and ai_mirror.decide(0, 0) == "no_papers"
+
+
+def test_ai_cut_single_paragraph():
+    text = " ".join(["word"] * 1250)
+    assert len(ai_mirror.ai_cut(text, 1200, "A1").split()) == 1200
+    assert ai_mirror.ai_cut(text, 1200, "A1") == ai_mirror.ai_cut(text, 1200, "A1")
+
+
+def test_ai_cut_is_seeded_by_author():
+    text = "\n\n".join(f"p{i} " + " ".join(["w"] * 99) for i in range(30))
+    cuts = {aid: ai_mirror.ai_cut(text, 300, aid) for aid in ("A1", "A2", "A3", "A4", "A5")}
+    assert all(len(c.split()) == 300 for c in cuts.values())
+    assert len(set(cuts.values())) > 1
+
+
+def test_short_ai_text_enters_only_300_configs():
+    extra, left_out = ai_mirror.ai_extra_docs({"A1": " ".join(["w"] * 800)})
+    assert "A1" not in extra[("matched_1200_1200", 7)]
+    assert "A1" in extra[("matched_300_300", 7)] and "A1" in extra[("long_past_1200_short_new_300", 7)]
+    assert left_out["matched_1200_1200"] == ["A1"]
+
+
+def test_ai_extra_docs_shape_and_lengths():
+    texts = {"A1": " ".join(["a"] * 1400), "A2": " ".join(["b"] * 1250)}
+    extra, left_out = ai_mirror.ai_extra_docs(texts)
+    assert set(extra) == {(name, 7) for name, _, _ in rule_d.CONFIGS}
+    for name, _, new_w in rule_d.CONFIGS:
+        assert left_out[name] == []
+        for aid in texts:
+            [(text, label, src, kind)] = extra[(name, 7)][aid]
+            assert (label, src, kind) == (1, None, "ai")
+            assert text == ai_mirror.ai_cut(texts[aid], new_w, aid) and len(text.split()) == new_w
+
+
+def _tgt(rank, aid, tool):
+    return ai_mirror.Target(rank=rank, author_id=aid, paper_id=f"P{rank}", title="T", venue="V", tool=tool)
+
+
+THR = {"matched_300_300": 0.0, "matched_1200_1200": -1.0, "long_past_1200_short_new_300": 0.0}
+
+
+def _row(author, config, D, label=1, kind="ai", seed=7):
+    return {"author": author, "config": config, "seed": seed, "label": label, "kind": kind,
+            "src": None, "D": D}
+
+
+def test_summarise_reports_missing_author():
+    # targets A1 (claude), A2 (gemini); only A1 has an ai row, D above threshold
+    targets = [_tgt(0, "A1", "claude"), _tgt(1, "A2", "gemini")]
+    rows = [_row("A1", "matched_1200_1200", -0.5)]
+    s = ai_mirror.summarise_ai(rows, THR, targets, {})
+    c = s["matched_1200_1200"]
+    assert (c["caught"], c["n"], c["missing_authors"]) == (1, 1, ["A2"])
+    assert c["wilson95"] == list(ai_mirror.wilson(1, 1))
+    assert c["rate"] == 1.0 and c["outcome"] == ai_mirror.decide(1, 1)
+    assert c["per_tool"] == {"claude": [1, 1], "chatgpt": [0, 0], "gemini": [0, 0]}
+    assert c["papers"] == [{"author": "A1", "tool": "claude", "D": -0.5, "caught": True}]
+    e = s["matched_300_300"]
+    assert (e["caught"], e["n"], e["rate"], e["outcome"]) == (0, 0, None, "no_papers")
+    assert e["missing_authors"] == ["A1", "A2"] and e["wilson95"] == [0.0, 1.0]
+
+
+def test_summarise_counts_only_seed7_target_ai_rows_and_strict_threshold():
+    targets = [_tgt(1, "A2", "gemini"), _tgt(0, "A1", "claude")]   # out of rank order on purpose
+    name = "matched_1200_1200"
+    rows = [_row("A1", name, -1.0),                 # exactly at threshold: not caught
+            _row("A2", name, 2.0),                  # caught
+            _row("A2", name, 9.0, seed=11),         # other seed: ignored
+            _row("ZZ", name, 9.0),                  # not a target: ignored
+            _row("A1", name, 9.0, kind="random"),   # an ordinary probe: ignored
+            _row("A1", name, -0.5, label=0, kind="honest"),   # honest, flagged
+            _row("A1", name, -2.0, label=0, kind="honest"),   # honest, not flagged
+            _row("A2", name, 3.0, label=0, kind="honest", seed=11),   # other seed: ignored
+            _row("ZZ", name, 3.0, label=0, kind="honest")]            # not a target: ignored
+    s = ai_mirror.summarise_ai(rows, THR, targets, {name: ["A3"]})
+    c = s[name]
+    assert (c["caught"], c["n"], c["missing_authors"]) == (1, 2, [])
+    assert [p["author"] for p in c["papers"]] == ["A1", "A2"]
+    assert [p["caught"] for p in c["papers"]] == [False, True]
+    assert c["per_tool"]["gemini"] == [1, 1] and c["per_tool"]["claude"] == [0, 1]
+    assert c["left_out_short"] == ["A3"]
+    assert s["honest_same_authors"][name] == {"flagged": 1, "n": 2}
+    assert s["honest_same_authors"]["matched_300_300"] == {"flagged": 0, "n": 0}
+    assert set(s) == {n for n, _, _ in rule_d.CONFIGS} | {"honest_same_authors"}
+
+
+def test_reproduction_diff():
+    pub = {"matched_1200_1200": {"random": {"catch_rate": 0.9477, "auc": 0.98}}}
+    new = {"matched_1200_1200": {"random": {"catch_rate": 0.9478, "auc": 0.98}}}
+    assert ai_mirror.reproduction_diff(new, pub) == ["matched_1200_1200/random/catch_rate"]
+
+
+def test_reproduction_diff_reports_missing_cells_and_keys():
+    pub = {"matched_300_300": {"random": {"auc": 0.9, "n_honest": 10, "honest_ci95": [0, 1]}},
+           "matched_1200_1200": {"same_field": {"auc": 0.8}}}
+    new = {"matched_300_300": {"random": {"auc": 0.9, "honest_ci95": [0, 0.5]}}}
+    assert ai_mirror.reproduction_diff(new, pub) == [
+        "matched_300_300/random/n_honest", "matched_1200_1200/same_field/auc"]
+    assert ai_mirror.reproduction_diff(pub, pub) == []
+
+
+class _Opened(Exception):
+    """Raised by the stubbed opening: the guards let the call through."""
+
+
+def _locked_fixture(tmp_path, monkeypatch):
+    """A fixture every guard passes; ``load_trial_grid`` fails the test if it is reached."""
+    ai_dir, res = tmp_path / "ai", tmp_path / "results"
+    (ai_dir / "texts").mkdir(parents=True)
+    res.mkdir()
+    monkeypatch.setattr(ai_mirror, "AI_DIR", ai_dir)
+    monkeypatch.setattr(ai_mirror, "RESULTS_DIR", res)
+    targets = [_tgt(0, "A1", "claude"), _tgt(1, "A2", "chatgpt")]
+    (ai_dir / "targets_humanities.json").write_text(json.dumps(
+        {"targets": [ai_mirror.dataclasses.asdict(t) for t in targets]}), encoding="utf-8")
+    papers = {}
+    for t in targets:
+        text = "\n\n".join(" ".join([t.author_id.lower()] * 700) for _ in range(2))
+        (ai_dir / "texts" / f"{t.author_id}.txt").write_text(text, encoding="utf-8")
+        papers[t.author_id] = {"author_id": t.author_id,
+                               "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
+    (ai_dir / "manifest_humanities.json").write_text(json.dumps(
+        {"study_id": ai_mirror.STUDY_ID, "collection": "humanities", "papers": papers}), encoding="utf-8")
+    (ai_dir / "environment_humanities.json").write_text(json.dumps({"passed": True}), encoding="utf-8")
+    monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: False)
+    monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({}, "vecsha"))
+
+    def never(*a, **k):
+        pytest.fail("load_trial_grid was called: the locked partition would have been opened")
+    monkeypatch.setattr(loader, "load_trial_grid", never)
+    return ai_dir, res
+
+
+GUARD_CASES = {
+    "wrong_study": "scholarly-ai-mirror-2026-11-16",
+    "result_exists": "ai_mirror_humanities_locked_test_2026-11-17.json",
+    "env_missing": "environment",
+    "env_failed": "environment",
+    "no_ai_paper": "A2",
+    "text_missing": "A2",
+    "text_hash_differs": "sha256",
+    "uncommitted": "uncommitted",
+}
+
+
+@pytest.mark.parametrize("broken", sorted(GUARD_CASES))
+def test_open_locked_guards(broken, tmp_path, monkeypatch):
+    ai_dir, res = _locked_fixture(tmp_path, monkeypatch)
+    study = ai_mirror.STUDY_ID
+    if broken == "wrong_study":
+        study = "scholarly-rule-d-2026-11-12"
+    elif broken == "result_exists":
+        (res / "ai_mirror_humanities_locked_test_2026-11-17.json").write_text("{}", encoding="utf-8")
+    elif broken == "env_missing":
+        (ai_dir / "environment_humanities.json").unlink()
+    elif broken == "env_failed":
+        (ai_dir / "environment_humanities.json").write_text(json.dumps({"passed": False}), encoding="utf-8")
+    elif broken == "no_ai_paper":
+        m = json.loads((ai_dir / "manifest_humanities.json").read_text(encoding="utf-8"))
+        del m["papers"]["A2"]
+        (ai_dir / "manifest_humanities.json").write_text(json.dumps(m), encoding="utf-8")
+    elif broken == "text_missing":
+        (ai_dir / "texts" / "A2.txt").unlink()
+    elif broken == "text_hash_differs":
+        with (ai_dir / "texts" / "A2.txt").open("a", encoding="utf-8") as f:
+            f.write(" edited")
+    elif broken == "uncommitted":
+        monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: True)
+    with pytest.raises(SystemExit) as exc:
+        ai_mirror.open_locked(study)
+    assert GUARD_CASES[broken] in str(exc.value)
+    assert not list(res.glob("ai_mirror_humanities_locked_test_*.json")) or broken == "result_exists"
+
+
+def test_open_locked_guards_pass_through_to_the_opening(tmp_path, monkeypatch):
+    _locked_fixture(tmp_path, monkeypatch)
+    calls = []
+
+    def opened(*a, **k):
+        calls.append((a, k))
+        raise _Opened
+    monkeypatch.setattr(loader, "load_trial_grid", opened)
+    with pytest.raises(_Opened):
+        ai_mirror.open_locked(ai_mirror.STUDY_ID)
+    [(args, kwargs)] = calls
+    assert args == ("humanities", "locked_test",
+                    [(n, pw, nw, s) for n, pw, nw in rule_d.CONFIGS for s in rule_d.SEEDS])
+    assert kwargs == {"allow_locked_for": ai_mirror.STUDY_ID, "n_past": 4, "n_new": 2, "n_probes": 5}
+
+
+def test_open_locked_writes_result(tmp_path, monkeypatch):
+    ai_dir, res = _locked_fixture(tmp_path, monkeypatch)
+    published = json.loads((rule_d.HERE / "rule_d_humanities_locked_test_2026-11-12.json")
+                           .read_text(encoding="utf-8"))["cells"]
+    monkeypatch.setattr(loader, "load_trial_grid", lambda c, p, grid, **k: {
+        (n, s): loader.TrialSet([], {"AX": "unusable cache"} if s == 7 else {}) for n, _, _, s in grid})
+    seen = {}
+
+    def scores(collection, sets, vecs, extra_docs=None):
+        seen["extra"] = extra_docs
+        rows = []
+        for name, _, _ in rule_d.CONFIGS:
+            rows += [_row("A1", name, 50.0),
+                     _row("A1", name, -50.0, label=0, kind="honest"),
+                     _row("A2", name, 50.0, label=0, kind="honest")]
+        return rows
+    monkeypatch.setattr(rule_d, "build_scores", scores)
+
+    def cell(R, thr, kind, n_boot):
+        assert R and all(r["kind"] != "ai" for r in R) and n_boot == 7
+        return dict(published[R[0]["config"]][kind])
+    monkeypatch.setattr(rule_d, "cell_report", cell)
+    out = ai_mirror.open_locked(ai_mirror.STUDY_ID, n_boot=7)
+    [path] = res.glob("ai_mirror_humanities_locked_test_*.json")
+    assert path.name == f"ai_mirror_humanities_locked_test_{out['date']}.json"
+    assert json.loads(path.read_text(encoding="utf-8")) == out
+    assert out["study_id"] == ai_mirror.STUDY_ID and out["vectorizers_sha256"] == "vecsha"
+    assert out["thresholds"] == _committed_doc()["thresholds"]
+    assert out["reproduction"]["equal"] is True and out["reproduction"]["diffs"] == []
+    assert out["targets_sha256"] == hashlib.sha256(
+        (ai_dir / "targets_humanities.json").read_bytes()).hexdigest()
+    assert out["ai_manifest_sha256"] == hashlib.sha256(
+        (ai_dir / "manifest_humanities.json").read_bytes()).hexdigest()
+    assert out["skipped"] == {f"{n}/seed7/AX": "unusable cache" for n, _, _ in rule_d.CONFIGS}
+    assert set(seen["extra"]) == {(n, 7) for n, _, _ in rule_d.CONFIGS}
+    assert set(seen["extra"][("matched_1200_1200", 7)]) == {"A1", "A2"}
+    c = out["ai"]["matched_1200_1200"]
+    assert (c["caught"], c["n"], c["missing_authors"]) == (1, 1, ["A2"])
+    assert out["ai"]["honest_same_authors"]["matched_1200_1200"] == {"flagged": 1, "n": 2}
+    with pytest.raises(SystemExit):   # a second opening is refused
+        ai_mirror.open_locked(ai_mirror.STUDY_ID)
+
+
+def test_open_locked_reports_reproduction_differences(tmp_path, monkeypatch):
+    _, res = _locked_fixture(tmp_path, monkeypatch)
+    monkeypatch.setattr(loader, "load_trial_grid", lambda c, p, grid, **k: {
+        (n, s): loader.TrialSet([], {}) for n, _, _, s in grid})
+    monkeypatch.setattr(rule_d, "build_scores", lambda *a, **k: [
+        _row("A1", n, 0.0, label=0, kind="honest") for n, _, _ in rule_d.CONFIGS])
+    monkeypatch.setattr(rule_d, "cell_report", lambda R, thr, kind, n_boot: {
+        "honest_flag_rate": 0.5, "catch_rate": 0.5, "auc": 0.5,
+        "n_authors": 1, "n_honest": 1, "n_probe": 0})
+    out = ai_mirror.open_locked(ai_mirror.STUDY_ID, n_boot=3)
+    assert out["reproduction"]["equal"] is False
+    assert "matched_1200_1200/random/catch_rate" in out["reproduction"]["diffs"]
+    assert out["reproduction"]["cells"]["matched_1200_1200"]["random"]["catch_rate"] == 0.5
+
+
+def test_uncommitted_sees_untracked_and_clean(tmp_path, monkeypatch):
+    import subprocess
+    repo = tmp_path / "repo"
+    sub = repo / "ai"
+    sub.mkdir(parents=True)
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.org",
+           "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+    subprocess.run(git + ["init", "-q"], cwd=repo, check=True)
+    monkeypatch.setattr(ai_mirror, "_REPO", repo)
+    assert ai_mirror._uncommitted(sub) is False
+    (sub / "a.txt").write_text("x", encoding="utf-8")
+    assert ai_mirror._uncommitted(sub) is True
+    subprocess.run(git + ["add", "."], cwd=repo, check=True)
+    subprocess.run(git + ["commit", "-q", "-m", "c"], cwd=repo, check=True)
+    assert ai_mirror._uncommitted(sub) is False
+    (sub / "a.txt").write_text("y", encoding="utf-8")
+    assert ai_mirror._uncommitted(sub) is True
+
+
+def test_uncommitted_refuses_when_git_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(ai_mirror, "_REPO", tmp_path)
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "not-a-repo"))
+    with pytest.raises(SystemExit, match="git status failed"):
+        ai_mirror._uncommitted(tmp_path)
+
+
+def test_locked_cli(monkeypatch):
+    got = []
+    monkeypatch.setattr(ai_mirror, "open_locked", lambda study, n_boot=1000: got.append((study, n_boot)) or {})
+    assert ai_mirror.main(["locked", "--study", "x"]) == 0
+    assert ai_mirror.main(["locked", "--study", "y", "--n-boot", "5"]) == 0
+    assert got == [("x", 1000), ("y", 5)]
