@@ -665,9 +665,7 @@ def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
     return used, [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
 
 
-def _baseline_papers(
-    state, used, baselines, student_id: str | None
-) -> list[dict[str, Any]]:
+def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
     """How each past paper got into the baseline, read now (staff wording
     only), so an analysis kept for later still says what was true when it ran.
     No student id (in-process callers): no source. A failed lookup loses only
@@ -757,7 +755,6 @@ def _attach_staff_explainability(
                 "evidence passages failed; omitted from the response"
             )
             response.evidence = None
-
 
 
 @router.get("/students/{student_id}/past-paper-examples", response_model=PastPaperExamplesResponse)

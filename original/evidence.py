@@ -926,21 +926,35 @@ def build_feature_evidence(
 #: sits in exactly one family; the order here is the order the page draws.
 FAMILIES: dict[str, tuple[str, ...]] = {
     "Sentence shape": (
-        "mean_sentence_length", "sentence_length_variance", "comma_rate",
-        "semicolon_colon_rate", "dash_rate", "parenthetical_rate",
+        "mean_sentence_length",
+        "sentence_length_variance",
+        "comma_rate",
+        "semicolon_colon_rate",
+        "dash_rate",
+        "parenthetical_rate",
         "sentence_initial_conjunction_rate",
     ),
     "Linking ideas": (
-        "discourse_marker_density", "additive_ratio", "adversative_ratio",
-        "causal_ratio", "temporal_ratio", "transition_density",
+        "discourse_marker_density",
+        "additive_ratio",
+        "adversative_ratio",
+        "causal_ratio",
+        "temporal_ratio",
+        "transition_density",
     ),
     "Voice": (
-        "first_person_ratio", "contraction_rate", "question_ratio",
-        "modal_verb_ratio", "passive_voice_ratio",
+        "first_person_ratio",
+        "contraction_rate",
+        "question_ratio",
+        "modal_verb_ratio",
+        "passive_voice_ratio",
     ),
     "Claims and confidence": (
-        "hedging_density", "assertion_density", "claim_density",
-        "appeal_to_authority_density", "quote_rate",
+        "hedging_density",
+        "assertion_density",
+        "claim_density",
+        "appeal_to_authority_density",
+        "quote_rate",
     ),
 }
 
@@ -995,12 +1009,16 @@ def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) 
                 picks = _extremes_pick(r.places)
             else:
                 picks = [(None, p) for p in _pick(r.places, MAX_EXAMPLES)]
-            per_paper.append({
-                "paper": label,
-                "value": _round(r.value),
-                "count": None if r.places is None else len(r.places),
-                "examples": [{"role": role, "quote": _quote(text, p, label)} for role, p in picks],
-            })
+            per_paper.append(
+                {
+                    "paper": label,
+                    "value": _round(r.value),
+                    "count": None if r.places is None else len(r.places),
+                    "examples": [
+                        {"role": role, "quote": _quote(text, p, label)} for role, p in picks
+                    ],
+                }
+            )
         entry: dict[str, Any] = {
             "code": code,
             "name": name,
