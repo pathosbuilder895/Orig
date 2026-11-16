@@ -669,9 +669,9 @@ def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dic
     """How each past paper got into the baseline, read now (staff wording
     only), so an analysis kept for later still says what was true when it ran.
     No student id (in-process callers): no source. A failed lookup loses only
-    `source`, never the side-by-side."""
+    `source`, never the side-by-side. No past paper to show: no lookup."""
     by_sample: dict[int, str] = {}
-    if student_id:
+    if student_id and used:
         try:
             from .students import _sample_sources
 
@@ -780,12 +780,12 @@ def past_paper_examples(
             **evidence.build_past_paper_examples(habit, baselines),
             "baseline_papers": _baseline_papers(state, used, baselines, student_id),
         }
+        return PastPaperExamplesResponse(**body)
     except Exception:
         logging.getLogger(__name__).exception("past paper examples failed")
         raise HTTPException(
             status_code=503, detail="Examples could not be shown just now."
         ) from None
-    return PastPaperExamplesResponse(**body)
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────

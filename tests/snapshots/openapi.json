@@ -3241,7 +3241,7 @@
         "type": "object"
       },
       "PastPaperExamplesResponse": {
-        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; null of any score. ``baseline_papers`` matches the\nscore response's ``evidence.baseline_papers``.",
+        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; this response never changes any score.\n``baseline_papers`` matches the score response's ``evidence.baseline_papers``.",
         "properties": {
           "baseline_papers": {
             "items": {

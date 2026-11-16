@@ -1106,8 +1106,8 @@ class PreliminaryScoreOut(BaseModel):
 
 class PastPaperExamplesResponse(BaseModel):
     """Real sentences from a student's past papers for one habit and its family
-    (ADR-013). Staff only; null of any score. ``baseline_papers`` matches the
-    score response's ``evidence.baseline_papers``."""
+    (ADR-013). Staff only; this response never changes any score.
+    ``baseline_papers`` matches the score response's ``evidence.baseline_papers``."""
 
     baseline_papers: list[dict[str, Any]]
     family: str
