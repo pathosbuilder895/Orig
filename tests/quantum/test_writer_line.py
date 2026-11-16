@@ -51,3 +51,153 @@ def test_band_boundaries_are_inclusive_lower():
 
 def test_exactly_three_papers_returns_float():
     assert isinstance(writer_z(0.7, [0.5, 0.6, 0.7]), float)
+
+
+# ── Task 2: wiring into score() behind WRITER_LINE ────────────────────────────
+
+import dataclasses  # noqa: E402
+
+from original.constants import ALL_FEATURE_CODES, FEATURE_DIM  # noqa: E402
+from original.quantum.null_pool import build_impostor_stats  # noqa: E402
+from original.quantum.scoring import ScoringConfig, score  # noqa: E402
+from original.quantum.state import BaselineSample, StudentState  # noqa: E402
+
+_TIERS = ["no_action", "monitor", "schedule_conversation", "escalate"]
+
+
+def _state(sid="t:s", seed=0, n=4, noise=0.01, weights=None):
+    rng = np.random.RandomState(seed)
+    base = rng.uniform(0.3, 0.7, FEATURE_DIM)
+    weights = weights or [1.0] * n
+    samples = [
+        BaselineSample(
+            text="word " * 300,
+            vector=np.clip(base + rng.normal(0, noise, FEATURE_DIM), 0, 1),
+            provenance="proctored",
+            auth_weight=w,
+            assignment=f"a{i}",
+        )
+        for i, w in enumerate(weights)
+    ]
+    return StudentState(student_id=sid, samples=samples), base
+
+
+def _score(state, base, shift=0.02, impostor_stats=None, **cfg):
+    vec = np.clip(base + shift, 0, 1)
+    fd = {c: float(v) for c, v in zip(ALL_FEATURE_CODES, vec, strict=True)}
+    return score(
+        state,
+        vec,
+        fd,
+        submission_id="sub",
+        n_tokens=300,
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(**cfg),
+    )
+
+
+def test_off_is_byte_identical(monkeypatch):
+    monkeypatch.delenv("WRITER_LINE", raising=False)
+    s, b = _state()
+    unset = _score(s, b)
+    s2, b2 = _state()
+    off = _score(s2, b2, writer_line="off")
+    assert dataclasses.asdict(unset) == dataclasses.asdict(off)
+    assert off.writer_line_z is None and off.writer_line_action is None
+    monkeypatch.setenv("WRITER_LINE", "off")
+    assert ScoringConfig.from_env().writer_line == "off"
+    monkeypatch.setenv("WRITER_LINE", "bogus")
+    assert ScoringConfig.from_env().writer_line == "off"
+
+
+def test_unknown_value_is_off():
+    s, b = _state()
+    off = _score(s, b, writer_line="off")
+    s2, b2 = _state()
+    bogus = _score(s2, b2, writer_line="bogus")
+    assert dataclasses.asdict(off) == dataclasses.asdict(bogus)
+
+
+def test_shadow_changes_no_field_but_sets_diagnostics():
+    s, b = _state()
+    off = _score(s, b, writer_line="off")
+    s2, b2 = _state()
+    shadow = _score(s2, b2, writer_line="shadow")
+    assert shadow.writer_line_z is not None
+    assert shadow.writer_line_action is not None
+    a, c = dataclasses.asdict(off), dataclasses.asdict(shadow)
+    for k in ("writer_line_z", "writer_line_action"):
+        a.pop(k), c.pop(k)
+    assert a == c
+
+
+def test_on_replaces_base_tier():
+    s, b = _state()
+    off = _score(s, b, writer_line="off")
+    s2, b2 = _state()
+    on = _score(s2, b2, writer_line="on")
+    assert _TIERS.index(on.recommendation.action) >= _TIERS.index("schedule_conversation")
+    assert _TIERS.index(off.recommendation.action) < _TIERS.index(on.recommendation.action)
+    assert on.recommendation.confidence == off.recommendation.confidence
+    assert "Per-writer line" in on.recommendation.rationale
+    assert on.authorship.deviation_score == off.authorship.deviation_score
+
+
+def test_on_still_lets_gate_lower_one_step():
+    s, b = _state()
+    peers = [_state(f"t:p{i}", 100 + i)[0] for i in range(5)]
+    imp = build_impostor_stats(s.student_id, [s, *peers])
+    shadow_llr = _score(
+        s, b, impostor_stats=imp, null_model="impostor", writer_line="on", llr_action_mode="shadow"
+    )
+    gated = _score(s, b, impostor_stats=imp, null_model="impostor", writer_line="on")
+    assert gated.authorship.llr_deviation_score <= 0.35
+    assert shadow_llr.recommendation.action == gated.writer_line_action == "escalate"
+    assert gated.recommendation.action == "schedule_conversation"
+
+
+def test_on_catastrophic_drift_still_escalates(monkeypatch):
+    import original.quantum.writer_line as wl
+
+    monkeypatch.setattr(wl, "writer_line_action", lambda z, thresholds=None: "no_action")
+    s, b = _state(n=5, noise=0.25)
+    on = _score(s, b, shift=0.6, writer_line="on")
+    assert on.catastrophic_drift
+    assert on.writer_line_action == "no_action"
+    assert on.recommendation.action == "escalate"
+    assert "Catastrophic drift" in on.recommendation.rationale
+
+
+def test_on_abstains_below_min_papers():
+    s, b = _state(n=3)  # 3 papers -> 3 LOO distances: enough
+    assert _score(s, b, writer_line="on").writer_line_z is not None
+    s, b = _state(n=2)
+    off = _score(s, b, writer_line="off")
+    s2, b2 = _state(n=2)
+    on = _score(s2, b2, writer_line="on")
+    assert on.writer_line_z is None and on.writer_line_action is None
+    assert on.recommendation == off.recommendation
+
+
+def test_on_abstains_when_weights_modify_rms_z():
+    s, b = _state()
+    peers = [_state(f"t:p{i}", 100 + i)[0] for i in range(5)]
+    imp = build_impostor_stats(s.student_id, [s, *peers])
+    on = _score(s, b, impostor_stats=imp, characteristic_weights="on", writer_line="on")
+    assert on.characteristic_weighting_applied
+    assert on.writer_line_z is None and on.writer_line_action is None
+    plain = _score(s, b, impostor_stats=imp, characteristic_weights="on")
+    assert on.recommendation == plain.recommendation
+    # Same condition withholds typicality.
+    typ = _score(
+        s, b, impostor_stats=imp, characteristic_weights="on", typicality_scoring_enabled=True
+    )
+    assert typ.typicality_band is None and typ.typicality_n == 0
+
+
+def test_zero_auth_weight_papers_do_not_count():
+    s, b = _state(weights=[1.0, 1.0, 0.0, 0.0])
+    assert _score(s, b, writer_line="on").writer_line_z is None
+    s, b = _state(weights=[1.0, 1.0, 1.0, 0.0])
+    assert len(s.loo_distances) == 3
+    assert _score(s, b, writer_line="on").writer_line_z is not None

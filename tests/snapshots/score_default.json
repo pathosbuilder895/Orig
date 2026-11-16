@@ -405,5 +405,7 @@
   "typicality_n": 0,
   "typicality_p_central": null,
   "typicality_p_far": null,
-  "typicality_source": null
+  "typicality_source": null,
+  "writer_line_action": null,
+  "writer_line_z": null
 }

@@ -509,6 +509,13 @@ class RecommendedAction:
 
 
 _TOPIC_INFLATION_MODES = frozenset({"off", "shadow", "on"})
+_WRITER_LINE_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _parse_writer_line_mode(raw: str) -> str:
+    """Map WRITER_LINE to a mode; anything unrecognised is "off"."""
+    mode = (raw or "").strip().lower()
+    return mode if mode in _WRITER_LINE_MODES else "off"
 
 
 def _parse_topic_inflation_mode(raw: str) -> str:
@@ -609,6 +616,11 @@ class ScoringConfig:
     #               llr_deviation_score. Thresholds are placeholders pending
     #               calibration; off unless explicitly selected.
     llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
+    # Per-writer verdict line (WRITER_LINE): "off" (default) never computes
+    # it; "shadow" attaches writer_line_z / writer_line_action without
+    # touching recommendation; "on" replaces the base tier from _recommend()
+    # with the writer-line tier before the LLR step and catastrophic drift.
+    writer_line: str = "off"  # was WRITER_LINE
     # Topic-adaptive variance inflation (see original/constants.py's
     # TOPIC_SENSITIVITY block and the 2026-08 topic-invariance spec).
     #   "off"    — DEFAULT. Byte-identical to Phase 1.
@@ -675,6 +687,7 @@ class ScoringConfig:
             == "1",
             identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
             llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
+            writer_line=_parse_writer_line_mode(os.environ.get("WRITER_LINE", "off")),
             topic_variance_inflation=_parse_topic_inflation_mode(
                 os.environ.get("TOPIC_VARIANCE_INFLATION", "0")
             ),
@@ -816,6 +829,11 @@ class Layer7Output:
     # for the same reason: additive, cannot change deviation_score or the
     # recommendation, pending an institutional holdout per ADR-008.
     trend_aware_typicality: TrendAwareTypicality | None = field(default=None)
+    # Per-writer line (WRITER_LINE). None unless the mode is "shadow" or
+    # "on" and the line did not abstain. writer_line_action is the tier the
+    # line gives (in shadow: what it would give).
+    writer_line_z: float | None = field(default=None)
+    writer_line_action: str | None = field(default=None)
 
 
 # ── Amplitude scoring helper ──────────────────────────────────────────────────
@@ -1312,12 +1330,12 @@ def score(
     # the band would let shadow change an action via _recommend()'s
     # IDENTITY_AXIS wiring.
     _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
-    if (
-        config.typicality_scoring_enabled
-        and adaptive_weights is None
-        and not _sigma_was_inflated
-        and not _characteristic_applied
-    ):
+    # Shared with the per-writer line below: rms_z is comparable to
+    # state.loo_distances only when no weighting or inflation modified it.
+    _rms_z_comparable_to_loo = (
+        adaptive_weights is None and not _sigma_was_inflated and not _characteristic_applied
+    )
+    if config.typicality_scoring_enabled and _rms_z_comparable_to_loo:
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
@@ -1575,6 +1593,28 @@ def score(
         tuned_action_thresholds=config.tuned_action_thresholds,
     )
 
+    # ── Per-writer line (WRITER_LINE) ─────────────────────────────────────────
+    # "off" computes nothing. "shadow" only fills the two diagnostic fields.
+    # "on" replaces the base tier, keeping the original confidence; the LLR
+    # step and catastrophic drift below still apply on top of it.
+    writer_line_z: float | None = None
+    writer_line_tier: str | None = None
+    if config.writer_line in ("shadow", "on") and _rms_z_comparable_to_loo:
+        from .writer_line import writer_line_action as _writer_line_action
+        from .writer_line import writer_z as _writer_z
+
+        writer_line_z = _writer_z(rms_z, state.loo_distances)
+        writer_line_tier = _writer_line_action(writer_line_z)
+        if config.writer_line == "on" and writer_line_tier is not None:
+            recommendation = RecommendedAction(
+                action=writer_line_tier,
+                confidence=recommendation.confidence,
+                rationale=(
+                    f"Per-writer line: this paper sits {writer_line_z:.2f} of the "
+                    f"writer's own spreads from their past papers."
+                ),
+            )
+
     # ── LLR-informed action mode (2026-08 cross-genre study) ──────────────────
     # Gated the same way llr_deviation_score itself is: null_model=="impostor"
     # AND a real llr_deviation_score. config.llr_action_mode defaults to
@@ -1666,6 +1706,8 @@ def score(
         ),
         characteristic_rms_z_preview=_char_rms_z_preview,
         characteristic_deviation_preview=characteristic_deviation_preview,
+        writer_line_z=writer_line_z,
+        writer_line_action=writer_line_tier,
     )
 
 
