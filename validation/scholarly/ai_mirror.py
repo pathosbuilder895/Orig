@@ -15,8 +15,10 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import importlib
 import json
 import math
+import platform
 import random
 import re
 import subprocess
@@ -50,6 +52,14 @@ AI_DIR = HERE / "ai_mirror"
 RESULTS_DIR = HERE
 PUBLISHED_LOCKED = "rule_d_humanities_locked_test_2026-11-12.json"
 REPRODUCED_KEYS = ("honest_flag_rate", "catch_rate", "auc", "n_authors", "n_honest", "n_probe")
+# The committed rule D thresholds (rule_d_thresholds_humanities.json, 2026-11-12), pinned here so a
+# later `rule_d calibrate` run, which rewrites that file, cannot make the gate compare a recomputed
+# value with itself. check-env and the opening refuse unless the file equals this exactly.
+COMMITTED_THRESHOLDS = {"matched_300_300": -0.529301, "matched_1200_1200": -1.244517,
+                        "long_past_1200_short_new_300": -0.919008}
+THRESHOLDS_PATH = rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json"
+# fingerprint fields the opening requires to match check-env's; the others are recorded only
+FINGERPRINT_COMPARED = ("python", "numpy", "scikit_learn", "sentence_transformers")
 _REPO = HERE.parent.parent
 
 
@@ -272,28 +282,103 @@ def thresholds_match(recomputed: dict, committed: dict) -> List[str]:
     return sorted(bad)
 
 
-def check_environment(n_boot: int = 10) -> dict:
-    """Prove the rebuilt corpus and vectorizers reproduce the committed thresholds."""
+def _first_output_line(cmd: List[str]) -> Optional[str]:
+    """First non-empty line a command prints (stdout, then stderr); None when it cannot run."""
+    try:
+        proc = subprocess.run(cmd, cwd=_REPO, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    lines = [ln.strip() for ln in (proc.stdout + "\n" + proc.stderr).splitlines() if ln.strip()]
+    return lines[0] if lines else None
+
+
+def _git_head() -> Optional[str]:
+    try:
+        proc = subprocess.run(["git", "rev-parse", "HEAD"], cwd=_REPO, capture_output=True,
+                              text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    head = proc.stdout.strip()
+    return head if proc.returncode == 0 and head else None
+
+
+def _importable(name: str) -> bool:
+    try:
+        importlib.import_module(name)
+    except Exception:   # a broken install counts as not importable, as the feature pipeline treats it
+        return False
+    return True
+
+
+def _fingerprint() -> dict:
+    """What the environment gate ran on. The opening compares FINGERPRINT_COMPARED only."""
+    import numpy
+    import sklearn
+    return {"python": platform.python_version(), "numpy": numpy.__version__,
+            "scikit_learn": sklearn.__version__,
+            "sentence_transformers": _importable("sentence_transformers"),
+            "platform": platform.platform(), "pdftotext": _first_output_line(["pdftotext", "-v"]),
+            "git_head": _git_head()}
+
+
+def protocol_notes(targets: List[Target], papers: dict) -> List[str]:
+    """Entries under CONTINUE_BELOW cleaned words with no continuation: recorded, not refused."""
+    notes = []
+    for t in sorted(targets, key=lambda t: t.rank):
+        e = papers.get(t.author_id, {})
+        words = e.get("words", 0)
+        if words < CONTINUE_BELOW and not e.get("continued", False):
+            notes.append(f"{t.author_id}: {words} cleaned words and no continuation, though the "
+                         f"protocol sends the continue prompt once below {CONTINUE_BELOW:,} words")
+    return notes
+
+
+def _thresholds_doc() -> dict:
+    """The thresholds file (``THRESHOLDS_PATH``, read now); ``{}`` when it is missing."""
+    path = Path(THRESHOLDS_PATH)
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+
+
+def _require_pinned_thresholds() -> dict:
+    """The thresholds file's document, after refusing unless its thresholds equal the pin exactly."""
+    doc = _thresholds_doc()
+    if doc.get("thresholds") != COMMITTED_THRESHOLDS:
+        raise SystemExit(f"{Path(THRESHOLDS_PATH).name} thresholds {doc.get('thresholds')} do not equal "
+                         f"the pinned COMMITTED_THRESHOLDS {COMMITTED_THRESHOLDS}; restore the committed "
+                         "file (git checkout) and do not recalibrate rule D for this study")
+    return doc
+
+
+def check_environment(n_boot: int = 10, owner_approved: bool = False) -> dict:
+    """Prove the rebuilt corpus and vectorizers reproduce the committed (pinned) thresholds.
+
+    Refuses to re-run over a committed result that records ``passed: false`` unless
+    ``owner_approved`` (the spec: if the gate fails, stop and report to the owner)."""
+    env_path = AI_DIR / f"environment_{COLLECTION}.json"
+    if env_path.exists() and not owner_approved and not _uncommitted(env_path):
+        if json.loads(env_path.read_text(encoding="utf-8")).get("passed") is not True:
+            raise SystemExit(f"{env_path.name} is committed and records passed: false; re-running the "
+                             "environment gate needs the owner's approval (--owner-approved)")
+    committed_doc = _require_pinned_thresholds()
+    fingerprint = _fingerprint()
     verify = fetch.verify(COLLECTION, fetch.DEFAULT_CACHE)
     _vecs, sha = rule_d.fit_or_load_vectorizers(COLLECTION)
     recomputed = rule_d.calibrate(COLLECTION, n_boot)["thresholds"]
-    committed_doc = json.loads((rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json")
-                               .read_text(encoding="utf-8"))
-    committed = committed_doc["thresholds"]
-    mismatches = thresholds_match(recomputed, committed)
+    mismatches = thresholds_match(recomputed, COMMITTED_THRESHOLDS)
     result = {
         "date": time.strftime("%Y-%m-%d"),
         "verify": verify,
         "vectorizers_sha256": sha,
         "sha_matches_committed": sha == committed_doc.get("vectorizers_sha256"),
         "recomputed": recomputed,
-        "committed": committed,
+        "committed": dict(COMMITTED_THRESHOLDS),
         "mismatches": mismatches,
         "passed": mismatches == [],
+        "fingerprint": fingerprint,
+        "owner_approved": bool(owner_approved),
     }
     AI_DIR.mkdir(parents=True, exist_ok=True)
-    (AI_DIR / f"environment_{COLLECTION}.json").write_text(
-        json.dumps(result, indent=1) + "\n", encoding="utf-8")
+    env_path.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
     return result
 
 
@@ -429,17 +514,33 @@ def _check_before_opening(study: str) -> tuple:
     if env.get("passed") is not True:
         raise SystemExit(f"{env_path.name} does not record passed: true; the environment gate failed, "
                          "so locked_test stays closed")
+    recorded, now = env.get("fingerprint") or {}, _fingerprint()
+    changed = [f"{k} {recorded.get(k)!r} -> {now.get(k)!r}" for k in FINGERPRINT_COMPARED
+               if recorded.get(k) != now.get(k)]
+    if changed:
+        raise SystemExit(f"environment fingerprint differs from the one check-env recorded in "
+                         f"{env_path.name} ({'; '.join(changed)}); the gate does not cover this "
+                         "environment, so locked_test stays closed")
+    _require_pinned_thresholds()
     vecs, vec_sha = rule_d.fit_or_load_vectorizers(COLLECTION)
     if vec_sha != env.get("vectorizers_sha256"):
         raise SystemExit(f"vectorizers sha256 {vec_sha} differs from the one that passed the gate in "
                          f"{env_path.name} ({env.get('vectorizers_sha256')}); refusing to open")
     targets = load_targets()
+    if len(targets) != N_TARGETS:
+        raise SystemExit(f"the targets file lists {len(targets)} targets; the pre-registered target "
+                         f"count is {N_TARGETS}")
     papers = load_ai_manifest()["papers"]
     texts = {}
     for t in sorted(targets, key=lambda t: t.rank):
         path = AI_DIR / "texts" / f"{t.author_id}.txt"
         if t.author_id not in papers:
             raise SystemExit(f"target {t.author_id} has no entry in the AI manifest")
+        entry = papers[t.author_id]
+        if (entry.get("paper_id"), entry.get("tool")) != (t.paper_id, t.tool):
+            raise SystemExit(f"the AI manifest entry for {t.author_id} records paper "
+                             f"{entry.get('paper_id')!r} by {entry.get('tool')!r}, but its target has "
+                             f"paper {t.paper_id!r} by {t.tool!r}")
         if not path.exists():
             raise SystemExit(f"AI text file {path.name} for target {t.author_id} is missing")
         data = path.read_bytes()
@@ -449,17 +550,16 @@ def _check_before_opening(study: str) -> tuple:
     if _uncommitted(AI_DIR):
         raise SystemExit(f"uncommitted changes under {AI_DIR}: commit the AI papers, manifest and "
                          "environment file before opening (git status -- that directory)")
-    return targets, texts, vecs, vec_sha
+    return targets, texts, vecs, vec_sha, protocol_notes(targets, papers)
 
 
 def open_locked(study: str, n_boot: int = 1000) -> dict:
     """The single opening of locked_test for this study. Every guard runs, and every input is
     read, before ``loader.load_trial_grid`` (which logs the opening) is called."""
-    targets, texts, vecs, vec_sha = _check_before_opening(study)
+    targets, texts, vecs, vec_sha, notes = _check_before_opening(study)
     targets_sha = _sha256_file(AI_DIR / f"targets_{COLLECTION}.json")
     manifest_sha = _sha256_file(AI_DIR / f"manifest_{COLLECTION}.json")
-    thresholds = json.loads((rule_d.HERE / f"rule_d_thresholds_{COLLECTION}.json")
-                            .read_text(encoding="utf-8"))["thresholds"]
+    thresholds = dict(COMMITTED_THRESHOLDS)   # the guard has checked the file equals the pin
     published = json.loads((rule_d.HERE / PUBLISHED_LOCKED).read_text(encoding="utf-8"))["cells"]
     extra, left_out = ai_extra_docs(texts)
     grid = [(n, pw, nw, s) for n, pw, nw in rule_d.CONFIGS for s in rule_d.SEEDS]
@@ -478,9 +578,12 @@ def open_locked(study: str, n_boot: int = 1000) -> dict:
            "reproduction": {"equal": diffs == [], "diffs": diffs, "published": PUBLISHED_LOCKED,
                             "cells": cells},
            "ai": summarise_ai(rows, thresholds, targets, left_out),
+           "protocol_notes": notes,
            "skipped": {f"{n}/seed{s}/{a}": why for (n, s), ts in sets.items() for a, why in ts.skipped.items()}}
     path = RESULTS_DIR / f"ai_mirror_{COLLECTION}_locked_test_{date}.json"
     path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    for note in notes:
+        print("protocol note:", note, flush=True)
     for name, _, _ in rule_d.CONFIGS:
         c, h = out["ai"][name], out["ai"]["honest_same_authors"][name]
         print(f"{name}: AI caught {c['caught']}/{c['n']} ({c['outcome']}); "
@@ -495,6 +598,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub.add_parser("select")
     cp = sub.add_parser("check-env")
     cp.add_argument("--n-boot", type=int, default=10)
+    cp.add_argument("--owner-approved", action="store_true",
+                    help="re-run over a committed failed gate; only on the owner's explicit yes")
     lp = sub.add_parser("locked")
     lp.add_argument("--study", required=True)
     lp.add_argument("--n-boot", type=int, default=1000)
@@ -506,7 +611,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ip.add_argument("--continued", action="store_true")
     args = ap.parse_args(argv)
     if args.step == "check-env":
-        result = check_environment(args.n_boot)
+        result = check_environment(args.n_boot, owner_approved=args.owner_approved)
         print(json.dumps(result, indent=1))
         return 0 if result["passed"] else 1
     if args.step == "intake":

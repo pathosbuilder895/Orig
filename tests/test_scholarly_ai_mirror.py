@@ -370,16 +370,28 @@ def test_thresholds_match_reports_difference_and_missing():
     assert ai_mirror.thresholds_match(r, COMMITTED) == ["long_past_1200_short_new_300", "matched_300_300"]
 
 
+FP = {"python": "3.11.9", "numpy": "1.26.4", "scikit_learn": "1.5.0", "sentence_transformers": False,
+      "platform": "Linux-x86_64", "pdftotext": "pdftotext version 24.02.0", "git_head": "a" * 40}
+
+
 def _env(monkeypatch, tmp_path, thresholds):
     monkeypatch.setattr(ai_mirror, "AI_DIR", tmp_path / "out")
     monkeypatch.setattr(ai_mirror.fetch, "verify", lambda c, cache: {"ok": True})
     monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({}, "deadbeef"))
-    monkeypatch.setattr(rule_d, "calibrate",
-                        lambda c, n: {"thresholds": thresholds, "vectorizers_sha256": "deadbeef"})
+    monkeypatch.setattr(ai_mirror, "_fingerprint", lambda: dict(FP))
+    calls = []
+    monkeypatch.setattr(rule_d, "calibrate", lambda c, n: calls.append(c) or {
+        "thresholds": thresholds, "vectorizers_sha256": "deadbeef"})
+    return calls
 
 
 def _committed_doc():
     return json.loads((rule_d.HERE / "rule_d_thresholds_humanities.json").read_text(encoding="utf-8"))
+
+
+def test_committed_thresholds_pin_equals_the_committed_file():
+    assert ai_mirror.COMMITTED_THRESHOLDS == COMMITTED == _committed_doc()["thresholds"]
+    assert ai_mirror.THRESHOLDS_PATH == rule_d.HERE / "rule_d_thresholds_humanities.json"
 
 
 def test_check_environment_passes_when_thresholds_equal(monkeypatch, tmp_path):
@@ -388,9 +400,96 @@ def test_check_environment_passes_when_thresholds_equal(monkeypatch, tmp_path):
     res = ai_mirror.check_environment(3)
     assert res["passed"] is True and res["mismatches"] == []
     assert res["sha_matches_committed"] == (doc["vectorizers_sha256"] == "deadbeef")
+    assert res["committed"] == ai_mirror.COMMITTED_THRESHOLDS
+    assert res["fingerprint"] == FP and res["owner_approved"] is False
     written = json.loads((tmp_path / "out" / "environment_humanities.json").read_text())
+    assert written == res
     assert set(written) == {"date", "verify", "vectorizers_sha256", "sha_matches_committed",
-                            "recomputed", "committed", "mismatches", "passed"}
+                            "recomputed", "committed", "mismatches", "passed", "fingerprint",
+                            "owner_approved"}
+
+
+def _thresholds_file(tmp_path, thresholds):
+    path = tmp_path / "rule_d_thresholds_humanities.json"
+    doc = {**_committed_doc()}
+    if thresholds is None:
+        return path   # missing file
+    doc["thresholds"] = thresholds
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return path
+
+
+BROKEN_THRESHOLDS = {
+    "recalibrated": {**COMMITTED, "matched_1200_1200": -1.2},
+    "empty": {},
+    "key_missing": {k: v for k, v in COMMITTED.items() if k != "matched_300_300"},
+    "extra_key": {**COMMITTED, "matched_600_600": -1.0},
+    "rounded": {**COMMITTED, "matched_300_300": -0.5293014},
+    "file_missing": None,
+}
+
+
+@pytest.mark.parametrize("broken", sorted(BROKEN_THRESHOLDS))
+def test_check_environment_refuses_when_thresholds_file_is_not_the_pin(broken, monkeypatch, tmp_path):
+    thr = BROKEN_THRESHOLDS[broken]
+    # recomputed equals whatever the file now says: the vacuous comparison the pin exists to stop
+    calls = _env(monkeypatch, tmp_path, dict(thr or {}))
+    monkeypatch.setattr(ai_mirror, "THRESHOLDS_PATH", _thresholds_file(tmp_path, thr))
+    with pytest.raises(SystemExit, match="do not equal the pinned COMMITTED_THRESHOLDS"):
+        ai_mirror.check_environment(3)
+    assert calls == [] and not (tmp_path / "out" / "environment_humanities.json").exists()
+
+
+def _previous_env(tmp_path, monkeypatch, passed, committed):
+    out = tmp_path / "out"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "environment_humanities.json").write_text(json.dumps({"passed": passed}), encoding="utf-8")
+    monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: not committed)
+
+
+def test_check_environment_refuses_to_rerun_over_a_committed_failed_gate(monkeypatch, tmp_path):
+    calls = _env(monkeypatch, tmp_path, dict(COMMITTED))
+    _previous_env(tmp_path, monkeypatch, passed=False, committed=True)
+    with pytest.raises(SystemExit, match="owner") as exc:
+        ai_mirror.check_environment(3)
+    assert "--owner-approved" in str(exc.value) and calls == []
+    res = ai_mirror.check_environment(3, owner_approved=True)
+    assert res["passed"] is True and res["owner_approved"] is True and calls == ["humanities"]
+
+
+@pytest.mark.parametrize("passed,committed", [(False, False), (True, True)])
+def test_check_environment_reruns_over_an_uncommitted_or_passed_gate(passed, committed, monkeypatch, tmp_path):
+    calls = _env(monkeypatch, tmp_path, dict(COMMITTED))
+    _previous_env(tmp_path, monkeypatch, passed=passed, committed=committed)
+    assert ai_mirror.check_environment(3)["passed"] is True and calls == ["humanities"]
+
+
+def test_check_env_cli_passes_owner_approval(monkeypatch, capsys):
+    got = []
+    monkeypatch.setattr(ai_mirror, "check_environment", lambda n_boot=10, owner_approved=False: got.append(
+        (n_boot, owner_approved)) or {"passed": True, "verify": {"missing": 0, "hash_mismatch": 0}})
+    assert ai_mirror.main(["check-env"]) == 0
+    assert ai_mirror.main(["check-env", "--n-boot", "4", "--owner-approved"]) == 0
+    assert got == [(10, False), (4, True)]
+
+
+def test_fingerprint_records_versions_platform_tools_and_head():
+    import platform
+    import numpy
+    import sklearn
+    fp = ai_mirror._fingerprint()
+    assert set(fp) == {"python", "numpy", "scikit_learn", "sentence_transformers", "platform",
+                       "pdftotext", "git_head"}
+    assert (fp["python"], fp["numpy"], fp["scikit_learn"]) == (
+        platform.python_version(), numpy.__version__, sklearn.__version__)
+    assert isinstance(fp["sentence_transformers"], bool) and fp["platform"] == platform.platform()
+    assert fp["pdftotext"] is None or isinstance(fp["pdftotext"], str)
+    assert fp["git_head"] is None or (len(fp["git_head"]) == 40 and int(fp["git_head"], 16) >= 0)
+
+
+def test_first_output_line_is_none_for_a_missing_tool():
+    assert ai_mirror._first_output_line(["no-such-tool-for-ai-mirror-test", "-v"]) is None
+    assert ai_mirror._first_output_line(["git", "--version"]).startswith("git version")
 
 
 def test_check_environment_fails_on_one_difference(monkeypatch, tmp_path):
@@ -523,18 +622,22 @@ def _locked_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr(ai_mirror, "AI_DIR", ai_dir)
     monkeypatch.setattr(ai_mirror, "RESULTS_DIR", res)
     targets = [_tgt(0, "A1", "claude"), _tgt(1, "A2", "chatgpt")]
+    monkeypatch.setattr(ai_mirror, "N_TARGETS", len(targets))   # the count guard reads it at call time
     (ai_dir / "targets_humanities.json").write_text(json.dumps(
         {"targets": [ai_mirror.dataclasses.asdict(t) for t in targets]}), encoding="utf-8")
     papers = {}
     for t in targets:
         text = "\n\n".join(" ".join([t.author_id.lower()] * 700) for _ in range(2))
         (ai_dir / "texts" / f"{t.author_id}.txt").write_text(text, encoding="utf-8")
-        papers[t.author_id] = {"author_id": t.author_id,
+        papers[t.author_id] = {"author_id": t.author_id, "paper_id": t.paper_id, "tool": t.tool,
+                               "words": 1400, "continued": False,
                                "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest()}
     (ai_dir / "manifest_humanities.json").write_text(json.dumps(
         {"study_id": ai_mirror.STUDY_ID, "collection": "humanities", "papers": papers}), encoding="utf-8")
     (ai_dir / "environment_humanities.json").write_text(
-        json.dumps({"passed": True, "vectorizers_sha256": "vecsha"}), encoding="utf-8")
+        json.dumps({"passed": True, "vectorizers_sha256": "vecsha", "fingerprint": FP}), encoding="utf-8")
+    monkeypatch.setattr(ai_mirror, "_fingerprint", lambda: dict(FP))
+    monkeypatch.setattr(ai_mirror, "THRESHOLDS_PATH", _thresholds_file(tmp_path, dict(COMMITTED)))
     monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: False)
     monkeypatch.setattr(rule_d, "fit_or_load_vectorizers", lambda c: ({"char": "VEC"}, "vecsha"))
     log = tmp_path / "LOCKED_OPENINGS.tsv"   # earlier openings, none by this study for humanities
@@ -555,31 +658,47 @@ GUARD_CASES = {
     "already_opened": "already records an opening",
     "env_missing": "is missing: run check-env",
     "env_failed": "does not record passed: true",
+    "fingerprint_differs": "fingerprint differs from the one check-env recorded",
+    "thresholds_not_pinned": "do not equal the pinned COMMITTED_THRESHOLDS",
     "vectorizers_differ": "differs from the one that passed the gate",
+    "target_count": "pre-registered target count",
     "no_ai_paper": "has no entry in the AI manifest",
+    "protocol_mismatch": "but its target has",
     "text_missing": "A2.txt for target A2 is missing",
     "text_hash_differs": "does not match the sha256 in its manifest entry",
     "uncommitted": "uncommitted changes under",
 }
 
 
+def _edit_json(path, edit):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    edit(data)
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
 @pytest.mark.parametrize("broken", sorted(GUARD_CASES))
 def test_open_locked_guards(broken, tmp_path, monkeypatch):
     ai_dir, res = _locked_fixture(tmp_path, monkeypatch)
+    env_path, manifest_path = ai_dir / "environment_humanities.json", ai_dir / "manifest_humanities.json"
     study = ai_mirror.STUDY_ID
     if broken == "wrong_study":
         study = "scholarly-rule-d-2026-11-12"
     elif broken == "result_exists":
         (res / "ai_mirror_humanities_locked_test_2026-11-17.json").write_text("{}", encoding="utf-8")
     elif broken == "env_missing":
-        (ai_dir / "environment_humanities.json").unlink()
-    elif broken == "env_failed":
-        (ai_dir / "environment_humanities.json").write_text(   # sha still matches: only `passed` is broken
-            json.dumps({"passed": False, "vectorizers_sha256": "vecsha"}), encoding="utf-8")
+        env_path.unlink()
+    elif broken == "env_failed":   # sha and fingerprint still match: only `passed` is broken
+        _edit_json(env_path, lambda e: e.update(passed=False))
+    elif broken == "fingerprint_differs":
+        _edit_json(env_path, lambda e: e["fingerprint"].update(numpy="2.0.0"))
+    elif broken == "thresholds_not_pinned":   # as a `rule_d calibrate` run would leave it
+        _edit_json(ai_mirror.THRESHOLDS_PATH, lambda d: d["thresholds"].update(matched_1200_1200=-1.2))
+    elif broken == "target_count":
+        _edit_json(ai_dir / "targets_humanities.json", lambda d: d["targets"].pop())
     elif broken == "no_ai_paper":
-        m = json.loads((ai_dir / "manifest_humanities.json").read_text(encoding="utf-8"))
-        del m["papers"]["A2"]
-        (ai_dir / "manifest_humanities.json").write_text(json.dumps(m), encoding="utf-8")
+        _edit_json(manifest_path, lambda m: m["papers"].pop("A2"))
+    elif broken == "protocol_mismatch":
+        _edit_json(manifest_path, lambda m: m["papers"]["A2"].update(tool="gemini"))
     elif broken == "text_missing":
         (ai_dir / "texts" / "A2.txt").unlink()
     elif broken == "text_hash_differs":
@@ -589,8 +708,7 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
         with loader.LOCKED_LOG.open("a", encoding="utf-8") as f:
             f.write(f"2026-11-18T10:00:00\thumanities\t{ai_mirror.STUDY_ID}\n")
     elif broken == "vectorizers_differ":
-        (ai_dir / "environment_humanities.json").write_text(
-            json.dumps({"passed": True, "vectorizers_sha256": "othersha"}), encoding="utf-8")
+        _edit_json(env_path, lambda e: e.update(vectorizers_sha256="othersha"))
     elif broken == "uncommitted":
         monkeypatch.setattr(ai_mirror, "_uncommitted", lambda p: True)
     with pytest.raises(SystemExit) as exc:
@@ -680,6 +798,61 @@ def test_open_locked_reports_reproduction_differences(tmp_path, monkeypatch):
     assert out["reproduction"]["equal"] is False
     assert "matched_1200_1200/random/catch_rate" in out["reproduction"]["diffs"]
     assert out["reproduction"]["cells"]["matched_1200_1200"]["random"]["catch_rate"] == 0.5
+
+
+def _reach_opening(monkeypatch):
+    def opened(*a, **k):
+        raise _Opened
+    monkeypatch.setattr(loader, "load_trial_grid", opened)
+
+
+@pytest.mark.parametrize("key,value", [("python", "3.12.1"), ("numpy", "2.0.0"),
+                                       ("scikit_learn", "1.6.1"), ("sentence_transformers", True)])
+def test_open_locked_refuses_each_compared_fingerprint_field(key, value, tmp_path, monkeypatch):
+    ai_dir, _ = _locked_fixture(tmp_path, monkeypatch)
+    _edit_json(ai_dir / "environment_humanities.json", lambda e: e["fingerprint"].update({key: value}))
+    with pytest.raises(SystemExit, match="fingerprint differs") as exc:
+        ai_mirror.open_locked(ai_mirror.STUDY_ID)
+    assert key in str(exc.value)
+
+
+def test_open_locked_refuses_when_no_fingerprint_was_recorded(tmp_path, monkeypatch):
+    ai_dir, _ = _locked_fixture(tmp_path, monkeypatch)
+    _edit_json(ai_dir / "environment_humanities.json", lambda e: e.pop("fingerprint"))
+    with pytest.raises(SystemExit, match="fingerprint differs"):
+        ai_mirror.open_locked(ai_mirror.STUDY_ID)
+
+
+def test_open_locked_only_records_platform_pdftotext_and_head(tmp_path, monkeypatch):
+    ai_dir, _ = _locked_fixture(tmp_path, monkeypatch)
+    _edit_json(ai_dir / "environment_humanities.json", lambda e: e["fingerprint"].update(
+        platform="macOS-15", pdftotext=None, git_head="b" * 40))
+    _reach_opening(monkeypatch)
+    with pytest.raises(_Opened):
+        ai_mirror.open_locked(ai_mirror.STUDY_ID)
+
+
+def test_protocol_notes_list_short_entries_without_a_continuation():
+    targets = [_tgt(0, "A1", "claude"), _tgt(1, "A2", "chatgpt"), _tgt(2, "A3", "gemini")]
+    papers = {"A1": {"words": 1400, "continued": False}, "A2": {"words": 900, "continued": False},
+              "A3": {"words": 1100, "continued": True}}
+    [note] = ai_mirror.protocol_notes(targets, papers)
+    assert note.startswith("A2: 900 cleaned words") and "1,300" in note
+
+
+def test_open_locked_records_and_prints_protocol_notes(tmp_path, monkeypatch, capsys):
+    ai_dir, _ = _locked_fixture(tmp_path, monkeypatch)
+    _edit_json(ai_dir / "manifest_humanities.json", lambda m: m["papers"]["A2"].update(words=900))
+    monkeypatch.setattr(loader, "load_trial_grid", lambda c, p, grid, **k: {
+        (n, s): loader.TrialSet([], {}) for n, _, _, s in grid})
+    monkeypatch.setattr(rule_d, "build_scores", lambda *a, **k: [
+        _row("A1", n, 0.0, label=0, kind="honest") for n, _, _ in rule_d.CONFIGS])
+    monkeypatch.setattr(rule_d, "cell_report", lambda R, thr, kind, n_boot: {})
+    out = ai_mirror.open_locked(ai_mirror.STUDY_ID, n_boot=3)
+    assert out["protocol_notes"] == ai_mirror.protocol_notes(
+        ai_mirror.load_targets(), ai_mirror.load_ai_manifest()["papers"])
+    [note] = out["protocol_notes"]
+    assert note.startswith("A2: 900") and note in capsys.readouterr().out
 
 
 def test_uncommitted_sees_untracked_and_clean(tmp_path, monkeypatch):
