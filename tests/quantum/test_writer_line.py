@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from original.constants import WRITER_LINE_Z_THRESHOLDS
 from original.quantum.writer_line import writer_line_action, writer_z
 
 
@@ -27,10 +28,12 @@ def test_non_finite_abstains(bad):
 
 
 def test_tier_bands():
-    assert writer_line_action(0.5) == "no_action"
-    assert writer_line_action(1.5) == "monitor"
-    assert writer_line_action(2.5) == "schedule_conversation"
-    assert writer_line_action(9.0) == "escalate"
+    t = WRITER_LINE_Z_THRESHOLDS
+    for name in ("monitor", "schedule_conversation"):
+        lo, hi = t[name]
+        assert writer_line_action((lo + hi) / 2) == name
+    assert writer_line_action(t["monitor"][0] - 1.0) == "no_action"
+    assert writer_line_action(t["escalate"][0] + 1.0) == "escalate"
 
 
 def test_below_lowest_band_is_first_tier():
@@ -44,9 +47,9 @@ def test_below_lowest_band_is_first_tier():
 
 
 def test_band_boundaries_are_inclusive_lower():
-    assert writer_line_action(1.0) == "monitor"
-    assert writer_line_action(2.0) == "schedule_conversation"
-    assert writer_line_action(3.0) == "escalate"
+    t = WRITER_LINE_Z_THRESHOLDS
+    for name in ("monitor", "schedule_conversation", "escalate"):
+        assert writer_line_action(t[name][0]) == name
 
 
 def test_exactly_three_papers_returns_float():
@@ -133,9 +136,10 @@ def test_shadow_changes_no_field_but_sets_diagnostics():
 
 def test_on_replaces_base_tier():
     s, b = _state()
-    off = _score(s, b, writer_line="off")
+    # shift 0.06 puts the writer z above the calibrated escalate cut.
+    off = _score(s, b, shift=0.06, writer_line="off")
     s2, b2 = _state()
-    on = _score(s2, b2, writer_line="on")
+    on = _score(s2, b2, shift=0.06, writer_line="on")
     assert _TIERS.index(on.recommendation.action) >= _TIERS.index("schedule_conversation")
     assert _TIERS.index(off.recommendation.action) < _TIERS.index(on.recommendation.action)
     assert on.recommendation.confidence == off.recommendation.confidence
@@ -148,9 +152,10 @@ def test_on_still_lets_gate_lower_one_step():
     peers = [_state(f"t:p{i}", 100 + i)[0] for i in range(5)]
     imp = build_impostor_stats(s.student_id, [s, *peers])
     shadow_llr = _score(
-        s, b, impostor_stats=imp, null_model="impostor", writer_line="on", llr_action_mode="shadow"
+        s, b, shift=0.06, impostor_stats=imp, null_model="impostor", writer_line="on",
+        llr_action_mode="shadow",
     )
-    gated = _score(s, b, impostor_stats=imp, null_model="impostor", writer_line="on")
+    gated = _score(s, b, shift=0.06, impostor_stats=imp, null_model="impostor", writer_line="on")
     assert gated.authorship.llr_deviation_score <= 0.35
     assert shadow_llr.recommendation.action == gated.writer_line_action == "escalate"
     assert gated.recommendation.action == "schedule_conversation"

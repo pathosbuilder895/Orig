@@ -48,9 +48,11 @@ from validation.calibration_gate import (
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
     evaluate_g_t4_coldstart,
+    evaluate_g_writerline,
 )
 from validation.rebind.harness import PairRecord
 from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
+from validation.writer_line.harness import WriterPairRecord
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,39 @@ def _rebind_witness() -> GateResult:
     return evaluate_g_rebind(_rebind_inverted_records(), thresholds=LLR_REBIND_THRESHOLDS)
 
 
+def _writerline_witness() -> GateResult:
+    """Genuine papers sit far above their own spread (writer z ~12, escalate under fixed bands)
+    while gate leaves them at no_action; impostors sit inside it."""
+    bands = {
+        "no_action": (float("-inf"), 1.0),
+        "monitor": (1.0, 2.0),
+        "schedule_conversation": (2.0, 3.0),
+        "escalate": (3.0, float("inf")),
+    }
+    loo = (0.5, 0.6, 0.7)
+    genuine = [
+        WriterPairRecord(f"g{k % 20}", True, 0.2, 0.5, "witness", rms_z=1.6, loo=loo)
+        for k in range(400)
+    ]
+    impostor = [
+        WriterPairRecord(f"i{k % 20}", False, 0.2, 0.5, "witness", rms_z=0.6, loo=loo)
+        for k in range(400)
+    ]
+    return evaluate_g_writerline(genuine + impostor, thresholds=bands)
+
+
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_writerline": GateContract(
+        gate="G-WRITERLINE",
+        claims="the per-writer line catches more impostors at "
+        "schedule_conversation+ than gate on held-out writers without raising "
+        "honest false alarms (<= 5% and <= gate's at schedule_conversation+, "
+        "<= gate's at escalate)",
+        failure_witness=_writerline_witness,
+        notes="Witness inverts the writer line at n=400 per side: every genuine "
+        "pair escalates while gate leaves it at no_action, so the false-alarm "
+        "legs fail.",
+    ),
     "evaluate_g_rebind": GateContract(
         gate="G-REBIND",
         claims="rebind catches more impostors at schedule_conversation+ than "

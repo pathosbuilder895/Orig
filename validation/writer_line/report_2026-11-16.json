@@ -1,0 +1,131 @@
+{
+  "seed": 20261116,
+  "records": [
+    "validation/rebind/records/pan20_cross_fandom_nullmodel_N3.json",
+    "validation/rebind/records/public_authors_nullmodel_N3.json",
+    "validation/rebind/records/seminary_nullmodel_N3.json"
+  ],
+  "n_derivation": 329,
+  "n_holdout": 115,
+  "thresholds": {
+    "no_action": [
+      "-inf",
+      11.971842225688471
+    ],
+    "monitor": [
+      11.971842225688471,
+      12.564559800260295
+    ],
+    "schedule_conversation": [
+      12.564559800260295,
+      13.771075683353157
+    ],
+    "escalate": [
+      13.771075683353157,
+      "inf"
+    ]
+  },
+  "rates": {
+    "gate": {
+      "catch_sc": 0.6627906976744186,
+      "fa_sc": 0.0,
+      "fa_esc": 0.0,
+      "n_genuine": 29,
+      "n_impostor": 86,
+      "n_fallback": 0
+    },
+    "writer_line": {
+      "catch_sc": 0.46511627906976744,
+      "fa_sc": 0.06896551724137931,
+      "fa_esc": 0.06896551724137931,
+      "n_genuine": 29,
+      "n_impostor": 86,
+      "n_fallback": 0
+    }
+  },
+  "per_corpus": {
+    "pan20_cross_fandom_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.7222222222222222,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 9,
+        "n_impostor": 18,
+        "n_fallback": 0
+      },
+      "writer_line": {
+        "catch_sc": 0.6666666666666666,
+        "fa_sc": 0.2222222222222222,
+        "fa_esc": 0.2222222222222222,
+        "n_genuine": 9,
+        "n_impostor": 18,
+        "n_fallback": 0
+      }
+    },
+    "public_authors_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.7857142857142857,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 14,
+        "n_impostor": 56,
+        "n_fallback": 0
+      },
+      "writer_line": {
+        "catch_sc": 0.5,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 14,
+        "n_impostor": 56,
+        "n_fallback": 0
+      }
+    },
+    "seminary_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.0,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 6,
+        "n_impostor": 12,
+        "n_fallback": 0
+      },
+      "writer_line": {
+        "catch_sc": 0.0,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 6,
+        "n_impostor": 12,
+        "n_fallback": 0
+      }
+    }
+  },
+  "writers_escalate_unreachable": {
+    "pan20_cross_fandom_nullmodel_N3": {
+      "count": 1,
+      "of": 3,
+      "writers": [
+        "pan20_00061789a54d"
+      ]
+    },
+    "public_authors_nullmodel_N3": {
+      "count": 3,
+      "of": 5,
+      "writers": [
+        "augustine",
+        "edwards",
+        "thoreau"
+      ]
+    },
+    "seminary_nullmodel_N3": {
+      "count": 3,
+      "of": 3,
+      "writers": [
+        "seminary_01",
+        "seminary_03",
+        "seminary_05"
+      ]
+    }
+  },
+  "verdict": "uninformative",
+  "current_value": "n_genuine=29 too small: even 0 false alarms has Wilson 95% upper bound 11.7% > 5%"
+}

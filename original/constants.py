@@ -713,14 +713,17 @@ ACTION_THRESHOLDS = {
 }
 
 # Per-writer line: a paper's rms_z judged against the writer's own
-# leave-one-out spread. Bands are placeholders until calibrated.
+# leave-one-out spread. Bands chosen on the derivation split only
+# (python -m validation.writer_line.run, seed 20261116,
+# validation/writer_line/report_2026-11-16.json). Not validated:
+# G-WRITERLINE is uninformative at n_genuine=29.
 WRITER_LINE_MIN_PAPERS = 3
 WRITER_LINE_STD_FLOOR = 0.05
 WRITER_LINE_Z_THRESHOLDS: dict[str, tuple[float, float]] = {
-    "no_action":             (float("-inf"), 1.0),
-    "monitor":               (1.0, 2.0),
-    "schedule_conversation": (2.0, 3.0),
-    "escalate":              (3.0, float("inf")),
+    "no_action":             (float("-inf"), 11.971842225688471),
+    "monitor":               (11.971842225688471, 12.564559800260295),
+    "schedule_conversation": (12.564559800260295, 13.771075683353157),
+    "escalate":              (13.771075683353157, float("inf")),
 }
 
 # ── Lexicons ─────────────────────────────────────────────────────────────────

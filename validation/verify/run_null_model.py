@@ -155,6 +155,8 @@ def run(
     #      llr_deviation_score (impostor-adjusted) from the same call. ──
     baseline_pairs: List[_ScoringPair] = []
     llr_pairs: List[_ScoringPair] = []
+    # Per-pair rms_z and the target's loo_distances, for G-WRITERLINE.
+    writer_rows: List[tuple] = []
     t0 = time.perf_counter()
     for target in eligible:
         state = states[target]
@@ -189,6 +191,9 @@ def run(
                     )
                 )
                 llr = result.authorship.llr_deviation_score
+                writer_rows.append(
+                    (float(result.catastrophic_drift_rms_z), [float(x) for x in state.loo_distances])
+                )
                 llr_pairs.append(
                     _ScoringPair(
                         baseline_author=target,
@@ -228,8 +233,10 @@ def run(
                     "submission_author": b.submission_author,
                     "deviation": b.deviation,
                     "llr": lp.deviation,
+                    "rms_z": wr[0],
+                    "loo": wr[1],
                 }
-                for b, lp in zip(baseline_pairs, llr_pairs, strict=True)
+                for b, lp, wr in zip(baseline_pairs, llr_pairs, writer_rows, strict=True)
             ],
         },
     )
