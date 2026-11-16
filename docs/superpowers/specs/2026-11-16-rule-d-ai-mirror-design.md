@@ -49,7 +49,15 @@ humanities scholarship, not student writing (NORTH_STAR rule 2).
   (NORTH_STAR rule 7).
 * **Cleaning.** Each reply goes through the corpus's own inline cleaner (citations, footnote
   markers, URLs removed) plus removal of markdown, headings and any reference list, and
-  paragraphs under 12 words are dropped, as the corpus cleaner does for papers.
+  paragraphs under 12 words are dropped, as the corpus cleaner does for papers. Chat-app
+  wrapper text is not the article and is removed by a fixed rule: a first paragraph that
+  opens with a stock assistant phrase ("Certainly", "Here is", ...) or ends with a colon,
+  and trailing paragraphs that offer further help ("Let me know", "Would you like", ...).
+  The reply and its continuation are saved to separate files and cleaned separately, then
+  joined. Every paragraph removed as a reference entry or wrapper is counted in the
+  record, so nothing is cut unseen.
+* **Thresholds pinned.** The three committed rule D thresholds are copied into the study's
+  code as constants; the gate and the opening refuse to run if the thresholds file differs.
 * **Scoring.** Rule D exactly as pre-registered on 2026-11-12, with the committed thresholds,
   in the seed-7 trial of each configuration. The AI paper is cut at a seeded paragraph start
   to the configuration's new-paper length (1200 or 300 words), and is compared against all

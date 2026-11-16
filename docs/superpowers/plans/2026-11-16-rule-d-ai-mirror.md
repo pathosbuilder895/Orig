@@ -345,7 +345,7 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
 
 - [ ] **Step 1:** Run `.venv/bin/python -m validation.scholarly.ai_mirror select`. Expected: 20 targets, tools 7/7/6, both files written.
 - [ ] **Step 2:** Ask Andrew which route the Claude share takes (claude.ai pasted by him, or a fresh subagent given only the prompt). Record his answer.
-- [ ] **Step 3:** Write the pre-registration, modelled on `docs/research/2026-11-12-scholarly-locked-test-preregistration.md`: tool, date, question, decision it informs; study id; the statement that nothing changes after this commit and results are reported as they come out; a link to the spec for the design; the SHA-256 of `targets_humanities.json`; the prompt and continuation text; the committed thresholds; the decision rule (17 or fewer of 20 caught: below 95%; 18 or more: 95% not ruled out, scale to about 130); the Claude-share route; the opening procedure (one cloud session: restore, `check-env`, `locked` only if `passed`; if the gate fails, stop and report to Andrew, AI papers stay committed and unused).
+- [ ] **Step 3:** Write the pre-registration, modelled on `docs/research/2026-11-12-scholarly-locked-test-preregistration.md`: tool, date, question, decision it informs; study id; the statement that nothing changes after this commit and results are reported as they come out; a link to the spec for the design; the SHA-256 of `targets_humanities.json`; the prompt and continuation text; the committed thresholds; the decision rule (17 or fewer of 20 caught: below 95%; 18 or more: 95% not ruled out, scale to about 130); the Claude-share route; that venue names are used exactly as recorded in the committed candidate list (two are cut at 80 characters and two are repositories, not journals); the opening procedure (one cloud session: restore, `check-env`, `locked` only if `passed`; if the gate fails, stop and report to Andrew, AI papers stay committed and unused).
 - [ ] **Step 4:** Commit and push: `git commit -m "Pre-register the rule D AI-mirror screen (study scholarly-ai-mirror-2026-11-16)"`, `git push -u origin claude/rule-d-ai-mirror`.
 
 ---
@@ -354,8 +354,8 @@ def test_open_locked_guards(broken, tmp_path, monkeypatch):
 
 No code. Done when 20 entries are in `ai_mirror/manifest_humanities.json`.
 
-- [ ] **Step 1:** Andrew pastes each prompt from `prompts_humanities.md` into the assigned app in a new chat, and saves the whole reply to `validation/scholarly/ai_mirror/raw/<author_id>.txt`. For the subagent route (Claude share only, if chosen): one fresh `general-purpose` subagent per paper, whose entire prompt is the filled prompt plus "Reply with the article only."; save its reply the same way and record the model id.
-- [ ] **Step 2:** Run `intake` for each. Where it reports fewer than 1,300 words, send `CONTINUE_PROMPT` once in the same chat, append the reply to the raw file, and re-run `intake` with `--continued`. No other re-prompting, regenerating or editing.
+- [ ] **Step 1:** Andrew pastes each prompt from `prompts_humanities.md` into the assigned app in a new chat, and saves the whole reply to `validation/scholarly/ai_mirror/raw/<author_id>.txt`. For the subagent route (Claude share only, if chosen): one fresh `general-purpose` subagent per paper, whose entire prompt is the filled prompt and nothing else (as the spec says); save its reply the same way and record the model id.
+- [ ] **Step 2:** Run `intake` for each. Where it reports fewer than 1,300 words, send `CONTINUE_PROMPT` once in the same chat, save that reply to `validation/scholarly/ai_mirror/raw/<author_id>.cont.txt`, and re-run `intake` with `--continued`. Before committing, read each entry's paragraph-cut counts and look at any non-zero one. No other re-prompting, regenerating or editing.
 - [ ] **Step 3:** Commit raw files, texts and the manifest, and push: `git commit -m "Add the 20 AI-mirror papers for the rule D screen"`.
 
 ---
