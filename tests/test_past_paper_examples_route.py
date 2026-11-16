@@ -23,7 +23,8 @@ def seeded(live_client, monkeypatch):
     monkeypatch.setenv("INVITE_NO_EXPIRY", "1")
     monkeypatch.delenv("MIN_BASELINE_SAMPLES", raising=False)
     principal.invalidate_tenant_cache()
-    T, [(sid, S), (_classmate, S2)] = _workspace(live_client, f"ppx-{uuid.uuid4().hex[:8]}@example.test")
+    email = f"ppx-{uuid.uuid4().hex[:8]}@example.test"
+    T, [(sid, S), (_classmate, S2)] = _workspace(live_client, email)
     for k in range(3):
         _ok(
             live_client.post(
