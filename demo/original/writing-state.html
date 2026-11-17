@@ -646,7 +646,8 @@
     const w=approvalLine(note);
     return plural(counted()||0,'counted sample')+(w?', '+w:'');
   }
-  const READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more';
+  // Ready at the score route's own floor (MIN_BASELINE_SAMPLES, 3): the alpha's three papers.
+  const READY_NEEDS='ready needs 3 or more counted samples';
   const hasBaseline=()=>!!S.student&&(counted()||0)>0;
   const actionOf=()=>(S.result&&S.result.recommendation)?S.result.recommendation.action:'';
   const look=()=>has(ACTION,actionOf())?ACTION[actionOf()]:OTHER_ACTION;
@@ -1417,14 +1418,14 @@
   // When the roster gave no verdict (past its 60-student cap, a failed
   // readiness call, or a student reached by link who is not on it), the
   // server's own readiness rule (original/routers/students.py, readiness)
-  // applied to the score response: ready at 5 counted samples and 3
-  // effective, building from 2, else too little. Null when a field is missing.
+  // applied to the score response: ready at 3 counted samples, building
+  // from 1, else too little. Null when a field is missing.
   function resultVerdict(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null, e=bc?num(bc.effective_sample_count):null;
     if(a==null||e==null) return null;
-    if(a>=5&&e>=3) return 'ready';
-    if(a>=3) return 'developing';
+    if(a>=3) return 'ready';
+    if(a>=1) return 'developing';
     return 'insufficient';
   }
   const verdictNow=()=>S.verdict||(S.result?resultVerdict():null);

@@ -2576,8 +2576,9 @@ def test_baseline_page_says_what_the_baseline_holds_without_overclaiming():
     # never called approved, and the server's own sentences say "counted" too.
     assert "replace(/authenticated/gi,'counted')" in page
     assert "'approved')" not in page
-    # The full readiness rule, and the wording of the building verdict.
-    assert "5 or more counted samples with an effective count of 3 or more" in page
+    # The full readiness rule (ready at the score route's 3-paper floor), and the
+    # wording of the building verdict.
+    assert "ready at 3 or more counted samples" in page
     assert "results are less reliable; false alarms are likely" in page
     assert "cannot tell" not in page
     # Recency is by the order samples were added, not by the date written, and the
@@ -2910,9 +2911,9 @@ _APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baselin
 
 COUNTED_LABELS = {
     "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
-    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "Live.approvalWords("),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 3 or more counted samples'", "Live.approvalWords("),
     "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "Live.approvalWords("),
-    "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
+    "reports.html": ("ready at 3 or more counted samples",),
 }
 
 
@@ -3084,12 +3085,12 @@ def _scored(authenticated, effective, **state) -> dict:
     "authenticated,effective,verdict",
     [
         (5, 3.0, "ready"),
-        (5, 2.9, "developing"),  # five samples that barely count are still building
-        (9, 2.0, "developing"),
-        (4, 10, "developing"),
-        (3, 0, "developing"),
-        (2, 0, "insufficient"),  # below the 3-paper minimum Original does not compare
-        (1, 1, "insufficient"),
+        (5, 2.9, "ready"),  # ready at the score route's 3-paper floor, whatever the weights
+        (9, 2.0, "ready"),
+        (4, 10, "ready"),
+        (3, 0, "ready"),  # the alpha's three papers
+        (2, 0, "developing"),  # below the 3-paper minimum Original does not compare: building
+        (1, 1, "developing"),
         (0, 0, "insufficient"),
         (None, 3, None),  # a missing field is no verdict, never "fine"
         (5, None, None),
@@ -3123,16 +3124,16 @@ def test_writing_state_prefers_the_rosters_verdict_over_the_one_it_derives():
 @needs_node
 def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready():
     ready, building, thin, unreadable = _verdicts(
-        [_scored(5, 3), _scored(3, 2), _scored(1, 1), _scored(None, None)]
+        [_scored(3, 2), _scored(2, 2), _scored(1, 1, verdict="insufficient"), _scored(None, None)]
     )
-    assert ready["line"] == ""
+    assert ready["line"] == ""  # three counted samples: the alpha's baseline reads normally
     assert building["line"] == (
-        " Original rates this baseline \u201cBuilding\u201d (3 counted samples; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        " Original rates this baseline \u201cBuilding\u201d (2 counted samples; "
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
         " Original rates this baseline \u201cNeeds more\u201d (1 counted sample; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
     assert unreadable["line"] == (
@@ -3140,8 +3141,8 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples and an effective count of 3 or more)" in building["note"]
-    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples and an effective count of 3 or more)" in thin["note"]
+    assert "\u201cBuilding\u201d (2 counted samples; ready needs 3 or more counted samples)" in building["note"]
+    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 3 or more counted samples)" in thin["note"]
 
 
 def _record(counted: int, *provenances: str) -> dict:
@@ -3161,11 +3162,13 @@ def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a
     take_home = ("unverified", "take_home")
     all_you, mixed, upload_only, missing = _verdicts(
         [
-            _scored(3, 2, student=_sourced(("proctored", "staff_or_supervised"), ("verified", "staff_or_supervised"), take_home)),
-            _scored(3, 2, student=_sourced(("proctored", "staff_or_supervised"), take_home, ("unverified", "student_upload"))),
+            # The roster rates each "Building" (a server with a higher MIN_BASELINE_SAMPLES),
+            # so the line that carries the approval wording is shown.
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), ("verified", "staff_or_supervised"), take_home)),
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), take_home, ("unverified", "student_upload"))),
             _scored(2, 2, student=_sourced(("unverified", "student_upload"), ("unverified", "student_upload"))),
             # An old server sends no source: the provenance rule decides.
-            _scored(3, 2, student=_record(3, "proctored", "unverified", "unverified")),
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "unverified", "unverified")),
         ]
     )
     assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
@@ -3186,12 +3189,12 @@ def test_writing_state_counts_samples_approved_by_you_apart_from_counted_ones():
     # imported, or a take-home exam or shared paper), and that is shown beside it, never in its place.
     split, no_list, stale = _verdicts(
         [
-            _scored(3, 2, student=_record(3, "proctored", "verified", "unverified")),
-            _scored(3, 2, student={"authenticated_count": 3}),  # no sample list: no split to give
-            _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "verified", "unverified")),
+            _scored(3, 2, verdict="developing", student={"authenticated_count": 3}),  # no sample list: no split to give
+            _scored(3, 2, verdict="developing", student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
         ]
     )
-    rule = "ready needs 5 or more counted samples and an effective count of 3 or more"
+    rule = "ready needs 3 or more counted samples"
     assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["line"]
     assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["note"]
     assert "approved by you" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
@@ -3361,13 +3364,14 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     "counts,said,not_said",
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
-        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 3, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
+        ({"authenticated_count": 3, "effective_sample_count": 0}, "A paper on a new topic or in a new genre", "inconclusive"),
+        ({"authenticated_count": 2, "effective_sample_count": 2}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 0, "effective_sample_count": 0}, "\u201cNeeds more\u201d", None),
         ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
         ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
-    ids=["ready", "five-barely-counting", "three-samples", "one-sample", "no-effective-count", "no-counts"],
+    ids=["ready", "three-samples", "two-samples", "one-sample", "no-samples", "no-effective-count", "no-counts"],
 )
 def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
     out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500
@@ -3406,7 +3410,7 @@ def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_serv
 def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(student, table_says):
     out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
     assert table_says in out["baseline"]
-    assert "\u201cNeeds more\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+    assert "\u201cBuilding\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
 
 
 @needs_node

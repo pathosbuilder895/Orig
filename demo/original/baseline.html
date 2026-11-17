@@ -571,7 +571,7 @@
   const kindOf=s=>Live.sampleKind(s);
 
   // The server's readiness rule, in full (original/routers/students.py).
-  const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 3 counted samples. Below 3, Original does not compare new writing.';
+  const RULE='Original calls a baseline ready at 3 or more counted samples. Below 3 it is building, and Original does not compare new writing.';
 
   // The words are the suite's one map (Live.VERDICT_WORDS); this only adds a colour and a sentence.
   const VERDICT={
