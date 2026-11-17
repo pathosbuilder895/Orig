@@ -220,7 +220,7 @@ class EngineView:
     doc: TextDoc
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=16)
 def engine_view(text: str) -> EngineView | None:
     """Rebuild the engine's measured strings with offsets, or None if the
     rebuild does not match the engine byte for byte (fail closed)."""
@@ -1154,6 +1154,10 @@ def countable_overview(
 # ── Every measurement in the vector (ADR-013, all-features extension) ────────
 
 WHOLE_TEXT_NOTE = NUMBERS_ONLY_NOTE
+PLAIN_UNREADABLE_NOTE = (
+    "Shown on Original's 0 to 1 scale only: a paper sits at an end of that scale, "
+    "where its value in plain units is not kept."
+)
 #: The documented order of the full list.
 ALL_FEATURES_ORDERING = (
     "Sorted by how far this paper sits from the past-paper average on Original's 0 to 1 "
@@ -1197,6 +1201,78 @@ def _paper_values(text: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
         _normalise(raw[c], c) if c in BASE_FEATURE_CODES else 0.5 for c in ALL_FEATURE_CODES
     )
     return raw_row, norm_row
+
+
+@lru_cache(maxsize=64)
+def _light_raw(text: str) -> dict[str, float]:
+    """Raw values for the habits the pages show in plain units, and no others.
+
+    A whole-text habit is shown in plain units only when it has a unit
+    (``evidence_features``), and every such habit comes from Tiers 1 to 7 or
+    16. This runs those extractors (the same functions, on the same
+    ``preprocess``/``TextDoc`` strings, as ``extract_raw_features``) except
+    Tier 5, which parses the whole paper with spaCy. Tiers 8 to 15 are never
+    run: they hold the catastrophe index's per-paragraph full-pipeline parse
+    and sentence embeddings, and none of their values is shown in plain units.
+    Cached by text, so analysing several papers for one student reads each
+    past paper once per process.
+    """
+    from .features.tier7 import extract_tier7
+    from .features.tier16 import extract_tier16
+
+    prose, citation_data = _pp.preprocess(text)
+    doc = TextDoc(prose)
+    raw: dict[str, float] = {}
+    for extract in (
+        tier1.extract_tier1,
+        tier2.extract_tier2,
+        tier3.extract_tier3,
+        tier4.extract_tier4,
+        tier6.extract_tier6,
+        extract_tier7,
+    ):
+        raw.update(extract(doc))
+    raw.update(extract_tier16(citation_data))
+    return raw
+
+
+def _unnormalise(value: float, code: str) -> float:
+    """The raw value behind a 0–1 value, read back through ``NORM_BOUNDS``.
+
+    ``_normalise`` is a straight line clipped at 0 and 1, so a value strictly
+    inside (0, 1) gives the raw value back exactly. At either end the raw value
+    could be anywhere beyond that bound, so it is unknown (NaN), never guessed.
+    """
+    from .constants import NORM_BOUNDS
+
+    bounds = NORM_BOUNDS.get(code)
+    if bounds is None:
+        return float("nan")
+    lo, hi = bounds
+    if hi <= lo or not 0.0 < value < 1.0:
+        return float("nan")
+    return lo + value * (hi - lo)
+
+
+def _paper_values_from_vector(
+    text: str, vector: Any
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """(raw, 0–1) for one paper when the engine's own vector is at hand.
+
+    The 0–1 row is that vector. Raw values come from ``_light_raw``; every
+    other code (Tier 5's seven plain-unit habits among them) is read back from
+    the vector (``_unnormalise``). No whole-paper spaCy parse runs: before
+    this, a scoring request on a student with long past papers re-ran the full
+    extraction on every one and took the pilot's 512 MB instance past its
+    memory (a 502 for every page until it restarted, 2026-11-17).
+    """
+    norm = _as_row(vector)
+    light = _light_raw(text)
+    raw = tuple(
+        float(light[code]) if code in light else _unnormalise(norm[d], code)
+        for d, code in enumerate(ALL_FEATURE_CODES)
+    )
+    return raw, tuple(norm)
 
 
 def recency_weighted_mean(vectors: Sequence[Sequence[float]]) -> list[float]:
@@ -1248,16 +1324,23 @@ def build_all_features(
     from the texts. Nothing here feeds back into a score.
     """
     info = feature_info()
-    sub_raw, sub_norm = _paper_values(submission_text)
-    past_raw_norm = [_paper_values(text) for _, text in baselines]
-    this_row = _as_row(submission_vector) if submission_vector is not None else list(sub_norm)
-    past_rows = (
-        [_as_row(v) for v in baseline_vectors]
-        if baseline_vectors is not None
-        else [list(n) for _, n in past_raw_norm]
-    )
-    if len(past_rows) != len(baselines):
+    if baseline_vectors is not None and len(baseline_vectors) != len(baselines):
         raise ValueError("one baseline vector per baseline text")
+    # With the engine's own vectors (the API), no paper is parsed whole again:
+    # see _paper_values_from_vector. Without them (scripts), the full extraction.
+    if submission_vector is not None:
+        sub_raw, sub_norm = _paper_values_from_vector(submission_text, submission_vector)
+    else:
+        sub_raw, sub_norm = _paper_values(submission_text)
+    if baseline_vectors is not None:
+        past_raw_norm = [
+            _paper_values_from_vector(text, vector)
+            for (_, text), vector in zip(baselines, baseline_vectors, strict=True)
+        ]
+    else:
+        past_raw_norm = [_paper_values(text) for _, text in baselines]
+    this_row = list(sub_norm)
+    past_rows = [list(n) for _, n in past_raw_norm]
     avg_row = (
         _as_row(past_average) if past_average is not None else recency_weighted_mean(past_rows)
     )
@@ -1308,8 +1391,12 @@ def build_all_features(
             kind = "located" if located["locatable"] else "whole_text"
         elif kind == "measured":
             kind = "whole_text"
-            if meta["unit"] is not None:
-                raw_past = [r[d] for r, _ in past_raw_norm]
+            raw_past = [r[d] for r, _ in past_raw_norm]
+            if meta["unit"] is not None and any(v != v for v in (sub_raw[d], *raw_past)):
+                # A paper sits at an end of the 0 to 1 scale, where its plain
+                # value was not read back (_unnormalise): numbers on that scale only.
+                entry["plain_note"] = PLAIN_UNREADABLE_NOTE
+            elif meta["unit"] is not None:
                 entry["plain"] = {
                     "unit": meta["unit"],
                     "this_paper": _rr(sub_raw[d]),
