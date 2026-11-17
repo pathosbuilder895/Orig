@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -127,7 +127,7 @@
   .ex-note p+p{margin-top:.35rem;}
   .ex-note .nums-line{font-size:.86rem;}
   .ex{transition:border-color .18s,box-shadow .18s;}
-  .ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
+  .ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
   .m:target>summary{background:#f6f0e0;}
   /* every measurement */
   .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
@@ -256,8 +256,8 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-13.2"></script>
-<script src="js/evidence-view.js?v=2026-11-13.2"></script>
+<script src="live.js?v=2026-11-17.1"></script>
+<script src="js/evidence-view.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -345,6 +345,8 @@
 
   // ── pieces ──
   const PAPERS={list:[]};
+  // "This paper · analysed <day>" for quotes from the analysed paper (set in render).
+  const THIS={src:'This paper'};
   const nameOf=label=>EV.paperName(label,PAPERS.list);
   function quoteHTML(q,side){
     if(!isObj(q)) return '';
@@ -352,7 +354,7 @@
     const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
     const body=esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
     // The source line is EvidenceView.quoteSource, the rule all three pages share.
-    const src=EV.quoteSource(q,q.paper==='this paper'?'This paper':EV.pastSource(q.paper,PAPERS.list));
+    const src=EV.quoteSource(q,q.paper==='this paper'?THIS.src:EV.pastSource(q.paper,PAPERS.list));
     // Character offsets stay out of the visible line; they are in the tooltip.
     const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
     return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
@@ -540,6 +542,7 @@
     if(st.status===403||st.status===404){ showEmpty('access'); return; }
     addSources(ev,st);
     PAPERS.list=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];
+    THIS.src=EV&&typeof EV.thisSource==='function'?EV.thisSource('This paper',d.analysed_at):'This paper';
     const byCode={};
     ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode[f.code]=f; });
 

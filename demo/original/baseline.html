@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -413,7 +413,7 @@
                   <div class="d" id="traj-d"></div>
                 </div>
               </div>
-              <a class="bb-cta" id="bb-cta" href="/bluebook/#students" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="bb-cta" id="bb-cta" href="bluebook.html" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
             </div>
           </div>
 
@@ -429,7 +429,7 @@
           <div style="margin-top:1.3rem;" id="add-writing">
             <div class="sec-h"><b>Add writing</b><span>anything you add here counts as approved by you</span></div>
             <div class="card add-card">
-              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
+              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, you are told.</div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
                 <div class="min-note" id="add-min" role="status" hidden></div>
@@ -481,9 +481,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-13.2"></script>
-<script src="js/feature-data.js?v=2026-11-13.2"></script>
-<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/fingerprint.js?v=2026-11-17.1"></script>
+<script src="js/feature-data.js?v=2026-11-17.1"></script>
+<script src="live.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -611,9 +611,11 @@
       return;
     }
     $('greet').textContent=nm();
-    // The raw id is small, secondary text, and only when the heading is a name (else it would say the same thing twice).
+    // Staff pages show the writer's name, not an id: the raw id is only a tooltip on the
+    // name (for support), and the visible line stays hidden.
     $('greet-id').textContent='ID '+ID;
-    $('greet-id').hidden=nm()===ID;
+    $('greet-id').hidden=true;
+    $('greet').title=nm()!==ID?'ID '+ID:'';
     const parts=[];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
@@ -940,7 +942,8 @@
   function bluebookHref(){
     const list=S.sealed==='ok'?S.exams:[];
     const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
-    return '/bluebook/#'+(pick?'exam/'+enc(pick.exam_id):'students');
+    // No sealed exam to open: Original's own "Start a new session" page, not the roster.
+    return pick?'/bluebook/#exam/'+enc(pick.exam_id):'bluebook.html';
   }
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');

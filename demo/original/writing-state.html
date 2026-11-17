@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -131,8 +131,6 @@
   .fpq-btn{border:none;background:none;color:var(--dim);font-family:var(--body);font-size:.8rem;font-weight:600;padding:.32rem .8rem;border-radius:16px;cursor:pointer;transition:all .18s;white-space:nowrap;}
   .fpq-btn:hover{color:var(--cream);}
   .fpq-btn.active{background:var(--gold);color:var(--navy);}
-  .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
-  .hero-inner:hover .fpq-hint{opacity:0;}
   /* Feature evidence: hero transforms to show the text itself */
   /* In normal flow below the triage row, so the triage buttons stay visible and clickable while it is open. */
   .hero-evi{position:relative;z-index:6;display:none;flex-direction:column;gap:.8rem;margin-top:1.6rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
@@ -507,7 +505,6 @@
             </details>
             <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
           </div>
-          <div class="fpq-hint">Drag across the print to disturb it</div>
           <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
           <div class="plain-read" id="plain-read">Loading</div>
           <div class="triage" id="triage" hidden>
@@ -583,10 +580,10 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-13.2"></script>
-<script src="js/feature-data.js?v=2026-11-13.2"></script>
-<script src="js/fingerprint.js?v=2026-11-13.2"></script>
-<script src="js/evidence-view.js?v=2026-11-13.2"></script>
+<script src="live.js?v=2026-11-17.1"></script>
+<script src="js/feature-data.js?v=2026-11-17.1"></script>
+<script src="js/fingerprint.js?v=2026-11-17.1"></script>
+<script src="js/evidence-view.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1127,7 +1124,7 @@
       const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
       if(q1){
         $('evi-sub').innerHTML=quoteHTML(q1);
-        setSource('evi-sub-src',q1,S.assignment||'This paper');
+        setSource('evi-sub-src',q1,xpThisLabel());
       } else if(e.kind!=='not_compared'){
         // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
         addNone('evi-sub',noTextWords(e,'this'));
@@ -1474,7 +1471,7 @@
     if(S.stErr){ pr.textContent=S.stErr; return; }
     if(!S.loaded){ pr.textContent='Loading'; return; }
     if(!hasBaseline()){
-      pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+      pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
       return;
     }
     const n=counted()||0, w=approvalLine(false);
@@ -1526,12 +1523,12 @@
     if(mode!=='form') msg('');
   }
   function notEnough(){
-    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
+    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.');
     setCard('none');
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
@@ -1709,8 +1706,7 @@
       '<div class="xp-src"'+at+'>'+esc(EV.quoteSource(q,label))+'</div>';
   }
   function xpThisLabel(){
-    const day=S.analysedAt?EV.dayOf(String(S.analysedAt).slice(0,10)):'';
-    return (S.assignment||'This paper')+(day?' \u00b7 analysed '+day:'');
+    return typeof EV.thisSource==='function'?EV.thisSource(S.assignment,S.analysedAt):(S.assignment||'This paper');
   }
   function xpCard(f,papers){
     const name=EV.clean(f.name,f.code);

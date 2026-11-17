@@ -355,6 +355,21 @@
     return paperName(label, papers) + (day ? SEP + day : '');
   }
 
+  // The day an analysis ran, from its ISO timestamp, in the reader's own calendar.
+  function analysedDay(iso) {
+    var d = new Date(String(iso == null ? '' : iso));
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // The analysed paper's source: its title (else "This paper") and the day it
+  // was analysed, so a quote from it carries a date like a past paper's does.
+  function thisSource(title, analysedAt) {
+    var day = analysedDay(analysedAt);
+    var name = typeof title === 'string' && title.trim() ? title.trim() : 'This paper';
+    return name + (day ? SEP + 'analysed ' + day : '');
+  }
+
   // A quote's source line: where it is from, its length, a short match spelled
   // out, and whether it runs into text set aside. `label` names the paper.
   function quoteSource(q, label) {
@@ -371,7 +386,7 @@
     paperName: paperName, isActive: isActive, isNotCompared: isNotCompared, NOT_COMPARED_WORDS: NOT_COMPARED_WORDS, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
     positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor, noticeFor: noticeFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
-    NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf,
+    NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf, analysedDay: analysedDay, thisSource: thisSource,
     SEP: SEP, pastSource: pastSource, quoteSource: quoteSource,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
