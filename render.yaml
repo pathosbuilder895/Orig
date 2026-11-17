@@ -115,6 +115,16 @@ services:
       # pilot says "none" explicitly (NORTH_STAR rule 4).
       - key: NULL_MODEL
         value: "none"
+      # Staff-only explainability (ADR-013): the side-by-side page's located
+      # evidence and the "Preliminary · unvalidated · not a judgment" chip.
+      # Report-only: never changes a score or a recommended action, never
+      # attached for a student session or on /me/work. The boot log line
+      # "staff_explainability evidence_passages=... preliminary_score=..." says
+      # what the running service read.
+      - key: EVIDENCE_PASSAGES_ENABLED
+        value: "1"
+      - key: PRELIMINARY_SCORE_ENABLED
+        value: "1"
       # ── Bbook external exam app (original/bbook_client.py) ──
       # Outbound client for POST /students/{id}/request-baseline. Both unset
       # means that endpoint returns 503 with manual-upload guidance — the

@@ -433,6 +433,16 @@ class TestUploadFileArms:
         assert "pypdf not installed" in r.json()["detail"]
 
 
+    def test_corrupt_docx_and_pdf_are_422_not_500(self, live_client, store_reset):
+        for name, mime in (("bad.docx", "application/octet-stream"), ("bad.pdf", "application/pdf")):
+            r = live_client.post(
+                "/students/up-corrupt/upload",
+                files={"file": (name, io.BytesIO(b"garbage, not a document"), mime)},
+            )
+            assert r.status_code == 422
+            assert r.json()["detail"] == "This file could not be read."
+
+
 # ── me.py: my_voice unknown-student fallback ─────────────────────────────────
 # A signed session token is self-contained (student_auth.mint_session doesn't
 # touch the store), so a token can be valid for a student id the store has

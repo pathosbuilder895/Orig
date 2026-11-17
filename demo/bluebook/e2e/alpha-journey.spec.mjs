@@ -16,7 +16,7 @@
 
 import { readFileSync } from 'node:fs'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
-import { staffStorageState } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, staffStorageState } from './fixtures/api-setup.mjs'
 
 const PHONE = { width: 375, height: 812 }
 const LAPTOP = { width: 1280, height: 800 }
@@ -70,7 +70,7 @@ test.describe('Alpha journey @alpha', () => {
     const teacher = await newPage(browser, T.baseURL, { storageState: staffStorageState(T.baseURL, T.staff) })
 
     await test.step('the teacher frame says Collections and labels Original as in testing', async () => {
-      await teacher.goto('/bluebook/')
+      await teacher.goto(COLLECTIONS_HOME)
       const nav = teacher.getByRole('navigation', { name: 'Teacher navigation' })
       await expect(nav.getByRole('button', { name: 'Collections', exact: true })).toBeVisible({ timeout: 10_000 })
       await expect(nav.locator('.teacher-brand')).toHaveText('Collections')
@@ -305,7 +305,7 @@ test.describe('Alpha journey @alpha', () => {
     const page = await newPage(browser, testTenant.baseURL, {
       viewport: PHONE, storageState: staffStorageState(testTenant.baseURL, testTenant.staff),
     })
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.getByRole('navigation', { name: 'Teacher navigation' }).getByRole('button', { name: 'Collections', exact: true }).click()
     await page.getByRole('button', { name: '+ New collection' }).click()
     await expect(page.locator('#neTitle')).toBeVisible()

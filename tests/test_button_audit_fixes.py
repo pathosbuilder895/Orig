@@ -113,7 +113,7 @@ def test_writing_state_keeps_the_analysis_for_this_tab_as_soon_as_it_exists():
     assert "storeForPacket();" in analyse
     assert "entry_id:S.entryId" in script
     # It is restored where the student loads, after the baseline is known, and says so plainly.
-    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); }" in script
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in script
     assert "Showing your last analysis of this paper." in page
     assert 'id="an-again"' in page and "Analyse another" in page
     # One key, cleared by sign-out like the packet's reading of it.
@@ -509,7 +509,10 @@ def test_a_submissions_row_opens_its_own_exam_in_bluebook():
     rows = out["rows"]
     assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Collections"' in rows
     assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Collections"' in rows  # an id is encoded, never spliced in
-    assert 'href="/bluebook/" title="Opens this exam in Collections"' in rows  # a booklet with no exam id opens Bluebook itself
+    # A booklet with no exam id opens the Collections list. It carries a hash because the
+    # bare /bluebook/ address now sends a teacher whose workspace has Original home to
+    # Original (staffOriginalHome, demo/bluebook/deep-link.jsx).
+    assert 'href="/bluebook/#collections" title="Opens this exam in Collections"' in rows
     assert 'title="Opens Bluebook"' not in rows
 
 
