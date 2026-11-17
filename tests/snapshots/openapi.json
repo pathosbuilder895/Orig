@@ -3377,7 +3377,7 @@
         "type": "object"
       },
       "ReadinessResponse": {
-        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
+        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),\n\"developing\" (1 or more), else \"insufficient\". Pure read:\ncomputed from the same StudentState the score endpoint uses.",
         "properties": {
           "authenticated_count": {
             "title": "Authenticated Count",

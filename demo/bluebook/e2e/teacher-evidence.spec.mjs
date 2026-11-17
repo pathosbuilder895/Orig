@@ -92,8 +92,10 @@ test.describe('side by side, flags on @evidence-on', () => {
       `This paper is outside the past-paper range on ${outside} of ${active.length} active measurements, and within that range on ${active.length - outside}.`)
     await expect(page.locator('#prelim-chip')).toContainText('Preliminary · unvalidated · not a judgment')
     await expect(page.locator('.notice')).toContainText('This is a starting point, not a verdict.')
-    // Three past papers: the thin-baseline caution is shown.
-    await expect(page.locator('#thin-note')).toBeVisible()
+    // Three past papers is a ready baseline (the score route's floor, since
+    // 2026-11): no thin-baseline caution, and the preliminary chip has a number.
+    await expect(page.locator('#thin-note')).toHaveCount(0)
+    await expect(page.locator('#prelim-chip b')).toHaveText(/^\d\.\d\d$/)
 
     // Biggest differences: Original's top list, in its order.
     await expect(page.locator('#p-diff > .ex')).toHaveCount(ev.features.length)
