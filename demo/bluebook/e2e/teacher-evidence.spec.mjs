@@ -36,6 +36,9 @@ test.describe('side by side, flags set to 0', () => {
     expect(body.preliminary ?? null).toBeNull()
     await expect(page.locator('#tri-packet')).toBeVisible()
     await expect(page.locator('#tri-evidence')).toBeHidden()
+    // No passages sent: the quoted explanation section stays hidden.
+    await expect(page.locator('#xp-sec')).toBeHidden()
+    await expect(page.locator('#xp-list .xp-card')).toHaveCount(0)
 
     // A habit opens with its two numbers only: no quote, no mark, no side-by-side link.
     await page.locator('#heatmap [data-code]').first().click()
@@ -78,6 +81,35 @@ test.describe('side by side, flags on @evidence-on', () => {
     expect(Array.isArray(ev.all_features)).toBe(true)
     expect(body.preliminary.label).toBe('Preliminary · unvalidated · not a judgment')
     expect(ev.baseline_papers.map(p => p.assignment)).toEqual(PAST.map(p => p.assignment))
+
+    // Writing State explains the result in quotes with no click: one card per habit in
+    // Original's top list, in its order. A located habit quotes this paper beside the
+    // past papers, marks the counted part on both sides, and labels each quote with its
+    // source; a whole-text habit says why there is no sentence and shows the numbers.
+    await expect(page.locator('#xp-sec')).toBeVisible()
+    const cardCodes = await page.locator('#xp-list .xp-card').evaluateAll(els => els.map(e => e.dataset.code))
+    expect(cardCodes).toEqual(ev.features.map(f => f.code))
+    const byCode = Object.fromEntries(ev.all_features.map(f => [f.code, f]))
+    let quoted = 0
+    for (const code of cardCodes) {
+      const f = byCode[code] || ev.features.find(x => x.code === code)
+      const card = page.locator(`#xp-list .xp-card[data-code="${code}"]`)
+      await expect(card.locator('.xp-plain')).not.toHaveText('')
+      if (f.kind === 'located' && f.this_paper.examples.length && f.past_papers.examples.length) {
+        quoted++
+        await expect(card.locator('.xp-col:not(.base) .xp-q').first()).toBeVisible()
+        await expect(card.locator('.xp-col.base .xp-q').first()).toBeVisible()
+        await expect(card.locator('.xp-col:not(.base) mark').first()).toBeVisible()
+        await expect(card.locator('.xp-col.base mark').first()).toBeVisible()
+        await expect(card.locator('.xp-col:not(.base) .xp-src').first()).toContainText('analysed')
+        const pastSrc = await card.locator('.xp-col.base .xp-src').first().textContent()
+        expect(PAST.some(p => pastSrc.includes(p.assignment)), pastSrc).toBe(true)
+      } else if (f.kind === 'whole_text') {
+        await expect(card).toContainText('no single sentence to quote')
+        await expect(card.locator('.xp-big')).toBeVisible()
+      }
+    }
+    expect(quoted, 'the fixtures give at least one quoted habit in the top list').toBeGreaterThan(0)
 
     const link = page.locator('#tri-evidence')
     await expect(link).toBeVisible()

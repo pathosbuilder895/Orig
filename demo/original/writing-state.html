@@ -370,6 +370,31 @@
   /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
   .evi-q mark.tiny{background:var(--evc-bg,rgba(201,160,40,.32));box-shadow:none;border-bottom:2px solid var(--evc,#c9a028);padding:0 .24em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .evi-col.base .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
+  /* After an analysis: Original's top list explained in quotes, no click needed. */
+  .xp-list{display:flex;flex-direction:column;gap:.9rem;margin-top:.55rem;}
+  .xp-card{padding:1.1rem 1.25rem;display:flex;flex-direction:column;gap:.7rem;}
+  .xp-h{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;}
+  .xp-h b{font-family:var(--display);font-weight:500;font-size:1.1rem;color:var(--cream);}
+  .xp-h span{font-family:var(--mono);font-size:.72rem;color:var(--dim);}
+  .xp-plain{margin:0;font-size:.98rem;line-height:1.55;color:rgba(245,239,224,.92);}
+  .xp-cols{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;}
+  .xp-col{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:12px;padding:.9rem 1.05rem;display:flex;flex-direction:column;gap:.4rem;min-width:0;}
+  .xp-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#c9a028;}
+  .xp-col.base .xp-lbl{color:#8ba8dd;}
+  .xp-q{font-family:var(--body);font-size:1rem;line-height:1.7;color:rgba(245,239,224,.88);overflow-wrap:anywhere;}
+  .xp-q mark{background:rgba(201,160,40,.24);color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px rgba(201,160,40,.35);}
+  .xp-q mark.tiny{background:rgba(201,160,40,.32);box-shadow:none;border-bottom:2px solid #c9a028;padding:0 .24em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .xp-col.base .xp-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  .xp-col.base .xp-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom:2px solid #8ba8dd;}
+  .xp-src{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.45rem;}
+  .xp-none,.xp-whole{margin:0;font-size:.88rem;line-height:1.5;color:var(--dim);font-style:italic;}
+  .xp-big{font-family:var(--display);font-size:1.6rem;color:var(--cream);}
+  .xp-unit{font-size:.75rem;color:var(--dim);}
+  .xp-vals{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.25rem;font-size:.86rem;color:rgba(245,239,224,.85);}
+  .xp-vals li{display:flex;justify-content:space-between;gap:.6rem;}
+  .xp-foot{display:flex;align-items:baseline;justify-content:space-between;gap:.8rem;flex-wrap:wrap;font-size:.8rem;color:var(--dim);}
+  .xp-side{color:var(--gold-2);font-size:.86rem;}
+  @media (max-width:900px){.xp-cols{grid-template-columns:1fr;}}
   .evi-tab:focus-visible,.evi-side:focus-visible,.tgrp-h:focus-visible,.hbnd:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .evi-foot{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
   .evi-notice{flex:1;min-width:16rem;font-size:.9rem;line-height:1.55;color:var(--dim);}
@@ -517,6 +542,11 @@
               <a class="evi-side" id="evi-side" href="#" hidden>See it side by side</a>
             </div>
           </div>
+        </div>
+        <!-- After an analysis: why this paper reads differently, quoted (no click needed) -->
+        <div id="xp-sec" hidden>
+          <div class="sec-h"><b>Why this paper reads differently</b><span id="xp-sub">Original&rsquo;s top list, in sentences from this paper and the past papers</span></div>
+          <div class="xp-list" id="xp-list"></div>
         </div>
         <!-- State vector -->
         <div>
@@ -1474,6 +1504,7 @@
     renderReadout();
     renderPlain();
     renderResultChrome();
+    renderExplain();
     // Past-paper mode outlives a re-render (the roster's late one), never an analysis.
     const past=EVI.pastHabit();
     EVI.close(false,true);
@@ -1658,6 +1689,71 @@
     const on=hasEvidence(S.result);
     a.hidden=!on;
     a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
+  }
+
+  // ── After an analysis: the result explained in quotes, with no click needed ──
+  // One card for each habit in Original's own top list (evidence.features, in its
+  // order): the plain line saying how this paper differs, then up to three quoted
+  // sentences from this paper beside up to three from the past papers, the counted
+  // part marked and each quote labelled with its source and date. A habit measured
+  // across the whole paper says so and shows the numbers. Same helpers and words as
+  // the Side by side page (EvidenceView). Student text goes through esc only.
+  const XP_WHOLE='This habit is measured across the whole paper, so there is no single sentence to quote. The numbers are below.';
+  const xpObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+  const xpExamples=side=>(xpObj(side)&&Array.isArray(side.examples)?side.examples.filter(q=>xpObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
+  function xpQuote(q,label){
+    const parts=EV.markParts(q);
+    const lead=q.clipped_start?'\u2026 ':'', tail=q.clipped_end?' \u2026':'';
+    const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
+    return '<div class="xp-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>'+
+      '<div class="xp-src"'+at+'>'+esc(EV.quoteSource(q,label))+'</div>';
+  }
+  function xpThisLabel(){
+    const day=S.analysedAt?EV.dayOf(String(S.analysedAt).slice(0,10)):'';
+    return (S.assignment||'This paper')+(day?' \u00b7 analysed '+day:'');
+  }
+  function xpCard(f,papers){
+    const name=EV.clean(f.name,f.code);
+    const one=f.kind==='not_compared'?'':EV.clean(EV.oneLine(f),'');
+    const plain=EV.clean(typeof EV.noticeFor==='function'?EV.noticeFor(f,papers):'','');
+    const nums=EV.clean(EV.noteFor(f,papers),'');
+    let cols;
+    if(f.kind==='located'&&xpObj(f.this_paper)&&xpObj(f.past_papers)){
+      const tp=xpExamples(f.this_paper), pp=xpExamples(f.past_papers), thisLabel=xpThisLabel();
+      cols='<div class="xp-col"><div class="xp-lbl">This paper</div>'+
+          (tp.length?tp.map(q=>xpQuote(q,thisLabel)).join(''):'<p class="xp-none">No passage to quote from this paper.</p>')+'</div>'+
+        '<div class="xp-col base"><div class="xp-lbl">Their own past work</div>'+
+          (pp.length?pp.map(q=>xpQuote(q,EV.pastSource(q.paper,papers))).join(''):'<p class="xp-none">No passage to quote from their past work.</p>')+'</div>';
+    } else {
+      const n=EV.numbersOf(f), past=Array.isArray(n.past)?n.past:[];
+      cols='<div class="xp-col"><div class="xp-lbl">This paper</div><span class="xp-big">'+esc(EV.fmt(n.thisValue))+'</span>'+
+          '<div class="xp-unit">'+esc(n.unit||'')+'</div></div>'+
+        '<div class="xp-col base"><div class="xp-lbl">Their own past work</div><ul class="xp-vals">'+
+          past.map(x=>'<li><span>'+esc(EV.pastSource(x.paper,papers))+'</span><b>'+esc(EV.fmt(x.value))+'</b></li>').join('')+
+          '</ul><div class="xp-unit">'+esc(n.unit||'')+'</div></div>';
+    }
+    // The plain line already says a whole-text habit has no sentence to quote; say it here only without one.
+    const wholeWords=f.kind==='whole_text'?(plain?'':XP_WHOLE):EV.clean(f.note,'');
+    const whole=f.kind==='located'||!wholeWords?'':'<p class="xp-whole">'+esc(wholeWords)+'</p>';
+    const side=hasEvidence(S.result)?'<a class="xp-side" href="'+esc('evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(f.code))+'">See it side by side</a>':'';
+    return '<article class="card xp-card" data-code="'+esc(f.code)+'">'+
+      '<div class="xp-h"><b>'+esc(name)+'</b>'+(one?'<span>'+esc(one)+'</span>':'')+'</div>'+
+      (plain?'<p class="xp-plain">'+esc(plain)+'</p>':'')+
+      '<div class="xp-cols">'+cols+'</div>'+whole+
+      ((nums&&!plain)||side?'<div class="xp-foot"><span>'+(plain?'':esc(nums))+'</span>'+side+'</div>':'')+
+    '</article>';
+  }
+  function renderExplain(){
+    const sec=$('xp-sec'), list=$('xp-list');
+    if(!sec||!list) return;
+    const ev=hasEvidence(S.result)?S.result.evidence:null;
+    const top=ev&&Array.isArray(ev.features)?ev.features.filter(f=>xpObj(f)&&typeof f.code==='string'):[];
+    if(!top.length){ sec.hidden=true; list.innerHTML=''; return; }
+    const papers=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(xpObj):[];
+    // The full entry (the engine's own numbers and quotes) wins over the top list's copy.
+    const byCode=new Map(ev.all_features.filter(f=>xpObj(f)&&typeof f.code==='string').map(f=>[f.code,f]));
+    list.innerHTML=top.map(f=>xpCard(byCode.get(f.code)||f,papers)).join('');
+    sec.hidden=false;
   }
 
   async function analyse(e){
