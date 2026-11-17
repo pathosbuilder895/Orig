@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -211,6 +211,40 @@
 
   .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
   .sec-h{display:flex;align-items:baseline;gap:.55rem;margin-bottom:.2rem;}
+  /* The preliminary reading (staff only, ADR-013): a number with its label, never alone. */
+  .ws-prelim{margin-top:.7rem;display:inline-block;padding:.32rem .8rem;border-radius:999px;border:1px solid var(--line);background:rgba(201,160,40,.08);font-size:.86rem;color:var(--cream);}
+  .ws-prelim .lbl{display:block;font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);}
+  .ws-prelim b{font-family:var(--mono);font-size:.82rem;color:var(--gold-2);}
+  /* Text by text: the cards js/evidence-cards.js builds for all three pages, on this page's dark ground. */
+  .tbt-card{padding:1.1rem 1.2rem .4rem;margin-top:.5rem;}
+  .tbt-lede{font-size:.92rem;color:var(--dim);line-height:1.6;margin-bottom:1rem;}
+  #tbt .ex,#hero-evi .ex{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;margin-bottom:1rem;background:rgba(7,12,28,.35);}
+  #tbt .ex-h,#hero-evi .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .8rem;padding:.65rem 1rem;background:rgba(255,255,255,.04);border-bottom:1px solid var(--line-soft);}
+  #tbt .ex-h b,#hero-evi .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;color:var(--cream);}
+  #tbt .ex-diff,#hero-evi .ex-diff{font-size:.92rem;color:var(--gold-2);}
+  #tbt .ex-col,#hero-evi .ex-col{padding:.9rem 1rem;min-width:0;}
+  #tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:1px solid var(--line-soft);}
+  #tbt .ex-lbl,#hero-evi .ex-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.45rem;overflow-wrap:anywhere;}
+  #tbt .ex-lbl.this,#hero-evi .ex-lbl.this{color:var(--flag);}
+  #tbt .ex-lbl.base,#hero-evi .ex-lbl.base{color:#8ba8dd;}
+  #tbt .ex-q,#hero-evi .ex-q{font-size:.98rem;line-height:1.6;color:var(--cream);overflow-wrap:anywhere;}
+  #tbt .ex-q+.ex-src+.ex-q,#hero-evi .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  #tbt .ex-q mark,#hero-evi .ex-q mark{background:rgba(224,114,90,.22);box-shadow:0 0 0 1px rgba(224,114,90,.35);color:inherit;border-radius:2px;padding:0 .05em;}
+  #tbt .ex-q.base mark,#hero-evi .ex-q.base mark{background:rgba(139,168,221,.2);box-shadow:0 0 0 1px rgba(139,168,221,.34);}
+  #tbt .ex-q mark.tiny,#hero-evi .ex-q mark.tiny{background:rgba(224,114,90,.36);border-bottom:2px solid var(--flag);padding:0 .22em;font-weight:700;box-shadow:none;}
+  #tbt .ex-q.base mark.tiny,#hero-evi .ex-q.base mark.tiny{background:rgba(139,168,221,.32);border-bottom-color:#8ba8dd;}
+  #tbt .ex-src,#hero-evi .ex-src{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;color:var(--dim);margin-top:.4rem;overflow-wrap:anywhere;}
+  #tbt .ex-big,#hero-evi .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--flag);margin-bottom:.3rem;}
+  #tbt .ex-unit,#hero-evi .ex-unit{font-size:.86rem;color:var(--dim);font-style:italic;}
+  #tbt .ex-vals,#hero-evi .ex-vals{list-style:none;font-size:.92rem;padding:0;margin:0;}
+  #tbt .ex-vals li,#hero-evi .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--line-soft);}
+  #tbt .ex-vals li b,#hero-evi .ex-vals li b{font-family:var(--mono);color:#8ba8dd;}
+  #tbt .none-line,#hero-evi .none-line{font-size:.92rem;font-style:italic;color:var(--dim);}
+  #tbt .um-lead,#hero-evi .um-lead{font-size:.84rem;font-style:italic;color:var(--dim);margin:.5rem 0 .4rem;}
+  #tbt .ex-note,#hero-evi .ex-note{grid-column:1/-1;padding:.7rem 1rem .8rem;border-top:1px solid var(--line-soft);font-size:.88rem;color:var(--dim);line-height:1.55;}
+  #tbt .ex-note b,#hero-evi .ex-note b{color:var(--cream);font-weight:600;}
+  #tbt .ex-note p+p,#hero-evi .ex-note p+p{margin-top:.3rem;}
+  @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
@@ -362,6 +396,8 @@
   .evi-col.base .evi-big{color:#8ba8dd;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
+  .evi-txt .evi-um-lead{font-size:.84rem;font-style:italic;color:var(--dim);margin:.5rem 0 .3rem;}
+  .evi-txt .evi-uq{font-size:1rem;line-height:1.7;color:rgba(245,239,224,.88);}
   /* Quoted passages (staff evidence payload, ADR-013) */
   .evi-one{width:100%;font-size:.84rem;color:var(--dim);margin-top:-.4rem;}
   .evi-q{font-family:var(--body);font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,.88);overflow-wrap:anywhere;}
@@ -485,6 +521,7 @@
           <div class="fpq-hint">Drag across the print to disturb it</div>
           <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
           <div class="plain-read" id="plain-read">Loading</div>
+          <div class="ws-prelim" id="ws-prelim" hidden></div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
             <a class="tri-btn packet" id="tri-evidence" href="evidence.html" style="text-decoration:none;" hidden>See it side by side</a>
@@ -516,6 +553,14 @@
               <div class="evi-notice" id="evi-notice"></div>
               <a class="evi-side" id="evi-side" href="#" hidden>See it side by side</a>
             </div>
+          </div>
+        </div>
+        <!-- Text by text: after an analysis, Original's top list in the papers' own words -->
+        <div id="tbt" hidden>
+          <div class="sec-h"><b>Text by text</b><span>this paper beside their past papers, habit by habit</span></div>
+          <div class="card tbt-card">
+            <p class="tbt-lede" id="tbt-lede"></p>
+            <div id="tbt-body"></div>
           </div>
         </div>
         <!-- State vector -->
@@ -553,17 +598,18 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-13.2"></script>
-<script src="js/feature-data.js?v=2026-11-13.2"></script>
-<script src="js/fingerprint.js?v=2026-11-13.2"></script>
-<script src="js/evidence-view.js?v=2026-11-13.2"></script>
+<script src="live.js?v=2026-11-17.1"></script>
+<script src="js/feature-data.js?v=2026-11-17.1"></script>
+<script src="js/fingerprint.js?v=2026-11-17.1"></script>
+<script src="js/evidence-view.js?v=2026-11-17.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
   const $=id=>document.getElementById(id);
   const esc=Live.esc;
   const OF=window.OriginalFeatures;
-  const EV=window.EvidenceView;
+  const EV=window.EvidenceView, EC=window.EvidenceCards;
   const FLAT=OF.flat, TIERS=OF.tiers, N_HABITS=OF.total;
   const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
   const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
@@ -1024,6 +1070,19 @@
       if(num(q.start)!=null&&num(q.end)!=null) el.title='characters '+q.start+' to '+q.end;
     }
     const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
+    // A side that never uses a habit the other side uses: the server sends its
+    // longest sentences, nothing marked, so there is still text to read beside
+    // the other side's quotes. Shown as plain sentences (not .evi-q, which is a
+    // counted quote).
+    function addUnmarked(id,srcId,e,side,label){
+      const block=side==='this'?e.this_paper:e.past_papers;
+      const um=examplesOf({examples:isObj(block)?block.unmarked:null});
+      if(!um.length) return;
+      const q=um[Math.min(place,um.length-1)], parts=EV.markParts(q);
+      const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+      $(id).insertAdjacentHTML('beforeend','<p class="evi-um-lead">'+esc(EV.unmarkedLead(e,side))+'</p><div class="evi-uq">'+esc(lead+parts.before+tail)+'</div>');
+      $(srcId).textContent=EV.quoteSource(q,label);
+    }
     // The plain sentence a side shows when it has no passage to quote.
     function noTextWords(e,side){
       if(e.kind==='off') return EV.clean('Switched off in scoring: every paper here has the fixed value '+EV.fmt((e.engine_scale||{}).this_paper)+'.','');
@@ -1077,7 +1136,7 @@
       tabs.hidden=true; tabs.innerHTML='';
       if(!e){ one.hidden=true; one.textContent=''; foot.hidden=true; return; }
       // A habit Original does not compare has no past range: the one line would only repeat this paper's number.
-      const line=e.kind==='not_compared'?'':EV.oneLine(e);
+      const line=e.kind==='not_compared'?'':(EV.differenceLine(e)||EV.oneLine(e));
       one.hidden=!line; one.textContent=line;
       const tp=e.kind==='located'?examplesOf(e.this_paper):[], pp=e.kind==='located'?examplesOf(e.past_papers):[];
       const n=Math.max(tp.length,pp.length);
@@ -1097,10 +1156,11 @@
       const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
       if(q1){
         $('evi-sub').innerHTML=quoteHTML(q1);
-        setSource('evi-sub-src',q1,S.assignment||'This paper');
+        setSource('evi-sub-src',q1,EV.thisSource(S.assignment,S.analysedAt));
       } else if(e.kind!=='not_compared'){
         // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
         addNone('evi-sub',noTextWords(e,'this'));
+        addUnmarked('evi-sub','evi-sub-src',e,'this',EV.thisSource(S.assignment,S.analysedAt));
       }
       if(q2){
         $('evi-base').innerHTML=quoteHTML(q2);
@@ -1111,6 +1171,8 @@
         $('evi-base-src').textContent='';
       } else if(e.kind==='located'){
         addNone('evi-base',noTextWords(e,'base'));
+        const um=examplesOf({examples:isObj(e.past_papers)?e.past_papers.unmarked:null});
+        addUnmarked('evi-base','evi-base-src',e,'base',um.length?EV.pastSource(um[0].paper,papers()):'');
       }
       // What to notice (EvidenceView.noticeFor once it exists, else noteFor).
       const notice=typeof EV.noticeFor==='function'?EV.noticeFor(e,papers()):EV.noteFor(e,papers());
@@ -1467,6 +1529,36 @@
   function renderResultChrome(){
     $('result-notice').hidden=!S.result;
     $('triage').hidden=!S.result;
+    renderPrelim();
+    renderTextByText();
+  }
+  // The preliminary reading (staff only, ADR-013): the server's own number and
+  // band words with its label, only when the server sent them.
+  function renderPrelim(){
+    const box=$('ws-prelim'), pre=S.result&&S.result.preliminary;
+    if(!box) return;
+    if(!pre||typeof pre!=='object'||typeof pre.label!=='string'){ box.hidden=true; box.innerHTML=''; return; }
+    const score=num(pre.score);
+    box.innerHTML='<span class="lbl">'+esc(EV.clean(pre.label,'Preliminary · unvalidated · not a judgment'))+'</span>'+
+      (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''));
+    box.hidden=false;
+  }
+  // Text by text: after an analysis, Original's own top list as the cards the
+  // side-by-side page and the packet show (js/evidence-cards.js), with no click
+  // needed. Only when the server sent passages; any other habit opens the same
+  // way from the bars, rows and chips below.
+  function renderTextByText(){
+    const box=$('tbt');
+    if(!box) return;
+    const ev=S.result&&hasEvidence(S.result)?S.result.evidence:null;
+    if(!ev||!EC){ box.hidden=true; $('tbt-body').innerHTML=''; return; }
+    const top=EC.topList(ev);
+    const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(S.assignment,S.analysedAt)};
+    $('tbt-lede').textContent=top.length
+      ?'The habits Original lists as furthest from '+poss()+' usual range, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
+      :'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.';
+    $('tbt-body').innerHTML=top.map(f=>EC.card(f,ctx)).join('');
+    box.hidden=false;
   }
 
   function renderAll(){
@@ -1851,6 +1943,14 @@
   const FILE_LIMIT=10*1024*1024, TXT_LIMIT=1048576;
   // Bumped by every newer way the paper box can change, so a late server reply never overwrites it.
   let openSeq=0, reading=0;
+  // The opened file's name becomes the assignment unless the teacher typed one:
+  // an empty field, or one still holding the last file's name, takes the new name.
+  function nameFromFile(f){
+    const cur=$('an-assign').value.trim();
+    if(cur&&cur!==S.autoAssign) return;
+    const base=String(f&&f.name||'').replace(/\.[^.]*$/,'').slice(0,200);
+    if(base){ $('an-assign').value=base; S.autoAssign=base; }
+  }
   async function openDocument(f,ext){
     const my=++openSeq;
     if(!S.id){ msg('Choose a student first, then open the file.',true); return; }
@@ -1869,7 +1969,7 @@
     const text=res.data.text;
     if(!text.trim()){ msg('This file has no text Original can read. If it is a scan, paste the text instead.',true); return; }
     $('an-text').value=text; updateWords();
-    if(!$('an-assign').value.trim()){ const base=f.name.replace(/\.[^.]*$/,'').slice(0,200); if(base) $('an-assign').value=base; }
+    nameFromFile(f);
     msg('Read '+plural(res.data.word_count>=0?res.data.word_count:countWords(text),'word')+' from '+f.name+'.');
   }
 
@@ -1878,7 +1978,11 @@
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
     $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
-    $('an-again').addEventListener('click',()=>{ setCard('form'); note(thinNote()); $('an-text').focus(); });
+    $('an-again').addEventListener('click',()=>{
+      // A new paper: the last one's title and text would otherwise label it.
+      ++openSeq; $('an-text').value=''; $('an-assign').value=''; S.autoAssign=''; updateWords();
+      setCard('form'); note(thinNote()); $('an-text').focus();
+    });
     $('an-file').addEventListener('change',e=>{
       const input=e.target, f=input.files&&input.files[0];
       input.value='';
@@ -1892,7 +1996,7 @@
       if(f.size>TXT_LIMIT){ msg('That file is too large to analyse here.',true); return; }
       const my=++openSeq;
       const rd=new FileReader();
-      rd.onload=()=>{ if(my!==openSeq) return; $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
+      rd.onload=()=>{ if(my!==openSeq) return; $('an-text').value=String(rd.result||''); updateWords(); nameFromFile(f); msg(''); };
       rd.onerror=()=>msg('That file could not be read.',true);
       rd.readAsText(f);
     });

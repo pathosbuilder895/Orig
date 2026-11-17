@@ -147,3 +147,55 @@ def test_a_value_at_an_end_of_the_scale_is_never_read_back():
 def test_a_short_vector_list_is_still_refused():
     with pytest.raises(ValueError):
         ev.build_all_features(EDGE, BASELINES, baseline_vectors=[_vector(PLAIN[0])])
+
+
+# ── A side that never uses a habit the other side uses (2026-11-17) ──────────
+
+NO_COMMAS = (
+    "The lighthouse stands at the end of the point. It is white. The paint is old now. "
+    "My uncle kept the light for nine years and he never missed a single night of it. "
+    "He climbed the stairs at dusk and lit the lamp and checked the lens for dust. "
+    "Then he sat by the window and watched the sea until the morning came back."
+)
+COMMAS = (
+    "My grandmother, who kept a garden, taught me patience. I learned, slowly, to wait. "
+    "Seeds, frost and slugs do not care about plans, and rain can undo a month of work."
+)
+
+
+def test_a_side_without_the_habit_shows_its_longest_sentences_verbatim():
+    feat = {"code": "comma_rate", "submission_value": 0.0, "baseline_value": 0.5, "delta": -0.5}
+    out = ev.build_feature_evidence(feat, NO_COMMAS, [("past paper 1", COMMAS)], rank=1)
+    this = out["this_paper"]
+    assert this["count"] == 0 and this["examples"] == []
+    assert out["note"] == "No comma appears in this paper."
+    um = this["unmarked"]
+    assert len(um) == 3
+    assert [q["words"] for q in um] == sorted((q["words"] for q in um), reverse=True)
+    for q in um:
+        assert q["paper"] == "this paper" and "," not in q["passage"]
+        assert q["passage"] == NO_COMMAS[q["passage_start"] : q["passage_end"]]
+        assert "match" not in q
+    assert um[0]["passage"].startswith("My uncle kept the light")
+    assert "unmarked" not in out["past_papers"]
+
+    # And the other way round: the past papers never use it, this paper does.
+    back = ev.build_feature_evidence(
+        {**feat, "delta": 0.5},
+        COMMAS,
+        [("past paper 1", NO_COMMAS), ("past paper 2", NO_COMMAS)],
+        rank=1,
+    )
+    pu = back["past_papers"]["unmarked"]
+    assert back["note"] == "No comma appears in the past papers."
+    assert [q["paper"] for q in pu] == ["past paper 1", "past paper 2", "past paper 1"]
+    assert all(q["passage"] == NO_COMMAS[q["passage_start"] : q["passage_end"]] for q in pu)
+    assert "unmarked" not in back["this_paper"]
+
+
+def test_unmarked_fails_closed_and_is_never_added_when_both_sides_lack_the_habit(monkeypatch):
+    feat = {"code": "dash_rate", "submission_value": 0.0, "baseline_value": 0.0, "delta": 0.0}
+    out = ev.build_feature_evidence(feat, NO_COMMAS, [("past paper 1", NO_COMMAS)], rank=1)
+    assert "unmarked" not in out["this_paper"] and "unmarked" not in out["past_papers"]
+    monkeypatch.setattr(ev, "engine_view", lambda text: None)
+    assert ev._unmarked(NO_COMMAS, "this paper", 3) == []

@@ -1267,6 +1267,11 @@
             "default": "verified",
             "title": "Provenance",
             "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "title": "Submitted At",
+            "type": "string"
           }
         },
         "required": [
@@ -2433,6 +2438,11 @@
           "commit": {
             "default": "dev",
             "title": "Commit",
+            "type": "string"
+          },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
             "type": "string"
           },
           "environment": {

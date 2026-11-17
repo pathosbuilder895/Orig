@@ -115,6 +115,16 @@ test.describe('Writing State opens .docx and .pdf', () => {
     await page.locator('#an-go').click()
     expect((await scored).ok()).toBe(true)
     await expect(page.locator('#an-done')).toBeVisible({ timeout: 30_000 })
+    // Analyse another starts a new paper: the last paper's name and text do not
+    // carry over, and the next file names the next paper.
+    await page.locator('#an-again').click()
+    await expect(page.locator('#an-assign')).toHaveValue('')
+    await expect(page.locator('#an-text')).toHaveValue('')
+    await page.locator('#an-file').setInputFiles({ name: 'Second paper.txt', mimeType: 'text/plain', buffer: Buffer.from(PAPER) })
+    await expect(page.locator('#an-text')).toHaveValue(new RegExp('^' + PAPER.slice(0, 40).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 20_000 })
+    await expect(page.locator('#an-assign')).toHaveValue('Second paper')
+    await page.locator('#an-file').setInputFiles({ name: 'Third paper.txt', mimeType: 'text/plain', buffer: Buffer.from(PAPER) })
+    await expect(page.locator('#an-assign')).toHaveValue('Third paper')
   })
 
   test('a .pdf with a text layer fills the paper box', async ({ browser, request, testTenant }) => {

@@ -850,6 +850,38 @@ def _spread_pick(places: Sequence[Place], limit: int) -> list[Place]:
     return picked
 
 
+def _unmarked(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
+    """The longest sentences of a paper that has none of a habit's places.
+
+    When one side counts a habit and the other side never uses it, the side
+    without it would show nothing at all. Its longest sentences, quoted
+    verbatim with nothing marked, are where the habit would most likely have
+    appeared, so a teacher can read the two sides together. Longest first,
+    ties in document order; at most ``limit``; [] when the paper's sentences
+    cannot be mapped back to the stored text exactly (fail closed).
+    """
+    view = engine_view(text)
+    sentences = _original_sentences(view) if view is not None else None
+    if not sentences:
+        return []
+    sized = [(len(_tokenize(text[a:b])), a, b) for a, b in sentences]
+    out = []
+    for words, a, _b in sorted(sized, key=lambda x: (-x[0], x[1]))[:limit]:
+        p0, p1, c0, c1 = _passage(text, sentences, a, a)
+        out.append(
+            {
+                "paper": paper,
+                "passage_start": p0,
+                "passage_end": p1,
+                "passage": text[p0:p1],
+                "clipped_start": c0,
+                "clipped_end": c1,
+                "words": words,
+            }
+        )
+    return out
+
+
 def _round(value: float | None) -> float | None:
     return None if value is None else round(float(value), 4)
 
@@ -932,8 +964,22 @@ def build_feature_evidence(
     if not spec.sentence_length:
         if not this.places:
             out["note"] = f"No {spec.what} appears in this paper."
+            if out["past_papers"]["count"]:
+                out["this_paper"]["unmarked"] = _unmarked(
+                    submission_text, "this paper", max_examples
+                )
         elif not out["past_papers"]["count"]:
             out["note"] = f"No {spec.what} appears in the past papers."
+            # Round-robin over the past papers, as for the counted examples.
+            per = [_unmarked(text, label, max_examples) for label, text in baselines]
+            unmarked: list[dict[str, Any]] = []
+            depth = 0
+            while len(unmarked) < max_examples and any(depth < len(u) for u in per):
+                for u in per:
+                    if depth < len(u) and len(unmarked) < max_examples:
+                        unmarked.append(u[depth])
+                depth += 1
+            out["past_papers"]["unmarked"] = unmarked
     return out
 
 
