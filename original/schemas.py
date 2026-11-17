@@ -1260,6 +1260,11 @@ class ReadinessResponse(BaseModel):
     word_stats: BaselineWordStats | None = None
     verdict: str
     recommendations: list[str]
+    # The drift check's mode (DRIFT_GATE), as on /health: "advisory" admits every
+    # paper a teacher adds or approves; "hold" keeps an unusual one out. Voice
+    # Baseline words its rule from this. It is here as well as on /health
+    # because some browsers' blockers refuse a page's request to /health.
+    drift_gate: str = "hold"
 
 
 # ── Student read-model (ADR-005): the redacting VoiceView ─────────────────────

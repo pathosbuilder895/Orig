@@ -3393,6 +3393,11 @@
             "title": "Authenticated Count",
             "type": "integer"
           },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
+          },
           "effective_sample_count": {
             "title": "Effective Sample Count",
             "type": "number"
