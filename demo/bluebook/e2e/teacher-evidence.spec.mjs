@@ -7,7 +7,7 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags off, the default): Writing State shows no new link,
+ * - the main run (flags set to 0; on is the default since 2026-11): Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
@@ -19,38 +19,12 @@
  * Orthodoxy (1908) as the paper analysed.
  */
 
-import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
-import { addBaselineFor, staffStorageState } from './fixtures/api-setup.mjs'
+import { staffStorageState } from './fixtures/api-setup.mjs'
+import { DATES, PAST, PAPER, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
 
-const FIXTURES = new URL('./fixtures/evidence/', import.meta.url)
-const read = name => readFileSync(new URL(name, FIXTURES), 'utf8')
-const DATES = ['2026-01-14', '2026-02-11', '2026-03-10']
-const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}`, date: DATES[i - 1] }))
-const PAPER = read('chesterton.txt')
-
-async function seedPastPapers(request, student) {
-  for (const p of PAST) {
-    await addBaselineFor(request, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.date })
-  }
-}
-
-// Analyse the paper on Writing State as the teacher; returns the score response.
-async function analyse(page, studentId) {
-  await page.goto(`/original/writing-state.html?student=${encodeURIComponent(studentId)}`)
-  await expect(page.locator('#an-form')).toBeVisible({ timeout: 20_000 })
-  await page.locator('#an-assign').fill('Orthodoxy, chapter 1')
-  await page.locator('#an-text').fill(PAPER)
-  const scored = page.waitForResponse(r => r.url().endsWith('/score') && r.request().method() === 'POST', { timeout: 90_000 })
-  await page.locator('#an-go').click()
-  const res = await scored
-  expect(res.ok()).toBe(true)
-  await expect(page.locator('#an-done')).toBeVisible({ timeout: 30_000 })
-  return res.json()
-}
-
-test.describe('side by side, flags off (the default)', () => {
+test.describe('side by side, flags set to 0', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student, baseURL } = testTenant
@@ -118,8 +92,10 @@ test.describe('side by side, flags on @evidence-on', () => {
       `This paper is outside the past-paper range on ${outside} of ${active.length} active measurements, and within that range on ${active.length - outside}.`)
     await expect(page.locator('#prelim-chip')).toContainText('Preliminary · unvalidated · not a judgment')
     await expect(page.locator('.notice')).toContainText('This is a starting point, not a verdict.')
-    // Three past papers: the thin-baseline caution is shown.
-    await expect(page.locator('#thin-note')).toBeVisible()
+    // Three past papers is a ready baseline (the score route's floor, since
+    // 2026-11): no thin-baseline caution, and the preliminary chip has a number.
+    await expect(page.locator('#thin-note')).toHaveCount(0)
+    await expect(page.locator('#prelim-chip b')).toHaveText(/^\d\.\d\d$/)
 
     // Biggest differences: Original's top list, in its order.
     await expect(page.locator('#p-diff > .ex')).toHaveCount(ev.features.length)

@@ -251,11 +251,11 @@ def get_student(student_id: str, request: Request):
 
 # ── Baseline-readiness check (pilot onboarding surface) ──────────────────────
 # Answers "is this student's baseline good enough to score against yet?" in
-# one call, with plain-language recommendations. Verdict thresholds: 5
-# authenticated samples is where scoring confidence saturates
-# (quantum/scoring.py), 3 (MIN_BASELINE_SAMPLES) is the developing floor and
-# the minimum the score endpoint accepts, and 0 authenticated
-# cannot score at all (the score endpoint 422s).
+# one call, with plain-language recommendations. Verdict thresholds: ready at
+# MIN_BASELINE_SAMPLES (3 by default), the minimum the score endpoint accepts;
+# building with 1 or 2; needs more with 0 (the score endpoint 422s below the
+# floor). 5 is still where scoring confidence saturates (quantum/scoring.py),
+# and the recommendations still suggest 5 to 8.
 
 
 @router.get("/students/{student_id}/readiness", response_model=ReadinessResponse)
@@ -281,9 +281,14 @@ def get_student_readiness(student_id: str):
 
     auth = state.authenticated_count
     eff = state.effective_sample_count
-    if auth >= 5 and eff >= 3:
+    # Ready at the floor the score route enforces (3 approved papers by
+    # default, MIN_BASELINE_SAMPLES): the 2026-11 alpha builds every baseline
+    # from exactly three. It used to need 5 (and an effective count of 3), so
+    # every alpha reading said "inconclusive". Building: some papers, not yet
+    # enough to compare. Needs more: none.
+    if auth >= min_baseline_samples():
         verdict = "ready"
-    elif auth >= max(2, min_baseline_samples()):
+    elif auth >= 1:
         verdict = "developing"
     else:
         verdict = "insufficient"

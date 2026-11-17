@@ -1104,6 +1104,18 @@ class PreliminaryScoreOut(BaseModel):
     note: str
 
 
+class PastPaperExamplesResponse(BaseModel):
+    """Real sentences from a student's past papers for one habit and its family
+    (ADR-013). Staff only; this response never changes any score.
+    ``baseline_papers`` matches the score response's ``evidence.baseline_papers``."""
+
+    baseline_papers: list[dict[str, Any]]
+    family: str
+    habit: str
+    families: list[dict[str, Any]]
+    features: list[dict[str, Any]]
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1234,8 +1246,8 @@ class ReadinessResponse(BaseModel):
     """
     Pilot-facing baseline-readiness check (GET /students/{id}/readiness).
 
-    verdict: "ready" (>= 5 authenticated samples AND >= 3 effective),
-    "developing" (>= 2 authenticated), else "insufficient". Pure read —
+    verdict: "ready" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),
+    "developing" (1 or more), else "insufficient". Pure read:
     computed from the same StudentState the score endpoint uses.
     """
 
