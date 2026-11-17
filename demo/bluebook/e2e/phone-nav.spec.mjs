@@ -9,10 +9,11 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
+import { COLLECTIONS_HOME } from './fixtures/api-setup.mjs'
 
 test('the teacher pill strip fades on the edge that has more pills at phone width', async ({ staffPage }) => {
   await staffPage.setViewportSize({ width: 375, height: 812 })
-  await staffPage.goto('/bluebook/')
+  await staffPage.goto(COLLECTIONS_HOME)
   const strip = staffPage.locator('.teacher-pills')
   await expect(strip).toBeVisible({ timeout: 10_000 })
   // More pills to the right: the right edge fades, the left does not.
@@ -30,7 +31,7 @@ test('the teacher pill strip fades on the edge that has more pills at phone widt
 
 test('the strip does not fade where every pill fits', async ({ staffPage }) => {
   await staffPage.setViewportSize({ width: 1600, height: 900 })
-  await staffPage.goto('/bluebook/')
+  await staffPage.goto(COLLECTIONS_HOME)
   const strip = staffPage.locator('.teacher-pills')
   await expect(strip).toBeVisible({ timeout: 10_000 })
   await expect(strip).not.toHaveClass(/fade-(start|end)/)

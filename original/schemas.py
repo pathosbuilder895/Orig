@@ -7,9 +7,9 @@ can deserialise with a single fetch() call and no transformation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -285,6 +285,24 @@ class BluebookUpdateCourseRequest(BaseModel):
 class RosterStudent(BaseModel):
     email: str = Field(..., description="Student email; their login")
     name: str = Field("", description="Display name")
+
+
+class WriterCreateRequest(BaseModel):
+    """POST /students: a writer added by name, with no course or account."""
+
+    # No control characters: Postgres refuses a NUL in text, and a tab or
+    # newline is never part of a name a page should print.
+    name: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=120,
+            pattern=r"^[^\x00-\x1f\x7f]*$",
+        ),
+    ] = Field(
+        ..., description="The writer's name, 1-120 characters once trimmed, no control characters"
+    )
 
 
 class RosterAddRequest(BaseModel):
@@ -1086,6 +1104,18 @@ class PreliminaryScoreOut(BaseModel):
     note: str
 
 
+class PastPaperExamplesResponse(BaseModel):
+    """Real sentences from a student's past papers for one habit and its family
+    (ADR-013). Staff only; this response never changes any score.
+    ``baseline_papers`` matches the score response's ``evidence.baseline_papers``."""
+
+    baseline_papers: list[dict[str, Any]]
+    family: str
+    habit: str
+    families: list[dict[str, Any]]
+    features: list[dict[str, Any]]
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1182,6 +1212,14 @@ class SampleSummary(BaseModel):
     provenance: str
     submitted_at: str
     auth_weight: float
+    source: str = Field(
+        "unknown",
+        description=(
+            "How the sample got into the baseline, derived at read time: "
+            "'staff_or_supervised' | 'take_home' | 'shared_paper' | "
+            "'student_upload' | 'unknown'. Wording only; never read by scoring."
+        ),
+    )
 
 
 class StudentStateResponse(BaseModel):
@@ -1210,8 +1248,8 @@ class ReadinessResponse(BaseModel):
     """
     Pilot-facing baseline-readiness check (GET /students/{id}/readiness).
 
-    verdict: "ready" (>= 5 authenticated samples AND >= 3 effective),
-    "developing" (>= 2 authenticated), else "insufficient". Pure read —
+    verdict: "ready" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),
+    "developing" (1 or more), else "insufficient". Pure read:
     computed from the same StudentState the score endpoint uses.
     """
 

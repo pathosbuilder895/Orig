@@ -704,3 +704,16 @@ def min_baseline_samples() -> int:
         return max(1, int(raw)) if raw else DEFAULT_MIN_BASELINE_SAMPLES
     except ValueError:
         return DEFAULT_MIN_BASELINE_SAMPLES
+
+
+def drift_gate_advisory() -> bool:
+    """``DRIFT_GATE=advisory``: the baseline drift check still runs and is
+    reported, but never holds a teacher's paper out of the baseline.
+
+    Default ``hold`` keeps the Phase 8 behaviour (202/409 on a single add, a
+    per-file hold in a batch). The 2026-11 alpha builds each baseline from
+    exactly three papers the teacher has vouched for, and a held paper has no
+    override, so one outlier left a volunteer below the three-paper floor.
+    ``advisory`` (also ``off``) admits the paper and keeps the drift reading
+    on the response."""
+    return os.environ.get("DRIFT_GATE", "hold").strip().lower() in {"advisory", "off"}

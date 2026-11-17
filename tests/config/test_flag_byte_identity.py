@@ -441,12 +441,20 @@ def unit_payload(*, with_pool: bool = False, **config_kwargs: Any) -> dict:
 
 @contextlib.contextmanager
 def clean_flag_env() -> Iterator[None]:
-    """Every flag unset (SECRET_KEY blanked), restored on exit."""
+    """Every flag unset (SECRET_KEY blanked), restored on exit.
+
+    The two ADR-013 staff explainability flags are set to "0" instead of
+    unset: since 2026-11 they are on by default, and they only add the
+    report-only `evidence`/`preliminary` fields to a staff response. These
+    snapshots pin the score, which neither flag can move (their own tests in
+    tests/test_evidence.py hold that)."""
     saved = {name: os.environ.get(name) for name in FLAG_OFF_VALUES}
     try:
         for name in FLAG_OFF_VALUES:
             os.environ.pop(name, None)
         os.environ["SECRET_KEY"] = ""
+        os.environ["EVIDENCE_PASSAGES_ENABLED"] = "0"
+        os.environ["PRELIMINARY_SCORE_ENABLED"] = "0"
         yield
     finally:
         for name, value in saved.items():
