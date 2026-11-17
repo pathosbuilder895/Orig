@@ -11,6 +11,7 @@ import dataclasses
 import logging
 import os
 import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -22,11 +23,19 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
 )
 from ..tension_arc import analyze_tension_arc
-from ._shared import _api, _client_ip, _repo, _send_notification_email, _to_response
+from ._shared import (
+    _api,
+    _client_ip,
+    _repo,
+    _require_staff,
+    _send_notification_email,
+    _to_response,
+)
 
 router = APIRouter()
 
@@ -649,6 +658,49 @@ def score_submission(
     return response
 
 
+def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
+    """The past papers the engine can show: samples that count toward the
+    baseline and kept their text, labelled ``past paper 1…N`` in that order."""
+    used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+    return used, [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+
+
+def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
+    """How each past paper got into the baseline, read now (staff wording
+    only), so an analysis kept for later still says what was true when it ran.
+    No student id (in-process callers): no source. A failed lookup loses only
+    `source`, never the side-by-side. No past paper to show: no lookup."""
+    by_sample: dict[int, str] = {}
+    if student_id and used:
+        try:
+            from .students import _sample_sources
+
+            by_sample = {
+                id(sample): src
+                for sample, src in zip(
+                    state.samples,
+                    _sample_sources(student_id, state.samples),
+                    strict=True,
+                )
+            }
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "past paper sources failed; omitted from the evidence"
+            )
+            by_sample = {}
+    return [
+        {
+            "paper": label,
+            "assignment": getattr(s, "assignment", "") or None,
+            "submitted_at": getattr(s, "submitted_at", "") or None,
+            "provenance": getattr(s, "provenance", None),
+            "word_count": getattr(s, "word_count", None),
+            **({"source": by_sample[id(s)]} if id(s) in by_sample else {}),
+        }
+        for (label, _), s in zip(baselines, used, strict=True)
+    ]
+
+
 def _attach_staff_explainability(
     response, request, text: str, state, result, student_id: str | None = None
 ) -> None:
@@ -681,8 +733,7 @@ def _attach_staff_explainability(
         )
     if want_evidence:
         try:
-            used = [s for s in state.samples if s.auth_weight > 0 and s.text]
-            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+            used, baselines = _past_papers_of(state)
             # Every measurement, with the engine's own vectors and baseline
             # mean when every contributing sample has its text (otherwise the
             # mean would cover papers the page cannot show).
@@ -696,44 +747,45 @@ def _attach_staff_explainability(
                 baseline_vectors=[s.vector for s in used],
                 past_average=state.baseline_mean if complete else None,
             )
-            # How each past paper got into the baseline, read now (staff wording
-            # only), so an analysis kept for later still says what was true
-            # when it ran. No student id (in-process callers): no source. A
-            # failed lookup loses only `source`, never the side-by-side.
-            by_sample: dict[int, str] = {}
-            if student_id:
-                try:
-                    from .students import _sample_sources
-
-                    by_sample = {
-                        id(sample): src
-                        for sample, src in zip(
-                            state.samples,
-                            _sample_sources(student_id, state.samples),
-                            strict=True,
-                        )
-                    }
-                except Exception:
-                    logging.getLogger(__name__).exception(
-                        "past paper sources failed; omitted from the evidence"
-                    )
-                    by_sample = {}
-            response.evidence["baseline_papers"] = [
-                {
-                    "paper": label,
-                    "assignment": getattr(s, "assignment", "") or None,
-                    "submitted_at": getattr(s, "submitted_at", "") or None,
-                    "provenance": getattr(s, "provenance", None),
-                    "word_count": getattr(s, "word_count", None),
-                    **({"source": by_sample[id(s)]} if id(s) in by_sample else {}),
-                }
-                for (label, _), s in zip(baselines, used, strict=True)
-            ]
+            response.evidence["baseline_papers"] = _baseline_papers(
+                state, used, baselines, student_id
+            )
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
             )
             response.evidence = None
+
+
+@router.get("/students/{student_id}/past-paper-examples", response_model=PastPaperExamplesResponse)
+def past_paper_examples(
+    student_id: str, request: Request, habit: str = "mean_sentence_length"
+) -> PastPaperExamplesResponse:
+    """ADR-013, staff only: real sentences from this student's past papers that
+    show one habit and the family of habits around it. Read-only; changes no
+    score. Off unless EVIDENCE_PASSAGES_ENABLED=1."""
+    from .. import evidence
+
+    if not evidence.evidence_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    _require_staff(request)
+    state = _repo().get(student_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+    if habit not in evidence.LOCATABLE:
+        raise HTTPException(status_code=422, detail="Unknown habit")
+    try:
+        used, baselines = _past_papers_of(state)
+        body = {
+            **evidence.build_past_paper_examples(habit, baselines),
+            "baseline_papers": _baseline_papers(state, used, baselines, student_id),
+        }
+        return PastPaperExamplesResponse(**body)
+    except Exception:
+        logging.getLogger(__name__).exception("past paper examples failed")
+        raise HTTPException(
+            status_code=503, detail="Examples could not be shown just now."
+        ) from None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────

@@ -132,7 +132,11 @@ def test_every_quote_is_a_verbatim_slice_at_its_offsets():
         assert q["start"] <= q["match_start"] and q["match_end"] <= q["end"]
         assert len(q["passage"]) <= ev.MAX_QUOTE_CHARS + 40
     # Nothing the engine set aside is quoted as a counted place: the citation and back matter are gone.
-    assert not any("Smith, 2020" in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # (An in-sentence citation like "(Smith, 2020)" is part of a counted sentence; the reference entry is not.)
+    assert not any("Smith, J." in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # Every quote that touches the inline citation still says it runs into set-aside text.
+    assert any("Smith, 2020" in q["match"] for q in quotes)
+    assert all(q["crosses_set_aside"] for q in quotes if "Smith, 2020" in q["match"])
 
 
 def test_long_sentences_are_clipped_to_a_verbatim_window():
@@ -488,15 +492,139 @@ def test_overview_and_full_markdown_render():
     assert "Measured:" not in html_out
 
 
+TYPICAL = ("The dog ran. We walked down to the river and sat there quietly. "
+           "She said the old bridge had been closed for many years. "
+           "The long road ran on and on past every field and farm and river and town "
+           "until the light was gone and the night came down on all of us.")
+
+
+def test_mean_sentence_length_quotes_each_papers_typical_sentences():
+    r = ev.read_paper(TYPICAL, "mean_sentence_length")
+    assert r.value == 13.5 and [p.words for p in r.places] == [3, 10, 11, 30]
+    assert [p.words for p in ev._typical_pick(r.places, r.value, 3)] == [11, 10, 3]
+
+
+def test_sentence_length_examples_do_not_depend_on_direction():
+    past = [("past paper 1", PLAIN[0]), ("past paper 2", TYPICAL)]
+    low = ev.build_feature_evidence(_feature("mean_sentence_length", -0.3), TYPICAL, past, rank=1)
+    high = ev.build_feature_evidence(_feature("mean_sentence_length", 0.3), TYPICAL, past, rank=1)
+    assert low["this_paper"] == high["this_paper"] and low["past_papers"] == high["past_papers"]
+    assert [q["words"] for q in low["this_paper"]["examples"]] == [11, 10, 3]
+    # Round-robin across papers, each paper's own typical sentence first.
+    p1 = ev.read_paper(PLAIN[0], "mean_sentence_length")
+    first = ev._typical_pick(p1.places, p1.value, 1)[0].words
+    assert [(q["paper"], q["words"]) for q in low["past_papers"]["examples"]][:2] == [("past paper 1", first), ("past paper 2", 11)]
+
+
 def test_sentence_spread_examples_do_not_repeat_a_sentence():
     places = ev.read_paper("Only one sentence here.", "sentence_length_variance").places
-    assert len(ev._length_pick(places, "spread", "higher", 3)) == 1
+    assert len(ev._spread_pick(places, 3)) == 1
     many = ev.read_paper(PLAIN[0], "sentence_length_variance").places
-    assert len(ev._length_pick(many, "spread", "higher", 2)) == 2
-    assert ev._length_pick(many, "mean", "lower", 1)[0].words == min(p.words for p in many)
+    assert len(ev._spread_pick(many, 2)) == 2
 
 
 def test_engine_view_mirrors_paragraph_style_indentation():
     text = "\tMy first paragraph, typed with a tab.\n\n\tMy second paragraph, also tabbed, goes on."
     view = ev.engine_view(text)
     assert view is not None and view.prose.text == pp.preprocess(text)[0]
+
+
+def test_every_locatable_habit_is_in_exactly_one_family():
+    assert list(ev.FAMILIES) == ["Sentence shape", "Linking ideas", "Voice", "Claims and confidence"]
+    codes = [c for group in ev.FAMILIES.values() for c in group]
+    assert len(codes) == len(set(codes))
+    assert sorted(codes) == sorted(ev.LOCATABLE)
+    assert ev.family_of("comma_rate") == "Sentence shape"
+    assert ev.family_of("typing_speed_cv") is None
+
+
+@pytest.mark.parametrize("code", list(ev.LOCATABLE))
+def test_past_paper_examples_return_the_whole_family_in_order(code):
+    out = ev.build_past_paper_examples(code, [("past paper 1", PLAIN[0])])
+    assert out["habit"] == code
+    assert out["family"] == ev.family_of(code)
+    assert [f["code"] for f in out["features"]] == list(ev.FAMILIES[out["family"]])
+    assert out["features"][0]["name"] == ev._name_and_description(out["features"][0]["code"])[0]
+    assert out["families"][0] == {"name": "Sentence shape", "habits": list(ev.FAMILIES["Sentence shape"])}
+
+
+@pytest.mark.parametrize("habit", ["discourse_marker_density", "mean_sentence_length"])
+def test_past_paper_examples_label_papers_in_order_and_quote_verbatim(habit):
+    baselines = [(f"past paper {i + 1}", t) for i, t in enumerate(PLAIN)]
+    texts = dict(baselines)
+    out = ev.build_past_paper_examples(habit, baselines)
+    for feature in out["features"]:
+        assert [p["paper"] for p in feature["per_paper"]] == ["past paper 1", "past paper 2", "past paper 3"]
+        for paper in feature["per_paper"]:
+            text = texts[paper["paper"]]
+            assert len(paper["examples"]) <= 3
+            for example in paper["examples"]:
+                q = example["quote"]
+                assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+                if feature["code"] not in ("mean_sentence_length", "sentence_length_variance"):
+                    assert example["role"] is None
+
+
+def test_sentence_length_is_typical_and_variation_is_longest_and_shortest():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", TYPICAL)])
+    by_code = {f["code"]: f for f in out["features"]}
+    mean = by_code["mean_sentence_length"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in mean] == [("typical", 11), ("typical", 10), ("typical", 3)]
+    var = by_code["sentence_length_variance"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in var] == [("longest", 30), ("shortest", 3)]
+
+
+def test_a_single_sentence_paper_gets_one_variation_quote_without_a_role():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", "Only one sentence here.")])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    assert [(e["role"], e["quote"]["words"]) for e in var["per_paper"][0]["examples"]] == [(None, 4)]
+
+
+def test_sentences_of_one_length_are_neither_longest_nor_shortest():
+    text = "The cat sat on the mat today. The dog ran in the park now."
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    examples = var["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in examples] == [(None, 7), (None, 7)]
+    assert [e["quote"]["passage"] for e in examples] == ["The cat sat on the mat today.", "The dog ran in the park now."]
+
+
+def test_past_paper_examples_rebuild_each_paper_once_however_many_papers():
+    # More papers than engine_view's cache holds: each is still rebuilt once, not once per habit.
+    baselines = [(f"past paper {i + 1}", f"Paper {i} starts here. " + PLAIN[i % 3]) for i in range(70)]
+    ev.engine_view.cache_clear()
+    ev.build_past_paper_examples("comma_rate", baselines)
+    assert ev.engine_view.cache_info().misses == 70
+
+
+@pytest.mark.parametrize("text", ["References\nSmith, J. (2020). Night markets. Press.", "   \n  "])
+def test_a_past_paper_with_no_measured_sentence_reads_count_zero(text):
+    # Back matter only, or whitespace only: the engine measures no sentence at all.
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    (paper,) = var["per_paper"]
+    assert paper["count"] == 0
+    assert paper["examples"] == []
+
+
+def test_a_paper_that_cannot_be_located_has_no_examples_and_says_so(monkeypatch):
+    monkeypatch.setattr(ev, "_original_sentences", lambda view: None)
+    out = ev.build_past_paper_examples("comma_rate", [("past paper 1", PLAIN[0])])
+    for feature in out["features"]:
+        assert feature["note"] == ev.NOT_LOCATED_NOTE
+        for paper in feature["per_paper"]:
+            assert paper["examples"] == [] and paper["count"] is None
+            assert isinstance(paper["value"], float)
+
+
+def test_no_past_papers_gives_empty_lists():
+    out = ev.build_past_paper_examples("comma_rate", [])
+    assert len(out["features"]) == 7
+    for feature in out["features"]:
+        assert feature["per_paper"] == [] and "note" not in feature
+
+
+def test_unknown_habit_is_refused():
+    for habit in ("typing_speed_cv", "nope"):
+        with pytest.raises(ValueError):
+            ev.build_past_paper_examples(habit, [])

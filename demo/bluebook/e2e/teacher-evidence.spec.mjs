@@ -19,36 +19,10 @@
  * Orthodoxy (1908) as the paper analysed.
  */
 
-import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
-import { addBaselineFor, staffStorageState } from './fixtures/api-setup.mjs'
-
-const FIXTURES = new URL('./fixtures/evidence/', import.meta.url)
-const read = name => readFileSync(new URL(name, FIXTURES), 'utf8')
-const DATES = ['2026-01-14', '2026-02-11', '2026-03-10']
-const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}`, date: DATES[i - 1] }))
-const PAPER = read('chesterton.txt')
-
-async function seedPastPapers(request, student) {
-  for (const p of PAST) {
-    await addBaselineFor(request, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.date })
-  }
-}
-
-// Analyse the paper on Writing State as the teacher; returns the score response.
-async function analyse(page, studentId) {
-  await page.goto(`/original/writing-state.html?student=${encodeURIComponent(studentId)}`)
-  await expect(page.locator('#an-form')).toBeVisible({ timeout: 20_000 })
-  await page.locator('#an-assign').fill('Orthodoxy, chapter 1')
-  await page.locator('#an-text').fill(PAPER)
-  const scored = page.waitForResponse(r => r.url().endsWith('/score') && r.request().method() === 'POST', { timeout: 90_000 })
-  await page.locator('#an-go').click()
-  const res = await scored
-  expect(res.ok()).toBe(true)
-  await expect(page.locator('#an-done')).toBeVisible({ timeout: 30_000 })
-  return res.json()
-}
+import { staffStorageState } from './fixtures/api-setup.mjs'
+import { DATES, PAST, PAPER, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
 
 test.describe('side by side, flags off (the default)', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {

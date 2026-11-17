@@ -3240,6 +3240,52 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PastPaperExamplesResponse": {
+        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; this response never changes any score.\n``baseline_papers`` matches the score response's ``evidence.baseline_papers``.",
+        "properties": {
+          "baseline_papers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Baseline Papers",
+            "type": "array"
+          },
+          "families": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "habit": {
+            "title": "Habit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline_papers",
+          "family",
+          "habit",
+          "families",
+          "features"
+        ],
+        "title": "PastPaperExamplesResponse",
+        "type": "object"
+      },
       "PhoneBeatBody": {
         "properties": {
           "beat_token": {
@@ -9031,6 +9077,56 @@
           }
         },
         "summary": "Advance Formation"
+      }
+    },
+    "/students/{student_id}/past-paper-examples": {
+      "get": {
+        "description": "ADR-013, staff only: real sentences from this student's past papers that\nshow one habit and the family of habits around it. Read-only; changes no\nscore. Off unless EVIDENCE_PASSAGES_ENABLED=1.",
+        "operationId": "past_paper_examples_students__student_id__past_paper_examples_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "habit",
+            "required": false,
+            "schema": {
+              "default": "mean_sentence_length",
+              "title": "Habit",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastPaperExamplesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Past Paper Examples"
       }
     },
     "/students/{student_id}/readiness": {

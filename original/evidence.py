@@ -817,11 +817,15 @@ def _pick(places: Sequence[Place], limit: int) -> list[Place]:
     return picked
 
 
-def _length_pick(places: Sequence[Place], mode: str, direction: str, limit: int) -> list[Place]:
+def _typical_pick(places: Sequence[Place], mean: float, limit: int) -> list[Place]:
+    """Sentences closest to the paper's own mean length, ties in document order."""
+    return sorted(places, key=lambda p: (abs((p.words or 0) - mean), p.start))[:limit]
+
+
+def _spread_pick(places: Sequence[Place], limit: int) -> list[Place]:
+    """Interleave the longest and shortest sentences, never repeating one."""
     longest = sorted(places, key=lambda p: (-(p.words or 0), p.start))
     shortest = sorted(places, key=lambda p: ((p.words or 0), p.start))
-    if mode == "mean":
-        return list((longest if direction == "higher" else shortest)[:limit])
     picked: list[Place] = []
     for place in [x for pair in zip(longest, shortest, strict=False) for x in pair]:
         if place not in picked:
@@ -850,11 +854,7 @@ def build_feature_evidence(
     fixed order.
     """
     code = feature["code"]
-    name, description = describe(code)
-    info = feature_info().get(code)
-    if info is not None:
-        # Written from the extractor code, so it says how the number is made.
-        description = info["description"]
+    name, description = _name_and_description(code)
     delta = float(feature.get("delta", 0.0) or 0.0)
     direction = "higher" if delta > 0 else "lower" if delta < 0 else "same"
     out: dict[str, Any] = {
@@ -889,17 +889,19 @@ def build_feature_evidence(
         out["note"] = NOT_LOCATED_NOTE
         return out
 
-    def chosen(places):
+    def chosen(places, reading):
+        if spec.sentence_length == "mean":
+            return _typical_pick(places, reading.value, max_examples)
         if spec.sentence_length:
-            return _length_pick(places, spec.sentence_length, direction, max_examples)
+            return _spread_pick(places, max_examples)
         return _pick(places, max_examples)
 
     out["this_paper"] = {
         "count": len(this.places),
-        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places)],
+        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places, this)],
     }
     # Past papers: take examples round-robin across papers in their fixed order.
-    per_paper = [(label, text, chosen(r.places)) for label, text, r in past]
+    per_paper = [(label, text, chosen(r.places, r)) for label, text, r in past]
     examples: list[dict[str, Any]] = []
     depth = 0
     while len(examples) < max_examples and any(depth < len(c) for _, _, c in per_paper):
@@ -918,6 +920,130 @@ def build_feature_evidence(
         elif not out["past_papers"]["count"]:
             out["note"] = f"No {spec.what} appears in the past papers."
     return out
+
+
+#: Related habits shown together on the past-paper page. Every quotable habit
+#: sits in exactly one family; the order here is the order the page draws.
+FAMILIES: dict[str, tuple[str, ...]] = {
+    "Sentence shape": (
+        "mean_sentence_length",
+        "sentence_length_variance",
+        "comma_rate",
+        "semicolon_colon_rate",
+        "dash_rate",
+        "parenthetical_rate",
+        "sentence_initial_conjunction_rate",
+    ),
+    "Linking ideas": (
+        "discourse_marker_density",
+        "additive_ratio",
+        "adversative_ratio",
+        "causal_ratio",
+        "temporal_ratio",
+        "transition_density",
+    ),
+    "Voice": (
+        "first_person_ratio",
+        "contraction_rate",
+        "question_ratio",
+        "modal_verb_ratio",
+        "passive_voice_ratio",
+    ),
+    "Claims and confidence": (
+        "hedging_density",
+        "assertion_density",
+        "claim_density",
+        "appeal_to_authority_density",
+        "quote_rate",
+    ),
+}
+
+
+def family_of(code: str) -> str | None:
+    for name, codes in FAMILIES.items():
+        if code in codes:
+            return name
+    return None
+
+
+def _extremes_pick(places: Sequence[Place]) -> list[tuple[str | None, Place]]:
+    """The longest and the shortest sentence, always two different sentences.
+
+    A lone sentence is neither, so it carries no role; nor do two sentences
+    of the same length (every sentence is then one length).
+    """
+    if not places:
+        return []
+    if len(places) == 1:
+        return [(None, places[0])]
+    longest = min(places, key=lambda p: (-(p.words or 0), p.start))
+    shortest = min((p for p in places if p is not longest), key=lambda p: ((p.words or 0), p.start))
+    if (longest.words or 0) == (shortest.words or 0):
+        return [(None, longest), (None, shortest)]
+    return [("longest", longest), ("shortest", shortest)]
+
+
+def _name_and_description(code: str) -> tuple[str, str]:
+    name, description = describe(code)
+    info = feature_info().get(code)
+    if info is not None:
+        # Written from the extractor code, so it says how the number is made.
+        description = info["description"]
+    return name, description
+
+
+def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) -> dict[str, Any]:
+    """Every habit in ``habit``'s family, with real sentences from each past paper."""
+    family = family_of(habit)
+    if habit not in LOCATABLE or family is None:
+        raise ValueError(f"{habit!r} is not a quotable habit")
+    codes = FAMILIES[family]
+    # Each paper is read for every habit in the family together, so its
+    # engine_view stays cached while it is used, however many papers there are.
+    readings = [[read_paper(text, code) for code in codes] for _, text in baselines]
+    features: list[dict[str, Any]] = []
+    for i, code in enumerate(codes):
+        spec = LOCATABLE[code]
+        name, description = _name_and_description(code)
+        per_paper: list[dict[str, Any]] = []
+        for (label, text), paper_readings in zip(baselines, readings, strict=True):
+            r = paper_readings[i]
+            if r.places is None:
+                picks: list[tuple[str | None, Place]] = []
+            elif spec.sentence_length == "mean":
+                picks = [("typical", p) for p in _typical_pick(r.places, r.value, MAX_EXAMPLES)]
+            elif spec.sentence_length:
+                picks = _extremes_pick(r.places)
+            else:
+                picks = [(None, p) for p in _pick(r.places, MAX_EXAMPLES)]
+            per_paper.append(
+                {
+                    "paper": label,
+                    "value": _round(r.value),
+                    "count": None if r.places is None else len(r.places),
+                    "examples": [
+                        {"role": role, "quote": _quote(text, p, label)} for role, p in picks
+                    ],
+                }
+            )
+        entry: dict[str, Any] = {
+            "code": code,
+            "name": name,
+            "description": description,
+            "unit": spec.unit,
+            "what_is_marked": spec.what,
+            "kind": "located",
+            "per_paper": per_paper,
+        }
+        if any(p["count"] is None for p in per_paper):
+            entry["note"] = NOT_LOCATED_NOTE
+        features.append(entry)
+    return {
+        "family": family,
+        "habit": habit,
+        "families": [{"name": n, "habits": list(codes)} for n, codes in FAMILIES.items()],
+        "features": features,
+    }
 
 
 def build_evidence(

@@ -161,6 +161,41 @@
   .evi-col.base .evi-txt mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
   .evi-src{margin-top:auto;padding-top:.5rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
   @media (max-width:900px){.evi-cols{grid-template-columns:1fr;}}
+  /* Past-paper mode (no analysis yet): one column per past paper, then the family's other habits.
+     Past work keeps the blue of the analysed view's "Their own past work" column. */
+  .evi-past{display:flex;flex-direction:column;gap:.85rem;}
+  /* The past-paper panel is taller than the hero's 600px floor: without this the column
+     flexbox shrinks the hero to that floor and its bottom-aligned content overflows upward,
+     out of scroll reach. Set only while past papers show, so the analysed view is unchanged. */
+  .hero-inner.evi-past-on{flex-shrink:0;}
+  .evi-fams{display:flex;gap:.4rem;flex-wrap:wrap;}
+  .evi-fam{background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.28rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .14s;}
+  .evi-fam:hover{color:var(--cream);}
+  .evi-fam[aria-pressed="true"]{background:#8ba8dd;border-color:transparent;color:#0d1530;font-weight:600;}
+  .evi-pcols{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;max-height:30rem;overflow-y:auto;}
+  .evi-pcol{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:12px;padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.55rem;min-width:0;}
+  .evi-phead{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#8ba8dd;}
+  .evi-pnum{font-family:var(--mono);font-weight:700;font-size:1.05rem;color:#8ba8dd;}
+  .evi-psrc{display:block;margin-top:.15rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
+  .evi-past .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  .evi-past .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
+  .evi-past .none{font-style:italic;color:var(--dim);font-size:.94rem;}
+  /* Related habits stay compact: a bounded box with its own scroll, like the columns above. */
+  .evi-rel{display:flex;flex-direction:column;gap:.5rem;max-height:32rem;overflow-y:auto;}
+  .evi-rel-h{font-family:var(--display);font-size:1.02rem;color:var(--cream);}
+  .evi-rel-row{display:block;width:100%;text-align:left;background:rgba(255,255,255,0.025);border:1px solid var(--line-soft);border-radius:10px;padding:.65rem .85rem;cursor:pointer;font-family:var(--body);color:var(--cream);transition:all .14s;}
+  .evi-rel-row:hover{border-color:rgba(139,168,221,.5);background:rgba(255,255,255,0.05);}
+  .evi-rel-name{display:block;font-weight:600;font-size:.92rem;margin-bottom:.4rem;}
+  .evi-rel-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(16rem,100%),1fr));gap:.5rem .9rem;}
+  .evi-rel-cell{display:flex;flex-direction:column;gap:.15rem;min-width:0;}
+  .evi-rel-paper{font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:#8ba8dd;}
+  .evi-rel-num{font-family:var(--mono);font-size:.74rem;color:var(--cream);}
+  .evi-rel-row .evi-q{display:block;font-size:.92rem;line-height:1.55;}
+  .evi-rel-row .none{font-size:.86rem;}
+  .evi-pline{font-size:.9rem;line-height:1.55;font-style:italic;color:var(--dim);}
+  .evi-fam:focus-visible,.evi-rel-row:focus-visible,.evi-pcols:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .evi-rel-row:focus-visible{outline-offset:-2px;} /* inside the scroll box, so the ring is not clipped */
+  @media (max-width:900px){.evi-pcols,.evi-rel-cells{grid-template-columns:1fr;}}
   /* Plain-English read + triage */
   .plain-read{margin-top:.6rem;max-width:62ch;font-size:.95rem;line-height:1.55;color:var(--dim);}
   .plain-read .gS{color:#7ab2e0;font-weight:600;}.plain-read .gD{color:#b49ae6;font-weight:600;}.plain-read .gR{color:#7cc9a0;font-weight:600;}
@@ -471,6 +506,12 @@
               <div class="evi-col"><div class="evi-lbl" id="evi-sub-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
               <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
             </div>
+            <div class="evi-past" id="evi-past" hidden>
+              <div class="evi-fams" id="evi-fams" role="group" aria-label="Families of related habits"></div>
+              <div class="evi-pcols" id="evi-pcols" role="group" aria-label="Past papers" tabindex="0"></div>
+              <div class="evi-rel" id="evi-rel"></div>
+              <p class="evi-pline" id="evi-pline"></p>
+            </div>
             <div class="evi-foot" id="evi-foot" hidden>
               <div class="evi-notice" id="evi-notice"></div>
               <a class="evi-side" id="evi-side" href="#" hidden>See it side by side</a>
@@ -563,6 +604,12 @@
     // loaded from it, and the exam the shown analysis was made of ('' if none).
     subId:'', fromText:'', fromSub:'', resultSub:''
   };
+  // Past-paper mode: before any analysis, the habit panel quotes the student's own
+  // past papers (GET /students/{id}/past-paper-examples, staff only, behind
+  // EVIDENCE_PASSAGES_ENABLED), one family of related habits at a time. Each
+  // family's answer is kept for the page's life; seq drops a reply that a newer
+  // request has replaced.
+  const PP={state:'idle', cache:new Map(), families:[], habit:'', seq:0};
   const who=()=>S.name||S.id;
   const poss=()=>who()+'’s';
   const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
@@ -845,10 +892,12 @@
       };
       ch.addEventListener('click',e=>{
         const t=TIER_BY_KEY.get(key);
-        // With passages (the staff evidence field): the first click after an analysis pins
-        // the tier and opens its most different habit; a click on the pinned tier unpins
-        // it and closes the panel. A keyboard click (detail 0) moves focus into the panel.
-        if(hasEvidence(S.result)&&S.base&&t&&t.features.length){
+        // With passages (the staff evidence field after an analysis, or past-paper mode
+        // before one): the first click pins the tier and opens its most different habit
+        // (before an analysis, its first); a click on the pinned tier unpins it and closes
+        // the panel. A keyboard click (detail 0) moves focus into the panel.
+        const pastMode=!S.result&&PP.state==='on';
+        if((hasEvidence(S.result)||pastMode)&&S.base&&t&&t.features.length){
           if(CROSS.pinned===key){ toggle(key); EVI.close(); return; }
           toggle(key);
           EVI.open(topHabit(t).code,e.detail===0?ch:null);
@@ -954,16 +1003,17 @@
     const box=$('hero-evi');
     const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
     const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
-    let openCode='', opener=null, place=0;
+    let openCode='', opener=null, place=0, pastOn=false;
     const WHOLE_WORDS='This habit is measured across the whole paper, so there is no single sentence to quote.';
     // The server's own note for a whole-text habit (original/evidence.py NUMBERS_ONLY_NOTE);
     // any other note on a whole-text habit says something more specific and is shown as sent.
     const SERVER_WHOLE='Whole-text measurement, no single sentence to point to.';
     const papers=()=>{ const ev=S.result&&S.result.evidence; return ev&&Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[]; };
-    function quoteHTML(q){
-      const parts=EV.markParts(q);
+    // tag: 'span' inside a button, where a div may not go.
+    function quoteHTML(q,tag){
+      const parts=EV.markParts(q), el=tag==='span'?'span':'div';
       const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+      return '<'+el+' class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</'+el+'>';
     }
     // A quote's source line (EvidenceView.quoteSource, the rule all three pages share).
     // Character offsets stay out of the visible line; they are in the tooltip.
@@ -983,8 +1033,16 @@
       return fits?EV.clean(e.note,plainNone):plainNone;
     }
     // `from` is the bar, row or chip a keyboard opened it from: focus moves into the panel, and back when it closes.
+    // Before any analysis, a habit with past-paper examples opens its family instead (openPast).
     function open(code,from){
       if(!has(OF.byCode,code)) return;
+      const fam=pastFamily(code);
+      if(fam){ openPast(code,fam,from,'open'); return; }
+      openPlain(code,from);
+    }
+    function openPlain(code,from){
+      // In past-paper mode this open is newer than any family request still on its way.
+      if(PP.state==='on') PP.seq++;
       openCode=code; opener=from||null; place=0;
       render();
       box.classList.add('show');
@@ -999,6 +1057,7 @@
     }
     function render(){
       const code=openCode;
+      pastOn=false; pastParts(false);
       const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
       const e=S.EVI.get(code)||null;
@@ -1089,15 +1148,200 @@
         $('evi-base-src').textContent='';
       }
     }
-    function close(back){
+    // ── past-paper mode (no analysis yet): one habit in full, a column per past paper,
+    // then the family's other habits in compact rows. Numbers and sentences only:
+    // nothing here compares or judges. Student text goes through esc or textContent.
+    const PICK_ROLE={typical:'Typical',longest:'Longest',shortest:'Shortest'};
+    const RELATED_HEAD={'Sentence shape':'Related: how these sentences are built','Linking ideas':'Related: how ideas are joined','Voice':'Related: how the writer speaks','Claims and confidence':'Related: how claims are made'};
+    const NUMBERS_ONLY='No passages could be shown for this paper (numbers only).';
+    // The family a habit opens in, or '' (an analysis is on the page, the mode is off, or the habit has no examples).
+    function pastFamily(code){
+      if(S.result||PP.state!=='on') return '';
+      const fam=PP.families.find(x=>x.habits.indexOf(code)>=0);
+      return fam?fam.name:'';
+    }
+    const pastFeatures=d=>d.features.filter(f=>isObj(f)&&typeof f.code==='string');
+    const pastFeature=(d,code)=>pastFeatures(d).find(f=>f.code===code)||null;
+    const perPaper=f=>Array.isArray(f.per_paper)?f.per_paper.filter(isObj):[];
+    const unitOf=f=>typeof f.unit==='string'?f.unit.trim():'';
+    const numberLine=(v,unit)=>EV.clean(EV.fmt(v)+(unit?' '+unit:''),EV.fmt(v));
+    // The analysed view's parts hide while past papers are shown; render() and close() bring them back.
+    function pastParts(on){
+      $('evi-past').hidden=!on;
+      box.parentNode.classList.toggle('evi-past-on',on);
+      box.querySelector('.evi-cols').hidden=on;
+      if(on){ $('evi-tabs').hidden=true; $('evi-foot').hidden=true; $('evi-flag').hidden=true; $('evi-one').hidden=true; }
+    }
+    // how: 'open' from elsewhere on the page (brought into view; focus moves in when a keyboard
+    // opened it), 'switch' from inside the panel, 'reopen' after a re-render (no scroll, no focus).
+    // A family not yet asked for is fetched once; a failed request shows the numbers-only panel.
+    // Resolves true when it changed the panel, false when a newer choice had replaced it.
+    async function openPast(code,fam,from,how){
+      let d=PP.cache.get(fam)||null;
+      if(!d){
+        const my=++PP.seq;
+        d=await fetchPastFamily(code);
+        if(my!==PP.seq||S.result||(how==='switch'&&!pastOn)) return false;
+      }
+      if(!d||!pastFeature(d,code)){ openPlain(code,from); return true; }
+      showPast(code,d,from,how);
+      return true;
+    }
+    function showPast(code,d,from,how){
+      // A habit shown now, even from the cache, is newer than any family request still on its way.
+      // A re-render's reopen is not a choice, so it leaves a pending request alone.
+      if(how!=='reopen') PP.seq++;
+      PP.habit=code; openCode=code; pastOn=true;
+      if(how!=='switch') opener=from||null;
+      renderPast(d);
+      box.classList.add('show');
+      markExpanded(code);
+      if(how!=='open') return;
+      // Into view with the student's name and the plain reading above it (before an analysis there is no triage row).
+      const rs=$('right-scroll'), head=box.parentNode.querySelector('.hero-title');
+      if(rs&&head) rs.scrollTop+=head.getBoundingClientRect().top-rs.getBoundingClientRect().top-16;
+      if(from) $('evi-close').focus();
+    }
+    function renderPast(d){
+      const code=PP.habit, f=pastFeature(d,code), of=OF.byCode[code]||{};
+      const t=TIER_BY_KEY.get(of.tier)||{c:'#c9a028'};
+      const papers=Array.isArray(d.baseline_papers)?d.baseline_papers.filter(isObj):[];
+      box.style.setProperty('--evc',t.c);
+      box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
+      box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
+      $('evi-name').textContent=String(f.name||of.name||code);
+      $('evi-nums').textContent=pastRange(f);
+      $('evi-desc').textContent=of.desc||(typeof f.description==='string'?f.description:'');
+      pastParts(true);
+      const fams=$('evi-fams');
+      fams.innerHTML=PP.families.map(x=>'<button type="button" class="evi-fam" data-fam="'+esc(x.name)+'" aria-pressed="'+(x.name===d.family?'true':'false')+'">'+esc(x.name)+'</button>').join('');
+      fams.querySelectorAll('.evi-fam').forEach(b=>b.addEventListener('click',()=>pickFamily(b.dataset.fam)));
+      $('evi-pcols').innerHTML=perPaper(f).map(p=>pastColumn(f,p,papers)).join('');
+      const others=pastFeatures(d).filter(x=>x.code!==code), rel=$('evi-rel');
+      rel.innerHTML=others.length?'<div class="evi-rel-h">'+esc(EV.clean(RELATED_HEAD[d.family]||'Related habits',''))+'</div>'+others.map(x=>relatedRow(x,papers)).join(''):'';
+      rel.querySelectorAll('.evi-rel-row').forEach(r=>r.addEventListener('click',()=>pickRelated(r.dataset.code,d)));
+      $('evi-pline').textContent=EV.clean('These are sentences from '+poss()+' own past papers, so you can see their usual writing before you analyse anything.','');
+    }
+    // The past papers' range and unit only: before an analysis there is no paper to set beside it.
+    function pastRange(f){
+      const vals=perPaper(f).map(p=>num(p.value)).filter(v=>v!=null);
+      if(!vals.length) return '';
+      const lo=EV.fmt(Math.min(...vals)), hi=EV.fmt(Math.max(...vals)), unit=unitOf(f);
+      return EV.clean('past papers '+(lo===hi?lo:lo+' to '+hi)+(unit?' ('+unit+')':''),'');
+    }
+    // A quote's source line: why it was picked (typical, longest, shortest), its length, a short match spelled out.
+    function pickSource(x,tag){
+      const line=EV.quoteSource(x.quote,PICK_ROLE[x.role]||''), el=tag==='span'?'span':'div';
+      if(!line) return '';
+      const q=x.quote, at=num(q.start)!=null&&num(q.end)!=null?' title="characters '+q.start+' to '+q.end+'"':'';
+      return '<'+el+' class="evi-psrc"'+at+'>'+esc(line)+'</'+el+'>';
+    }
+    // One past paper: its title and date, its own number, then its sentences, or why there are none.
+    function pastColumn(f,p,papers){
+      const v=num(p.value);
+      let h='<div class="evi-pcol"><div class="evi-phead">'+esc(EV.pastSource(p.paper,papers))+'</div>';
+      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f)))+'</span>';
+      if(p.count===0) h+='<p class="none">None in this paper.</p>';
+      else if(num(p.count)==null) h+='<p class="none">'+esc(EV.clean(typeof f.note==='string'&&f.note?f.note:NUMBERS_ONLY,NUMBERS_ONLY))+'</p>';
+      else h+=pastExamples(p).slice(0,3).map(x=>'<div class="evi-pq">'+quoteHTML(x.quote)+pickSource(x)+'</div>').join('');
+      return h+'</div>';
+    }
+    // A related row's quote: a short verbatim window of the passage, about REL_CHARS long,
+    // cut at spaces ("…" where cut). The counted part is kept whole and centred, its mark
+    // still checked against the server's offsets (EV.markParts). A counted part longer than
+    // the window (a whole sentence, for sentence length) cannot be whole, so the window is
+    // the sentence's start with no mark; the source line still gives its role and length.
+    const REL_CHARS=140, isSpace=c=>/\s/.test(c);
+    function relWindow(q){
+      const p=q.passage;
+      if(p.length<=REL_CHARS) return q;
+      const parts=EV.markParts(q), a=parts.before.length, b=a+parts.mark.length;
+      const whole=!!parts.mark&&b-a<=REL_CHARS;
+      let w0=0, w1;
+      if(whole){
+        w0=Math.max(0,a-Math.floor((REL_CHARS-(b-a))/2));
+        w1=Math.min(p.length,w0+REL_CHARS);
+        w0=Math.max(0,Math.min(w0,w1-REL_CHARS));
+        // Start at a word: after the first space between w0 and the mark, else after the last one before w0.
+        if(w0>0&&!isSpace(p[w0-1])){
+          let k=w0; while(k<a&&!isSpace(p[k])) k++;
+          if(k<a) w0=k+1;
+          else { k=w0-1; while(k>=0&&!isSpace(p[k])) k--; w0=k+1; }
+        }
+        while(w0<a&&isSpace(p[w0])) w0++;
+      } else w1=REL_CHARS;
+      // End at a word: at the last space between the mark (or the first character) and w1, else at the next one after w1.
+      const from=whole?b:1;
+      if(w1<p.length&&!isSpace(p[w1])){
+        let k=w1-1; while(k>=from&&!isSpace(p[k])) k--;
+        if(k>=from) w1=k;
+        else { k=w1; while(k<p.length&&!isSpace(p[k])) k++; w1=k; }
+      }
+      while(w1>from&&isSpace(p[w1-1])) w1--;
+      const out=Object.assign({},q,{
+        passage:p.slice(w0,w1), passage_start:q.passage_start+w0, passage_end:q.passage_start+w1,
+        clipped_start:!!q.clipped_start||w0>0, clipped_end:!!q.clipped_end||w1<p.length,
+      });
+      if(!whole){ out.match=''; out.match_start=null; out.match_end=null; }
+      return out;
+    }
+    // One compact row: the habit's name, then per paper its number and one quote (for
+    // variation, its longest and shortest). The whole row opens the habit in full.
+    function relatedRow(f,papers){
+      const unit=unitOf(f);
+      const cells=perPaper(f).map(p=>{
+        const v=num(p.value), ex=pastExamples(p);
+        const both=ex.some(x=>x.role==='longest'||x.role==='shortest');
+        let h='<span class="evi-rel-cell"><span class="evi-rel-paper">'+esc(EV.paperName(p.paper,papers))+'</span>';
+        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit))+'</span>';
+        if(p.count===0) h+='<span class="none">none in this paper</span>';
+        else if(num(p.count)==null) h+='<span class="none">numbers only</span>';
+        else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(relWindow(x.quote),'span')+pickSource(x,'span')).join('');
+        return h+'</span>';
+      }).join('');
+      // Named by its habit alone: read out whole, the row's quotes would be its name.
+      const name=String(f.name||f.code);
+      return '<button type="button" class="evi-rel-row" data-code="'+esc(f.code)+'" aria-label="'+esc(name+', show in full')+'"><span class="evi-rel-name">'+esc(name)+'</span><span class="evi-rel-cells">'+cells+'</span></button>';
+    }
+    // A related row becomes the habit in full, from the same answer (no request).
+    function pickRelated(code,d){
+      if(!pastOn||!pastFeature(d,code)) return;
+      showPast(code,d,null,'switch');
+      // The habit in full sits at the top of the panel: bring that into view and move focus to it.
+      const rs=$('right-scroll');
+      if(rs){ const up=box.getBoundingClientRect().top-rs.getBoundingClientRect().top-16; if(up<0) rs.scrollTop+=up; }
+      $('evi-pcols').focus({preventScroll:true});
+    }
+    // A family button opens that family's first habit; focus stays on the button just pressed.
+    // A reply a newer choice replaced moves nothing, focus included.
+    function pickFamily(name){
+      const fam=PP.families.find(x=>x.name===name);
+      if(!fam||!fam.habits.length) return;
+      openPast(fam.habits[0],name,null,'switch').then(changed=>{
+        if(!changed) return;
+        const on=$('evi-fams').querySelector('.evi-fam[aria-pressed="true"]');
+        if(pastOn&&on) on.focus();
+        else if(box.classList.contains('show')) $('evi-close').focus();
+      });
+    }
+    // back===true: focus returns to what opened it. rerender: renderAll's close, reopened at once.
+    function close(back,rerender){
+      // Closed by the teacher (the button, Escape, a pinned tier chip): a family request still
+      // on its way does not reopen it. A re-render is not a choice, so it leaves one alone.
+      if(!rerender&&PP.state==='on') PP.seq++;
       box.classList.remove('show');
-      openCode=''; markExpanded(null);
+      openCode=''; pastOn=false; pastParts(false); markExpanded(null);
       if(back===true&&opener&&opener.isConnected) opener.focus();
       opener=null;
     }
     $('evi-close').addEventListener('click',()=>close(true));
     box.addEventListener('keydown',e=>{ if(e.key==='Escape'&&box.classList.contains('show')){ e.preventDefault(); close(true); } });
-    return {open,close,code:()=>openCode};
+    return {
+      open, close, code:()=>openCode,
+      // The habit shown in past-paper mode, or '' (renderAll keeps it open across a re-render).
+      pastHabit:()=>pastOn?PP.habit:'',
+      reopen(code){ const d=PP.cache.get(pastFamily(code)); if(d&&pastFeature(d,code)) showPast(code,d,null,'reopen'); }
+    };
   }
 
   // Fingerprint (decorative): colours follow the toggle and the result.
@@ -1229,12 +1473,15 @@
     renderReadout();
     renderPlain();
     renderResultChrome();
-    EVI.close();
+    // Past-paper mode outlives a re-render (the roster's late one), never an analysis.
+    const past=EVI.pastHabit();
+    EVI.close(false,true);
     CHIPS.unpin();
     HM.build();
     RADAR.draw();
     CHIPS.mark();
     DETAIL.clear();
+    if(past&&!S.result) EVI.reopen(past);
   }
 
   // ── the Analyse card ──
@@ -1320,6 +1567,36 @@
     sel.addEventListener('change',()=>{ if(sel.value) location.href='writing-state.html?student='+encodeURIComponent(sel.value); });
   }
 
+  // ── past-paper examples (PP above) ──
+  const PAST_FIRST='mean_sentence_length';
+  const isRecord=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+  // A past paper's examples the panel can quote: each a quote with a passage.
+  const pastExamples=p=>(isRecord(p)&&Array.isArray(p.examples)?p.examples.filter(x=>isRecord(x)&&isRecord(x.quote)&&typeof x.quote.passage==='string'&&x.quote.passage):[]);
+  // One family's answer, kept by family name; null for anything but a usable 200
+  // (404 with the flag off, 403, 503, a network failure, a body of the wrong shape).
+  async function fetchPastFamily(habit){
+    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/past-paper-examples?habit='+encodeURIComponent(habit));
+    const d=res.data;
+    if(res.status!==200||!isRecord(d)||typeof d.family!=='string'||!Array.isArray(d.features)||!Array.isArray(d.families)) return null;
+    PP.cache.set(d.family,d);
+    return d;
+  }
+  // With no analysis on the page: ask for the Sentence shape family once, and when
+  // a past paper has a sentence to show, open sentence length (unless a habit is
+  // already open). A late reply, one replaced by a newer request, or one that
+  // arrives after an analysis changes nothing.
+  async function startPastExamples(){
+    if(!S.id||S.result||!hasBaseline()) return;
+    const my=++PP.seq;
+    const d=await fetchPastFamily(PAST_FIRST);
+    if(!d||S.result||my!==PP.seq) return;
+    if(!d.features.some(f=>isRecord(f)&&Array.isArray(f.per_paper)&&f.per_paper.some(p=>pastExamples(p).length>0))) return;
+    PP.families=d.families.filter(x=>isRecord(x)&&typeof x.name==='string'&&Array.isArray(x.habits))
+      .map(x=>({name:x.name,habits:x.habits.filter(c=>typeof c==='string')}));
+    PP.state='on';
+    if(!EVI.code()) EVI.open(PAST_FIRST);
+  }
+
   async function loadStudent(){
     note('Loading');
     const st=await Live.api('/students/'+encodeURIComponent(S.id));
@@ -1336,6 +1613,8 @@
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
     else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }
+    // That last branch (a baseline, and no analysis restored): past papers' own sentences.
+    if(!S.stErr&&!S.result) startPastExamples();
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
