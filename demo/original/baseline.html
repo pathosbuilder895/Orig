@@ -1244,6 +1244,7 @@
     else if(st.status===401) S.status='auth';
     else S.status='error';
     if(rd.ok&&rd.data&&typeof rd.data==='object') S.ready=rd.data;
+    driftWords();
   }
   function renderAll(){
     renderHead(); renderStats(); renderPurity(); renderHero(); renderShort();
@@ -1420,13 +1421,14 @@
     }finally{ SH.busy=''; renderShared(); }
   });
 
-  // The drift check's rule in this server's own mode (GET /health drift_gate).
-  // "advisory" (the alpha pilot): nothing a teacher adds or approves is held
-  // back, and the check only reports. The page's words otherwise stay those of
-  // "hold", the default, so an unreadable answer never promises an admission.
-  async function driftWords(){
-    let mode='';
-    try{ const h=await Live.api('/health'); mode=h.ok&&h.data&&typeof h.data.drift_gate==='string'?h.data.drift_gate:''; }catch(e){ mode=''; }
+  // The drift check's rule in this server's own mode (the readiness answer's
+  // drift_gate; /health carries it too, but some browsers' blockers refuse a
+  // page's request to /health). "advisory" (the alpha pilot): nothing a teacher
+  // adds or approves is held back, and the check only reports. The page's words
+  // otherwise stay those of "hold", the default, so an unreadable answer never
+  // promises an admission.
+  function driftWords(){
+    const mode=S.ready&&typeof S.ready.drift_gate==='string'?S.ready.drift_gate:'';
     if(mode!=='advisory') return;
     document.querySelectorAll('[data-drift]').forEach(el=>{
       el.textContent=el.dataset.drift==='exam'
@@ -1442,7 +1444,6 @@
     startFingerprint();
     $('paste-date').value=today();
     $('files-date').value=today();
-    driftWords();
     setTab('paste');
     loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }
