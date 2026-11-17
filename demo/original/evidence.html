@@ -379,6 +379,18 @@
     $('p-summary').innerHTML=html;
     return sum;
   }
+  // Versioned measurements (original/measurement.py): present only when the
+  // newer measuring rules were asked for; absent means the default rules.
+  const MEASURE_NAMES={v1:'the default rules',fs2:'the reworked word-list rules',matter:'the rules that set aside headings, footnotes and the list of sources','fs2+matter':'the reworked word-list rules and the rules that set aside headings, footnotes and the list of sources'};
+  function renderMeasurement(m){
+    if(!isObj(m)||typeof m.used!=='string'||typeof m.requested!=='string') return;
+    const name=k=>MEASURE_NAMES[k]||k;
+    const n=num(m.past_papers), done=num(m.past_papers_measured);
+    const text=m.used===m.requested
+      ?'Measured with '+name(m.used)+', for this paper and '+(n!=null?EV.plural(n,'past paper'):'its past papers')+' alike.'
+      :name(m.requested).charAt(0).toUpperCase()+name(m.requested).slice(1)+' were asked for, but '+(n!=null&&done!=null?(n-done)+' of '+n+' past papers are':'some past papers are')+' not measured that way yet, so this paper and its past papers were all measured with '+name(m.used)+'.';
+    $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="measured-as">'+esc(text)+'</p>');
+  }
   function renderTop(ev,byCode){
     const top=Array.isArray(ev.features)?ev.features.filter(isObj):[];
     if(!top.length){ $('p-diff').innerHTML='<p class="none-line">Original&rsquo;s top list is empty for this paper: no measurement sits far enough from the past papers to make it.</p>'; return; }
@@ -517,6 +529,7 @@
     if(!sum.pastCount){
       $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="insufficient">No past papers with stored text are on file for this analysis, so there is nothing to set beside it. Add past papers on the Reference papers by student page, then analyse again.</p>');
     }
+    renderMeasurement(ev.measurement);
     renderTop(ev,byCode);
     renderSteady(ev);
     renderAll(ev);

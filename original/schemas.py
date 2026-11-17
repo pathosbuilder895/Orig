@@ -765,6 +765,22 @@ class WindowScoreOut(BaseModel):
     )
 
 
+class MeasurementOut(BaseModel):
+    """Which way a score's papers were measured (original/measurement.py)."""
+
+    requested: str = Field(description="The measurement the switches asked for.")
+    used: str = Field(description='The measurement actually used ("v1" = the default).')
+    past_papers: int
+    past_papers_measured: int = Field(
+        description="Past papers that already carry the requested measurement."
+    )
+    fallback: str | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Why the default was used instead, when it was.",
+    )
+
+
 class BlendResultOut(BaseModel):
     """Aggregated blend-detection result for a single submission (Phase 7)."""
 
@@ -793,6 +809,8 @@ class BlendResultOut(BaseModel):
             "MODEL_CARD.md) — not comparable to the document-level thresholds."
         ),
     )
+    # Versioned measurements: left out of the JSON when only the default was asked for.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -1199,6 +1217,11 @@ class Layer7OutputResponse(BaseModel):
     # the flag is off, so the default response is unchanged.
     evidence: dict[str, Any] | None = None
     preliminary: PreliminaryScoreOut | None = None
+    # Versioned measurements (original/measurement.py): which measurement this
+    # score used. Present only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask
+    # for something other than the default; left out of the JSON entirely
+    # otherwise (absent means "v1"), so the default response is byte-identical.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

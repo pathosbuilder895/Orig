@@ -273,6 +273,8 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # Measurement versions (features/feature_flags.py): off = the old measurement.
     "FEATURE_SET": "1",
     "MATTER_SPLITTER_ENABLED": "0",
+    # ADR-014: a second stored measurement on new uploads; never moves a score.
+    "UPLOAD_ALSO_MEASURE": "",
 }
 
 
@@ -1095,6 +1097,16 @@ TYPICALITY = {"TYPICALITY_SCORING": "1"}
 PRIOR = {"BAYESIAN_PRIOR_ENABLED": "1"}
 LLR_SHADOW = {"NULL_MODEL": "impostor", "LLR_ACTION_MODE": "shadow"}
 
+#: The version stamp a fallback adds (original/measurement.py), and nothing else.
+_MEASUREMENT_STAMP_PATHS = {
+    "measurement.requested",
+    "measurement.used",
+    "measurement.past_papers",
+    "measurement.past_papers_measured",
+    "measurement.fallback",
+}
+
+
 API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, str]] = {
     "CONTEXT_MANIFEST_ENABLED=1": (
         {},
@@ -1237,17 +1249,27 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {"recommendation.action"},
         "",
     ),
-    # The reworked word-list habits and the front/back-matter splitter change
-    # what is measured, so the comparison moves. Not for live use until stored
-    # past papers carry vectors measured the same way (PR 3 of the plan).
-    "FEATURE_SET=2": ({}, {"FEATURE_SET": "2"}, {"authorship.deviation_score"}, ""),
+    # ADR-014 versioned measurements. The profile's past papers were added
+    # with every flag unset, so none carries the requested measurement: the
+    # score falls back to the default for paper and past papers alike and only
+    # the `measurement` stamp appears (asserted EXACTLY, so a fallback that
+    # moved any score would fail). With every past paper measured the new way
+    # the score does move: tests/test_versioned_measurements.py.
+    "FEATURE_SET=2": ({}, {"FEATURE_SET": "2"}, _MEASUREMENT_STAMP_PATHS, ""),
     "MATTER_SPLITTER_ENABLED=1": (
         {},
         {"MATTER_SPLITTER_ENABLED": "1"},
+        _MEASUREMENT_STAMP_PATHS,
+        "",
+    ),
+    "UPLOAD_ALSO_MEASURE=fs2+matter": (
+        {},
+        {"UPLOAD_ALSO_MEASURE": "fs2+matter"},
         None,
-        "every document in the fixed profile is one paragraph of prose with no "
-        "heading block, headings, page lines, footnotes or list of sources, so "
-        "the splitter sets nothing aside (its own tests in tests/test_matter.py)",
+        "it only adds a stored second measurement to past papers added while it "
+        "is set; this profile's past papers were added before, and a score never "
+        "reads it unless FEATURE_SET / MATTER_SPLITTER_ENABLED ask for it "
+        "(tests/test_versioned_measurements.py)",
     ),
     "TOPIC_VARIANCE_INFLATION=on": (
         MANIFEST,
@@ -1261,7 +1283,9 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
 
 # Arms whose changed set is asserted as an equality rather than a subset,
 # because the flag's documented blast radius is exactly known.
-_EXACT_API_ON_ARMS = frozenset({"NULL_MODEL=impostor"})
+_EXACT_API_ON_ARMS = frozenset(
+    {"NULL_MODEL=impostor", "FEATURE_SET=2", "MATTER_SPLITTER_ENABLED=1"}
+)
 
 
 # ── measurements behind the API `uninformative` verdicts ─────────────────────
@@ -1424,18 +1448,7 @@ def _measure_topic_distance(reference: dict, api_call: Callable, caplog: Any) ->
     return f"measured topic distance {distance:.4f} <= {TOPIC_NOVELTY_BOUNDS['low']}"
 
 
-def _measure_no_matter(reference: dict, api_call: Callable, caplog: Any) -> str:
-    """The splitter's abstention is measured on the profile's own texts."""
-    from original.features.matter import find_matter
-
-    texts = (*BASELINE_TEXTS, SUBMISSION_TEXT)
-    found = sum(len(find_matter(t)) for t in texts)
-    assert found == 0, f"the splitter found {found} parts; this arm should not be inert"
-    return f"find_matter found 0 parts in {len(texts)} documents"
-
-
 API_ON_ARM_MEASURES: dict[str, Callable[[dict, Callable, Any], str]] = {
-    "MATTER_SPLITTER_ENABLED=1": _measure_no_matter,
     "AMPLITUDE_SCORING_ENABLED=1": _measure_amplitude_surface_gap,
     "TOPIC_VARIANCE_INFLATION=on": _measure_topic_distance,
     "GENRE_INVARIANT_WEIGHTS_ENABLED=1": _measure_genre_covered,
