@@ -1,6 +1,6 @@
 # A per-writer line for the verdict (`WRITER_LINE`)
 
-*2026-11-16. Asked for by Andrew. Status: design, awaiting approval. Nothing here is enabled.*
+*2026-11-16. Asked for by Andrew. Status: built default-off; negative result; see CLAUDE.md WRITER_LINE row.*
 
 ## Why
 
