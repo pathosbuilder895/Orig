@@ -20,6 +20,8 @@ from ..constants import (
     STOP_WORDS,
     THEOLOGICAL_TERMS,
 )
+from . import feature_flags as _ff
+from . import lexicon_v2 as _v2
 from .tier1 import TextDoc, _tokenize
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,8 +53,11 @@ def epistemic_certainty_ratio(doc: TextDoc) -> float:
     Assert markers / (assert + hedge markers).
     Near 1.0 = highly assertive; near 0.0 = heavily hedged.
     """
-    hedges = _count_phrases(doc.clean, HEDGE_WORDS)
-    asserts = _count_phrases(doc.clean, ASSERTION_WORDS)
+    if _ff.lexicon_v2():
+        hedges, asserts = len(_v2.hedge_spans(doc)), len(_v2.assertion_spans(doc))
+    else:
+        hedges = _count_phrases(doc.clean, HEDGE_WORDS)
+        asserts = _count_phrases(doc.clean, ASSERTION_WORDS)
     total = hedges + asserts
     if total == 0:
         return 0.5  # neutral baseline
@@ -61,11 +66,15 @@ def epistemic_certainty_ratio(doc: TextDoc) -> float:
 
 def hedging_density(doc: TextDoc) -> float:
     """Hedge markers per 100 words."""
+    if _ff.lexicon_v2():
+        return _per_100(len(_v2.hedge_spans(doc)), doc.word_count)
     return _per_100(_count_phrases(doc.clean, HEDGE_WORDS), doc.word_count)
 
 
 def assertion_density(doc: TextDoc) -> float:
     """Strong assertion markers per 100 words."""
+    if _ff.lexicon_v2():
+        return _per_100(len(_v2.assertion_spans(doc)), doc.word_count)
     return _per_100(_count_phrases(doc.clean, ASSERTION_WORDS), doc.word_count)
 
 

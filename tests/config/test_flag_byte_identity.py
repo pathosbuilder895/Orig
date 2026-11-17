@@ -270,6 +270,9 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # ADR-013 staff explainability: report-only, never moves a score.
     "EVIDENCE_PASSAGES_ENABLED": "0",
     "PRELIMINARY_SCORE_ENABLED": "0",
+    # Measurement versions (features/feature_flags.py): off = the old measurement.
+    "FEATURE_SET": "1",
+    "MATTER_SPLITTER_ENABLED": "0",
 }
 
 
@@ -1234,6 +1237,18 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {"recommendation.action"},
         "",
     ),
+    # The reworked word-list habits and the front/back-matter splitter change
+    # what is measured, so the comparison moves. Not for live use until stored
+    # past papers carry vectors measured the same way (PR 3 of the plan).
+    "FEATURE_SET=2": ({}, {"FEATURE_SET": "2"}, {"authorship.deviation_score"}, ""),
+    "MATTER_SPLITTER_ENABLED=1": (
+        {},
+        {"MATTER_SPLITTER_ENABLED": "1"},
+        None,
+        "every document in the fixed profile is one paragraph of prose with no "
+        "heading block, headings, page lines, footnotes or list of sources, so "
+        "the splitter sets nothing aside (its own tests in tests/test_matter.py)",
+    ),
     "TOPIC_VARIANCE_INFLATION=on": (
         MANIFEST,
         {"TOPIC_VARIANCE_INFLATION": "on"},
@@ -1409,7 +1424,18 @@ def _measure_topic_distance(reference: dict, api_call: Callable, caplog: Any) ->
     return f"measured topic distance {distance:.4f} <= {TOPIC_NOVELTY_BOUNDS['low']}"
 
 
+def _measure_no_matter(reference: dict, api_call: Callable, caplog: Any) -> str:
+    """The splitter's abstention is measured on the profile's own texts."""
+    from original.features.matter import find_matter
+
+    texts = (*BASELINE_TEXTS, SUBMISSION_TEXT)
+    found = sum(len(find_matter(t)) for t in texts)
+    assert found == 0, f"the splitter found {found} parts; this arm should not be inert"
+    return f"find_matter found 0 parts in {len(texts)} documents"
+
+
 API_ON_ARM_MEASURES: dict[str, Callable[[dict, Callable, Any], str]] = {
+    "MATTER_SPLITTER_ENABLED=1": _measure_no_matter,
     "AMPLITUDE_SCORING_ENABLED=1": _measure_amplitude_surface_gap,
     "TOPIC_VARIANCE_INFLATION=on": _measure_topic_distance,
     "GENRE_INVARIANT_WEIGHTS_ENABLED=1": _measure_genre_covered,
