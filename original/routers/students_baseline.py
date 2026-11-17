@@ -19,7 +19,14 @@ from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _persist_or_503,
+    _repo,
+    _require_guard,
+    _require_staff,
+    drift_gate_advisory,
+)
 
 router = APIRouter()
 
@@ -197,7 +204,11 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     # check_drift mutates _consecutive_drift_count regardless of recommendation;
     # persist the counter even on flag/rebaseline so the workflow is sticky.
-    if drift_result is not None and drift_result.recommendation != "accept":
+    if (
+        drift_result is not None
+        and drift_result.recommendation != "accept"
+        and not drift_gate_advisory()
+    ):
         # Sample is held for review — DO NOT admit to state.samples.
         _persist_or_503(state)  # persist counter mutation
         body = DriftPendingResponse(
@@ -567,7 +578,7 @@ def upload_baseline_batch(
         if AUTH_WEIGHTS[provenance] > 0:
             try:
                 dr = state.check_drift(sample)
-                if dr.recommendation != "accept":
+                if dr.recommendation != "accept" and not drift_gate_advisory():
                     drift_holds.append(
                         {
                             "filename": filename,

@@ -597,6 +597,43 @@ class TestAddBaselineDriftHold:
         assert detail["status"] == "rebaseline_required"
         assert detail["drift"]["recommendation"] == "rebaseline"
 
+    def test_advisory_gate_admits_the_outlier_and_reports_the_drift(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """DRIFT_GATE=advisory (the alpha pilot): the check still runs and its
+        reading comes back on the response, but the paper joins the baseline."""
+        monkeypatch.setenv("DRIFT_GATE", "advisory")
+        sid = "s-addbase-drift-advisory"
+        self._seed_baseline(live_client, sid)
+
+        r = _add_baseline(live_client, sid, OUTLIER_TEXT)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["authenticated_count"] == 4
+        assert body["drift"]["recommendation"] == "flag_for_review"
+
+    def test_advisory_gate_admits_the_outlier_in_a_batch(self, live_client, store_reset, monkeypatch):
+        monkeypatch.setenv("DRIFT_GATE", "advisory")
+        sid = "s-batch-drift-advisory"
+        setup = _post_files(
+            live_client,
+            sid,
+            [(f"u{i}.txt", io.BytesIO(t.encode()), "text/plain") for i, t in enumerate([U1, U2, U3])],
+        )
+        assert setup.json()["imported"] == 3
+        r = _post_files(
+            live_client, sid, [("outlier.txt", io.BytesIO(OUTLIER_TEXT.encode()), "text/plain")]
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["imported"] == 1
+        assert r.json()["drift_holds"] == []
+
+    def test_default_and_unknown_values_keep_the_hold(self, live_client, store_reset, monkeypatch):
+        monkeypatch.setenv("DRIFT_GATE", "anything-else")
+        sid = "s-addbase-drift-unknown"
+        self._seed_baseline(live_client, sid)
+        assert _add_baseline(live_client, sid, OUTLIER_TEXT).status_code == 202
+
 
 # ── Step 3: request_proctored_baseline (Bbook integration) ───────────────────
 
