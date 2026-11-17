@@ -8,7 +8,7 @@
  * when EVIDENCE_PASSAGES_ENABLED=1, so the suite runs this file twice, against
  * two servers (.github/workflows/test.yml):
  *
- * - the main run (flags off, the default): the request answers 404 and the
+ * - the main run (flags set to 0; on is the default since 2026-11): the request answers 404 and the
  *   panel stays closed, as before;
  * - "@evidence-on" (a server started with the flags on): the panel opens on
  *   sentence length with one column per past paper, related habits and family
@@ -51,7 +51,7 @@ async function staffPage(browser, testTenant) {
   return { context, page: await context.newPage() }
 }
 
-test.describe('past-paper examples, flags off (the default)', () => {
+test.describe('past-paper examples, flags set to 0', () => {
   test('no analysis yet: no examples panel, flags off', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { student } = testTenant

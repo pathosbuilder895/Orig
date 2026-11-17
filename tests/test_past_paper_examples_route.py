@@ -56,7 +56,7 @@ def _url(sid, habit=None):
 
 @pytest.mark.slow
 def test_flag_off_is_404(seeded, monkeypatch):
-    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
     r = seeded.client.get(_url(seeded.sid), headers=seeded.T)
     assert r.status_code == 404
     assert r.json()["detail"] == "Not found"

@@ -7,7 +7,7 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags off, the default): Writing State shows no new link,
+ * - the main run (flags set to 0; on is the default since 2026-11): Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
@@ -24,7 +24,7 @@ import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { staffStorageState } from './fixtures/api-setup.mjs'
 import { DATES, PAST, PAPER, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
 
-test.describe('side by side, flags off (the default)', () => {
+test.describe('side by side, flags set to 0', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student, baseURL } = testTenant

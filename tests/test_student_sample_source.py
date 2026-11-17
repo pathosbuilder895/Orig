@@ -385,7 +385,7 @@ def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_clie
     )
     paper = _paper(1, TOPICS[0])
 
-    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
     calls = _counting(monkeypatch)
     off = _ok(
         live_client.post(

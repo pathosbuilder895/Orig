@@ -96,20 +96,35 @@ NOT_LOCATED_NOTE = (
 )
 
 
+#: Values that switch a default-on staff setting off. Anything else (unset,
+#: "1", "on", a typo) leaves it on, so the text-by-text view never silently
+#: disappears because a deploy forgot to set a variable.
+_OFF_VALUES = frozenset({"0", "off", "false", "no"})
+
+
+def _default_on(name: str) -> bool:
+    return os.environ.get(name, "1").strip().lower() not in _OFF_VALUES
+
+
 def evidence_enabled() -> bool:
-    """EVIDENCE_PASSAGES_ENABLED=1 adds located evidence to staff score responses."""
-    return os.environ.get("EVIDENCE_PASSAGES_ENABLED", "0").strip() == "1"
+    """Located evidence on staff score responses: on unless EVIDENCE_PASSAGES_ENABLED=0.
+
+    On by default since the 2026-11 alpha: the text-by-text view is how a
+    teacher sees why a paper reads differently, so it must not depend on a
+    deploy setting. Staff-only either way (``_attach_staff_explainability``).
+    """
+    return _default_on("EVIDENCE_PASSAGES_ENABLED")
 
 
 def preliminary_enabled() -> bool:
-    """PRELIMINARY_SCORE_ENABLED=1 adds the preliminary score to staff score responses."""
-    return os.environ.get("PRELIMINARY_SCORE_ENABLED", "0").strip() == "1"
+    """The preliminary score on staff score responses: on unless PRELIMINARY_SCORE_ENABLED=0."""
+    return _default_on("PRELIMINARY_SCORE_ENABLED")
 
 
 def staff_explainability_status() -> str:
     """The one startup log line naming both staff-only flags and whether each is on.
 
-    Same exact-"1" reading as the two functions above, so the line says what the
+    Same reading as the two functions above, so the line says what the
     score route will do. Logged once from ``api.lifespan``.
     """
     evidence = "on" if evidence_enabled() else "off"

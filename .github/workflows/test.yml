@@ -550,6 +550,12 @@ jobs:
           # 300s from one IP well before the suite finishes. Raised for this
           # job only; pilot/production keep the default (original/api.py).
           LOGIN_THROTTLE_MAX_ATTEMPTS: "500"
+          # Since 2026-11 the staff text-by-text evidence and the preliminary
+          # chip are ON by default (only "0" turns them off). This run keeps
+          # the specs that pin the switched-off pages ("flags off") honest;
+          # the @evidence-on run below covers the default-on path.
+          EVIDENCE_PASSAGES_ENABLED: "0"
+          PRELIMINARY_SCORE_ENABLED: "0"
         # --skip-seed is mandatory here: seeding hard-refuses when
         # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),
         # and CI boots exactly the way the Render pilot does.

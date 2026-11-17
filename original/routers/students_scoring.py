@@ -722,8 +722,11 @@ def _attach_staff_explainability(
         from ..schemas import PreliminaryScoreOut
 
         confidence = result.baseline_confidence
-        # Same line the readiness verdict draws for "ready" (students.py).
-        ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        # The same floor the score route itself enforces (_require_min_baseline,
+        # 3 approved papers by default). The alpha builds every baseline from
+        # exactly three papers, so the old "ready" line (5 papers) made every
+        # alpha reading inconclusive. Below the floor the route 422s anyway.
+        ready = confidence.authenticated_count >= min_baseline_samples()
         response.preliminary = PreliminaryScoreOut(
             **preliminary_score(
                 result.authorship.deviation_score,

@@ -277,30 +277,35 @@ def test_preliminary_score_is_the_engines_numbers_with_its_label():
         assert not banned.search(words), words
 
 
-def test_flags_default_off(monkeypatch):
+def test_flags_default_on(monkeypatch):
+    """Since 2026-11 both are on unless set to an off value: the text-by-text
+    view must not depend on a deploy remembering a variable."""
     monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
     monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
-    assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
-    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
-    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "true")
-    assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
-    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
-    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
     assert ev.evidence_enabled() is True and ev.preliminary_enabled() is True
+    for off in ("0", "off", "false", "no", " OFF "):
+        monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", off)
+        monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", off)
+        assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
+    for on in ("1", "true", "on", "", "anything"):
+        monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", on)
+        monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", on)
+        assert ev.evidence_enabled() is True and ev.preliminary_enabled() is True
 
 
 @pytest.mark.parametrize(
     ("evidence_flag", "preliminary_flag", "expected"),
     [
-        (None, None, "staff_explainability evidence_passages=off preliminary_score=off"),
+        (None, None, "staff_explainability evidence_passages=on preliminary_score=on"),
         ("1", "1", "staff_explainability evidence_passages=on preliminary_score=on"),
-        ("1", "true", "staff_explainability evidence_passages=on preliminary_score=off"),
+        ("1", "0", "staff_explainability evidence_passages=on preliminary_score=off"),
         ("0", " 1 ", "staff_explainability evidence_passages=off preliminary_score=on"),
+        ("off", "false", "staff_explainability evidence_passages=off preliminary_score=off"),
     ],
 )
 def test_startup_logs_one_line_naming_both_staff_flags(monkeypatch, caplog, evidence_flag, preliminary_flag, expected):
-    """render.yaml turns both on for the pilot; the boot log says which are on, by
-    the same exact-"1" rule the score route uses."""
+    """Both are on by default; the boot log says which are on, by the same
+    rule the score route uses."""
     class _NoSqliteRepo:  # the Postgres shape: no in-app backup task is started
         def db_path(self):
             raise NotImplementedError
@@ -416,10 +421,17 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
     assert compared[-1]["engine_scale"]["past_papers_average"] == 0.5
     assert response.evidence["all_features"][-1]["engine_scale"]["past_papers_average"] is None
 
-    thin = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=3.0)})
+    # Below the three-paper floor: no number. At it (the alpha's three papers): a number.
+    # conftest lowers the floor to 1 for fixtures; pin the deployed default here.
+    monkeypatch.setenv("MIN_BASELINE_SAMPLES", "3")
+    thin =SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=2, effective_sample_count=2.0)})
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, state, thin)
     assert response.preliminary.score is None
+    three = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=2.4)})
+    response = fresh()
+    ss._attach_staff_explainability(response, teacher, EDGE, state, three)
+    assert response.preliminary.score == 0.66
 
     monkeypatch.setattr("original.evidence.build_evidence", lambda *a, **k: 1 / 0)
     response = fresh()
@@ -446,8 +458,8 @@ def _post_baselines(client, sid):
 
 
 def test_score_api_is_unchanged_with_flags_off_and_adds_evidence_when_on(live_client, store_reset, monkeypatch):
-    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
-    monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "0")
     sid = "evidence_api_alice"
     _post_baselines(live_client, sid)
     text = _corpus_texts(4)[3]
@@ -461,7 +473,9 @@ def test_score_api_is_unchanged_with_flags_off_and_adds_evidence_when_on(live_cl
     assert [f["code"] for f in on["evidence"]["features"]] == [
         f["code"] for f in off["interference"]["destructive_features"]]
     assert on["preliminary"]["label"] == ev.PRELIMINARY_LABEL
-    assert on["preliminary"]["score"] is None  # three counted samples is below "ready"
+    # Three approved papers is the score route's floor, so the reading is given
+    # (the alpha's exact case); the number is the engine's own deviation.
+    assert on["preliminary"]["score"] == round(on["authorship"]["deviation_score"], 2)
     for q in _all_quotes(on["evidence"]):
         if q["paper"] == "this paper":
             assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
