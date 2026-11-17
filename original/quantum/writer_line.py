@@ -1,4 +1,5 @@
 """Per-writer line: judge a paper against the writer's own spread."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -66,9 +67,7 @@ def loo_deviation_scores(state, score_fn: Callable, **score_kwargs) -> list[floa
     return out
 
 
-def writer_line_action(
-    z: float | None, thresholds=WRITER_LINE_Z_THRESHOLDS
-) -> str | None:
+def writer_line_action(z: float | None, thresholds=WRITER_LINE_Z_THRESHOLDS) -> str | None:
     """Map a writer z to an action tier; None abstains."""
     if z is None or not math.isfinite(z):
         return None
