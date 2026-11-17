@@ -866,7 +866,7 @@ def _unmarked(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
         return []
     sized = [(len(_tokenize(text[a:b])), a, b) for a, b in sentences]
     out = []
-    for words, a, b in sorted(sized, key=lambda x: (-x[0], x[1]))[:limit]:
+    for words, a, _b in sorted(sized, key=lambda x: (-x[0], x[1]))[:limit]:
         p0, p1, c0, c1 = _passage(text, sentences, a, a)
         out.append(
             {
