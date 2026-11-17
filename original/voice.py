@@ -336,6 +336,27 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     return {"headline": headline, "subhead": sub + "."}
 
 
+# ── Staff-only fields: never in a student's read model ───────────────────────
+
+#: Keys that only staff responses may carry. The student projections below never
+#: build them, and ``drop_staff_only`` removes them from anything handed to a
+#: student route (or, later, to a student guide), at any depth, so a new staff
+#: field cannot reach a student by being copied into a student payload.
+#: ``paper_profile`` (original/paper_profile.py) describes a paper's headings,
+#: citations and list of sources for the teacher only.
+STAFF_ONLY_KEYS = frozenset({"paper_profile"})
+
+
+def drop_staff_only(blob: Any) -> Any:
+    """``blob`` without any ``STAFF_ONLY_KEYS`` key, at any depth (a copy;
+    ``blob`` itself is not changed). Everything else is returned as it was."""
+    if isinstance(blob, dict):
+        return {k: drop_staff_only(v) for k, v in blob.items() if k not in STAFF_ONLY_KEYS}
+    if isinstance(blob, list):
+        return [drop_staff_only(v) for v in blob]
+    return blob
+
+
 def project_voice_view(
     *,
     name: str,

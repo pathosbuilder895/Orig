@@ -711,6 +711,7 @@ def _attach_staff_explainability(
     get either, and neither changes the score or the action.
     """
     from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+    from ..paper_profile import build_paper_profiles, paper_profile_enabled
 
     want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
     if request is None or not (want_evidence or want_preliminary):
@@ -753,6 +754,16 @@ def _attach_staff_explainability(
             response.evidence["baseline_papers"] = _baseline_papers(
                 state, used, baselines, student_id
             )
+            if paper_profile_enabled():
+                # Teacher-only description of each paper's headings, citations and
+                # sources (original/paper_profile.py). Reads the stored texts only;
+                # nothing it returns feeds the score. A failure leaves it out.
+                try:
+                    response.evidence["paper_profile"] = build_paper_profiles(text, baselines)
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "paper profile failed; omitted from the response"
+                    )
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"

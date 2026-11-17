@@ -161,6 +161,10 @@
   .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
   .prov .len{white-space:nowrap;}
   .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .pp-table{width:100%;border-collapse:collapse;font-size:.95rem;}
+  .pp-table th,.pp-table td{text-align:left;vertical-align:top;padding:.55rem .6rem;border-bottom:1px solid #efe8d5;overflow-wrap:anywhere;}
+  .pp-table thead th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:500;border-bottom:1px solid var(--rule);}
+  .pp-table tbody th{font-weight:500;color:var(--ink-2);white-space:nowrap;}
   .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
   .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;gap:1rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
 
@@ -174,6 +178,7 @@
     .ex{grid-template-columns:1fr;}
     .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
     .prov{display:block;overflow-x:auto;}
+    .pp-table{display:block;overflow-x:auto;}
     .chrome{flex-wrap:wrap;}
     .p-head{flex-direction:column;gap:1rem;}
     .p-meta{text-align:left;}
@@ -254,6 +259,10 @@
           <h2 class="sec-t" id="h-past">Past papers <span>what this paper was compared with</span></h2>
           <div id="p-past"></div>
         </section>
+        <section id="s-about" aria-labelledby="h-about" hidden>
+          <h2 class="sec-t" id="h-about">About the papers <span>headings, citations and sources; not part of the comparison</span></h2>
+          <div id="p-about"></div>
+        </section>
         <div class="p-foot"><span>Original · writing-consistency comparison</span><span id="p-foot-date"></span></div>
       </article>
     </div>
@@ -262,6 +271,7 @@
 <script src="live.js?v=2026-11-17.1"></script>
 <script src="js/evidence-view.js?v=2026-11-17.1"></script>
 <script src="js/evidence-cards.js?v=2026-11-17.1"></script>
+<script src="js/paper-profile.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -475,6 +485,16 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
+  // About the papers (teacher only): the server's paper_profile as one table
+  // (js/paper-profile.js), with its own contents link. Only when it was sent.
+  function renderAbout(ev){
+    const PP=window.PaperProfile;
+    if(!PP||!PP.has(ev)) return;
+    $('p-about').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'prov-note'});
+    $('s-about').hidden=false;
+    const toc=document.querySelector('nav.toc');
+    if(toc&&!toc.querySelector('a[href="#s-about"]')) toc.insertAdjacentHTML('beforeend','<a href="#s-about">About the papers</a>');
+  }
   // A current server records each past paper's `source` in the analysis itself. This is
   // only the fallback for an older one that sends provenance only. When exactly one sample on the
   // student's record matches a paper (same title, date and provenance), or every match
@@ -521,6 +541,7 @@
     renderSteady(ev);
     renderAll(ev);
     renderPast(ev,d);
+    renderAbout(ev);
     $('status').hidden=true;
     $('paper').hidden=false;
     openFromHash();

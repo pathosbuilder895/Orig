@@ -244,6 +244,13 @@
   #tbt .ex-note,#hero-evi .ex-note{grid-column:1/-1;padding:.7rem 1rem .8rem;border-top:1px solid var(--line-soft);font-size:.88rem;color:var(--dim);line-height:1.55;}
   #tbt .ex-note b,#hero-evi .ex-note b{color:var(--cream);font-weight:600;}
   #tbt .ex-note p+p,#hero-evi .ex-note p+p{margin-top:.3rem;}
+  /* About the papers (paper_profile, js/paper-profile.js): rem sizes and the page's font variables, so the Text setting applies. */
+  .pp-card{padding:1rem 1.2rem;margin-top:.5rem;overflow-x:auto;}
+  .pp-table{width:100%;border-collapse:collapse;font-family:var(--body);font-size:.92rem;color:var(--cream);}
+  .pp-table th,.pp-table td{text-align:left;vertical-align:top;padding:.5rem .6rem;border-bottom:1px solid var(--line-soft);overflow-wrap:anywhere;}
+  .pp-table thead th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:500;}
+  .pp-table tbody th{font-weight:500;color:var(--dim);white-space:nowrap;}
+  .pp-note{font-size:.86rem;font-style:italic;color:var(--dim);line-height:1.55;margin-top:.7rem;}
   @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
@@ -563,6 +570,11 @@
             <div id="tbt-body"></div>
           </div>
         </div>
+        <!-- About the papers: teacher-only description (paper_profile), only when the server sent it -->
+        <div id="pp" hidden>
+          <div class="sec-h"><b>About the papers</b><span>headings, citations and sources; not part of the comparison</span></div>
+          <div class="card pp-card" id="pp-body"></div>
+        </div>
         <!-- State vector -->
         <div>
           <div class="sec-h"><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></div>
@@ -603,6 +615,7 @@
 <script src="js/fingerprint.js?v=2026-11-17.1"></script>
 <script src="js/evidence-view.js?v=2026-11-17.1"></script>
 <script src="js/evidence-cards.js?v=2026-11-17.1"></script>
+<script src="js/paper-profile.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1531,6 +1544,18 @@
     $('triage').hidden=!S.result;
     renderPrelim();
     renderTextByText();
+    renderPaperProfile();
+  }
+  // About the papers (teacher only): the server's paper_profile as one table
+  // (js/paper-profile.js). Only when the server sent it; never a score input.
+  function renderPaperProfile(){
+    const box=$('pp');
+    if(!box) return;
+    const PP=window.PaperProfile;
+    const ev=S.result&&S.result.evidence;
+    if(!PP||!PP.has(ev)){ box.hidden=true; $('pp-body').innerHTML=''; return; }
+    $('pp-body').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'pp-note'});
+    box.hidden=false;
   }
   // The preliminary reading (staff only, ADR-013): the server's own number and
   // band words with its label, only when the server sent them.
