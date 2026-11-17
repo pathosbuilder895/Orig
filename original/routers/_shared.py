@@ -627,6 +627,8 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         characteristic_factor_dispersion=getattr(r, "characteristic_factor_dispersion", None),
         characteristic_rms_z_preview=getattr(r, "characteristic_rms_z_preview", None),
         characteristic_deviation_preview=getattr(r, "characteristic_deviation_preview", None),
+        writer_line_z=getattr(r, "writer_line_z", None),
+        writer_line_action=getattr(r, "writer_line_action", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))

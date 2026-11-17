@@ -1162,6 +1162,8 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    writer_line_z: float | None = None
+    writer_line_action: str | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the
