@@ -11,18 +11,27 @@ students_scoring.py — same route group, split only for file size.
 from __future__ import annotations
 
 import io
+import secrets
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from .. import principal as principal_mod
+from .. import student_auth
 from ..repository import get_repository
 from ..schemas import (
     BaselineWordStats,
     ReadinessResponse,
     SampleSummary,
     StudentStateResponse,
+    WriterCreateRequest,
 )
-from ._shared import _repo, _require_guard, min_baseline_samples
+from ._shared import (
+    _bluebook_tenant,
+    _repo,
+    _require_guard,
+    _require_staff,
+    min_baseline_samples,
+)
 
 router = APIRouter()
 
@@ -57,11 +66,143 @@ def list_students(request: Request, tenant_id: str = ""):
     return {"students": ids, "roster": roster}
 
 
+@router.post("/students", status_code=201)
+def create_writer(body: WriterCreateRequest, request: Request):
+    """Add a writer by name: no course, email, invite or account.
+
+    For a writer who sends papers by email. The id is minted in the caller's
+    own tenant by the rule every student id follows
+    (``student_auth.derive_student_id``: ``"{tenant}:{16 hex}"``), keyed on
+    a random value instead of an email, so nothing in a request can choose or
+    widen the tenant. The writer is then what a roster add makes for a tenant
+    with Original (an empty profile plus a stored name), so every Original
+    page treats them as a student, and ``DELETE /students/{id}`` erases them.
+    Names are not deduplicated: two people can share one.
+
+    The open fictional demo (no sign-in, never a real deploy) may add a
+    writer anonymously, into the demo tenant, as it may use its other write
+    routes; on a real deploy only a signed-in staff account can.
+
+    ``set_display_name`` logs and swallows a write failure, so the name is
+    read back: a writer whose name did not save is erased again and the
+    caller gets a 503, never a 201 for a nameless writer.
+    """
+    staff = _require_staff(request)
+    tenant = _bluebook_tenant(request)
+    if "original" not in principal_mod.tenant_products(tenant):
+        raise HTTPException(
+            status_code=403, detail="This workspace's plan does not include Original."
+        )
+    # An empty tenant would slugify to "default"; a tenant that is not its
+    # own slug would mint an id outside the caller's tenant. Refuse both.
+    if not tenant or student_auth.slugify(tenant) != tenant:
+        raise HTTPException(
+            status_code=400, detail="Your account has no workspace to add a writer to."
+        )
+    repo = _repo()
+    actor = staff.user_id if not staff.is_demo else "demo"
+    sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
+    while repo.get(sid) is not None:
+        sid = student_auth.derive_student_id(tenant, secrets.token_hex(16))
+    repo.get_or_create(sid)
+    repo.set_display_name(sid, body.name)
+    if repo.get_display_name(sid) != body.name:
+        repo.delete_student(sid)
+        repo.log_audit(
+            action="writer_create", student_id=sid, tenant_id=tenant, actor=actor, result="failed"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="The writer could not be saved just now. Nothing was added. Try again.",
+        )
+    # The name lives in student_names only, never in the audit row.
+    repo.log_audit(
+        action="writer_create", student_id=sid, tenant_id=tenant, actor=actor, result="ok"
+    )
+    return {"student_id": sid, "name": body.name}
+
+
 # ── Student state ─────────────────────────────────────────────────────────────
+
+_SUPERVISED = frozenset({"verified", "proctored", "canvas"})
+
+
+# What POST/DELETE /bluebook/submissions/{id}/baseline record
+# (routers/bluebook_baselines.py). An approval that found the text already in
+# the baseline still approved it; "held" and the refusals approved nothing.
+_APPROVED_RESULTS = frozenset({"added", "already_in_baseline"})
+
+
+def _approved_submission_ids(repo, student_id: str) -> set[str]:
+    """Submission ids a teacher approved into this student's baseline and has
+    not since removed, replayed oldest first from the audit log."""
+    approved: set[str] = set()
+    rows = repo.list_audit_actions_for_student(student_id, ["baseline_approve", "baseline_remove"])
+    for row in rows:
+        sub_id = (row.get("details") or {}).get("submission_id")
+        if not sub_id:
+            continue
+        if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
+            approved.add(sub_id)
+        elif row["action"] == "baseline_remove" and row.get("result") == "removed":
+            approved.discard(sub_id)
+    return approved
+
+
+def _sample_sources(student_id: str, samples) -> list[str]:
+    """How each sample got into the baseline, for staff wording only.
+
+    Derived at read time from what is already stored; provenance and weight
+    are untouched and nothing here reaches scoring. An ``unverified`` sample
+    is ``take_home`` when its text hash is one of the approval's own text
+    forms (``bluebook_baselines._fingerprints``) of a Collections submission
+    of this student that a teacher approved into the baseline and has not
+    since taken out. Nothing stores that state, so it is replayed from the
+    audit rows the approve and undo routes write. ``shared_paper`` is the
+    text of one of their approved past papers, else ``student_upload``.
+    One audit read and one past-papers read, plus one submissions read only
+    when something is approved; none at all when nothing is unverified.
+    """
+    from .bluebook_baselines import _fingerprints
+    from .past_papers import _sha
+    from .students_baseline import _hashes_from_samples
+
+    unverified = [s.provenance == "unverified" for s in samples]
+    take_home: set[str] = set()
+    shared: set[str] = set()
+    if any(unverified):
+        repo = _repo()
+        approved = _approved_submission_ids(repo, student_id)
+        if approved:
+            for rec in repo.list_bluebook_submission_texts_for_student(student_id):
+                if rec.get("id") in approved:
+                    take_home |= _fingerprints(rec)
+        tenant = principal_mod.tenant_of(student_id)
+        if tenant:
+            shared = {
+                _sha(p["text"])
+                for p in repo.list_past_papers(tenant, student_id)
+                if p.get("status") == "approved" and p.get("text")
+            }
+    out = []
+    for s, is_unverified in zip(samples, unverified, strict=True):
+        if s.provenance in _SUPERVISED:
+            out.append("staff_or_supervised")
+        elif not is_unverified:
+            out.append("unknown")
+        else:
+            hashes = _hashes_from_samples([s])
+            if hashes & take_home:
+                out.append("take_home")
+            elif hashes & shared:
+                out.append("shared_paper")
+            else:
+                out.append("student_upload")
+    return out
 
 
 @router.get("/students/{student_id}", response_model=StudentStateResponse)
-def get_student(student_id: str):
+def get_student(student_id: str, request: Request):
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
@@ -74,6 +215,14 @@ def get_student(student_id: str):
         )
     }
 
+    # The route's access rule lets a student read their own record; the
+    # derived source is staff wording, so a student gets "unknown" throughout
+    # and no lookup runs on their behalf.
+    principal = getattr(request.state, "principal", None)
+    if principal is not None and principal.role == "student":
+        sources = ["unknown"] * len(state.samples)
+    else:
+        sources = _sample_sources(student_id, state.samples)
     samples_out = [
         SampleSummary(
             index=i,
@@ -81,6 +230,7 @@ def get_student(student_id: str):
             provenance=s.provenance,
             submitted_at=s.submitted_at,
             auth_weight=s.auth_weight,
+            source=sources[i],
         )
         for i, s in enumerate(state.samples)
     ]
@@ -386,6 +536,8 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
             text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
         except ImportError as exc:
             raise HTTPException(status_code=500, detail="python-docx not installed") from exc
+        except Exception as exc:  # corrupt file: the caller's input
+            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
     elif ext == "pdf":
         try:
             from pypdf import PdfReader
@@ -394,6 +546,8 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
             text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
         except ImportError as exc:
             raise HTTPException(status_code=500, detail="pypdf not installed") from exc
+        except Exception as exc:  # corrupt file: the caller's input
+            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
     else:
         raise HTTPException(
             status_code=422,

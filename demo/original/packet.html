@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -287,9 +287,9 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-13.1"></script>
-<script src="js/feature-data.js?v=2026-11-13.1"></script>
-<script src="js/evidence-view.js?v=2026-11-13.1"></script>
+<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/feature-data.js?v=2026-11-13.2"></script>
+<script src="js/evidence-view.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   'use strict';
@@ -310,12 +310,11 @@
   // page keeps them inline, so they are repeated here rather than shared).
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const FAMILY={Surface:'how the sentences look',Discourse:'how the ideas connect',Rhetorical:'how the case is made'};
-  // GET /students/{id}: samples[].provenance, in the words baseline.html uses
-  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
-  // Teacher-approved means proctored, verified or imported: the same rule as
-  // baseline.html's approvedN(). The server's authenticated_count ("counted")
-  // also includes a student's own upload, so it is never called approved.
-  const APPROVED=['proctored','verified','canvas'];
+  // GET /students/{id}: samples[].source and .provenance, in the words baseline.html uses
+  // (Live.howAdded). "Approved by you" is Live.approvals' rule: supervised, verified or
+  // imported writing, plus a take-home exam or shared paper you approved. The server's
+  // authenticated_count ("counted") also includes a student's own upload, so it is
+  // never called approved.
 
   // ── account menu ──
   (function(){
@@ -434,14 +433,12 @@
   }
 
   // ── where the baseline comes from (GET /students/{id}) ──
-  const approvedIn=samples=>samples.filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
-  const uploadsIn=samples=>samples.filter(s=>s.provenance==='unverified').length;
+  const approvalLine=(samples,note)=>Live.approvalWords(Live.approvals(samples),{note:note});
   function baselineTable(samples){
     const rows=samples.map((s,i)=>{
       const idx=num(s.index)!=null?s.index:i;
       const name=typeof s.assignment==='string'&&s.assignment.trim()?s.assignment:'Untitled sample';
-      const prov=typeof s.provenance==='string'?s.provenance:'';
-      const how=has(HOW,prov)?HOW[prov]:(prov||'Not stated');
+      const how=Live.howAdded(s);
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
         '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
     }).join('');
@@ -578,7 +575,7 @@
     // The teacher-approved split comes from the sample list, and only when that list is
     // the one the analysis counted (a changed list would split a different count).
     const sameCount=!!(samples&&st.data&&nUsed!=null&&num(st.data.authenticated_count)===nUsed);
-    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount?esc(' ('+approvedIn(samples)+' teacher-approved)'):''):'');
+    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount&&approvalLine(samples,false)?esc(' ('+approvalLine(samples,false)+')'):''):'');
     $('back').href='writing-state.html?student='+encodeURIComponent(id);
 
     // summary: the sentence Writing State showed, as plain text
@@ -601,8 +598,8 @@
     } else if(!samples.length){
       box.innerHTML='<p class="none-line">No samples are on file for '+esc(who)+' now.</p>'+note;
     } else {
-      const up=uploadsIn(samples);
-      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+', '+approvedIn(samples)+' teacher-approved'+(up?' and '+plural(up,'student upload'):'')+'.')+'</p>';
+      const words=approvalLine(samples,true);
+      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+(words?', '+words:'')+'.')+'</p>';
       box.innerHTML=split+baselineTable(samples)+note;
       fillLengths(id,box);
     }

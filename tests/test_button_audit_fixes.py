@@ -113,7 +113,7 @@ def test_writing_state_keeps_the_analysis_for_this_tab_as_soon_as_it_exists():
     assert "storeForPacket();" in analyse
     assert "entry_id:S.entryId" in script
     # It is restored where the student loads, after the baseline is known, and says so plainly.
-    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); }" in script
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in script
     assert "Showing your last analysis of this paper." in page
     assert 'id="an-again"' in page and "Analyse another" in page
     # One key, cleared by sign-out like the packet's reading of it.

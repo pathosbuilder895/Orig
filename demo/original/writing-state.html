@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -288,6 +288,7 @@
   .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
   .an-msg.err{color:#f0a690;}
+  .an-from{margin:.1rem 0 .55rem;font-size:.82rem;font-style:italic;color:var(--gold-2);}
   .an-note{margin-top:.6rem;font-size:.86rem;font-style:italic;line-height:1.5;color:var(--dim);}
   .an-note b{color:var(--cream);font-style:normal;font-weight:500;}
   .an-note a,.plain-read a{color:var(--gold-2);}
@@ -387,12 +388,13 @@
         </div>
         <div class="an-note" id="an-note" role="status"></div>
         <form id="an-form" hidden novalidate>
+          <p class="an-from" id="an-from" role="status" hidden></p>
           <label class="an-lbl" for="an-assign">Assignment</label>
           <input class="an-field" id="an-assign" type="text" maxlength="200" autocomplete="off" placeholder="Optional, for your own reference" />
           <label class="an-lbl" for="an-text">The paper</label>
           <textarea class="an-field" id="an-text" rows="7" placeholder="Paste the paper here"></textarea>
           <div class="an-row">
-            <label class="an-file">or open a .txt file<input id="an-file" type="file" accept=".txt,text/plain" /></label>
+            <label class="an-file">or open a .docx, .pdf or .txt file<input id="an-file" type="file" accept=".docx,.pdf,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label>
             <span class="an-words" id="an-words"></span>
           </div>
           <div class="an-row">
@@ -510,10 +512,10 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-13.1"></script>
-<script src="js/feature-data.js?v=2026-11-13.1"></script>
-<script src="js/fingerprint.js?v=2026-11-13.1"></script>
-<script src="js/evidence-view.js?v=2026-11-13.1"></script>
+<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/feature-data.js?v=2026-11-13.2"></script>
+<script src="js/fingerprint.js?v=2026-11-13.2"></script>
+<script src="js/evidence-view.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   'use strict';
@@ -556,16 +558,19 @@
   const S={
     id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
     base:null, sub:null, result:null, D:new Map(), C:new Map(), EVI:new Map(),
-    assignment:'', words:0, analysedAt:'', view:'baseline'
+    assignment:'', words:0, analysedAt:'', view:'baseline',
+    // A sealed Collections exam named in the address (?submission=), the text
+    // loaded from it, and the exam the shown analysis was made of ('' if none).
+    subId:'', fromText:'', fromSub:'', resultSub:''
   };
   const who=()=>S.name||S.id;
   const poss=()=>who()+'’s';
   const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
   // "Counted" is the server's authenticated_count: every sample it weighs above zero,
   // whether a teacher approved it or the student uploaded it. Only the sample list of
-  // GET /students/{id} says which, so the teacher-approved count comes from there (the
-  // same rule as baseline.html's approvedN(): proctored, verified or canvas).
-  const APPROVED=['proctored','verified','canvas'];
+  // GET /students/{id} says which, so the split comes from there (Live.approvals: a sample
+  // is approved by you when it was supervised, verified, imported, or a take-home exam or
+  // shared paper you approved; a student's own upload is not).
   function counted(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null;
@@ -577,11 +582,22 @@
   function teacherApproved(){
     const st=S.student, sm=st&&Array.isArray(st.samples)?st.samples:null;
     if(!sm||counted()!==num(st.authenticated_count)) return null;
-    return sm.filter(x=>x&&typeof x==='object'&&APPROVED.indexOf(x.provenance)>=0).length;
+    return Live.approvals(sm);
   }
-  function countedPhrase(){
+  // The split in words, or '' when there is none to give. note=false leaves out the
+  // lower-weight note, for a sentence that already sits inside brackets.
+  function approvalLine(note){
     const a=teacherApproved();
-    return plural(counted()||0,'counted sample')+(a!=null?', '+a+' teacher-approved':'');
+    return a?Live.approvalWords(a,{note:note}):'';
+  }
+  // One plain sentence, only when a take-home exam or shared paper is in the baseline.
+  function lowerWeightNote(){
+    const a=teacherApproved();
+    return a&&a.takeHome+a.shared?' Take-home exams and shared papers you approved count at a lower weight.':'';
+  }
+  function countedPhrase(note){
+    const w=approvalLine(note);
+    return plural(counted()||0,'counted sample')+(w?', '+w:'');
   }
   const READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more';
   const hasBaseline=()=>!!S.student&&(counted()||0)>0;
@@ -1172,7 +1188,7 @@
   // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
+    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+'), so treat this reading as inconclusive.'+lowerWeightNote();
     if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
@@ -1186,9 +1202,9 @@
       pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
       return;
     }
-    const n=counted()||0, a=teacherApproved();
+    const n=counted()||0, w=approvalLine(false);
     if(!S.result){
-      let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
+      let h='<b>'+plural(n,'counted sample')+'</b>'+(w?' ('+esc(w)+')':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.'+lowerWeightNote();
       if(S.verdict==='developing') h+=' Original rates this baseline '+rated('developing')+' ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
       else if(S.verdict==='insufficient') h+=' Original rates this baseline '+rated('insufficient')+' ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
@@ -1236,11 +1252,49 @@
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
-  function updateWords(){ const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):''; }
+  function updateWords(){
+    const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):'';
+    // "Loaded from Collections" stays only while the box holds that exam's text.
+    $('an-from').hidden=!(S.fromSub&&$('an-text').value===S.fromText);
+  }
+
+  // ── a sealed Collections exam (?student=<id>&submission=<id>) ──
+  // The paper is the student's answers joined by a blank line, the same text
+  // the baseline approval uses (routers/bluebook_baselines.py _baseline_text),
+  // never the "Question N." headings the stored text carries. Nothing runs
+  // until the teacher presses Analyse.
+  function sealedPaperText(sub){ const raw=sub&&Array.isArray(sub.answers)?sub.answers:[]; if(raw.length) return raw.map(a=>String(a||'').trim()).filter(Boolean).join('\n\n'); return String((sub&&sub.text)||'').trim(); }
+  function sealedFail(text){
+    $('an-text').value=''; $('an-assign').value=''; S.fromSub=''; S.fromText='';
+    updateWords(); msg(text,true);
+  }
+  async function loadSealed(){
+    const my=++openSeq;
+    msg('Loading the sealed exam from Collections.');
+    const res=await Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId));
+    if(my!==openSeq) return;  // the teacher has typed or opened a file since
+    const d=res.data;
+    if(res.status===404){ sealedFail('This sealed exam was not found in your workspace, so nothing was loaded.'); return; }
+    if(res.status===401){ sealedFail('Your sign-in has ended. Sign in again, then open the exam from Collections.'); return; }
+    if(res.status===403){ sealedFail('You do not have access to this sealed exam, so nothing was loaded.'); return; }
+    if(!res.ok||!d||typeof d!=='object'){ sealedFail('The sealed exam could not be loaded just now. Try reloading the page.'); return; }
+    if(String(d.student_id||'')!==S.id){ sealedFail('This sealed exam was written by a different student, so it was not loaded. Open it from that student’s row in Submissions.'); return; }
+    const text=sealedPaperText(d);
+    if(!text){ sealedFail('This sealed exam has no written answers to analyse.'); return; }
+    const exam=String(d.exam||'').trim()||'Untitled exam';
+    const t=d.created_at?new Date(d.created_at):null;
+    const date=t&&!isNaN(t.getTime())?t.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+    const label=exam+(date?', sealed '+date:'');
+    S.fromSub=S.subId; S.fromText=text;
+    $('an-text').value=text;
+    $('an-assign').value=label.slice(0,200);
+    $('an-from').textContent='Loaded from Collections: '+label+'. Press Analyse to compare it with the baseline.';
+    updateWords(); msg('');
+  }
 
   async function loadPicker(){
     const sel=$('an-student');
@@ -1281,7 +1335,7 @@
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
-    else if(!restoreLast()){ note(thinNote()); setCard('form'); }
+    else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
@@ -1342,6 +1396,9 @@
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
       setResult(d,assignment,countWords(text));
+      // Analysed exactly as loaded from Collections: kept with the result, so
+      // Back to this page's sealed-exam link shows this analysis again.
+      S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
       S.entryId=appendAnalysis(d,text,assignment);
       setView('submission',true);
       renderAll();
@@ -1438,6 +1495,7 @@
     const keep={
       kind:'original_writing_state', version:1,
       student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
+      collections_submission:S.resultSub,
       habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
       summary:$('plain-read').textContent,
       result:{
@@ -1474,16 +1532,22 @@
     const id=(typeof rec.entry_id==='string'&&rec.entry_id)||(typeof rec.result.submission_id==='string'?rec.result.submission_id:'');
     return id?(entries.find(h=>h&&typeof h==='object'&&h.id===id)||null):null;
   }
+  // A sealed-exam link (?submission=) wins over the kept record: the record is
+  // shown again only when it is the analysis of that same exam, so a link never
+  // opens on an older analysis of a different paper.
   function restoreLast(){
     let raw=null;
     try{ raw=window.sessionStorage.getItem('original_last_result'); }catch(e){ return false; }
     const rec=lastRecord(raw,S.id);
     if(!rec) return false;
+    const recSub=typeof rec.collections_submission==='string'?rec.collections_submission:'';
+    if(S.subId&&recSub!==S.subId) return false;
     const entry=keptEntry(readPortfolio(),rec);
     const assignment=typeof rec.assignment==='string'?rec.assignment.slice(0,200):'';
     const at=typeof rec.analysed_at==='string'&&!isNaN(Date.parse(rec.analysed_at))?rec.analysed_at:'';
     if(typeof rec.student_name==='string'&&rec.student_name.trim()) S.name=rec.student_name.trim();
     setResult(rec.result,assignment,num(rec.word_count)||0,at);
+    S.resultSub=recSub;
     S.entryId=entry?entry.id:'';
     $('an-assign').value=assignment;
     $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
@@ -1502,20 +1566,53 @@
     return true;
   }
 
+  // .docx and .pdf are read by the server (it extracts the text and stores
+  // nothing); .txt is read in the browser. Same 10 MB cap as the server's body limit.
+  const FILE_LIMIT=10*1024*1024, TXT_LIMIT=1048576;
+  // Bumped by every newer way the paper box can change, so a late server reply never overwrites it.
+  let openSeq=0, reading=0;
+  async function openDocument(f,ext){
+    const my=++openSeq;
+    if(!S.id){ msg('Choose a student first, then open the file.',true); return; }
+    msg('Reading '+f.name+'...');
+    const fd=new FormData(); fd.append('file',f);
+    reading++; $('an-go').disabled=true;
+    let res;
+    try{ res=await Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd}); }
+    finally{ if(--reading===0) $('an-go').disabled=false; }
+    if(my!==openSeq) return;
+    if(res.status===0){ msg('Original could not be reached. Check your connection and try again.',true); return; }
+    if(res.status===413){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+    if(res.status===422&&res.data&&/could not be read/i.test(String(res.data.detail||''))){ msg('That file could not be read. Try pasting the text instead.',true); return; }
+    if(res.status===422){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+    if(!res.ok||!res.data||typeof res.data.text!=='string'){ msg('That file could not be read. Try pasting the text instead.',true); return; }
+    const text=res.data.text;
+    if(!text.trim()){ msg('This file has no text Original can read. If it is a scan, paste the text instead.',true); return; }
+    $('an-text').value=text; updateWords();
+    if(!$('an-assign').value.trim()){ const base=f.name.replace(/\.[^.]*$/,'').slice(0,200); if(base) $('an-assign').value=base; }
+    msg('Read '+plural(res.data.word_count>=0?res.data.word_count:countWords(text),'word')+' from '+f.name+'.');
+  }
+
   function start(){
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
-    $('an-text').addEventListener('input',updateWords);
+    $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
     $('an-again').addEventListener('click',()=>{ setCard('form'); note(thinNote()); $('an-text').focus(); });
     $('an-file').addEventListener('change',e=>{
       const input=e.target, f=input.files&&input.files[0];
       input.value='';
       if(!f) return;
-      if(!/\.txt$/i.test(f.name)&&f.type!=='text/plain'){ msg('Only .txt files open here. For a .docx or .pdf, copy the text and paste it in.',true); return; }
-      if(f.size>1048576){ msg('That file is too large to analyse here.',true); return; }
+      const m=/\.([a-z0-9]+)$/i.exec(f.name), ext=m?m[1].toLowerCase():'';
+      if(ext!=='txt'&&ext!=='docx'&&ext!=='pdf'&&f.type!=='text/plain'){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+      if(ext==='docx'||ext==='pdf'){
+        if(f.size>FILE_LIMIT){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+        openDocument(f,ext); return;
+      }
+      if(f.size>TXT_LIMIT){ msg('That file is too large to analyse here.',true); return; }
+      const my=++openSeq;
       const rd=new FileReader();
-      rd.onload=()=>{ $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
+      rd.onload=()=>{ if(my!==openSeq) return; $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
       rd.onerror=()=>msg('That file could not be read.',true);
       rd.readAsText(f);
     });
@@ -1527,6 +1624,7 @@
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }
     S.id=id; S.name=id;
+    S.subId=(new URLSearchParams(location.search).get('submission')||'').trim();
     renderAll(); setView('baseline',false);
     loadStudent();
   }

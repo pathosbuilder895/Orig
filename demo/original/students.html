@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Students</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -54,6 +54,22 @@
   .add-btn{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.6rem 1.1rem;cursor:pointer;font-weight:600;text-decoration:none;flex-shrink:0;}
   .add-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
   .add-btn:focus-visible,.chip:focus-visible,.r-main:focus-visible,.r-ws:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .head-acts{display:flex;flex-wrap:wrap;gap:.6rem;justify-content:flex-end;}
+  .add-btn.ghost{background:rgba(255,255,255,0.05);color:var(--cream);border:1px solid var(--line);}
+  .add-btn:disabled{opacity:.6;cursor:default;}
+  /* add a writer */
+  .writer{background:rgba(12,20,46,0.9);border:1px solid var(--line);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.2rem;}
+  .writer[hidden]{display:none;}
+  .writer .w-t{font-family:var(--display);font-size:1.1rem;color:var(--cream);}
+  .writer .w-s{color:var(--dim);font-size:.9rem;margin:.2rem 0 .8rem;}
+  .writer label{display:block;font-size:.85rem;color:var(--dim);margin-bottom:.35rem;}
+  .writer .w-row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;}
+  .writer input{flex:1 1 220px;min-width:0;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:10px;padding:.55rem .8rem;color:var(--cream);font-family:var(--body);font-size:.95rem;}
+  .writer input:focus-visible,.writer .w-cancel:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .writer .w-cancel{background:none;border:none;color:var(--dim);font-family:var(--body);font-size:.9rem;cursor:pointer;padding:.5rem .6rem;}
+  .writer .w-cancel:hover{color:var(--cream);}
+  .writer .w-msg{margin-top:.6rem;font-size:.88rem;color:var(--flag);}
+  .writer .w-msg:empty{display:none;}
   /* summary strip */
   .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;margin-bottom:1.2rem;}
   .strip .s{background:rgba(255,255,255,0.025);padding:1rem 1.2rem;}
@@ -115,7 +131,7 @@
     body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
     nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
     .strip{grid-template-columns:repeat(2,1fr);}
-    .head{flex-wrap:wrap;align-items:flex-start;}
+    .head{flex-wrap:wrap;align-items:flex-start;}.head-acts{justify-content:flex-start;}
     .r-head{display:none;}.r-row{grid-template-columns:1fr auto;gap:.5rem .8rem;}
     .r-row>.courses,.r-row>.dev,.r-row>.last{grid-column:1/-1;}
     .last{text-align:left;}
@@ -153,8 +169,22 @@
         <h1>Students <span id="count"></span></h1>
         <div class="sub" id="sub">Loading</div>
       </div>
-      <a class="add-btn" id="add-btn" href="/bluebook/#students" title="Opens your students in Collections, where they are added to a course"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add student</a>
+      <div class="head-acts">
+        <button type="button" class="add-btn ghost" id="writer-btn" aria-expanded="false" aria-controls="writer-form"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add a writer</button>
+        <a class="add-btn" id="add-btn" href="/bluebook/#students" title="Opens your students in Collections, where they are added to a course"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add to a Collections course</a>
+      </div>
     </div>
+    <form class="writer" id="writer-form" hidden novalidate aria-labelledby="writer-t">
+      <div class="w-t" id="writer-t">Add a writer</div>
+      <p class="w-s">For someone who sends you their papers. No course, email or account is needed. Next you add their papers to make a baseline.</p>
+      <label for="writer-name">Their name</label>
+      <div class="w-row">
+        <input id="writer-name" type="text" maxlength="120" autocomplete="off" />
+        <button type="submit" class="add-btn" id="writer-go">Add</button>
+        <button type="button" class="w-cancel" id="writer-cancel">Cancel</button>
+      </div>
+      <div class="w-msg" id="writer-msg" role="alert"></div>
+    </form>
     <div class="strip">
       <div class="s"><div class="l">Enrolled</div><div class="v" id="v-all">-</div></div>
       <div class="s"><div class="l" data-verdict="ready">Baseline: Ready</div><div class="v green" id="v-ready">-</div></div>
@@ -179,7 +209,7 @@
     <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
   </main>
 </div>
-<script src="live.js?v=2026-11-13.1"></script>
+<script src="live.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -251,7 +281,7 @@
     '</div>';
   }
 
-  let emptyText='No students on your roster yet. Add them in Collections.';
+  let emptyText='No students on your roster yet. Add a writer, or add them in Collections.';
   function applyF(){
     const q=($('q').value||'').trim().toLowerCase();
     const list=students.filter(s=>{
@@ -288,7 +318,7 @@
       $('sub').textContent='';
     } else {
       students=res.students.slice().sort(byReadiness);
-      if(res.bluebookOff) emptyText='No students on your roster yet.';
+      if(res.bluebookOff) emptyText='No students on your roster yet. Add a writer.';
       const n=k=>students.filter(s=>s.verdict===k).length;
       $('v-all').textContent=String(students.length);
       $('v-ready').textContent=String(n('ready'));
@@ -316,6 +346,46 @@
     if(res.bluebookOff) $('add-btn').style.display='none';
     applyF();
   }
+
+  // ── add a writer ──
+  // POST /students makes a roster student from a name alone (no course, email or
+  // account); the teacher then adds their papers on the Voice baseline. The Add
+  // button stays disabled while the request is out, so a double click makes one writer.
+  (function(){
+    const btn=$('writer-btn'), form=$('writer-form'), name=$('writer-name'), go=$('writer-go'), cancel=$('writer-cancel'), msg=$('writer-msg');
+    let busy=false;
+    function open(){
+      form.hidden=false; btn.setAttribute('aria-expanded','true');
+      msg.textContent=''; name.focus();
+    }
+    function close(){
+      if(busy) return;
+      form.hidden=true; btn.setAttribute('aria-expanded','false');
+      name.value=''; msg.textContent=''; btn.focus();
+    }
+    function fail(text){
+      busy=false; go.disabled=false; name.disabled=false; cancel.disabled=false; go.textContent='Add';
+      msg.textContent=text; name.focus();
+    }
+    btn.addEventListener('click',()=>{ if(form.hidden) open(); else close(); });
+    cancel.addEventListener('click',close);
+    form.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); close(); } });
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      if(busy) return;
+      const n=name.value.trim();
+      if(!n){ msg.textContent='Type the writer’s name.'; name.focus(); return; }
+      if(n.length>120){ msg.textContent='Use a name of 120 characters or fewer.'; name.focus(); return; }
+      busy=true; go.disabled=true; name.disabled=true; cancel.disabled=true; go.textContent='Adding...'; msg.textContent='';
+      const r=await Live.api('/students',{method:'POST',body:{name:n}});
+      const id=r.ok&&r.data&&typeof r.data.student_id==='string'?r.data.student_id:'';
+      if(id){ window.location.assign('baseline.html?student='+encodeURIComponent(id)+'#add-writing'); return; }
+      if(r.status===401) fail('Your sign-in has ended. Sign in again, then add the writer.');
+      else if(r.status===403) fail('Your account cannot add writers.');
+      else if(r.status===422) fail('Use a name of 1 to 120 characters.');
+      else fail('The writer could not be added just now. Try again.');
+    });
+  })();
 
   // ── go ──
   // Any answer of an unexpected shape ends in the "could not be loaded" state,

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -374,7 +374,7 @@
         <div id="shared-sec" style="margin-top:1.3rem;" hidden>
           <div class="sec-h"><b>Papers students shared</b><span id="shared-sub"></span></div>
           <div class="card ex-card">
-            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
+            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts at the lower weight of a student upload, not as supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
             <div id="shared-list"><div class="live-empty">Loading</div></div>
           </div>
         </div>
@@ -470,9 +470,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-13.1"></script>
-<script src="js/feature-data.js?v=2026-11-13.1"></script>
-<script src="live.js?v=2026-11-13.1"></script>
+<script src="js/fingerprint.js?v=2026-11-13.2"></script>
+<script src="js/feature-data.js?v=2026-11-13.2"></script>
+<script src="live.js?v=2026-11-13.2"></script>
 <script>
 (function(){
   'use strict';
@@ -543,17 +543,21 @@
   function detailText(d){ return d&&typeof d.detail==='string'?d.detail:''; }
 
   // Provenance in plain words. The API's words are proctored, verified, canvas, unverified.
-  // "Approved" means a teacher approved it: a supervised sitting, a paper the teacher
-  // verified, or one the teacher imported. A student upload is counted by the server, but
+  // "Approved by you" (Live.approvals): a supervised sitting, a paper the teacher
+  // verified or imported, or a take-home exam or shared paper the teacher approved (those
+  // two count at a lower weight). A student's own upload is counted by the server, but
   // nobody approved it.
   const PROV={
     proctored:{word:'Supervised sitting',color:'#4d90c8',tag:n=>plural(n,'supervised sitting')},
     verified:{word:'Verified by teacher',color:'#5aab7a',tag:n=>n+' verified by teacher'},
     canvas:{word:'Imported',color:'#9a7ad0',tag:n=>n+' imported'},
+    take_home:{word:'Take-home exam approved by you',color:'#5aab7a',tag:n=>plural(n,'take-home exam')+' approved by you'},
+    shared_paper:{word:'Shared paper approved by you',color:'#5aab7a',tag:n=>plural(n,'shared paper')+' approved by you'},
     unverified:{word:'Student upload',color:'#d8b04a',tag:n=>plural(n,'student upload')}
   };
-  const APPROVED=['proctored','verified','canvas'];
   const provOf=p=>has(PROV,p)?PROV[p]:{word:'Other source',color:'#8a8a8a',tag:n=>n+' other'};
+  // A sample's key into PROV: its server `source` where it says so, else its provenance.
+  const kindOf=s=>Live.sampleKind(s);
 
   // The server's readiness rule, in full (original/routers/students.py).
   const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 3 counted samples. Below 3, Original does not compare new writing.';
@@ -570,8 +574,9 @@
   };
 
   const samples=()=>(S.student&&Array.isArray(S.student.samples))?S.student.samples.filter(s=>s&&typeof s==='object'):[];
-  const approvedN=()=>samples().filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
-  const uploadsN=()=>samples().filter(s=>s.provenance==='unverified').length;
+  const appr=()=>Live.approvals(samples());
+  const approvedN=()=>appr().byYou;
+  const uploadsN=()=>appr().uploads;
   // What the server counts toward the baseline (its authenticated_count): approved papers
   // and, for now, student uploads. Never shown as "approved".
   const countedN=()=>{
@@ -602,10 +607,8 @@
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
     if(S.status==='ok'){
-      const sm=samples(), a=approvedN(), up=uploadsN(), other=sm.length-a-up;
-      parts.push(plural(a,'teacher-approved sample'));
-      if(up) parts.push(plural(up,'student upload'));
-      if(other>0) parts.push(plural(other,'sample')+' from another source');
+      const w=Live.approvalWords(appr());
+      if(w) parts.push(plural(samples().length,'sample')+': '+w);
     }
     $('meta').textContent=parts.join(' · ');
     $('analyse-link').href='writing-state.html?student='+enc(ID);
@@ -713,9 +716,9 @@
     let line='Original has read '+(n===1?'this paper':'these papers')+(k?', written for '+plural(k,'assignment'):'')+', and averaged '+(n===1?'its':'their')+' habits into the profile below. '+NO_WRITING;
     if(up) line+=' '+(up===1?'1 paper was':up+' papers were')+' uploaded by the student; they are counted, but nobody approved them.';
     sum.textContent=line;
-    const order=['proctored','verified','canvas','unverified'];
+    const order=['proctored','verified','canvas','take_home','shared_paper','unverified'];
     const counts=new Map();
-    sm.forEach(s=>{ const key=has(PROV,s.provenance)?s.provenance:'other'; counts.set(key,(counts.get(key)||0)+1); });
+    sm.forEach(s=>{ const key=has(PROV,kindOf(s))?kindOf(s):'other'; counts.set(key,(counts.get(key)||0)+1); });
     order.concat(['other']).forEach(key=>{
       if(!counts.get(key)) return;
       const sp=document.createElement('span'); sp.className='tag';
@@ -743,9 +746,10 @@
       return;
     }
     const r=S.ready, v=verdictOf();
-    const a=approvedN(), up=uploadsN(), counted=countedN();
+    const ap=appr(), counted=countedN();
     const eff=r&&num(r.effective_sample_count)!==null?r.effective_sample_count:num(S.student.effective_sample_count);
-    const split=esc(plural(counted,'counted sample'))+' ('+esc(a+' teacher-approved')+(up?', '+esc(plural(up,'student upload')):'')+')';
+    const words=Live.approvalWords(ap,{note:false});
+    const split=esc(plural(counted,'counted sample'))+(words?' ('+esc(words)+')':'');
     const paras=[];
     if(v==='ready'){
       paras.push(name+'’s baseline is <b>ready to compare against</b>: '+split+(eff!==null?', which come to about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recently it was added':'')+'.');
@@ -772,12 +776,18 @@
       bits.push(s);
     }
     if(mix){
-      const order=['proctored','verified','canvas','unverified'];
-      const parts=order.filter(k=>num(mix[k])>0).map(k=>PROV[k].tag(mix[k]));
+      const order=['proctored','verified','canvas','take_home','shared_paper','unverified'];
+      // The server's mix is by provenance (a take-home exam reads "unverified"). When it
+      // describes the same list the page holds, say how each sample got in instead.
+      const mixTotal=Object.keys(mix).reduce((t,k)=>t+(num(mix[k])>0?mix[k]:0),0);
+      const byKind={};
+      if(mixTotal===samples().length) samples().forEach(x=>{ const k=kindOf(x); byKind[k]=(byKind[k]||0)+1; });
+      const src=mixTotal===samples().length?byKind:mix;
+      const parts=order.filter(k=>num(src[k])>0).map(k=>PROV[k].tag(src[k]));
       if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
     }
     if(bits.length) paras.push(bits.join(' '));
-    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.');
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home exams and shared papers you approved count at the same lower weight as uploads.':''));
     el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
   }
 
@@ -823,7 +833,7 @@
     if(!sm.length){ Live.empty(el,'No approved writing yet. Add some below.'); return; }
     el.innerHTML=sm.map((s,pos)=>{
       const i=num(s.index)!==null?s.index:pos;
-      const p=provOf(s.provenance), w=num(s.auth_weight);
+      const p=provOf(kindOf(s)), w=num(s.auth_weight);
       const when=fmtDate(s.submitted_at)||(String(s.submitted_at||'').trim()?String(s.submitted_at).trim().slice(0,24):'Date not recorded');
       return '<div class="ti" data-i="'+i+'"><div class="ti-dot" style="background:'+esc(p.color)+'">'+(pos+1)+'</div>'+
         '<div class="ti-body"><div class="ti-title">'+esc(String(s.assignment||'').trim()||'Untitled sample')+'</div><div class="ti-meta">'+esc(when)+'</div>'+
@@ -1055,7 +1065,7 @@
   // The count after a write comes from reading the student again. When that read
   // failed there is no count to give: an empty profile would say "now has 0".
   const NOT_REFRESHED='The count could not be refreshed just now. Reload the page to see it.';
-  const nowHas=()=>(S.status==='ok'&&S.student)?nm()+' now has '+plural(approvedN(),'teacher-approved sample')+'.':NOT_REFRESHED;
+  const nowHas=()=>(S.status==='ok'&&S.student)?nm()+' now has '+plural(approvedN(),'sample')+' approved by you.':NOT_REFRESHED;
   // Reads the student again after a write that went through. Resolves true when it
   // could be read, false when it could not (the write is not undone by that).
   async function refreshAfterWrite(){

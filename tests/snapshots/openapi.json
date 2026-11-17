@@ -3589,6 +3589,12 @@
             "title": "Provenance",
             "type": "string"
           },
+          "source": {
+            "default": "unknown",
+            "description": "How the sample got into the baseline, derived at read time: 'staff_or_supervised' | 'take_home' | 'shared_paper' | 'student_upload' | 'unknown'. Wording only; never read by scoring.",
+            "title": "Source",
+            "type": "string"
+          },
           "submitted_at": {
             "title": "Submitted At",
             "type": "string"
@@ -4718,6 +4724,24 @@
           "confidence"
         ],
         "title": "WindowScoreOut",
+        "type": "object"
+      },
+      "WriterCreateRequest": {
+        "description": "POST /students: a writer added by name, with no course or account.",
+        "properties": {
+          "name": {
+            "description": "The writer's name, 1-120 characters once trimmed, no control characters",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WriterCreateRequest",
         "type": "object"
       }
     }
@@ -8634,6 +8658,41 @@
           }
         },
         "summary": "List Students"
+      },
+      "post": {
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.\n\nThe open fictional demo (no sign-in, never a real deploy) may add a\nwriter anonymously, into the demo tenant, as it may use its other write\nroutes; on a real deploy only a signed-in staff account can.\n\n``set_display_name`` logs and swallows a write failure, so the name is\nread back: a writer whose name did not save is erased again and the\ncaller gets a 503, never a 201 for a nameless writer.",
+        "operationId": "create_writer_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Writer"
       }
     },
     "/students/{student_id}": {
