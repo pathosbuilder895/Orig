@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Students</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -44,7 +44,7 @@
   .body{flex:1;overflow-y:auto;padding:0.4rem 1.9rem 1.9rem;min-height:0;position:relative;z-index:1;}
   .body.gated{display:grid;}
   nav{position:relative;z-index:2;}
-  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.54),rgba(22,36,79,0.54)),url('assets/st-andrews-quad.jpg') center 58%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.58) brightness(.5) contrast(1.14) hue-rotate(184deg);opacity:.78;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/st-andrews-quad.jpg') center 58%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.14) hue-rotate(184deg);opacity:1;}
   .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.36) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.94) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
   .head h1{text-shadow:0 2px 18px rgba(7,11,28,0.9);}
   .head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:.4rem 0 1.2rem;}
@@ -53,7 +53,7 @@
   .head .sub{color:var(--dim);font-style:italic;font-size:.95rem;margin-top:.15rem;}
   .add-btn{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.6rem 1.1rem;cursor:pointer;font-weight:600;text-decoration:none;flex-shrink:0;}
   .add-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
-  .add-btn:focus-visible,.chip:focus-visible,.r-row:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .add-btn:focus-visible,.chip:focus-visible,.r-main:focus-visible,.r-ws:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   /* summary strip */
   .strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;margin-bottom:1.2rem;}
   .strip .s{background:rgba(255,255,255,0.025);padding:1rem 1.2rem;}
@@ -75,14 +75,19 @@
   .search input::placeholder{color:var(--dim-2);}
   /* table */
   .roster{border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;}
-  .r-head,.r-row{display:grid;grid-template-columns:2.4fr 1.3fr 1fr 1.4fr 1fr 60px;gap:1rem;align-items:center;padding:.85rem 1.2rem;}
+  .r-head,.r-row{display:grid;grid-template-columns:2.4fr 1.3fr 1fr 1.4fr 1fr 150px;gap:1rem;align-items:center;padding:.85rem 1.2rem;}
   .r-head{background:rgba(255,255,255,0.025);border-bottom:1px solid var(--line-soft);}
   .r-head div{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);}
   .r-head .r{text-align:right;}
   .r-row{border-top:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:background .13s;position:relative;color:inherit;text-decoration:none;}
   .r-row:first-of-type{border-top:none;}
-  .r-row:hover{background:rgba(201,160,40,0.055);}
-  .r-row:hover::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);}
+  .r-row:hover,.r-row:focus-within{background:rgba(201,160,40,0.055);}
+  .r-row:hover::before,.r-row:focus-within::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);}
+  /* The name links to the Voice baseline and stretches over the whole row; the Writing State link sits above it. */
+  .r-main{display:block;color:var(--cream);text-decoration:none;border-radius:4px;}
+  .r-main::after{content:'';position:absolute;inset:0;z-index:0;}
+  .r-ws{position:relative;z-index:1;font-size:.8rem;color:var(--dim);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.25rem .7rem;white-space:nowrap;transition:color .13s,border-color .13s,background .13s;}
+  .r-ws:hover{color:var(--gold-2);border-color:rgba(201,160,40,0.45);background:rgba(201,160,40,0.08);}
   .ident{display:flex;align-items:center;gap:.8rem;min-width:0;}
   .ident>div:last-child{min-width:0;}
   .s-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:.82rem;color:var(--gold-2);}
@@ -101,9 +106,9 @@
   .dev-n{font-family:var(--mono);font-size:.78rem;min-width:34px;text-align:right;}
   .dev-n.none{color:var(--dim-2);}
   .last{font-family:var(--mono);font-size:.76rem;color:var(--dim);text-align:right;}
-  .go{display:flex;justify-content:flex-end;}
+  .go{display:flex;align-items:center;justify-content:flex-end;gap:.6rem;}
   .go svg{width:16px;height:16px;stroke:var(--dim-2);fill:none;stroke-width:1.8;transition:stroke .13s,transform .13s;}
-  .r-row:hover .go svg{stroke:var(--gold-2);transform:translateX(2px);}
+  .r-row:hover .go svg,.r-row:focus-within .go svg{stroke:var(--gold-2);transform:translateX(2px);}
   .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
   .foot{margin-top:.8rem;font-size:.84rem;color:var(--dim-2);font-style:italic;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
   @media (max-width:900px){
@@ -135,6 +140,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -173,7 +179,7 @@
     <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-13.1"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -234,14 +240,15 @@
   function rowHTML(s){
     const p=PILL[s.verdict]||UNKNOWN;
     const chips=s.courses.map(c=>'<span class="ct">'+esc(c.code||c.name)+'</span>').join('');
-    return '<a class="r-row" href="'+esc('baseline.html?student='+encodeURIComponent(s.id))+'">'+
-      '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><div class="s-nm">'+esc(s.name)+'</div>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
+    const id=encodeURIComponent(s.id);
+    return '<div class="r-row">'+
+      '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><a class="s-nm r-main" href="'+esc('baseline.html?student='+id)+'" title="'+esc('Open '+s.name+'’s voice baseline')+'">'+esc(s.name)+'</a>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
       '<div class="courses">'+chips+'</div>'+
       '<div><span class="bpill '+p.cls+'"><span class="d"></span>'+p.label+'</span></div>'+
       '<div class="dev"><span class="dev-n none">'+DASH+'</span></div>'+
       '<div class="last">'+esc(s.lastSealed?(fmtDate(s.lastSealed)||'None yet'):'None yet')+'</div>'+
-      '<div class="go"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>'+
-    '</a>';
+      '<div class="go"><a class="r-ws" href="'+esc('writing-state.html?student='+id)+'">Writing State</a><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></div>'+
+    '</div>';
   }
 
   let emptyText='No students on your roster yet. Add them in Collections.';

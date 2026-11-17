@@ -85,6 +85,14 @@ def test_pilot_pins_the_null_model_off():
     assert _env("original-pilot")["NULL_MODEL"]["value"] == "none"
 
 
+def test_pilot_turns_on_the_staff_only_explainability():
+    # ADR-013: report-only and staff-only, so on for the pilot. Exactly "1":
+    # original/evidence.py reads anything else as off.
+    env = _env("original-pilot")
+    assert env["EVIDENCE_PASSAGES_ENABLED"]["value"] == "1"
+    assert env["PRELIMINARY_SCORE_ENABLED"]["value"] == "1"
+
+
 @pytest.mark.parametrize("service", sorted(SERVICES))
 def test_no_secret_value_is_committed(service):
     for key, entry in _env(service).items():

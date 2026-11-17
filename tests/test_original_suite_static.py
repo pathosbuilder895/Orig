@@ -282,7 +282,14 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # so a page loaded from cache next to a newer live.js would run the old code
 # against new markup. Every page therefore asks for these files with one shared
 # ?v= query; change the version (on every page at once) when any of them changes.
-VERSIONED = ("live.js", "js/feature-data.js", "js/fingerprint.js", "suite.css", "fonts.css")
+VERSIONED = (
+    "live.js",
+    "js/feature-data.js",
+    "js/fingerprint.js",
+    "js/evidence-view.js",
+    "suite.css",
+    "fonts.css",
+)
 
 
 def _versioned_refs(path: Path) -> list[tuple[str, str, str]]:
@@ -310,7 +317,7 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
     # Every page carries the suite's stylesheet, font file and shared script; the
-    # others (feature-data.js, fingerprint.js) appear where the page uses them.
+    # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
     assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
@@ -738,9 +745,13 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "<title>Original · Conversation packet</title>" in page
     title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
     assert "flag" not in title
-    # No case numbers, no quoted passages (no text positions exist to quote).
+    # No case numbers. Quoted passages appear only as the staff-only "Side by side"
+    # section, built from the server's evidence: marks come only from
+    # EvidenceView.markParts, and nothing is built unless evidence is present.
     assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
-    assert "<mark" not in page
+    assert page.count("<mark") == 1 and "EV.markParts(q)" in page
+    assert "if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(" in page
+    assert '<script src="js/evidence-view.js?v=' in page
     # Outcome and signature are blank form lines for the teacher, never data.
     assert page.count('<div class="line"></div>') == 2
     assert "Teacher signature" in page and "Outcome of the conversation" in page
@@ -807,6 +818,26 @@ def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
     classic = texts.index("Analysis (classic)")
     assert links[classic][0] == "/professor.html"
     assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
+
+
+@pytest.mark.parametrize(
+    "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
+)
+def test_account_menu_opens_the_collections_dashboard_first(path):
+    # Bare /bluebook/ sends a teacher to Original, so the way back to the
+    # Collections dashboard is a named link: the first item, before Settings.
+    links = _account_menu(path)
+    texts = [text for _, text in links]
+    assert texts.count("Open Collections") == 1, f"{path.name}: {texts}"
+    assert links[0] == ("/bluebook/#dashboard", "Open Collections"), f"{path.name}: {links}"
+    assert texts[1] == "Settings", f"{path.name}: {texts}"
+
+
+def test_collections_page_head_links_to_the_collections_dashboard():
+    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
+    head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
+    assert '<a class="head-link" href="/bluebook/#dashboard">' in head
+    assert "Open Collections</a>" in head
 
 
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
@@ -1589,7 +1620,12 @@ def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
             "original_portfolio": "not a kept paper: no trailing underscore",
             "another_site_key": "left alone",
         },
-        session={"original_last_result": '{"result":{}}', "unrelated": "left alone"},
+        # bluebook_collections_tab: Collections' per-tab mark (deep-link.jsx).
+        session={
+            "original_last_result": '{"result":{}}',
+            "bluebook_collections_tab": "1",
+            "unrelated": "left alone",
+        },
     )
     assert sorted(out["local"]) == ["another_site_key", "original_portfolio"]
     assert out["session"] == ["unrelated"]
@@ -1911,6 +1947,7 @@ STUDENT_TAIL = r"""
     const s = await window.Live.gate(el, sc.opts);
     out.session = s ? { role: s.role, mode: s.mode } : null;
     out.html = el.innerHTML;
+    out.products = window.localStorage.getItem('original_products');
   } else if (sc.call === 'api') {
     out.res = await window.Live.api(sc.path, sc.opts);
   }
@@ -1984,6 +2021,46 @@ def test_student_gate_sends_everyone_else_to_bluebooks_sign_in(health):
     assert out["replaced"] == []
     assert "Sign in to continue" in out["html"]
     assert 'href="/bluebook/"' in out["html"]
+
+
+@needs_node
+def test_a_staff_gate_without_original_points_at_the_collections_dashboard_and_heals_products():
+    # Collections sends a teacher at the bare /bluebook/ address to Original while
+    # the stored products say Original. A workspace that lost it would bounce
+    # between the two: the panel names the Collections dashboard (#dashboard),
+    # and the server's products replace the stale stored list.
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": ["bluebook"], "tenant_id": "t"}],
+    )
+    assert out["session"] is None and out["replaced"] == []
+    assert "Original is off for this workspace" in out["html"]
+    assert 'href="/bluebook/#dashboard"' in out["html"]
+    assert 'href="/bluebook/"' not in out["html"]
+    assert json.loads(out["products"]) == ["bluebook"]
+
+
+@needs_node
+def test_a_staff_gate_with_original_stores_the_servers_products():
+    out = _student(call="gate", local={"original_principal_token": "p"}, me=STAFF_ME)
+    assert out["session"] == {"role": "professor", "mode": "signed-in"}
+    assert json.loads(out["products"]) == ["original", "bluebook"]
+
+
+@needs_node
+def test_a_gate_whose_server_lists_no_products_keeps_what_sign_in_stored():
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": [], "tenant_id": "t"}],
+    )
+    assert out["products"] == '["original","bluebook"]'
+
+
+def test_professor_page_collections_link_names_the_collections_dashboard():
+    page = (DEMO / "professor.html").read_text(encoding="utf-8")
+    assert 'href="bluebook/#dashboard" target="_blank" title="Collections: writing sessions"' in page
 
 
 @needs_node

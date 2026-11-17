@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -88,6 +88,7 @@
   .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
   /* habits, this paper beside their own writing (numbers, never quoted text) */
   .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
+  @media screen{.ex{transition:border-color .18s,box-shadow .18s;}.ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}}
   .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
@@ -102,6 +103,14 @@
   .ex-src{font-family:var(--mono);font-size:.62rem;color:var(--ink-2);margin-top:.55rem;overflow-wrap:anywhere;}
   .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.9rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-q{overflow-wrap:anywhere;}
+  .ex-col{min-width:0;}
+  .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
+  .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
   .more-note{font-size:.88rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
   /* where the baseline comes from */
   .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
@@ -209,6 +218,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -277,8 +287,9 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-13.1"></script>
+<script src="js/feature-data.js?v=2026-11-13.1"></script>
+<script src="js/evidence-view.js?v=2026-11-13.1"></script>
 <script>
 (function(){
   'use strict';
@@ -479,6 +490,58 @@
     return t;
   }
 
+  // ── side by side, with real quotes (only when the server sent evidence) ──
+  // Staff-only: result.evidence is stored by Writing State only when the server
+  // sent it. Each card shows the first quote on each side for a habit in the
+  // top list that has quotable text on both sides; habits without it are left
+  // out (their numbers are on the cards above and on the side-by-side page).
+  const EV=window.EvidenceView;
+  const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  function quoteBlock(q,label,side,papers){
+    const parts=EV.markParts(q);
+    const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+    const body=esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail);
+    // The source line is EvidenceView.quoteSource, the rule all three pages share.
+    const src=EV.quoteSource(q,side==='this'?'This paper':EV.pastSource(q.paper,papers));
+    const at=(num(q.start)!=null&&num(q.end)!=null)?' title="'+esc('characters '+q.start+' to '+q.end)+'"':'';
+    return '<div class="ex-col"><div class="ex-lbl '+(side==='this'?'this':'base')+'">'+esc(side==='this'?'This paper':label)+'</div>'+
+      '<div class="ex-q'+(side==='this'?'':' base')+'">'+body+'</div><div class="ex-src"'+at+'>'+esc(src)+'</div></div>';
+  }
+  function sideBySideHTML(d){
+    const ev=d.result.evidence;
+    if(!EV||!isObj(ev)||!Array.isArray(ev.features)||!Array.isArray(ev.all_features)) return '';
+    const papers=Array.isArray(ev.baseline_papers)?ev.baseline_papers:[];
+    const byCode=new Map();
+    ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode.set(f.code,f); });
+    const cards=[];
+    const skipped=[];
+    ev.features.slice(0,SHOW_HABITS).forEach(top=>{
+      const f=isObj(top)&&byCode.get(top.code);
+      const skip=()=>{ const nm=EV.clean(String((f&&f.name)||(isObj(top)&&top.name)||''),''); if(nm) skipped.push(nm); };
+      if(!f||f.kind!=='located'){ skip(); return; }
+      const tq=isObj(f.this_paper)&&Array.isArray(f.this_paper.examples)?f.this_paper.examples[0]:null;
+      const pq=isObj(f.past_papers)&&Array.isArray(f.past_papers.examples)?f.past_papers.examples[0]:null;
+      if(!isObj(tq)||!isObj(pq)||typeof tq.passage!=='string'||typeof pq.passage!=='string'){ skip(); return; }
+      const notice=typeof EV.noticeFor==='function'?EV.noticeFor(f,papers):'', nums=EV.noteFor(f,papers);
+      cards.push('<div class="ex">'+
+        '<div class="ex-h"><b>'+esc(EV.clean(String(f.name||'This habit'),'This habit'))+'</b><span>'+esc(EV.oneLine(f))+'</span></div>'+
+        quoteBlock(tq,'','this',papers)+quoteBlock(pq,EV.paperName(pq.paper,papers),'base',papers)+
+        ((notice||nums)?'<div class="ex-note">'+(notice?'<p><b>What to notice:</b> '+esc(notice)+'</p>':'')+(nums?'<p class="nums-line">'+esc(nums)+'</p>':'')+'</div>':'')+
+      '</div>');
+    });
+    const miss=skipped.length?'<p class="more-note">'+esc('Not shown here because there is no quotable text on both sides: '+skipped.join(', ')+'. Their numbers are in the list under \u201cFurthest from their usual range\u201d above.')+'</p>':'';
+    return cards.join('')+miss;
+  }
+  function addSideBySide(d,anchor){
+    const html=sideBySideHTML(d);
+    if(!html||!anchor) return;
+    const sec=document.createElement('section');
+    sec.id='p-side';
+    sec.innerHTML='<div class="sec-t">Side by side <span>this paper and past papers, in their own words</span></div>'+
+      '<p class="sec-lede">The marked words are the ones Original counted. A difference in wording is a reason to look, not a finding.</p>'+html;
+    anchor.parentNode.insertBefore(sec,anchor.nextSibling);
+  }
+
   async function render(sess,d){
     const id=d.student_id.trim();
     const who=(typeof d.student_name==='string'&&d.student_name.trim())||id;
@@ -526,6 +589,8 @@
 
     // habits
     $('p-habits').innerHTML=habitCards(d,poss,nUsed);
+    // Staff-only: nothing here runs, or touches the page, unless the server sent evidence.
+    if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(d,$('p-habits').parentNode);
 
     // baseline
     // The thin-baseline caution is shown whether or not the sample list loaded.

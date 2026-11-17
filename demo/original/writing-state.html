@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-13.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-13.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -42,7 +42,7 @@
 
   .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
   nav{position:relative;z-index:1;}
-  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.5),rgba(22,36,79,0.5)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.6) brightness(.5) contrast(1.12) hue-rotate(184deg);opacity:.72;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.12) hue-rotate(184deg);opacity:1;}
   .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
   .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
   .right{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;}
@@ -77,6 +77,7 @@
 
   /* Radar */
   .radar-card{padding:1.1rem 1.2rem 1.2rem;}
+  .radar-card .sec-h{flex-wrap:wrap;}
   .radar-wrap{position:relative;width:100%;max-width:280px;margin:.4rem auto 0;aspect-ratio:1;}
   #radar-canvas{width:100%;height:100%;display:block;cursor:crosshair;}
   .radar-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-130%);background:var(--navy-0);color:var(--cream);font-size:.7rem;padding:.28rem .5rem;border-radius:5px;white-space:nowrap;transition:opacity .15s;z-index:5;border:1px solid var(--line);}
@@ -133,7 +134,8 @@
   .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
   .hero-inner:hover .fpq-hint{opacity:0;}
   /* Feature evidence: hero transforms to show the text itself */
-  .hero-evi{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;gap:.8rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
+  /* In normal flow below the triage row, so the triage buttons stay visible and clickable while it is open. */
+  .hero-evi{position:relative;z-index:6;display:none;flex-direction:column;gap:.8rem;margin-top:1.6rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
   .hero-evi.show{display:flex;}
   .hero-evi::before{content:'';position:absolute;inset:-.6rem -1.2rem;background:rgba(8,12,28,0.9);backdrop-filter:blur(7px);border:1px solid var(--line-soft);border-radius:16px;z-index:-1;}
   .evi-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
@@ -324,6 +326,21 @@
   .evi-col.base .evi-big{color:#8ba8dd;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
+  /* Quoted passages (staff evidence payload, ADR-013) */
+  .evi-one{width:100%;font-size:.84rem;color:var(--dim);margin-top:-.4rem;}
+  .evi-q{font-family:var(--body);font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,.88);overflow-wrap:anywhere;}
+  .evi-q mark{background:var(--evc-bg,rgba(201,160,40,.24));color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px var(--evc-line,rgba(201,160,40,.35));}
+  .evi-col.base .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .evi-q mark.tiny{background:var(--evc-bg,rgba(201,160,40,.32));box-shadow:none;border-bottom:2px solid var(--evc,#c9a028);padding:0 .24em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .evi-col.base .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
+  .evi-tab:focus-visible,.evi-side:focus-visible,.tgrp-h:focus-visible,.hbnd:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .evi-foot{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
+  .evi-notice{flex:1;min-width:16rem;font-size:.9rem;line-height:1.55;color:var(--dim);}
+  .evi-notice b{color:var(--cream);font-weight:600;}
+  .evi-side{flex-shrink:0;font-size:.86rem;font-style:italic;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.32rem .9rem;}
+  .evi-side:hover{color:var(--gold);border-color:var(--gold);}
+  .fd-row.inert{cursor:default;}
   /* global: hide scrollbars */
 *::-webkit-scrollbar{width:0;height:0;display:none;}
 *{scrollbar-width:none;-ms-overflow-style:none;}
@@ -344,6 +361,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -390,7 +408,7 @@
 
       <!-- Tier Profile radar -->
       <div class="card radar-card">
-        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · click to pin</span></div>
+        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · tier chips: click to pin</span></div>
         <div class="radar-wrap">
           <canvas id="radar-canvas"></canvas>
           <div class="radar-tip" id="radar-tip"></div>
@@ -438,16 +456,22 @@
             <span class="tri-done" id="tri-done" role="status"></span>
             <span class="tri-note">Kept on this computer only, for now.</span>
           </div>
-          <div class="hero-evi" id="hero-evi">
+          <div class="hero-evi" id="hero-evi" role="region" aria-labelledby="evi-name">
             <div class="evi-head">
               <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
               <span class="evi-nums" id="evi-nums"></span>
               <button class="evi-close" id="evi-close" type="button">✕ Back to the pattern</button>
             </div>
             <div class="evi-desc" id="evi-desc"></div>
+            <div class="evi-one" id="evi-one" hidden></div>
+            <div class="evi-tabs" id="evi-tabs" hidden></div>
             <div class="evi-cols">
-              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+              <div class="evi-col"><div class="evi-lbl" id="evi-sub-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
               <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
+            </div>
+            <div class="evi-foot" id="evi-foot" hidden>
+              <div class="evi-notice" id="evi-notice"></div>
+              <a class="evi-side" id="evi-side" href="#" hidden>See it side by side</a>
             </div>
           </div>
         </div>
@@ -486,15 +510,17 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/feature-data.js?v=2026-10-26.1"></script>
-<script src="js/fingerprint.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-13.1"></script>
+<script src="js/feature-data.js?v=2026-11-13.1"></script>
+<script src="js/fingerprint.js?v=2026-11-13.1"></script>
+<script src="js/evidence-view.js?v=2026-11-13.1"></script>
 <script>
 (function(){
   'use strict';
   const $=id=>document.getElementById(id);
   const esc=Live.esc;
   const OF=window.OriginalFeatures;
+  const EV=window.EvidenceView;
   const FLAT=OF.flat, TIERS=OF.tiers, N_HABITS=OF.total;
   const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
   const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
@@ -529,7 +555,7 @@
   // ── page state ──
   const S={
     id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
-    base:null, sub:null, result:null, D:new Map(), C:new Map(),
+    base:null, sub:null, result:null, D:new Map(), C:new Map(), EVI:new Map(),
     assignment:'', words:0, analysedAt:'', view:'baseline'
   };
   const who=()=>S.name||S.id;
@@ -797,14 +823,26 @@
       const key=ch.dataset.tier;
       ch.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)apply(key);});
       ch.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
-      ch.addEventListener('click',()=>{
+      const topHabit=t=>{
+        const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
+        return t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+      };
+      ch.addEventListener('click',e=>{
+        const t=TIER_BY_KEY.get(key);
+        // With passages (the staff evidence field): the first click after an analysis pins
+        // the tier and opens its most different habit; a click on the pinned tier unpins
+        // it and closes the panel. A keyboard click (detail 0) moves focus into the panel.
+        if(hasEvidence(S.result)&&S.base&&t&&t.features.length){
+          if(CROSS.pinned===key){ toggle(key); EVI.close(); return; }
+          toggle(key);
+          EVI.open(topHabit(t).code,e.detail===0?ch:null);
+          return;
+        }
+        // Without them, as before: pin; while a habit is open, switch to this tier's top habit.
         if($('hero-evi').classList.contains('show')&&S.base){
-          // already in a comparison: switch to this tier's most different habit
-          const t=TIER_BY_KEY.get(key); if(!t||!t.features.length) return;
-          const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
-          const f=t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+          if(!t||!t.features.length) return;
           if(CROSS.pinned!==key) toggle(key);
-          EVI.open(f.code);
+          EVI.open(topHabit(t).code);
           return;
         }
         toggle(key);
@@ -816,11 +854,14 @@
       const g=head.querySelector('b').textContent;
       head.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)applyGroup(g);});
       head.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
-      head.addEventListener('click',()=>{
+      const pinGroup=()=>{
         const pk='g:'+g;
         if(CROSS.pinned===pk){CROSS.pinned=null;head.classList.remove('on');clear();}
         else{CROSS.pinned=pk;chips.forEach(c=>c.classList.remove('on'));wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.toggle('on',h===head));applyGroup(g);}
-      });
+      };
+      head.addEventListener('click',pinGroup);
+      head.tabIndex=0; head.setAttribute('role','button'); head.setAttribute('aria-label',g+' family. Pins its tiers.');
+      onPress(head,pinGroup);
     });
     // A tier with a habit the server marks outside the usual range gets the warm label.
     function mark(){ chips.forEach(ch=>{ const t=TIER_BY_KEY.get(ch.dataset.tier); ch.classList.toggle('flag',!!t&&t.features.some(f=>S.D.has(f.code))); }); }
@@ -849,7 +890,7 @@
       body.innerHTML=rowsHTML;
       body.querySelectorAll('.fd-row').forEach(r=>{
         r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); });
-        if(!S.base||!r.dataset.code) return;
+        if(!S.base||!r.dataset.code){ r.classList.add('inert'); return; }
         r.tabIndex=0; r.setAttribute('role','button'); r.setAttribute('aria-expanded','false');
         onPress(r,()=>EVI.open(r.dataset.code,r));
       });
@@ -887,24 +928,132 @@
     };
   }
 
-  // Habit evidence: one habit, this paper's number beside their own.
-  // The server returns no text positions, so no passages are quoted.
+  // Habit evidence: one habit, this paper beside their own past work.
+  // With the staff-only `evidence` field (EVIDENCE_PASSAGES_ENABLED=1) the
+  // columns quote the server's own passages, the counted words marked only
+  // where the server's offsets name exactly that slice (EvidenceView.markParts).
+  // Without it, or for a habit the field does not list, the panel shows the
+  // two numbers only, as before.
   function makeEvidence(){
     const box=$('hero-evi');
     const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
-    let openCode='', opener=null;
-    // `from` is the bar or row a keyboard opened it from: focus moves into the panel, and back when it closes.
+    const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+    let openCode='', opener=null, place=0;
+    const WHOLE_WORDS='This habit is measured across the whole paper, so there is no single sentence to quote.';
+    // The server's own note for a whole-text habit (original/evidence.py NUMBERS_ONLY_NOTE);
+    // any other note on a whole-text habit says something more specific and is shown as sent.
+    const SERVER_WHOLE='Whole-text measurement, no single sentence to point to.';
+    const papers=()=>{ const ev=S.result&&S.result.evidence; return ev&&Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[]; };
+    function quoteHTML(q){
+      const parts=EV.markParts(q);
+      const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+      return '<div class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</div>';
+    }
+    // A quote's source line (EvidenceView.quoteSource, the rule all three pages share).
+    // Character offsets stay out of the visible line; they are in the tooltip.
+    function setSource(id,q,label){
+      const el=$(id);
+      el.textContent=EV.quoteSource(q,label);
+      if(num(q.start)!=null&&num(q.end)!=null) el.title='characters '+q.start+' to '+q.end;
+    }
+    const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
+    // The plain sentence a side shows when it has no passage to quote.
+    function noTextWords(e,side){
+      if(e.kind==='off') return EV.clean('Switched off in scoring: every paper here has the fixed value '+EV.fmt((e.engine_scale||{}).this_paper)+'.','');
+      if(e.kind==='whole_text') return EV.clean(typeof e.note==='string'&&e.note&&e.note!==SERVER_WHOLE?e.note:WHOLE_WORDS,WHOLE_WORDS);
+      // A located habit's note names the side it is about ("No ... appears in this paper.").
+      const fits=typeof e.note==='string'&&(side==='this'?/this paper/i:/past papers/i).test(e.note);
+      const plainNone=side==='this'?'No passage to quote from this paper.':'No passage to quote from their past work.';
+      return fits?EV.clean(e.note,plainNone):plainNone;
+    }
+    // `from` is the bar, row or chip a keyboard opened it from: focus moves into the panel, and back when it closes.
     function open(code,from){
       if(!has(OF.byCode,code)) return;
+      openCode=code; opener=from||null; place=0;
+      render();
+      box.classList.add('show');
+      markExpanded(code);
+      // Bring the panel into view with the triage row still above it.
+      const rs=$('right-scroll'), tri=$('triage');
+      if(rs){
+        const anchor=tri&&!tri.hidden?tri:box;
+        rs.scrollTop+=anchor.getBoundingClientRect().top-rs.getBoundingClientRect().top-16;
+      }
+      if(from) $('evi-close').focus();
+    }
+    function render(){
+      const code=openCode;
       const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
+      const e=S.EVI.get(code)||null;
       box.style.setProperty('--evc',t.c);
       box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
       box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
       $('evi-name').textContent=f.name;
       $('evi-flag').hidden=!out;
-      $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-nums').innerHTML=e?eviNums(e):(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
+      numbersCols(f,v,s,out,within);
+      $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
+      // "This paper" beside quoted passages; without them the label stays as before.
+      $('evi-sub-lbl').textContent=e?'This paper':'This submission';
+      const foot=$('evi-foot'), tabs=$('evi-tabs'), one=$('evi-one');
+      tabs.hidden=true; tabs.innerHTML='';
+      if(!e){ one.hidden=true; one.textContent=''; foot.hidden=true; return; }
+      // A habit Original does not compare has no past range: the one line would only repeat this paper's number.
+      const line=e.kind==='not_compared'?'':EV.oneLine(e);
+      one.hidden=!line; one.textContent=line;
+      const tp=e.kind==='located'?examplesOf(e.this_paper):[], pp=e.kind==='located'?examplesOf(e.past_papers):[];
+      const n=Math.max(tp.length,pp.length);
+      if(n>1){
+        if(place>=n) place=0;
+        tabs.innerHTML='<span class="tl" id="evi-tabs-l">Where it appears</span>'+Array.from({length:n},(x,i)=>
+          '<button type="button" class="evi-tab'+(i===place?' on':'')+'" data-i="'+i+'" aria-pressed="'+(i===place?'true':'false')+'" aria-label="Passage '+(i+1)+' of '+n+'">'+(i+1)+'</button>').join('');
+        tabs.hidden=false;
+        tabs.querySelectorAll('.evi-tab').forEach(b=>b.addEventListener('click',()=>{
+          place=+b.dataset.i; render();
+          const again=tabs.querySelector('.evi-tab[data-i="'+place+'"]'); if(again) again.focus();
+        }));
+      }
+      // This paper: the passage on the current tab, else the numbers with a plain note.
+      const addNone=(id,w)=>{ if(w) $(id).insertAdjacentHTML('beforeend','<p class="none">'+esc(w)+'</p>'); };
+      // A tab past a side's last passage keeps that side's last passage on screen.
+      const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
+      if(q1){
+        $('evi-sub').innerHTML=quoteHTML(q1);
+        setSource('evi-sub-src',q1,S.assignment||'This paper');
+      } else if(e.kind!=='not_compared'){
+        // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
+        addNone('evi-sub',noTextWords(e,'this'));
+      }
+      if(q2){
+        $('evi-base').innerHTML=quoteHTML(q2);
+        setSource('evi-base-src',q2,EV.pastSource(q2.paper,papers()));
+      } else if(e.kind==='not_compared'){
+        // Why there is nothing here; this paper's number is already in the column beside it.
+        $('evi-base').innerHTML='<p class="none">'+esc(EV.NOT_COMPARED_LINE)+'</p>';
+        $('evi-base-src').textContent='';
+      } else if(e.kind==='located'){
+        addNone('evi-base',noTextWords(e,'base'));
+      }
+      // What to notice (EvidenceView.noticeFor once it exists, else noteFor).
+      const notice=typeof EV.noticeFor==='function'?EV.noticeFor(e,papers()):EV.noteFor(e,papers());
+      const nt=EV.clean(notice,'');
+      $('evi-notice').innerHTML=nt?'<b>What to notice:</b> '+esc(nt):'';
+      const side=$('evi-side');
+      side.hidden=!hasEvidence(S.result);
+      side.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(code);
+      foot.hidden=!nt&&side.hidden;
+    }
+    // With an evidence entry, the header carries the same numbers and unit as the
+    // one line under it (EvidenceView.numbersOf), so the two never disagree.
+    function eviNums(e){
+      const n=EV.numbersOf(e);
+      const range=n.lo==null?'':(n.lo===n.hi?EV.fmt(n.lo):EV.fmt(n.lo)+' to '+EV.fmt(n.hi));
+      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(EV.fmt(n.thisValue))+'</b>'+esc(EV.clean(n.unit?' ('+n.unit+')':'',''));
+    }
+    // The two numbers, as the panel showed before passages existed.
+    function numbersCols(f,v,s,out,within){
       const n=counted()||0;
       if(s!=null){
         const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
@@ -923,11 +1072,6 @@
         $('evi-base').innerHTML='<p class="none">No baseline value for this habit yet.</p>';
         $('evi-base-src').textContent='';
       }
-      box.classList.add('show');
-      openCode=code; opener=from||null;
-      markExpanded(code);
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
-      if(from) $('evi-close').focus();
     }
     function close(back){
       box.classList.remove('show');
@@ -1165,6 +1309,9 @@
     S.D=new Map(); S.C=new Map();
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
+    // The staff-only evidence entries by habit code (absent unless EVIDENCE_PASSAGES_ENABLED=1).
+    S.EVI=new Map();
+    if(hasEvidence(d)) d.evidence.all_features.forEach(x=>{ if(x&&typeof x==='object'&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.EVI.set(x.code,x); });
     S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
     showEvidenceLink();
   }
@@ -1375,6 +1522,7 @@
     document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
     $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
     $('tri-evidence').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
+    $('evi-side').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
 
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }

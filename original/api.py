@@ -156,6 +156,11 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
+    # The two staff-only explainability flags (ADR-013): report-only, never
+    # change a score or action. One line so a deploy's state is readable from logs.
+    from .evidence import staff_explainability_status
+
+    _log.info("%s", staff_explainability_status())
     # Tells an operator who exported SENDGRID_API_KEY that no email is sent.
     # No-ops when the key is unset. See routers/_shared.py.
     log_email_sender_status()
