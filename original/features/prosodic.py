@@ -58,9 +58,9 @@ def _get_nlp():
     global _nlp, _spacy_ok
     if _spacy_ok is None:
         try:
-            import spacy
+            from .spacy_model import load_view
 
-            _nlp = spacy.load("en_core_web_sm", disable=["ner"])
+            _nlp = load_view(disable=("ner",))
             _spacy_ok = True
         except (ImportError, OSError):
             _nlp = None
