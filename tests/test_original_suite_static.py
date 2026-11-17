@@ -4244,3 +4244,15 @@ def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
     assert "(counted.get(sid)||0)>0" in act
     # Nothing until the roster answers: no action is offered on a guess.
     assert "if(!counted||!sid" in act
+
+
+def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
+    """2026-11-17, live pilot: a sealed exam whose student had since been removed
+    from every roster showed the exam app's stock "Candidate No. 00042" as its
+    student and offered "Add writing first", a link to a student page that
+    cannot open. A removed student is now said to be one, with no link."""
+    code = _inline_scripts(SUITE / "submissions.html")
+    assert "'A student no longer on your roster'" in code
+    assert r"/^Candidate No\.\s*\d+$/" in code  # the stock placeholder is never a name
+    assert "if(!r.named&&!counted.has(sid)) return '<div class=\"q-act\"><span class=\"q-gone\">No longer on your roster</span></div>';" in code
+    assert "String(r.student_id||'Unknown student')" not in code  # never an id for a name
