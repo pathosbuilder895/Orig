@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -420,7 +420,7 @@
           <div style="margin-top:1.3rem;" id="sealed-sec">
             <div class="sec-h"><b>Sealed Collections exams</b><span id="sealed-sub">waiting for your approval</span></div>
             <div class="card ex-card">
-              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</div>
+              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. <span data-drift="exam">If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</span></div>
               <div class="save-note" id="save-note-sealed" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
               <div id="sealed-list"><div class="live-empty">Loading</div></div>
             </div>
@@ -429,7 +429,7 @@
           <div style="margin-top:1.3rem;" id="add-writing">
             <div class="sec-h"><b>Add writing</b><span>anything you add here counts as approved by you</span></div>
             <div class="card add-card">
-              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
+              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. <span data-drift="add">If a paper differs strongly from what is already there, it is held back and you are told.</span></div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
                 <div class="min-note" id="add-min" role="status" hidden></div>
@@ -467,7 +467,10 @@
                     <span class="s">One paper per file. Duplicates of writing already in the baseline are skipped.</span>
                   </label>
                   <div class="queue" id="queue"></div>
-                  <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                  <div class="fld-row">
+                    <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                    <div class="fld"><label for="files-date">Date they were written</label><input id="files-date" type="date" /><div class="hint">Recorded with each paper and shown wherever it is quoted. It does not change how a paper is weighted.</div></div>
+                  </div>
                   <button class="btn" id="files-go" type="button" disabled>Import</button>
                 </div>
 
@@ -481,9 +484,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-13.2"></script>
-<script src="js/feature-data.js?v=2026-11-13.2"></script>
-<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/fingerprint.js?v=2026-11-17.1"></script>
+<script src="js/feature-data.js?v=2026-11-17.1"></script>
+<script src="live.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1189,6 +1192,7 @@
     pend.forEach(q=>fd.append('files',q.file));
     fd.append('provenance',prov);
     if(assign) fd.append('assignment',assign);
+    fd.append('submitted_at',$('files-date').value||today());
     if(!startSave('files')) return;
     try{
     pend.forEach(q=>{ q.status='sending'; }); renderQueue();
@@ -1416,12 +1420,29 @@
     }finally{ SH.busy=''; renderShared(); }
   });
 
+  // The drift check's rule in this server's own mode (GET /health drift_gate).
+  // "advisory" (the alpha pilot): nothing a teacher adds or approves is held
+  // back, and the check only reports. The page's words otherwise stay those of
+  // "hold", the default, so an unreadable answer never promises an admission.
+  async function driftWords(){
+    let mode='';
+    try{ const h=await Live.api('/health'); mode=h.ok&&h.data&&typeof h.data.drift_gate==='string'?h.data.drift_gate:''; }catch(e){ mode=''; }
+    if(mode!=='advisory') return;
+    document.querySelectorAll('[data-drift]').forEach(el=>{
+      el.textContent=el.dataset.drift==='exam'
+        ?'If it differs strongly from the writing already in the baseline, Original says so, and it still joins the baseline.'
+        :'If a paper differs strongly from what is already there, Original says so, and the paper still joins the baseline.';
+    });
+  }
+
   // ── go ──
   Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
     if(!sess) return;
     startFingerprint();
     $('paste-date').value=today();
+    $('files-date').value=today();
+    driftWords();
     setTab('paste');
     loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }

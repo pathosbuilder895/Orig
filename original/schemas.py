@@ -1378,6 +1378,10 @@ class HealthResponse(BaseModel):
     # Deployed commit SHA. Render injects RENDER_GIT_COMMIT at runtime; "dev"
     # off-platform (local/CI) where no such env var exists.
     commit: str = "dev"
+    # The baseline drift check's mode (DRIFT_GATE): "advisory" admits every
+    # paper a teacher adds or approves and only reports an unusual one; "hold"
+    # keeps an unusual paper out. Voice Baseline words its rule from this.
+    drift_gate: str = "hold"
     # Active persistence backend: "sqlite" | "sqlite+shadow" | "postgres".
     # Lets an operator confirm the WS-6 P5 cutover took effect (and roll back
     # by env var if it didn't). See repository.backend_name().

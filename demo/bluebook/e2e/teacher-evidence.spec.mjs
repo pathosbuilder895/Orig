@@ -36,6 +36,10 @@ test.describe('side by side, flags set to 0', () => {
     expect(body.preliminary ?? null).toBeNull()
     await expect(page.locator('#tri-packet')).toBeVisible()
     await expect(page.locator('#tri-evidence')).toBeHidden()
+    // No text-by-text section and no preliminary chip without the server's fields.
+    await expect(page.locator('#tbt')).toBeHidden()
+    await expect(page.locator('#tbt .ex')).toHaveCount(0)
+    await expect(page.locator('#ws-prelim')).toBeHidden()
 
     // A habit opens with its two numbers only: no quote, no mark, no side-by-side link.
     await page.locator('#heatmap [data-code]').first().click()
@@ -188,6 +192,25 @@ test.describe('side by side, flags on @evidence-on', () => {
     }
     const examples = (f, side) => (f && f[side] && f[side].examples) || []
 
+    // 0. Without a click: Original's top list as text-by-text cards, in its order,
+    // each with a plain line, marks that are the API's own slices, and the chip.
+    await expect(page.locator('#tbt')).toBeVisible()
+    await expect(page.locator('#tbt .ex')).toHaveCount(ev.features.length)
+    expect(await page.locator('#tbt .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(ev.features.map(f => f.code))
+    for (const t of ev.features) {
+      await expect(page.locator(`#tbt .ex[data-code="${t.code}"] .ex-diff`)).toHaveText(/^This paper /)
+    }
+    const allSlices = new Set()
+    for (const f of ev.all_features) for (const side of ['this_paper', 'past_papers']) for (const q of examples(f, side)) allSlices.add(slice(q))
+    for (const m of await page.locator('#tbt .ex-q mark').allTextContents()) expect(allSlices.has(m), m).toBe(true)
+    await expect(page.locator('#ws-prelim')).toContainText('Preliminary · unvalidated · not a judgment')
+    // Every quote is labelled with where it came from and a date.
+    for (const src of await page.locator('#tbt .ex-src').allTextContents()) {
+      expect(src, src).toMatch(/^(This paper · .*analysed |.* · (\d|[A-Z][a-z]{2} \d)|.* · date not recorded)/)
+    }
+    const quotesByCode = sel => page.locator(sel).evaluateAll(els => Object.fromEntries(els.map(e => [e.dataset.code, [...e.querySelectorAll('.ex-q')].map(q => q.textContent)])))
+    const onWritingState = await quotesByCode('#tbt .ex')
+
     // Habit codes, tiers and names from the heatmap bars themselves.
     const bars = await page.locator('#heatmap [data-code]').evaluateAll(els => els.map(e => ({
       code: e.dataset.code, tier: e.dataset.tier, name: (/^(.*?): (?:baseline \d|no baseline yet)/.exec(e.title) || [])[1] || '' })))
@@ -293,7 +316,14 @@ test.describe('side by side, flags on @evidence-on', () => {
     for (const m of marks) expect(slices.has(m), m).toBe(true)
     // The top habit's first sentences, exactly.
     const top = ev.features.map(t => byCode.get(t.code)).find(f => f.kind === 'located' && examples(f, 'this_paper').length && examples(f, 'past_papers').length)
-    await expect(page.locator('#p-side .ex').first().locator('.ex-q mark').first()).toHaveText(slice(examples(top, 'this_paper')[0]))
+    if (top) await expect(page.locator(`#p-side .ex[data-code="${top.code}"] .ex-q mark`).first()).toHaveText(slice(examples(top, 'this_paper')[0]))
+    // Every habit on Original's top list, with the same quotes as Writing State.
+    expect(await page.locator('#p-side .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(ev.features.map(f => f.code))
+    expect(await quotesByCode('#p-side .ex')).toEqual(onWritingState)
+    // And the side-by-side page's top list, the same again.
+    await page.goto('/original/evidence.html')
+    await expect(page.locator('#p-diff > .ex').first()).toBeVisible({ timeout: 15_000 })
+    expect(await quotesByCode('#p-diff > .ex')).toEqual(onWritingState)
     // No page along the way (the panel, the side-by-side link, the packet) threw.
     expect(errors).toEqual([])
     await context.close()
