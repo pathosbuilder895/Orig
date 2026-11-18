@@ -303,7 +303,7 @@ export function ProctorScreen() {
         border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.035)', borderRadius: 18,
         padding: '20px 24px', maxWidth: 620, marginBottom: 28,
       }}>
-        <MetaLabel htmlFor="park-session">Collection</MetaLabel>
+        <MetaLabel htmlFor="park-session">Park name</MetaLabel>
         <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
           <input
             id="park-session"
