@@ -204,3 +204,107 @@ def test_split_tag_reaches_export(live_client, tmp_path):
     assert all(hashlib.sha256(t.encode()).hexdigest() in hashes for t in texts.values())
     # A hand-tagged baselines.csv already in the export is left alone.
     assert batch.write_baseline_sources(tmp_path, {folder: texts}, approved) is None
+
+
+# ── Undo an approval (2026-11 four-paper alpha) ───────────────────────────────
+# The teacher approves three of a volunteer's four papers and keeps one aside.
+# An approval made by mistake can be undone: the sample it added leaves the
+# baseline and the paper waits for approval again. Nothing else moves.
+
+
+def _ids(client, T):
+    return {p["title"]: p["paper_id"] for p in _ok(client.get("/bluebook/past-papers", headers=T))["papers"]}
+
+
+def _texts(sid):
+    state = get_repository().get(sid)
+    return [] if state is None else [s.text for s in state.samples]
+
+
+@pytest.mark.slow
+def test_undo_takes_only_that_paper_out_and_can_be_repeated(live_client):
+    T, [(sid, S), (other, SO)] = _workspace(live_client, "t6@example.test")
+    papers = {f"Paper {k}": _paper(0, TOPICS[k]) for k in range(4)}
+    for title, text in papers.items():
+        _ok(_share(live_client, S, text=text, title=title), 201)
+    _ok(_share(live_client, SO, text=_paper(1, TOPICS[0]), title="Other's paper"), 201)
+    ids = _ids(live_client, T)
+    for k in range(4):
+        _ok(live_client.post(f"/bluebook/past-papers/{ids[f'Paper {k}']}/approve", headers=T))
+    others = ids["Other's paper"]
+    _ok(live_client.post(f"/bluebook/past-papers/{others}/approve", headers=T))
+    assert get_repository().get(sid).sample_count == 4
+    other_before = _texts(other)
+
+    # Undo Paper 3: it alone leaves the baseline and is pending again.
+    out = _ok(live_client.post(f"/bluebook/past-papers/{ids['Paper 3']}/unapprove", headers=T))
+    assert out == {"paper_id": ids["Paper 3"], "status": "pending", "removed": 1}
+    left = _texts(sid)
+    assert len(left) == 3 and papers["Paper 3"] not in left
+    assert all(papers[f"Paper {k}"] in left for k in range(3))
+    assert _texts(other) == other_before
+    rows = {p["title"]: p["status"] for p in _ok(live_client.get("/bluebook/past-papers", headers=T))["papers"]}
+    assert rows == {"Paper 0": "approved", "Paper 1": "approved", "Paper 2": "approved",
+                    "Paper 3": "pending", "Other's paper": "approved"}
+    # The student sees it waiting again, still with no reading of any kind.
+    mine = _ok(live_client.get("/bluebook/me/papers", headers=S))
+    assert sorted(p["status"] for p in mine["papers"]) == ["approved", "approved", "approved", "pending"]
+    assert not FORBIDDEN.search(json.dumps(mine))
+    # The teacher can still read the held-out paper's text.
+    assert _ok(live_client.get(f"/bluebook/past-papers/{ids['Paper 3']}", headers=T))["text"] == papers["Paper 3"]
+
+    # Repeating the undo changes nothing.
+    again = _ok(live_client.post(f"/bluebook/past-papers/{ids['Paper 3']}/unapprove", headers=T))
+    assert again == {"paper_id": ids["Paper 3"], "status": "pending", "removed": 0}
+    assert _texts(sid) == left
+    # With three approved the comparison gate is still met.
+    r = live_client.post(f"/students/{sid}/score", json={"text": _paper(0, "public parks")}, headers=T)
+    assert r.status_code == 200, r.text
+    # Approving it again puts it back, once.
+    _ok(live_client.post(f"/bluebook/past-papers/{ids['Paper 3']}/approve", headers=T))
+    assert get_repository().get(sid).sample_count == 4
+
+    # The audit log records the undo.
+    assert "past_paper_unapprove" in {e["action"] for e in get_repository().list_audit(student_id=sid)["items"]}
+
+
+@pytest.mark.slow
+def test_undo_never_removes_writing_the_paper_did_not_add(live_client):
+    T, [(sid, S), _] = _workspace(live_client, "t7@example.test")
+    text = _paper(0, TOPICS[0])
+    # The teacher already added the same words as a verified paper.
+    _ok(live_client.post(f"/students/{sid}/baseline",
+                         json={"text": text, "provenance": "verified", "assignment": "Essay"}, headers=T))
+    _ok(_share(live_client, S, text=text, title="Same words"), 201)
+    pid = _ids(live_client, T)["Same words"]
+    _ok(live_client.post(f"/bluebook/past-papers/{pid}/approve", headers=T))  # a duplicate: nothing added
+    assert get_repository().get(sid).sample_count == 1
+    out = _ok(live_client.post(f"/bluebook/past-papers/{pid}/unapprove", headers=T))
+    assert out["status"] == "pending" and out["removed"] == 0
+    [kept] = get_repository().get(sid).samples
+    assert kept.provenance == "verified" and kept.text == text
+
+
+@pytest.mark.slow
+def test_undo_is_staff_only_and_workspace_scoped(live_client):
+    T1, [(a, SA), _] = _workspace(live_client, "t8@example.test")
+    T2, _ = _workspace(live_client, "t9@example.test")
+    _ok(_share(live_client, SA, text=_paper(0, TOPICS[0]), title="Mine"), 201)
+    _ok(_share(live_client, SA, text=_paper(0, TOPICS[1]), title="Declined one"), 201)
+    ids = _ids(live_client, T1)
+    _ok(live_client.post(f"/bluebook/past-papers/{ids['Mine']}/approve", headers=T1))
+    _ok(live_client.post(f"/bluebook/past-papers/{ids['Declined one']}/decline", headers=T1))
+    url = f"/bluebook/past-papers/{ids['Mine']}/unapprove"
+    # Another workspace's teacher cannot see it exists; the student cannot undo; nobody signed out can.
+    assert live_client.post(url, headers=T2).status_code == 404
+    assert live_client.post(url, headers=SA).status_code == 403
+    assert live_client.post(url).status_code in (401, 403, 404)  # the pilot-env sweep pins 401/403
+    assert live_client.post("/bluebook/past-papers/nope/unapprove", headers=T1).status_code == 404
+    assert get_repository().get(a).sample_count == 1
+    # A declined paper is not in the baseline, so there is nothing to undo.
+    r = live_client.post(f"/bluebook/past-papers/{ids['Declined one']}/unapprove", headers=T1)
+    assert r.status_code == 409 and "nothing to undo" in r.json()["detail"]
+    # Its own teacher can.
+    assert _ok(live_client.post(url, headers=T1))["status"] == "pending"
+    state = get_repository().get(a)
+    assert state.sample_count == 0

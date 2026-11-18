@@ -9,7 +9,7 @@
  */
 import { test, expect } from '@playwright/test'
 import { isolatedTest } from './fixtures/tenancy.mjs'
-import { staffStorageState } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, staffStorageState } from './fixtures/api-setup.mjs'
 import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
@@ -30,7 +30,7 @@ async function setupClass(browser, T) {
   const id = uid()
   const tctx = await browser.newContext({ storageState: staffStorageState(T.baseURL, T.staff) })
   const teacher = await tctx.newPage()
-  await teacher.goto('/bluebook/')
+  await teacher.goto(COLLECTIONS_HOME)
   await expect(teacher.getByRole('button', { name: 'Courses', exact: true })).toBeVisible({ timeout: 10_000 })
   await teacher.getByRole('button', { name: 'Courses', exact: true }).click()
   await teacher.getByRole('button', { name: '+ New course' }).click()
@@ -122,7 +122,7 @@ isolatedTest('past-paper text is kept until sent, and a lapsed seal resumes afte
   await student.evaluate(() => localStorage.setItem('original_session_token', 'expired.token'))
   await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
   await confirmSeal(student)
-  await expect(student.getByTestId('signin-expired')).toContainText('finish submitting your exam', { timeout: 30_000 })
+  await expect(student.getByTestId('signin-expired')).toContainText('finish submitting your collection', { timeout: 30_000 })
   await student.locator('#bbLoginEmail').fill(email)
   await student.locator('#bbLoginPass').fill('e2e-student-pass-1')
   await student.getByRole('button', { name: 'Sign in' }).click()

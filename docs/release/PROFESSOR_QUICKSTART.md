@@ -22,7 +22,8 @@ You land on your **Overview**: bookmark that page. Next time, open it, press
 **Sign in**, enter your **Email** and **Password**, and press **Enter**.
 
 The bar along the top has **Overview**, **Collections**, **Courses**,
-**Students**, **Submissions** and **Proctor**.
+**Students**, **Submissions** and **Proctor**. **Instructions**, next to it,
+opens a short guide from any screen; your students have the same button.
 
 ## 2. Create a course and add students
 

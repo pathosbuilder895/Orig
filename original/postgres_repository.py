@@ -59,6 +59,7 @@ from .db.models.live import (
     SubmissionManifest,
     Tenant,
     TunedThresholds,
+    UserDisplayPrefs,
     UserLastLocation,
 )
 from .db.postgres_session import session_scope
@@ -371,6 +372,7 @@ class PostgresRepository:
                 BluebookExamDraft.student_key == student_id
             ),
             select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
+            select(UserDisplayPrefs.account_key).where(UserDisplayPrefs.account_key == student_id),
             select(BluebookPhonePark.student_key).where(
                 BluebookPhonePark.student_key == student_id
             ),
@@ -552,6 +554,12 @@ class PostgresRepository:
                 session.execute(
                     UserLastLocation.__table__.delete().where(
                         UserLastLocation.account_key == student_id,
+                    )
+                )
+                # The student's chosen text font and size (2026-11).
+                session.execute(
+                    UserDisplayPrefs.__table__.delete().where(
+                        UserDisplayPrefs.account_key == student_id,
                     )
                 )
                 session.execute(
@@ -2234,6 +2242,21 @@ class PostgresRepository:
             ).scalars()
             return [self._bluebook_sub_to_dict(r) for r in rows]
 
+    def list_bluebook_submission_texts_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.student_id == student_id)
+                .order_by(BluebookSubmission.created_at)
+            ).scalars()
+            out = []
+            for r in rows:
+                d = self._bluebook_sub_to_dict(r)
+                d["text"] = r.text
+                d["answers"] = r.answers_json or []
+                out.append(d)
+            return out
+
     def list_bluebook_submissions_for_exam(self, exam_id):
         with session_scope() as session:
             rows = session.execute(
@@ -2559,6 +2582,38 @@ class PostgresRepository:
                 )
         except Exception:
             log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+    def list_audit_actions_for_student(self, student_id, actions):
+        if not student_id or not actions:
+            return []
+        with session_scope() as session:
+            rows = (
+                session.execute(
+                    select(AuditLogEntry)
+                    .where(*self._audit_scope_criteria(student_id))
+                    .where(AuditLogEntry.action.in_(list(actions)))
+                    .order_by(AuditLogEntry.created_at, AuditLogEntry.id)
+                )
+                .scalars()
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat(),
+                    "action": row.action,
+                    "student_id": (
+                        join_scoped_id(row.tenant_id, row.student_id)
+                        if row.tenant_id
+                        else row.student_id
+                    ),
+                    "tenant_id": row.tenant_id,
+                    "actor": row.actor,
+                    "result": row.result,
+                    "details": row.details_json or {},
+                }
+                for row in rows
+            ]
 
     def list_audit(self, student_id=None, action=None, limit=100, offset=0, tenant_id=None):
         limit = min(limit, 1000)
@@ -3077,6 +3132,33 @@ class PostgresRepository:
             session.execute(
                 UserLastLocation.__table__.delete().where(
                     UserLastLocation.account_key == account_key
+                )
+            )
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+
+    def put_display_prefs(self, account_key, prefs):
+        values = dict(font=prefs["font"], size=prefs["size"], updated_at=datetime.now(UTC))
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserDisplayPrefs)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_display_prefs(account_key) or {}
+
+    def get_display_prefs(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserDisplayPrefs, account_key)
+            if row is None:
+                return None
+            return {"font": row.font, "size": row.size, "updated_at": _iso_or_none(row.updated_at)}
+
+    def delete_display_prefs(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserDisplayPrefs.__table__.delete().where(
+                    UserDisplayPrefs.account_key == account_key
                 )
             )
 

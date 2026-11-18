@@ -254,6 +254,7 @@ class Repository(Protocol):
     def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int: ...
     def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]: ...
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
@@ -301,6 +302,11 @@ class Repository(Protocol):
     def get_last_location(self, account_key: str) -> dict | None: ...
     def delete_last_location(self, account_key: str) -> None: ...
 
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
+    def get_display_prefs(self, account_key: str) -> dict | None: ...
+    def delete_display_prefs(self, account_key: str) -> None: ...
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
         self, exam_id: str, student_key: str, tenant_id: str, fields: dict
@@ -318,6 +324,7 @@ class Repository(Protocol):
         result: str = "ok",
         details: dict | None = None,
     ) -> None: ...
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]: ...
     def list_audit(
         self,
         student_id: str | None = None,
@@ -777,6 +784,9 @@ class SqliteRepository:
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_student(student_id)
 
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]:
+        return store.list_bluebook_submission_texts_for_student(student_id)
+
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_exam(exam_id)
 
@@ -882,6 +892,15 @@ class SqliteRepository:
     def delete_last_location(self, account_key: str) -> None:
         store.delete_last_location(account_key)
 
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict:
+        return store.put_display_prefs(account_key, prefs)
+
+    def get_display_prefs(self, account_key: str) -> dict | None:
+        return store.get_display_prefs(account_key)
+
+    def delete_display_prefs(self, account_key: str) -> None:
+        store.delete_display_prefs(account_key)
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
         return store.put_phone_park(exam_id, student_key, tenant_id, fields)
@@ -910,6 +929,9 @@ class SqliteRepository:
             result=result,
             details=details,
         )
+
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]:
+        return store.list_audit_actions_for_student(student_id, actions)
 
     def list_audit(
         self,
@@ -1014,6 +1036,8 @@ _WRITE_METHODS = frozenset(
         "delete_exam_draft",
         "put_last_location",
         "delete_last_location",
+        "put_display_prefs",
+        "delete_display_prefs",
         "put_phone_park",
         "set_past_paper_status",
         "delete_tenant_students",

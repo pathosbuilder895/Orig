@@ -113,7 +113,7 @@ def test_writing_state_keeps_the_analysis_for_this_tab_as_soon_as_it_exists():
     assert "storeForPacket();" in analyse
     assert "entry_id:S.entryId" in script
     # It is restored where the student loads, after the baseline is known, and says so plainly.
-    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); }" in script
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in script
     assert "Showing your last analysis of this paper." in page
     assert 'id="an-again"' in page and "Analyse another" in page
     # One key, cleared by sign-out like the packet's reading of it.
@@ -509,7 +509,10 @@ def test_a_submissions_row_opens_its_own_exam_in_bluebook():
     rows = out["rows"]
     assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Collections"' in rows
     assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Collections"' in rows  # an id is encoded, never spliced in
-    assert 'href="/bluebook/" title="Opens this exam in Collections"' in rows  # a booklet with no exam id opens Bluebook itself
+    # A booklet with no exam id opens the Collections list. It carries a hash because the
+    # bare /bluebook/ address now sends a teacher whose workspace has Original home to
+    # Original (staffOriginalHome, demo/bluebook/deep-link.jsx).
+    assert 'href="/bluebook/#collections" title="Opens this exam in Collections"' in rows
     assert 'title="Opens Bluebook"' not in rows
 
 
@@ -573,12 +576,14 @@ def _cta_run(**scenario) -> dict:
 
 
 @needs_node
-def test_voice_baseline_sends_add_more_samples_to_the_exam_waiting_for_approval_else_to_students():
-    assert 'id="bb-cta" href="/bluebook/#students"' in (SUITE / "baseline.html").read_text(encoding="utf-8")
+def test_voice_baseline_sends_add_more_samples_to_the_exam_waiting_for_approval_else_to_start_a_session():
+    # With no sealed exam to open, the card goes to Original's own "Start a new
+    # session" page (bluebook.html), not the Collections roster (2026-11-17 audit).
+    assert 'id="bb-cta" href="bluebook.html"' in (SUITE / "baseline.html").read_text(encoding="utf-8")
     waiting = _cta_run()
     assert waiting["href"] == "/bluebook/#exam/e1" and waiting["hidden"] is False
     none = _cta_run(noSealed=True)
-    assert none["href"] == "/bluebook/#students"
+    assert none["href"] == "bluebook.html"
 
 
 # ── The pill strip says it scrolls at phone width ─────────────────────────────
@@ -746,7 +751,7 @@ def test_the_sign_in_page_links_to_the_existing_password_reset():
 GREET_TAIL = r"""
 (async () => {
   for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"'); i++) await sleep(10);
-  process.stdout.write(JSON.stringify({ greet: el('greet').textContent, id: el('greet-id').textContent, idHidden: el('greet-id').hidden, meta: el('meta').textContent }));
+  process.stdout.write(JSON.stringify({ greet: el('greet').textContent, title: el('greet').title || '', id: el('greet-id').textContent, idHidden: el('greet-id').hidden, meta: el('meta').textContent }));
   process.exit(0);
 })();
 """
@@ -776,10 +781,12 @@ def _greet_run(roster) -> dict:
 
 
 @needs_node
-def test_voice_baseline_shows_the_roster_name_and_the_raw_id_only_as_small_secondary_text():
+def test_voice_baseline_shows_the_roster_name_and_never_the_raw_id():
+    # Staff pages show the writer's name, not an id (alpha, 2026-11-17): the id is a
+    # tooltip on the name only, and the visible id line stays hidden.
     named = _greet_run([{"id": "s1", "name": "Ada Student", "sample_count": 5, "authenticated_count": 5}])
     assert named["greet"] == "Ada Student"
-    assert named["id"] == "ID s1" and named["idHidden"] is False
+    assert named["idHidden"] is True and named["title"] == "ID s1"
     assert "s1" not in named["meta"]  # the counts line no longer opens with the id
     # With no name to show, the heading is the id already: it is not said twice.
     nameless = _greet_run(None)

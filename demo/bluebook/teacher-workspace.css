@@ -9,10 +9,10 @@
   --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
   --dim:rgba(245,239,224,.68);--dim-2:rgba(245,239,224,.6);
   --flag:#e0725a;--warn:#d8b04a;--ok:#6bbf8a;--bb:#3a5ba0;
-  --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  --display:var(--bb-font-display);--body:var(--bb-font-body);--mono:var(--bb-font-label);
   display:flex;align-items:flex-start;justify-content:center;
   min-height:100vh;padding:2.2rem;
-  font:16px/normal var(--body);color:var(--cream);
+  font:1rem/normal var(--body);color:var(--cream);
   background:radial-gradient(120% 90% at 82% 8%,#3a2a12 0%,#1c1608 34%,#0a0a10 66%,#06060c 100%);
   -webkit-font-smoothing:antialiased;
 }
@@ -52,7 +52,7 @@
 }
 
 /* ── Navigation ── */
-.teacher-nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:1}
+.teacher-nav{display:flex;flex-wrap:wrap;row-gap:.5rem;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:1}
 .teacher-brand{display:flex;align-items:center;gap:.5rem;font:600 1.35rem var(--display);letter-spacing:.04em;color:var(--cream);white-space:nowrap}
 .teacher-brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block}
 .teacher-pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0}
@@ -71,7 +71,7 @@
 .teacher-pills.fade-start{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 2.4rem),transparent)}
 .teacher-pills.fade-start.fade-end{-webkit-mask-image:linear-gradient(to right,transparent,#000 2.4rem,#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(to right,transparent,#000 2.4rem,#000 calc(100% - 2.4rem),transparent)}
 .teacher-pills.dense button{padding:.45rem .65rem;gap:.4rem;font-size:.92rem}
-.teacher-nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0}
+.teacher-nav-right{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:.5rem .7rem;flex-shrink:0;max-width:100%}
 .teacher-nav-right .quiet-link{border:0;background:none;color:var(--dim);font-size:.9rem;padding:.4rem .6rem;border-radius:999px}
 .teacher-nav-right .quiet-link:hover{color:var(--cream)}
 .teacher-avatar{
@@ -82,7 +82,7 @@
 .teacher-mode{
   position:relative;z-index:1;flex-shrink:0;margin:0 2rem;padding:.5rem 0;border-bottom:1px solid var(--line-soft);
   display:flex;justify-content:space-between;align-items:center;gap:16px;
-  font:.7rem/1.5 var(--mono);letter-spacing:.08em;color:var(--dim);
+  font:.75rem/1.5 var(--mono);letter-spacing:.08em;color:var(--dim);
 }
 .teacher-mode.is-demo{color:var(--gold-2)}
 .teacher-mode button,.teacher-ui .quiet-button{border:0;background:none;color:var(--gold-2);padding:6px 8px;text-decoration:underline;text-underline-offset:3px}
@@ -93,7 +93,7 @@
 .teacher-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}
 .teacher-head{padding:.6rem 0 1.3rem;margin-bottom:1.4rem;border-bottom:1px solid var(--line-soft)}
 .teacher-head h1,.teacher-head p{text-shadow:0 2px 18px rgba(7,11,28,.9)}
-.teacher-head .eyebrow{font:.72rem var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.teacher-head .eyebrow{font:.75rem var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
 .teacher-head h1{font:500 2rem/1.15 var(--display);margin:.4rem 0 0}
 .teacher-head p{font-size:.98rem;color:var(--dim);font-style:italic;margin:.35rem 0 0;max-width:56ch}
 .teacher-head p b{color:var(--gold-2);font-style:normal;font-weight:400}
@@ -130,7 +130,7 @@
 }
 .question-field textarea:focus{border-color:rgba(201,160,40,.45)}
 .question-field textarea::placeholder{color:var(--dim-2);font-style:italic}
-.question-field label:not(.sr-only){display:block;font:.68rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);margin:2px 0 6px}
+.question-field label:not(.sr-only){display:block;font:.75rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);margin:2px 0 6px}
 .teacher-ui .add-question{margin-top:.6rem;background:none;border:1px dashed rgba(201,160,40,.35);color:var(--gold-2);border-radius:999px;padding:.35rem .9rem;font-size:.85rem}
 .teacher-ui .add-question:hover:not(:disabled){background:rgba(201,160,40,.08)}
 .hint{font-size:.85rem;color:var(--dim-2);font-style:italic;margin:.5rem 0 0}
@@ -187,9 +187,9 @@
 .small-book.done{background:linear-gradient(160deg,#3e4f6e,#2a3852);opacity:.6}
 .session-title{flex:1;min-width:0}
 .session-title strong{display:block;font-weight:400;font-size:.98rem;color:var(--cream);transition:color .13s}
-.session-title small,.session-badge small{display:block;font:.68rem/1.4 var(--mono);color:var(--dim-2);margin-top:.15rem}
+.session-title small,.session-badge small{display:block;font:.75rem/1.4 var(--mono);color:var(--dim-2);margin-top:.15rem}
 .session-badge{margin-left:auto;text-align:right;flex-shrink:0}
-.session-badge small{font-size:.66rem;margin-top:.3rem}
+.session-badge small{font-size:.75rem;margin-top:.3rem}
 .s-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.76rem;padding:.22rem .6rem;border-radius:999px;white-space:nowrap;color:var(--dim);border:1px solid var(--line-soft)}
 .s-badge .d{width:6px;height:6px;border-radius:50%;background:currentColor}
 .s-badge.live{color:#a8c2f0;background:rgba(90,130,200,.14);border-color:rgba(90,130,200,.35)}
@@ -205,10 +205,10 @@
 .teacher-error{color:#ffccc0}
 .teacher-receipt button,.teacher-error button{background:none;border:0;color:var(--gold-2);text-decoration:underline;padding:5px}
 .demo-reader{padding:1.5rem}
-.demo-reader pre{font:18px/1.8 var(--body);white-space:pre-wrap;background:#f4efe6;color:#243028;padding:2rem;border-radius:8px;margin:1rem 0}
+.demo-reader pre{font:1.125rem/1.8 var(--body);white-space:pre-wrap;background:#f4efe6;color:#243028;padding:2rem;border-radius:8px;margin:1rem 0}
 .demo-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
 .demo-stat{padding:1.5rem}
-.demo-stat strong{display:block;font:36px var(--display)}
+.demo-stat strong{display:block;font:2.25rem var(--display)}
 .teacher-list{padding:1.5rem}
 .teacher-list li{padding:12px 0;border-bottom:1px solid var(--line-soft);list-style:none}
 .teacher-ui .teacher-body>main{background:transparent!important}
@@ -251,3 +251,6 @@
   .time-row output{width:78px;font-size:1.1rem}
 }
 @media(prefers-reduced-motion:reduce){.teacher-ui *{animation:none!important;transition:none!important}}
+
+.teacher-nav-right .teacher-text-btn{color:var(--dim);border-color:rgba(245,239,224,.3);font-size:.85rem;min-height:40px;padding:.3rem .7rem}
+.teacher-nav-right .teacher-text-btn:hover{color:var(--cream)}

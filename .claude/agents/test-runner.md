@@ -14,8 +14,11 @@ operating procedure.
 
 - ALWAYS use `.venv/bin/python -m pytest` — never system python3 (its broken
   pydantic_settings install fails conftest imports before a single test runs).
-- The exact CI command is
-  `.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -q`.
+- The clean local equivalent of CI is
+  `.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q`
+  (`.github/workflows/test.yml` is the source of truth; CI runs it as path
+  shards plus a Postgres job). The `-m` filter leaves out the known-red
+  tests; `make test-known-red` is where those are checked.
 - Budget 11–12 minutes for the full run. Launch it with `run_in_background`
   and poll; never give it a short foreground timeout and then report a
   timeout as a failure.
@@ -34,17 +37,21 @@ operating procedure.
 ## Reading results
 
 - A clean run is **0 failed**. Treat every failure as real; never dismiss one
-  as flaky or pre-existing without checking `git stash` / main for the same
-  failure and saying so explicitly.
-- ~165 skips locally are expected: they are the `postgres`-marked tests,
-  which self-skip when no `DATABASE_URL` Postgres is reachable. CI runs them
-  against a real Postgres 16 service container. If the diff touches
-  `store.py`, `postgres_repository.py`, or the repository/persistence layer,
-  state plainly that local green does NOT cover it.
-- Coverage: CI enforces `--cov-fail-under=78` on `original/` and the recent
-  margin is under one point. If the diff adds more than a handful of untested
-  lines, re-run with `--cov=original --cov-report=term-missing` and report
-  the number — all-tests-pass with sunk coverage still fails CI.
+  as flaky or pre-existing without reproducing it on `origin/main` (a clean
+  checkout or worktree, never bare `git stash`: the stash stack is shared
+  with other sessions) and saying so explicitly.
+- About 300 skips locally are expected (304 on 2026-10-11): they are the
+  `postgres`-marked tests, which self-skip when no `DATABASE_URL` Postgres is
+  reachable. CI runs them against a real Postgres 16 service container, and
+  `make test-postgres` runs them locally in a throwaway database. If the diff
+  touches `store.py`, `postgres_repository.py`, or the repository/persistence
+  layer, run them, or state plainly that local green does NOT cover it.
+- Coverage: CI enforces **98%** combined statement + branch coverage
+  (`--cov-branch`, then `coverage report --fail-under=98` on the merged
+  shards), and the margin is tight. If the diff adds more than a handful of
+  untested lines or branches, re-run with
+  `--cov=original --cov-branch --cov-report=term-missing` and report the
+  number: all-tests-pass with sunk coverage still fails CI.
 
 ## Report format
 

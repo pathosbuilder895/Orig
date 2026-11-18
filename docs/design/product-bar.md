@@ -50,10 +50,10 @@ Run this on any PR that changes a screen a teacher or student sees. Each "no" is
 
 **Never use:** verdict, authentic or confirmed authentic, fingerprint, authorship verification or probability, AI score, AI-written, cheating, flagged student, candidate, and any percentage beside a student's name. Where code already bans a word, a test enforces it (for example the ADR-013 wording tests); this list is the wider bar for copy and docs.
 
-## Known gaps against this bar (29 Oct 2026)
+## Known gaps against this bar (checked 18 Nov 2026)
 These are tracked elsewhere; this list says why each one matters to a teacher. `docs/STATUS.md` and `docs/testing/10-gap-register.md` have the current state.
 
-- The pilot runs a build from 11 Oct, so none of the October polish is live until a Manual Deploy.
+- Auto-deploy is off on the pilot, so a merged fix reaches teachers only after a Manual Deploy.
 - With no email set up, the teacher copies invite links by hand.
 - The legal pages are drafts, and the quickstart still has no named support contact.
 - Full-screen lockdown has not been checked on an iPhone, and the browser tests run only on desktop Chrome (T-59).
