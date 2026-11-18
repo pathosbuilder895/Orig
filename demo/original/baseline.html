@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -413,14 +413,14 @@
                   <div class="d" id="traj-d"></div>
                 </div>
               </div>
-              <a class="bb-cta" id="bb-cta" href="/bluebook/#students" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="bb-cta" id="bb-cta" href="bluebook.html" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
             </div>
           </div>
 
           <div style="margin-top:1.3rem;" id="sealed-sec">
             <div class="sec-h"><b>Sealed Collections exams</b><span id="sealed-sub">waiting for your approval</span></div>
             <div class="card ex-card">
-              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</div>
+              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. <span data-drift="exam">If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</span></div>
               <div class="save-note" id="save-note-sealed" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
               <div id="sealed-list"><div class="live-empty">Loading</div></div>
             </div>
@@ -429,7 +429,7 @@
           <div style="margin-top:1.3rem;" id="add-writing">
             <div class="sec-h"><b>Add writing</b><span>anything you add here counts as approved by you</span></div>
             <div class="card add-card">
-              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
+              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. <span data-drift="add">If a paper differs strongly from what is already there, it is held back and you are told.</span></div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
                 <div class="min-note" id="add-min" role="status" hidden></div>
@@ -467,7 +467,10 @@
                     <span class="s">One paper per file. Duplicates of writing already in the baseline are skipped.</span>
                   </label>
                   <div class="queue" id="queue"></div>
-                  <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                  <div class="fld-row">
+                    <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                    <div class="fld"><label for="files-date">Date they were written</label><input id="files-date" type="date" /><div class="hint">Recorded with each paper and shown wherever it is quoted. It does not change how a paper is weighted.</div></div>
+                  </div>
                   <button class="btn" id="files-go" type="button" disabled>Import</button>
                 </div>
 
@@ -481,9 +484,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-13.2"></script>
-<script src="js/feature-data.js?v=2026-11-13.2"></script>
-<script src="live.js?v=2026-11-13.2"></script>
+<script src="js/fingerprint.js?v=2026-11-18.1"></script>
+<script src="js/feature-data.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-18.1"></script>
 <script>
 (function(){
   'use strict';
@@ -612,8 +615,11 @@
     }
     $('greet').textContent=nm();
     // The raw id is small, secondary text, and only when the heading is a name (else it would say the same thing twice).
+    // Staff pages show the writer's name, not an id: the raw id is only a tooltip on the
+    // name (for support), and the visible line stays hidden.
     $('greet-id').textContent='ID '+ID;
-    $('greet-id').hidden=nm()===ID;
+    $('greet-id').hidden=true;
+    $('greet').title=nm()!==ID?'ID '+ID:'';
     const parts=[];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
@@ -940,7 +946,8 @@
   function bluebookHref(){
     const list=S.sealed==='ok'?S.exams:[];
     const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
-    return '/bluebook/#'+(pick?'exam/'+enc(pick.exam_id):'students');
+    // No sealed exam to open: Original's own "Start a new session" page, not the roster.
+    return pick?'/bluebook/#exam/'+enc(pick.exam_id):'bluebook.html';
   }
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');
@@ -1189,6 +1196,7 @@
     pend.forEach(q=>fd.append('files',q.file));
     fd.append('provenance',prov);
     if(assign) fd.append('assignment',assign);
+    fd.append('submitted_at',$('files-date').value||today());
     if(!startSave('files')) return;
     try{
     pend.forEach(q=>{ q.status='sending'; }); renderQueue();
@@ -1240,6 +1248,7 @@
     else if(st.status===401) S.status='auth';
     else S.status='error';
     if(rd.ok&&rd.data&&typeof rd.data==='object') S.ready=rd.data;
+    driftWords();
   }
   function renderAll(){
     renderHead(); renderStats(); renderPurity(); renderHero(); renderShort();
@@ -1416,12 +1425,29 @@
     }finally{ SH.busy=''; renderShared(); }
   });
 
+  // The drift check's rule in this server's own mode (the readiness answer's
+  // drift_gate; /health carries it too, but some browsers' blockers refuse a
+  // page's request to /health). "advisory" (the alpha pilot): nothing a teacher
+  // adds or approves is held back, and the check only reports. The page's words
+  // otherwise stay those of "hold", the default, so an unreadable answer never
+  // promises an admission.
+  function driftWords(){
+    const mode=S.ready&&typeof S.ready.drift_gate==='string'?S.ready.drift_gate:'';
+    if(mode!=='advisory') return;
+    document.querySelectorAll('[data-drift]').forEach(el=>{
+      el.textContent=el.dataset.drift==='exam'
+        ?'If it differs strongly from the writing already in the baseline, Original says so, and it still joins the baseline.'
+        :'If a paper differs strongly from what is already there, Original says so, and the paper still joins the baseline.';
+    });
+  }
+
   // ── go ──
   Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
     if(!sess) return;
     startFingerprint();
     $('paste-date').value=today();
+    $('files-date').value=today();
     setTab('paste');
     loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }

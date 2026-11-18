@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Submissions</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-13.2" />
-<link rel="stylesheet" href="suite.css?v=2026-11-13.2" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -103,6 +103,7 @@
   .q-act a{color:var(--gold-2);text-decoration:none;border-bottom:1px solid rgba(224,190,85,0.35);}
   .q-act a:hover{color:var(--gold);}
   .q-act a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:3px;}
+  .q-act .q-gone{color:var(--dim);}
   .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
   .reassure{margin-top:1rem;font-size:.86rem;color:var(--dim);font-style:italic;text-align:center;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
   .reassure a{color:var(--gold-2);}
@@ -170,7 +171,7 @@
     <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens that exam in Collections.</p>
   </main>
 </div>
-<script src="live.js?v=2026-11-13.2"></script>
+<script src="live.js?v=2026-11-18.1"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -239,6 +240,8 @@
   function actHTML(r){
     const sid=r.student_id!=null?String(r.student_id):'';
     if(!counted||!sid||r.id==null||r.id==='') return '';
+    // Removed from every roster and unknown to Original: no baseline page to open.
+    if(!r.named&&!counted.has(sid)) return '<div class="q-act"><span class="q-gone">No longer on your roster</span></div>';
     if((counted.get(sid)||0)>0){
       const href='writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id));
       return '<div class="q-act"><a class="q-analyse" href="'+esc(href)+'">Analyse against baseline</a></div>';
@@ -310,8 +313,13 @@
       const r=Object.assign({},raw), e=sl.exams.get(r.exam_id);
       r.title=r.exam||(e&&e.title)||'Untitled exam';
       r.courseLabel=r.course||(e&&e.course)||'';
-      // The roster name, else the name written at the sitting, else the id.
-      r.who=sl.names.get(r.student_id)||(r.candidate?String(r.candidate):'')||String(r.student_id||'Unknown student');
+      // The roster name, else the name written at the sitting. A student on no
+      // roster any more (removed after sitting) has neither: the exam app's
+      // stock "Candidate No. 00042" is a placeholder, never a name, and an id
+      // is not one either, so the row says what is true instead.
+      r.named=sl.names.has(r.student_id);
+      const cand=r.candidate?String(r.candidate).trim():'';
+      r.who=sl.names.get(r.student_id)||(cand&&!/^Candidate No\.\s*\d+$/.test(cand)?cand:'')||'A student no longer on your roster';
       return r;
     });
     render('ok',subs);
