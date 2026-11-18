@@ -148,6 +148,23 @@
     }
   }
 
+  // A signed-in staff workspace without Collections: every link into it would
+  // land on screens the server refuses (403), so the account menu's "Open
+  // Collections" and the page's own head link are hidden. Best-effort DOM work.
+  function hideCollectionsLinks(products) {
+    if (products.indexOf('bluebook') >= 0) return;
+    var run = function () {
+      try {
+        if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
+        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"]');
+        for (var i = 0; i < links.length; i++) { links[i].hidden = true; links[i].style.display = 'none'; }
+      } catch (e) { /* a page without these links */ }
+    };
+    try {
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    } catch (e) { /* no document */ }
+  }
+
   function loadSession() {
     var name = read('original_name');
     var tenant = read('original_tenant');
@@ -167,10 +184,12 @@
         if (Array.isArray(res.data.products) && res.data.products.length) {
           try { window.localStorage.setItem('original_products', JSON.stringify(res.data.products)); } catch (e) { /* storage blocked */ }
         }
+        var products = Array.isArray(res.data.products) ? res.data.products.slice() : [];
+        if (String(res.data.role || '') !== 'student') hideCollectionsLinks(products);
         return {
           mode: 'signed-in',
           role: String(res.data.role || ''),
-          products: Array.isArray(res.data.products) ? res.data.products.slice() : [],
+          products: products,
           tenant: String(res.data.tenant_id || tenant),
           name: name
         };

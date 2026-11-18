@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -131,8 +131,6 @@
   .fpq-btn{border:none;background:none;color:var(--dim);font-family:var(--body);font-size:.8rem;font-weight:600;padding:.32rem .8rem;border-radius:16px;cursor:pointer;transition:all .18s;white-space:nowrap;}
   .fpq-btn:hover{color:var(--cream);}
   .fpq-btn.active{background:var(--gold);color:var(--navy);}
-  .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
-  .hero-inner:hover .fpq-hint{opacity:0;}
   /* Feature evidence: hero transforms to show the text itself */
   /* In normal flow below the triage row, so the triage buttons stay visible and clickable while it is open. */
   .hero-evi{position:relative;z-index:6;display:none;flex-direction:column;gap:.8rem;margin-top:1.6rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
@@ -427,7 +425,6 @@
   .fp-box .hero-inner{min-height:0;height:100%;padding:1rem 1.2rem 1.1rem;}
   .fp-box .fpq-toggle{left:1.2rem;top:1rem;}
   .fp-box .fpq-readout{right:1.2rem;top:1rem;}
-  .fp-box .fpq-hint{left:1.2rem;top:3.6rem;}
   .fp-box .hero-title{font-size:1.5rem;}
   .hero-evi.solo{position:relative;inset:auto;margin:0;padding:1.1rem 1.2rem 1.2rem;}
   .hero-evi.solo::before{inset:0;}
@@ -641,7 +638,6 @@
                   </details>
                   <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
                 </div>
-                <div class="fpq-hint">Drag across the print to disturb it</div>
                 <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
               </div>
             </div>
@@ -672,11 +668,11 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-17.1"></script>
-<script src="js/feature-data.js?v=2026-11-17.1"></script>
-<script src="js/fingerprint.js?v=2026-11-17.1"></script>
-<script src="js/evidence-view.js?v=2026-11-17.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-17.1"></script>
+<script src="live.js?v=2026-11-18.1"></script>
+<script src="js/feature-data.js?v=2026-11-18.1"></script>
+<script src="js/fingerprint.js?v=2026-11-18.1"></script>
+<script src="js/evidence-view.js?v=2026-11-18.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-18.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1593,7 +1589,7 @@
     if(!S.loaded){ setAnswer('Loading','inc',who()); pr.textContent='Loading'; renderNumbers(); return; }
     if(!hasBaseline()){
       setAnswer('Not enough writing to compare yet','inc',who());
-      pr.innerHTML='No counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+      pr.innerHTML='No counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
       renderNumbers(); return;
     }
     const n=counted()||0, w=approvalLine(false);
@@ -1717,12 +1713,12 @@
     if(mode!=='form') msg('');
   }
   function notEnough(){
-    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
+    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.');
     setCard('none');
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
     return '';
   }
   function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
