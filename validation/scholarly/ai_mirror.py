@@ -197,16 +197,26 @@ def _cut_wrapper(paras: List[str]) -> tuple:
         first = _wrapper_key(kept[0])
         if _LEAD_IN.match(first) or first.endswith(":"):
             kept = kept[1:]
+    kept, _ = _cut_wrapper_tail(kept)
+    return kept, len(paras) - len(kept)
+
+
+def _cut_wrapper_tail(paras: List[str]) -> tuple:
+    """Drop trailing paragraphs that offer further help; return (kept, number dropped)."""
+    kept = list(paras)
     while kept and _SIGN_OFF.search(_wrapper_key(kept[-1])):
         kept = kept[:-1]
     return kept, len(paras) - len(kept)
 
 
 def _normalise(raw: str, title: str) -> tuple:
-    """One reply -> (cleaned text, reference paragraphs cut, wrapper paragraphs cut)."""
+    """One reply -> (cleaned text, reference paragraphs cut, wrapper paragraphs cut, paragraphs
+    cut by a reference heading)."""
     lines = raw.replace("\r\n", "\n").split("\n")
+    heading_cut = 0
     for i, ln in enumerate(lines):
         if _is_ref_heading(ln):
+            heading_cut = len([p for p in re.split(r"\n\s*\n", "\n".join(lines[i + 1:])) if p.strip()])
             lines = lines[:i]
             break
     want = _alnum(title)
@@ -222,10 +232,15 @@ def _normalise(raw: str, title: str) -> tuple:
     raws, wrapper_cut = _cut_wrapper(raws)
     pairs = [(r, clean.strip_inline(r)) for r in raws]
     pairs = [(r, c) for r, c in pairs if len(c.split()) >= MIN_PARA_WORDS]
+    # a sign-off hidden behind a short trailing line ("---") only shows once short paragraphs go
+    tail, tail_cut = _cut_wrapper_tail([r for r, _ in pairs])
+    if tail_cut:
+        pairs = pairs[:len(tail)]
+        wrapper_cut += tail_cut
     _, cut = _cut_trailing_references([r for r, _ in pairs])
     if cut:
         pairs = pairs[:len(pairs) - cut]
-    return "\n\n".join(c for _, c in pairs), cut, wrapper_cut
+    return "\n\n".join(c for _, c in pairs), cut, wrapper_cut, heading_cut
 
 
 def normalise_ai_text(raw: str, title: str) -> str:
@@ -254,13 +269,18 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
         raise ValueError(f"missing raw reply: {raw_path}")
     if continued and not cont_path.exists():
         raise ValueError(f"--continued needs the continuation saved on its own to {cont_path}")
+    if cont_path.exists() and not continued:
+        raise ValueError(f"{cont_path} exists but --continued was not given; re-run with --continued "
+                         f"(or remove the file) so the continuation is not silently dropped")
     raw_bytes = raw_path.read_bytes()
-    text, cut, wrapper_cut = _normalise(raw_bytes.decode("utf-8"), target.title)
+    text, cut, wrapper_cut, heading_cut = _normalise(raw_bytes.decode("utf-8"), target.title)
     cont_bytes = cont_path.read_bytes() if continued else None
     if cont_bytes is not None:
-        cont_text, cont_cut, cont_wrapper = _normalise(cont_bytes.decode("utf-8"), target.title)
+        cont_text, cont_cut, cont_wrapper, cont_heading = _normalise(
+            cont_bytes.decode("utf-8"), target.title)
         text = "\n\n".join(t for t in (text, cont_text) if t)
         cut, wrapper_cut = cut + cont_cut, wrapper_cut + cont_wrapper
+        heading_cut += cont_heading
     if not text.strip():
         raise ValueError(f"cleaned text for {author_id!r} is empty")
     out = AI_DIR / "texts" / f"{author_id}.txt"
@@ -270,7 +290,7 @@ def intake(author_id: str, model: str, date: str, route: str, continued: bool) -
         "author_id": author_id, "paper_id": target.paper_id, "tool": target.tool,
         "model": model, "date": date, "route": route, "continued": bool(continued),
         "words": len(text.split()), "cut_reference_paragraphs": cut,
-        "cut_wrapper_paragraphs": wrapper_cut,
+        "cut_wrapper_paragraphs": wrapper_cut, "cut_heading_paragraphs": heading_cut,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
         "cont_sha256": hashlib.sha256(cont_bytes).hexdigest() if cont_bytes is not None else None,
