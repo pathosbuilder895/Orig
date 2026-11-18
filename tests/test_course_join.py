@@ -1,5 +1,6 @@
-"""Course join links (2026-10): students join an Original Collections course
-by link or code (original/routers/course_join.py).
+"""Course class codes (2026-10): students join an Original Collections course
+by a short code or its link (original/routers/course_join.py). The course
+sign-up link (#324, ?join=) is a separate feature with its own tests.
 
 Grouped by concern:
 
@@ -60,14 +61,14 @@ def _exam(client, token, **fields) -> dict:
 
 
 def _settings(client, token, course_id, **fields) -> dict:
-    r = client.put(f"/bluebook/courses/{course_id}/join", json=fields, headers=_auth(token))
+    r = client.put(f"/bluebook/courses/{course_id}/class-code", json=fields, headers=_auth(token))
     assert r.status_code == 200, r.text
     return r.json()
 
 
 def _join(client, code, email="ada@school.edu", password=PW, name="Ada", terms=True):
     return client.post(
-        f"/auth/join/{code}",
+        f"/auth/class-code/{code}",
         json={"name": name, "email": email, "password": password, "accept_terms": terms},
     )
 
@@ -125,7 +126,7 @@ def test_normalize_code(raw, expected):
 
 def test_joining_is_off_until_the_teacher_turns_it_on(live_client, teacher):
     r = live_client.get(
-        f"/bluebook/courses/{teacher['course']}/join", headers=_auth(teacher["token"])
+        f"/bluebook/courses/{teacher['course']}/class-code", headers=_auth(teacher["token"])
     )
     assert r.status_code == 200
     assert r.json() == {
@@ -141,8 +142,8 @@ def test_turning_joining_on_makes_a_code_and_a_link(live_client, teacher):
     s = _settings(live_client, teacher["token"], teacher["course"], enabled=True)
     assert s["enabled"] is True
     assert cj.normalize_code(s["code"]) == s["code"]
-    assert s["join_path"] == f"/bluebook/?join={s['code']}"
-    r = live_client.get(f"/auth/join/{s['code']}")
+    assert s["join_path"] == f"/bluebook/?class={s['code']}"
+    r = live_client.get(f"/auth/class-code/{s['code']}")
     assert r.status_code == 200, r.text
     assert r.json() == {
         "code": s["code"],
@@ -167,7 +168,7 @@ def test_settings_that_leave_a_field_out_keep_it(live_client, open_course):
 @pytest.mark.parametrize("bad", ["not a domain", "school", "school..edu", "-x.edu", "a@b.edu"])
 def test_a_domain_limit_must_be_a_domain(live_client, open_course, bad):
     r = live_client.put(
-        f"/bluebook/courses/{open_course['course']}/join",
+        f"/bluebook/courses/{open_course['course']}/class-code",
         json={"allowed_domain": bad},
         headers=_auth(open_course["token"]),
     )
@@ -179,7 +180,7 @@ def test_turning_joining_off_stops_the_link_and_on_again_restores_it(live_client
     t, c, code = open_course["token"], open_course["course"], open_course["code"]
     off = _settings(live_client, t, c, enabled=False)
     assert (off["enabled"], off["code"]) == (False, code)
-    assert live_client.get(f"/auth/join/{code}").status_code == 404
+    assert live_client.get(f"/auth/class-code/{code}").status_code == 404
     assert _join(live_client, code).status_code == 404
     on = _settings(live_client, t, c, enabled=True)
     assert on["code"] == code
@@ -189,11 +190,11 @@ def test_turning_joining_off_stops_the_link_and_on_again_restores_it(live_client
 def test_reset_kills_the_old_code_and_link(live_client, open_course):
     t, c, old = open_course["token"], open_course["course"], open_course["code"]
     assert _join(live_client, old, email="first@school.edu").status_code == 200
-    r = live_client.post(f"/bluebook/courses/{c}/join/reset", headers=_auth(t))
+    r = live_client.post(f"/bluebook/courses/{c}/class-code/reset", headers=_auth(t))
     assert r.status_code == 200, r.text
     new = r.json()["code"]
-    assert new != old and r.json()["join_path"] == f"/bluebook/?join={new}"
-    assert live_client.get(f"/auth/join/{old}").status_code == 404
+    assert new != old and r.json()["join_path"] == f"/bluebook/?class={new}"
+    assert live_client.get(f"/auth/class-code/{old}").status_code == 404
     assert _join(live_client, old, email="late@school.edu").status_code == 404
     assert _join(live_client, new, email="second@school.edu").status_code == 200
     # Students who joined with the old code stay on the course.
@@ -203,11 +204,11 @@ def test_reset_kills_the_old_code_and_link(live_client, open_course):
 
 def test_reset_before_joining_was_ever_set_gives_a_code_but_stays_off(live_client, teacher):
     r = live_client.post(
-        f"/bluebook/courses/{teacher['course']}/join/reset", headers=_auth(teacher["token"])
+        f"/bluebook/courses/{teacher['course']}/class-code/reset", headers=_auth(teacher["token"])
     )
     assert r.status_code == 200
     assert r.json()["enabled"] is False and r.json()["code"]
-    assert live_client.get(f"/auth/join/{r.json()['code']}").status_code == 404
+    assert live_client.get(f"/auth/class-code/{r.json()['code']}").status_code == 404
 
 
 def test_a_drawn_code_another_course_holds_is_drawn_again(live_client, open_course, monkeypatch):
@@ -223,17 +224,17 @@ def test_giving_up_after_repeated_code_collisions(live_client, open_course, monk
     t = open_course["token"]
     other = _course(live_client, t, name="Logic", code="LOG1")
     monkeypatch.setattr(cj, "new_code", lambda: open_course["code"])
-    r = live_client.put(f"/bluebook/courses/{other}/join", json={"enabled": True}, headers=_auth(t))
+    r = live_client.put(f"/bluebook/courses/{other}/class-code", json={"enabled": True}, headers=_auth(t))
     assert r.status_code == 503
     assert get_repository().get_course_join(other) is None
 
 
 def test_settings_changes_are_audited(live_client, open_course):
     live_client.post(
-        f"/bluebook/courses/{open_course['course']}/join/reset", headers=_auth(open_course["token"])
+        f"/bluebook/courses/{open_course['course']}/class-code/reset", headers=_auth(open_course["token"])
     )
     actions = [a["action"] for a in get_repository().list_audit(limit=50)["items"]]
-    assert "bluebook_join_settings" in actions and "bluebook_join_reset" in actions
+    assert "bluebook_class_code_settings" in actions and "bluebook_class_code_reset" in actions
 
 
 # ── Who may change the settings ───────────────────────────────────────────────
@@ -243,25 +244,25 @@ def test_another_teacher_cannot_see_or_change_a_course_join(live_client, open_co
     other = _signup(live_client, email="other@school.edu")
     c = open_course["course"]
     h = _auth(other["token"])
-    assert live_client.get(f"/bluebook/courses/{c}/join", headers=h).status_code == 404
+    assert live_client.get(f"/bluebook/courses/{c}/class-code", headers=h).status_code == 404
     assert (
         live_client.put(
-            f"/bluebook/courses/{c}/join", json={"enabled": False}, headers=h
+            f"/bluebook/courses/{c}/class-code", json={"enabled": False}, headers=h
         ).status_code
         == 404
     )
-    assert live_client.post(f"/bluebook/courses/{c}/join/reset", headers=h).status_code == 404
+    assert live_client.post(f"/bluebook/courses/{c}/class-code/reset", headers=h).status_code == 404
     assert (
         live_client.post(f"/bluebook/courses/{c}/join-requests/approve-all", headers=h).status_code
         == 404
     )
-    assert live_client.get(f"/auth/join/{open_course['code']}").status_code == 200
+    assert live_client.get(f"/auth/class-code/{open_course['code']}").status_code == 200
 
 
 def test_a_student_cannot_change_join_settings(live_client, open_course):
     student = _join(live_client, open_course["code"]).json()
     r = live_client.put(
-        f"/bluebook/courses/{open_course['course']}/join",
+        f"/bluebook/courses/{open_course['course']}/class-code",
         json={"enabled": False},
         headers=_auth(student["token"]),
     )
@@ -395,9 +396,9 @@ def test_unknown_switched_off_replaced_and_malformed_codes_answer_alike(live_cli
     off_course = _course(live_client, t, name="Off", code="OFF")
     off_code = _settings(live_client, t, off_course, enabled=True)["code"]
     _settings(live_client, t, off_course, enabled=False)
-    live_client.post(f"/bluebook/courses/{c}/join/reset", headers=_auth(t))
+    live_client.post(f"/bluebook/courses/{c}/class-code/reset", headers=_auth(t))
     for code in ("ZZZZZZ", off_code, old, "nope"):
-        g = live_client.get(f"/auth/join/{code}")
+        g = live_client.get(f"/auth/class-code/{code}")
         p = _join(live_client, code)
         assert (g.status_code, g.json()["detail"]) == (404, cj.LINK_NOT_WORKING), code
         assert (p.status_code, p.json()["detail"]) == (404, cj.LINK_NOT_WORKING), code
@@ -415,7 +416,7 @@ def test_a_code_whose_course_or_workspace_is_gone_does_not_work(live_client, ope
             "require_approval": False,
         }
     )
-    assert live_client.get("/auth/join/GHST22").status_code == 404
+    assert live_client.get("/auth/class-code/GHST22").status_code == 404
     # A join row naming a different workspace from its course.
     other = _signup(live_client, email="t2@school.edu")
     other_course = _course(live_client, other["token"], name="Elsewhere", code="E1")
@@ -429,13 +430,13 @@ def test_a_code_whose_course_or_workspace_is_gone_does_not_work(live_client, ope
             "require_approval": False,
         }
     )
-    assert live_client.get("/auth/join/MSMT22").status_code == 404
+    assert live_client.get("/auth/class-code/MSMT22").status_code == 404
 
 
 def test_a_workspace_without_collections_does_not_take_joins(live_client, open_course):
     get_repository().set_tenant_products(open_course["tenant"], ["original"])
     principal_mod.invalidate_tenant_cache()
-    assert live_client.get(f"/auth/join/{open_course['code']}").status_code == 404
+    assert live_client.get(f"/auth/class-code/{open_course['code']}").status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -457,7 +458,7 @@ def test_a_join_needs_a_real_email_a_long_enough_password_and_the_terms(
 
 def test_the_domain_limit(live_client, open_course):
     _settings(live_client, open_course["token"], open_course["course"], allowed_domain="school.edu")
-    info = live_client.get(f"/auth/join/{open_course['code']}").json()
+    info = live_client.get(f"/auth/class-code/{open_course['code']}").json()
     assert info["allowed_domain"] == "school.edu"
     r = _join(live_client, open_course["code"], email="ada@gmail.com")
     assert r.status_code == 422
@@ -470,7 +471,7 @@ def test_the_domain_limit(live_client, open_course):
 def test_joining_is_audited_with_the_terms_version(live_client, open_course):
     out = _join(live_client, open_course["code"]).json()
     rows = get_repository().list_audit(student_id=out["student_id"])["items"]
-    joined = [r for r in rows if r["action"] == "bluebook_join"]
+    joined = [r for r in rows if r["action"] == "bluebook_class_code_join"]
     assert len(joined) == 1
     details = joined[0]["details"]
     assert details["status"] == "enrolled" and details["account"] == "created"
@@ -486,7 +487,7 @@ def test_joining_a_workspace_with_original_creates_the_profile_record(live_clien
 
 def test_join_responses_say_nothing_about_scores_or_the_engine(live_client, open_course):
     texts = [
-        live_client.get(f"/auth/join/{open_course['code']}").text,
+        live_client.get(f"/auth/class-code/{open_course['code']}").text,
         _join(live_client, open_course["code"], password="short").text,
         _join(live_client, "ZZZZZZ").text,
         cj.NO_MATCH,
@@ -511,7 +512,7 @@ def approval_course(live_client, open_course):
 def test_with_approval_on_a_joiner_waits_as_pending(live_client, approval_course):
     t, c = approval_course["token"], approval_course["course"]
     assert (
-        live_client.get(f"/auth/join/{approval_course['code']}").json()["require_approval"] is True
+        live_client.get(f"/auth/class-code/{approval_course['code']}").json()["require_approval"] is True
     )
     r = _join(live_client, approval_course["code"])
     assert r.status_code == 200, r.text
@@ -821,8 +822,8 @@ def test_workspaces_that_are_not_self_serve_have_no_student_cap(
 
 def test_wrong_codes_are_rate_limited(live_client, open_course):
     for _ in range(_shared._LOGIN_MAX_ATTEMPTS):
-        assert live_client.get("/auth/join/ZZZZZZ").status_code == 404
-    assert live_client.get(f"/auth/join/{open_course['code']}").status_code == 429
+        assert live_client.get("/auth/class-code/ZZZZZZ").status_code == 404
+    assert live_client.get(f"/auth/class-code/{open_course['code']}").status_code == 429
     assert _join(live_client, open_course["code"]).status_code == 429
 
 
@@ -854,7 +855,7 @@ def test_deleting_a_course_removes_its_join_link_and_waiting_list(live_client, a
     repo = get_repository()
     assert repo.get_course_join(c) is None and repo.get_course_join_by_code(code) is None
     assert repo.list_join_requests_for_student(out["student_id"]) == []
-    assert live_client.get(f"/auth/join/{code}").status_code == 404
+    assert live_client.get(f"/auth/class-code/{code}").status_code == 404
 
 
 def test_erasing_a_waiting_student_removes_their_request(live_client, approval_course):

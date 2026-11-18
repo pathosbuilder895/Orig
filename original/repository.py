@@ -254,6 +254,7 @@ class Repository(Protocol):
     def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int: ...
     def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]: ...
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
@@ -268,6 +269,10 @@ class Repository(Protocol):
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
     def void_invites_for_user(self, user_id: str) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
+    def put_join_link(self, rec: dict) -> None: ...
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None: ...
+    def active_join_link_for_course(self, course_id: str) -> dict | None: ...
+    def void_join_links_for_course(self, course_id: str) -> int: ...
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
@@ -297,6 +302,11 @@ class Repository(Protocol):
     def get_last_location(self, account_key: str) -> dict | None: ...
     def delete_last_location(self, account_key: str) -> None: ...
 
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
+    def get_display_prefs(self, account_key: str) -> dict | None: ...
+    def delete_display_prefs(self, account_key: str) -> None: ...
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
         self, exam_id: str, student_key: str, tenant_id: str, fields: dict
@@ -304,7 +314,7 @@ class Repository(Protocol):
     def get_phone_park(self, exam_id: str, student_key: str) -> dict | None: ...
     def list_phone_parks(self, exam_id: str) -> list[dict]: ...
 
-    # ── Course join links (2026-10) ───────────────────────────────────────
+    # ── Course class codes (2026-10) ──────────────────────────────────────
     def get_course_join(self, course_id: str) -> dict | None: ...
     def get_course_join_by_code(self, code: str) -> dict | None: ...
     def put_course_join(self, rec: dict) -> bool: ...
@@ -323,6 +333,7 @@ class Repository(Protocol):
         result: str = "ok",
         details: dict | None = None,
     ) -> None: ...
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]: ...
     def list_audit(
         self,
         student_id: str | None = None,
@@ -782,6 +793,9 @@ class SqliteRepository:
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_student(student_id)
 
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]:
+        return store.list_bluebook_submission_texts_for_student(student_id)
+
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_exam(exam_id)
 
@@ -823,6 +837,18 @@ class SqliteRepository:
 
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
+
+    def put_join_link(self, rec: dict) -> None:
+        store.put_join_link(rec)
+
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None:
+        return store.get_join_link_by_hash(token_hash)
+
+    def active_join_link_for_course(self, course_id: str) -> dict | None:
+        return store.active_join_link_for_course(course_id)
+
+    def void_join_links_for_course(self, course_id: str) -> int:
+        return store.void_join_links_for_course(course_id)
 
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
@@ -875,6 +901,15 @@ class SqliteRepository:
     def delete_last_location(self, account_key: str) -> None:
         store.delete_last_location(account_key)
 
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict:
+        return store.put_display_prefs(account_key, prefs)
+
+    def get_display_prefs(self, account_key: str) -> dict | None:
+        return store.get_display_prefs(account_key)
+
+    def delete_display_prefs(self, account_key: str) -> None:
+        store.delete_display_prefs(account_key)
+
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
         return store.put_phone_park(exam_id, student_key, tenant_id, fields)
@@ -885,7 +920,7 @@ class SqliteRepository:
     def list_phone_parks(self, exam_id: str) -> list[dict]:
         return store.list_phone_parks(exam_id)
 
-    # ── Course join links (2026-10) ───────────────────────────────────────
+    # ── Course class codes (2026-10) ──────────────────────────────────────
     def get_course_join(self, course_id: str) -> dict | None:
         return store.get_course_join(course_id)
 
@@ -925,6 +960,9 @@ class SqliteRepository:
             result=result,
             details=details,
         )
+
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]:
+        return store.list_audit_actions_for_student(student_id, actions)
 
     def list_audit(
         self,
@@ -1029,6 +1067,8 @@ _WRITE_METHODS = frozenset(
         "delete_exam_draft",
         "put_last_location",
         "delete_last_location",
+        "put_display_prefs",
+        "delete_display_prefs",
         "put_phone_park",
         "set_past_paper_status",
         "delete_tenant_students",

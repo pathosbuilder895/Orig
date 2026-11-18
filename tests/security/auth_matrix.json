@@ -163,7 +163,7 @@
     "expired": 401,
     "_note": "Phone parking for one collection (2026-10): staff-only (students 403); a nonexistent exam id is 404 for every staff role."
   },
-  "GET /bluebook/courses/nonexistent/join": {
+  "GET /bluebook/courses/nonexistent/class-code": {
     "anonymous": 401,
     "student_own": 403,
     "student_other": 403,
@@ -172,6 +172,6 @@
     "operator": 404,
     "tampered": 401,
     "expired": 401,
-    "_note": "Course join link settings (2026-10): staff-only (students 403); a nonexistent course id is 404 for every staff role, so the cross-tenant case reads the same as a missing one."
+    "_note": "Course class code settings (2026-10): staff-only (students 403); a nonexistent course id is 404 for every staff role, so the cross-tenant case reads the same as a missing one."
   }
 }

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -88,6 +88,7 @@
   .sec-lede{font-size:.95rem;font-style:italic;color:var(--ink-2);line-height:1.55;margin:-.35rem 0 1rem;}
   /* habits, this paper beside their own writing (numbers, never quoted text) */
   .ex{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-bottom:1.1rem;}
+  @media screen{.ex{transition:border-color .18s,box-shadow .18s;}.ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}}
   .ex-h{grid-column:1/-1;display:flex;align-items:baseline;gap:.7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
@@ -102,7 +103,23 @@
   .ex-src{font-family:var(--mono);font-size:.62rem;color:var(--ink-2);margin-top:.55rem;overflow-wrap:anywhere;}
   .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.9rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-q{overflow-wrap:anywhere;}
+  .ex-col{min-width:0;}
+  .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
+  .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
   .more-note{font-size:.88rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
+  .ex-h{flex-wrap:wrap;}
+  .ex-h .ex-diff{font-style:normal;color:var(--ink);font-size:.92rem;}
+  .ex-q+.ex-src+.ex-q{margin-top:1rem;}
+  .um-lead{font-size:.85rem;font-style:italic;color:var(--ink-2);margin:.55rem 0 .45rem;}
+  .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
+  .ex-vals{list-style:none;font-size:.95rem;padding:0;margin:0;}
+  .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
+  .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
   /* where the baseline comes from */
   .prov{width:100%;border-collapse:collapse;font-size:.95rem;}
   .prov th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--rule);font-weight:500;}
@@ -209,6 +226,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -277,8 +295,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/feature-data.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-17.1"></script>
+<script src="js/feature-data.js?v=2026-11-17.1"></script>
+<script src="js/evidence-view.js?v=2026-11-17.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -299,12 +319,11 @@
   // page keeps them inline, so they are repeated here rather than shared).
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const FAMILY={Surface:'how the sentences look',Discourse:'how the ideas connect',Rhetorical:'how the case is made'};
-  // GET /students/{id}: samples[].provenance, in the words baseline.html uses
-  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
-  // Teacher-approved means proctored, verified or imported: the same rule as
-  // baseline.html's approvedN(). The server's authenticated_count ("counted")
-  // also includes a student's own upload, so it is never called approved.
-  const APPROVED=['proctored','verified','canvas'];
+  // GET /students/{id}: samples[].source and .provenance, in the words baseline.html uses
+  // (Live.howAdded). "Approved by you" is Live.approvals' rule: supervised, verified or
+  // imported writing, plus a take-home exam or shared paper you approved. The server's
+  // authenticated_count ("counted") also includes a student's own upload, so it is
+  // never called approved.
 
   // ── account menu ──
   (function(){
@@ -423,14 +442,12 @@
   }
 
   // ── where the baseline comes from (GET /students/{id}) ──
-  const approvedIn=samples=>samples.filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
-  const uploadsIn=samples=>samples.filter(s=>s.provenance==='unverified').length;
+  const approvalLine=(samples,note)=>Live.approvalWords(Live.approvals(samples),{note:note});
   function baselineTable(samples){
     const rows=samples.map((s,i)=>{
       const idx=num(s.index)!=null?s.index:i;
       const name=typeof s.assignment==='string'&&s.assignment.trim()?s.assignment:'Untitled sample';
-      const prov=typeof s.provenance==='string'?s.provenance:'';
-      const how=has(HOW,prov)?HOW[prov]:(prov||'Not stated');
+      const how=Live.howAdded(s);
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
         '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
     }).join('');
@@ -453,13 +470,13 @@
   }
   // The server's own readiness rule (original/routers/students.py,
   // get_student_readiness), as writing-state.html's resultVerdict() applies it
-  // to the score response: ready at 5 counted samples and 3 effective,
-  // building from 2, else too little. Null when a field is missing.
+  // to the score response: ready at 3 counted samples, building from 1,
+  // else too little. Null when a field is missing.
   function storedVerdict(bc){
     const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
     if(a==null||e==null) return null;
-    if(a>=5&&e>=3) return 'ready';
-    if(a>=3) return 'developing';
+    if(a>=3) return 'ready';
+    if(a>=1) return 'developing';
     return 'insufficient';
   }
   // verdict: 'ready' | 'developing' | 'insufficient', or null when it cannot be read.
@@ -477,6 +494,34 @@
       t+='A paper on a new topic or in a new genre can look different from '+poss+' usual writing even when the student wrote it. The numbers above describe distance from their own habits, nothing more.';
     }
     return t;
+  }
+
+  // ── text by text (only when the server sent evidence) ──
+  // Staff-only: result.evidence is stored by Writing State only when the server
+  // sent it. The cards are js/evidence-cards.js, the builder the side-by-side
+  // page and Writing State use, over Original's own top list, so all three show
+  // the same quotes, marks, labels and lines. Whole-text habits show their
+  // numbers and say why there is no sentence to quote.
+  const EV=window.EvidenceView, EC=window.EvidenceCards;
+  const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  function textByText(d){
+    const ev=d.result.evidence;
+    if(!EV||!EC||!isObj(ev)||!Array.isArray(ev.features)||!Array.isArray(ev.all_features)) return '';
+    const top=EC.topList(ev);
+    if(!top.length) return '';
+    const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(d.assignment,d.analysed_at)};
+    return top.map(f=>EC.card(f,ctx)).join('');
+  }
+  // The cards take the place of the numbers-only section, which says less.
+  function addSideBySide(d,anchor,poss){
+    const html=textByText(d);
+    if(!html||!anchor) return;
+    const sec=document.createElement('section');
+    sec.id='p-side';
+    sec.innerHTML='<div class="sec-t">Furthest from their usual range <span>this paper and past papers, in their own words</span></div>'+
+      '<p class="sec-lede">'+esc('The habits Original lists as furthest from '+poss+' usual range, as on the side-by-side page. The marked words are the ones Original counted. Some habits sit this far from the usual range in a student\u2019s own writing too; a difference is a reason to look, not a finding.')+'</p>'+html;
+    anchor.parentNode.insertBefore(sec,anchor.nextSibling);
+    anchor.hidden=true;
   }
 
   async function render(sess,d){
@@ -515,7 +560,7 @@
     // The teacher-approved split comes from the sample list, and only when that list is
     // the one the analysis counted (a changed list would split a different count).
     const sameCount=!!(samples&&st.data&&nUsed!=null&&num(st.data.authenticated_count)===nUsed);
-    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount?esc(' ('+approvedIn(samples)+' teacher-approved)'):''):'');
+    $('p-sub').innerHTML=sub+(nUsed!=null?(sub?' · compared':'Compared')+' against <b>'+esc(plural(nUsed,'counted sample'))+'</b>'+(sameCount&&approvalLine(samples,false)?esc(' ('+approvalLine(samples,false)+')'):''):'');
     $('back').href='writing-state.html?student='+encodeURIComponent(id);
 
     // summary: the sentence Writing State showed, as plain text
@@ -526,6 +571,8 @@
 
     // habits
     $('p-habits').innerHTML=habitCards(d,poss,nUsed);
+    // Staff-only: nothing here runs, or touches the page, unless the server sent evidence.
+    if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(d,$('p-habits').parentNode,poss);
 
     // baseline
     // The thin-baseline caution is shown whether or not the sample list loaded.
@@ -536,8 +583,8 @@
     } else if(!samples.length){
       box.innerHTML='<p class="none-line">No samples are on file for '+esc(who)+' now.</p>'+note;
     } else {
-      const up=uploadsIn(samples);
-      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+', '+approvedIn(samples)+' teacher-approved'+(up?' and '+plural(up,'student upload'):'')+'.')+'</p>';
+      const words=approvalLine(samples,true);
+      const split='<p class="prov-note">'+esc('On file now: '+plural(samples.length,'sample')+(words?', '+words:'')+'.')+'</p>';
       box.innerHTML=split+baselineTable(samples)+note;
       fillLengths(id,box);
     }

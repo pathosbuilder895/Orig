@@ -41,9 +41,7 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
-import {
-  addBaselineFor, provisionTenantWithStaff, staffStorageState,
-} from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, addBaselineFor, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 
 const HARDCODED_COURSE_CODE = 'PHIL 301A' // must match a NewExam.jsx COURSES entry
 
@@ -68,7 +66,7 @@ function names(workerTenant) {
 // "Submissions"; the spec keeps its own vocabulary and maps it here.
 const NAV = { Results: 'Submissions' }
 async function openScreen(page, navLabel) {
-  await page.goto('/bluebook/')
+  await page.goto(COLLECTIONS_HOME)
   await page.waitForLoadState('networkidle')
   if (navLabel) await page.getByRole('button', { name: NAV[navLabel] || navLabel, exact: true }).click()
 }
@@ -636,7 +634,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Dashboard shows the empty tenant, not the demo mock exams', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await expect(page.getByRole('heading', { name: /^(Welcome back|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Create your first course →')).toBeVisible()
@@ -646,7 +644,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Results shows zero submissions, not the demo mock candidates', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Submissions', exact: true }).click()
     await expect(page.getByText(/0 submissions/)).toBeVisible({ timeout: 10_000 })
@@ -656,7 +654,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Students shows zero enrolled, not the demo mock roster', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Students', exact: true }).click()
     await expect(page.getByText(/0 students across your courses/)).toBeVisible({ timeout: 10_000 })

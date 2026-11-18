@@ -4,9 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Side by side</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -16,10 +18,10 @@
     --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
     --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
     --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
-    --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --display:var(--bb-font-display);--body:var(--bb-font-body);--mono:var(--bb-font-label);
   }
   html,body{height:100%;}
-  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;font-size:16px;}
+  body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
   a{color:var(--gold-2);}a:hover{color:var(--cream);}
 
   /* ── The suite shell (same as the other pages; hidden when printing) ── */
@@ -101,7 +103,10 @@
   .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .7rem;padding:.7rem 1.1rem;background:#f1ead7;border-bottom:1px solid var(--rule);}
   .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;}
   .ex-h span{font-size:.85rem;color:var(--ink-2);font-style:italic;}
-  .ex-col{padding:1rem 1.2rem;min-width:0;}
+  /* How this paper differs, in plain words: the line a teacher reads first. */
+  .ex-h .ex-diff{font-style:normal;color:var(--ink);font-size:.92rem;}
+  .um-lead{font-size:.85rem;font-style:italic;color:var(--ink-2);margin:.55rem 0 .45rem;}
+  .ex-col{padding:1.1rem 1.3rem;min-width:0;}
   .ex-col+.ex-col{border-left:1px solid var(--rule);}
   .ex-lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.5rem;overflow-wrap:anywhere;}
   .ex-lbl.this{color:var(--flag);}
@@ -110,15 +115,23 @@
   .ex-big.base{color:var(--base);}
   .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
   .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);overflow-wrap:anywhere;}
-  .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
   .ex-q.base mark{box-shadow:inset 0 -6px 0 rgba(44,74,140,0.2);}
-  .ex-src{font-family:var(--mono);font-size:.64rem;color:var(--ink-2);margin-top:.45rem;overflow-wrap:anywhere;}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .ex-q mark.tiny{box-shadow:none;background:rgba(168,70,47,.28);border-bottom:2px solid var(--flag);padding:0 .22em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ex-q.base mark.tiny{background:rgba(44,74,140,.24);border-bottom-color:var(--base);}
+  .ex-src{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;color:var(--ink-2);margin-top:.5rem;overflow-wrap:anywhere;}
   .ex-vals{list-style:none;font-size:.95rem;}
   .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
   .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
-  .ex-note{grid-column:1/-1;padding:.7rem 1.1rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.5;}
+  .ex-note{grid-column:1/-1;padding:.8rem 1.1rem .9rem;border-top:1px solid var(--rule);font-size:.92rem;font-style:italic;color:var(--ink-2);line-height:1.55;}
   .ex-note b{font-style:normal;font-weight:600;color:var(--ink);}
+  .ex-note p+p{margin-top:.35rem;}
+  .ex-note .nums-line{font-size:.86rem;}
+  .ex{transition:border-color .18s,box-shadow .18s;}
+  .ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
+  .m:target>summary{background:#f6f0e0;}
   /* every measurement */
   .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
   .m>summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:2.4rem 1fr auto;gap:.8rem;align-items:baseline;padding:.6rem .9rem;}
@@ -190,6 +203,7 @@
       <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
       <div class="me-menu" id="me-menu">
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
+        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
         <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
@@ -245,8 +259,9 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-10-26.1"></script>
-<script src="js/evidence-view.js?v=2026-10-26.1"></script>
+<script src="live.js?v=2026-11-17.1"></script>
+<script src="js/evidence-view.js?v=2026-11-17.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-17.1"></script>
 <script>
 (function(){
   'use strict';
@@ -263,7 +278,7 @@
   // writing-state.html and packet.html use (repeated here, as packet.html does).
   const PLAIN_TIER={tier1:'Word & Sentence Habits',tier2:'Connecting Ideas',tier3:'Voice & Claims',tier4:'Punctuation Habits',tier5:'Grammar Patterns',tier6:'Personal Quirks',tier7:'Natural Unevenness',tier8:'Sentence Rhythm',tier9:'Argument Shape',tier10:'Topic Focus',tier11:'Typical Mistakes',tier12:'Dramatic Arc',tier13:'Deeper Rhythm',tier14:'Where Mistakes Land',tier15:'Word Choice Patterns',tier16:'Citation Habits',tiercomp:'Baseline Comparison'};
   const groupName=g=>g===0?PLAIN_TIER.tiercomp:(PLAIN_TIER['tier'+g]||'');
-  const HOW={proctored:'Supervised sitting',verified:'Verified by teacher',canvas:'Imported',unverified:'Student upload'};
+  // Past papers come from the analysis (provenance only); the student record says how each got in (Live.howAdded).
   const KIND_WORDS={located:'Quoted',whole_text:'Whole text'};
   // Why a measurement is not used, with the value every paper has.
   function notUsedWhy(f){
@@ -300,11 +315,8 @@
 
   const shortDay=d=>d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
   function parseTime(iso){ const d=new Date(String(iso||'')); return isNaN(d.getTime())?null:d; }
-  function sampleDay(s){
-    const m=/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s||''));
-    if(m){ const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3])); if(!isNaN(d.getTime())) return shortDay(d); }
-    return '';
-  }
+  // A stored date as the calendar day it names (EvidenceView.dayOf, shared with the other pages).
+  const sampleDay=s=>EV.dayOf(s);
 
   // ── what Writing State left for us (sessionStorage, shape-checked) ──
   function readStored(){
@@ -338,48 +350,13 @@
   // ── pieces ──
   const PAPERS={list:[]};
   const nameOf=label=>EV.paperName(label,PAPERS.list);
-  function quoteHTML(q,side){
-    if(!isObj(q)) return '';
-    const parts=EV.markParts(q);
-    const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
-    const body=esc(parts.before)+(parts.mark?'<mark>'+esc(parts.mark)+'</mark>':'')+esc(parts.after);
-    const src=[q.paper==='this paper'?'This paper':nameOf(q.paper)];
-    if(num(q.start)!=null&&num(q.end)!=null) src.push('characters '+q.start+' to '+q.end);
-    if(num(q.words)!=null) src.push(EV.plural(q.words,'word'));
-    if(q.crosses_set_aside) src.push('runs into text set aside from measuring');
-    return '<div class="ex-q'+(side==='base'?' base':'')+'" data-mark="'+esc(parts.mark)+'">'+esc(lead)+body+esc(tail)+'</div>'+
-      '<div class="ex-src">'+esc(src.join(' · '))+'</div>';
-  }
-  function baseLabel(examples){
-    const ps=[];
-    (examples||[]).forEach(q=>{ if(isObj(q)&&ps.indexOf(q.paper)<0) ps.push(q.paper); });
-    return ps.length===1?nameOf(ps[0]):'Past papers';
-  }
-  function textCols(f){
-    const tp=f.this_paper.examples||[], pp=f.past_papers.examples||[];
-    const none='<p class="none-line">None found in '+'%s'+'.</p>';
-    return '<div class="ex-col"><div class="ex-lbl this">This paper</div>'+
-        (tp.length?tp.map(q=>quoteHTML(q,'this')).join(''):none.replace('%s','this paper'))+'</div>'+
-      '<div class="ex-col"><div class="ex-lbl base">'+esc(baseLabel(pp))+'</div>'+
-        (pp.length?pp.map(q=>quoteHTML(q,'base')).join(''):none.replace('%s','the past papers'))+'</div>';
-  }
-  function numberCols(f){
-    const n=EV.numbersOf(f);
-    return '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-big">'+esc(EV.fmt(n.thisValue))+'</span>'+
-        '<div class="ex-unit">'+esc(n.unit)+'</div></div>'+
-      '<div class="ex-col"><div class="ex-lbl base">Past papers</div><ul class="ex-vals">'+
-        n.past.map(p=>'<li><span>'+esc(nameOf(p.paper))+'</span><b>'+esc(EV.fmt(p.value))+'</b></li>').join('')+
-        '</ul><div class="ex-unit">'+esc(n.unit)+'</div></div>';
-  }
+  // One card per habit: the builder all three pages share (js/evidence-cards.js),
+  // so this page, Writing State and the packet show the same quotes and lines.
+  const EC=window.EvidenceCards;
+  const THIS={src:''};
   const hasText=f=>f.kind==='located'&&isObj(f.this_paper)&&isObj(f.past_papers)&&Array.isArray(f.this_paper.examples)&&Array.isArray(f.past_papers.examples);
   function card(f,opts){
-    const o=opts||{};
-    const name=EV.clean(f.name,f.code);
-    const head=o.noHead?'':'<div class="ex-h"><b>'+esc(name)+'</b><span>'+esc(EV.oneLine(f))+'</span></div>';
-    const cols=hasText(f)?textCols(f):numberCols(f);
-    const whole=f.kind==='whole_text'?' '+esc(EV.clean(f.note,'')):'';
-    return '<div class="ex" data-code="'+esc(f.code)+'">'+head+cols+
-      '<div class="ex-note"><b>What to notice:</b> '+esc(EV.noteFor(f,PAPERS.list))+whole+'</div></div>';
+    return EC.card(f,{papers:PAPERS.list,thisSource:THIS.src,noHead:!!(opts&&opts.noHead)});
   }
 
   // How the two lists are ordered, in the words of the server's own ordering
@@ -466,22 +443,23 @@
       const prov=typeof p.provenance==='string'?p.provenance:'';
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(EV.paperName(l,[]))+'</td>'+
         (anyName?'<td>'+esc(p.assignment||'')+'</td>':'')+(anyDay?'<td>'+esc(sampleDay(p.submitted_at))+'</td>':'')+
-        (anyHow?'<td>'+(prov?'<span class="how">'+esc(has(HOW,prov)?HOW[prov]:prov)+'</span>':'')+'</td>':'')+
+        (anyHow?'<td>'+(prov?'<span class="how">'+esc(Live.howAdded(p))+'</span>':'')+'</td>':'')+
         (anyLen?'<td class="len">'+(num(m.stored_words)!=null?esc(EV.plural(m.stored_words,'word'))+(num(m.measured_words)!=null&&m.measured_words!==m.stored_words?esc(' ('+m.measured_words+' measured)'):''):'')+'</td>':'')+'</tr>';
     }).join('');
     const tp=isObj(ev.measured)&&isObj(ev.measured.this_paper)?ev.measured.this_paper:null;
     const tpLine=tp&&num(tp.stored_words)!=null?'<p class="prov-note">'+esc('This paper: '+EV.plural(tp.stored_words,'word')+(num(tp.measured_words)!=null&&tp.measured_words!==tp.stored_words?' ('+tp.measured_words+' measured)':'')+'.')+'</p>':'';
     $('p-past').innerHTML='<table class="prov"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+tpLine+
+      (papers.some(p=>{const k=Live.sampleKind(p);return k==='take_home'||k==='shared_paper';})?'<p class="prov-note">Take-home exams and shared papers you approved count in the baseline at a lower weight.</p>':'')+
       '<p class="prov-note">Only past papers whose text is stored are shown and counted here. Lengths are the words stored; any text set aside from measuring (quotations, references) is left out of the measured count.</p>'+thinNote(d,labels.length);
   }
   // The server's readiness rule, as packet.html applies it to the counts
-  // stored with the analysis: ready at 5 counted samples and 3 effective.
+  // stored with the analysis: ready at 3 counted samples, building from 1.
   function verdictOf(d){
     const bc=isObj(d.result.baseline_confidence)?d.result.baseline_confidence:{};
     const a=num(bc.authenticated_count), e=num(bc.effective_sample_count);
     if(a==null||e==null) return null;
-    if(a>=5&&e>=3) return 'ready';
-    if(a>=3) return 'developing';
+    if(a>=3) return 'ready';
+    if(a>=1) return 'developing';
     return 'insufficient';
   }
   function thinNote(d,nPast){
@@ -497,13 +475,29 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
+  // A current server records each past paper's `source` in the analysis itself. This is
+  // only the fallback for an older one that sends provenance only. When exactly one sample on the
+  // student's record matches a paper (same title, date and provenance), or every match
+  // says the same, that sample's `source` is copied on so the table can say a take-home
+  // exam or shared paper was approved by you. No match: the provenance rule applies.
+  function addSources(ev,st){
+    const sm=st&&st.ok&&st.data&&Array.isArray(st.data.samples)?st.data.samples.filter(isObj):[];
+    if(!Array.isArray(ev.baseline_papers)) return;
+    ev.baseline_papers.filter(isObj).forEach(p=>{
+      if(typeof p.source==='string') return;   // the analysis recorded it when it ran
+      const hit=sm.filter(s=>(s.assignment||'')===(p.assignment||'')&&(s.submitted_at||'')===(p.submitted_at||'')&&s.provenance===p.provenance);
+      if(hit.length&&typeof hit[0].source==='string'&&hit.every(s=>s.source===hit[0].source)) p.source=hit[0].source;
+    });
+  }
   async function render(sess,d){
     const id=d.student_id.trim();
     const ev=d.result.evidence;
     if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }
     const st=await Live.api('/students/'+encodeURIComponent(id));
     if(st.status===403||st.status===404){ showEmpty('access'); return; }
+    addSources(ev,st);
     PAPERS.list=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];
+    THIS.src=EV.thisSource(typeof d.assignment==='string'?d.assignment:'',d.analysed_at);
     const byCode={};
     ev.all_features.forEach(f=>{ if(isObj(f)&&typeof f.code==='string') byCode[f.code]=f; });
 
@@ -529,6 +523,24 @@
     renderPast(ev,d);
     $('status').hidden=true;
     $('paper').hidden=false;
+    openFromHash();
+  }
+  // evidence.html#m-<code> (Writing State links here): open that row, scroll to it.
+  function openFromHash(){
+    let h='';
+    try{ h=decodeURIComponent(window.location.hash||''); }catch(e){ return; }
+    if(!/^#m-.+/.test(h)) return;
+    const el=document.getElementById(h.slice(1));
+    if(el&&el.tagName==='DETAILS'){
+      el.open=true;
+      el.scrollIntoView({block:'start'});
+      return;
+    }
+    const li=document.querySelector('#m-not-used li[data-code="'+h.slice(3).replace(/["\\]/g,'')+'"]');
+    if(li){
+      document.getElementById('m-not-used').open=true;
+      li.scrollIntoView({block:'center'});
+    }
   }
 
   // ── go ──

@@ -1267,6 +1267,11 @@
             "default": "verified",
             "title": "Provenance",
             "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "title": "Submitted At",
+            "type": "string"
           }
         },
         "required": [
@@ -2435,6 +2440,11 @@
             "title": "Commit",
             "type": "string"
           },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
+          },
           "environment": {
             "default": "demo",
             "title": "Environment",
@@ -2564,6 +2574,55 @@
           "password"
         ],
         "title": "JoinCourseRequest",
+        "type": "object"
+      },
+      "JoinLinkInfoRequest": {
+        "description": "POST /auth/join/info and POST /bluebook/me/join — a course sign-up link.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "JoinLinkInfoRequest",
+        "type": "object"
+      },
+      "JoinLinkRequest": {
+        "description": "POST /auth/join — create a student account from a course sign-up link.",
+        "properties": {
+          "accept_terms": {
+            "default": false,
+            "description": "Must be true: the student notice, terms and privacy policy",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "JoinLinkRequest",
         "type": "object"
       },
       "JoinSettingsRequest": {
@@ -3264,6 +3323,52 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PastPaperExamplesResponse": {
+        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; this response never changes any score.\n``baseline_papers`` matches the score response's ``evidence.baseline_papers``.",
+        "properties": {
+          "baseline_papers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Baseline Papers",
+            "type": "array"
+          },
+          "families": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "habit": {
+            "title": "Habit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline_papers",
+          "family",
+          "habit",
+          "families",
+          "features"
+        ],
+        "title": "PastPaperExamplesResponse",
+        "type": "object"
+      },
       "PhoneBeatBody": {
         "properties": {
           "beat_token": {
@@ -3355,11 +3460,16 @@
         "type": "object"
       },
       "ReadinessResponse": {
-        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
+        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),\n\"developing\" (1 or more), else \"insufficient\". Pure read:\ncomputed from the same StudentState the score endpoint uses.",
         "properties": {
           "authenticated_count": {
             "title": "Authenticated Count",
             "type": "integer"
+          },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
           },
           "effective_sample_count": {
             "title": "Effective Sample Count",
@@ -3611,6 +3721,12 @@
           },
           "provenance": {
             "title": "Provenance",
+            "type": "string"
+          },
+          "source": {
+            "default": "unknown",
+            "description": "How the sample got into the baseline, derived at read time: 'staff_or_supervised' | 'take_home' | 'shared_paper' | 'student_upload' | 'unknown'. Wording only; never read by scoring.",
+            "title": "Source",
             "type": "string"
           },
           "submitted_at": {
@@ -4743,6 +4859,24 @@
         ],
         "title": "WindowScoreOut",
         "type": "object"
+      },
+      "WriterCreateRequest": {
+        "description": "POST /students: a writer added by name, with no course or account.",
+        "properties": {
+          "name": {
+            "description": "The writer's name, 1-120 characters once trimmed, no control characters",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WriterCreateRequest",
+        "type": "object"
       }
     }
   },
@@ -5570,47 +5704,10 @@
         "summary": "Demo Login"
       }
     },
-    "/auth/invite/redeem": {
-      "post": {
-        "description": "Redeem a one-time invite: set the password and sign in. A student\ninvite also enrols them on the course it was issued for.\n\nAn invited professor (any staff account that has never set a password)\naccepts the terms here, as a signup does: with self-serve signup closed\nthis is the only place they can. The check runs before the invite is\nconsumed, so a refusal leaves the link usable. Students, and staff\nresetting a password they already set, are unchanged.",
-        "operationId": "auth_invite_redeem_auth_invite_redeem_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InviteRedeemRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Auth Invite Redeem"
-      }
-    },
-    "/auth/join/{code}": {
+    "/auth/class-code/{code}": {
       "get": {
         "description": "What the join screen shows before the student types anything: the\ncourse, and the rules the teacher set. Unknown codes count as failures.",
-        "operationId": "join_lookup_auth_join__code__get",
+        "operationId": "join_lookup_auth_class_code__code__get",
         "parameters": [
           {
             "in": "path",
@@ -5646,7 +5743,7 @@
       },
       "post": {
         "description": "Join a course: create the account (or reuse the teacher's roster row\nfor this email, or an existing account with its own password), then\nenrol, or wait for approval when the course asks for it, and sign in.",
-        "operationId": "join_course_auth_join__code__post",
+        "operationId": "join_course_auth_class_code__code__post",
         "parameters": [
           {
             "in": "path",
@@ -5689,6 +5786,117 @@
           }
         },
         "summary": "Join Course"
+      }
+    },
+    "/auth/invite/redeem": {
+      "post": {
+        "description": "Redeem a one-time invite: set the password and sign in. A student\ninvite also enrols them on the course it was issued for.\n\nAn invited professor (any staff account that has never set a password)\naccepts the terms here, as a signup does: with self-serve signup closed\nthis is the only place they can. The check runs before the invite is\nconsumed, so a refusal leaves the link usable. Students, and staff\nresetting a password they already set, are unchanged.",
+        "operationId": "auth_invite_redeem_auth_invite_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRedeemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Invite Redeem"
+      }
+    },
+    "/auth/join": {
+      "post": {
+        "description": "Create (or finish setting up) a student account from a course sign-up\nlink, enrol it on the course, and sign the student in.\n\n- A new email: the account is created in the course's workspace, with the\n  same student id a roster add would give it (derive_student_id).\n- Any email that already has an account is refused: one with a password\n  (sign in instead), one the teacher added that has never set a password\n  (use the personal invite link), and a teacher's or another workspace's.\n  The link only ever sets the password on an account it just created.\n\nThe student must tick the consent box; nothing is created without it.\nFailures count against a per-IP and per-email budget like invite\nredemption; successes do not, so a class on one school network is not\nthrottled by its own sign-ups.",
+        "operationId": "auth_join_auth_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join"
+      }
+    },
+    "/auth/join/info": {
+      "post": {
+        "description": "What the sign-up screen shows before anyone types: the course and\nits teacher. One answer for every link that cannot be used.",
+        "operationId": "auth_join_info_auth_join_info_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join Info"
       }
     },
     "/auth/login": {
@@ -6059,6 +6267,127 @@
         "summary": "Bluebook Update Course"
       }
     },
+    "/bluebook/courses/{course_id}/class-code": {
+      "get": {
+        "operationId": "join_settings_bluebook_courses__course_id__class_code_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Settings"
+      },
+      "put": {
+        "description": "Turn the class code on or off, set the domain limit and the approval\nsetting. The first save gives the course its code.",
+        "operationId": "update_join_settings_bluebook_courses__course_id__class_code_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Join Settings"
+      }
+    },
+    "/bluebook/courses/{course_id}/class-code/reset": {
+      "post": {
+        "description": "Replace the code. The old code and every copy of the old link stop\nworking at once; students already on the course are unaffected.",
+        "operationId": "reset_join_code_bluebook_courses__course_id__class_code_reset_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Join Code"
+      }
+    },
     "/bluebook/courses/{course_id}/invites/reissue-pending": {
       "post": {
         "description": "Fresh links for every student on the course who has not set a\npassword yet. Links are stored hashed, so an earlier link can never be\nshown again; this replaces them all in one go.",
@@ -6114,9 +6443,10 @@
         "summary": "Roster Reissue Pending"
       }
     },
-    "/bluebook/courses/{course_id}/join": {
-      "get": {
-        "operationId": "join_settings_bluebook_courses__course_id__join_get",
+    "/bluebook/courses/{course_id}/join-link": {
+      "delete": {
+        "description": "Turn the sign-up link off. Accounts already made with it are unaffected.",
+        "operationId": "join_link_disable_bluebook_courses__course_id__join_link_delete",
         "parameters": [
           {
             "in": "path",
@@ -6148,11 +6478,11 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Join Settings"
+        "summary": "Join Link Disable"
       },
-      "put": {
-        "description": "Turn joining on or off, set the domain limit and the approval\nsetting. The first save gives the course its code.",
-        "operationId": "update_join_settings_bluebook_courses__course_id__join_put",
+      "get": {
+        "description": "The course's sign-up link, if it is on. Off until the teacher turns it on.",
+        "operationId": "join_link_get_bluebook_courses__course_id__join_link_get",
         "parameters": [
           {
             "in": "path",
@@ -6164,16 +6494,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JoinSettingsRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "content": {
@@ -6194,7 +6514,81 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Join Settings"
+        "summary": "Join Link Get"
+      },
+      "post": {
+        "description": "Turn the sign-up link on. Keeps a link that is already on.",
+        "operationId": "join_link_enable_bluebook_courses__course_id__join_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Enable"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link/regenerate": {
+      "post": {
+        "description": "Replace the sign-up link. The old link stops working at once;\naccounts already made with it are unaffected.",
+        "operationId": "join_link_regenerate_bluebook_courses__course_id__join_link_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Regenerate"
       }
     },
     "/bluebook/courses/{course_id}/join-requests/approve-all": {
@@ -6325,44 +6719,6 @@
           }
         },
         "summary": "Approve Join Request"
-      }
-    },
-    "/bluebook/courses/{course_id}/join/reset": {
-      "post": {
-        "description": "Replace the code. The old code and every copy of the old link stop\nworking at once; students already on the course are unaffected.",
-        "operationId": "reset_join_code_bluebook_courses__course_id__join_reset_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "course_id",
-            "required": true,
-            "schema": {
-              "title": "Course Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Reset Join Code"
       }
     },
     "/bluebook/courses/{course_id}/students": {
@@ -7238,6 +7594,66 @@
         "summary": "Me"
       }
     },
+    "/bluebook/me/display": {
+      "get": {
+        "description": "The signed-in account's own text font and size, or null (defaults).",
+        "operationId": "get_display_prefs_bluebook_me_display_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Display Prefs"
+      },
+      "put": {
+        "description": "Save the signed-in account's text font and size. Only known values are kept.",
+        "operationId": "put_display_prefs_bluebook_me_display_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Display Prefs"
+      }
+    },
     "/bluebook/me/exams": {
       "get": {
         "operationId": "my_exams_bluebook_me_exams_get",
@@ -7375,6 +7791,43 @@
           }
         },
         "summary": "My Exam Start"
+      }
+    },
+    "/bluebook/me/join": {
+      "post": {
+        "description": "A signed-in student opens a course sign-up link: join that course.\nOnly a course in the student's own workspace, and only with an account\n(a launch-link session has none).",
+        "operationId": "me_join_bluebook_me_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Me Join"
       }
     },
     "/bluebook/me/location": {
@@ -7702,6 +8155,44 @@
           }
         },
         "summary": "Decline Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/unapprove": {
+      "post": {
+        "description": "Undo an approval: take the paper back out of the student's baseline\nand leave it waiting for approval again. Safe to repeat: a paper that is\nalready pending stays pending and nothing is removed.",
+        "operationId": "unapprove_shared_paper_bluebook_past_papers__paper_id__unapprove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unapprove Shared Paper"
       }
     },
     "/bluebook/phone-park/beat": {
@@ -8675,6 +9166,41 @@
           }
         },
         "summary": "List Students"
+      },
+      "post": {
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.\n\nThe open fictional demo (no sign-in, never a real deploy) may add a\nwriter anonymously, into the demo tenant, as it may use its other write\nroutes; on a real deploy only a signed-in staff account can.\n\n``set_display_name`` logs and swallows a write failure, so the name is\nread back: a writer whose name did not save is erased again and the\ncaller gets a 503, never a 201 for a nameless writer.",
+        "operationId": "create_writer_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Writer"
       }
     },
     "/students/{student_id}": {
@@ -9013,6 +9539,56 @@
           }
         },
         "summary": "Advance Formation"
+      }
+    },
+    "/students/{student_id}/past-paper-examples": {
+      "get": {
+        "description": "ADR-013, staff only: real sentences from this student's past papers that\nshow one habit and the family of habits around it. Read-only; changes no\nscore. Off unless EVIDENCE_PASSAGES_ENABLED=1.",
+        "operationId": "past_paper_examples_students__student_id__past_paper_examples_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "habit",
+            "required": false,
+            "schema": {
+              "default": "mean_sentence_length",
+              "title": "Habit",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastPaperExamplesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Past Paper Examples"
       }
     },
     "/students/{student_id}/readiness": {

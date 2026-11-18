@@ -1,10 +1,11 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, fontBody } from './components.jsx';
+import { BB, BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
+import { InstructionsButton } from './instructions.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -37,7 +38,7 @@ const legalLink = { color: BB.gold };
 
 export function LegalLinks() {
   return (
-    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: 15, color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade }}>
       <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>Terms</a>
       {' · '}
       <a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>Privacy</a>
@@ -95,7 +96,7 @@ export function SignupScreen({ onNavigate }) {
   return (
     <AuthShell title="Create a free workspace" onBack={() => onNavigate('landing')}
       footer={<>
-        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
           Already have an account? <LinkBtn onClick={() => onNavigate('login')}>Sign in</LinkBtn>
         </p>
         <LegalLinks />
@@ -228,7 +229,7 @@ export function InviteScreen({ onNavigate }) {
 
   const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
   const signInLine = (
-    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
       Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
     </p>
   );
@@ -237,7 +238,7 @@ export function InviteScreen({ onNavigate }) {
     return (
       <AuthShell title={title} footer={<LegalLinks />}>
         <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{token ? (error || INVITE_LINK_USED) : INVITE_LINK_MISSING}</p>
-        <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: 17 }}>Go to sign in</BtnPrimary>
+        <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>Go to sign in</BtnPrimary>
         <p className="bb-hint" style={{ marginTop: 16 }}>
           {kind === 'student'
             ? 'Forgot your password? Use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.'
@@ -259,7 +260,7 @@ export function InviteScreen({ onNavigate }) {
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
           : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
@@ -279,12 +280,14 @@ export function InviteScreen({ onNavigate }) {
   );
 }
 
-// ─── Join a course by link or code ───────────────────────────────────────────
-// A course's join link is /bluebook/?join=<code> (original/routers/
-// course_join.py); the sign-in page's "join with a class code" opens this
-// screen without one, and the student types it.
-export function joinCodeFromUrl(search) {
-  try { return new URLSearchParams(search || '').get('join') || ''; } catch (e) { return ''; }
+// ─── Course sign-up link (?join=): make your own account ─────────────────────
+// A teacher can turn on one forwardable link per course. Anyone who opens it
+// creates their own student account here (name, email, password, and the
+// student notice) and lands on that course. It never sets a password on an
+// account that already has one: that person signs in and opens the link again.
+// An email the teacher already added uses its personal invite link instead.
+function joinTokenFromUrl() {
+  try { return new URLSearchParams(window.location.search).get('join') || ''; } catch (e) { return ''; }
 }
 
 function clearJoinFromUrl() {
@@ -295,19 +298,160 @@ function clearJoinFromUrl() {
   } catch (e) {}
 }
 
+export const JOIN_LINK_MISSING = 'This sign-up link is incomplete, so it cannot be used. Please open the whole link your teacher sent, or ask them for it again.';
+
+export function JoinScreen({ onNavigate }) {
+  const [token] = useState(joinTokenFromUrl);
+  const [info, setInfo] = useState(null);
+  const [dead, setDead] = useState(token ? '' : JOIN_LINK_MISSING);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  // The email already has an account: sign in, then open the link again.
+  const [hasAccount, setHasAccount] = useState(false);
+  const signedInStudent = BB_API.isStudentAccount();
+  const staffHere = !signedInStudent && BB_API.isAuthed();
+
+  useEffect(() => {
+    if (!token) return;
+    BB_API.joinInfo(token).then(setInfo).catch(err => setDead(err.message || JOIN_LINK_MISSING));
+  }, []);
+
+  function toSignIn() { clearJoinFromUrl(); onNavigate('login'); }
+
+  async function finish(data) {
+    clearJoinFromUrl();
+    await resumeOrHome(onNavigate, homeFor(data || { role: 'student' }), { openExam: openStudentExam });
+  }
+
+  async function joinSignedIn() {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await BB_API.meJoin(token); await finish(); }
+    catch (err) { setError(err.message || 'Could not join this course.'); setBusy(false); }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    if (!name.trim()) { setError('Please enter your name.'); return; }
+    const problem = passwordProblem(pw, confirm);
+    if (problem) { setError(problem); return; }
+    if (!agree) { setError('Please tick the box to say you have read the student notice and accept the terms.'); return; }
+    setError(''); setHasAccount(false);
+    setBusy(true);
+    try {
+      const data = await BB_API.joinSignup(token, name.trim(), email.trim(), pw, true);
+      await finish(data);
+    } catch (err) {
+      // Only an account with a password can sign in; an invited one uses its own invite link.
+      if (err.status === 409 && /sign in/i.test(err.message || '')) setHasAccount(true);
+      if (err.status === 400) setDead(err.message);
+      setError(err.message || 'Could not create your account.');
+      setBusy(false);
+    }
+  }
+
+  const courseLine = info
+    ? `${info.course_name || 'this course'}${info.course_code ? ` (${info.course_code})` : ''}${info.teacher_name ? `, with ${info.teacher_name}` : ''}`
+    : '';
+
+  if (dead) {
+    return (
+      <AuthShell title="Join a course" footer={<LegalLinks />}>
+        <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{dead}</p>
+        <BtnPrimary full onClick={toSignIn} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>Go to sign in</BtnPrimary>
+      </AuthShell>
+    );
+  }
+  if (!info) {
+    return <AuthShell title="Join a course" footer={<LegalLinks />}><p className="bb-hint">Opening the sign-up link…</p></AuthShell>;
+  }
+
+  if (signedInStudent) {
+    return (
+      <AuthShell title="Join a course" footer={<LegalLinks />}>
+        <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 12px', lineHeight: 1.55 }}>{courseLine}</p>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+          You are signed in as {BB_API.identity().email || 'a student'}. Join this course with that account?
+        </p>
+        <ErrorText>{error}</ErrorText>
+        <BtnPrimary full onClick={joinSignedIn} disabled={busy} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>{busy ? 'Joining…' : 'Join this course'}</BtnPrimary>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="Join a course" footer={<>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+        Already have an account? <LinkBtn onClick={toSignIn}>Sign in</LinkBtn>, then open this link again.
+      </p>
+      <LegalLinks />
+    </>}>
+      {staffHere && (
+        <p role="note" data-testid="join-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
+          This browser is signed in as {BB_API.identity().email || 'a teacher'}. Creating a student account here signs that account out, in every tab.
+          To try the student side yourself, open this link in a private (incognito) window or a different browser.
+        </p>
+      )}
+      <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 8px', lineHeight: 1.55 }}>{courseLine}</p>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+        Create your Collections account to join this course. You will use your email and password to sign in from now on.
+        Please read the student notice first: it says what Collections keeps and who sees your work.
+      </p>
+      <form onSubmit={submit}>
+        <Field id="bbJoinName" label="Your name" value={name} onChange={setName} autoComplete="name" />
+        <Field id="bbJoinEmail" label="Email" type="email" value={email} onChange={setEmail}
+          placeholder="you@school.edu" autoComplete="email" />
+        <Field id="bbJoinPass" label="Password" type="password" value={pw} onChange={setPw}
+          autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
+        <Field id="bbJoinConfirm" label="Confirm password" type="password" value={confirm}
+          onChange={setConfirm} autoComplete="new-password" />
+        <TermsCheckbox id="bbJoinTerms" checked={agree} onChange={setAgree} student />
+        <ErrorText>{error}</ErrorText>
+        {hasAccount && (
+          <BtnPrimary full onClick={toSignIn} style={{ padding: '12px 0', fontSize: '1rem', marginBottom: 12 }}>Go to sign in</BtnPrimary>
+        )}
+        <SubmitButton busy={busy} busyLabel="Creating…">Create account and join</SubmitButton>
+      </form>
+    </AuthShell>
+  );
+}
+
+// ─── Join a course by class code ─────────────────────────────────────────────
+// A course's class code link is /bluebook/?class=<code> (original/routers/
+// course_join.py); the sign-in page's "join with a class code" opens this
+// screen without one, and the student types it. A course sign-up link
+// (?join=, JoinScreen above) is a separate way in and is unchanged.
+export function classCodeFromUrl(search) {
+  try { return new URLSearchParams(search || '').get('class') || ''; } catch (e) { return ''; }
+}
+
+function clearClassCodeFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('class');
+    window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+  } catch (e) {}
+}
+
 // What the screen says about a course, before the student types anything.
-export function joinIntro(course) {
+export function classCodeIntro(course) {
   const label = course.course_code ? `${course.course_name} (${course.course_code})` : course.course_name;
   return `Create your Original Collections account to join ${label}. `
     + 'Already have a Collections account? Use the same email and the password you already have.';
 }
-export const JOIN_APPROVAL_NOTE = 'Your teacher approves each new student. You can sign in straight away, '
+export const CLASS_CODE_APPROVAL_NOTE = 'Your teacher approves each new student. You can sign in straight away, '
   + 'and the course appears here once you are approved.';
 
-export function JoinScreen({ onNavigate }) {
-  const [code, setCode] = useState(() => joinCodeFromUrl(window.location.search));
+export function ClassCodeScreen({ onNavigate }) {
+  const [code, setCode] = useState(() => classCodeFromUrl(window.location.search));
   const [course, setCourse] = useState(null);   // what the code names, once checked
-  const [checking, setChecking] = useState(() => !!joinCodeFromUrl(window.location.search));
+  const [checking, setChecking] = useState(() => !!classCodeFromUrl(window.location.search));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -318,7 +462,7 @@ export function JoinScreen({ onNavigate }) {
 
   async function check(c) {
     setChecking(true); setError('');
-    try { setCourse(await BB_API.joinInfo(String(c || '').trim())); }
+    try { setCourse(await BB_API.classCodeInfo(String(c || '').trim())); }
     catch (err) { setCourse(null); setError(err.message || 'This join link or code isn’t working. Ask your teacher for a new link.'); }
     setChecking(false);
   }
@@ -338,8 +482,8 @@ export function JoinScreen({ onNavigate }) {
     setError('');
     setBusy(true);
     try {
-      await BB_API.joinCourse(course.code, name.trim(), email.trim(), pw, true);
-      clearJoinFromUrl();
+      await BB_API.classCodeJoin(course.code, name.trim(), email.trim(), pw, true);
+      clearClassCodeFromUrl();
       onNavigate('student-home');
     } catch (err) {
       setError(err.message || 'We could not add you to the course. Please try again.');
@@ -350,7 +494,7 @@ export function JoinScreen({ onNavigate }) {
   const footer = (
     <>
       <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
-        Already joined? <LinkBtn onClick={() => { clearJoinFromUrl(); onNavigate('login'); }}>Sign in</LinkBtn>
+        Already joined? <LinkBtn onClick={() => { clearClassCodeFromUrl(); onNavigate('login'); }}>Sign in</LinkBtn>
       </p>
       <LegalLinks />
     </>
@@ -358,12 +502,12 @@ export function JoinScreen({ onNavigate }) {
 
   if (!course) {
     return (
-      <AuthShell title="Join a course" onBack={() => { clearJoinFromUrl(); onNavigate('login'); }} footer={footer}>
+      <AuthShell title="Join a course" onBack={() => { clearClassCodeFromUrl(); onNavigate('login'); }} footer={footer}>
         <form onSubmit={e => { e.preventDefault(); if (!checking && code.trim()) check(code); }}>
           <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
             Enter the class code your teacher gave you. It has six letters and numbers.
           </p>
-          <Field id="bbJoinCode" label="Class code" value={code} onChange={setCode} placeholder="K7QW3X"
+          <Field id="bbClassCodeEntry" label="Class code" value={code} onChange={setCode} placeholder="K7QW3X"
             autoComplete="off" autoCapitalize="characters" spellCheck={false} />
           <ErrorText>{error}</ErrorText>
           <SubmitButton busy={checking} busyLabel="Checking…">Continue</SubmitButton>
@@ -378,22 +522,22 @@ export function JoinScreen({ onNavigate }) {
   return (
     <AuthShell title={`Join ${course.course_name}`} footer={footer}>
       {staffHere && (
-        <p role="note" data-testid="join-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
+        <p role="note" data-testid="class-code-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
           This browser is signed in as {BB_API.identity().email || 'a teacher'}. Joining as a student signs that account out here, in every tab.
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 12px', lineHeight: 1.55 }}>{joinIntro(course)}</p>
-      {course.require_approval && <p className="bb-hint" style={{ margin: '0 0 16px' }}>{JOIN_APPROVAL_NOTE}</p>}
+      <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 12px', lineHeight: 1.55 }}>{classCodeIntro(course)}</p>
+      {course.require_approval && <p className="bb-hint" style={{ margin: '0 0 16px' }}>{CLASS_CODE_APPROVAL_NOTE}</p>}
       <form onSubmit={submit}>
-        <Field id="bbJoinName" label="Your name" value={name} onChange={setName} autoComplete="name" />
-        <Field id="bbJoinEmail" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email"
+        <Field id="bbClassCodeName" label="Your name" value={name} onChange={setName} autoComplete="name" />
+        <Field id="bbClassCodeEmail" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email"
           placeholder={course.allowed_domain ? `you@${course.allowed_domain}` : 'you@school.edu'}
           hint={course.allowed_domain ? `Use your @${course.allowed_domain} email address.` : undefined} />
-        <Field id="bbJoinPass" label="Password" type="password" value={pw} onChange={setPw}
+        <Field id="bbClassCodePass" label="Password" type="password" value={pw} onChange={setPw}
           autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters. If you already have an account, your current password.`} />
-        <Field id="bbJoinConfirm" label="Confirm password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
-        <TermsCheckbox id="bbJoinTerms" checked={agree} onChange={setAgree} student />
+        <Field id="bbClassCodeConfirm" label="Confirm password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+        <TermsCheckbox id="bbClassCodeTerms" checked={agree} onChange={setAgree} student />
         <ErrorText>{error}</ErrorText>
         <SubmitButton busy={busy} busyLabel="Joining…">Join course</SubmitButton>
       </form>
@@ -479,11 +623,23 @@ export function PasswordForm() {
   );
 }
 
+// Settings › Text: the same panel as the Aa button, kept on this account.
+export function TextSettingsPanel() {
+  return (
+    <Panel>
+      <h2>Text</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>Choose a font and text size. Every page changes at once, on this device and wherever you sign in. Your writing itself is never changed.</p>
+      <TextSettingsButton />
+    </Panel>
+  );
+}
+
 export function AccountScreen() {
   const id = BB_API.identity();
   return (
     <Page eyebrow="Account" title={id.name || 'Your account'} meta={id.email}>
       <Panel><h2>Change password</h2><PasswordForm /></Panel>
+      <TextSettingsPanel />
     </Page>
   );
 }
@@ -515,6 +671,8 @@ export function StudentShell({ onNavigate, active, children }) {
         <div className="tabs">
           {tab('student-home', 'My exams')}
           {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
+          <InstructionsButton who="student" />
+          <TextSettingsButton className="bb-text-btn" />
           {tab('student-account', 'Account')}
           <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
         </div>
@@ -809,6 +967,7 @@ export function StudentAccountScreen({ onNavigate }) {
     <StudentShell onNavigate={onNavigate} active="student-account">
       <Page eyebrow="Account" title={id.name || 'Your account'} meta={id.email}>
         <Panel><h2>Change password</h2><PasswordForm /></Panel>
+        <TextSettingsPanel />
         <p className="bb-hint" style={{ marginTop: 20 }}>Forgot your password? Sign out and use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.</p>
       </Page>
     </StudentShell>

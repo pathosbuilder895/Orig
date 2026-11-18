@@ -1,14 +1,19 @@
-"""Course join links (2026-10): students join a course with a link or a short code.
+"""Course class codes (2026-10): students join a course with a short code.
 
-A teacher turns joining on for a course and shares its link
-(``/bluebook/?join=<code>``) or just the code. A student who opens it gives a
-name, email and password and lands in the course, or, when the teacher
-requires approval, waits as Pending until the teacher approves them.
+A teacher turns the class code on for a course and shares the code, or its
+link (``/bluebook/?class=<code>``). A student who opens it gives a name,
+email and password and lands in the course, or, when the teacher requires
+approval, waits as Pending until the teacher approves them. The teacher may
+also limit joining to one email domain.
+
+This sits beside the course sign-up link (#324: ``/bluebook/?join=<token>``,
+``/auth/join``, table ``bluebook_join_links``), which is unchanged; the two
+have their own routes, tables and screens, and either can be on.
 
 Teacher routes (staff, own course) read and change the settings, reset the
 code (which kills the old link: the link is the code), and approve or
-decline waiting students. The public routes under ``/auth/join/`` need no
-sign-in, like invite redemption.
+decline waiting students. The public routes under ``/auth/class-code/`` need
+no sign-in, like invite redemption.
 
 What the public routes never say is whether an email already has an
 account. A new email and a teacher's not-yet-activated roster row both
@@ -47,8 +52,9 @@ router = APIRouter()
 # ambiguous. 31 symbols, 6 long: about 887 million codes.
 JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 JOIN_CODE_LENGTH = 6
-# The Collections app reads ?join= and shows its join screen.
-JOIN_PATH = "/bluebook/?join="
+# The Collections app reads ?class= and shows its class code screen (the
+# course sign-up link uses ?join=).
+JOIN_PATH = "/bluebook/?class="
 # A leaked link cannot fill a course's approval queue without bound.
 MAX_PENDING_PER_COURSE = 200
 # Every join attempt, success or not, counts against this per-client budget;
@@ -59,7 +65,7 @@ JOIN_ATTEMPTS_PER_WINDOW = _LOGIN_MAX_ATTEMPTS * 6
 _CODE_ATTEMPTS = 8
 
 LINK_NOT_WORKING = (
-    "This join link or code isn't working. Check the code, or ask your teacher for a new link."
+    "This class code or its link isn't working. Check the code, or ask your teacher for a new one."
 )
 NO_MATCH = (
     "We couldn't add you with that email and password. If you already use "
@@ -125,16 +131,16 @@ def _save(course: dict, rec: dict, fresh_code: bool) -> dict:
 # ── Teacher: settings ─────────────────────────────────────────────────────────
 
 
-@router.get("/bluebook/courses/{course_id}/join")
+@router.get("/bluebook/courses/{course_id}/class-code")
 def join_settings(course_id: str, request: Request):
     _require_staff(request)
     _owned_course(course_id, request)
     return _settings_view(_repo().get_course_join(course_id))
 
 
-@router.put("/bluebook/courses/{course_id}/join")
+@router.put("/bluebook/courses/{course_id}/class-code")
 def update_join_settings(course_id: str, body: JoinSettingsRequest, request: Request):
-    """Turn joining on or off, set the domain limit and the approval
+    """Turn the class code on or off, set the domain limit and the approval
     setting. The first save gives the course its code."""
     staff = _require_staff(request)
     course = _owned_course(course_id, request)
@@ -152,7 +158,7 @@ def update_join_settings(course_id: str, body: JoinSettingsRequest, request: Req
         rec["require_approval"] = body.require_approval
     saved = _save(course, rec, fresh_code=False)
     _repo().log_audit(
-        action="bluebook_join_settings",
+        action="bluebook_class_code_settings",
         tenant_id=course["tenant_id"],
         actor=staff.user_id,
         details={
@@ -165,7 +171,7 @@ def update_join_settings(course_id: str, body: JoinSettingsRequest, request: Req
     return _settings_view(saved)
 
 
-@router.post("/bluebook/courses/{course_id}/join/reset")
+@router.post("/bluebook/courses/{course_id}/class-code/reset")
 def reset_join_code(course_id: str, request: Request):
     """Replace the code. The old code and every copy of the old link stop
     working at once; students already on the course are unaffected."""
@@ -178,7 +184,7 @@ def reset_join_code(course_id: str, request: Request):
     }
     saved = _save(course, rec, fresh_code=True)
     _repo().log_audit(
-        action="bluebook_join_reset",
+        action="bluebook_class_code_reset",
         tenant_id=course["tenant_id"],
         actor=staff.user_id,
         details={"course_id": course_id},
@@ -323,7 +329,7 @@ def _dead_link(request: Request, email: str = "") -> HTTPException:
     return HTTPException(status_code=404, detail=LINK_NOT_WORKING)
 
 
-@router.get("/auth/join/{code}")
+@router.get("/auth/class-code/{code}")
 def join_lookup(code: str, request: Request):
     """What the join screen shows before the student types anything: the
     course, and the rules the teacher set. Unknown codes count as failures."""
@@ -342,7 +348,7 @@ def join_lookup(code: str, request: Request):
     }
 
 
-@router.post("/auth/join/{code}")
+@router.post("/auth/class-code/{code}")
 def join_course(code: str, body: JoinCourseRequest, request: Request):
     """Join a course: create the account (or reuse the teacher's roster row
     for this email, or an existing account with its own password), then
@@ -436,7 +442,7 @@ def join_course(code: str, body: JoinCourseRequest, request: Request):
         _enrol(rec["course_id"], user, tenant)
     status = "pending" if pending else "enrolled"
     _repo().log_audit(
-        action="bluebook_join",
+        action="bluebook_class_code_join",
         student_id=sid,
         tenant_id=tenant,
         actor=user["email"],

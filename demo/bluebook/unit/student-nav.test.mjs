@@ -41,7 +41,7 @@ test('a student whose workspace holds Original is not offered My voice or My wor
   assert.equal(SHOW_STUDENT_ORIGINAL_PAGES, false);
   products(['bluebook', 'original']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Instructions', 'Close', 'Account', 'Sign out']);
   assert.deepEqual(links(html), []);
   assert.doesNotMatch(html, /My voice|My work|original\//);
 });
@@ -49,7 +49,7 @@ test('a student whose workspace holds Original is not offered My voice or My wor
 test('a Bluebook-only workspace keeps the shell it always had', () => {
   products(['bluebook']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), ['Collections', 'My exams', 'Instructions', 'Close', 'Account', 'Sign out']);
   assert.deepEqual(links(html), []);
 });
 

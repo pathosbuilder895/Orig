@@ -1,21 +1,22 @@
-"""bluebook_course_joins and bluebook_join_requests: students join a course by link
+"""bluebook_course_joins and bluebook_join_requests: students join a course by class code
 
 Additive only: two new tables, nothing existing is altered. Current invites,
-rosters and logins are untouched.
+rosters, logins and the course sign-up links (``bluebook_join_links``,
+b8f4d2a6c9e1) are untouched.
 
 ``bluebook_course_joins`` holds one row per course whose teacher has turned
-on its join link: the short join code (unique across every course, since the
-link carries no tenant), whether joining is on, an optional email domain
-limit, and whether new joiners wait for approval.
+on its class code: the short code (unique across every course, since its
+link carries no tenant), whether it is on, an optional email domain limit,
+and whether new joiners wait for approval.
 
-``bluebook_join_requests`` holds a student who joined by link while the
+``bluebook_join_requests`` holds a student who joined by class code while the
 course required approval and has not been approved yet. They are kept out of
 ``bluebook_enrollments`` on purpose, so nothing that reads the roster (exams,
 the live view, the student-count cap) sees them until the teacher approves.
 Deleted with the student's data on erasure and with the course.
 
 Revision ID: b9d3f1a7c5e2
-Revises: a7e3c5d9f2b4
+Revises: a1d5f3c7e9b2
 Create Date: 2026-10-26
 """
 
@@ -26,7 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "b9d3f1a7c5e2"
-down_revision: str | None = "a7e3c5d9f2b4"
+down_revision: str | None = "a1d5f3c7e9b2"
 branch_labels = None
 depends_on = None
 

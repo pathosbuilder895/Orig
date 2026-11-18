@@ -1,7 +1,8 @@
 /**
- * course-join.spec.mjs, the two new ways onto a course roster, end to end
- * through the real UI: a Canvas gradebook export uploaded as a class list,
- * and a student joining by the course's join link with approval on.
+ * course-join.spec.mjs, two ways onto a course roster, end to end through
+ * the real UI: a Canvas gradebook export uploaded as a class list, and a
+ * student joining by the course's class code link (?class=) with approval
+ * on. The course sign-up link (?join=) has its own spec, join-link.spec.mjs.
  *
  * Server-side rules (codes, reset, domain limit, approval, duplicate
  * emails, rate limits) are pinned in tests/test_course_join.py; the parser
@@ -14,8 +15,8 @@ import { test, expect } from '@playwright/test'
 
 const uid = () => `${process.pid}${Date.now()}${Math.floor(Math.random() * 1e6)}`
 
-test.describe('Course join link and class list upload', () => {
-  test('teacher uploads a Canvas export and opens a join link; a student joins and is approved', async ({ browser }) => {
+test.describe('Class code and class list upload', () => {
+  test('teacher uploads a Canvas export and turns on a class code; a student joins and is approved', async ({ browser }) => {
     test.setTimeout(120_000)
     const id = uid()
     const teacherEmail = `teacher-${id}@e2e.test`
@@ -71,16 +72,18 @@ test.describe('Course join link and class list upload', () => {
     // The upload panel closes, and nothing of the file is shown any more.
     await expect(teacher.getByTestId('class-list-file')).toHaveCount(0)
 
-    // ── Teacher: turn the join link on, with approval ────────────────────
-    await teacher.getByTestId('join-enabled').click()
-    const codeBox = teacher.getByTestId('join-code')
+    // ── Teacher: turn the class code on, with approval ───────────────────
+    // The sign-up link panel (#324) sits above it and stays off.
+    await expect(teacher.getByRole('heading', { name: 'Sign-up link' })).toBeVisible()
+    await teacher.getByTestId('class-code-enabled').click()
+    const codeBox = teacher.getByTestId('class-code')
     await expect(codeBox).toBeVisible({ timeout: 10_000 })
     const code = (await codeBox.textContent()).trim()
     expect(code).toMatch(/^[A-HJKMNP-Z2-9]{6}$/)
-    const joinUrl = await teacher.getByLabel('Join link').inputValue()
-    expect(joinUrl).toContain(`/bluebook/?join=${code}`)
-    await teacher.getByTestId('join-approval').click()
-    await expect(teacher.getByTestId('join-approval')).toBeChecked({ timeout: 10_000 })
+    const joinUrl = await teacher.getByLabel('Class code link').inputValue()
+    expect(joinUrl).toContain(`/bluebook/?class=${code}`)
+    await teacher.getByTestId('class-code-approval').click()
+    await expect(teacher.getByTestId('class-code-approval')).toBeChecked({ timeout: 10_000 })
 
     // ── Student: open the link, join, wait for approval ──────────────────
     const sctx = await browser.newContext()
@@ -88,15 +91,15 @@ test.describe('Course join link and class list upload', () => {
     await student.goto(joinUrl)
     await expect(student.getByRole('heading', { name: 'Join Introduction to Ethics' })).toBeVisible({ timeout: 10_000 })
     await expect(student.getByText(/Create your Original Collections account/)).toBeVisible()
-    await student.locator('#bbJoinName').fill('Mary Shelley')
-    await student.locator('#bbJoinEmail').fill(studentEmail)
-    await student.locator('#bbJoinPass').fill('e2e-student-pass-1')
-    await student.locator('#bbJoinConfirm').fill('e2e-student-pass-1')
-    await student.locator('#bbJoinTerms').check()
+    await student.locator('#bbClassCodeName').fill('Mary Shelley')
+    await student.locator('#bbClassCodeEmail').fill(studentEmail)
+    await student.locator('#bbClassCodePass').fill('e2e-student-pass-1')
+    await student.locator('#bbClassCodeConfirm').fill('e2e-student-pass-1')
+    await student.locator('#bbClassCodeTerms').check()
     await student.getByRole('button', { name: 'Join course' }).click()
     await expect(student.getByText('Waiting for your teacher to approve you for Introduction to Ethics.', { exact: false })).toBeVisible({ timeout: 10_000 })
-    // No join code is left in the address bar.
-    expect(new URL(student.url()).searchParams.has('join')).toBe(false)
+    // No class code is left in the address bar.
+    expect(new URL(student.url()).searchParams.has('class')).toBe(false)
 
     // ── Teacher: the joiner shows as Pending; approve them ───────────────
     await teacher.getByRole('button', { name: '← Courses' }).click()
@@ -121,6 +124,6 @@ test.describe('Course join link and class list upload', () => {
     await page.getByTestId('join-with-code').click()
     await page.getByLabel('Class code').fill('ZZZZZZ')
     await page.getByRole('button', { name: 'Continue' }).click()
-    await expect(page.getByText("This join link or code isn't working.", { exact: false })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText("This class code or its link isn't working.", { exact: false })).toBeVisible({ timeout: 10_000 })
   })
 })
