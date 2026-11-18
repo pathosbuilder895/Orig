@@ -206,7 +206,7 @@
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
         <div>
           <div class="greet-eyebrow" id="greet-name">Your workspace</div>
-          <div class="greet" id="greet">Hello,</div>
+          <div class="greet" id="greet">Hello.</div>
         </div>
         <button class="back-term" id="back-term">← Back to term view</button>
       </div>
@@ -299,8 +299,11 @@
     $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
     $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
     const h=new Date().getHours();
-    $('greet').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+',';
-    $('greet-name').textContent=sess.name||(sess.mode==='demo'?'Demo workspace':'Your workspace');
+    // The greeting carries the first name ("Good afternoon, Andrew.") or ends plainly
+    // ("Good afternoon."): never a comma with nothing after it.
+    const first=String(sess.name||'').trim().split(/\s+/)[0].replace(/[^\p{L}\p{M}'\u2019-]/gu,'');
+    $('greet').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+(first?', '+first+'.':'.');
+    $('greet-name').textContent=sess.mode==='demo'?'Demo workspace':'Your workspace';
   }
 
   // ── numbers ──

@@ -304,9 +304,11 @@
 
   @media (max-width:900px){
     body{padding:0;}
-    .frame{max-width:none;height:100vh;min-height:100vh;border-radius:0;border:none;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;overflow:visible;}
     .grid{grid-template-columns:1fr;}
-    .hero{height:auto;}
+    /* One page that scrolls, not two hidden inner panes (the card drew over the form). */
+    .left,.right,.right-scroll{overflow:visible;}
+    .right{min-height:0;}
     nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
   }
   /* ── live suite additions (writing-state.html) ── */
@@ -1167,10 +1169,12 @@
     }
     // `from` is the bar, row or chip a keyboard opened it from: focus moves into the panel, and back when it closes.
     // Before any analysis, a habit with past-paper examples opens its family instead (openPast).
-    function open(code,from){
+    // `how` is 'open' for a teacher's click or key (scrolls the card into view), 'auto' when the page
+    // opens past-paper examples by itself on load: that never scrolls the page away from its heading.
+    function open(code,from,how){
       if(!has(OF.byCode,code)) return;
       const fam=pastFamily(code);
-      if(fam){ openPast(code,fam,from,'open'); return; }
+      if(fam){ openPast(code,fam,from,how==='auto'?'auto':'open'); return; }
       openPlain(code,from);
     }
     function openPlain(code,from){
@@ -1615,7 +1619,9 @@
       pr.innerHTML=furthestLine();
     }
     bindHabitLinks(pr);
-    sure.innerHTML='Based on <b>'+esc(plural(n,'counted sample'))+'</b>'+(w?' ('+esc(w)+')':'')+(readyNow()?' · baseline rated '+rated('ready'):'')+'.'+esc(lowerWeightNote());
+    // A baseline of the student's own uploads only can be "Ready" by count; say what it rests on.
+    const ap=teacherApproved(), uploadsOnly=!!(ap&&ap.counted&&!ap.byYou&&ap.uploads===ap.counted);
+    sure.innerHTML='Based on <b>'+esc(plural(n,'counted sample'))+'</b>'+(w?' ('+esc(w)+')':'')+(readyNow()?(uploadsOnly?' · rated '+rated('ready')+' by count, but none of it is writing you approved':' · baseline rated '+rated('ready')):'')+'.'+esc(lowerWeightNote());
     sure.hidden=false;
     renderNumbers();
   }
@@ -1813,7 +1819,7 @@
     PP.families=d.families.filter(x=>isRecord(x)&&typeof x.name==='string'&&Array.isArray(x.habits))
       .map(x=>({name:x.name,habits:x.habits.filter(c=>typeof c==='string')}));
     PP.state='on';
-    if(!EVI.code()) EVI.open(PAST_FIRST);
+    if(!EVI.code()) EVI.open(PAST_FIRST,null,'auto');
   }
 
   async function loadStudent(){

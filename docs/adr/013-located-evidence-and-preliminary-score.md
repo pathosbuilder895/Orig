@@ -58,13 +58,13 @@ Andrew, 2026-10-25: "I want them to be able to see the other differences and sim
 
 **Option not taken: leave-one-out values for past papers.** Each past paper could get its own comparison values by running `compute_full_features(paper_i, other past papers)`. It is honest in principle, but not trivial: it needs every stored vector recomputed (and recomputed again whenever a past paper is added or removed, because each value depends on the others), it is undefined for one past paper and weak for two, a value against N-1 papers is not like-for-like with the scored paper's value against N, it costs N extra comparison runs per change, and the 7 dimensions would then need fresh calibration before they move scores. Exclusion is the safe default until that work is approved.
 
-## Finding (not fixed here; changes scores, needs Andrew)
+## Finding (fixed in #316, `23d5414a`, 2026-10-25; see `docs/calibration/quote_block_fix_2026-10-25.md`)
 
 `features/preprocess._DOUBLE_QUOTE_BLOCK` (`"[^"]{200,}"`) is meant to drop long block quotes but matches from one short quotation's closing mark to the next one's opening mark. Any paper with two short quotes more than 200 characters apart loses all the prose between them from measurement (demo: 121 words -> 7 measured; the Chesterton fixture: 125 of 1,441 words measured). This likely affects alpha calibration. The evidence layer now exposes it ("What Original measured"), but the fix belongs in a separate, approved, re-calibrated change.
 
 ## Deferred
 
-- The Conversation Packet (packet.html) does not show quotes yet; the side-by-side page does (items 15–21).
+- ~~The Conversation Packet (packet.html) does not show quotes yet.~~ It does since `9853dba3`.
 - Per-teacher/per-tenant toggle instead of env flags.
 - Locating more features (e.g., function-word or POS features) only where an exact count match can be proved.
 - Showing the engine's per-feature z-scores (the API does not return `sigma`), which would let the full list mark the |z| > 1 cut-off directly.
