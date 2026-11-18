@@ -210,7 +210,13 @@
     var whole = f.kind === 'whole_text';
     if (pos === 'none') return clean('There are no past papers to compare this with.', '');
     if (pos === 'within') {
-      return clean('This habit is in line with the past papers.' + (whole ? ' ' + WHOLE_TEXT_WORDS : ''), '');
+      // Original's top list takes habits far from the past papers' usual level
+      // (more than one standard deviation), which can still be inside the span
+      // from lowest to highest past paper. "In line" would contradict the list.
+      var lead = f.in_top_list
+        ? 'This paper sits inside the past papers\u2019 range here, but far from where they usually sit.'
+        : 'This habit is in line with the past papers.';
+      return clean(lead + (whole ? ' ' + WHOLE_TEXT_WORDS : ''), '');
     }
     var dir = pos === 'above' ? 'higher' : 'lower';
     var tail = (whole ? ' ' + WHOLE_TEXT_WORDS : '') + ' ' + CAUTION;
@@ -310,6 +316,75 @@
     return a.concat(b);
   }
 
+  // How this paper differs, in one plain line, for the 23 habits Original
+  // counts at places in the text: [higher, lower, none] in the habit's own
+  // words. Any other habit gets the generic line. Numbers are the plain ones
+  // the server sent (numbersOf), never a new measure.
+  var PHRASES = {
+    mean_sentence_length: ['writes longer sentences', 'writes shorter sentences'],
+    sentence_length_variance: ['varies its sentence lengths more', 'varies its sentence lengths less'],
+    passive_voice_ratio: ['has more passive sentences', 'has fewer passive sentences', 'has no passive sentences'],
+    modal_verb_ratio: ['uses more modal verbs (can, should, must)', 'uses fewer modal verbs (can, should, must)', 'uses no modal verbs (can, should, must)'],
+    discourse_marker_density: ['uses more linking words', 'uses fewer linking words', 'uses no linking words'],
+    additive_ratio: ['gives more of its linking words to adding ideas', 'gives fewer of its linking words to adding ideas', 'uses no linking words that add ideas'],
+    adversative_ratio: ['gives more of its linking words to contrast', 'gives fewer of its linking words to contrast', 'uses no linking words that contrast'],
+    causal_ratio: ['gives more of its linking words to cause and effect', 'gives fewer of its linking words to cause and effect', 'uses no linking words for cause and effect'],
+    temporal_ratio: ['gives more of its linking words to sequence', 'gives fewer of its linking words to sequence', 'uses no linking words for sequence'],
+    transition_density: ['uses more transition words', 'uses fewer transition words', 'uses no transition words'],
+    hedging_density: ['uses more softening words (perhaps, might, seems)', 'uses fewer softening words (perhaps, might, seems)', 'uses no softening words (perhaps, might, seems)'],
+    assertion_density: ['uses more confident-statement words (clearly, certainly)', 'uses fewer confident-statement words (clearly, certainly)', 'uses no confident-statement words (clearly, certainly)'],
+    claim_density: ['uses more claim markers (therefore, this shows)', 'uses fewer claim markers (therefore, this shows)', 'uses no claim markers (therefore, this shows)'],
+    question_ratio: ['asks more questions', 'asks fewer questions', 'asks no questions'],
+    first_person_ratio: ['uses I, me and my for more of its pronouns', 'uses I, me and my for fewer of its pronouns', 'uses no first-person pronouns'],
+    appeal_to_authority_density: ['uses more source phrases (according to, argues)', 'uses fewer source phrases (according to, argues)', 'uses no source phrases (according to, argues)'],
+    comma_rate: ['uses more commas', 'uses fewer commas', 'uses no commas'],
+    semicolon_colon_rate: ['uses more semicolons and colons', 'uses fewer semicolons and colons', 'uses no semicolons or colons'],
+    parenthetical_rate: ['uses more brackets', 'uses fewer brackets', 'uses no brackets'],
+    dash_rate: ['uses more dashes', 'uses fewer dashes', 'uses no dashes'],
+    quote_rate: ['uses more quotation marks', 'uses fewer quotation marks', 'uses no quotation marks'],
+    contraction_rate: ['uses more contractions', 'uses fewer contractions', 'uses no contractions'],
+    sentence_initial_conjunction_rate: ['starts more sentences with and, but or so', 'starts fewer sentences with and, but or so', 'starts no sentence with and, but or so'],
+  };
+  function differenceLine(f) {
+    if (!isActive(f)) return '';
+    var n = numbersOf(f);
+    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var nums = fmt(n.thisValue) + ' vs ' + (n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi)) + ' ' + n.unit;
+    var pos = position(f);
+    if (pos === 'none') return '';
+    // Which way, from the plain numbers when the server sent them (they are what
+    // the line shows), else the engine's own flag on its 0 to 1 scale.
+    var dir = n.plain ? (n.thisValue > n.hi ? 'above' : n.thisValue < n.lo ? 'below' : 'within') : pos;
+    if (dir === 'within') {
+      var where = f.in_top_list || pos !== 'within'
+        ? 'This paper sits inside the past papers\u2019 range, but far from where they usually sit: '
+        : 'This paper sits within the past papers\u2019 range: ';
+      return clean(where + nums + '.', '');
+    }
+    var up = dir === 'above';
+    var far = up ? (n.hi > 0 ? n.thisValue >= 2 * n.hi : n.thisValue > 0) : n.thisValue <= n.lo / 2;
+    var ph = PHRASES[f.code];
+    var line;
+    if (ph && !up && n.thisValue === 0 && ph[2]) line = 'This paper ' + ph[2] + ': ' + nums + '.';
+    else if (ph) {
+      var phrase = up ? ph[0] : ph[1];
+      if (far) phrase = phrase.replace(/\b(more|fewer|longer|shorter|less)\b/, 'far $1');
+      line = 'This paper ' + phrase + ': ' + nums + '.';
+    } else {
+      line = 'This paper is ' + (far ? 'far ' : '') + (up ? 'higher' : 'lower') + ' than the past papers on ' + habitName(f) + ': ' + nums + '.';
+    }
+    return clean(line, clean('This paper is ' + (up ? 'higher' : 'lower') + ' than the past papers: ' + nums + '.', ''));
+  }
+
+  // The line above a side's unmarked sentences: the server sends a side's
+  // longest sentences when that side never uses a habit the other side does.
+  function unmarkedLead(f, side) {
+    var what = String((f && f.what_is_marked) || '').trim();
+    var whose = side === 'this' ? 'This paper\u2019s longest sentences' : 'The past papers\u2019 longest sentences';
+    var article = /^[aeiou]/i.test(what) ? 'an ' : 'a ';
+    return clean(whose + (what ? ', none with ' + article + what : '') + ':', whose + ':');
+  }
+
   // A quote cut into the text before, the counted words and the text after.
   // The counted words are used only when they are exactly the slice of the
   // passage the offsets name; otherwise nothing is marked.
@@ -352,7 +427,18 @@
       }
     }
     var day = p ? dayOf(p.submitted_at) : '';
-    return paperName(label, papers) + (day ? SEP + day : '');
+    // A paper the server described but stored no date for says so; one it
+    // did not describe at all keeps the bare name.
+    return paperName(label, papers) + (day ? SEP + day : p ? SEP + 'date not recorded' : '');
+  }
+
+  // This paper's source: "This paper", its title when there is one, and the
+  // day it was analysed (the day it reached Original; a pasted paper carries
+  // no other date).
+  function thisSource(assignment, analysedAt) {
+    var title = String(assignment == null ? '' : assignment).trim();
+    var day = dayOf(analysedAt);
+    return ['This paper', title, day ? 'analysed ' + day : ''].filter(Boolean).join(SEP);
   }
 
   // A quote's source line: where it is from, its length, a short match spelled
@@ -372,7 +458,8 @@
     positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor, noticeFor: noticeFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
     NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf,
-    SEP: SEP, pastSource: pastSource, quoteSource: quoteSource,
+    SEP: SEP, pastSource: pastSource, quoteSource: quoteSource, thisSource: thisSource,
+    differenceLine: differenceLine, unmarkedLead: unmarkedLead, PHRASES: PHRASES,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.EvidenceView = API;

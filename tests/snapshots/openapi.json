@@ -1267,6 +1267,11 @@
             "default": "verified",
             "title": "Provenance",
             "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "title": "Submitted At",
+            "type": "string"
           }
         },
         "required": [
@@ -2435,6 +2440,11 @@
             "title": "Commit",
             "type": "string"
           },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
+          },
           "environment": {
             "default": "demo",
             "title": "Environment",
@@ -3382,6 +3392,11 @@
           "authenticated_count": {
             "title": "Authenticated Count",
             "type": "integer"
+          },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
           },
           "effective_sample_count": {
             "title": "Effective Sample Count",

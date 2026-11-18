@@ -212,11 +212,53 @@ test('noticeFor: a located measurement above or below the past range says which 
 });
 
 test('noticeFor: within the range, one plain sentence (plus the whole-text note when there is no sentence to quote)', () => {
-  const inside = feature({ engine_scale: { ...feature().engine_scale, outside_past_range: false } });
+  const inside = feature({ in_top_list: false, engine_scale: { ...feature().engine_scale, outside_past_range: false } });
   assert.equal(EV.noticeFor(inside, []), 'This habit is in line with the past papers.');
   const whole = { ...inside, kind: 'whole_text' };
   assert.equal(EV.noticeFor(whole, []),
     'This habit is in line with the past papers. It is measured across the whole text, so there is no single sentence to quote.');
+  // On Original's top list (far from the usual level) but inside the lowest-to-highest span: never "in line".
+  const listed = { ...inside, in_top_list: true };
+  assert.equal(EV.noticeFor(listed, []), 'This paper sits inside the past papers\u2019 range here, but far from where they usually sit.');
+  assert.match(EV.noticeFor({ ...listed, kind: 'whole_text' }, []), /far from where they usually sit\. It is measured across the whole text/);
+});
+
+test('differenceLine: how this paper differs, in plain words and the plain numbers', () => {
+  // The example the alpha asked for, word for word.
+  assert.equal(EV.differenceLine(feature()), 'This paper uses far fewer commas: 3.25 vs 8.01 to 8.23 per 100 words.');
+  const plain = (v) => feature({ plain: { ...feature().plain, this_paper: v } });
+  assert.equal(EV.differenceLine(plain(6)), 'This paper uses fewer commas: 6 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine(plain(0)), 'This paper uses no commas: 0 vs 8.01 to 8.23 per 100 words.');
+  const up = feature({ engine_scale: { ...feature().engine_scale, this_paper: 0.9, difference: 0.28 }, plain: { ...feature().plain, this_paper: 20 } });
+  assert.equal(EV.differenceLine(up), 'This paper uses far more commas: 20 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine({ ...up, plain: { ...up.plain, this_paper: 9 } }), 'This paper uses more commas: 9 vs 8.01 to 8.23 per 100 words.');
+  // Inside the past papers' span.
+  const inside = feature({ in_top_list: false, engine_scale: { ...feature().engine_scale, outside_past_range: false }, plain: { ...feature().plain, this_paper: 8.1 } });
+  assert.equal(EV.differenceLine(inside), 'This paper sits within the past papers\u2019 range: 8.1 vs 8.01 to 8.23 per 100 words.');
+  assert.match(EV.differenceLine({ ...inside, in_top_list: true }), /^This paper sits inside the past papers\u2019 range, but far from where they usually sit: 8\.1 vs/);
+  // Sentence length has its own words; a habit outside the phrase table gets the generic line.
+  const len = feature({ code: 'mean_sentence_length', name: 'Mean Sentence Length', plain: { unit: 'words per sentence', this_paper: 9, past_papers: past([20, 22]), past_range: [20, 22] } });
+  assert.equal(EV.differenceLine(len), 'This paper writes far shorter sentences: 9 vs 20 to 22 words per sentence.');
+  const other = feature({ code: 'pronoun_ambiguity_rate', name: 'Pronoun Ambiguity Rate', kind: 'whole_text', plain: undefined,
+    engine_scale: { ...feature().engine_scale, this_paper: 0.167, past_papers: past([0.625, 0.875]), past_range: [0.625, 0.875] } });
+  assert.equal(EV.differenceLine(other), 'This paper is far lower than the past papers on pronoun ambiguity rate: 0.167 vs 0.625 to 0.875 on Original\u2019s 0 to 1 scale.');
+  // Nothing to compare, not compared, switched off: no line.
+  assert.equal(EV.differenceLine(feature({ engine_scale: { ...feature().engine_scale, past_papers: [] }, plain: undefined })), '');
+  assert.equal(EV.differenceLine({ kind: 'not_compared' }), '');
+  assert.equal(EV.differenceLine(null), '');
+  // Every phrase is clean and every countable habit has one.
+  for (const [code, words] of Object.entries(EV.PHRASES)) for (const w of words) assert.ok(EV.isClean(w), code);
+  assert.equal(Object.keys(EV.PHRASES).length, 23);
+});
+
+test('thisSource and unmarkedLead name the paper, its day and what is missing', () => {
+  const day = new Date(2026, 10, 17).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  assert.equal(EV.thisSource('The Lighthouse', '2026-11-17T20:18:00Z'), 'This paper \u00b7 The Lighthouse \u00b7 analysed ' + day);
+  assert.equal(EV.thisSource('', '2026-11-17'), 'This paper \u00b7 analysed ' + day);
+  assert.equal(EV.thisSource(null, null), 'This paper');
+  assert.equal(EV.unmarkedLead({ what_is_marked: 'comma' }, 'this'), 'This paper\u2019s longest sentences, none with a comma:');
+  assert.equal(EV.unmarkedLead({ what_is_marked: 'opening parenthesis' }, 'base'), 'The past papers\u2019 longest sentences, none with an opening parenthesis:');
+  assert.equal(EV.unmarkedLead({}, 'this'), 'This paper\u2019s longest sentences:');
 });
 
 test('noticeFor: a whole-text shift says there is no single sentence to quote', () => {
@@ -277,7 +319,8 @@ test('a past paper\u2019s source is its stored title (else "Past paper N") and i
   const papers = [{ paper: 'past paper 1', assignment: 'On Liberty', submitted_at: '2025-01-24' }, { paper: 'past paper 2', assignment: '' }, null];
   assert.equal(EV.SEP, ' \u00b7 ');
   assert.equal(EV.pastSource('past paper 1', papers), 'On Liberty \u00b7 ' + day);
-  assert.equal(EV.pastSource('past paper 2', papers), 'Past paper 2');
+  // A paper the server described without a date says so; one it never described keeps the bare name.
+  assert.equal(EV.pastSource('past paper 2', papers), 'Past paper 2 \u00b7 date not recorded');
   assert.equal(EV.pastSource('past paper 3', papers), 'Past paper 3');
   assert.equal(EV.pastSource('past paper 1'), 'Past paper 1');
 });

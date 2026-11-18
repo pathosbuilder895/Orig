@@ -30,6 +30,7 @@ from ._shared import (
     _repo,
     _require_guard,
     _require_staff,
+    drift_gate_advisory,
     min_baseline_samples,
 )
 
@@ -333,6 +334,7 @@ def get_student_readiness(student_id: str):
         word_stats=word_stats,
         verdict=verdict,
         recommendations=recs,
+        drift_gate="advisory" if drift_gate_advisory() else "hold",
     )
 
 

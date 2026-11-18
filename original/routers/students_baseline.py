@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+from datetime import date as _date
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
@@ -463,6 +464,7 @@ def upload_baseline_batch(
     files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
     assignment: str = Form(""),
+    submitted_at: str = Form(""),
     request: Request = None,
 ):
     """
@@ -485,6 +487,17 @@ def upload_baseline_batch(
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
+    # The date the papers were written, recorded with each one exactly as the
+    # single add records it (it never changes a weight). Without it every
+    # imported paper read "date not recorded" wherever it is quoted.
+    submitted_at = submitted_at.strip()
+    if submitted_at:
+        try:
+            _date.fromisoformat(submitted_at)
+        except ValueError:
+            raise HTTPException(
+                status_code=422, detail="submitted_at must be a date, YYYY-MM-DD"
+            ) from None
 
     # Gate high-trust provenance behind staff/attestation (see
     # _authorize_provenance) — the batch route previously skipped this.
@@ -564,7 +577,7 @@ def upload_baseline_batch(
             provenance=provenance,
             auth_weight=AUTH_WEIGHTS[provenance],
             assignment=label,
-            submitted_at="",
+            submitted_at=submitted_at,
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.

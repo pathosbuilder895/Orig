@@ -287,6 +287,7 @@ VERSIONED = (
     "js/feature-data.js",
     "js/fingerprint.js",
     "js/evidence-view.js",
+    "js/evidence-cards.js",
     "suite.css",
     "fonts.css",
 )
@@ -781,13 +782,18 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "<title>Original · Conversation packet</title>" in page
     title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
     assert "flag" not in title
-    # No case numbers. Quoted passages appear only as the staff-only "Side by side"
-    # section, built from the server's evidence: marks come only from
-    # EvidenceView.markParts, and nothing is built unless evidence is present.
+    # No case numbers. Quoted passages appear only as the staff-only text-by-text
+    # section, built from the server's evidence by the cards all three pages
+    # share (js/evidence-cards.js): the page builds no mark itself, and nothing
+    # is built unless evidence is present.
     assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
-    assert page.count("<mark") == 1 and "EV.markParts(q)" in page
+    assert page.count("<mark") == 0 and "EC.card(" in page
     assert "if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(" in page
     assert '<script src="js/evidence-view.js?v=' in page
+    assert '<script src="js/evidence-cards.js?v=' in page
+    cards = (SUITE / "js" / "evidence-cards.js").read_text(encoding="utf-8")
+    # The one place a mark is built, and only where EvidenceView.markParts found the slice.
+    assert cards.count("'<mark'") == 1 and "EV.markParts(q)" in cards
     # Outcome and signature are blank form lines for the teacher, never data.
     assert page.count('<div class="line"></div>') == 2
     assert "Teacher signature" in page and "Outcome of the conversation" in page
@@ -4072,7 +4078,8 @@ def test_evidence_page_reads_what_writing_state_stores_and_scores_nothing():
     assert "if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }" in page
     # The words are the shared templates, never written inline.
     assert '<script src="js/evidence-view.js?v=' in page
-    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EV.markParts("):
+    assert '<script src="js/evidence-cards.js?v=' in page
+    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EC.card("):
         assert fn in page, fn
 
 
@@ -4237,3 +4244,15 @@ def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
     assert "(counted.get(sid)||0)>0" in act
     # Nothing until the roster answers: no action is offered on a guess.
     assert "if(!counted||!sid" in act
+
+
+def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
+    """2026-11-17, live pilot: a sealed exam whose student had since been removed
+    from every roster showed the exam app's stock "Candidate No. 00042" as its
+    student and offered "Add writing first", a link to a student page that
+    cannot open. A removed student is now said to be one, with no link."""
+    code = _inline_scripts(SUITE / "submissions.html")
+    assert "'A student no longer on your roster'" in code
+    assert r"/^Candidate No\.\s*\d+$/" in code  # the stock placeholder is never a name
+    assert "if(!r.named&&!counted.has(sid)) return '<div class=\"q-act\"><span class=\"q-gone\">No longer on your roster</span></div>';" in code
+    assert "String(r.student_id||'Unknown student')" not in code  # never an id for a name

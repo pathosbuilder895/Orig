@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from .. import backup as backup_mod
 from ..constants import FEATURE_DIM
 from ..schemas import HealthResponse
-from ._shared import _api, _repo, _require_staff, _signup_open
+from ._shared import _api, _repo, _require_staff, _signup_open, drift_gate_advisory
 
 router = APIRouter()
 
@@ -78,6 +78,7 @@ def health():
         students_in_store=_repo().count(),
         environment=_api().ORIGINAL_ENV,
         signup_open=signup_open,
+        drift_gate="advisory" if drift_gate_advisory() else "hold",
         commit=commit,
         backend=backend,
     )
