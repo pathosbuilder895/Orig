@@ -665,6 +665,16 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             updated_at      TEXT NOT NULL
         )
     """)
+    # Each account's chosen text font and size (2026-11) — mirrors alembic
+    # revision a1d5f3c7e9b2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_display_prefs (
+            account_key TEXT PRIMARY KEY,
+            font        TEXT NOT NULL DEFAULT 'serif',
+            size        TEXT NOT NULL DEFAULT 'default',
+            updated_at  TEXT NOT NULL
+        )
+    """)
     # A student's own parked phone per collection (2026-10) — mirrors alembic
     # revision a7e3c5d9f2b4.
     conn.execute("""
@@ -1867,6 +1877,7 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
     "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM user_display_prefs WHERE account_key = ? LIMIT 1",
     "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
 )
 
@@ -1975,6 +1986,8 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
             # Where the student last was in the app (2026-10).
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
+            # The student's chosen text font and size (2026-11).
+            conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (student_id,))
             # The student's own parked-phone records (2026-10).
             conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
@@ -3110,6 +3123,25 @@ def list_bluebook_submissions_for_student(student_id: str) -> list[dict]:
     return [_bluebook_sub_to_dict(r) for r in rows]
 
 
+def list_bluebook_submission_texts_for_student(student_id: str) -> list[dict]:
+    """Every Collections submission stored for this student, oldest first,
+    WITH ``text`` and ``answers``. GET /students/{id} hashes only the ones a
+    teacher approved into the baseline (see the audit replay there)."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
+            "WHERE student_id = ? ORDER BY created_at",
+            (student_id,),
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = _bluebook_sub_to_dict(r)
+        d["text"] = r[20]
+        d["answers"] = json.loads(r[21] or "[]")
+        out.append(d)
+    return out
+
+
 def list_bluebook_submissions_for_exam(exam_id: str) -> list[dict]:
     """Every submission for one exam, oldest first, WITH ``text`` (export)."""
     with _get_conn() as conn:
@@ -3476,6 +3508,35 @@ def log_audit(
             conn.commit()
     except Exception:
         log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+
+def list_audit_actions_for_student(student_id: str, actions: list[str]) -> list[dict]:
+    """Every audit row of these actions for one student, oldest first, with
+    no page cap: GET /students/{id} replays baseline approvals and undos
+    from it. Same row shape as ``list_audit`` items."""
+    if not student_id or not actions:
+        return []
+    marks = ", ".join("?" for _ in actions)
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, action, student_id, tenant_id, actor, result, "
+            f"details_json FROM audit_log WHERE student_id = ? AND action IN ({marks}) "
+            "ORDER BY created_at, id",
+            [student_id, *actions],
+        ).fetchall()
+    return [
+        {
+            "id": r[0],
+            "created_at": r[1],
+            "action": r[2],
+            "student_id": r[3],
+            "tenant_id": r[4],
+            "actor": r[5],
+            "result": r[6],
+            "details": json.loads(r[7] or "{}"),
+        }
+        for r in rows
+    ]
 
 
 def list_audit(
@@ -4513,6 +4574,36 @@ def get_last_location(account_key: str) -> dict | None:
 def delete_last_location(account_key: str) -> None:
     with _get_conn() as conn:
         conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
+        conn.commit()
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+
+
+def put_display_prefs(account_key: str, prefs: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_display_prefs (account_key, font, size, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (account_key, prefs["font"], prefs["size"], now),
+        )
+        conn.commit()
+    return get_display_prefs(account_key) or {}
+
+
+def get_display_prefs(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT font, size, updated_at FROM user_display_prefs WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return {"font": row[0], "size": row[1], "updated_at": row[2]} if row else None
+
+
+def delete_display_prefs(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (account_key,))
         conn.commit()
 
 

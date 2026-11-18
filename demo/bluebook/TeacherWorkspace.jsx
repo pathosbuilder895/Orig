@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BB_API, MockupFonts } from './components.jsx';
+import { BB_API, MockupFonts, TextSettingsButton } from './components.jsx';
 import { Badge, LinkBtn, Section, Stat, Table, when } from './forms.jsx';
+import { InstructionsButton } from './instructions.jsx';
 import './teacher-workspace.css';
 
 const dateLabel = value => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
@@ -87,7 +88,9 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
         {withOriginal && <button title="Original is in its testing phase and is not yet validated on real student writing." onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>{ORIGINAL_NAV_LABEL}</button>}
       </div>
       <div className="teacher-nav-right">
+        <TextSettingsButton className="teacher-text-btn"/>
         {!demo && <>
+          <InstructionsButton who="teacher" className="quiet-link"/>
           <button className="quiet-link" onClick={()=>onNavigate('account')}>Account</button>
           <button className="quiet-link" onClick={()=>{BB_API.logout();onNavigate('landing');}}>Sign out</button>
         </>}

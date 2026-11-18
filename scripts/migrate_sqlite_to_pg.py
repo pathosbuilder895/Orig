@@ -82,6 +82,7 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserDisplayPrefs,
     UserLastLocation,
     BluebookPhonePark,
     StudentProfile,
@@ -1588,6 +1589,38 @@ class _UserLastLocationMigrator(_Migrator):
         return out
 
 
+class _UserDisplayPrefsMigrator(_Migrator):
+    """Each account's chosen text font and size (2026-11). Keyed by the
+    account id verbatim in both schemas."""
+
+    name = "user_display_prefs"
+    model = UserDisplayPrefs
+    pk = "account_key"
+    _COLS = ("account_key", "font", "size", "updated_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM user_display_prefs").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return UserDisplayPrefs(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(UserDisplayPrefs).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+
 class _BluebookPhoneParkMigrator(_Migrator):
     """A student's own parked phone per collection (2026-10). Composite key,
     like bluebook_exam_drafts."""
@@ -1652,6 +1685,7 @@ MIGRATORS: list[_Migrator] = [
     _StudentPastPaperMigrator(),
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
+    _UserDisplayPrefsMigrator(),
     _BluebookPhoneParkMigrator(),
 ]
 

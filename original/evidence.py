@@ -106,14 +106,40 @@ NOT_LOCATED_NOTE = (
 )
 
 
+#: Values that switch a default-on staff setting off. Anything else (unset,
+#: "1", "on", a typo) leaves it on, so the text-by-text view never silently
+#: disappears because a deploy forgot to set a variable.
+_OFF_VALUES = frozenset({"0", "off", "false", "no"})
+
+
+def _default_on(name: str) -> bool:
+    return os.environ.get(name, "1").strip().lower() not in _OFF_VALUES
+
+
 def evidence_enabled() -> bool:
-    """EVIDENCE_PASSAGES_ENABLED=1 adds located evidence to staff score responses."""
-    return os.environ.get("EVIDENCE_PASSAGES_ENABLED", "0").strip() == "1"
+    """Located evidence on staff score responses: on unless EVIDENCE_PASSAGES_ENABLED=0.
+
+    On by default since the 2026-11 alpha: the text-by-text view is how a
+    teacher sees why a paper reads differently, so it must not depend on a
+    deploy setting. Staff-only either way (``_attach_staff_explainability``).
+    """
+    return _default_on("EVIDENCE_PASSAGES_ENABLED")
 
 
 def preliminary_enabled() -> bool:
-    """PRELIMINARY_SCORE_ENABLED=1 adds the preliminary score to staff score responses."""
-    return os.environ.get("PRELIMINARY_SCORE_ENABLED", "0").strip() == "1"
+    """The preliminary score on staff score responses: on unless PRELIMINARY_SCORE_ENABLED=0."""
+    return _default_on("PRELIMINARY_SCORE_ENABLED")
+
+
+def staff_explainability_status() -> str:
+    """The one startup log line naming both staff-only flags and whether each is on.
+
+    Same reading as the two functions above, so the line says what the
+    score route will do. Logged once from ``api.lifespan``.
+    """
+    evidence = "on" if evidence_enabled() else "off"
+    preliminary = "on" if preliminary_enabled() else "off"
+    return f"staff_explainability evidence_passages={evidence} preliminary_score={preliminary}"
 
 
 # ── Band rates: gate G9's measured false-alarm rates, if any ──────────────────
@@ -346,7 +372,7 @@ class EngineView:
     doc: TextDoc
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=16)
 def engine_view(text: str) -> EngineView | None:
     """Rebuild the engine's measured strings with offsets, or None if the
     rebuild does not match the engine byte for byte (fail closed)."""
@@ -958,11 +984,15 @@ def _pick(places: Sequence[Place], limit: int) -> list[Place]:
     return picked
 
 
-def _length_pick(places: Sequence[Place], mode: str, direction: str, limit: int) -> list[Place]:
+def _typical_pick(places: Sequence[Place], mean: float, limit: int) -> list[Place]:
+    """Sentences closest to the paper's own mean length, ties in document order."""
+    return sorted(places, key=lambda p: (abs((p.words or 0) - mean), p.start))[:limit]
+
+
+def _spread_pick(places: Sequence[Place], limit: int) -> list[Place]:
+    """Interleave the longest and shortest sentences, never repeating one."""
     longest = sorted(places, key=lambda p: (-(p.words or 0), p.start))
     shortest = sorted(places, key=lambda p: ((p.words or 0), p.start))
-    if mode == "mean":
-        return list((longest if direction == "higher" else shortest)[:limit])
     picked: list[Place] = []
     for place in [x for pair in zip(longest, shortest, strict=False) for x in pair]:
         if place not in picked:
@@ -970,6 +1000,38 @@ def _length_pick(places: Sequence[Place], mode: str, direction: str, limit: int)
         if len(picked) == limit:
             break
     return picked
+
+
+def _unmarked(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
+    """The longest sentences of a paper that has none of a habit's places.
+
+    When one side counts a habit and the other side never uses it, the side
+    without it would show nothing at all. Its longest sentences, quoted
+    verbatim with nothing marked, are where the habit would most likely have
+    appeared, so a teacher can read the two sides together. Longest first,
+    ties in document order; at most ``limit``; [] when the paper's sentences
+    cannot be mapped back to the stored text exactly (fail closed).
+    """
+    view = engine_view(text)
+    sentences = _original_sentences(view) if view is not None else None
+    if not sentences:
+        return []
+    sized = [(len(_tokenize(text[a:b])), a, b) for a, b in sentences]
+    out = []
+    for words, a, _b in sorted(sized, key=lambda x: (-x[0], x[1]))[:limit]:
+        p0, p1, c0, c1 = _passage(text, sentences, a, a)
+        out.append(
+            {
+                "paper": paper,
+                "passage_start": p0,
+                "passage_end": p1,
+                "passage": text[p0:p1],
+                "clipped_start": c0,
+                "clipped_end": c1,
+                "words": words,
+            }
+        )
+    return out
 
 
 def _round(value: float | None) -> float | None:
@@ -991,11 +1053,7 @@ def build_feature_evidence(
     fixed order.
     """
     code = feature["code"]
-    name, description = describe(code)
-    info = feature_info().get(code)
-    if info is not None:
-        # Written from the extractor code, so it says how the number is made.
-        description = info["description"]
+    name, description = _name_and_description(code)
     delta = float(feature.get("delta", 0.0) or 0.0)
     direction = "higher" if delta > 0 else "lower" if delta < 0 else "same"
     out: dict[str, Any] = {
@@ -1030,17 +1088,19 @@ def build_feature_evidence(
         out["note"] = NOT_LOCATED_NOTE
         return out
 
-    def chosen(places):
+    def chosen(places, reading):
+        if spec.sentence_length == "mean":
+            return _typical_pick(places, reading.value, max_examples)
         if spec.sentence_length:
-            return _length_pick(places, spec.sentence_length, direction, max_examples)
+            return _spread_pick(places, max_examples)
         return _pick(places, max_examples)
 
     out["this_paper"] = {
         "count": len(this.places),
-        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places)],
+        "examples": [_quote(submission_text, p, "this paper") for p in chosen(this.places, this)],
     }
     # Past papers: take examples round-robin across papers in their fixed order.
-    per_paper = [(label, text, chosen(r.places)) for label, text, r in past]
+    per_paper = [(label, text, chosen(r.places, r)) for label, text, r in past]
     examples: list[dict[str, Any]] = []
     depth = 0
     while len(examples) < max_examples and any(depth < len(c) for _, _, c in per_paper):
@@ -1056,9 +1116,147 @@ def build_feature_evidence(
     if not spec.sentence_length:
         if not this.places:
             out["note"] = f"No {spec.what} appears in this paper."
+            if out["past_papers"]["count"]:
+                out["this_paper"]["unmarked"] = _unmarked(
+                    submission_text, "this paper", max_examples
+                )
         elif not out["past_papers"]["count"]:
             out["note"] = f"No {spec.what} appears in the past papers."
+            # Round-robin over the past papers, as for the counted examples.
+            per = [_unmarked(text, label, max_examples) for label, text in baselines]
+            unmarked: list[dict[str, Any]] = []
+            depth = 0
+            while len(unmarked) < max_examples and any(depth < len(u) for u in per):
+                for u in per:
+                    if depth < len(u) and len(unmarked) < max_examples:
+                        unmarked.append(u[depth])
+                depth += 1
+            out["past_papers"]["unmarked"] = unmarked
     return out
+
+
+#: Related habits shown together on the past-paper page. Every quotable habit
+#: sits in exactly one family; the order here is the order the page draws.
+FAMILIES: dict[str, tuple[str, ...]] = {
+    "Sentence shape": (
+        "mean_sentence_length",
+        "sentence_length_variance",
+        "comma_rate",
+        "semicolon_colon_rate",
+        "dash_rate",
+        "parenthetical_rate",
+        "sentence_initial_conjunction_rate",
+    ),
+    "Linking ideas": (
+        "discourse_marker_density",
+        "additive_ratio",
+        "adversative_ratio",
+        "causal_ratio",
+        "temporal_ratio",
+        "transition_density",
+    ),
+    "Voice": (
+        "first_person_ratio",
+        "contraction_rate",
+        "question_ratio",
+        "modal_verb_ratio",
+        "passive_voice_ratio",
+    ),
+    "Claims and confidence": (
+        "hedging_density",
+        "assertion_density",
+        "claim_density",
+        "appeal_to_authority_density",
+        "quote_rate",
+    ),
+}
+
+
+def family_of(code: str) -> str | None:
+    for name, codes in FAMILIES.items():
+        if code in codes:
+            return name
+    return None
+
+
+def _extremes_pick(places: Sequence[Place]) -> list[tuple[str | None, Place]]:
+    """The longest and the shortest sentence, always two different sentences.
+
+    A lone sentence is neither, so it carries no role; nor do two sentences
+    of the same length (every sentence is then one length).
+    """
+    if not places:
+        return []
+    if len(places) == 1:
+        return [(None, places[0])]
+    longest = min(places, key=lambda p: (-(p.words or 0), p.start))
+    shortest = min((p for p in places if p is not longest), key=lambda p: ((p.words or 0), p.start))
+    if (longest.words or 0) == (shortest.words or 0):
+        return [(None, longest), (None, shortest)]
+    return [("longest", longest), ("shortest", shortest)]
+
+
+def _name_and_description(code: str) -> tuple[str, str]:
+    name, description = describe(code)
+    info = feature_info().get(code)
+    if info is not None:
+        # Written from the extractor code, so it says how the number is made.
+        description = info["description"]
+    return name, description
+
+
+def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) -> dict[str, Any]:
+    """Every habit in ``habit``'s family, with real sentences from each past paper."""
+    family = family_of(habit)
+    if habit not in LOCATABLE or family is None:
+        raise ValueError(f"{habit!r} is not a quotable habit")
+    codes = FAMILIES[family]
+    # Each paper is read for every habit in the family together, so its
+    # engine_view stays cached while it is used, however many papers there are.
+    readings = [[read_paper(text, code) for code in codes] for _, text in baselines]
+    features: list[dict[str, Any]] = []
+    for i, code in enumerate(codes):
+        spec = LOCATABLE[code]
+        name, description = _name_and_description(code)
+        per_paper: list[dict[str, Any]] = []
+        for (label, text), paper_readings in zip(baselines, readings, strict=True):
+            r = paper_readings[i]
+            if r.places is None:
+                picks: list[tuple[str | None, Place]] = []
+            elif spec.sentence_length == "mean":
+                picks = [("typical", p) for p in _typical_pick(r.places, r.value, MAX_EXAMPLES)]
+            elif spec.sentence_length:
+                picks = _extremes_pick(r.places)
+            else:
+                picks = [(None, p) for p in _pick(r.places, MAX_EXAMPLES)]
+            per_paper.append(
+                {
+                    "paper": label,
+                    "value": _round(r.value),
+                    "count": None if r.places is None else len(r.places),
+                    "examples": [
+                        {"role": role, "quote": _quote(text, p, label)} for role, p in picks
+                    ],
+                }
+            )
+        entry: dict[str, Any] = {
+            "code": code,
+            "name": name,
+            "description": description,
+            "unit": spec.unit,
+            "what_is_marked": spec.what,
+            "kind": "located",
+            "per_paper": per_paper,
+        }
+        if any(p["count"] is None for p in per_paper):
+            entry["note"] = NOT_LOCATED_NOTE
+        features.append(entry)
+    return {
+        "family": family,
+        "habit": habit,
+        "families": [{"name": n, "habits": list(codes)} for n, codes in FAMILIES.items()],
+        "features": features,
+    }
 
 
 def build_evidence(
@@ -1154,6 +1352,10 @@ def countable_overview(
 # ── Every measurement in the vector (ADR-013, all-features extension) ────────
 
 WHOLE_TEXT_NOTE = NUMBERS_ONLY_NOTE
+PLAIN_UNREADABLE_NOTE = (
+    "Shown on Original's 0 to 1 scale only: a paper sits at an end of that scale, "
+    "where its value in plain units is not kept."
+)
 #: The documented order of the full list.
 ALL_FEATURES_ORDERING = (
     "Sorted by how far this paper sits from the past-paper average on Original's 0 to 1 "
@@ -1197,6 +1399,78 @@ def _paper_values(text: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
         _normalise(raw[c], c) if c in BASE_FEATURE_CODES else 0.5 for c in ALL_FEATURE_CODES
     )
     return raw_row, norm_row
+
+
+@lru_cache(maxsize=64)
+def _light_raw(text: str) -> dict[str, float]:
+    """Raw values for the habits the pages show in plain units, and no others.
+
+    A whole-text habit is shown in plain units only when it has a unit
+    (``evidence_features``), and every such habit comes from Tiers 1 to 7 or
+    16. This runs those extractors (the same functions, on the same
+    ``preprocess``/``TextDoc`` strings, as ``extract_raw_features``) except
+    Tier 5, which parses the whole paper with spaCy. Tiers 8 to 15 are never
+    run: they hold the catastrophe index's per-paragraph full-pipeline parse
+    and sentence embeddings, and none of their values is shown in plain units.
+    Cached by text, so analysing several papers for one student reads each
+    past paper once per process.
+    """
+    from .features.tier7 import extract_tier7
+    from .features.tier16 import extract_tier16
+
+    prose, citation_data = _pp.preprocess(text)
+    doc = TextDoc(prose)
+    raw: dict[str, float] = {}
+    for extract in (
+        tier1.extract_tier1,
+        tier2.extract_tier2,
+        tier3.extract_tier3,
+        tier4.extract_tier4,
+        tier6.extract_tier6,
+        extract_tier7,
+    ):
+        raw.update(extract(doc))
+    raw.update(extract_tier16(citation_data))
+    return raw
+
+
+def _unnormalise(value: float, code: str) -> float:
+    """The raw value behind a 0–1 value, read back through ``NORM_BOUNDS``.
+
+    ``_normalise`` is a straight line clipped at 0 and 1, so a value strictly
+    inside (0, 1) gives the raw value back exactly. At either end the raw value
+    could be anywhere beyond that bound, so it is unknown (NaN), never guessed.
+    """
+    from .constants import NORM_BOUNDS
+
+    bounds = NORM_BOUNDS.get(code)
+    if bounds is None:
+        return float("nan")
+    lo, hi = bounds
+    if hi <= lo or not 0.0 < value < 1.0:
+        return float("nan")
+    return lo + value * (hi - lo)
+
+
+def _paper_values_from_vector(
+    text: str, vector: Any
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """(raw, 0–1) for one paper when the engine's own vector is at hand.
+
+    The 0–1 row is that vector. Raw values come from ``_light_raw``; every
+    other code (Tier 5's seven plain-unit habits among them) is read back from
+    the vector (``_unnormalise``). No whole-paper spaCy parse runs: before
+    this, a scoring request on a student with long past papers re-ran the full
+    extraction on every one and took the pilot's 512 MB instance past its
+    memory (a 502 for every page until it restarted, 2026-11-17).
+    """
+    norm = _as_row(vector)
+    light = _light_raw(text)
+    raw = tuple(
+        float(light[code]) if code in light else _unnormalise(norm[d], code)
+        for d, code in enumerate(ALL_FEATURE_CODES)
+    )
+    return raw, tuple(norm)
 
 
 def recency_weighted_mean(vectors: Sequence[Sequence[float]]) -> list[float]:
@@ -1248,16 +1522,23 @@ def build_all_features(
     from the texts. Nothing here feeds back into a score.
     """
     info = feature_info()
-    sub_raw, sub_norm = _paper_values(submission_text)
-    past_raw_norm = [_paper_values(text) for _, text in baselines]
-    this_row = _as_row(submission_vector) if submission_vector is not None else list(sub_norm)
-    past_rows = (
-        [_as_row(v) for v in baseline_vectors]
-        if baseline_vectors is not None
-        else [list(n) for _, n in past_raw_norm]
-    )
-    if len(past_rows) != len(baselines):
+    if baseline_vectors is not None and len(baseline_vectors) != len(baselines):
         raise ValueError("one baseline vector per baseline text")
+    # With the engine's own vectors (the API), no paper is parsed whole again:
+    # see _paper_values_from_vector. Without them (scripts), the full extraction.
+    if submission_vector is not None:
+        sub_raw, sub_norm = _paper_values_from_vector(submission_text, submission_vector)
+    else:
+        sub_raw, sub_norm = _paper_values(submission_text)
+    if baseline_vectors is not None:
+        past_raw_norm = [
+            _paper_values_from_vector(text, vector)
+            for (_, text), vector in zip(baselines, baseline_vectors, strict=True)
+        ]
+    else:
+        past_raw_norm = [_paper_values(text) for _, text in baselines]
+    this_row = list(sub_norm)
+    past_rows = [list(n) for _, n in past_raw_norm]
     avg_row = (
         _as_row(past_average) if past_average is not None else recency_weighted_mean(past_rows)
     )
@@ -1308,8 +1589,12 @@ def build_all_features(
             kind = "located" if located["locatable"] else "whole_text"
         elif kind == "measured":
             kind = "whole_text"
-            if meta["unit"] is not None:
-                raw_past = [r[d] for r, _ in past_raw_norm]
+            raw_past = [r[d] for r, _ in past_raw_norm]
+            if meta["unit"] is not None and any(v != v for v in (sub_raw[d], *raw_past)):
+                # A paper sits at an end of the 0 to 1 scale, where its plain
+                # value was not read back (_unnormalise): numbers on that scale only.
+                entry["plain_note"] = PLAIN_UNREADABLE_NOTE
+            elif meta["unit"] is not None:
                 entry["plain"] = {
                     "unit": meta["unit"],
                     "this_paper": _rr(sub_raw[d]),

@@ -1415,6 +1415,11 @@
             "default": "verified",
             "title": "Provenance",
             "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "title": "Submitted At",
+            "type": "string"
           }
         },
         "required": [
@@ -2583,6 +2588,11 @@
             "title": "Commit",
             "type": "string"
           },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
+          },
           "environment": {
             "default": "demo",
             "title": "Environment",
@@ -3388,6 +3398,52 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PastPaperExamplesResponse": {
+        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; this response never changes any score.\n``baseline_papers`` matches the score response's ``evidence.baseline_papers``.",
+        "properties": {
+          "baseline_papers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Baseline Papers",
+            "type": "array"
+          },
+          "families": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "habit": {
+            "title": "Habit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline_papers",
+          "family",
+          "habit",
+          "families",
+          "features"
+        ],
+        "title": "PastPaperExamplesResponse",
+        "type": "object"
+      },
       "PhoneBeatBody": {
         "properties": {
           "beat_token": {
@@ -3521,11 +3577,16 @@
         "type": "object"
       },
       "ReadinessResponse": {
-        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
+        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),\n\"developing\" (1 or more), else \"insufficient\". Pure read:\ncomputed from the same StudentState the score endpoint uses.",
         "properties": {
           "authenticated_count": {
             "title": "Authenticated Count",
             "type": "integer"
+          },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
           },
           "effective_sample_count": {
             "title": "Effective Sample Count",
@@ -3777,6 +3838,12 @@
           },
           "provenance": {
             "title": "Provenance",
+            "type": "string"
+          },
+          "source": {
+            "default": "unknown",
+            "description": "How the sample got into the baseline, derived at read time: 'staff_or_supervised' | 'take_home' | 'shared_paper' | 'student_upload' | 'unknown'. Wording only; never read by scoring.",
+            "title": "Source",
             "type": "string"
           },
           "submitted_at": {
@@ -4908,6 +4975,24 @@
           "confidence"
         ],
         "title": "WindowScoreOut",
+        "type": "object"
+      },
+      "WriterCreateRequest": {
+        "description": "POST /students: a writer added by name, with no course or account.",
+        "properties": {
+          "name": {
+            "description": "The writer's name, 1-120 characters once trimmed, no control characters",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WriterCreateRequest",
         "type": "object"
       }
     }
@@ -7290,6 +7375,66 @@
         "summary": "Me"
       }
     },
+    "/bluebook/me/display": {
+      "get": {
+        "description": "The signed-in account's own text font and size, or null (defaults).",
+        "operationId": "get_display_prefs_bluebook_me_display_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Display Prefs"
+      },
+      "put": {
+        "description": "Save the signed-in account's text font and size. Only known values are kept.",
+        "operationId": "put_display_prefs_bluebook_me_display_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Display Prefs"
+      }
+    },
     "/bluebook/me/exams": {
       "get": {
         "operationId": "my_exams_bluebook_me_exams_get",
@@ -7791,6 +7936,44 @@
           }
         },
         "summary": "Decline Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/unapprove": {
+      "post": {
+        "description": "Undo an approval: take the paper back out of the student's baseline\nand leave it waiting for approval again. Safe to repeat: a paper that is\nalready pending stays pending and nothing is removed.",
+        "operationId": "unapprove_shared_paper_bluebook_past_papers__paper_id__unapprove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unapprove Shared Paper"
       }
     },
     "/bluebook/phone-park/beat": {
@@ -8764,6 +8947,41 @@
           }
         },
         "summary": "List Students"
+      },
+      "post": {
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.\n\nThe open fictional demo (no sign-in, never a real deploy) may add a\nwriter anonymously, into the demo tenant, as it may use its other write\nroutes; on a real deploy only a signed-in staff account can.\n\n``set_display_name`` logs and swallows a write failure, so the name is\nread back: a writer whose name did not save is erased again and the\ncaller gets a 503, never a 201 for a nameless writer.",
+        "operationId": "create_writer_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Writer"
       }
     },
     "/students/{student_id}": {
@@ -9102,6 +9320,56 @@
           }
         },
         "summary": "Advance Formation"
+      }
+    },
+    "/students/{student_id}/past-paper-examples": {
+      "get": {
+        "description": "ADR-013, staff only: real sentences from this student's past papers that\nshow one habit and the family of habits around it. Read-only; changes no\nscore. Off unless EVIDENCE_PASSAGES_ENABLED=1.",
+        "operationId": "past_paper_examples_students__student_id__past_paper_examples_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "habit",
+            "required": false,
+            "schema": {
+              "default": "mean_sentence_length",
+              "title": "Habit",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastPaperExamplesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Past Paper Examples"
       }
     },
     "/students/{student_id}/readiness": {

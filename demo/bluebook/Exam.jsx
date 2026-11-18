@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
+import { BB_API, MockupFonts, TextSettingsButton, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
 import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -688,6 +688,7 @@ export function BriefingScreen({ onNavigate }) {
           )}
 
           <div className="bk-cover-inner">
+            <div className="bk-briefing-textbtn"><TextSettingsButton className="bk-textbtn" /></div>
             <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />
@@ -777,7 +778,7 @@ export const BB_NOTICE = {
   paste_blocked:   'Pasting is turned off for this exam, so nothing was added.',
 };
 
-export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
+export function ExamScreen({ onNavigate, writingSize = 17, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
   const candidateLabel = bbCandidateLabel(cfg);
   // Draft persistence: a sitting must survive a crash, a refresh, a dropped
@@ -1408,6 +1409,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             )}
             <div className="bk-bar-right">
               <span className="bk-cand">{candidateLabel}</span>
+              <TextSettingsButton className="bk-textbtn" />
               {cfg.blockWeb && fsLost && (
                 <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>
                   <span aria-hidden="true">↺ </span>Restore full-screen
@@ -1497,7 +1499,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 )}
               </section>
 
-              <div className="bk-writing" style={{ '--bk-fs': `${writingSize}px`, '--bk-lh': `${writingSize + 16}px` }}>
+              <div className="bk-writing" style={{ '--bk-fs': `${writingSize / 16}rem` }}>
                 <textarea
                   key={qIndex}
                   ref={textareaRef}

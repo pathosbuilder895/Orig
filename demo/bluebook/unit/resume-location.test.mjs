@@ -9,7 +9,7 @@ const built = await build({
 });
 globalThis.window = { BB_API_BASE: '' };
 globalThis.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
-const { locationFor, scrollFraction, SAVE_DELAY_MS } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
+const { locationFor, scrollFraction, SAVE_DELAY_MS, resumeOrHome } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
 test('saves about two seconds after a change', () => { assert.equal(SAVE_DELAY_MS, 2000); });
 
@@ -45,4 +45,34 @@ test('scroll fraction is clamped and survives a short page', () => {
   assert.equal(scrollFraction(500, 2000, 1000), 0.5);
   assert.equal(scrollFraction(5000, 2000, 1000), 1);
   assert.equal(scrollFraction(10, 800, 1000), 0);
+});
+
+// resumeOrHome after a sign-in: who is signed in, what the address bar holds,
+// and whether the saved place was asked for.
+async function signIn(session, hash) {
+  globalThis.localStorage = { getItem: k => session[k] ?? null, setItem() {}, removeItem() {} };
+  globalThis.window.location = { hash };
+  const asked = [];
+  globalThis.fetch = async (url) => { asked.push(url); return { ok: true, json: async () => ({ location: null }) }; };
+  const went = [];
+  await resumeOrHome(s => went.push(s), 'home');
+  return { asked, went };
+}
+const TEACHER = { original_principal_token: 't' };
+const STUDENT = { original_role: 'student', original_session_token: 's' };
+
+test('a teacher who followed a link goes home to open it, never to the saved place', async () => {
+  for (const hash of ['#exam/abc', '#live/abc', '#students']) {
+    const { asked, went } = await signIn(TEACHER, hash);
+    assert.deepEqual(asked, [], hash);
+    assert.deepEqual(went, ['home'], hash);
+  }
+});
+
+test('without a link, and for a student whatever the address, the saved place is asked for', async () => {
+  for (const [who, session, hash] of [['teacher', TEACHER, ''], ['teacher', TEACHER, '#forgot'], ['student', STUDENT, '#exam/abc']]) {
+    const { asked, went } = await signIn(session, hash);
+    assert.deepEqual(asked, ['/bluebook/me/location'], `${who} ${hash}`);
+    assert.deepEqual(went, ['home'], `${who} ${hash}`);   // nothing saved here: home
+  }
 });

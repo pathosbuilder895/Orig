@@ -48,22 +48,28 @@ def test_readiness_404_unknown_student():
     assert client.get(f"/students/nope_{uuid.uuid4().hex[:8]}/readiness").status_code == 404
 
 
-def test_insufficient_then_developing_then_ready():
+def test_developing_then_ready_at_the_score_floor(monkeypatch):
+    # The deployed floor (conftest lowers it to 1 for fixtures).
+    monkeypatch.setenv("MIN_BASELINE_SAMPLES", "3")
     sid = f"ready_ladder_{uuid.uuid4().hex[:8]}"
     _add_baseline(sid, assignment="a1")
     r = _readiness(sid)
-    assert r["verdict"] == "insufficient"
+    assert r["verdict"] == "developing"
     assert any("more authenticated" in rec for rec in r["recommendations"])
 
     _add_baseline(sid, assignment="a2")
-    r = _readiness(sid)
-    assert r["verdict"] == "developing"
+    assert _readiness(sid)["verdict"] == "developing"
 
-    for i in range(3, 6):
-        _add_baseline(sid, assignment=f"a{i}")
+    # Three approved papers: ready (the alpha's baseline), the same floor the
+    # score route enforces. It used to take five.
+    _add_baseline(sid, assignment="a3")
     r = _readiness(sid)
-    assert r["authenticated_count"] == 5
+    assert r["authenticated_count"] == 3
     assert r["verdict"] == "ready"
+
+    for i in range(4, 6):
+        _add_baseline(sid, assignment=f"a{i}")
+    assert _readiness(sid)["verdict"] == "ready"
 
 
 def test_provenance_mix_and_word_stats():

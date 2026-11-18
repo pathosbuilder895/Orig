@@ -282,7 +282,15 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # so a page loaded from cache next to a newer live.js would run the old code
 # against new markup. Every page therefore asks for these files with one shared
 # ?v= query; change the version (on every page at once) when any of them changes.
-VERSIONED = ("live.js", "js/feature-data.js", "js/fingerprint.js", "suite.css", "fonts.css")
+VERSIONED = (
+    "live.js",
+    "js/feature-data.js",
+    "js/fingerprint.js",
+    "js/evidence-view.js",
+    "js/evidence-cards.js",
+    "suite.css",
+    "fonts.css",
+)
 
 
 def _versioned_refs(path: Path) -> list[tuple[str, str, str]]:
@@ -310,7 +318,7 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
     # Every page carries the suite's stylesheet, font file and shared script; the
-    # others (feature-data.js, fingerprint.js) appear where the page uses them.
+    # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
     assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
@@ -416,6 +424,38 @@ def test_students_page_loads_through_live_roster():
         assert endpoint not in page, f"students.html calls {endpoint} itself"
 
 
+def test_students_page_adds_a_writer_by_name_inline():
+    page = (SUITE / "students.html").read_text(encoding="utf-8")
+    # The button opens a labelled inline form; the Collections link keeps its href.
+    assert (
+        '<button type="button" class="add-btn ghost" id="writer-btn" aria-expanded="false" '
+        'aria-controls="writer-form">'
+    ) in page
+    assert ">Add a writer</button>" in page
+    assert '<form class="writer" id="writer-form" hidden' in page
+    assert '<label for="writer-name">Their name</label>' in page
+    assert '<input id="writer-name" type="text" maxlength="120"' in page
+    assert '<button type="submit" class="add-btn" id="writer-go">Add</button>' in page
+    assert '<button type="button" class="w-cancel" id="writer-cancel">Cancel</button>' in page
+    assert '<div class="w-msg" id="writer-msg" role="alert"></div>' in page
+    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in page
+    assert ">Add to a Collections course</a>" in page
+    script = page[page.index("// ── add a writer ──") : page.index("// ── go ──")]
+    assert "Live.api('/students',{method:'POST',body:{name:n}})" in script
+    # One request at a time: a double click makes one writer.
+    assert "if(busy) return;" in script and "go.disabled=true" in script
+    assert (
+        "window.location.assign('baseline.html?student='+encodeURIComponent(id)+'#add-writing')"
+        in script
+    )
+    # Escape closes it, and focus goes into the form and back to the button.
+    assert "e.key==='Escape'" in script
+    assert "name.focus()" in script and "btn.focus()" in script
+    # Errors are plain words set as text, never markup.
+    assert "innerHTML" not in script
+    assert chr(0x2014) not in page and chr(0x2015) not in page
+
+
 # ── Writing State (writing-state.html) ────────────────────────────────────────
 # The page that shows an Original result: the testing label sits on it, purity
 # is only ever shown inside a <details> that carries the T-01 caveat, and the
@@ -489,7 +529,11 @@ def test_writing_state_keeps_triage_local_and_names_each_analysis():
     # no_action when manifests are off (original/routers/admin.py). Each score
     # call sends its own submission_id so analyses cannot share one.
     page = (SUITE / "writing-state.html").read_text(encoding="utf-8")
-    assert "/submissions/" not in page
+    # The one submissions route it names is the read of a sealed Collections
+    # exam (GET, staff-only), never a write about an analysis.
+    read_sealed = "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))"
+    assert page.count(read_sealed) == 1
+    assert "/submissions/" not in page.replace(read_sealed, "")
     assert "/correct" not in page
     assert "submission_id" in page
     assert "original_portfolio_" in page
@@ -738,9 +782,18 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "<title>Original · Conversation packet</title>" in page
     title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
     assert "flag" not in title
-    # No case numbers, no quoted passages (no text positions exist to quote).
+    # No case numbers. Quoted passages appear only as the staff-only text-by-text
+    # section, built from the server's evidence by the cards all three pages
+    # share (js/evidence-cards.js): the page builds no mark itself, and nothing
+    # is built unless evidence is present.
     assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
-    assert "<mark" not in page
+    assert page.count("<mark") == 0 and "EC.card(" in page
+    assert "if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(" in page
+    assert '<script src="js/evidence-view.js?v=' in page
+    assert '<script src="js/evidence-cards.js?v=' in page
+    cards = (SUITE / "js" / "evidence-cards.js").read_text(encoding="utf-8")
+    # The one place a mark is built, and only where EvidenceView.markParts found the slice.
+    assert cards.count("'<mark'") == 1 and "EV.markParts(q)" in cards
     # Outcome and signature are blank form lines for the teacher, never data.
     assert page.count('<div class="line"></div>') == 2
     assert "Teacher signature" in page and "Outcome of the conversation" in page
@@ -809,6 +862,26 @@ def test_account_menu_is_settings_then_sign_out_with_no_classic_link(path):
     assert "Analysis (classic)" not in texts, f"{path.name}: {texts}"
     assert not any(href == "/professor.html" for href, _ in links), f"{path.name} links professor.html"
     assert texts.index("Settings") < texts.index("Sign out"), f"{path.name}: {texts}"
+
+
+@pytest.mark.parametrize(
+    "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
+)
+def test_account_menu_opens_the_collections_dashboard_first(path):
+    # Bare /bluebook/ sends a teacher to Original, so the way back to the
+    # Collections dashboard is a named link: the first item, before Settings.
+    links = _account_menu(path)
+    texts = [text for _, text in links]
+    assert texts.count("Open Collections") == 1, f"{path.name}: {texts}"
+    assert links[0] == ("/bluebook/#dashboard", "Open Collections"), f"{path.name}: {links}"
+    assert texts[1] == "Settings", f"{path.name}: {texts}"
+
+
+def test_collections_page_head_links_to_the_collections_dashboard():
+    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
+    head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
+    assert '<a class="head-link" href="/bluebook/#dashboard">' in head
+    assert "Open Collections</a>" in head
 
 
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
@@ -1591,7 +1664,12 @@ def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
             "original_portfolio": "not a kept paper: no trailing underscore",
             "another_site_key": "left alone",
         },
-        session={"original_last_result": '{"result":{}}', "unrelated": "left alone"},
+        # bluebook_collections_tab: Collections' per-tab mark (deep-link.jsx).
+        session={
+            "original_last_result": '{"result":{}}',
+            "bluebook_collections_tab": "1",
+            "unrelated": "left alone",
+        },
     )
     assert sorted(out["local"]) == ["another_site_key", "original_portfolio"]
     assert out["session"] == ["unrelated"]
@@ -1913,6 +1991,7 @@ STUDENT_TAIL = r"""
     const s = await window.Live.gate(el, sc.opts);
     out.session = s ? { role: s.role, mode: s.mode } : null;
     out.html = el.innerHTML;
+    out.products = window.localStorage.getItem('original_products');
   } else if (sc.call === 'api') {
     out.res = await window.Live.api(sc.path, sc.opts);
   }
@@ -1986,6 +2065,46 @@ def test_student_gate_sends_everyone_else_to_bluebooks_sign_in(health):
     assert out["replaced"] == []
     assert "Sign in to continue" in out["html"]
     assert 'href="/bluebook/"' in out["html"]
+
+
+@needs_node
+def test_a_staff_gate_without_original_points_at_the_collections_dashboard_and_heals_products():
+    # Collections sends a teacher at the bare /bluebook/ address to Original while
+    # the stored products say Original. A workspace that lost it would bounce
+    # between the two: the panel names the Collections dashboard (#dashboard),
+    # and the server's products replace the stale stored list.
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": ["bluebook"], "tenant_id": "t"}],
+    )
+    assert out["session"] is None and out["replaced"] == []
+    assert "Original is off for this workspace" in out["html"]
+    assert 'href="/bluebook/#dashboard"' in out["html"]
+    assert 'href="/bluebook/"' not in out["html"]
+    assert json.loads(out["products"]) == ["bluebook"]
+
+
+@needs_node
+def test_a_staff_gate_with_original_stores_the_servers_products():
+    out = _student(call="gate", local={"original_principal_token": "p"}, me=STAFF_ME)
+    assert out["session"] == {"role": "professor", "mode": "signed-in"}
+    assert json.loads(out["products"]) == ["original", "bluebook"]
+
+
+@needs_node
+def test_a_gate_whose_server_lists_no_products_keeps_what_sign_in_stored():
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": [], "tenant_id": "t"}],
+    )
+    assert out["products"] == '["original","bluebook"]'
+
+
+def test_professor_page_collections_link_names_the_collections_dashboard():
+    page = (DEMO / "professor.html").read_text(encoding="utf-8")
+    assert 'href="bluebook/#dashboard" target="_blank" title="Collections: writing sessions"' in page
 
 
 @needs_node
@@ -2457,14 +2576,17 @@ def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
 
 def test_baseline_page_says_what_the_baseline_holds_without_overclaiming():
     page = _baseline_page()
-    # "Approved" is a teacher's act: only supervised, verified and imported samples.
-    assert "const APPROVED=['proctored','verified','canvas']" in page
+    # "Approved by you" is a teacher's act, and comes from the one shared rule in live.js
+    # (supervised, verified, imported, a take-home exam or a shared paper), not a copy of it.
+    assert "Live.approvals(samples())" in page and "Live.approvalWords(" in page
+    assert "const APPROVED=" not in page
     # The server's authenticated_count is "counted" (student uploads are in it); it is
     # never called approved, and the server's own sentences say "counted" too.
     assert "replace(/authenticated/gi,'counted')" in page
     assert "'approved')" not in page
-    # The full readiness rule, and the wording of the building verdict.
-    assert "5 or more counted samples with an effective count of 3 or more" in page
+    # The full readiness rule (ready at the score route's 3-paper floor), and the
+    # wording of the building verdict.
+    assert "ready at 3 or more counted samples" in page
     assert "results are less reliable; false alarms are likely" in page
     assert "cannot tell" not in page
     # Recency is by the order samples were added, not by the date written, and the
@@ -2639,9 +2761,9 @@ def test_baseline_page_takes_one_write_at_a_time_and_says_it_is_saving():
 def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_servers_count_counted():
     out = _baseline_run()["before"]
     # 5 samples: one student upload (never "approved") and 4 supervised sittings.
-    assert out["meta"] == "4 teacher-approved samples · 1 student upload"
-    assert "5 counted samples (4 teacher-approved, 1 student upload)" in out["short"]
-    assert "approved sample" not in out["short"].replace("teacher-approved", "")
+    assert out["meta"] == "5 samples: 4 approved by you, 1 student upload"
+    assert "5 counted samples (4 approved by you, 1 student upload)" in out["short"]
+    assert "teacher-approved" not in out["short"] and "approved sample" not in out["short"]
     # The server's sentence is shown with its "authenticated" read as "counted", and no dash.
     assert "Collect 1 more counted sample(s): more is better." in out["traj"]
     assert "authenticated" not in out["traj"] and chr(0x2014) not in out["traj"]
@@ -2867,9 +2989,9 @@ _APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baselin
 
 COUNTED_LABELS = {
     "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
-    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "' teacher-approved'"),
-    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "' teacher-approved)'"),
-    "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 3 or more counted samples'", "Live.approvalWords("),
+    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "Live.approvalWords("),
+    "reports.html": ("ready at 3 or more counted samples",),
 }
 
 
@@ -3012,7 +3134,7 @@ def _verdicts(cases: list[dict]) -> list[dict]:
     src = "\n".join(
         _extract(script, name)
         for name in (
-            "num", "plural", "baselineHref", "APPROVED", "counted", "teacherApproved", "countedPhrase",
+            "num", "plural", "baselineHref", "counted", "teacherApproved", "approvalLine", "lowerWeightNote", "countedPhrase",
             "READY_NEEDS", "rated", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
         )
     )
@@ -3041,12 +3163,12 @@ def _scored(authenticated, effective, **state) -> dict:
     "authenticated,effective,verdict",
     [
         (5, 3.0, "ready"),
-        (5, 2.9, "developing"),  # five samples that barely count are still building
-        (9, 2.0, "developing"),
-        (4, 10, "developing"),
-        (3, 0, "developing"),
-        (2, 0, "insufficient"),  # below the 3-paper minimum Original does not compare
-        (1, 1, "insufficient"),
+        (5, 2.9, "ready"),  # ready at the score route's 3-paper floor, whatever the weights
+        (9, 2.0, "ready"),
+        (4, 10, "ready"),
+        (3, 0, "ready"),  # the alpha's three papers
+        (2, 0, "developing"),  # below the 3-paper minimum Original does not compare: building
+        (1, 1, "developing"),
         (0, 0, "insufficient"),
         (None, 3, None),  # a missing field is no verdict, never "fine"
         (5, None, None),
@@ -3080,16 +3202,16 @@ def test_writing_state_prefers_the_rosters_verdict_over_the_one_it_derives():
 @needs_node
 def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready():
     ready, building, thin, unreadable = _verdicts(
-        [_scored(5, 3), _scored(3, 2), _scored(1, 1), _scored(None, None)]
+        [_scored(3, 2), _scored(2, 2), _scored(1, 1, verdict="insufficient"), _scored(None, None)]
     )
-    assert ready["line"] == ""
+    assert ready["line"] == ""  # three counted samples: the alpha's baseline reads normally
     assert building["line"] == (
-        " Original rates this baseline \u201cBuilding\u201d (3 counted samples; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        " Original rates this baseline \u201cBuilding\u201d (2 counted samples; "
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
         " Original rates this baseline \u201cNeeds more\u201d (1 counted sample; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
     assert unreadable["line"] == (
@@ -3097,31 +3219,123 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples and an effective count of 3 or more)" in building["note"]
-    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples and an effective count of 3 or more)" in thin["note"]
+    assert "\u201cBuilding\u201d (2 counted samples; ready needs 3 or more counted samples)" in building["note"]
+    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 3 or more counted samples)" in thin["note"]
 
 
 def _record(counted: int, *provenances: str) -> dict:
     return {"authenticated_count": counted, "samples": [{"provenance": p} for p in provenances]}
 
 
+def _sourced(*pairs: tuple[str, str]) -> dict:
+    """A record whose samples say how they got in: ``(provenance, source)`` each."""
+    return {
+        "authenticated_count": len(pairs),
+        "samples": [{"provenance": p, "source": src} for p, src in pairs],
+    }
+
+
 @needs_node
-def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones():
-    # authenticated_count is every sample the server weighs, a student upload included: it is
-    # "counted". The sample list says which of them a teacher approved (proctored, verified,
-    # canvas), and that number is shown beside it, never in its place.
-    split, no_list, stale = _verdicts(
+def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a_lower_weight():
+    take_home = ("unverified", "take_home")
+    all_you, mixed, upload_only, missing = _verdicts(
         [
-            _scored(3, 2, student=_record(3, "proctored", "verified", "unverified")),
-            _scored(3, 2, student={"authenticated_count": 3}),  # no sample list: no split to give
-            _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+            # The roster rates each "Building" (a server with a higher MIN_BASELINE_SAMPLES),
+            # so the line that carries the approval wording is shown.
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), ("verified", "staff_or_supervised"), take_home)),
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), take_home, ("unverified", "student_upload"))),
+            _scored(2, 2, student=_sourced(("unverified", "student_upload"), ("unverified", "student_upload"))),
+            # An old server sends no source: the provenance rule decides.
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "unverified", "unverified")),
         ]
     )
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["line"]
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["note"]
-    assert "teacher-approved" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
+    assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
+    # The lower-weight note is its own sentence, after the bracket, whenever a take-home exam is counted.
+    assert all_you["line"].endswith("Take-home exams and shared papers you approved count at a lower weight.")
+    assert all_you["note"].count("count at a lower weight.") == 1
+    assert "lower weight" not in mixed["line"].replace("Take-home exams and shared papers you approved count at a lower weight.", "")
+    assert "(3 counted samples, 2 approved by you, 1 student upload; ready needs" in mixed["line"]
+    assert "(2 counted samples, none approved by you, 2 student uploads; ready needs" in upload_only["line"]
+    assert "(3 counted samples, 1 approved by you, 2 student uploads; ready needs" in missing["line"]
+    assert "teacher-approved" not in all_you["line"] + mixed["line"] + upload_only["line"] + missing["line"]
+
+
+@needs_node
+def test_writing_state_counts_samples_approved_by_you_apart_from_counted_ones():
+    # authenticated_count is every sample the server weighs, a student upload included: it is
+    # "counted". The sample list says which of them you approved (supervised, verified,
+    # imported, or a take-home exam or shared paper), and that is shown beside it, never in its place.
+    split, no_list, stale = _verdicts(
+        [
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "verified", "unverified")),
+            _scored(3, 2, verdict="developing", student={"authenticated_count": 3}),  # no sample list: no split to give
+            _scored(3, 2, verdict="developing", student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+        ]
+    )
+    rule = "ready needs 3 or more counted samples"
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["line"]
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["note"]
+    assert "approved by you" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
     # The analysis counted 3 and the record now says 5: splitting 5 by provenance beside a 3 would mislead.
-    assert "teacher-approved" not in stale["line"] and "(3 counted samples;" in stale["line"]
+    assert "approved by you" not in stale["line"] and "(3 counted samples;" in stale["line"]
+
+
+APPROVALS_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const window = {};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(sc.live, 'utf8'))(window, document);
+process.stdout.write(JSON.stringify(sc.cases.map((c) => {
+  const a = window.Live.approvals(c);
+  return { a, words: window.Live.approvalWords(a), bare: window.Live.approvalWords(a, { note: false }), how: c.map((s) => window.Live.howAdded(s)) };
+})));
+"""
+
+
+@needs_node
+def test_live_approvals_counts_who_approved_each_sample_and_says_so_in_plain_words():
+    def smp(prov, source=None):
+        d = {"provenance": prov}
+        if source:
+            d["source"] = source
+        return d
+
+    cases = [
+        [smp("proctored", "staff_or_supervised"), smp("unverified", "take_home"), smp("unverified", "take_home"), smp("unverified", "shared_paper")],
+        [smp("verified", "staff_or_supervised"), smp("unverified", "student_upload"), smp("unverified", "student_upload")],
+        [smp("proctored"), smp("canvas"), smp("unverified")],  # an old server: no source, provenance rule
+        [smp("unverified", "take_home")],
+        [smp("unverified", "unknown"), smp("unverified", "unknown")],  # nothing known: no split to give
+        [],
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", APPROVALS_RUN],
+        input=json.dumps({"live": str(SUITE / "live.js"), "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    mixed, uploads, old, one, unknown, empty = json.loads(run.stdout)
+    assert mixed["a"] == {"counted": 4, "byYou": 4, "supervised": 1, "takeHome": 2, "shared": 1, "uploads": 0, "unknown": 0}
+    assert mixed["words"] == "all approved by you (2 take-home exams and 1 shared paper count at a lower weight)"
+    assert mixed["bare"] == "all approved by you"
+    assert uploads["a"]["byYou"] == 1 and uploads["a"]["uploads"] == 2
+    assert uploads["words"] == "1 approved by you, 2 student uploads"
+    assert old["a"] == {"counted": 3, "byYou": 2, "supervised": 2, "takeHome": 0, "shared": 0, "uploads": 1, "unknown": 0}
+    assert old["words"] == "2 approved by you, 1 student upload"
+    assert old["how"] == ["Supervised sitting", "Imported", "Student upload"]
+    assert one["words"] == "all approved by you (1 take-home exam counts at a lower weight)"
+    assert one["how"] == ["Take-home exam approved by you"]
+    assert unknown["a"]["unknown"] == 2 and unknown["words"] == ""
+    assert empty["a"]["counted"] == 0 and empty["words"] == ""
+    for c in (mixed, uploads, old, one):
+        assert "teacher-approved" not in c["words"]
+
+
+def test_side_by_side_past_paper_table_says_how_each_paper_was_approved():
+    page = _evidence_page()
+    assert "Live.howAdded(p)" in page and "addSources(ev,st)" in page
+    assert "teacher-approved" not in page
 
 
 # The packet's inline script, run for real under node: the stored analysis is in
@@ -3228,13 +3442,14 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     "counts,said,not_said",
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
-        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 3, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
+        ({"authenticated_count": 3, "effective_sample_count": 0}, "A paper on a new topic or in a new genre", "inconclusive"),
+        ({"authenticated_count": 2, "effective_sample_count": 2}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 0, "effective_sample_count": 0}, "\u201cNeeds more\u201d", None),
         ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
         ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
-    ids=["ready", "five-barely-counting", "three-samples", "one-sample", "no-effective-count", "no-counts"],
+    ids=["ready", "three-samples", "two-samples", "one-sample", "no-samples", "no-effective-count", "no-counts"],
 )
 def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
     out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500
@@ -3273,7 +3488,23 @@ def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_serv
 def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(student, table_says):
     out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
     assert table_says in out["baseline"]
-    assert "\u201cNeeds more\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+    assert "\u201cBuilding\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+
+
+@needs_node
+def test_packet_says_a_take_home_exam_was_approved_by_you_and_a_student_upload_was_not():
+    counts = {"authenticated_count": 3, "effective_sample_count": 3}
+    samples = [
+        {"index": 0, "assignment": "Exam", "provenance": "unverified", "source": "take_home", "submitted_at": "2025-01-20"},
+        {"index": 1, "assignment": "Shared", "provenance": "unverified", "source": "shared_paper", "submitted_at": "2025-01-21"},
+        {"index": 2, "assignment": "Own", "provenance": "unverified", "source": "student_upload", "submitted_at": "2025-01-22"},
+    ]
+    out = _packet_run(counts, student=[200, {"authenticated_count": 3, "samples": samples}])
+    assert "<b>3 counted samples</b> (2 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 3 samples, 2 approved by you (1 take-home exam and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
+    assert '<span class="how">Take-home exam approved by you</span>' in out["baseline"]
+    assert '<span class="how">Shared paper approved by you</span>' in out["baseline"]
+    assert out["baseline"].count('<span class="how">Student upload</span>') == 1
 
 
 def _mixed_samples() -> list:
@@ -3286,14 +3517,14 @@ def _mixed_samples() -> list:
 
 
 @needs_node
-def test_packet_counts_teacher_approved_samples_apart_from_counted_ones_and_uses_baseline_words():
+def test_packet_counts_samples_approved_by_you_apart_from_counted_ones_and_uses_baseline_words():
     counts = {"authenticated_count": 5, "effective_sample_count": 4}
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    # The server's count is "counted"; the sample list says how many of them a teacher approved.
-    assert "<b>5 counted samples</b> (4 teacher-approved)" in out["sub"]
-    assert "On file now: 5 samples, 4 teacher-approved and 1 student upload." in out["baseline"]
+    # The server's count is "counted"; the sample list says how many of them you approved.
+    assert "<b>5 counted samples</b> (4 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 5 samples, 4 approved by you, 1 student upload." in out["baseline"]
     # The provenance words are the ones baseline.html uses.
     for word in ("Supervised sitting", "Verified by teacher", "Imported", "Student upload"):
         assert f'<span class="how">{word}</span>' in out["baseline"], word
@@ -3308,7 +3539,7 @@ def test_packet_gives_no_teacher_approved_split_beside_a_count_the_record_no_lon
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    assert "<b>4 counted samples</b>" in out["sub"] and "teacher-approved" not in out["sub"]
+    assert "<b>4 counted samples</b>" in out["sub"] and "approved by you" not in out["sub"]
     assert "This analysis compared the paper with 4 counted samples; 5 are on file now." in out["baseline"]
 
 
@@ -3345,7 +3576,7 @@ def test_baseline_page_draws_the_student_before_the_sealed_list_has_loaded():
     # student's own baseline needs only two, so it is drawn without waiting for it.
     out = _baseline_run(early=300, delay={"/bluebook/submissions": 900})
     early = out["early"]
-    assert early["meta"] == "4 teacher-approved samples \u00b7 1 student upload"
+    assert early["meta"] == "5 samples: 4 approved by you, 1 student upload"
     assert "5 counted samples" in early["short"]
     assert 'data-act="approve"' not in early["sealed"]
     # ...and the sealed exams are there once they arrive.
@@ -3357,13 +3588,13 @@ def test_baseline_page_does_not_say_how_many_samples_a_student_has_when_it_could
     out = _baseline_run(failStudentAfterWrite=True)
     lines = out["after"]["lines"]
     assert lines[0] == "Added as sample 6. The count could not be refreshed just now. Reload the page to see it."
-    assert not [line for line in lines if "now has" in line or "teacher-approved sample" in line]
+    assert not [line for line in lines if "now has" in line or "approved by you" in line]
 
 
 @needs_node
 def test_baseline_page_still_says_how_many_when_the_follow_up_read_works():
     out = _baseline_run()
-    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 teacher-approved samples."
+    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 samples approved by you."
 
 
 @needs_node
@@ -3919,7 +4150,8 @@ def test_evidence_page_reads_what_writing_state_stores_and_scores_nothing():
     assert "if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }" in page
     # The words are the shared templates, never written inline.
     assert '<script src="js/evidence-view.js?v=' in page
-    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EV.markParts("):
+    assert '<script src="js/evidence-cards.js?v=' in page
+    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EC.card("):
         assert fn in page, fn
 
 
@@ -3960,3 +4192,139 @@ def test_evidence_templates_carry_none_of_the_banned_wording_outside_the_check()
     body = code[code.index("function isClean(") :]
     for rx in (r"\bai[- ]detect", r"\bcheat", r"authorship verification", r"\baccura(te|cy)\b", r"generated prose"):
         assert not re.search(rx, body, re.I), rx
+
+
+# ── Writing State opens .docx and .pdf ────────────────────────────────────────
+
+
+def test_writing_state_file_control_accepts_docx_pdf_and_txt():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    ctl = re.search(r'<label class="an-file">(.*?)</label>', state).group(1)
+    assert "or open a .docx, .pdf or .txt file" in ctl
+    accept = re.search(r'accept="([^"]*)"', ctl).group(1).split(",")
+    assert {".docx", ".pdf", ".txt"} <= set(accept)
+    # Errors land in the existing role=status element.
+    assert 'id="an-msg" role="status"' in state
+
+
+def test_writing_state_sends_docx_and_pdf_only_to_the_extraction_route():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    posts = re.findall(r"\+'(/[a-z]+)',\{method:'POST'", state)
+    # The paper itself only ever goes to /score; a file goes to /upload and nowhere else.
+    assert sorted(posts) == ["/score", "/upload"]
+    assert "fd.append('file',f)" in state
+    assert "Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd})" in state
+    # Never the baseline routes: analysing a paper adds nothing to a baseline.
+    assert "upload-batch" not in state and "/baseline/upload" not in state
+    assert "fetch(" not in state
+    # .txt stays in the browser; docx/pdf take the server path.
+    assert "openDocument(f,ext); return;" in state
+    assert "rd.readAsText(f)" in state
+    # Honest failures.
+    assert "This file has no text Original can read. If it is a scan, paste the text instead." in state
+    assert "FILE_LIMIT=10*1024*1024" in state and "TXT_LIMIT=1048576" in state
+    # A late server reply never overwrites newer input.
+    assert "const my=++openSeq;" in state and "if(my!==openSeq) return;" in state
+    assert "$('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });" in state
+
+
+# ── A sealed Collections exam analysed against the baseline ─────────────────
+
+
+SEALED_JOIN = re.compile(r"function sealedPaperText\(sub\)\{.*?\}\n")
+
+
+@needs_node
+def test_writing_state_joins_a_sealed_exam_exactly_as_the_baseline_approval_does():
+    from original.routers.bluebook_baselines import _baseline_text
+
+    fn = SEALED_JOIN.findall(_writing_state())
+    assert len(fn) == 1, "sealedPaperText must stay a one-line function"
+    samples = [
+        {"answers": ["  First answer.\n", "", "Second\nanswer.  ", "   "], "text": "Question 1.\nFirst"},
+        {"answers": ["Only one."], "text": "Only one."},
+        {"answers": [], "text": "  Question 1.\nOld text with headings.\n"},
+        {"answers": ["", "  "], "text": "Question 1.\nx"},
+        {"answers": [None, "Kept", "\tTabbed\t"], "text": ""},
+        {"text": None},
+        {},
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", fn[0] + "process.stdout.write(JSON.stringify("
+         "JSON.parse(require('fs').readFileSync(0,'utf8')).map(sealedPaperText)));"],
+        input=json.dumps(samples), capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [_baseline_text(s) for s in samples]
+
+
+def test_writing_state_loads_a_sealed_exam_but_never_analyses_it_by_itself():
+    state = _writing_state()
+    assert "get('submission')" in state
+    # The staff-only detail route, for this submission only.
+    assert "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))" in state
+    body = state[state.index("async function loadSealed(){") :]
+    body = body[: body.index("\n  }\n")]
+    # The paper is checked to be this student's before anything is filled.
+    assert "if(String(d.student_id||'')!==S.id){ sealedFail(" in body
+    assert body.index("String(d.student_id||'')!==S.id") < body.index("$('an-text').value=text;")
+    # The teacher presses Analyse: loading never scores, never touches a baseline.
+    for never in ("/score", "analyse(", "requestSubmit", ".submit(", "/baseline", "click()"):
+        assert never not in body, never
+    assert "'Loaded from Collections: '+label" in body
+    assert "label=exam+(date?', sealed '+date:'')" in body
+    # Every failure leaves the form empty and says so plainly.
+    fail = state[state.index("function sealedFail(text){") :]
+    fail = fail[: fail.index("\n  }\n")]
+    assert "$('an-text').value=''; $('an-assign').value='';" in fail and "msg(text,true)" in fail
+    for words in (
+        "This sealed exam was not found in your workspace, so nothing was loaded.",
+        "You do not have access to this sealed exam, so nothing was loaded.",
+        "This sealed exam was written by a different student, so it was not loaded.",
+    ):
+        assert words in body
+
+
+def test_a_sealed_exam_link_wins_over_the_kept_last_analysis():
+    state = _writing_state()
+    restore = state[state.index("  function restoreLast(){") :]
+    restore = restore[: restore.index("\n  }\n")]
+    # The kept record is shown on a ?submission= link only when it is that
+    # exam's own analysis; otherwise the sealed exam loads.
+    assert "if(S.subId&&recSub!==S.subId) return false;" in restore
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in state
+    # The record says which sealed exam it analysed, and only when the box
+    # still held exactly that exam's text.
+    assert "collections_submission:S.resultSub," in state
+    assert "S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';" in state
+
+
+def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8")
+    row = page[page.index("  function rowHTML(r){") :]
+    row = row[: row.index("\n  }\n")]
+    # The action follows the closing </a>: no link nested in the row link.
+    assert "'</a>'+actHTML(r)+'</div>'" in row
+    act = page[page.index("  function actHTML(r){") :]
+    act = act[: act.index("\n  }\n")]
+    assert "'writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id))" in act
+    assert ">Analyse against baseline</a>" in act
+    assert "'baseline.html?student='+encodeURIComponent(sid)+'#add-writing'" in act
+    assert ">Add writing first</a>" in act
+    # Who has a baseline comes from the shared roster, never a request of its own.
+    assert "await Live.roster()" in page and "Live.api(" not in page
+    assert "(counted.get(sid)||0)>0" in act
+    # Nothing until the roster answers: no action is offered on a guess.
+    assert "if(!counted||!sid" in act
+
+
+def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
+    """2026-11-17, live pilot: a sealed exam whose student had since been removed
+    from every roster showed the exam app's stock "Candidate No. 00042" as its
+    student and offered "Add writing first", a link to a student page that
+    cannot open. A removed student is now said to be one, with no link."""
+    code = _inline_scripts(SUITE / "submissions.html")
+    assert "'A student no longer on your roster'" in code
+    assert r"/^Candidate No\.\s*\d+$/" in code  # the stock placeholder is never a name
+    assert "if(!r.named&&!counted.has(sid)) return '<div class=\"q-act\"><span class=\"q-gone\">No longer on your roster</span></div>';" in code
+    assert "String(r.student_id||'Unknown student')" not in code  # never an id for a name
