@@ -2767,6 +2767,17 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "length_match_action_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Action Preview"
+          },
           "length_match_applied": {
             "default": false,
             "title": "Length Match Applied",

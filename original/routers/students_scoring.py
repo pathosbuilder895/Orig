@@ -71,6 +71,16 @@ def _throttle_score(request: Request | None) -> None:
         _score_calls.clear()
 
 
+def _score_source(request: Request | None) -> str:
+    """Where a scoring call came from, for shadow-soak lines only: a student's
+    own practice check (/me/work, which passes no request), a student's exam
+    seal, or staff. A soak should not mix practice traffic into its rates."""
+    if request is None:
+        return "practice"
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    return "exam" if principal is not None and principal.role == "student" else "staff"
+
+
 def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
     """Students may score only their own work during an enabled exam sitting.
 
@@ -384,12 +394,16 @@ def score_submission(
     # piece, up to LENGTH_MATCH_MAX_PIECES. Pieces are measured the way past
     # papers are (feature_vector on plain text). A failure here leaves the
     # state None, which score() treats exactly as flag-off.
+    # The paper's length here is its BODY, counted as past papers are cut
+    # (body_word_count); _n_tokens stays the raw count everywhere else.
     _length_state = None
+    _body_words = 0
     if _scoring_config_env.length_matched_baseline != "off":
         try:
-            from ..quantum.length_match import build_length_matched_state
+            from ..quantum.length_match import body_word_count, build_length_matched_state
 
-            _length_state = build_length_matched_state(state, _n_tokens, feature_vector)
+            _body_words = body_word_count(req.text)
+            _length_state = build_length_matched_state(state, _body_words, feature_vector)
         except Exception:
             logging.getLogger(__name__).exception("length match failed: scored without it")
 
@@ -413,14 +427,18 @@ def score_submission(
     # the flag was inert for it. No student id, counts only.
     if _scoring_config_env.length_matched_baseline != "off":
         logging.getLogger(__name__).info(
-            "length_match mode=%s pieces=%d papers_cut=%d n_tokens=%d deviation=%.4f "
-            "deviation_preview=%s",
+            "length_match mode=%s source=%s pieces=%d papers_cut=%d n_tokens=%d body_words=%d "
+            "deviation=%.4f action=%s deviation_preview=%s action_preview=%s",
             _scoring_config_env.length_matched_baseline,
+            _score_source(request),
             result.length_match_pieces or 0,
             _length_state.papers_cut if _length_state is not None else 0,
             _n_tokens,
+            _body_words,
             result.authorship.deviation_score,
+            result.recommendation.action,
             result.length_match_deviation_preview,
+            result.length_match_action_preview,
         )
 
     # ── Opportunity mask audit line ───────────────────────────────────────────

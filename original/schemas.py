@@ -1207,6 +1207,7 @@ class Layer7OutputResponse(BaseModel):
     length_match_mode: str | None = None
     length_match_pieces: int | None = None
     length_match_deviation_preview: float | None = None
+    length_match_action_preview: str | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the

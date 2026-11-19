@@ -97,6 +97,7 @@ _AUDIT = (
     "length_match_mode",
     "length_match_pieces",
     "length_match_deviation_preview",
+    "length_match_action_preview",
 )
 
 
@@ -132,7 +133,8 @@ def test_shadow_hands_the_state_to_score_and_logs_it(lenw_tenant, spy, monkeypat
     assert len(handed.piece_vectors) == 16
     lines = [r.getMessage() for r in caplog.records if "length_match mode=" in r.getMessage()]
     assert len(lines) == 1
-    assert lines[0].startswith("length_match mode=shadow pieces=16 papers_cut=4 ")
+    assert lines[0].startswith("length_match mode=shadow source=staff pieces=16 papers_cut=4 ")
+    assert f" action={shadow['recommendation']['action']} " in lines[0]
     assert _SID not in lines[0]  # counts only, never a student id
     # Report-only end to end.
     assert shadow["length_match_mode"] == "shadow"
@@ -151,6 +153,7 @@ def test_on_changes_the_score_through_the_route(lenw_tenant, spy, monkeypatch):
     assert spy["result"].length_match_applied is True
     assert on["authorship"]["deviation_score"] != shadow["authorship"]["deviation_score"]
     assert on["authorship"]["deviation_score"] == shadow["length_match_deviation_preview"]
+    assert on["recommendation"]["action"] == shadow["length_match_action_preview"]
     # The stored student is untouched: still four papers, measured whole.
     stored = get_repository().get(_SID)
     assert not isinstance(stored, LengthMatchedState)
@@ -165,8 +168,36 @@ def test_a_paper_as_long_as_the_past_ones_is_exactly_off(lenw_tenant, spy, monke
     with caplog.at_level(logging.INFO, logger=students_scoring.__name__):
         on = _post(lenw_tenant, long_text)
     assert spy["kwargs"]["length_matched_state"] is None
-    assert "length_match mode=on pieces=0 papers_cut=0 " in caplog.text
+    assert "length_match mode=on source=staff pieces=0 papers_cut=0 " in caplog.text
     assert on == off
+
+
+_BIBLIOGRAPHY = "\n\nWorks Cited\n" + "\n".join(
+    f"Author{i}, A. A Study of River Valleys, Volume {i}. Valley Press, 19{i:02d}."
+    for i in range(30)
+)
+
+
+def test_a_bibliography_does_not_count_toward_the_papers_length(
+    lenw_tenant, spy, monkeypatch, caplog
+):
+    """Past papers are cut on their body, so the new paper is measured on its
+    body too. Counted raw, a 150-word paper with a long bibliography reads as
+    more than half the past papers' 620 words and the match abstains."""
+    with_bib = _TEXT + _BIBLIOGRAPHY
+    assert len(with_bib.split()) * 2 > 620  # raw, it would abstain
+    monkeypatch.setenv("LENGTH_MATCHED_BASELINE", "shadow")
+    _post(lenw_tenant, _TEXT)
+    body_only = spy["kwargs"]["length_matched_state"]
+    with caplog.at_level(logging.INFO, logger=students_scoring.__name__):
+        _post(lenw_tenant, with_bib)
+    handed = spy["kwargs"]["length_matched_state"]
+    assert isinstance(handed, LengthMatchedState)
+    assert handed.papers_cut == body_only.papers_cut == 4
+    assert len(handed.piece_vectors) == len(body_only.piece_vectors) == 16
+    assert " body_words=150 " in caplog.text
+    # The paper's raw length still reaches score() unchanged.
+    assert spy["kwargs"]["n_tokens"] == len(with_bib.split())
 
 
 def test_a_failing_build_falls_back_to_flag_off(lenw_tenant, spy, monkeypatch, caplog):
@@ -202,3 +233,17 @@ def test_on_does_not_store_a_length_matched_fidelity(
     _post(lenw_tenant)
     assert spy["result"].authorship.quantum_fidelity > 0
     assert bool(writes) is expect_write
+
+
+def test_the_soak_line_names_where_the_call_came_from():
+    from types import SimpleNamespace
+
+    from original.routers.students_scoring import _score_source
+
+    def req(role):
+        return SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role=role)))
+
+    assert _score_source(None) == "practice"
+    assert _score_source(req("student")) == "exam"
+    assert _score_source(req("professor")) == "staff"
+    assert _score_source(SimpleNamespace(state=SimpleNamespace())) == "staff"

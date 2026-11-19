@@ -67,3 +67,26 @@ So `on` trades a severe false-flag problem for a weak detector on short papers. 
 ## Decision this supports
 
 `shadow` on a pilot workspace is reasonable: it changes nothing and records how often real papers are much shorter than a student's past papers and what the score would have been. `on` is not supported yet: it needs action thresholds set for the matched reference, on a corpus other than this one, and a test on real separate papers per author.
+
+## Addendum, 2026-11-19: cut points for the matched reference
+
+The cut points this note asked for are set and tested
+(`validation/length_match_thresholds/`, README there). They were chosen on the
+`calibration` partition of `validation/scholarly/` humanities (separate journal
+articles per author, mostly theology) and passed once on the author-disjoint
+`locked_test` partition: 60 authors, 360 honest and 900 other-writer trials.
+
+| Honest short paper vs long past papers | Off | On, new cut points |
+|---|---|---|
+| Honest at "worth a conversation" or higher | 48.3% | 0.6% |
+| Honest at "monitor" or higher | 99.4% | 11.4% |
+| Other writers caught | 83.7% | 13.9% (off at the same honest rate: 5.9%) |
+
+The cut points are monitor 0.517, worth a conversation 0.622 and very
+differently 0.703. Under `on` they apply whenever the match is applied
+(`LENGTH_MATCHED_ACTION_THRESHOLDS`).
+
+The same branch fixes a fault the review of #334 found: the new paper's length
+was counted with its bibliography while past papers were cut on their body.
+
+Still published writing, not students; `shadow` on the pilot is next.
