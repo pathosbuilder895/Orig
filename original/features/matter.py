@@ -12,31 +12,11 @@ text, each with a kind:
     ("Works Cited:", centred, "Works Cited Page") but trusted only after the
     first 40% of the paper and when most lines after it start like entries
     and carry a year. Markdown, numbering and emphasis around the heading are
-    ignored ("## References", "7. References", "**Works Cited**").
-    "Notes"/"Endnotes" also need numbered lines. Notes without years are
-    trusted only when every line is a short numbered line, most of them point
-    somewhere ("Berlin 131", "p. 4", "Ibid.", "Cf."; a year is never a page),
-    and what follows is the end of the paper or a list that passes the entry
-    check itself. So a
+    ignored ("## References", "7. References", "**Works Cited**"); every
+    check after it still applies. "Notes"/"Endnotes" also need numbered
+    lines. So a
     one-word paragraph "Notes", or a sentence starting "References to ...",
     no longer cuts off the rest of the paper (it did under the old rule).
-``cover_letter``
-    A note to the teacher at the very start or the very end of the paper.
-    Every part is required, so anything else stays prose:
-    - a salutation of at most six words that names the teacher by title and
-      ends in "," or ":" ("Dear Professor Hartley,", "Dear Dr. Okafor,", "To
-      whom it may concern:"); "Dear Reader,", "Dear God,", "Dear friends,"
-      or "Dear Senator ..." open the student's own writing instead;
-    - a closing line ("Sincerely,", "Best regards,") with at most three short
-      signature lines straight after it;
-    - in the letter's own lines, words saying it accompanies the work
-      ("attached", "enclosed", "submitting", "my paper", "this essay");
-    - before the paper's first line of prose, or after its last: short lines
-      above the salutation (a name, an address, a date) go with the letter
-      only when none of them ends in punctuation, so an epigraph stays prose;
-    - at most 200 words and 35% of the paper.
-    It is never compared with the student's past papers (there is no record
-    of their letters to compare it with).
 ``front_matter``
     The heading block at the top (name, teacher, course, date, title), only
     when it carries a date, a course code or a teacher's title; otherwise only
@@ -47,7 +27,15 @@ text, each with a kind:
     A running head or page number line ("Grant 2", "Page 3", "4").
 ``footnote``
     A numbered note line with a citation shape ("1. Augustine, Confessions
-    (Oxford: ..., 1991), 230." or "2. Ibid., 232.").
+    (Oxford: ..., 1991), 230." or "2. Ibid., 232."). Only a page may follow
+    the citation, and a numbered biblical book ("1 Peter 2:9 ...") is never a
+    note number, so a numbered paragraph that cites a book and goes on stays
+    prose.
+
+Not detected, so measured as prose: a cover letter to the teacher, and notes
+that carry no year. Rules for both kept setting real student writing aside
+(letter assignments, a sermon's closing prayer, numbered points citing
+scripture), so they wait for a teacher's own "set this part aside" control.
 
 Rules when unsure
 -----------------
@@ -78,15 +66,6 @@ LOG_SOFT_SHARE = 0.15
 MAX_SOFT_SHARE = 0.30
 #: A list of sources longer than this share of the paper is logged.
 LOG_BACK_SHARE = 0.20
-#: A "Notes" section without years is trusted only when every line is a short
-#: numbered reference line of at most this many words.
-NOTE_MAX_WORDS = 40
-#: A letter longer than this share of the paper's words is kept as prose.
-LETTER_MAX_SHARE = 0.35
-#: ... or longer than this many words: a cover note, not an essay.
-LETTER_MAX_WORDS = 200
-#: Short lines allowed after a letter's closing (name, course, email).
-LETTER_SIGNATURE_LINES = 3
 
 _LIST_HEADING = re.compile(
     r"^[ \t]*(?:bibliography|references?|works?\s+cited(?:\s+page)?|works?\s+consulted"
@@ -109,37 +88,6 @@ _HEADING_DECOR = re.compile(
     r"^[ \t]*(?:#{1,6}[ \t]*)?(?:(?:\d{1,2}|[IVXLC]{1,6})[.)][ \t]+)?[*_]{0,2}[ \t]*"
 )
 _HEADING_TAIL = re.compile(r"[ \t]*[*_]{0,2}[ \t]*(:?)[ \t]*$")
-# A note to the teacher: "Dear" plus a title, or "To whom it may concern".
-# "Dear Reader,", "Dear God,", "Dear friends," or "Dear Senator ..." open a
-# student's own writing, not a note about it.
-_SALUTATION = re.compile(
-    r"^[ \t]*(?:dear[ \t]+(?:professor|prof\.?|dr\.?|mr\.?|mrs\.?|ms\.?|mx\.?|rev\.?"
-    r"|reverend|pastor|father|fr\.|sister|instructor|dean|teacher)[ \t]+[^\n,:]{1,40}"
-    r"|to[ \t]+whom[ \t]+it[ \t]+may[ \t]+concern)[ \t]*[,:][ \t]*$",
-    re.IGNORECASE,
-)
-_CLOSING = re.compile(
-    r"^[ \t]*(?:(?:yours[ \t]+)?sincerely(?:[ \t]+yours)?|respectfully(?:[ \t]+yours)?"
-    r"|(?:with[ \t]+)?(?:best|kind|warm(?:est)?)[ \t]+(?:regards|wishes)|regards"
-    r"|yours[ \t]+(?:truly|faithfully)|(?:with[ \t]+)?(?:many[ \t]+)?thanks|thank[ \t]+you"
-    r"|gratefully|cordially|best)[ \t]*[,.!]?[ \t]*$",
-    re.IGNORECASE,
-)
-# A cover note says, in its own body, that it accompanies the work.
-_SUBMISSION_WORD = re.compile(
-    r"\b(?:attached|attach|enclosed|enclose|submit(?:ted|ting)?|submission|hand(?:ing)?\s+in"
-    r"|(?:my|this|the)\s+(?:final\s+)?(?:paper|essay|draft|assignment|thesis))\b",
-    re.IGNORECASE,
-)
-# A note line that points somewhere: a page or number after the note number,
-# or a reference word.
-_PAGE = r"(?!1[5-9]\d\d\b|20\d\d\b)\d{1,4}(?:[-\u2013]\d{1,4})?\b"
-_NOTE_REFERENCE = re.compile(
-    r"^\s*\d{1,3}\.?\s+(?:(?i:ibid\b|cf\.)"
-    r"|.*\b(?i:pp?|sec|ch|chap|vol)\.\s*\d"
-    r"|.*\b[A-Z][a-z]+,?\s+" + _PAGE + r"|.*,\s*" + _PAGE + r"\.?\s*$)"
-)
-
 _NUMBERED = re.compile(r"^[ \t]*\d{1,3}\.?\s+\S")
 _YEAR = re.compile(r"\b(1[5-9]\d\d|20\d\d)\b")
 _DATE = re.compile(
@@ -179,7 +127,6 @@ _SMALL_WORDS = frozenset(
     | {"as", "vs"}
 )
 _SENTENCE_END = (".", "?", "!", '"', "\u201d", ")", "'", "\u2019")
-_LINE_PUNCTUATION = (*_SENTENCE_END, ",", ";", ":", "-", "\u2013", "\u2014")
 
 SOFT_KINDS = frozenset({"front_matter", "heading", "page_header", "footnote"})
 
@@ -233,62 +180,25 @@ def _lines(text: str) -> list[tuple[int, int, str]]:
 def _back_matter(lines: list[str]) -> int | None:
     """Line index where a verified list of sources starts, or None."""
     filled = [i for i, line in enumerate(lines) if line.strip()]
-    total = sum(_words(lines[i]) for i in filled) or 1
-    before = 0
     for k, i in enumerate(filled):
-        # Position counts words, not lines: a docx paragraph is one long line,
-        # so a long list after a few paragraphs sits late in the paper's words
-        # even when it starts early in its lines.
-        at = before / total
-        before += _words(lines[i])
-        if not _is_list_heading(lines[i]) or at < 0.4:
+        if not _is_list_heading(lines[i]) or k < 0.4 * len(filled):
             continue
         rest = [lines[j] for j in filled[k + 1 :] if not _is_list_heading(lines[j])]
         if not rest:
             continue
         if _is_notes_heading(lines[i]):
-            # The notes run to the next list heading (a bibliography often
-            # follows them), not to the end of the paper.
-            section = []
-            for j in filled[k + 1 :]:
-                if _is_list_heading(lines[j]):
-                    break
-                section.append(lines[j])
-            numbered = sum(1 for r in section if _NUMBERED.match(r))
-            if not section or numbered / len(section) < 0.5:
+            numbered = sum(1 for r in rest if _NUMBERED.match(r))
+            if numbered / len(rest) < 0.5:
                 continue
-            # Notes rarely carry a year ("1. See Berlin 131 ..."). Without one,
-            # trust the section only when every line is a short numbered line,
-            # most of them point somewhere (a page, "Ibid.", "Cf."), and what
-            # follows is the end of the paper or a list of sources that passes
-            # the entry check itself. A student's own numbered points, and
-            # prose after the notes, stay prose.
-            after = filled[k + 1 + len(section) :]
-            short_numbered = all(
-                _NUMBERED.match(r) and _words(r) <= NOTE_MAX_WORDS for r in section
-            )
-            pointing = sum(1 for r in section if _NOTE_REFERENCE.match(r))
-            if (
-                short_numbered
-                and pointing * 2 > len(section)
-                and (not after or _verified_list([lines[j] for j in after[1:]]))
-            ):
-                return i
-        if _verified_list(rest):
+        starts = sum(1 for r in rest if _ENTRY_START.match(r) and _YEAR.search(r))
+        if starts and starts / len(rest) >= 0.5:
             return i
     return None
 
 
-def _verified_list(rest: list[str]) -> bool:
-    """Most lines start like an entry and carry a year."""
-    rest = [r for r in rest if not _is_list_heading(r)]
-    starts = sum(1 for r in rest if _ENTRY_START.match(r) and _YEAR.search(r))
-    return bool(rest) and starts / len(rest) >= 0.5
-
-
-def _front_matter(lines: list[str], stop: int, start: int = 0) -> list[int]:
+def _front_matter(lines: list[str], stop: int) -> list[int]:
     run: list[int] = []
-    filled = [i for i in range(start, stop) if lines[i].strip()]
+    filled = [i for i in range(stop) if lines[i].strip()]
     for pos, i in enumerate(filled):
         s = lines[i].strip()
         signal = bool(_DATE.search(s) or _HEADER_SIGNAL.match(s))
@@ -305,82 +215,6 @@ def _front_matter(lines: list[str], stop: int, start: int = 0) -> list[int]:
     if any(_DATE.search(lines[i]) or _HEADER_SIGNAL.match(lines[i].strip()) for i in run):
         return run
     return run[:1] if run and _heading_like(lines[run[0]]) else []
-
-
-def _is_salutation(line: str) -> bool:
-    return bool(_SALUTATION.match(line)) and _words(line) <= 6
-
-
-def _letter_end(lines: list[str], filled: list[int], s: int) -> tuple[int, int] | None:
-    """Position in ``filled`` of a letter's last line, given its salutation at
-    ``filled[s]``: the first closing line after it plus up to
-    LETTER_SIGNATURE_LINES short lines straight after it (no blank line
-    between) that do not read as prose."""
-    for c in range(s + 1, len(filled)):
-        if _CLOSING.match(lines[filled[c]]):
-            end = c
-            for j in range(c + 1, min(c + 1 + LETTER_SIGNATURE_LINES, len(filled))):
-                sig = lines[filled[j]].strip()
-                adjacent = filled[j] == filled[j - 1] + 1  # a blank line ends the signature
-                if not adjacent or _words(sig) > 6 or sig.endswith((".", "?", "!", ";")):
-                    break
-                end = j
-            return c, end
-    return None
-
-
-def _cover_letter(lines: list[str], stop: int) -> list[int]:
-    """Line indices of a letter at the start or end of the paper (see module
-    notes), or [] when there is none or it is not clearly one."""
-    filled = [i for i in range(stop) if lines[i].strip()]
-    total = sum(_words(lines[i]) for i in filled) or 1
-    found: list[int] = []
-    body: list[int] = []  # the letter's own lines between salutation and closing
-    # At the start: only short lines (a name, an address, a date) before the
-    # salutation. They go with the letter when none of them reads as writing
-    # (no closing punctuation); otherwise they stay prose (an epigraph).
-    for s, i in enumerate(filled[:6]):
-        if _is_salutation(lines[i]):
-            ends = _letter_end(lines, filled, s)
-            if ends is not None and ends[1] + 1 < len(filled):
-                c, end = ends
-                above = filled[:s]
-                plain = all(
-                    _words(lines[a]) <= 8 and not lines[a].rstrip().endswith(_LINE_PUNCTUATION)
-                    for a in above
-                )
-                found = (above if plain else []) + filled[s : end + 1]
-                body = filled[s + 1 : c]
-            break
-        if _words(lines[i]) > 10:
-            break
-    # At the end: the salutation after the paper's midpoint and nothing but the
-    # signature after the closing.
-    if not found:
-        for s in range(len(filled) - 1, len(filled) // 2 - 1, -1):
-            if _is_salutation(lines[filled[s]]):
-                ends = _letter_end(lines, filled, s)
-                if ends is not None and ends[1] == len(filled) - 1:
-                    found = filled[s:]
-                    body = filled[s + 1 : ends[0]]
-                break
-    if not found:
-        return []
-    if not any(_SUBMISSION_WORD.search(lines[i]) for i in body):
-        return []  # a letter that is the student's writing, not a note about it
-    words = sum(_words(lines[i]) for i in found)
-    if words / total > LETTER_MAX_SHARE or words > LETTER_MAX_WORDS:
-        log.info(
-            "matter: a letter of %d of %d words is over %.0f%% of the paper or %d words; "
-            "kept as prose",
-            words,
-            total,
-            LETTER_MAX_SHARE * 100,
-            LETTER_MAX_WORDS,
-        )
-        return []
-    log.info("matter: setting aside a cover letter of %d words", words)
-    return found
 
 
 def _is_heading(lines: list[str], i: int) -> bool:
@@ -404,13 +238,7 @@ def find_matter(text: str) -> list[MatterRange]:
     back = _back_matter(lines)
     stop = back if back is not None else len(lines)
     kinds: dict[int, str] = {}
-    letter = _cover_letter(lines, stop)
-    for i in letter:
-        kinds[i] = "cover_letter"
-    # A letter at the start is followed by the heading block, if any.
-    leading = bool(letter) and letter[0] < stop // 2
-    front_start = letter[-1] + 1 if leading else 0
-    for i in _front_matter(lines, stop, front_start):
+    for i in _front_matter(lines, stop):
         kinds[i] = "front_matter"
     for i in range(stop):
         if i in kinds or not lines[i].strip():
@@ -422,8 +250,8 @@ def find_matter(text: str) -> list[MatterRange]:
         elif _is_heading(lines, i):
             kinds[i] = "heading"
 
-    body_words = sum(_words(lines[i]) for i in range(stop) if i not in letter) or 1
-    soft_words = sum(_words(lines[i]) for i, k in kinds.items() if k in SOFT_KINDS)
+    body_words = sum(_words(lines[i]) for i in range(stop)) or 1
+    soft_words = sum(_words(lines[i]) for i in kinds)
     if LOG_SOFT_SHARE < soft_words / body_words <= MAX_SOFT_SHARE:
         log.info(
             "matter: setting aside %d of %d body words as headings/heading block/page "
@@ -440,7 +268,7 @@ def find_matter(text: str) -> list[MatterRange]:
             body_words,
             MAX_SOFT_SHARE * 100,
         )
-        kinds = {i: k for i, k in kinds.items() if k not in SOFT_KINDS}
+        kinds = {}
 
     out = [MatterRange(spans[i][0], spans[i][1], kinds[i]) for i in sorted(kinds)]
     if back is not None:

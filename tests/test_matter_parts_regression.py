@@ -3,9 +3,14 @@
 The 2026-11-18 document-parts experiment (ADR-015's evidence) found that
 a bibliography under a heading the old rule missed ("Works Cited:", "## References")
 raised an honest paper's reading by about 0.10, and that a cover letter changed
-which habits a teacher is shown. This pins the fix at the level that decides
-both: with the splitter on, adding any of those parts to a real paper leaves
-every measured feature exactly as it was for the paper alone.
+which habits a teacher is shown. This pins the fix for
+the bibliography at the level that decides it: with the splitter on, adding a
+heading block or a list of sources under any of its headings to a real paper
+leaves every measured feature exactly as it was for the paper alone.
+
+Cover letters and notes without years are not detected (rules for them kept
+setting student writing aside), so they are not in PARTS: they are still
+measured as prose until a teacher can mark a part herself.
 
 The parts are the experiment's own fixed texts. The papers are the first 9,000
 characters of a public-domain work in validation/public_authors/corpus/ (one
@@ -24,34 +29,11 @@ from original.features.pipeline import feature_vector
 
 CORPUS = Path(__file__).resolve().parents[1] / "validation" / "public_authors" / "corpus"
 
-COVER = """Dear Professor Hartley,
-
-Please find attached my paper for the third assignment of the semester. I chose this
-topic because it connects with what we discussed in seminar two weeks ago, and I hope
-the argument is clearer than in my last draft. I would be grateful for any comments you
-have on the second section in particular, which I found difficult to organise.
-
-Thank you for your patience with the late submission; I was unwell for most of last week.
-
-Sincerely,
-Jordan Reyes
-"""
-
 TITLE = """Jordan Reyes
 Professor Hartley
 PHIL 210: Moral and Political Philosophy
 14 March 2026
 
-"""
-
-NOTES = """
-
-Notes
-
-1. See Berlin 131 for the distinction between negative and positive liberty.
-2. Gray argues the opposite reading; compare Riley 44-47.
-3. Rawls, Theory of Justice, sec. 32.
-4. All quotations from On Liberty follow the Hackett edition.
 """
 
 ENTRIES_MLA = """
@@ -72,17 +54,13 @@ Ten, C. L. (1980). Mill on liberty. Clarendon Press.
 """
 
 PARTS = {
-    "cover letter first": lambda t: COVER + "\n\n" + t,
-    "cover letter last": lambda t: t + "\n\n" + COVER,
     "heading block": lambda t: TITLE + t,
     "Works Cited": lambda t: t + "\n\nWorks Cited\n" + ENTRIES_MLA,
     "Works Cited:": lambda t: t + "\n\nWorks Cited:\n" + ENTRIES_MLA,
     "## References": lambda t: t + "\n\n## References\n" + ENTRIES_APA,
     "7. References": lambda t: t + "\n\n7. References\n" + ENTRIES_APA,
-    "notes then Works Cited": lambda t: t + NOTES + "\n\nWorks Cited\n" + ENTRIES_MLA,
-    "all of them": lambda t: (
-        COVER + "\n\n" + TITLE + t + NOTES + "\n\nWorks Cited:\n" + ENTRIES_MLA
-    ),
+    "**Works Cited**": lambda t: t + "\n\n**Works Cited**\n" + ENTRIES_MLA,
+    "heading block and a list": lambda t: TITLE + t + "\n\nWorks Cited:\n" + ENTRIES_MLA,
 }
 
 
