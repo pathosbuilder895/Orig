@@ -1,0 +1,41 @@
+The Effects of Sleep on Memory Consolidation in Undergraduates
+
+Maria Lopez
+
+Department of Psychology, State University
+
+PSY 301: Research Methods
+
+Dr. Kim
+
+May 2, 2026
+
+Abstract
+
+This study examined whether sleep duration predicts recall in a sample of undergraduates. Participants who slept more than seven hours recalled more words; however, the effect was small.
+
+The Effects of Sleep on Memory Consolidation in Undergraduates
+
+Sleep seems to play a role in memory, although the mechanism remains debated (Walker, 2017; Stickgold & Walker, 2013). Earlier work suggests that slow-wave sleep supports the transfer of information from the hippocampus to the cortex (Diekelmann & Born, 2010, p. 115).
+
+Method
+
+Participants
+
+Forty-two undergraduates took part in exchange for course credit. Most were first-year students; a few were older transfer students.
+
+Results
+
+Participants who slept longer recalled more words, r = .31, p = .04. This result is likely to be fragile, given the sample size.
+
+Discussion
+
+To some extent, these findings support the consolidation account. I think future studies should measure sleep with actigraphy rather than self-report.
+
+References
+
+Diekelmann, S., & Born, J. (2010). The memory function of sleep. Nature Reviews Neuroscience, 11(2), 114-126. https://doi.org/10.1038/nrn2762
+
+Stickgold, R., & Walker, M. P. (2013). Sleep-dependent memory triage. Nature Neuroscience, 16(2), 139-145.
+
+Walker, M. (2017). Why we sleep: Unlocking the power of sleep and dreams. Scribner.
