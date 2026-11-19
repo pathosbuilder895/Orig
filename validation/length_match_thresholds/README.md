@@ -96,6 +96,24 @@ catches 5.9%.
   engages on real pilot papers and what it changes, which only a shadow soak can
   give.
 
+**3-paper check** (exploratory, decides nothing; `check_3_papers_2026-11-19.json`,
+added after the hold-out because the pilot builds baselines from 3 papers). The
+unused `development` partition, 68 authors, 3 past papers each, fixed cut points:
+
+| | Off, product cut points | On, new cut points |
+|---|---|---|
+| Honest at "worth a conversation" or higher | 49.8% | 1.0% (4 of 408) |
+| Honest at "monitor" or higher | 99.8% | 15.4% |
+| Other writers caught | 82.9% | 9.9% (101 of 1,020) |
+
+Off held to the same honest rate catches 8.4%; AUC 0.756 (off) and 0.821 (on).
+The concern threshold written into `check_three_papers()` before it ran
+(by-author upper end above 10%) was not reached. This run started before the
+agreement-check fix (`8b1fb2e`), so its `action_agreement` (0.52) compares the
+code's matched-cut-point action with the product's bands; every rate above is
+read from `deviation_score` and is unaffected. Same writing and caveats as the
+hold-out.
+
 **The hold-out was started twice.** The first attempt (2026-11-19T02:15) crashed
 after loading its first cell, because the script dropped the study id the
 loader needs on every load of `locked_test`. Nothing was printed or saved. The
