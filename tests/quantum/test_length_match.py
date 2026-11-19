@@ -575,3 +575,21 @@ def test_a_failing_preview_reports_neither_number():
         raise RuntimeError("preview")
 
     assert _length_match_preview(boom) == (None, None)
+
+
+def test_the_real_cut_points_pass_the_band_guard():
+    """Every precedence test above patches the constant; this one uses the
+    real dict, so a guard rejecting it (and falling back silently to the
+    product's cut points) would fail here."""
+    from original.constants import ACTION_THRESHOLDS
+    from original.quantum.length_match import LENGTH_MATCHED_ACTION_THRESHOLDS
+    from original.quantum.scoring import _tuned_action_bands
+
+    bands = _tuned_action_bands(LENGTH_MATCHED_ACTION_THRESHOLDS)
+    assert bands != ACTION_THRESHOLDS
+    assert bands == {
+        "no_action": (0.0, 0.517),
+        "monitor": (0.517, 0.622),
+        "schedule_conversation": (0.622, 0.703),
+        "escalate": (0.703, 1.0),
+    }

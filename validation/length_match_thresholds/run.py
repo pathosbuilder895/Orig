@@ -98,6 +98,7 @@ sys.path.insert(0, str(_ROOT))
 from original.constants import ACTION_THRESHOLDS  # noqa: E402
 from original.features.pipeline import extract_features, feature_vector  # noqa: E402
 from original.quantum.length_match import (  # noqa: E402
+    LENGTH_MATCHED_ACTION_THRESHOLDS,
     build_length_matched_state,
     split_into_pieces,
 )
@@ -173,6 +174,22 @@ def warm_cache(texts: list[str], jobs: int) -> None:
 
 def product_cut_points() -> dict[str, float]:
     return {a: ACTION_THRESHOLDS[a][0] for a in TARGETS}
+
+
+def live_on_cut_points(applied: bool) -> dict[str, float]:
+    """The cut points the code itself reads ``on`` against: the matched ones
+    once the match is applied (since the 2026-11-19 wiring), the product's
+    otherwise. The agreement check compares the code's action with these, so
+    it checks the band arithmetic, not which cut points are in force; every
+    rate in this study is read from deviation_score, never from the action."""
+    if not applied:
+        return product_cut_points()
+    m = LENGTH_MATCHED_ACTION_THRESHOLDS
+    return {
+        "monitor": m["no_action"],
+        "schedule_conversation": m["monitor"],
+        "escalate": m["escalate"],
+    }
 
 
 def band(d: float, cuts: dict[str, float]) -> str:
@@ -267,7 +284,8 @@ def run_cell(trials, past_words: int, new_words: int) -> list[dict]:
                     "off_action": off_res.recommendation.action,
                     "on_action": on_res.recommendation.action,
                     "agree": band(off_d, product) == off_res.recommendation.action
-                    and band(on_d, product) == on_res.recommendation.action,
+                    and band(on_d, live_on_cut_points(bool(on_res.length_match_applied)))
+                    == on_res.recommendation.action,
                 }
             )
     return rows
