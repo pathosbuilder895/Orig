@@ -69,14 +69,11 @@ def test_fixture_parts(name):
 
 def _prose_paragraphs(text: str) -> list[str]:
     """Lines a reader would call running prose: eight or more words ending a
-    sentence, outside any list of sources and any cover letter."""
+    sentence, outside any list of sources."""
     head = re.search(
         r"^\s*(?:#+\s*)?(?:works cited:?|references|bibliography)\s*$", text, re.I | re.M
     )
     body = text[: head.start()] if head and head.start() > len(text) * 0.4 else text
-    letter = re.search(r"^Dear .*?^Sincerely,$", body, re.M | re.S)
-    if letter and letter.start() == 0:
-        body = body[letter.end() :]
     return [
         ln.strip()
         for ln in body.splitlines()
@@ -248,7 +245,7 @@ def test_evidence_aligns_with_the_splitter_on(name, feature_set, splitter_on, mo
             assert not any(a <= place.start < b for a, b in aside), (name, code)
 
 
-# ── Gaps closed for ADR-015: decorated headings, notes, cover letters ─────────
+# ── ADR-015: decorated source headings; letters and year-less notes stay prose ─
 
 BIB_LINES = "\n".join(
     f"{name}, A. (19{i}). A long title of one more book on the subject. Press."
@@ -285,21 +282,31 @@ def _kinds(text):
     return [p.kind for p in matter.find_matter(text)]
 
 
-def test_a_letter_needs_its_closing_and_its_place():
+def test_letter_fragments_stay_prose():
     body = "\n\n".join([PROSE] * 6)
     no_closing = "Dear Professor Hartley,\n\n" + body
-    assert "cover_letter" not in _kinds(no_closing)
+    assert _all_kept(no_closing)
     middle = "\n\n".join([PROSE] * 3) + "\n\n" + LETTER + "\n" + "\n\n".join([PROSE] * 3)
-    assert "cover_letter" not in _kinds(middle)  # a letter quoted mid-paper stays prose
+    assert _all_kept(middle)  # a letter quoted mid-paper stays prose
     late_start = PROSE * 2 + "\n" + LETTER + "\n" + body  # a long line comes before it
-    assert "cover_letter" not in _kinds(late_start)
+    assert _all_kept(late_start)
     not_last = body + "\n\n" + LETTER + "\n" + PROSE  # prose follows the signature
-    assert "cover_letter" not in _kinds(not_last)
+    assert _all_kept(not_last)
     alone = LETTER  # nothing after it: no paper to set it aside from
-    assert "cover_letter" not in _kinds(alone)
+    assert _all_kept(alone)
 
 
 # ── Prose the splitter must keep (score-integrity review of #354) ─────────────
+
+
+def _all_kept(text):
+    """Every line of the letter, salutation to signature, is measured."""
+    kept = _kept(text)
+    return all(
+        ln.strip() in kept
+        for ln in text.splitlines()
+        if re.match(r"\s*(dear|to whom|sincerely|thank you|best|yours)\b", ln, re.I)
+    )
 
 
 def _kept(text):
@@ -346,7 +353,7 @@ def test_a_dated_opening_sentence_is_prose():
 # ── New rules keep prose (score-integrity review of the gap PR) ──────────────
 
 
-def test_notes_without_years_must_all_be_short_reference_lines():
+def test_numbered_points_and_prose_after_notes_stay_prose():
     body = "\n\n".join([PROSE] * 12)
     notes = "\n".join(f"{i}. See Berlin 10{i} for the point." for i in range(1, 9))
     after = "\n".join([PROSE * 12] * 2)  # prose after the notes, unnumbered
@@ -363,24 +370,24 @@ def test_notes_without_years_must_all_be_short_reference_lines():
         assert "back_matter" not in _kinds(essay), heading
 
 
-def test_letter_shaped_student_writing_is_not_a_cover_letter():
+def test_letter_shaped_student_writing_stays_prose():
     body = "\n\n".join([PROSE] * 6)
     sermon = f"{body}\n\nDear friends,\n\n{PROSE * 3}\n\nThank you.\n"
-    assert "cover_letter" not in _kinds(sermon)
+    assert _all_kept(sermon)
     assignment = (
         "Dear Senator Alvarez,\n\nI am writing to urge you to support the bill on rural "
         "clinics, which would bring care to my town.\n\nSincerely,\nJordan Reyes\n\n"
         f"Reflection\n\n{body}\n"
     )
-    assert "cover_letter" not in _kinds(assignment)
+    assert _all_kept(assignment)
     title = f"Dear John: Letters Home from the Front\n\n{PROSE * 2}\n\nBest wishes\n\n{body}\n"
-    assert "cover_letter" not in _kinds(title)
+    assert "Best wishes" in _kept(title) and PROSE.strip() in _kept(title)  # the title is a title
     long_note = (
         "Dear Professor Hartley,\n\n"
         + ("I attach my paper. " + PROSE * 4) * 4
         + "\n\nSincerely,\nJo\n"
     )
-    assert "cover_letter" not in _kinds(long_note + "\n" + body * 6)
+    assert _all_kept(long_note + "\n" + body * 6)
 
 
 # ── Second review: strict by design ──────────────────────────────────────────
@@ -417,29 +424,29 @@ def test_numbered_points_with_numbers_in_them_are_not_notes():
     ["Dear Reader,", "Dear God,", "Dear Lord,", "Dear Diary,", "Dear Mom,", "Dear Theophilus,",
      "Dear Future Self,", "Dear friends,", "Dear Senator Alvarez,"],
 )  # fmt: skip
-def test_a_letter_must_be_addressed_to_the_teacher(salutation):
+def test_letters_to_anyone_stay_prose(salutation):
     body = "\n\n".join([PROSE] * 6)
     note = f"{salutation}\n\nPlease find my paper attached for the class.\n\nSincerely,\nAva\n"
-    assert "cover_letter" not in _kinds(note + "\n" + body)
-    assert "cover_letter" not in _kinds(body + "\n\n" + note)
+    assert _all_kept(note + "\n" + body)
+    assert _all_kept(body + "\n\n" + note)
 
 
-def test_the_note_itself_must_say_it_accompanies_the_work():
+def test_a_note_about_the_paper_stays_prose_too():
     body = "\n\n".join([PROSE] * 6)
     in_title = (
         "Letters Project\n\nDear Professor Hartley,\n\nYou will be fine.\n\nThank you,\nAva\n"
     )
-    assert "cover_letter" not in _kinds(in_title + "\n" + body)
+    assert _all_kept(in_title + "\n" + body)
     class_word = (
         "Dear Professor Kim,\n\nI am a student in your civics class and the project our class "
         "did taught me a lot.\n\nSincerely,\nJordan Reyes\n"
     )
-    assert "cover_letter" not in _kinds(class_word + "\n" + body)
+    assert _all_kept(class_word + "\n" + body)
     long_salutation = (
         "Dear Professor Hartley and the Members of the Committee,\n\nMy paper is attached.\n\n"
         "Sincerely,\nAva\n"
     )
-    assert "cover_letter" not in _kinds(long_salutation + "\n" + body)
+    assert _all_kept(long_salutation + "\n" + body)
 
 
 def test_an_epigraph_above_a_letter_stays_prose():
@@ -464,7 +471,19 @@ def test_cover_letters_and_notes_without_years_are_measured_until_a_teacher_cont
 
 
 @pytest.mark.parametrize("heading", ["## Notes", "**Notes**", "3. Notes"])
-def test_decorated_notes_headings_follow_the_plain_rule(heading):
+def test_a_decorated_notes_heading_is_not_trusted(heading):
+    """Decoration is read for lists of sources only: prose under a "## Notes"
+    stays prose, whatever follows."""
     body = "\n\n".join([PROSE] * 6)
-    with_years = "1. Augustine, Confessions, 1991, 230.\n2. Ricoeur, Time, 1984, 7."
-    assert _kinds(f"{body}\n\n{heading}\n{with_years}") == ["back_matter"]
+    mine = "A translator's note in my own words that the reader should keep."
+    text = f"{body}\n\n{heading}\n\n{mine}\n\n## References\n\n{BIB_LINES}\n"
+    assert mine in _kept(text)
+    assert "Abel, A." not in _kept(text)  # the decorated list after it is still found
+
+
+def test_a_later_decorated_list_cannot_vouch_for_prose_above_it():
+    body = "\n\n".join([PROSE] * 6)
+    mine = "Writing this reflection I noticed how my sources pulled me apart."
+    entries = "\n".join(BIB_LINES.splitlines()[:2])
+    text = f"{body}\n\nFurther Reading\n\n{mine}\n\n{mine}\n\n## References\n\n{entries}\n"
+    assert mine in _kept(text)

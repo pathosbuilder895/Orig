@@ -1,6 +1,7 @@
 """A paper's parts are not measured as its prose (ADR-015, MATTER_SPLITTER_ENABLED).
 
-The 2026-11-18 document-parts experiment (ADR-015's evidence) found that
+The 2026-11-18 document-parts experiment (ADR-015 and its script are on PR #326,
+validation/diagnostics/document_parts_2026-11-18/) found that
 a bibliography under a heading the old rule missed ("Works Cited:", "## References")
 raised an honest paper's reading by about 0.10, and that a cover letter changed
 which habits a teacher is shown. This pins the fix for
@@ -14,7 +15,8 @@ measured as prose until a teacher can mark a part herself.
 
 The parts are the experiment's own fixed texts. The papers are the first 9,000
 characters of a public-domain work in validation/public_authors/corpus/ (one
-author here to keep CI fast; the experiment rerun covers all nine).
+author here to keep CI fast; the full experiment, nine authors through the
+live routes, is rerun by hand from PR #326's script).
 """
 
 from __future__ import annotations

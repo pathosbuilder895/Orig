@@ -12,9 +12,9 @@ text, each with a kind:
     ("Works Cited:", centred, "Works Cited Page") but trusted only after the
     first 40% of the paper and when most lines after it start like entries
     and carry a year. Markdown, numbering and emphasis around the heading are
-    ignored ("## References", "7. References", "**Works Cited**"); every
-    check after it still applies. "Notes"/"Endnotes" also need numbered
-    lines. So a
+    ignored ("## References", "7. References", "**Works Cited**"; not for
+    "Notes"); every check after it still applies, counted as before.
+    "Notes"/"Endnotes" also need numbered lines. So a
     one-word paragraph "Notes", or a sentence starting "References to ...",
     no longer cuts off the rest of the paper (it did under the old rule).
 ``front_matter``
@@ -161,11 +161,13 @@ def _undecorated(line: str) -> str:
 
 
 def _is_list_heading(line: str) -> bool:
-    return bool(_LIST_HEADING.match(line) or _LIST_HEADING.match(_undecorated(line)))
-
-
-def _is_notes_heading(line: str) -> bool:
-    return bool(_NOTES_HEADING.match(line) or _NOTES_HEADING.match(_undecorated(line)))
+    """A list-of-sources heading, plain or decorated. A decorated "Notes" is
+    not one: notes need their own numbered-line check, and prose under a
+    "## Notes" stays prose."""
+    if _LIST_HEADING.match(line):
+        return True
+    core = _undecorated(line)
+    return bool(_LIST_HEADING.match(core)) and not _NOTES_HEADING.match(core)
 
 
 def _lines(text: str) -> list[tuple[int, int, str]]:
@@ -183,10 +185,13 @@ def _back_matter(lines: list[str]) -> int | None:
     for k, i in enumerate(filled):
         if not _is_list_heading(lines[i]) or k < 0.4 * len(filled):
             continue
-        rest = [lines[j] for j in filled[k + 1 :] if not _is_list_heading(lines[j])]
+        # Decoration is read only on the heading being judged. The lines after
+        # it are counted as #354 counts them, so a later decorated heading can
+        # never leave the count and let its list vouch for prose above it.
+        rest = [lines[j] for j in filled[k + 1 :] if not _LIST_HEADING.match(lines[j])]
         if not rest:
             continue
-        if _is_notes_heading(lines[i]):
+        if _NOTES_HEADING.match(lines[i]):
             numbered = sum(1 for r in rest if _NUMBERED.match(r))
             if numbered / len(rest) < 0.5:
                 continue
