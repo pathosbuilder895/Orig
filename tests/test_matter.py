@@ -292,8 +292,8 @@ def test_numbered_notes_without_years_are_notes():
     assert empty[parts[-1].start :].startswith("Works Cited")
     mixed = "1. See Berlin 131.\nA sentence that is not a note at all, said plainly.\n2. Ibid."
     assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{mixed}\n")
-    # A note that points nowhere makes the section ambiguous: kept as prose.
-    vague = "1. See Berlin 131.\n2. Gray argues the opposite.\n3. Ibid."
+    # Most notes must point somewhere; one of three is not enough: kept as prose.
+    vague = "1. See Berlin 131.\n2. Gray argues the opposite.\n3. Mill disagrees."
     assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{vague}\n")
 
 
@@ -485,3 +485,74 @@ def test_lines_above_a_letter_go_with_it_and_no_quote_reaches_it(monkeypatch):
         quoted = text[place.sentence_start : place.sentence_end]
         assert "Okafor" not in quoted and "Elm Street" not in quoted
     ev.engine_view.cache_clear()
+
+
+# ── Second review: strict by design ──────────────────────────────────────────
+
+
+def test_prose_after_notes_and_a_short_list_is_measured():
+    body = "\n\n".join([PROSE] * 10)
+    mine = "Writing this reflection I noticed how my sources pulled me in two directions."
+    reflection = "\n\n".join([mine + " " + PROSE * 3] * 3)
+    text = (
+        f"{body}\n\nNotes\n\n1. See Berlin 131.\n2. Ibid., 44.\n\nWorks Cited\n\n"
+        f"Berlin, Isaiah. Four Essays on Liberty. Oxford UP, 1969.\n"
+        f"Gray, John. Mill on Liberty. Routledge, 1996.\n\nReflection\n\n{reflection}\n"
+    )
+    assert mine in _kept(text)
+    further = f"{body}\n\nNotes\n\n1. See p. 4.\n\nFurther Reading\n\n{reflection}\n"
+    assert mine in _kept(further)
+
+
+def test_numbered_points_with_numbers_in_them_are_not_notes():
+    body = "\n\n".join([PROSE] * 10)
+    for points in (
+        "1. In 1963 the march on Washington drew a huge crowd\n"
+        "2. King added 4 lines on the day\n3. The movement had grown since the 1950s",
+        "1. The essay writes for 2 audiences at once\n2. The second part is step 3",
+        "1. See how the writer turns the scene around at the end\n"
+        "2. Notice the opening and the close",
+    ):
+        assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{points}\n"), points
+
+
+@pytest.mark.parametrize(
+    "salutation",
+    ["Dear Reader,", "Dear God,", "Dear Lord,", "Dear Diary,", "Dear Mom,", "Dear Theophilus,",
+     "Dear Future Self,", "Dear friends,", "Dear Senator Alvarez,"],
+)  # fmt: skip
+def test_a_letter_must_be_addressed_to_the_teacher(salutation):
+    body = "\n\n".join([PROSE] * 6)
+    note = f"{salutation}\n\nPlease find my paper attached for the class.\n\nSincerely,\nAva\n"
+    assert "cover_letter" not in _kinds(note + "\n" + body)
+    assert "cover_letter" not in _kinds(body + "\n\n" + note)
+
+
+def test_the_note_itself_must_say_it_accompanies_the_work():
+    body = "\n\n".join([PROSE] * 6)
+    in_title = (
+        "Letters Project\n\nDear Professor Hartley,\n\nYou will be fine.\n\nThank you,\nAva\n"
+    )
+    assert "cover_letter" not in _kinds(in_title + "\n" + body)
+    class_word = (
+        "Dear Professor Kim,\n\nI am a student in your civics class and the project our class "
+        "did taught me a lot.\n\nSincerely,\nJordan Reyes\n"
+    )
+    assert "cover_letter" not in _kinds(class_word + "\n" + body)
+    long_salutation = (
+        "Dear Professor Hartley and the Members of the Committee,\n\nMy paper is attached.\n\n"
+        "Sincerely,\nAva\n"
+    )
+    assert "cover_letter" not in _kinds(long_salutation + "\n" + body)
+
+
+def test_an_epigraph_above_a_letter_stays_prose():
+    epigraph = (
+        "Because I could not stop for Death -\nHe kindly stopped for me -\n"
+        "The Carriage held but just Ourselves -\nAnd Immortality.\n\n"
+    )
+    letter = "Dear Professor Hartley,\n\nHere is my essay, attached.\n\nSincerely,\nAva\n\n"
+    text = epigraph + letter + "\n\n".join([PROSE] * 6)
+    kept = _kept(text)
+    assert "He kindly stopped for me" in kept
+    assert "Hartley" not in kept
