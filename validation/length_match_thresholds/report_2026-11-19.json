@@ -1,0 +1,140 @@
+{
+  "criteria_hash": "b45d5f695733f008",
+  "cut_points": {
+    "escalate": 0.703,
+    "monitor": 0.517,
+    "schedule_conversation": 0.622
+  },
+  "derivation_summary": {
+    "action_agreement": 1.0,
+    "auc_off": 0.7478,
+    "auc_on": 0.8058,
+    "by_cell": {
+      "1200/300": {
+        "caught_off_product": 0.9429,
+        "caught_on_new": 0.0679,
+        "honest_flagged_off_product": 0.7768,
+        "honest_flagged_on_new": 0.0179
+      },
+      "1200/600": {
+        "caught_off_product": 0.7036,
+        "caught_on_new": 0.1786,
+        "honest_flagged_off_product": 0.2232,
+        "honest_flagged_on_new": 0.0089
+      },
+      "1500/450": {
+        "caught_off_product": 0.8679,
+        "caught_on_new": 0.125,
+        "honest_flagged_off_product": 0.4732,
+        "honest_flagged_on_new": 0.0446
+      }
+    },
+    "engagement": 1.0,
+    "honest_escalate_ci95_by_author": [
+      0.0,
+      0.0089
+    ],
+    "honest_flagged_ci95_by_author": [
+      0.006,
+      0.0447
+    ],
+    "n_authors": 56,
+    "n_honest": 336,
+    "n_other_writer": 840,
+    "off_catch_at_on_new_flag_rate": 0.075,
+    "off_product_cut_points": {
+      "honest_escalate": 0.0179,
+      "honest_flagged": 0.4911,
+      "honest_monitor_or_higher": 0.9911,
+      "other_writers_caught": 0.8381
+    },
+    "on_new_cut_points": {
+      "honest_escalate": 0.003,
+      "honest_flagged": 0.0238,
+      "honest_monitor_or_higher": 0.1548,
+      "other_writers_caught": 0.1238
+    },
+    "on_product_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.0357,
+      "honest_monitor_or_higher": 0.7262,
+      "other_writers_caught": 0.194
+    }
+  },
+  "holdout": {
+    "action_agreement": 1.0,
+    "auc_off": 0.7671,
+    "auc_on": 0.8359,
+    "by_cell": {
+      "1200/300": {
+        "caught_off_product": 0.9333,
+        "caught_on_new": 0.0633,
+        "honest_flagged_off_product": 0.75,
+        "honest_flagged_on_new": 0.0
+      },
+      "1200/600": {
+        "caught_off_product": 0.7033,
+        "caught_on_new": 0.1933,
+        "honest_flagged_off_product": 0.2083,
+        "honest_flagged_on_new": 0.0
+      },
+      "1500/450": {
+        "caught_off_product": 0.8733,
+        "caught_on_new": 0.16,
+        "honest_flagged_off_product": 0.4917,
+        "honest_flagged_on_new": 0.0167
+      }
+    },
+    "engagement": 1.0,
+    "honest_escalate_ci95_by_author": [
+      0.0,
+      0.0
+    ],
+    "honest_flagged_ci95_by_author": [
+      0.0,
+      0.0139
+    ],
+    "n_authors": 60,
+    "n_honest": 360,
+    "n_other_writer": 900,
+    "off_catch_at_on_new_flag_rate": 0.0589,
+    "off_product_cut_points": {
+      "honest_escalate": 0.0111,
+      "honest_flagged": 0.4833,
+      "honest_monitor_or_higher": 0.9944,
+      "other_writers_caught": 0.8367
+    },
+    "on_new_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.0056,
+      "honest_monitor_or_higher": 0.1139,
+      "other_writers_caught": 0.1389
+    },
+    "on_product_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.0194,
+      "honest_monitor_or_higher": 0.7194,
+      "other_writers_caught": 0.2078
+    }
+  },
+  "product_cut_points": {
+    "escalate": 0.75,
+    "monitor": 0.4,
+    "schedule_conversation": 0.6
+  },
+  "skipped": {
+    "1200/300": 56,
+    "1200/600": 56,
+    "1500/450": 56
+  },
+  "study_id": "length-match-thresholds-2026-11-19",
+  "verdict": {
+    "C1": true,
+    "C2": true,
+    "E": true,
+    "H1": true,
+    "H2": true,
+    "verdict": "pass"
+  },
+  "writing": "published scholars' single-author journal articles (OpenAlex humanities, mostly theology and religion); not student writing"
+}

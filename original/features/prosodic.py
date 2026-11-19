@@ -420,6 +420,18 @@ def _pronoun_ambiguity_rate(doc: TextDoc) -> float:
     Counts antecedent nouns (title-cased words or words following 'the'/'a')
     in the window and flags ambiguity if count ≥ 2.
     """
+    ambiguous, total_pronouns = _pronoun_ambiguity_counts(doc)
+    if total_pronouns == 0:
+        return 0.5
+    return float(np.clip(ambiguous / total_pronouns, 0.0, 1.0))
+
+
+def _pronoun_ambiguity_counts(doc: TextDoc) -> tuple[int, int]:
+    """(flagged sentences, sentences with a third-person pronoun).
+
+    Shared with features/opportunity.py, which reports the second number as
+    the chances this text gave the rate to be measured.
+    """
     pronoun_sets = {
         "m": {"he", "him", "his", "himself"},
         "f": {"she", "her", "hers", "herself"},
@@ -451,9 +463,7 @@ def _pronoun_ambiguity_rate(doc: TextDoc) -> float:
                 ambiguous += 1
             break  # count once per sentence
 
-    if total_pronouns == 0:
-        return 0.5
-    return float(np.clip(ambiguous / total_pronouns, 0.0, 1.0))
+    return ambiguous, total_pronouns
 
 
 def _comma_splice_rate(doc: TextDoc) -> float:
@@ -554,12 +564,16 @@ def _polysyndeton_ratio(doc: TextDoc) -> float:
 
     Returns 0 = pure asyndeton, 1 = pure polysyndeton, 0.5 = balanced/none.
     """
-    poly_count = len(_POLY_RE.findall(doc.clean))
-    asyn_count = len(_ASYN_RE.findall(doc.clean))
+    poly_count, asyn_count = _polysyndeton_counts(doc)
     total = poly_count + asyn_count
     if total == 0:
         return 0.5
     return float(np.clip(poly_count / total, 0.0, 1.0))
+
+
+def _polysyndeton_counts(doc: TextDoc) -> tuple[int, int]:
+    """(polysyndetic lists, asyndetic lists). Shared with features/opportunity.py."""
+    return len(_POLY_RE.findall(doc.clean)), len(_ASYN_RE.findall(doc.clean))
 
 
 def _chiasmus_rate(doc: TextDoc) -> float:
