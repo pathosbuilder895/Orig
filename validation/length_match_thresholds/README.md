@@ -33,10 +33,10 @@ trials; the match engaged on every honest trial.
 
 | | Off, product cut points | On, product cut points | On, new cut points |
 |---|---|---|---|
-| Honest at "worth a conversation" or higher | 48.3% | 1.9% | **0.6%** (by author, 95%: 0.0-1.4%) |
-| Honest at "very differently" | 1.1% | 0.0% | 0.0% |
+| Honest at "worth a conversation" or higher | 48.3% | 1.9% | **0.6%** (2 of 360) |
+| Honest at "very differently" | 1.1% | 0.0% | 0.0% (0 of 360) |
 | Honest at "monitor" or higher | 99.4% | 71.9% | **11.4%** |
-| Other writers caught (conversation or higher) | 83.7% | 20.8% | **13.9%** |
+| Other writers caught (conversation or higher) | 83.7% | 20.8% | **13.9%** (125 of 900) |
 
 AUC 0.767 (off) and 0.836 (on). Off moved to the same honest rate (0.6%)
 catches 5.9%.
@@ -44,15 +44,57 @@ catches 5.9%.
 **How to read it.**
 
 - Off catches 84% of other writers only by flagging 48% of honest papers. With
-  false alarms held near 1%, the system tells writers apart on about one short
-  paper in seven. The matched reference separates better than whole papers
+  honest false alarms held near 1%, the system catches about one in seven other
+  writers' papers. The matched reference separates better than whole papers
   (higher AUC, more caught at an equal honest rate), but short papers carry
   little signal: this removes false alarms, it does not create detection.
 - The large change for teachers is the monitor band: 99% of honest short papers
   read "Mostly like their own writing; a few habits differ" or worse today, 11%
-  with these cut points.
+  (41 of 360) with these cut points. Descriptive only: it was not a
+  pre-registered criterion.
 - n is 56 and 60 authors on one kind of writing. The rows are not rates to
   quote for students.
+
+**Caveats a quote must carry** (from the independent validation audit,
+2026-11-19).
+
+- **The honest rate's upper bound depends on what counts as independent.**
+  The verdict's by-author percentile bootstrap gives 0.0-1.4%, which is
+  degenerate for rare events. For 2 of 360, the 95% upper bound is about 2% if
+  trials are independent, about 6% if the 120 articles are the units, and about
+  11% if the 60 authors are. "Very differently": 0 of 360, upper bound about
+  1-6% by the same reading. The Wilson selection rule likewise pools trials as
+  independent; it is a pre-registered way to pick a cut point, not a 95%
+  guarantee.
+- **The locked partition had been opened once before**, on 2026-11-12, by a
+  different study (`scholarly-rule-d-2026-11-12`, an AI-mirror screen, on an
+  unmerged branch). These cut points were chosen on the calibration partition
+  only and that study's results were not read here, so they could not have been
+  tuned on it. But the partition has now been consulted by two studies, and the
+  per-branch `LOCKED_OPENINGS.tsv` needs both lines when the branches meet.
+- **About half the authors were excluded, not at random.** The loader drops an
+  author if any manifest paper fails to restore, and 401 papers failed the hash
+  check after the v1 to v2 cleaner change, which touched papers with digits
+  glued to words (footnote markers, so plausibly one citation style). The
+  exclusion is the same in both partitions, so derivation and hold-out are
+  comparable; the population they describe is narrower.
+- **Scope tested:** 4 past papers per author (the pilot builds baselines from
+  3; see the 3-paper check below), past papers 2-4 times the new paper's length,
+  `NULL_MODEL` none. Production applies the cut points to any applied match (new
+  paper of at least 100 words, past papers at least twice as long, up to 24
+  papers cut), and demo mode's impostor null model with the LLR gate is not
+  covered.
+- **Cells vary.** On the derivation partition the 1500/450 cell flagged 4.5% of
+  honest papers.
+- **C2 and H2 can pass on thin evidence.** C2 compares with off's catch at the
+  same honest rate; with zero honest flags under on, off's bar becomes
+  unreachable and C2 passes by construction. Here 2 honest papers were flagged,
+  so it was not vacuous, but 2 of the 3 cells had none. H2 with zero events
+  passes at any n. The verdict is left as pre-registered; these limits are
+  stated instead.
+- **A pass does not authorise `on`.** The missing number is how often the match
+  engages on real pilot papers and what it changes, which only a shadow soak can
+  give.
 
 **The hold-out was started twice.** The first attempt (2026-11-19T02:15) crashed
 after loading its first cell, because the script dropped the study id the
@@ -68,6 +110,6 @@ hold-out refuses a second run once its report exists.
 .venv/bin/python -m validation.length_match_thresholds.run derive --jobs 3
 ```
 
-2,762 of 3,190 manifest papers restored on 2026-11-19 (396 hash mismatches from
+2,762 of 3,190 manifest papers restored on 2026-11-19 (401 hash mismatches from
 the v1 to v2 cleaner change, 27 unreachable); authors missing a paper are
 skipped, never partially used.
