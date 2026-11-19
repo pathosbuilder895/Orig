@@ -106,6 +106,15 @@ def split_into_pieces(text: str, n_words: int) -> list[str]:
     return [text[words[bounds[i]].start() : words[bounds[i + 1] - 1].end()] for i in range(k)]
 
 
+def body_word_count(text: str) -> int:
+    """The new paper's length measured the way past papers are cut: the body
+    only, with the bibliography and other back matter removed first. Counting
+    the raw text would let a bibliography inflate a short paper's length, so
+    the match would abstain (no past paper twice as long) or cut past papers
+    into pieces longer than the body they are compared with."""
+    return len(_strip_backmatter(text).split())
+
+
 def paper_pieces(text: str, n_words: int) -> list[str]:
     """The pieces of one past paper's BODY. The bibliography and any other
     back matter are removed first, as they are when the paper is measured

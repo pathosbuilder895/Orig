@@ -169,6 +169,34 @@ def test_a_paper_as_long_as_the_past_ones_is_exactly_off(lenw_tenant, spy, monke
     assert on == off
 
 
+_BIBLIOGRAPHY = "\n\nWorks Cited\n" + "\n".join(
+    f"Author{i}, A. A Study of River Valleys, Volume {i}. Valley Press, 19{i:02d}."
+    for i in range(30)
+)
+
+
+def test_a_bibliography_does_not_count_toward_the_papers_length(
+    lenw_tenant, spy, monkeypatch, caplog
+):
+    """Past papers are cut on their body, so the new paper is measured on its
+    body too. Counted raw, a 150-word paper with a long bibliography reads as
+    more than half the past papers' 620 words and the match abstains."""
+    with_bib = _TEXT + _BIBLIOGRAPHY
+    assert len(with_bib.split()) * 2 > 620  # raw, it would abstain
+    monkeypatch.setenv("LENGTH_MATCHED_BASELINE", "shadow")
+    _post(lenw_tenant, _TEXT)
+    body_only = spy["kwargs"]["length_matched_state"]
+    with caplog.at_level(logging.INFO, logger=students_scoring.__name__):
+        _post(lenw_tenant, with_bib)
+    handed = spy["kwargs"]["length_matched_state"]
+    assert isinstance(handed, LengthMatchedState)
+    assert handed.papers_cut == body_only.papers_cut == 4
+    assert len(handed.piece_vectors) == len(body_only.piece_vectors) == 16
+    assert " body_words=150 " in caplog.text
+    # The paper's raw length still reaches score() unchanged.
+    assert spy["kwargs"]["n_tokens"] == len(with_bib.split())
+
+
 def test_a_failing_build_falls_back_to_flag_off(lenw_tenant, spy, monkeypatch, caplog):
     """Nothing in the new layer may take the scoring endpoint down."""
     from original.quantum import length_match
