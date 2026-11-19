@@ -217,11 +217,13 @@ def _score(state, text: str, n_words: int, mode: str, matched=None):
     return float(res.authorship.deviation_score), res
 
 
-def load_cell(partition: str, past_words: int, new_words: int, study: str | None):
+def load_cell(
+    partition: str, past_words: int, new_words: int, study: str | None, n_past: int = N_PAST
+):
     return loader.load_trials(
         COLLECTION,
         partition,
-        n_past=N_PAST,
+        n_past=n_past,
         n_new=N_NEW,
         past_words=past_words,
         new_words=new_words,
@@ -271,11 +273,13 @@ def run_cell(trials, past_words: int, new_words: int) -> list[dict]:
     return rows
 
 
-def collect(partition: str, jobs: int, study: str | None = None) -> tuple[list[dict], dict]:
+def collect(
+    partition: str, jobs: int, study: str | None = None, n_past: int = N_PAST
+) -> tuple[list[dict], dict]:
     rows, skipped = [], {}
     for past_words, new_words in CELLS:
         t0 = time.perf_counter()
-        ts = load_cell(partition, past_words, new_words, study)
+        ts = load_cell(partition, past_words, new_words, study, n_past)
         # The loader asks for the study id on EVERY load of locked_test and
         # logs each one, so one hold-out run writes one line per cell.
         skipped[f"{past_words}/{new_words}"] = ts.skipped
@@ -481,14 +485,45 @@ def holdout(jobs: int, out: Path) -> int:
     return 0
 
 
+def check_three_papers(jobs: int, out: Path) -> int:
+    """Exploratory, added after the hold-out: decides nothing.
+
+    The cut points were derived and tested with 4 past papers per author; the
+    pilot's alpha builds a baseline from 3, and the spread floor depends on
+    the paper count. This scores the ``development`` partition (never used to
+    choose anything) with 3 past papers against the fixed cut points. Written
+    before it ran: a by-author upper end above 0.10 for honest papers at
+    "worth a conversation" or higher would count against setting ``on`` for
+    3-paper baselines.
+    """
+    derived = json.loads(DERIVED.read_text())
+    cuts = derived["cut_points"]
+    rows, skipped = collect("development", jobs, n_past=3)
+    s = summarise(rows, cuts)
+    report = {
+        "study_id": STUDY_ID,
+        "exploratory": "3 past papers per author, development partition; decides nothing",
+        "writing": "published scholars' single-author journal articles; not student writing",
+        "cut_points": cuts,
+        "summary": s,
+        "concern": s["honest_flagged_ci95_by_author"][1] > MAX_FLAG_UPPER,
+        "skipped": {c: len(x) for c, x in skipped.items()},
+    }
+    out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    print(json.dumps(s, indent=1))
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("phase", choices=("derive", "holdout"))
+    ap.add_argument("phase", choices=("derive", "holdout", "check3"))
     ap.add_argument("--jobs", type=int, default=max(1, (mp.cpu_count() or 2) - 2))
     ap.add_argument("--out", type=Path, default=HERE / "report_2026-11-19.json")
     args = ap.parse_args(argv)
     if args.phase == "derive":
         return derive(args.jobs)
+    if args.phase == "check3":
+        return check_three_papers(args.jobs, HERE / "check_3_papers_2026-11-19.json")
     return holdout(args.jobs, args.out)
 
 
