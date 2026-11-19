@@ -78,21 +78,42 @@ def pieces(text: str, size: int = PIECE_WORDS, limit: int = MAX_PIECES) -> list[
 
 
 def build_paper_profile(
-    text: str, vector: Sequence[float], label: str, feature_fn: Callable[[str], np.ndarray]
+    text: str,
+    vector: Sequence[float],
+    label: str,
+    feature_fn: Callable[[str], np.ndarray],
+    with_pieces: bool = True,
 ) -> dict:
     """Everything rule D keeps about one approved past paper. Stored per paper, inside the
-    deployment, keyed by the SHA-256 of its text; deleted with the student or the approval."""
+    deployment, keyed by the SHA-256 of its text; deleted with the student or the approval.
+
+    ``with_pieces=False`` leaves out the 300-word piece vectors (the only part that runs
+    feature extraction), so approving a paper stays cheap; a missing ``"pieces"`` key means
+    "not measured yet" (``[]`` means "shorter than one piece") and ``service.ensure_pieces``
+    measures them the first time an analysis needs them."""
     vecs = tp.vectorizers()
-    return {
+    prof = {
         "sha": text_sha256(text),
         "words": word_count(text),
         "label": label,
         "char": {str(k): v for k, v in vecs["char"].profile(text).items()},
         "masked": {str(k): v for k, v in vecs["masked"].profile(text).items()},
         "vector": [float(x) for x in vector],
-        "pieces": [[float(x) for x in feature_fn(p)] for p in pieces(text)],
         "punct": punctuation_rates(text),
     }
+    if with_pieces:
+        prof["pieces"] = piece_vectors(text, feature_fn)
+    return prof
+
+
+def piece_vectors(text: str, feature_fn: Callable[[str], np.ndarray]) -> list[list[float]]:
+    return [[float(x) for x in feature_fn(p)] for p in pieces(text)]
+
+
+def needs_pieces(cfg: str) -> bool:
+    """Only the full-length setting compares whole papers; every other one needs past papers
+    cut to the new paper's length."""
+    return cfg != "matched_1200_1200"
 
 
 def _sparse(d: dict) -> tp.Profile:
@@ -222,10 +243,14 @@ def observe(
     cfg = configuration(words, [p["words"] for p in claimed])
     x = np.asarray(new_vector, dtype=float)
 
+    if needs_pieces(cfg) and any("pieces" not in p for g in groups for p in g):
+        # Never fall back silently to whole papers: that is not the pre-registered baseline.
+        raise ValueError("rule D: past-paper pieces not measured for this length setting")
+
     def base_vectors(g):
-        if cfg == "matched_1200_1200":
+        if not needs_pieces(cfg):
             return [p["vector"] for p in g]
-        cut = [v for p in g for v in p.get("pieces", [])]
+        cut = [v for p in g for v in p["pieces"]]
         return cut or [p["vector"] for p in g]  # a paper shorter than one piece: use it whole
 
     r = np.array([baseline_rms(x, base_vectors(g)) for g in groups])

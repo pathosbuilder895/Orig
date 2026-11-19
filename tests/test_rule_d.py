@@ -216,7 +216,8 @@ def test_sqlite_profiles_sync_prune_and_delete_with_the_student(store_reset):
     out = service.sync_profiles(repo, st, _fake_feature)
     assert len(out) == 3 and set(repo.get_rule_d_profiles("ws:alice")) == service.current_shas(st)
     stored = next(iter(repo.get_rule_d_profiles("ws:alice").values()))
-    assert "text" not in stored and set(stored) >= {"char", "masked", "vector", "pieces", "punct"}
+    assert "text" not in stored and set(stored) >= {"char", "masked", "vector", "punct"}
+    assert "pieces" not in stored  # measured later, only if an analysis needs them
     inv = repo.student_data_inventory("ws:alice")
     assert inv["data_categories"]["rule_d_profiles"]["count"] == 3
     # Withdrawing an approval: the paper's row goes on the next prune.
@@ -393,3 +394,74 @@ def test_rule_d_is_not_even_computed_for_a_student_principal(live_client, store_
     assert calls == []
     staff = _score(live_client, "rd_stu", text, 2)
     assert calls == [1] and staff["rule_d"]["status"] == "inconclusive"
+
+
+class _MemRepo:
+    def __init__(self):
+        self.rows = {}
+
+    def get_rule_d_profiles(self, sid):
+        return {sha: dict(p) for (s, sha), p in self.rows.items() if s == sid}
+
+    def put_rule_d_profile(self, sid, sha, data):
+        self.rows[(sid, sha)] = dict(data)
+
+    def delete_rule_d_profiles(self, sid, keep=None):
+        gone = [k for k in self.rows if k[0] == sid and k[1] not in set(keep or ())]
+        for k in gone:
+            del self.rows[k]
+        return len(gone)
+
+
+def _state(sid, author, k, n_words):
+    from original.quantum.state import BaselineSample, StudentState
+
+    st = StudentState(student_id=sid)
+    for t in _papers(author, k, n_words):
+        st.add_sample(BaselineSample(text=t, vector=_fake_feature(t), provenance="verified",
+                                     auth_weight=1.0, genre="essay"))
+    return st
+
+
+def _counting():
+    calls = []
+
+    def fn(text):
+        calls.append(text)
+        return _fake_feature(text)
+    return fn, calls
+
+
+def test_approval_measures_no_pieces_and_a_short_analysis_measures_them_once():
+    repo, (fn, calls) = _MemRepo(), _counting()
+    claimed = _state("ws:a", "mill", 2, 320)
+    peers = [_state(f"ws:{a}", a, 2, 320) for a in ("newman", "emerson", "douglass")]
+    for st in [claimed, *peers]:
+        service.sync_profiles(repo, st, fn)
+    assert calls == []  # approval: no feature extraction at all
+    assert all("pieces" not in p for p in repo.rows.values())
+    new = _papers("mill", 4, 320)[3]
+    obs = service.observe_for(repo, claimed, peers, new, _fake_feature(new), fn)
+    assert obs.status == "observed" and obs.configuration == "matched_300_300"
+    assert len(calls) == 8  # one 300-word piece per approved paper, 8 papers
+    assert all("pieces" in p for p in repo.rows.values())
+    again = service.observe_for(repo, claimed, peers, new, _fake_feature(new), fn)
+    assert len(calls) == 8 and again.index == obs.index  # stored, reused, same answer
+
+
+def test_a_long_analysis_never_measures_pieces():
+    repo, (fn, calls) = _MemRepo(), _counting()
+    claimed = _state("ws:a", "mill", 2, 800)
+    peers = [_state(f"ws:{a}", a, 2, 800) for a in ("newman", "emerson", "douglass")]
+    new = _papers("mill", 3, 800)[2]
+    obs = service.observe_for(repo, claimed, peers, new, _fake_feature(new), fn)
+    assert obs.configuration == "matched_1200_1200" and calls == []
+    assert all("pieces" not in p for p in repo.rows.values())
+
+
+def test_observe_refuses_to_fall_back_to_whole_papers_when_pieces_are_missing():
+    peers = {a: [{k: v for k, v in p.items() if k != "pieces"} for p in _profiles(a, 2)]
+             for a in ("newman", "emerson", "douglass")}
+    new = _papers("mill", 4, 320)[3]
+    with pytest.raises(ValueError, match="pieces not measured"):
+        core.observe(new, _fake_feature(new), _profiles("mill", 2), peers)

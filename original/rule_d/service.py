@@ -51,8 +51,11 @@ def prune_profiles(repo, state) -> int:
     return repo.delete_rule_d_profiles(state.student_id, keep=current_shas(state))
 
 
-def sync_profiles(repo, state, feature_fn: Callable[[str], np.ndarray]) -> list[dict]:
-    """The student's profiles in sample order, creating missing ones and dropping stale ones."""
+def sync_profiles(
+    repo, state, feature_fn: Callable[[str], np.ndarray], with_pieces: bool = False
+) -> list[dict]:
+    """The student's profiles in sample order, creating missing ones and dropping stale ones.
+    New profiles are built without piece vectors unless asked (see ``ensure_pieces``)."""
     stored = repo.get_rule_d_profiles(state.student_id)
     want = {}
     for i, s in _papers(state):
@@ -65,10 +68,28 @@ def sync_profiles(repo, state, feature_fn: Callable[[str], np.ndarray]) -> list[
         if prof is not None and not _same_vector(prof.get("vector"), s.vector):
             prof = None  # features were re-extracted since: rebuild, never compare stale vectors
         if prof is None:
-            prof = core.build_paper_profile(s.text, s.vector, _label(s, i), feature_fn)
+            prof = core.build_paper_profile(
+                s.text, s.vector, _label(s, i), feature_fn, with_pieces=with_pieces
+            )
             repo.put_rule_d_profile(state.student_id, sha, prof)
         out.append(prof)
     return out
+
+
+def ensure_pieces(
+    repo, state, profiles: list[dict], feature_fn: Callable[[str], np.ndarray]
+) -> int:
+    """Measure and store the 300-word piece vectors of any profile that has none yet (once
+    per paper; later analyses reuse them). Returns how many papers were measured."""
+    texts = {core.text_sha256(s.text): s.text for _, s in _papers(state)}
+    done = 0
+    for prof in profiles:
+        if "pieces" in prof:
+            continue
+        prof["pieces"] = core.piece_vectors(texts[prof["sha"]], feature_fn)
+        repo.put_rule_d_profile(state.student_id, prof["sha"], prof)
+        done += 1
+    return done
 
 
 def observe_for(
@@ -98,4 +119,9 @@ def observe_for(
     peer_profiles: dict[str, list[dict]] = {
         p.student_id: sync_profiles(repo, p, feature_fn) for p in with_text
     }
+    cfg = core.configuration(core.word_count(text), [p["words"] for p in claimed])
+    if claimed and core.needs_pieces(cfg) and core.word_count(text) >= core.MIN_NEW_WORDS:
+        ensure_pieces(repo, state, claimed, feature_fn)
+        for p in with_text:
+            ensure_pieces(repo, p, peer_profiles[p.student_id], feature_fn)
     return core.observe(text, vector, claimed, peer_profiles)
