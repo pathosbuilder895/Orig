@@ -861,8 +861,48 @@ def reset_memory_conn() -> None:
     _MEMORY_GENERATION += 1
 
 
+def _extra_vectors_doc(sample) -> dict:
+    """``{"extra_vectors": {...}}`` for a sample with other measurements, else {}."""
+    extra = getattr(sample, "extra_vectors", None)
+    if not extra:
+        return {}
+    return {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+
+
+def _extra_vectors_from_doc(s: dict, student_id: str) -> dict | None:
+    """Stored other measurements, read with ``.get()``; a vector of the wrong
+    length is dropped (that paper then counts as not yet measured that way)."""
+    raw = s.get("extra_vectors")
+    if not raw:
+        return None
+    out = {}
+    for key, values in raw.items():
+        v = np.array(values, dtype=np.float64)
+        if v.shape != (FEATURE_DIM,):
+            log.warning(
+                "Stored %s vector for student %s has dimension %s; ignoring it.",
+                key,
+                student_id,
+                v.shape,
+            )
+            continue
+        out[key] = v
+    return out or None
+
+
+def _refuse_measurement_view(state: StudentState) -> None:
+    """A state swapped to another measurement (original/measurement.py) holds
+    non-default vectors in ``vector``; persisting it would mix versions."""
+    if getattr(state, "_measurement_view", None) is not None:
+        raise ValueError(
+            f"refusing to store a {state._measurement_view!r} measurement view of "
+            f"{state.student_id}; store the original state"
+        )
+
+
 def _serialize(state: StudentState) -> str:
     """Convert StudentState to a JSON string for SQLite storage."""
+    _refuse_measurement_view(state)
     samples = [
         {
             "text": s.text,
@@ -886,6 +926,9 @@ def _serialize(state: StudentState) -> str:
             # legacy/summary-less samples. Not yet read by any scorer (Task 9
             # wires resolve_composition_mode to it).
             "composition_summary": s.composition_summary,
+            # Versioned measurements (additive): written only when present,
+            # so a document with none is byte-identical to before.
+            **_extra_vectors_doc(s),
         }
         for s in state.samples
     ]
@@ -960,6 +1003,7 @@ def _deserialize(data: str) -> StudentState:
                 # defaults to None for every sample serialized before this
                 # field existed.
                 composition_summary=s.get("composition_summary"),
+                extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
             )
         )
     return state
