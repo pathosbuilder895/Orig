@@ -44,6 +44,7 @@ def splitter_on(monkeypatch):
 #: kinds found per fixture: (front_matter lines, headings, page lines, footnotes, back matter)
 EXPECTED = {
     "apa": (7, 5, 0, 0, "References"),
+    "cover_letter_md": (5, 0, 0, 0, "## References"),
     "chicago_pdf": (4, 0, 1, 3, "Bibliography"),
     "mla_docx": (5, 0, 0, 0, "Works Cited"),
     "mla_variants": (5, 0, 0, 0, "Works Cited:"),
@@ -68,9 +69,14 @@ def test_fixture_parts(name):
 
 def _prose_paragraphs(text: str) -> list[str]:
     """Lines a reader would call running prose: eight or more words ending a
-    sentence, outside any list of sources."""
-    head = re.search(r"^\s*(?:works cited:?|references|bibliography)\s*$", text, re.I | re.M)
+    sentence, outside any list of sources and any cover letter."""
+    head = re.search(
+        r"^\s*(?:#+\s*)?(?:works cited:?|references|bibliography)\s*$", text, re.I | re.M
+    )
     body = text[: head.start()] if head and head.start() > len(text) * 0.4 else text
+    letter = re.search(r"^Dear .*?^Sincerely,$", body, re.M | re.S)
+    if letter and letter.start() == 0:
+        body = body[letter.end() :]
     return [
         ln.strip()
         for ln in body.splitlines()
@@ -240,3 +246,117 @@ def test_evidence_aligns_with_the_splitter_on(name, feature_set, splitter_on, mo
             assert len(reading.places) == 0 or reading.value != 0.0
         for place in reading.places:
             assert not any(a <= place.start < b for a, b in aside), (name, code)
+
+
+# ── Gaps closed for ADR-015: decorated headings, notes, cover letters ─────────
+
+BIB_LINES = "\n".join(
+    f"{name}, A. (19{i}). A long title of one more book on the subject. Press."
+    for i, name in enumerate(["Abel", "Baker", "Cole", "Dunn"], 70)
+)
+
+
+@pytest.mark.parametrize(
+    "heading",
+    ["## References", "# Works Cited:", "7. References", "IV. Bibliography", "**References**",
+     "__Works Cited__", "1) Works Cited", "### **References**"],
+)  # fmt: skip
+def test_decorated_list_headings_are_read(heading):
+    body = "\n\n".join([PROSE] * 6)
+    text = f"{body}\n\n{heading}\n\n{BIB_LINES}\n"
+    parts = matter.find_matter(text)
+    assert [p.kind for p in parts] == ["back_matter"]
+    assert text[parts[0].start :].lstrip().startswith(heading)
+
+
+def test_a_decorated_heading_still_needs_entries_after_it():
+    body = "\n\n".join([PROSE] * 6)
+    text = f"{body}\n\n## References\n\nThe essay goes on after this heading, which is odd.\n"
+    assert "back_matter" not in _kinds(text)  # at most an ordinary section heading
+
+
+def test_numbered_notes_without_years_are_notes():
+    body = "\n\n".join([PROSE] * 6)
+    notes = "1. See Berlin 131 on the two concepts.\n2. Gray argues the opposite.\n3. Ibid."
+    assert [p.kind for p in matter.find_matter(f"{body}\n\nNotes\n\n{notes}\n")] == ["back_matter"]
+    # Notes followed by a bibliography: the notes end at the next heading, so
+    # the entries after it do not dilute them, and both are set aside.
+    both = f"{body}\n\nNotes\n\n{notes}\n\nWorks Cited\n\n{BIB_LINES}\n"
+    parts = matter.find_matter(both)
+    assert [p.kind for p in parts] == ["back_matter"]
+    assert both[parts[0].start :].startswith("Notes")
+    # An empty Notes section is not trusted; the list after it still is.
+    empty = f"{body}\n\nNotes\n\nWorks Cited\n\n{BIB_LINES}\n"
+    parts = matter.find_matter(empty)
+    assert parts[-1].kind == "back_matter"
+    assert empty[parts[-1].start :].startswith("Works Cited")
+    mixed = "1. See Berlin 131.\nA sentence that is not a note at all, said plainly.\n2. Ibid."
+    assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{mixed}\n")
+
+
+LETTER = (
+    "Dear Professor Hartley,\n\nPlease find my paper attached for the assignment.\n\n"
+    "Sincerely,\nJordan Reyes\n"
+)
+
+
+def _kinds(text):
+    return [p.kind for p in matter.find_matter(text)]
+
+
+def test_a_letter_at_the_start_is_set_aside_and_logged(caplog):
+    text = LETTER + "\n" + "\n\n".join([PROSE] * 6)
+    with caplog.at_level(logging.INFO, logger="original.features.matter"):
+        assert _kinds(text) == ["cover_letter"] * 4
+    assert "setting aside a cover letter" in caplog.text
+    kept = "".join(text[a:b] for a, b in matter.kept_ranges(text))
+    assert "Dear" not in kept and "Jordan" not in kept and PROSE.strip() in kept
+
+
+def test_a_letter_at_the_end_is_set_aside():
+    text = "\n\n".join([PROSE] * 6) + "\n\n" + LETTER
+    assert _kinds(text) == ["cover_letter"] * 4
+
+
+def test_a_letter_needs_its_closing_and_its_place():
+    body = "\n\n".join([PROSE] * 6)
+    no_closing = "Dear Professor Hartley,\n\n" + body
+    assert "cover_letter" not in _kinds(no_closing)
+    middle = "\n\n".join([PROSE] * 3) + "\n\n" + LETTER + "\n" + "\n\n".join([PROSE] * 3)
+    assert "cover_letter" not in _kinds(middle)  # a letter quoted mid-paper stays prose
+    late_start = PROSE * 2 + "\n" + LETTER + "\n" + body  # a long line comes before it
+    assert "cover_letter" not in _kinds(late_start)
+    not_last = body + "\n\n" + LETTER + "\n" + PROSE  # prose follows the signature
+    assert "cover_letter" not in _kinds(not_last)
+    alone = LETTER  # nothing after it: no paper to set it aside from
+    assert "cover_letter" not in _kinds(alone)
+
+
+def test_a_signature_stops_at_a_blank_line_and_at_prose():
+    text = (
+        "Dear Ms. Park,\n\nHere is the essay.\n\nBest regards,\nSam Lee\n"
+        "A full sentence that reads like prose follows here.\n\n" + "\n\n".join([PROSE] * 6)
+    )
+    parts = matter.find_matter(text)
+    lines = [text[p.start : p.end].strip() for p in parts if p.kind == "cover_letter"]
+    assert lines[-1] == "Sam Lee"
+
+
+def test_a_long_letter_stays_prose_and_is_logged(caplog):
+    long_letter = "Dear Professor Hartley,\n\n" + PROSE * 8 + "\n\nSincerely,\nJordan\n"
+    text = long_letter + "\n" + "\n\n".join([PROSE] * 3)
+    with caplog.at_level(logging.INFO, logger="original.features.matter"):
+        assert "cover_letter" not in _kinds(text)
+    assert "kept as prose" in caplog.text
+
+
+def test_a_letter_is_kept_out_of_the_soft_share_and_survives_its_refusal():
+    short_letter = "Dear Ms. Park,\nHere it is.\nThanks,\nSam\n"
+    heavy = (
+        short_letter
+        + "\nJane Doe\nENGL 1101\n17 May 2026\nA Title Here\n\n"
+        + "Short text here now and a few more words.\n"
+    )
+    kinds = _kinds(heavy)
+    assert "front_matter" not in kinds  # the heading block was over the soft cap
+    assert kinds.count("cover_letter") == 4
