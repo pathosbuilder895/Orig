@@ -627,6 +627,17 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         characteristic_factor_dispersion=getattr(r, "characteristic_factor_dispersion", None),
         characteristic_rms_z_preview=getattr(r, "characteristic_rms_z_preview", None),
         characteristic_deviation_preview=getattr(r, "characteristic_deviation_preview", None),
+        # Opportunity mask (OPPORTUNITY_MASK). Same reasoning again: a shadow
+        # soak can only be read if its preview reaches the response.
+        opportunity_mask_applied=getattr(r, "opportunity_mask_applied", False),
+        opportunity_mode=getattr(r, "opportunity_mode", None),
+        unmeasured_features=getattr(r, "unmeasured_features", None),
+        opportunity_deviation_preview=getattr(r, "opportunity_deviation_preview", None),
+        # Length-matched baseline (LENGTH_MATCHED_BASELINE): same reasoning.
+        length_match_applied=getattr(r, "length_match_applied", False),
+        length_match_mode=getattr(r, "length_match_mode", None),
+        length_match_pieces=getattr(r, "length_match_pieces", None),
+        length_match_deviation_preview=getattr(r, "length_match_deviation_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))
