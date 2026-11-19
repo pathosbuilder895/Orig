@@ -59,6 +59,8 @@ Make it one matrix, `tests/config/test_flag_byte_identity.py`:
 | `STYLE_AUTHORSHIP_ENABLED` | `0` | — | report fields only |
 | `RULE_D_OBSERVATION` | `off` | `shadow` | `rule_d` (staff only, report only; **code default `on`** while testing, the matrix sets `off`) |
 | `SECRET_KEY` | `""` | — | amplitude path only, never `deviation_score` |
+| `FEATURE_SET` | `1` | — | reworked word-list habits → `deviation_score` |
+| `MATTER_SPLITTER_ENABLED` | `0` | — | measured text (front/back matter set aside) → `deviation_score` |
 
 The last row encodes a finding from TermSim: `SECRET_KEY` does not touch
 `deviation_score`. Pin it, because the docs imply otherwise.

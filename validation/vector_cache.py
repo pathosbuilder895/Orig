@@ -62,8 +62,11 @@ def semantic_backend() -> str:
 
 def vector_cache_key(text: str, backend: str | None = None) -> str:
     from original.constants import ALL_FEATURE_CODES, DISABLED_FEATURE_GROUPS, FEATURE_DIM
+    from original.features.feature_flags import cache_key
 
+    flags = cache_key()
     parts = [
+        *([f"flags={flags}"] if flags != (1, False) else []),  # default key unchanged
         str(FEATURE_DIM),
         ",".join(ALL_FEATURE_CODES),
         ",".join(sorted(DISABLED_FEATURE_GROUPS)),

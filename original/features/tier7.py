@@ -15,6 +15,7 @@ import os
 from collections import Counter
 
 from ..constants import FUNCTION_WORDS, HEDGE_WORDS
+from . import feature_flags as _ff
 from .tier1 import TextDoc, _tokenize
 
 # ── Word frequency table (lazy-loaded) ──────────────────────────────────────
@@ -276,9 +277,16 @@ def filler_hedge_cluster_rate(doc: TextDoc) -> float:
 
     total_words = len(doc.lower_words)
     hedge_positions: list[float] = []
-    for i, w in enumerate(doc.lower_words):
-        if w in HEDGE_WORDS:
-            hedge_positions.append(i / total_words)
+    if _ff.lexicon_v2():
+        from .lexicon_v2 import hedge_spans
+
+        # Character position, so phrases ("to some extent") count too.
+        length = max(len(doc.clean), 1)
+        hedge_positions = [a / length for a, _ in hedge_spans(doc)]
+    else:
+        for i, w in enumerate(doc.lower_words):
+            if w in HEDGE_WORDS:
+                hedge_positions.append(i / total_words)
 
     if len(hedge_positions) < 3:
         return 0.0  # too few hedges to measure clustering
