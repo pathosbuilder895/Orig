@@ -276,7 +276,8 @@ def collect(partition: str, jobs: int, study: str | None = None) -> tuple[list[d
     for past_words, new_words in CELLS:
         t0 = time.perf_counter()
         ts = load_cell(partition, past_words, new_words, study)
-        study = None  # the locked partition is logged once, on its first load
+        # The loader asks for the study id on EVERY load of locked_test and
+        # logs each one, so one hold-out run writes one line per cell.
         skipped[f"{past_words}/{new_words}"] = ts.skipped
         warm_cache(cell_texts(ts.trials, new_words), jobs)
         cell_rows = run_cell(ts.trials, past_words, new_words)
@@ -439,9 +440,13 @@ def derive(jobs: int) -> int:
     return 0 if ordered else 1
 
 
-def _already_opened() -> bool:
-    log = loader.LOCKED_LOG.read_text(encoding="utf-8") if loader.LOCKED_LOG.exists() else ""
-    return any(line.split("\t")[-1].strip() == STUDY_ID for line in log.splitlines())
+def _already_reported(out: Path) -> bool:
+    """The hold-out is spent once its results exist. A run that stopped
+    before writing a report produced no result anyone saw (2026-11-19: the
+    first attempt crashed after loading one cell, because this script
+    dropped the study id the loader needs on every load), so the same
+    pre-registered test may finish; a second look at a finished one may not."""
+    return out.exists() and json.loads(out.read_text()).get("study_id") == STUDY_ID
 
 
 def holdout(jobs: int, out: Path) -> int:
@@ -452,8 +457,8 @@ def holdout(jobs: int, out: Path) -> int:
         raise SystemExit("derived_cut_points.json was made under different criteria")
     if derived.get("derivation") != "pass":
         raise SystemExit("the derivation failed; nothing to test")
-    if _already_opened():
-        raise SystemExit(f"locked_test was already opened for {STUDY_ID}; it is opened once")
+    if _already_reported(out):
+        raise SystemExit(f"the hold-out for {STUDY_ID} has a report already; it is run once")
     cuts = derived["cut_points"]
     rows, skipped = collect("locked_test", jobs, study=STUDY_ID)
     s = summarise(rows, cuts)
