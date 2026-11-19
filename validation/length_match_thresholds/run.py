@@ -467,8 +467,28 @@ def _already_reported(out: Path) -> bool:
     before writing a report produced no result anyone saw (2026-11-19: the
     first attempt crashed after loading one cell, because this script
     dropped the study id the loader needs on every load), so the same
-    pre-registered test may finish; a second look at a finished one may not."""
-    return out.exists() and json.loads(out.read_text()).get("study_id") == STUDY_ID
+    pre-registered test may finish; a second look at a finished one may not.
+    Any report for this study counts, in this folder or at ``out``, so a
+    different output path cannot buy a second look."""
+    candidates = [*HERE.glob("report_*.json"), out]
+    for f in candidates:
+        try:
+            if f.exists() and json.loads(f.read_text()).get("study_id") == STUDY_ID:
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def _git_sha() -> str | None:
+    import subprocess
+
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=_ROOT, capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
 
 
 def holdout(jobs: int, out: Path) -> int:
@@ -487,6 +507,7 @@ def holdout(jobs: int, out: Path) -> int:
     v = verdict(s)
     report = {
         "study_id": STUDY_ID,
+        "git_sha": _git_sha(),
         "criteria_hash": _criteria_hash(),
         "writing": "published scholars' single-author journal articles (OpenAlex humanities, "
         "mostly theology and religion); not student writing",
@@ -500,7 +521,7 @@ def holdout(jobs: int, out: Path) -> int:
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     print(json.dumps(s, indent=1))
     print(f"VERDICT: {v['verdict'].upper()}  {v}")
-    return 0
+    return 0 if v["verdict"] == "pass" else 1
 
 
 def check_three_papers(jobs: int, out: Path) -> int:
@@ -521,6 +542,7 @@ def check_three_papers(jobs: int, out: Path) -> int:
     report = {
         "study_id": STUDY_ID,
         "exploratory": "3 past papers per author, development partition; decides nothing",
+        "git_sha": _git_sha(),
         "writing": "published scholars' single-author journal articles; not student writing",
         "cut_points": cuts,
         "summary": s,
