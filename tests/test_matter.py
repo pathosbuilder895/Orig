@@ -360,3 +360,66 @@ def test_a_letter_is_kept_out_of_the_soft_share_and_survives_its_refusal():
     kinds = _kinds(heavy)
     assert "front_matter" not in kinds  # the heading block was over the soft cap
     assert kinds.count("cover_letter") == 4
+
+
+# ── Prose the splitter must keep (score-integrity review of #354) ─────────────
+
+
+def _kept(text):
+    return "".join(text[a:b] for a, b in matter.kept_ranges(text))
+
+
+def test_a_numbered_paragraph_that_goes_on_after_a_citation_is_prose():
+    body = "\n\n".join([PROSE] * 4)
+    peter = (
+        "1 Peter 2:9 calls the church a royal priesthood, a phrase Wright develops "
+        "(Surprised by Hope, New York: HarperOne, 2008). The image matters here."
+    )
+    barth = (
+        "1. First, Barth insists that revelation is an event "
+        "(Church Dogmatics, Edinburgh: T&T Clark, 1956). He returns to it later."
+    )
+    for para in (peter, barth):
+        text = f"{body}\n\n{para}\n\n{body}"
+        assert para in _kept(text)
+    # A numbered biblical book is never a note number, even when the line
+    # ends on its citation.
+    lone = "2 Corinthians 5:17 is quoted (New York: Doubleday, 1999), 12."
+    assert matter._FOOTNOTE_LINE.match(lone) is None
+    # Real note lines still are notes, with or without a page.
+    for note in (
+        "1. Augustine, Confessions (Oxford: Oxford University Press, 1991), 230.",
+        "2. Ibid., 232.",
+        "3. Ricoeur, Time and Narrative (Chicago: University of Chicago Press, 1984).",
+    ):
+        assert matter._FOOTNOTE_LINE.match(note), note
+    assert matter._FOOTNOTE_LINE.match("1. see Augustine (Oxford: OUP, 1991), 230.") is None
+
+
+def test_a_dated_opening_sentence_is_prose():
+    king = "On April 16, 1963, Martin Luther King Jr. wrote from a Birmingham jail."
+    text = king + "\n\n" + "\n\n".join([PROSE] * 4)
+    assert king in _kept(text)
+    assert "front_matter" not in _kinds(text)
+    # A short date line with a full stop is still part of a heading block.
+    block = "Jane Doe\nProf. Smith\nENGL 1101\n17 May 2026.\n\n" + "\n\n".join([PROSE] * 8)
+    assert _kinds(block).count("front_matter") == 4
+
+
+def test_a_long_list_after_a_few_long_paragraphs_is_found():
+    """A docx paper: each paragraph one long line, so the list starts early in
+    the paper's lines but late in its words."""
+    header = "Jane Doe\nProf. Smith\nENGL 1101\n17 May 2026\nA Title Here\n"
+    paras = "\n".join([PROSE * 18] * 3)
+    entries = "\n".join(
+        f"{name}, Ann. A Long Title of One More Book on the Subject. Press, 19{i}."
+        for i, name in enumerate(
+            ["Abel", "Baker", "Cole", "Dunn", "Eliot", "Frye", "Gold", "Hale", "Ives",
+             "Jones", "Kerr", "Lane", "Moss", "Nash"],
+            50,
+        )
+    )  # fmt: skip
+    text = f"{header}{paras}\nWorks Cited\n{entries}\n"
+    kinds = _kinds(text)
+    assert kinds[-1] == "back_matter"
+    assert "Abel, Ann" not in _kept(text)

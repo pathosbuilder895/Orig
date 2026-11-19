@@ -120,8 +120,19 @@ _HEADER_SIGNAL = re.compile(
     r"|[A-Z]{2,5}\s?-?\d{3,4}[A-Z]?\b)",
 )
 _PAGE_LINE = re.compile(r"^\s*(?:[A-Z][a-z]+\s+)?(?:page\s+)?\d{1,3}\s*$", re.IGNORECASE)
+# A numbered note line: "1. Augustine, Confessions (Oxford: ..., 1991), 230."
+# or "2. Ibid., 232.". Only a page reference may follow the citation, so a
+# numbered paragraph that goes on after a citation stays prose, and a numbered
+# biblical book ("1 Peter 2:9 ...", "2 Corinthians") is never a note number.
+_BIBLE_NUMBERED_BOOKS = (
+    r"(?:samuel|sam|kings|kgs|chronicles|chron|chr|corinthians|cor|thessalonians|thess"
+    r"|timothy|tim|peter|pet|john|jn|maccabees|macc|esdras|esd)\b"
+)
 _FOOTNOTE_LINE = re.compile(
-    r"^\s*\d{1,3}\.?\s+(?:Ibid\b|[A-Z][^\n]{0,250}?\([^()]*:[^()]*(?:1[5-9]\d\d|20\d\d)[^()]*\))"
+    r"^\s*\d{1,3}\.?\s+(?!(?i:" + _BIBLE_NUMBERED_BOOKS + r"))"
+    r"(?:Ibid\b[^\n]{0,40}"
+    r"|[A-Z][^\n]{0,250}?\([^()]*:[^()]*(?:1[5-9]\d\d|20\d\d)[^()]*\)"
+    r"(?:,?\s*(?:pp?\.\s*)?\d[\d\-\u2013, ]*)?)\.?\s*$"
 )
 _SECTION_NAMES = frozenset(
     {
@@ -188,8 +199,15 @@ def _lines(text: str) -> list[tuple[int, int, str]]:
 def _back_matter(lines: list[str]) -> int | None:
     """Line index where a verified list of sources starts, or None."""
     filled = [i for i, line in enumerate(lines) if line.strip()]
+    total = sum(_words(lines[i]) for i in filled) or 1
+    before = 0
     for k, i in enumerate(filled):
-        if not _is_list_heading(lines[i]) or k < 0.4 * len(filled):
+        # Position counts words, not lines: a docx paragraph is one long line,
+        # so a long list after a few paragraphs sits late in the paper's words
+        # even when it starts early in its lines.
+        at = before / total
+        before += _words(lines[i])
+        if not _is_list_heading(lines[i]) or at < 0.4:
             continue
         rest = [lines[j] for j in filled[k + 1 :] if not _is_list_heading(lines[j])]
         if not rest:
@@ -222,7 +240,9 @@ def _front_matter(lines: list[str], stop: int, start: int = 0) -> list[int]:
         s = lines[i].strip()
         signal = bool(_DATE.search(s) or _HEADER_SIGNAL.match(s))
         nxt = lines[filled[pos + 1]].strip() if pos + 1 < len(filled) else ""
-        if _words(s) > 14 or (s.endswith((*_SENTENCE_END, ";", ",", ":")) and not signal):
+        ends = s.endswith((*_SENTENCE_END, ";", ",", ":"))
+        # A short date line may end with a full stop; a dated sentence may not.
+        if _words(s) > 14 or (ends and (not signal or _words(s) > 6)):
             break
         if not signal and not _title_like(s):
             break
