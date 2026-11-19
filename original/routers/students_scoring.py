@@ -363,6 +363,36 @@ def score_submission(
         tuned_action_thresholds=_tuned_action_thresholds,
     )
 
+    # ── Opportunity mask (OPPORTUNITY_MASK, default off) ──────────────────────
+    # Which share-type measurements this paper gave no chance to occur
+    # (features/opportunity.py). Computed only when the flag is not "off": it
+    # re-runs a handful of the extractors' own counts over the text. A failure
+    # here leaves the mask None, which score() treats exactly as flag-off.
+    _unmeasured_mask = None
+    if _scoring_config_env.opportunity_mask != "off":
+        try:
+            from ..features.opportunity import unmeasured_mask
+
+            _unmeasured_mask = unmeasured_mask(req.text)
+        except Exception:
+            logging.getLogger(__name__).exception("opportunity mask failed: scored without it")
+
+    # ── Length-matched reference (LENGTH_MATCHED_BASELINE, default off) ───────
+    # When past papers are at least twice the length of this one, re-measure
+    # them in pieces of this paper's length (quantum/length_match.py). Built
+    # only when the flag is not "off": it costs one feature extraction per
+    # piece, up to LENGTH_MATCH_MAX_PIECES. Pieces are measured the way past
+    # papers are (feature_vector on plain text). A failure here leaves the
+    # state None, which score() treats exactly as flag-off.
+    _length_state = None
+    if _scoring_config_env.length_matched_baseline != "off":
+        try:
+            from ..quantum.length_match import build_length_matched_state
+
+            _length_state = build_length_matched_state(state, _n_tokens, feature_vector)
+        except Exception:
+            logging.getLogger(__name__).exception("length match failed: scored without it")
+
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -373,7 +403,42 @@ def score_submission(
         n_tokens=_n_tokens,
         impostor_stats=_impostor_stats,
         scoring_config=_scoring_config,
+        unmeasured_mask=_unmeasured_mask,
+        length_matched_state=_length_state,
     )
+
+    # ── Length-match audit line ───────────────────────────────────────────────
+    # One INFO line per scoring call whenever LENGTH_MATCHED_BASELINE is not
+    # "off". pieces=0 means no past paper was twice this paper's length, so
+    # the flag was inert for it. No student id, counts only.
+    if _scoring_config_env.length_matched_baseline != "off":
+        logging.getLogger(__name__).info(
+            "length_match mode=%s pieces=%d papers_cut=%d n_tokens=%d deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.length_matched_baseline,
+            result.length_match_pieces or 0,
+            _length_state.papers_cut if _length_state is not None else 0,
+            _n_tokens,
+            result.authorship.deviation_score,
+            result.length_match_deviation_preview,
+        )
+
+    # ── Opportunity mask audit line ───────────────────────────────────────────
+    # One INFO line per scoring call whenever OPPORTUNITY_MASK is not "off".
+    # n_unmeasured=0 means the paper measured everything the student is
+    # compared on, so the flag was inert for it: a soak that returns mostly
+    # zeros says the fault is rare in real traffic, whatever a corpus shows.
+    # Same privacy rule as the lines below: no student id, counts only.
+    if _scoring_config_env.opportunity_mask != "off":
+        logging.getLogger(__name__).info(
+            "opportunity_mask mode=%s n_unmeasured=%d n_tokens=%d deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.opportunity_mask,
+            len(result.unmeasured_features or ()),
+            _n_tokens,
+            result.authorship.deviation_score,
+            result.opportunity_deviation_preview,
+        )
 
     # ── Topic-adaptive variance inflation audit line ───────────────────────────
     # One INFO line per scoring call whenever TOPIC_VARIANCE_INFLATION is not
@@ -579,7 +644,20 @@ def score_submission(
     # topic_inflation_applied (set from the same _sigma_was_inflated there),
     # so this can only skip on the "on" path -- shadow never sets it and
     # stays byte-identical.
-    if result.authorship.quantum_fidelity > 0 and not result.topic_inflation_applied:
+    #
+    # The opportunity mask has the same hazard: under "on", a paper with
+    # unmeasured features has its fidelity encoded over fewer features than
+    # every stored one. scoring.py withholds the p-value for that paper; the
+    # write is skipped here so the value cannot contaminate later papers
+    # either. "on" only: shadow never sets opportunity_mask_applied.
+    if (
+        result.authorship.quantum_fidelity > 0
+        and not result.topic_inflation_applied
+        and not result.opportunity_mask_applied
+        # Length matching: the fidelity was encoded against a different mean
+        # and spread from every stored one. "on" only, as above.
+        and not result.length_match_applied
+    ):
         try:
             _repo().put_fidelity_score(
                 submission_id=submission_id,

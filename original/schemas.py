@@ -1192,6 +1192,21 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    # Opportunity mask (OPPORTUNITY_MASK) audit trail + shadow preview. Same
+    # arrangement as the characteristic block above: defaults match
+    # Layer7Output's own, and opportunity_deviation_preview is report-only
+    # and never influences `recommendation`.
+    opportunity_mask_applied: bool = False
+    opportunity_mode: str | None = None
+    unmeasured_features: list[str] | None = None
+    opportunity_deviation_preview: float | None = None
+    # Length-matched baseline (LENGTH_MATCHED_BASELINE) audit trail + shadow
+    # preview. Defaults match Layer7Output's own; the preview is report-only
+    # and never influences `recommendation`.
+    length_match_applied: bool = False
+    length_match_mode: str | None = None
+    length_match_pieces: int | None = None
+    length_match_deviation_preview: float | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the
