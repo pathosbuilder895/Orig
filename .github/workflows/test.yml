@@ -550,10 +550,14 @@ jobs:
           # 300s from one IP well before the suite finishes. Raised for this
           # job only; pilot/production keep the default (original/api.py).
           LOGIN_THROTTLE_MAX_ATTEMPTS: "500"
-          # Both default ON while testing (2026-11, owner decision); the main run
-          # pins them off so its "flags off" specs test off. The @evidence-on
-          # server below runs them on.
+          # Since 2026-11 the staff text-by-text evidence and the preliminary
+          # chip are ON by default (only "0" turns them off). This run keeps
+          # the specs that pin the switched-off pages ("flags off") honest;
+          # the @evidence-on run below covers the default-on path.
           EVIDENCE_PASSAGES_ENABLED: "0"
+          PRELIMINARY_SCORE_ENABLED: "0"
+          # Rule D's observation is also ON by default while testing (owner
+          # decision, 2026-11); off here for the same reason.
           RULE_D_OBSERVATION: "off"
         # --skip-seed is mandatory here: seeding hard-refuses when
         # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),

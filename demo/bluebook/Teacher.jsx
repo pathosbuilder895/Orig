@@ -172,6 +172,18 @@ export function baselineSummary(r) {
   return text;
 }
 
+// The sealed exam opened in Original's Writing State against the student's
+// baseline (the teacher still presses Analyse there). Only for staff in a
+// workspace with Original, and only for a submission tied to a student.
+export function analyseInOriginalHref(sub, { hasOriginal, staff }) {
+  if (!hasOriginal || !staff || !sub || !sub.id || !sub.student_id) return null;
+  return `/original/writing-state.html?student=${encodeURIComponent(sub.student_id)}&submission=${encodeURIComponent(sub.id)}`;
+}
+
+function viewerIsStaff() {
+  return !BB_API.isStudentLaunch() && !BB_API.isStudentAccount() && BB_API.identity().role !== 'student';
+}
+
 function BaselineControl({ sub }) {
   const [inBaseline, setInBaseline] = useState(null);
   const [message, setMessage] = useState('');
@@ -310,6 +322,7 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
 
   const answers = (sub && sub.answers && sub.answers.length) ? sub.answers : null;
   const questions = (sub && sub.questions) || [];
+  const analyseHref = analyseInOriginalHref(sub, { hasOriginal: BB_API.hasOriginal(), staff: viewerIsStaff() });
 
   return (
     <Panel className="bb-reader">
@@ -319,6 +332,7 @@ export function SubmissionReader({ submissionId, onClose, onSaved }) {
           {sub && <p className="bb-meta">{submittedLine(sub)}</p>}
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          {analyseHref && <a className="bb-link" href={analyseHref}>Analyse in Original</a>}
           {sub && <LinkBtn onClick={print}>Print</LinkBtn>}
           {sub && <LinkBtn onClick={() => downloadText(submissionFilename(sub), submissionAsText(sub), 'text/plain')}>Download as text</LinkBtn>}
           <LinkBtn muted onClick={onClose}>Close</LinkBtn>

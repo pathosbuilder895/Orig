@@ -128,13 +128,15 @@ class TestGetStudentReadinessMissingArms:
         assert "not found" in r.json()["detail"]
 
     def test_developing_verdict_with_word_stats_and_a_short_sample(
-        self, live_client, store_reset
+        self, live_client, store_reset, monkeypatch
     ):
         """Two authenticated samples (one under 300 words) →
         [122,123] True (word_stats built), [135,136] True ("developing"
         verdict, auth>=2 but not ready), [141,146] False (auth != 0, skips
         the "first sample" rec), [151,152] True (word_stats.n_below_300 > 0
         rec)."""
+        # Building = some papers below the deployed floor of 3 (conftest uses 1).
+        monkeypatch.setenv("MIN_BASELINE_SAMPLES", "3")
         _, sid, _ = _login(live_client, "Readiness Academy Two", "dev@ready.edu")
         _add_sample(live_client, sid, text=GOOD_TEXT, assignment="a1")
         short_text = "A short baseline sample well under the 300-word floor. " * 5
@@ -431,6 +433,16 @@ class TestUploadFileArms:
 
         assert r.status_code == 500
         assert "pypdf not installed" in r.json()["detail"]
+
+
+    def test_corrupt_docx_and_pdf_are_422_not_500(self, live_client, store_reset):
+        for name, mime in (("bad.docx", "application/octet-stream"), ("bad.pdf", "application/pdf")):
+            r = live_client.post(
+                "/students/up-corrupt/upload",
+                files={"file": (name, io.BytesIO(b"garbage, not a document"), mime)},
+            )
+            assert r.status_code == 422
+            assert r.json()["detail"] == "This file could not be read."
 
 
 # ── me.py: my_voice unknown-student fallback ─────────────────────────────────

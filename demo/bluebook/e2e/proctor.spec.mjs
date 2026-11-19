@@ -34,7 +34,7 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
-import { createExam } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, createExam } from './fixtures/api-setup.mjs'
 
 /** The hint one "phone" types on parked.html — initials, which is all this
  *  feature ever stores about a student (see the router's privacy banner). */
@@ -64,7 +64,7 @@ async function openProctorScreen(page) {
 }
 
 async function gotoProctorScreen(page) {
-  await page.goto('/bluebook/')
+  await page.goto(COLLECTIONS_HOME)
   await page.waitForLoadState('networkidle')
   await openProctorScreen(page)
 }

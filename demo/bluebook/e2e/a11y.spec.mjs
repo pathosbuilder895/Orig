@@ -34,7 +34,7 @@
 import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { test as tenancyTest, isolatedTest } from './fixtures/tenancy.mjs'
-import { createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 
 /**
  * Wait until the screen has stopped moving, so axe measures the UI a person
@@ -274,7 +274,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
 
   for (const { label, navLabel, heading } of SCREENS) {
     tenancyTest(`${label} screen`, async ({ staffPage }) => {
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       if (navLabel !== 'Dashboard') {
         await staffPage.getByRole('button', { name: navLabel, exact: true }).click()
@@ -290,7 +290,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // gets its own case for the same reason New Examination does: one extra
   // interaction stands between navigation and the markup worth scanning.
   tenancyTest('Proctor screen (code projected, one tile)', async ({ staffPage, workerTenant, request }) => {
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     await staffPage.getByRole('button', { name: 'Proctor', exact: true }).click()
     await staffPage.getByRole('tab', { name: 'Phone park' }).click()
@@ -324,7 +324,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // taking whatever this worker's tenant happens to hold.
   tenancyTest('New Examination screen', async ({ staffPage, workerTenant, request }) => {
     await createCourse(request, workerTenant.staff.token, { code: 'A11Y 100', name: 'A11y Scan Course' })
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
     await expect(staffPage.getByRole('heading', { name: 'Collections' })).toBeVisible()
@@ -344,7 +344,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     const { staff } = await provisionTenantWithStaff(request)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
     const page = await context.newPage()
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Collections', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
@@ -440,7 +440,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
         headers: { Authorization: `Bearer ${workerTenant.staff.token}` },
         data: { students: [{ email: `a11y-${Date.now()}@e2e.test`, name: 'A11y Student' }] },
       })
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       await staffPage.getByRole('button', { name: 'Courses', exact: true }).click()
       await staffPage.getByRole('button', { name: course.name }).first().click()
@@ -450,7 +450,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
 
     tenancyTest(`Manage examination${tag}`, async ({ staffPage, request, workerTenant }) => {
       const exam = await createExam(request, workerTenant.staff.token, { title: `A11y Manage ${Date.now()}` })
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
       await staffPage.getByRole('button', { name: exam.title }).click()
@@ -478,7 +478,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
     // over the teacher frame, then over the student shell. Escape closes it
     // and hands focus back to the button that opened it.
     tenancyTest(`Instructions guide${tag}`, async ({ staffPage, browser, baseURL, workerTenant }) => {
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       await staffPage.getByRole('button', { name: 'Instructions' }).click()
       await expect(staffPage.getByRole('dialog', { name: 'Using Collections' })).toBeVisible()

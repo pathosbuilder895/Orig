@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+from datetime import date as _date
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
@@ -19,7 +20,14 @@ from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _persist_or_503,
+    _repo,
+    _require_guard,
+    _require_staff,
+    drift_gate_advisory,
+)
 
 router = APIRouter()
 
@@ -197,7 +205,11 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     # check_drift mutates _consecutive_drift_count regardless of recommendation;
     # persist the counter even on flag/rebaseline so the workflow is sticky.
-    if drift_result is not None and drift_result.recommendation != "accept":
+    if (
+        drift_result is not None
+        and drift_result.recommendation != "accept"
+        and not drift_gate_advisory()
+    ):
         # Sample is held for review — DO NOT admit to state.samples.
         _persist_or_503(state)  # persist counter mutation
         body = DriftPendingResponse(
@@ -464,6 +476,7 @@ def upload_baseline_batch(
     files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
     assignment: str = Form(""),
+    submitted_at: str = Form(""),
     request: Request = None,
 ):
     """
@@ -486,6 +499,17 @@ def upload_baseline_batch(
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
+    # The date the papers were written, recorded with each one exactly as the
+    # single add records it (it never changes a weight). Without it every
+    # imported paper read "date not recorded" wherever it is quoted.
+    submitted_at = submitted_at.strip()
+    if submitted_at:
+        try:
+            _date.fromisoformat(submitted_at)
+        except ValueError:
+            raise HTTPException(
+                status_code=422, detail="submitted_at must be a date, YYYY-MM-DD"
+            ) from None
 
     # Gate high-trust provenance behind staff/attestation (see
     # _authorize_provenance) — the batch route previously skipped this.
@@ -565,7 +589,7 @@ def upload_baseline_batch(
             provenance=provenance,
             auth_weight=AUTH_WEIGHTS[provenance],
             assignment=label,
-            submitted_at="",
+            submitted_at=submitted_at,
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.
@@ -579,7 +603,7 @@ def upload_baseline_batch(
         if AUTH_WEIGHTS[provenance] > 0:
             try:
                 dr = state.check_drift(sample)
-                if dr.recommendation != "accept":
+                if dr.recommendation != "accept" and not drift_gate_advisory():
                     drift_holds.append(
                         {
                             "filename": filename,

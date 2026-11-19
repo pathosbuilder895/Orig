@@ -52,12 +52,17 @@ test('during the alpha, students in a workspace that holds Original get the alph
   const html = decode(guide('student'));
   assert.match(html, />Alpha test: what to do</);
   for (const [step] of ALPHA_STEPS) assert.ok(html.includes(`<strong>${step}.</strong>`), step);
-  assert.match(html, /three papers you wrote yourself/);
-  assert.match(html, /question 1 \(Q1\).*question 2 \(Q2\)/);
-  assert.match(html, /Give it the topic only, not your writing/);
-  // The batch scorer needs the tool's name (generator_tool), and only the feedback form records it.
-  assert.match(html, /Note which AI tool you used\. The feedback form asks for its name\./);
-  assert.doesNotMatch(html, /Courses|Publish Collection|reference writing/);
+  // Since 2026-11: four past papers and nothing else. No exam, no fourth piece, no AI piece to make.
+  assert.match(html, /four papers you wrote yourself/);
+  assert.match(html, /There is no exam to sit and nothing new to write\./);
+  assert.match(html, /one is kept aside for the test/);
+  assert.doesNotMatch(html, /question 1|question 2|\(Q1\)|\(Q2\)|Begin Examination|Seal &amp; Submit|Seal & Submit/);
+  assert.doesNotMatch(html, /ask an AI|ChatGPT|Claude|AI tool you used|Give it the topic/i);
+  // The imitation is the teacher's to make, and the volunteer is told so plainly.
+  assert.match(html, /the person running the test writes one extra piece in the style of your papers/);
+  assert.match(html, /You will not see a score or any reading of your writing\./);
+  assert.doesNotMatch(html, /AI detection|cheating|authorship verification|fingerprint/i);
+  assert.doesNotMatch(html, /Courses|Publish Collection/);
   assert.match(guide('teacher'), />Using Collections</);
 });
 

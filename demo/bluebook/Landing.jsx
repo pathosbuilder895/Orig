@@ -2,6 +2,7 @@ import React from 'react';
 import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { homeFor, LegalLinks, openStudentExam } from './Account.jsx';
 import { resumeOrHome } from './resume-location.jsx';
+import { staffHomeRedirect } from './deep-link.jsx';
 
 // "Explore the demo" opens the mock dashboard. It belongs on the public demo
 // deploy only; on a real deploy it would show a visitor fabricated data.
@@ -216,7 +217,15 @@ export function LoginScreen({ onNavigate }) {
     try {
       const data = await BB_API.login(email, pass);
       // Back to where this account last was, on any device, if it still may go there.
-      await resumeOrHome(onNavigate, homeFor(data), { openExam: openStudentExam });
+      // Where it would go home instead, a teacher whose workspace has Original goes
+      // to Original (staffOriginalHome in deep-link.jsx); a followed link stays.
+      const home = homeFor(data);
+      const away = staffHomeRedirect(BB_API);
+      const go = (next) => {
+        if (away && next === home) { window.location.replace(away); return; }
+        onNavigate(next);
+      };
+      await resumeOrHome(go, home, { openExam: openStudentExam });
     } catch (err) {
       setError(err && err.message ? err.message : 'We could not sign you in. Please try again.');
       setLoading(false);

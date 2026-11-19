@@ -9,7 +9,7 @@
  */
 import { test, expect } from '@playwright/test'
 import { isolatedTest } from './fixtures/tenancy.mjs'
-import { staffStorageState } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, staffStorageState } from './fixtures/api-setup.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
@@ -29,7 +29,7 @@ async function setupClass(browser, T) {
   const id = uid()
   const tctx = await browser.newContext({ storageState: staffStorageState(T.baseURL, T.staff) })
   const teacher = await tctx.newPage()
-  await teacher.goto('/bluebook/')
+  await teacher.goto(COLLECTIONS_HOME)
   await expect(teacher.getByRole('button', { name: 'Courses', exact: true })).toBeVisible({ timeout: 10_000 })
   await teacher.getByRole('button', { name: 'Courses', exact: true }).click()
   await teacher.getByRole('button', { name: '+ New course' }).click()

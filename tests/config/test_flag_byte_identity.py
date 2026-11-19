@@ -445,14 +445,21 @@ def unit_payload(*, with_pool: bool = False, **config_kwargs: Any) -> dict:
 # test_default_on_flags_read_as_on pins the unset default itself.
 DEFAULT_ON_FLAGS: dict[str, str] = {
     "EVIDENCE_PASSAGES_ENABLED": "0",
+    "PRELIMINARY_SCORE_ENABLED": "0",
     "RULE_D_OBSERVATION": "off",
 }
 
 
 @contextlib.contextmanager
 def clean_flag_env() -> Iterator[None]:
-    """Every flag off (unset, or its off literal for DEFAULT_ON_FLAGS; SECRET_KEY blanked),
-    restored on exit."""
+    """Every flag off, restored on exit: unset, except the DEFAULT_ON_FLAGS, which are
+    set to their off literal (SECRET_KEY blanked).
+
+    The two ADR-013 staff explainability flags (on by default since 2026-11) and rule D
+    (on by default while testing) only add report-only `evidence`/`preliminary`/`rule_d`
+    fields to a staff response. These snapshots pin the score, which none of them can
+    move (tests/test_evidence.py, tests/test_rule_d.py and
+    test_api_unset_default_changes_only_report_fields hold that)."""
     saved = {name: os.environ.get(name) for name in FLAG_OFF_VALUES}
     try:
         for name in FLAG_OFF_VALUES:
@@ -1703,23 +1710,23 @@ def test_every_scoring_config_field_has_an_off_arm():
 
 def test_default_on_flags_read_as_on(monkeypatch):
     """The two report-only, staff-only flags that are on by default while testing."""
-    from original.evidence import evidence_enabled
+    from original.evidence import evidence_enabled, preliminary_enabled
     from original.rule_d import mode
 
     for name in DEFAULT_ON_FLAGS:
         monkeypatch.delenv(name, raising=False)
-    assert evidence_enabled() is True
+    assert evidence_enabled() is True and preliminary_enabled() is True
     assert mode() == "on"
     assert set(DEFAULT_ON_FLAGS) <= set(FLAG_OFF_VALUES)
     for name, off in DEFAULT_ON_FLAGS.items():
         assert FLAG_OFF_VALUES[name] == off
 
 
-def test_api_unset_default_changes_only_evidence_and_rule_d(api_call, api_snapshot):
-    """The real code default (DEFAULT_ON_FLAGS truly unset) may add the two staff-only
-    report blocks and nothing else: no score, action or other field moves."""
+def test_api_unset_default_changes_only_report_fields(api_call, api_snapshot):
+    """The real code default (DEFAULT_ON_FLAGS truly unset) may add the staff-only report
+    blocks and nothing else: no score, action or other field moves."""
     unset = api_call({name: None for name in DEFAULT_ON_FLAGS})
     changed = changed_paths(api_snapshot, unset)
     assert unset["evidence"] is not None and unset["rule_d"] is not None, "default-on flags inert"
-    stray = sorted(p for p in changed if re.split(r"[.\[]", p, maxsplit=1)[0] not in {"evidence", "rule_d"})
+    stray = sorted(p for p in changed if re.split(r"[.\[]", p, maxsplit=1)[0] not in {"evidence", "preliminary", "rule_d"})
     assert stray == [], stray
