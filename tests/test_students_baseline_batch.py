@@ -969,3 +969,15 @@ def test_health_reports_the_drift_gate_mode(live_client, monkeypatch):
         assert live_client.get("/health").json()["drift_gate"] == "advisory"
     monkeypatch.setenv("DRIFT_GATE", "anything-else")
     assert live_client.get("/health").json()["drift_gate"] == "hold"
+
+
+def test_readiness_reports_the_drift_gate_mode(live_client, store_reset, monkeypatch):
+    """Voice Baseline reads the mode from the readiness answer it already loads:
+    on the live pilot a browser blocker refused the page's request to /health."""
+    sid = "s-readiness-drift-mode"
+    r = _post_files(live_client, sid, [("u1.txt", io.BytesIO(U1.encode()), "text/plain")])
+    assert r.status_code == 200, r.text
+    monkeypatch.delenv("DRIFT_GATE", raising=False)
+    assert live_client.get(f"/students/{sid}/readiness").json()["drift_gate"] == "hold"
+    monkeypatch.setenv("DRIFT_GATE", "advisory")
+    assert live_client.get(f"/students/{sid}/readiness").json()["drift_gate"] == "advisory"

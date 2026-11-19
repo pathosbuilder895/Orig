@@ -274,3 +274,31 @@ def test_dormant_app_tree_404_in_demo(mounted_client, url):
 def test_dormant_app_tree_404_in_pilot(mounted_pilot_client, url):
     r = mounted_pilot_client.get(url, follow_redirects=False)
     assert r.status_code == 404, f"{url} -> {r.status_code}"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/original/writing-state.html",
+        "/original/live.js",
+        "/original/js/evidence-view.js",
+        "/original/suite.css",
+        "/bluebook/",
+        "/bluebook/bluebook.bundle.js",
+    ],
+)
+def test_pages_scripts_and_styles_revalidate_after_a_deploy(mounted_pilot_client, url):
+    """No heuristic caching of the staff and Collections pages: a teacher sees a
+    deploy on the next load. ETag revalidation keeps an unchanged file cheap."""
+    r = mounted_pilot_client.get(url)
+    assert r.status_code == 200, url
+    assert r.headers.get("cache-control") == "no-cache", url
+    assert r.headers.get("etag"), url
+    again = mounted_pilot_client.get(url, headers={"If-None-Match": r.headers["etag"]})
+    assert again.status_code == 304, url
+
+
+def test_api_json_is_not_given_the_page_caching_rule(mounted_pilot_client):
+    r = mounted_pilot_client.get("/health")
+    assert r.status_code == 200
+    assert r.headers.get("cache-control") != "no-cache"
