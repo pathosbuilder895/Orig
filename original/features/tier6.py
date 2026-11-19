@@ -121,16 +121,26 @@ def that_which_ratio(doc: TextDoc) -> float:
     Near 1.0 = strongly prefers "that"; near 0.0 = strongly prefers "which".
     0.5 = balanced. This is a deeply habitual preference.
     """
+    that_rel, which_rel = _that_which_counts(doc)
+    total = that_rel + which_rel
+    if total == 0:
+        return 0.5  # neutral when neither is used
+    return that_rel / total
+
+
+def _that_which_counts(doc: TextDoc) -> tuple[int, int]:
+    """("that" uses, "which" uses) in relative-clause contexts.
+
+    Shared with features/opportunity.py, which reports their sum as the
+    number of chances this text gave the ratio to be measured.
+    """
     # Match relative clause patterns (word + that/which)
     lower = doc.clean.lower()
     that_rel = len(
         re.findall(r"\b\w+\s+that\s+(?:is|are|was|were|has|have|had|the|a|an|\w+s\b)", lower)
     )
     which_rel = len(re.findall(r"\b\w+\s+which\s+", lower))
-    total = that_rel + which_rel
-    if total == 0:
-        return 0.5  # neutral when neither is used
-    return that_rel / total
+    return that_rel, which_rel
 
 
 def citation_style_consistency(doc: TextDoc) -> float:
@@ -217,6 +227,15 @@ def abbreviation_tendency(doc: TextDoc) -> float:
 
     Normalized against the theological abbreviation dictionary.
     """
+    abbrev_used, full_used = _abbreviation_counts(doc)
+    total = abbrev_used + full_used
+    if total == 0:
+        return 0.5  # neutral when neither form is detected
+    return abbrev_used / total
+
+
+def _abbreviation_counts(doc: TextDoc) -> tuple[int, int]:
+    """(abbreviated forms used, full forms used). Shared with opportunity.py."""
     lower = doc.clean.lower()
     abbrev_used = 0
     full_used = 0
@@ -232,10 +251,7 @@ def abbreviation_tendency(doc: TextDoc) -> float:
         if full_count > 0:
             full_used += full_count
 
-    total = abbrev_used + full_used
-    if total == 0:
-        return 0.5  # neutral when neither form is detected
-    return abbrev_used / total
+    return abbrev_used, full_used
 
 
 # ── Public extraction function ───────────────────────────────────────────────

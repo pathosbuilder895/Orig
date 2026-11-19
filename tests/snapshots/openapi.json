@@ -2767,6 +2767,71 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "length_match_applied": {
+            "default": false,
+            "title": "Length Match Applied",
+            "type": "boolean"
+          },
+          "length_match_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Deviation Preview"
+          },
+          "length_match_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Mode"
+          },
+          "length_match_pieces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Pieces"
+          },
+          "opportunity_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Deviation Preview"
+          },
+          "opportunity_mask_applied": {
+            "default": false,
+            "title": "Opportunity Mask Applied",
+            "type": "boolean"
+          },
+          "opportunity_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Mode"
+          },
           "preliminary": {
             "anyOf": [
               {
@@ -2917,6 +2982,20 @@
               }
             ],
             "title": "Typicality Source"
+          },
+          "unmeasured_features": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unmeasured Features"
           },
           "writer_line_action": {
             "anyOf": [

@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -67,6 +67,7 @@ from ..constants import (
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
+from .length_match import LengthMatchedState
 from .state import StudentState, _unit
 
 log = logging.getLogger(__name__)
@@ -551,6 +552,48 @@ def _parse_characteristic_mode(raw: str) -> str:
     return "off"
 
 
+_OPPORTUNITY_MASK_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _length_match_preview(run) -> float | None:
+    """The deviation_score ``run()`` produces under "on", or None if it
+    raised. Shadow must never fail a request that off would have served."""
+    try:
+        return float(run().authorship.deviation_score)
+    except Exception:
+        log.exception("length-match shadow preview failed: reported without it")
+        return None
+
+
+def _parse_length_matched_baseline_mode(raw: str) -> str:
+    """
+    Map LENGTH_MATCHED_BASELINE to a mode. Same rules as the parsers around
+    it: "1" is an alias for "on", and anything unrecognised is "off", so a
+    typo can never enable a score-changing correction.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _OPPORTUNITY_MASK_MODES:
+        return value
+    return "off"
+
+
+def _parse_opportunity_mask_mode(raw: str) -> str:
+    """
+    Map OPPORTUNITY_MASK to a mode. Same shape as the two parsers above,
+    including "1" as an alias for "on" and the fall-back-to-"off" treatment
+    of anything unrecognised: an unparseable value must never silently enable
+    a score-changing correction.
+    """
+    value = (raw or "").strip().lower()
+    if value == "1":
+        return "on"
+    if value in _OPPORTUNITY_MASK_MODES:
+        return value
+    return "off"
+
+
 @dataclass(frozen=True)
 class ScoringConfig:
     """
@@ -650,6 +693,31 @@ class ScoringConfig:
     #              leave-one-genre-out corpus in
     #              validation/genre_crossgenre_2026-08/ and has not been run.
     characteristic_weights: str = "off"
+    # Leave out of the comparison any measurement the paper being scored gave
+    # no chance to occur (see original/features/opportunity.py). A share such
+    # as that_which_ratio returns a placeholder when the paper has no eligible
+    # construction; without this, that placeholder is compared with the
+    # student's real past values as if the student had changed.
+    #   "off"    : DEFAULT. Byte-identical, whatever mask the caller passes.
+    #   "shadow" : nothing is left out; the score that "on" would produce is
+    #              attached report-only as opportunity_deviation_preview,
+    #              with the list of unmeasured features.
+    #   "on"     : CHANGES SCORES. Unmeasured features leave the active set
+    #              for this paper, and rms_z is averaged over what remains.
+    #              Not validated on real student writing.
+    # Only takes effect when the caller passes score(unmeasured_mask=...).
+    opportunity_mask: str = "off"
+    # Compare a paper much shorter than the student's past papers with those
+    # papers re-measured in pieces of its own length (see
+    # original/quantum/length_match.py). Whole long papers give a mean and a
+    # spread that a short paper cannot match whoever wrote it.
+    #   "off"    : DEFAULT. Byte-identical, whatever state the caller passes.
+    #   "shadow" : nothing changes; the score "on" would produce is attached
+    #              report-only as length_match_deviation_preview.
+    #   "on"     : CHANGES SCORES. Mean, spread and active set come from the
+    #              pieces. Not validated on real student writing.
+    # Only takes effect when the caller passes score(length_matched_state=...).
+    length_matched_baseline: str = "off"
 
     # ── formerly call-time `from ..store import ...` ──────────────────────────
     # Confirmed-authentic fidelity scores for this student, for the conformal
@@ -693,6 +761,10 @@ class ScoringConfig:
             ),
             characteristic_weights=_parse_characteristic_mode(
                 os.environ.get("CHARACTERISTIC_WEIGHTS", "0")
+            ),
+            opportunity_mask=_parse_opportunity_mask_mode(os.environ.get("OPPORTUNITY_MASK", "0")),
+            length_matched_baseline=_parse_length_matched_baseline_mode(
+                os.environ.get("LENGTH_MATCHED_BASELINE", "0")
             ),
         )
 
@@ -793,6 +865,43 @@ class Layer7Output:
     # `recommendation`.
     characteristic_rms_z_preview: float | None = field(default=None)
     characteristic_deviation_preview: float | None = field(default=None)
+
+    # ── Opportunity mask (audit trail) ────────────────────────────────────────
+    # All four stay at their defaults unless config.opportunity_mask is
+    # "on"/"shadow" AND the caller's mask marked at least one feature that
+    # would otherwise have been compared.
+    #
+    # True only in "on" mode: the reported deviation_score left the
+    # unmeasured features out.
+    opportunity_mask_applied: bool = field(default=False)
+    # "on" | "shadow": which mode found something to leave out. None when the
+    # flag is off or nothing was unmeasured, so a None here in a shadow soak
+    # means this paper taught the soak nothing.
+    opportunity_mode: str | None = field(default=None)
+    # Codes left out (on) or that would be left out (shadow), in
+    # ALL_FEATURE_CODES order.
+    unmeasured_features: list[str] | None = field(default=None)
+    # Shadow only: the deviation_score "on" would have produced. Never
+    # influences `recommendation`.
+    opportunity_deviation_preview: float | None = field(default=None)
+
+    # ── Length-matched baseline (audit trail) ─────────────────────────────────
+    # All four stay at their defaults unless config.length_matched_baseline
+    # is "on"/"shadow" AND the caller supplied a length-matched state (one or
+    # more past papers were at least twice the length of this paper).
+    #
+    # True only in "on" mode: the reported deviation_score compared this
+    # paper with pieces of its own length.
+    length_match_applied: bool = field(default=False)
+    # "on" | "shadow". None when the flag is off or no past paper was long
+    # enough to cut, so a None in a shadow soak means the paper taught the
+    # soak nothing.
+    length_match_mode: str | None = field(default=None)
+    # How many pieces the reference was built from (uncut papers count one).
+    length_match_pieces: int | None = field(default=None)
+    # Shadow only: the deviation_score "on" would have produced. Never
+    # influences `recommendation`.
+    length_match_deviation_preview: float | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
@@ -987,6 +1096,28 @@ def _llr_deviation(
     return float(np.clip(0.5 + 0.5 * np.tanh(delta / 1.5), 0.0, 1.0))
 
 
+def _trajectory_adjustment(
+    xi: np.ndarray, trajectory_vector: np.ndarray, identity_axis_enabled: bool
+) -> tuple[str, float, float]:
+    """
+    (direction, alignment, adjustment factor) for a unit submission vector
+    against the student's trajectory. Extracted so the opportunity-mask
+    shadow preview applies the identical rule to the vector "on" would score.
+    """
+    alignment = float(np.dot(xi, trajectory_vector))  # cos sim (both unit-normalised)
+    if alignment > TRAJECTORY_GROWTH_THRESHOLD:
+        # Phase 2: under IDENTITY_AXIS, the unconditional growth dampening
+        # is superseded by the identity-axis matrix's evidence-based
+        # (too-far, distinctively-theirs) -> monitor cell — see design
+        # spec §6. The trajectory result itself is still computed and
+        # reported (direction/alignment/confidence); only the multiplier
+        # applied to the deviation score is disabled.
+        return "growth", alignment, (1.0 if identity_axis_enabled else 0.75)
+    if alignment < TRAJECTORY_REGRESSIVE_THRESHOLD:
+        return "regressive", alignment, 1.15
+    return "lateral", alignment, 1.0
+
+
 # ── Main scoring function ─────────────────────────────────────────────────────
 
 
@@ -1002,6 +1133,8 @@ def score(
     scoring_config: ScoringConfig | None = None,
     pooled_states: dict | None = None,
     student_id: str = "",
+    unmeasured_mask: np.ndarray | None = None,
+    length_matched_state: StudentState | None = None,
 ) -> Layer7Output:
     """
     Score a submission against a student's current quantum state.
@@ -1065,8 +1198,90 @@ def score(
                          that includes their own submissions) and to resolve
                          their tenant. Defaults to "" — harmless when pooled
                          calibration is off.
+    unmeasured_mask    : optional boolean vector, shape (FEATURE_DIM,), True
+                         where THIS paper gave a measurement no chance to occur
+                         (features/opportunity.py). Only read when
+                         ``config.opportunity_mask`` is "on" or "shadow"; None,
+                         a wrong shape, or a mask that marks nothing the
+                         student would otherwise be compared on leaves every
+                         output exactly as with the flag off.
+    length_matched_state : optional ``LengthMatchedState`` for this student
+                         and this paper's length (quantum/length_match.py).
+                         Only read when ``config.length_matched_baseline`` is
+                         "on" or "shadow"; None, another type, or another
+                         student's state leaves every output exactly as with
+                         the flag off.
     """
     config = scoring_config or ScoringConfig()
+
+    # ── Length-matched reference (LENGTH_MATCHED_BASELINE) ────────────────────
+    # Under "on" the caller's length-matched state replaces `state` for the
+    # whole call: it carries the student's real papers (counts, trajectory,
+    # density matrix) and overrides only the comparison reference. Under
+    # "shadow" the preview is this same function run under "on", so it is
+    # what "on" produces by construction, whatever other flags are set. It
+    # runs here, before any argument is rebound below.
+    _length_state: LengthMatchedState | None = None
+    _length_applied = False
+    _length_preview: float | None = None
+    if (
+        config.length_matched_baseline in ("on", "shadow")
+        and isinstance(length_matched_state, LengthMatchedState)
+        and length_matched_state.student_id == state.student_id
+    ):
+        _length_state = length_matched_state
+        if config.length_matched_baseline == "on":
+            state = _length_state
+            _length_applied = True
+        else:
+            _length_preview = _length_match_preview(
+                lambda: score(
+                    state=state,
+                    submission_vector=submission_vector,
+                    feature_dict=feature_dict,
+                    submission_id=submission_id,
+                    adaptive_weights=adaptive_weights,
+                    manifest=manifest,
+                    n_tokens=n_tokens,
+                    impostor_stats=impostor_stats,
+                    scoring_config=replace(config, length_matched_baseline="on"),
+                    pooled_states=pooled_states,
+                    student_id=student_id,
+                    unmeasured_mask=unmeasured_mask,
+                    length_matched_state=_length_state,
+                )
+            )
+
+    # ── Measurements this paper gave no chance to occur ──────────────────────
+    # `_unmeasured` is None unless the flag is on/shadow AND the mask marks at
+    # least one feature in the student's active set, so every abstaining path
+    # below is the flag-off path, not a near copy of it.
+    _unmeasured: np.ndarray | None = None
+    if config.opportunity_mask in ("on", "shadow") and unmeasured_mask is not None:
+        _candidate = np.asarray(unmeasured_mask)
+        if _candidate.shape == (FEATURE_DIM,):
+            # Only features that can move the score. A feature the selected
+            # weight vector mutes (the manifest sets its weight to 0.0) adds
+            # nothing to the sum of squares but is still counted in n_active;
+            # dropping it would shrink the denominator alone and RAISE rms_z
+            # (x1.06 on a very short paper, where the manifest mutes most of
+            # the registered features). Whether a zero-weight feature had
+            # opportunities must be score-neutral, so it is left where it is.
+            _selected = adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
+            _carries_weight = np.asarray(_selected, dtype=np.float64) != 0.0
+            _candidate = _candidate.astype(bool) & state.active_feature_mask & _carries_weight
+            if _candidate.any():
+                _unmeasured = _candidate
+    _opportunity_applied = _unmeasured is not None and config.opportunity_mask == "on"
+    # What "on" compares: the past-paper mean stands in for an unmeasured
+    # value, exactly as it does for the comparison measurements just below,
+    # so xi, the Born probability and the trajectory alignment see no
+    # difference there. In shadow this vector only feeds the preview.
+    _submission_masked: np.ndarray | None = None
+    if _unmeasured is not None:
+        _submission_masked = np.where(
+            _unmeasured | NOT_COMPUTED_FOR_BASELINES_MASK, state.baseline_mean, submission_vector
+        )
 
     # ── Measurements past papers have no value for ───────────────────────────
     # The comparison measurements (features/baseline_scope.py) are computed
@@ -1080,6 +1295,9 @@ def score(
     submission_vector = np.where(
         NOT_COMPUTED_FOR_BASELINES_MASK, state.baseline_mean, submission_vector
     )
+
+    if _opportunity_applied:
+        submission_vector = _submission_masked
 
     xi = _unit(submission_vector)  # ξ  (unit-normalised submission vector)
     rho = state.density_matrix  # ρ
@@ -1109,6 +1327,17 @@ def score(
     mu = state.baseline_mean  # shape (D,)
     sigma = state.baseline_std  # shape (D,), floored at 0.005
     active = state.active_feature_mask  # shape (D,), bool
+    # The set "on" averages over: the student's active features minus the
+    # ones this paper did not measure. Every consumer below (rms_z, the
+    # characteristic rescale, the impostor-pool distance, the amplitude
+    # encoding) takes `active` and `n_active` as arguments, so narrowing it
+    # here is the whole change. In shadow, `active` is left alone and
+    # `_active_measured` feeds only the preview.
+    _active_measured: np.ndarray | None = None
+    if _unmeasured is not None:
+        _active_measured = active & ~_unmeasured
+        if _opportunity_applied:
+            active = _active_measured
 
     # ── Hierarchical Bayesian prior (cold-start) ──────────────────────────────
     # When a student has few baseline samples, blend their personal mu/sigma
@@ -1210,6 +1439,7 @@ def score(
     # static vector is the unconditional fallback so Phase 1 callers see
     # byte-identical results.
     weight_vec = adaptive_weights if adaptive_weights is not None else _TIER_WEIGHT_VECTOR
+    _selected_weight_vec = weight_vec
 
     # ── Characteristic per-student weighting ─────────────────────────────────
     # Order is deliberate and must stay select -> characteristic -> length.
@@ -1257,6 +1487,27 @@ def score(
         if _char_weight_vec is not None:
             _char_weight_vec = _char_weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
 
+    # ── Opportunity-mask shadow preview: the weight vector "on" would use ────
+    # Identical to weight_vec except under CHARACTERISTIC_WEIGHTS=on, whose
+    # Σ(w²) rescale is taken over the active set: "on" hands it the narrowed
+    # set, so the preview has to redo that one step the same way (then the
+    # same length scaling) or it would preview a number "on" never produces.
+    _opp_weight_vec: np.ndarray | None = None
+    if _unmeasured is not None and not _opportunity_applied:
+        _opp_weight_vec = weight_vec
+        # Keyed on the MODE, not on whether the live factor was computable:
+        # "on" asks the helper about the narrowed set, and the helper can
+        # abstain on one set and not the other.
+        if config.characteristic_weights == "on":
+            _opp_weight_vec = _selected_weight_vec
+            _opp_factor = _characteristic_weight_factor(
+                state, impostor_stats, _selected_weight_vec, _active_measured
+            )
+            if _opp_factor is not None:
+                _opp_weight_vec = _selected_weight_vec * _opp_factor
+            if config.length_adaptive_weights:
+                _opp_weight_vec = _opp_weight_vec * _LENGTH_SCALE_VECTORS[_bucket]
+
     # Winsorise individual feature z-scores before weighting.
     # A single feature with |z| > 4 contributes 16× to the rms_z² sum —
     # far more than any neighbouring feature, regardless of tier weight.
@@ -1297,6 +1548,17 @@ def score(
     if _char_weight_vec is not None:
         _char_rms_z_preview = _rms_z_from_z(z, _char_weight_vec, active, n_active)
 
+    # ── Shadow-mode preview (opportunity mask) ───────────────────────────────
+    # Same z and sigma as the live score; only the set averaged over (and the
+    # weight vector, where characteristic weighting depends on that set)
+    # differs. z at an unmeasured feature is whatever the placeholder gives,
+    # but it is multiplied by zero here, as it is in "on".
+    _opp_rms_z_preview: float | None = None
+    if _opp_weight_vec is not None:
+        _opp_rms_z_preview = _rms_z_from_z(
+            z, _opp_weight_vec, _active_measured, int(_active_measured.sum())
+        )
+
     # ── Two-axis verification: typicality axis (conformal, LOO-based) ────────
     # Gated by config.typicality_scoring_enabled (default OFF, preserves
     # byte-identical Phase 1 behaviour). See original/quantum/typicality.py
@@ -1330,12 +1592,20 @@ def score(
     # the band would let shadow change an action via _recommend()'s
     # IDENTITY_AXIS wiring.
     _sigma_was_inflated = topic_inflation is not None and config.topic_variance_inflation == "on"
-    # rms_z is comparable to state.loo_distances only when no weighting or
-    # inflation modified it.
-    _rms_z_comparable_to_loo = (
-        adaptive_weights is None and not _sigma_was_inflated and not _characteristic_applied
-    )
-    if config.typicality_scoring_enabled and _rms_z_comparable_to_loo:
+    if (
+        config.typicality_scoring_enabled
+        and adaptive_weights is None
+        and not _sigma_was_inflated
+        and not _characteristic_applied
+        # Same reason again: loo_distances are distances over the student's
+        # full active set, and an rms_z averaged over fewer features is not
+        # drawn from that distribution. "on" only; shadow leaves `active`
+        # alone, so its rms_z stays comparable and the band must survive.
+        and not _opportunity_applied
+        # And again: loo_distances are distances between WHOLE past papers,
+        # not between pieces of this paper's length.
+        and not _length_applied
+    ):
         from .typicality import NO_ACTION_CENTRAL_THRESHOLD, band_from_p, p_central
         from .typicality import p_far as p_far_fn
 
@@ -1454,6 +1724,15 @@ def score(
     # unaffected and stays inert.
     if _sigma_was_inflated:
         _conformal_p = None
+    # The opportunity mask has the same hazard from the other side: the
+    # fidelity above was encoded over fewer features than every fidelity in
+    # the student's calibration set. Withhold, for the same reason.
+    if _opportunity_applied:
+        _conformal_p = None
+    # Length matching changes the mean and spread the fidelity is encoded
+    # against; the stored calibration fidelities used whole papers.
+    if _length_applied:
+        _conformal_p = None
 
     # Map to [0,1] via tanh(rms_z / _DEVIATION_TANH_DIVISOR).
     #
@@ -1481,24 +1760,27 @@ def score(
     traj_confidence = traj.confidence
 
     if traj.vector is not None:
-        alignment = float(np.dot(xi, traj.vector))  # cos sim (both unit-normalised)
-        if alignment > TRAJECTORY_GROWTH_THRESHOLD:
-            direction = "growth"
-            # Phase 2: under IDENTITY_AXIS, the unconditional growth dampening
-            # is superseded by the identity-axis matrix's evidence-based
-            # (too-far, distinctively-theirs) -> monitor cell — see design
-            # spec §6. The trajectory result itself is still computed and
-            # reported (direction/alignment/confidence); only the multiplier
-            # applied to the deviation score is disabled.
-            adj_factor = 1.0 if config.identity_axis_enabled else 0.75
-        elif alignment < TRAJECTORY_REGRESSIVE_THRESHOLD:
-            direction = "regressive"
-            adj_factor = 1.15
-        else:
-            direction = "lateral"
-            adj_factor = 1.0
+        direction, alignment, adj_factor = _trajectory_adjustment(
+            xi, traj.vector, config.identity_axis_enabled
+        )
 
     D_adjusted = float(np.clip(D_raw * adj_factor, 0.0, 1.0))
+
+    # ── Shadow-mode preview (opportunity mask, final score) ──────────────────
+    # Unlike the two previews below, this one cannot reuse adj_factor: "on"
+    # changes xi (the past-paper mean stands in for each unmeasured value),
+    # and the trajectory alignment is read from xi. Recompute the adjustment
+    # from the vector "on" would have used.
+    opportunity_deviation_preview: float | None = None
+    if _opp_rms_z_preview is not None:
+        _opp_adj = 1.0
+        if traj.vector is not None:
+            _, _, _opp_adj = _trajectory_adjustment(
+                _unit(_submission_masked), traj.vector, config.identity_axis_enabled
+            )
+        opportunity_deviation_preview = float(
+            np.clip(np.tanh(_opp_rms_z_preview / _DEVIATION_TANH_DIVISOR) * _opp_adj, 0.0, 1.0)
+        )
 
     # ── Shadow-mode preview (final score) ────────────────────────────────────
     # Mirrors D_adjusted's arithmetic exactly -- same tanh(rms_z /
@@ -1535,7 +1817,15 @@ def score(
     # above for why: destructive_features is an explanation surface, and
     # topic inflation must not be able to empty it or suppress the forced
     # ghostwriting escalate that depends on it.
-    interference = _decompose(xi, rho_xi, P, feature_dict, mu, z_for_decompose)
+    interference = _decompose(
+        xi,
+        rho_xi,
+        P,
+        feature_dict,
+        mu,
+        z_for_decompose,
+        excluded=_unmeasured if _opportunity_applied else None,
+    )
 
     # ── Baseline confidence ───────────────────────────────────────────────────
     bc = BaselineConfidence(
@@ -1723,6 +2013,20 @@ def score(
         characteristic_deviation_preview=characteristic_deviation_preview,
         writer_line_z=writer_line_z,
         writer_line_action=writer_line_tier,
+        opportunity_mask_applied=_opportunity_applied,
+        opportunity_mode=(config.opportunity_mask if _unmeasured is not None else None),
+        unmeasured_features=(
+            [c for i, c in enumerate(ALL_FEATURE_CODES) if _unmeasured[i]]
+            if _unmeasured is not None
+            else None
+        ),
+        opportunity_deviation_preview=opportunity_deviation_preview,
+        length_match_applied=_length_applied,
+        length_match_mode=(config.length_matched_baseline if _length_state is not None else None),
+        length_match_pieces=(
+            int(len(_length_state.piece_vectors)) if _length_state is not None else None
+        ),
+        length_match_deviation_preview=_length_preview,
     )
 
 
@@ -1736,6 +2040,7 @@ def _decompose(
     feature_dict: dict[str, float],
     baseline_mean: np.ndarray,
     z_scores: np.ndarray | None = None,
+    excluded: np.ndarray | None = None,
 ) -> InterferenceDecomposition:
     # Per-feature contribution: use z-score magnitude as the contribution signal.
     # Born contributions are preserved but z-score drives constructive/destructive.
@@ -1752,6 +2057,12 @@ def _decompose(
             # the vocabulary-spike + error-vanish pair below and the
             # ghostwriting_confirmed override in _recommend() can no longer
             # use error_kl_divergence / stumble_rate_consistency (ADR-013).
+            continue
+        if excluded is not None and excluded[i]:
+            # OPPORTUNITY_MASK=on: this paper gave the measurement no chance
+            # to occur, so it is neither a listed difference nor a listed
+            # similarity. feature_dict still carries the extractor's
+            # placeholder, which is why this has to be an explicit skip.
             continue
         c = float(born_contribs[i])
         z = float(z_scores[i])
