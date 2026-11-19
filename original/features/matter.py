@@ -11,7 +11,10 @@ text, each with a kind:
     from its heading to the end of the paper. The heading is read tolerantly
     ("Works Cited:", centred, "Works Cited Page") but trusted only after the
     first 40% of the paper and when most lines after it start like entries
-    and carry a year. "Notes"/"Endnotes" also need numbered lines. So a
+    and carry a year. Markdown, numbering and emphasis around the heading are
+    ignored ("## References", "7. References", "**Works Cited**"; not for
+    "Notes"); every check after it still applies, counted as before.
+    "Notes"/"Endnotes" also need numbered lines. So a
     one-word paragraph "Notes", or a sentence starting "References to ...",
     no longer cuts off the rest of the paper (it did under the old rule).
 ``front_matter``
@@ -24,7 +27,15 @@ text, each with a kind:
     A running head or page number line ("Grant 2", "Page 3", "4").
 ``footnote``
     A numbered note line with a citation shape ("1. Augustine, Confessions
-    (Oxford: ..., 1991), 230." or "2. Ibid., 232.").
+    (Oxford: ..., 1991), 230." or "2. Ibid., 232."). Only a page may follow
+    the citation, and a numbered biblical book ("1 Peter 2:9 ...") is never a
+    note number, so a numbered paragraph that cites a book and goes on stays
+    prose.
+
+Not detected, so measured as prose: a cover letter to the teacher, and notes
+that carry no year. Rules for both kept setting real student writing aside
+(letter assignments, a sermon's closing prayer, numbered points citing
+scripture), so they wait for a teacher's own "set this part aside" control.
 
 Rules when unsure
 -----------------
@@ -71,6 +82,12 @@ _ENTRY_START = re.compile(
     r"|[\"\u201c][A-Z]"  # "Title." (no author)
     r")"
 )
+# Decoration around a heading: a markdown "#" run, a number or Roman numeral
+# ("7.", "IV)"), and emphasis ("**", "__", "*", "_") on either side.
+_HEADING_DECOR = re.compile(
+    r"^[ \t]*(?:#{1,6}[ \t]*)?(?:(?:\d{1,2}|[IVXLC]{1,6})[.)][ \t]+)?[*_]{0,2}[ \t]*"
+)
+_HEADING_TAIL = re.compile(r"[ \t]*[*_]{0,2}[ \t]*(:?)[ \t]*$")
 _NUMBERED = re.compile(r"^[ \t]*\d{1,3}\.?\s+\S")
 _YEAR = re.compile(r"\b(1[5-9]\d\d|20\d\d)\b")
 _DATE = re.compile(
@@ -84,8 +101,19 @@ _HEADER_SIGNAL = re.compile(
     r"|[A-Z]{2,5}\s?-?\d{3,4}[A-Z]?\b)",
 )
 _PAGE_LINE = re.compile(r"^\s*(?:[A-Z][a-z]+\s+)?(?:page\s+)?\d{1,3}\s*$", re.IGNORECASE)
+# A numbered note line: "1. Augustine, Confessions (Oxford: ..., 1991), 230."
+# or "2. Ibid., 232.". Only a page reference may follow the citation, so a
+# numbered paragraph that goes on after a citation stays prose, and a numbered
+# biblical book ("1 Peter 2:9 ...", "2 Corinthians") is never a note number.
+_BIBLE_NUMBERED_BOOKS = (
+    r"(?:samuel|sam|kings|kgs|chronicles|chron|chr|corinthians|cor|thessalonians|thess"
+    r"|timothy|tim|peter|pet|john|jn|maccabees|macc|esdras|esd)\b"
+)
 _FOOTNOTE_LINE = re.compile(
-    r"^\s*\d{1,3}\.?\s+(?:Ibid\b|[A-Z][^\n]{0,250}?\([^()]*:[^()]*(?:1[5-9]\d\d|20\d\d)[^()]*\))"
+    r"^\s*\d{1,3}\.?\s+(?!(?i:" + _BIBLE_NUMBERED_BOOKS + r"))"
+    r"(?:Ibid\b[^\n]{0,40}"
+    r"|[A-Z][^\n]{0,250}?\([^()]*:[^()]*(?:1[5-9]\d\d|20\d\d)[^()]*\)"
+    r"(?:,?\s*(?:pp?\.\s*)?\d[\d\-\u2013, ]*)?)\.?\s*$"
 )
 _SECTION_NAMES = frozenset(
     {
@@ -126,6 +154,22 @@ def _heading_like(line: str) -> bool:
     return s.lower() in _SECTION_NAMES or _title_like(s)
 
 
+def _undecorated(line: str) -> str:
+    """The heading's own words without markdown, numbering or emphasis."""
+    core = _HEADING_DECOR.sub("", line, count=1)
+    return _HEADING_TAIL.sub(r"\1", core)
+
+
+def _is_list_heading(line: str) -> bool:
+    """A list-of-sources heading, plain or decorated. A decorated "Notes" is
+    not one: notes need their own numbered-line check, and prose under a
+    "## Notes" stays prose."""
+    if _LIST_HEADING.match(line):
+        return True
+    core = _undecorated(line)
+    return bool(_LIST_HEADING.match(core)) and not _NOTES_HEADING.match(core)
+
+
 def _lines(text: str) -> list[tuple[int, int, str]]:
     """(start, end including newline, line text without newline)."""
     out, pos = [], 0
@@ -139,8 +183,11 @@ def _back_matter(lines: list[str]) -> int | None:
     """Line index where a verified list of sources starts, or None."""
     filled = [i for i, line in enumerate(lines) if line.strip()]
     for k, i in enumerate(filled):
-        if not _LIST_HEADING.match(lines[i]) or k < 0.4 * len(filled):
+        if not _is_list_heading(lines[i]) or k < 0.4 * len(filled):
             continue
+        # Decoration is read only on the heading being judged. The lines after
+        # it are counted as #354 counts them, so a later decorated heading can
+        # never leave the count and let its list vouch for prose above it.
         rest = [lines[j] for j in filled[k + 1 :] if not _LIST_HEADING.match(lines[j])]
         if not rest:
             continue
@@ -161,7 +208,9 @@ def _front_matter(lines: list[str], stop: int) -> list[int]:
         s = lines[i].strip()
         signal = bool(_DATE.search(s) or _HEADER_SIGNAL.match(s))
         nxt = lines[filled[pos + 1]].strip() if pos + 1 < len(filled) else ""
-        if _words(s) > 14 or (s.endswith((*_SENTENCE_END, ";", ",", ":")) and not signal):
+        ends = s.endswith((*_SENTENCE_END, ";", ",", ":"))
+        # A short date line may end with a full stop; a dated sentence may not.
+        if _words(s) > 14 or (ends and (not signal or _words(s) > 6)):
             break
         if not signal and not _title_like(s):
             break

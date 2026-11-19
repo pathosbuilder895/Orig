@@ -14,7 +14,8 @@ score is byte-for-byte what it was before they existed
 ``MATTER_SPLITTER_ENABLED`` (default off)
     On: ``features/matter.py`` sets aside the heading block, section headings,
     running heads and page numbers, footnote text and a verified list of
-    sources before anything is measured, in place of the older back-matter rule.
+    sources before anything is measured, in place of the older back-matter
+    rule. Cover letters and notes without years are not detected.
 
 Do not switch either on for live scoring yet. Past papers keep the vector made
 when they were added, so a paper scored under a new setting would be compared
