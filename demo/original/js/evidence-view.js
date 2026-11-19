@@ -79,6 +79,8 @@
   // this paper against the past papers, but past papers have no value for it,
   // so the score leaves it out and so does this page's comparison.
   var NOT_COMPARED_WORDS = 'not compared: past papers have no value for this';
+  // The same words as a sentence on their own: "Not compared: ... this."
+  var NOT_COMPARED_LINE = NOT_COMPARED_WORDS.charAt(0).toUpperCase() + NOT_COMPARED_WORDS.slice(1) + '.';
   function isNotCompared(f) { return !!f && f.kind === 'not_compared'; }
   // Every paper, this one and the past ones, has the same value.
   function isConstant(f) {
@@ -96,7 +98,7 @@
   function notComparedNote(f) {
     var v = num(((f && f.engine_scale) || {}).this_paper);
     return (v == null ? '' : 'This paper: ' + fmt(v) + ' (on Original\u2019s 0 to 1 scale). ') +
-      'Not compared: past papers have no value for this.';
+      NOT_COMPARED_LINE;
   }
 
   // The numbers a sentence about one measurement may use: plain units when the
@@ -173,6 +175,64 @@
     }
     parts.push(positionSentence(f));
     return clean(parts.join(' '), positionSentence(f));
+  }
+
+  // "What to notice", in plain words: which way this paper sits against the
+  // past papers, how far (this paper's number beside the past range), and a
+  // fixed caution chosen by where it sits. No cause is named that the numbers
+  // do not show. noteFor stays the numbers line; this is the sentence above it.
+  var CAUTION = 'A shift like this can come from a new topic, genre, length, revision or permitted help; on its own it does not show who wrote the paper.';
+  var WHOLE_TEXT_WORDS = 'It is measured across the whole text, so there is no single sentence to quote.';
+  // A name inside a sentence: each word loses its capital only when it is an
+  // ordinary capitalised word (second letter lowercase), so acronyms ("POS")
+  // and the proper nouns below keep theirs.
+  var PROPER = { Flesch: true, Kincaid: true, Latin: true, English: true, Greek: true, Hebrew: true };
+  function habitName(f) {
+    var nm = String(f.name == null ? '' : f.name).trim();
+    if (!nm) return 'this habit';
+    return nm.replace(/[A-Za-z][A-Za-z.'\u2019]*/g, function (w) {
+      if (PROPER[w] || !/^[A-Z][a-z]/.test(w)) return w;
+      return w.charAt(0).toLowerCase() + w.slice(1);
+    });
+  }
+  function rangeBrackets(f) {
+    var n = numbersOf(f);
+    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var against = n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi);
+    return ' (' + fmt(n.thisValue) + ' against ' + against + ' ' + n.unit + ')';
+  }
+  function noticeFor(f) {
+    if (!f || typeof f !== 'object') return '';
+    if (isNotCompared(f)) return clean('Original does not compare this one: past papers have no value for it, so it plays no part in the score.', '');
+    if (f.kind === 'off') return clean('This measurement is switched off, so it plays no part in the score.', '');
+    if (!isActive(f)) return '';
+    var pos = position(f);
+    var whole = f.kind === 'whole_text';
+    if (pos === 'none') return clean('There are no past papers to compare this with.', '');
+    if (pos === 'within') {
+      // Original's top list takes habits far from the past papers' usual level
+      // (more than one standard deviation), which can still be inside the span
+      // from lowest to highest past paper. "In line" would contradict the list.
+      var lead = f.in_top_list
+        ? 'This paper sits inside the past papers\u2019 range here, but far from where they usually sit.'
+        : 'This habit is in line with the past papers.';
+      return clean(lead + (whole ? ' ' + WHOLE_TEXT_WORDS : ''), '');
+    }
+    var dir = pos === 'above' ? 'higher' : 'lower';
+    var tail = (whole ? ' ' + WHOLE_TEXT_WORDS : '') + ' ' + CAUTION;
+    // The habit's own name and numbers when they pass the wording check,
+    // else the generic name, else no numbers.
+    var tries = [
+      [habitName(f), rangeBrackets(f)],
+      ['this habit', rangeBrackets(f)],
+      [habitName(f), ''],
+      ['this habit', ''],
+    ];
+    for (var i = 0; i < tries.length; i++) {
+      var s = 'This paper is ' + dir + ' than the past papers on ' + tries[i][0] + tries[i][1] + '.' + tail;
+      if (isClean(s)) return s;
+    }
+    return '';
   }
 
   // The summary at the top, from the full list's own flags and kinds.
@@ -256,6 +316,75 @@
     return a.concat(b);
   }
 
+  // How this paper differs, in one plain line, for the 23 habits Original
+  // counts at places in the text: [higher, lower, none] in the habit's own
+  // words. Any other habit gets the generic line. Numbers are the plain ones
+  // the server sent (numbersOf), never a new measure.
+  var PHRASES = {
+    mean_sentence_length: ['writes longer sentences', 'writes shorter sentences'],
+    sentence_length_variance: ['varies its sentence lengths more', 'varies its sentence lengths less'],
+    passive_voice_ratio: ['has more passive sentences', 'has fewer passive sentences', 'has no passive sentences'],
+    modal_verb_ratio: ['uses more modal verbs (can, should, must)', 'uses fewer modal verbs (can, should, must)', 'uses no modal verbs (can, should, must)'],
+    discourse_marker_density: ['uses more linking words', 'uses fewer linking words', 'uses no linking words'],
+    additive_ratio: ['gives more of its linking words to adding ideas', 'gives fewer of its linking words to adding ideas', 'uses no linking words that add ideas'],
+    adversative_ratio: ['gives more of its linking words to contrast', 'gives fewer of its linking words to contrast', 'uses no linking words that contrast'],
+    causal_ratio: ['gives more of its linking words to cause and effect', 'gives fewer of its linking words to cause and effect', 'uses no linking words for cause and effect'],
+    temporal_ratio: ['gives more of its linking words to sequence', 'gives fewer of its linking words to sequence', 'uses no linking words for sequence'],
+    transition_density: ['uses more transition words', 'uses fewer transition words', 'uses no transition words'],
+    hedging_density: ['uses more softening words (perhaps, might, seems)', 'uses fewer softening words (perhaps, might, seems)', 'uses no softening words (perhaps, might, seems)'],
+    assertion_density: ['uses more confident-statement words (clearly, certainly)', 'uses fewer confident-statement words (clearly, certainly)', 'uses no confident-statement words (clearly, certainly)'],
+    claim_density: ['uses more claim markers (therefore, this shows)', 'uses fewer claim markers (therefore, this shows)', 'uses no claim markers (therefore, this shows)'],
+    question_ratio: ['asks more questions', 'asks fewer questions', 'asks no questions'],
+    first_person_ratio: ['uses I, me and my for more of its pronouns', 'uses I, me and my for fewer of its pronouns', 'uses no first-person pronouns'],
+    appeal_to_authority_density: ['uses more source phrases (according to, argues)', 'uses fewer source phrases (according to, argues)', 'uses no source phrases (according to, argues)'],
+    comma_rate: ['uses more commas', 'uses fewer commas', 'uses no commas'],
+    semicolon_colon_rate: ['uses more semicolons and colons', 'uses fewer semicolons and colons', 'uses no semicolons or colons'],
+    parenthetical_rate: ['uses more brackets', 'uses fewer brackets', 'uses no brackets'],
+    dash_rate: ['uses more dashes', 'uses fewer dashes', 'uses no dashes'],
+    quote_rate: ['uses more quotation marks', 'uses fewer quotation marks', 'uses no quotation marks'],
+    contraction_rate: ['uses more contractions', 'uses fewer contractions', 'uses no contractions'],
+    sentence_initial_conjunction_rate: ['starts more sentences with and, but or so', 'starts fewer sentences with and, but or so', 'starts no sentence with and, but or so'],
+  };
+  function differenceLine(f) {
+    if (!isActive(f)) return '';
+    var n = numbersOf(f);
+    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var nums = fmt(n.thisValue) + ' vs ' + (n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi)) + ' ' + n.unit;
+    var pos = position(f);
+    if (pos === 'none') return '';
+    // Which way, from the plain numbers when the server sent them (they are what
+    // the line shows), else the engine's own flag on its 0 to 1 scale.
+    var dir = n.plain ? (n.thisValue > n.hi ? 'above' : n.thisValue < n.lo ? 'below' : 'within') : pos;
+    if (dir === 'within') {
+      var where = f.in_top_list || pos !== 'within'
+        ? 'This paper sits inside the past papers\u2019 range, but far from where they usually sit: '
+        : 'This paper sits within the past papers\u2019 range: ';
+      return clean(where + nums + '.', '');
+    }
+    var up = dir === 'above';
+    var far = up ? (n.hi > 0 ? n.thisValue >= 2 * n.hi : n.thisValue > 0) : n.thisValue <= n.lo / 2;
+    var ph = PHRASES[f.code];
+    var line;
+    if (ph && !up && n.thisValue === 0 && ph[2]) line = 'This paper ' + ph[2] + ': ' + nums + '.';
+    else if (ph) {
+      var phrase = up ? ph[0] : ph[1];
+      if (far) phrase = phrase.replace(/\b(more|fewer|longer|shorter|less)\b/, 'far $1');
+      line = 'This paper ' + phrase + ': ' + nums + '.';
+    } else {
+      line = 'This paper is ' + (far ? 'far ' : '') + (up ? 'higher' : 'lower') + ' than the past papers on ' + habitName(f) + ': ' + nums + '.';
+    }
+    return clean(line, clean('This paper is ' + (up ? 'higher' : 'lower') + ' than the past papers: ' + nums + '.', ''));
+  }
+
+  // The line above a side's unmarked sentences: the server sends a side's
+  // longest sentences when that side never uses a habit the other side does.
+  function unmarkedLead(f, side) {
+    var what = String((f && f.what_is_marked) || '').trim();
+    var whose = side === 'this' ? 'This paper\u2019s longest sentences' : 'The past papers\u2019 longest sentences';
+    var article = /^[aeiou]/i.test(what) ? 'an ' : 'a ';
+    return clean(whose + (what ? ', none with ' + article + what : '') + ':', whose + ':');
+  }
+
   // A quote cut into the text before, the counted words and the text after.
   // The counted words are used only when they are exactly the slice of the
   // passage the offsets name; otherwise nothing is marked.
@@ -264,15 +393,73 @@
     var a = num(q && q.match_start) - num(q && q.passage_start);
     var b = num(q && q.match_end) - num(q && q.passage_start);
     var ok = isFinite(a) && isFinite(b) && a >= 0 && b > a && b <= p.length && p.slice(a, b) === q.match;
-    if (!ok) return { before: p, mark: '', after: '' };
-    return { before: p.slice(0, a), mark: p.slice(a, b), after: p.slice(b) };
+    if (!ok) return { before: p, mark: '', after: '', tiny: false };
+    var mark = p.slice(a, b);
+    return { before: p.slice(0, a), mark: mark, after: p.slice(b), tiny: isShortMatch(mark) };
+  }
+
+  // A counted match too short to see in the highlight alone (a comma, "of"):
+  // the page marks it smaller and spells it out on the source line.
+  function isShortMatch(m) {
+    var s = String(m == null ? '' : m);
+    return !!s && (s.trim().length <= 3 || !/[A-Za-z0-9]/.test(s));
+  }
+
+  // A stored date ("2025-01-24" or a full timestamp) as the calendar day it
+  // names, e.g. "24 Jan 2025" in the reader's locale; '' when there is none.
+  function dayOf(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(String(s == null ? '' : s));
+    if (!m) return '';
+    var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // One separator for every source line on the three pages.
+  var SEP = ' \u00b7 ';
+
+  // A past paper's source: its stored title (else "Past paper N") and its day.
+  function pastSource(label, papers) {
+    var p = null;
+    if (Array.isArray(papers)) {
+      for (var i = 0; i < papers.length; i++) {
+        if (papers[i] && typeof papers[i] === 'object' && papers[i].paper === label) { p = papers[i]; break; }
+      }
+    }
+    var day = p ? dayOf(p.submitted_at) : '';
+    // A paper the server described but stored no date for says so; one it
+    // did not describe at all keeps the bare name.
+    return paperName(label, papers) + (day ? SEP + day : p ? SEP + 'date not recorded' : '');
+  }
+
+  // This paper's source: "This paper", its title when there is one, and the
+  // day it was analysed (the day it reached Original; a pasted paper carries
+  // no other date).
+  function thisSource(assignment, analysedAt) {
+    var title = String(assignment == null ? '' : assignment).trim();
+    var day = dayOf(analysedAt);
+    return ['This paper', title, day ? 'analysed ' + day : ''].filter(Boolean).join(SEP);
+  }
+
+  // A quote's source line: where it is from, its length, a short match spelled
+  // out, and whether it runs into text set aside. `label` names the paper.
+  function quoteSource(q, label) {
+    var parts = markParts(q);
+    var src = [String(label == null ? '' : label)];
+    if (num(q && q.words) != null) src.push(plural(q.words, 'word'));
+    if (parts.tiny) src.push('Counted: \u201c' + parts.mark.trim() + '\u201d');
+    if (q && q.crosses_set_aside) src.push('runs into text set aside from measuring');
+    return src.filter(Boolean).join(SEP);
   }
 
   var API = {
     BANNED: BANNED, isClean: isClean, clean: clean, fmt: fmt, signed: signed, plural: plural,
     paperName: paperName, isActive: isActive, isNotCompared: isNotCompared, NOT_COMPARED_WORDS: NOT_COMPARED_WORDS, isConstant: isConstant, isListed: isListed, numbersOf: numbersOf, position: position,
-    positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor,
+    positionSentence: positionSentence, oneLine: oneLine, noteFor: noteFor, noticeFor: noticeFor,
     summarize: summarize, summarySentences: summarySentences, steady: steady, markParts: markParts,
+    NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf,
+    SEP: SEP, pastSource: pastSource, quoteSource: quoteSource, thisSource: thisSource,
+    differenceLine: differenceLine, unmarkedLead: unmarkedLead, PHRASES: PHRASES,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.EvidenceView = API;

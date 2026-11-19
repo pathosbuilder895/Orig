@@ -1,3 +1,7 @@
 # Openings of the locked_test partition: timestamp, collection, pre-registered study id. Append-only; written by loader.py.
 2026-11-12T21:45:56	science	scholarly-rule-d-2026-11-12
 2026-11-12T21:56:08	humanities	scholarly-rule-d-2026-11-12
+2026-11-19T02:15:54	humanities	length-match-thresholds-2026-11-19
+2026-11-19T02:21:51	humanities	length-match-thresholds-2026-11-19
+2026-11-19T02:28:10	humanities	length-match-thresholds-2026-11-19
+2026-11-19T02:34:49	humanities	length-match-thresholds-2026-11-19

@@ -11,6 +11,7 @@ import dataclasses
 import logging
 import os
 import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -22,11 +23,19 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
 )
 from ..tension_arc import analyze_tension_arc
-from ._shared import _api, _client_ip, _repo, _send_notification_email, _to_response
+from ._shared import (
+    _api,
+    _client_ip,
+    _repo,
+    _require_staff,
+    _send_notification_email,
+    _to_response,
+)
 
 router = APIRouter()
 
@@ -60,6 +69,16 @@ def _throttle_score(request: Request | None) -> None:
     _score_calls[key] = window
     if len(_score_calls) > 10_000:  # bound memory under caller churn
         _score_calls.clear()
+
+
+def _score_source(request: Request | None) -> str:
+    """Where a scoring call came from, for shadow-soak lines only: a student's
+    own practice check (/me/work, which passes no request), a student's exam
+    seal, or staff. A soak should not mix practice traffic into its rates."""
+    if request is None:
+        return "practice"
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    return "exam" if principal is not None and principal.role == "student" else "staff"
 
 
 def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
@@ -354,6 +373,40 @@ def score_submission(
         tuned_action_thresholds=_tuned_action_thresholds,
     )
 
+    # ── Opportunity mask (OPPORTUNITY_MASK, default off) ──────────────────────
+    # Which share-type measurements this paper gave no chance to occur
+    # (features/opportunity.py). Computed only when the flag is not "off": it
+    # re-runs a handful of the extractors' own counts over the text. A failure
+    # here leaves the mask None, which score() treats exactly as flag-off.
+    _unmeasured_mask = None
+    if _scoring_config_env.opportunity_mask != "off":
+        try:
+            from ..features.opportunity import unmeasured_mask
+
+            _unmeasured_mask = unmeasured_mask(req.text)
+        except Exception:
+            logging.getLogger(__name__).exception("opportunity mask failed: scored without it")
+
+    # ── Length-matched reference (LENGTH_MATCHED_BASELINE, default off) ───────
+    # When past papers are at least twice the length of this one, re-measure
+    # them in pieces of this paper's length (quantum/length_match.py). Built
+    # only when the flag is not "off": it costs one feature extraction per
+    # piece, up to LENGTH_MATCH_MAX_PIECES. Pieces are measured the way past
+    # papers are (feature_vector on plain text). A failure here leaves the
+    # state None, which score() treats exactly as flag-off.
+    # The paper's length here is its BODY, counted as past papers are cut
+    # (body_word_count); _n_tokens stays the raw count everywhere else.
+    _length_state = None
+    _body_words = 0
+    if _scoring_config_env.length_matched_baseline != "off":
+        try:
+            from ..quantum.length_match import body_word_count, build_length_matched_state
+
+            _body_words = body_word_count(req.text)
+            _length_state = build_length_matched_state(state, _body_words, feature_vector)
+        except Exception:
+            logging.getLogger(__name__).exception("length match failed: scored without it")
+
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -364,7 +417,46 @@ def score_submission(
         n_tokens=_n_tokens,
         impostor_stats=_impostor_stats,
         scoring_config=_scoring_config,
+        unmeasured_mask=_unmeasured_mask,
+        length_matched_state=_length_state,
     )
+
+    # ── Length-match audit line ───────────────────────────────────────────────
+    # One INFO line per scoring call whenever LENGTH_MATCHED_BASELINE is not
+    # "off". pieces=0 means no past paper was twice this paper's length, so
+    # the flag was inert for it. No student id, counts only.
+    if _scoring_config_env.length_matched_baseline != "off":
+        logging.getLogger(__name__).info(
+            "length_match mode=%s source=%s pieces=%d papers_cut=%d n_tokens=%d body_words=%d "
+            "deviation=%.4f action=%s deviation_preview=%s action_preview=%s",
+            _scoring_config_env.length_matched_baseline,
+            _score_source(request),
+            result.length_match_pieces or 0,
+            _length_state.papers_cut if _length_state is not None else 0,
+            _n_tokens,
+            _body_words,
+            result.authorship.deviation_score,
+            result.recommendation.action,
+            result.length_match_deviation_preview,
+            result.length_match_action_preview,
+        )
+
+    # ── Opportunity mask audit line ───────────────────────────────────────────
+    # One INFO line per scoring call whenever OPPORTUNITY_MASK is not "off".
+    # n_unmeasured=0 means the paper measured everything the student is
+    # compared on, so the flag was inert for it: a soak that returns mostly
+    # zeros says the fault is rare in real traffic, whatever a corpus shows.
+    # Same privacy rule as the lines below: no student id, counts only.
+    if _scoring_config_env.opportunity_mask != "off":
+        logging.getLogger(__name__).info(
+            "opportunity_mask mode=%s n_unmeasured=%d n_tokens=%d deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.opportunity_mask,
+            len(result.unmeasured_features or ()),
+            _n_tokens,
+            result.authorship.deviation_score,
+            result.opportunity_deviation_preview,
+        )
 
     # ── Topic-adaptive variance inflation audit line ───────────────────────────
     # One INFO line per scoring call whenever TOPIC_VARIANCE_INFLATION is not
@@ -570,7 +662,20 @@ def score_submission(
     # topic_inflation_applied (set from the same _sigma_was_inflated there),
     # so this can only skip on the "on" path -- shadow never sets it and
     # stays byte-identical.
-    if result.authorship.quantum_fidelity > 0 and not result.topic_inflation_applied:
+    #
+    # The opportunity mask has the same hazard: under "on", a paper with
+    # unmeasured features has its fidelity encoded over fewer features than
+    # every stored one. scoring.py withholds the p-value for that paper; the
+    # write is skipped here so the value cannot contaminate later papers
+    # either. "on" only: shadow never sets opportunity_mask_applied.
+    if (
+        result.authorship.quantum_fidelity > 0
+        and not result.topic_inflation_applied
+        and not result.opportunity_mask_applied
+        # Length matching: the fidelity was encoded against a different mean
+        # and spread from every stored one. "on" only, as above.
+        and not result.length_match_applied
+    ):
         try:
             _repo().put_fidelity_score(
                 submission_id=submission_id,
@@ -645,11 +750,56 @@ def score_submission(
         pass
 
     response = _to_response(result, arc, report=report)
-    _attach_staff_explainability(response, request, req.text, state, result)
+    _attach_staff_explainability(response, request, req.text, state, result, student_id)
     return response
 
 
-def _attach_staff_explainability(response, request, text: str, state, result) -> None:
+def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
+    """The past papers the engine can show: samples that count toward the
+    baseline and kept their text, labelled ``past paper 1…N`` in that order."""
+    used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+    return used, [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+
+
+def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
+    """How each past paper got into the baseline, read now (staff wording
+    only), so an analysis kept for later still says what was true when it ran.
+    No student id (in-process callers): no source. A failed lookup loses only
+    `source`, never the side-by-side. No past paper to show: no lookup."""
+    by_sample: dict[int, str] = {}
+    if student_id and used:
+        try:
+            from .students import _sample_sources
+
+            by_sample = {
+                id(sample): src
+                for sample, src in zip(
+                    state.samples,
+                    _sample_sources(student_id, state.samples),
+                    strict=True,
+                )
+            }
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "past paper sources failed; omitted from the evidence"
+            )
+            by_sample = {}
+    return [
+        {
+            "paper": label,
+            "assignment": getattr(s, "assignment", "") or None,
+            "submitted_at": getattr(s, "submitted_at", "") or None,
+            "provenance": getattr(s, "provenance", None),
+            "word_count": getattr(s, "word_count", None),
+            **({"source": by_sample[id(s)]} if id(s) in by_sample else {}),
+        }
+        for (label, _), s in zip(baselines, used, strict=True)
+    ]
+
+
+def _attach_staff_explainability(
+    response, request, text: str, state, result, student_id: str | None = None
+) -> None:
     """ADR-013: located evidence and the preliminary score, both off by default.
 
     Only for an HTTP caller that is not a student session. In-process callers
@@ -668,8 +818,11 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
         from ..schemas import PreliminaryScoreOut
 
         confidence = result.baseline_confidence
-        # Same line the readiness verdict draws for "ready" (students.py).
-        ready = confidence.authenticated_count >= 5 and confidence.effective_sample_count >= 3
+        # The same floor the score route itself enforces (_require_min_baseline,
+        # 3 approved papers by default). The alpha builds every baseline from
+        # exactly three papers, so the old "ready" line (5 papers) made every
+        # alpha reading inconclusive. Below the floor the route 422s anyway.
+        ready = confidence.authenticated_count >= min_baseline_samples()
         response.preliminary = PreliminaryScoreOut(
             **preliminary_score(
                 result.authorship.deviation_score,
@@ -679,8 +832,7 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
         )
     if want_evidence:
         try:
-            used = [s for s in state.samples if s.auth_weight > 0 and s.text]
-            baselines = [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+            used, baselines = _past_papers_of(state)
             # Every measurement, with the engine's own vectors and baseline
             # mean when every contributing sample has its text (otherwise the
             # mean would cover papers the page cannot show).
@@ -694,23 +846,45 @@ def _attach_staff_explainability(response, request, text: str, state, result) ->
                 baseline_vectors=[s.vector for s in used],
                 past_average=state.baseline_mean if complete else None,
             )
-            # Where each "past paper N" came from, for the teacher's side-by-side
-            # view: only what the sample already stores, nothing derived.
-            response.evidence["baseline_papers"] = [
-                {
-                    "paper": label,
-                    "assignment": getattr(s, "assignment", "") or None,
-                    "submitted_at": getattr(s, "submitted_at", "") or None,
-                    "provenance": getattr(s, "provenance", None),
-                    "word_count": getattr(s, "word_count", None),
-                }
-                for (label, _), s in zip(baselines, used, strict=True)
-            ]
+            response.evidence["baseline_papers"] = _baseline_papers(
+                state, used, baselines, student_id
+            )
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
             )
             response.evidence = None
+
+
+@router.get("/students/{student_id}/past-paper-examples", response_model=PastPaperExamplesResponse)
+def past_paper_examples(
+    student_id: str, request: Request, habit: str = "mean_sentence_length"
+) -> PastPaperExamplesResponse:
+    """ADR-013, staff only: real sentences from this student's past papers that
+    show one habit and the family of habits around it. Read-only; changes no
+    score. Off unless EVIDENCE_PASSAGES_ENABLED=1."""
+    from .. import evidence
+
+    if not evidence.evidence_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    _require_staff(request)
+    state = _repo().get(student_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+    if habit not in evidence.LOCATABLE:
+        raise HTTPException(status_code=422, detail="Unknown habit")
+    try:
+        used, baselines = _past_papers_of(state)
+        body = {
+            **evidence.build_past_paper_examples(habit, baselines),
+            "baseline_papers": _baseline_papers(state, used, baselines, student_id),
+        }
+        return PastPaperExamplesResponse(**body)
+    except Exception:
+        logging.getLogger(__name__).exception("past paper examples failed")
+        raise HTTPException(
+            status_code=503, detail="Examples could not be shown just now."
+        ) from None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────

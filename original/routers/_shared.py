@@ -627,6 +627,18 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         characteristic_factor_dispersion=getattr(r, "characteristic_factor_dispersion", None),
         characteristic_rms_z_preview=getattr(r, "characteristic_rms_z_preview", None),
         characteristic_deviation_preview=getattr(r, "characteristic_deviation_preview", None),
+        # Opportunity mask (OPPORTUNITY_MASK). Same reasoning again: a shadow
+        # soak can only be read if its preview reaches the response.
+        opportunity_mask_applied=getattr(r, "opportunity_mask_applied", False),
+        opportunity_mode=getattr(r, "opportunity_mode", None),
+        unmeasured_features=getattr(r, "unmeasured_features", None),
+        opportunity_deviation_preview=getattr(r, "opportunity_deviation_preview", None),
+        # Length-matched baseline (LENGTH_MATCHED_BASELINE): same reasoning.
+        length_match_applied=getattr(r, "length_match_applied", False),
+        length_match_mode=getattr(r, "length_match_mode", None),
+        length_match_pieces=getattr(r, "length_match_pieces", None),
+        length_match_deviation_preview=getattr(r, "length_match_deviation_preview", None),
+        length_match_action_preview=getattr(r, "length_match_action_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))
@@ -702,3 +714,16 @@ def min_baseline_samples() -> int:
         return max(1, int(raw)) if raw else DEFAULT_MIN_BASELINE_SAMPLES
     except ValueError:
         return DEFAULT_MIN_BASELINE_SAMPLES
+
+
+def drift_gate_advisory() -> bool:
+    """``DRIFT_GATE=advisory``: the baseline drift check still runs and is
+    reported, but never holds a teacher's paper out of the baseline.
+
+    Default ``hold`` keeps the Phase 8 behaviour (202/409 on a single add, a
+    per-file hold in a batch). The 2026-11 alpha builds each baseline from
+    exactly three papers the teacher has vouched for, and a held paper has no
+    override, so one outlier left a volunteer below the three-paper floor.
+    ``advisory`` (also ``off``) admits the paper and keeps the drift reading
+    on the response."""
+    return os.environ.get("DRIFT_GATE", "hold").strip().lower() in {"advisory", "off"}
