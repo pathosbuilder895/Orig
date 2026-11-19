@@ -133,7 +133,8 @@ def test_shadow_hands_the_state_to_score_and_logs_it(lenw_tenant, spy, monkeypat
     assert len(handed.piece_vectors) == 16
     lines = [r.getMessage() for r in caplog.records if "length_match mode=" in r.getMessage()]
     assert len(lines) == 1
-    assert lines[0].startswith("length_match mode=shadow pieces=16 papers_cut=4 ")
+    assert lines[0].startswith("length_match mode=shadow source=staff pieces=16 papers_cut=4 ")
+    assert f" action={shadow['recommendation']['action']} " in lines[0]
     assert _SID not in lines[0]  # counts only, never a student id
     # Report-only end to end.
     assert shadow["length_match_mode"] == "shadow"
@@ -167,7 +168,7 @@ def test_a_paper_as_long_as_the_past_ones_is_exactly_off(lenw_tenant, spy, monke
     with caplog.at_level(logging.INFO, logger=students_scoring.__name__):
         on = _post(lenw_tenant, long_text)
     assert spy["kwargs"]["length_matched_state"] is None
-    assert "length_match mode=on pieces=0 papers_cut=0 " in caplog.text
+    assert "length_match mode=on source=staff pieces=0 papers_cut=0 " in caplog.text
     assert on == off
 
 
@@ -232,3 +233,17 @@ def test_on_does_not_store_a_length_matched_fidelity(
     _post(lenw_tenant)
     assert spy["result"].authorship.quantum_fidelity > 0
     assert bool(writes) is expect_write
+
+
+def test_the_soak_line_names_where_the_call_came_from():
+    from types import SimpleNamespace
+
+    from original.routers.students_scoring import _score_source
+
+    def req(role):
+        return SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role=role)))
+
+    assert _score_source(None) == "practice"
+    assert _score_source(req("student")) == "exam"
+    assert _score_source(req("professor")) == "staff"
+    assert _score_source(SimpleNamespace(state=SimpleNamespace())) == "staff"
