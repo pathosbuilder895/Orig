@@ -418,7 +418,7 @@ def score_submission(
     if _scoring_config_env.length_matched_baseline != "off":
         logging.getLogger(__name__).info(
             "length_match mode=%s pieces=%d papers_cut=%d n_tokens=%d body_words=%d "
-            "deviation=%.4f deviation_preview=%s",
+            "deviation=%.4f deviation_preview=%s action_preview=%s",
             _scoring_config_env.length_matched_baseline,
             result.length_match_pieces or 0,
             _length_state.papers_cut if _length_state is not None else 0,
@@ -426,6 +426,7 @@ def score_submission(
             _body_words,
             result.authorship.deviation_score,
             result.length_match_deviation_preview,
+            result.length_match_action_preview,
         )
 
     # ── Opportunity mask audit line ───────────────────────────────────────────

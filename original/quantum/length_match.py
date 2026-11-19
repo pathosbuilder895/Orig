@@ -106,6 +106,20 @@ def split_into_pieces(text: str, n_words: int) -> list[str]:
     return [text[words[bounds[i]].start() : words[bounds[i + 1] - 1].end()] for i in range(k)]
 
 
+#: Action cut points for the matched reference, in the cut-point shape
+#: ``scoring._tuned_action_bands`` reads (each value is the upper edge of the
+#: band named): monitor from 0.517, schedule_conversation from 0.622, escalate
+#: from 0.703. The product's ACTION_THRESHOLDS (0.40 / 0.60 / 0.75) were set
+#: for references built from a few whole papers, whose spread is narrower than
+#: a reference of pieces. Chosen on the scholarly humanities calibration
+#: partition and passed once on the locked partition (60 authors, published
+#: scholars' journal articles, not student writing):
+#: validation/length_match_thresholds/README.md. Used only when the match is
+#: applied ("on", not abstained); the shadow preview reports the action they
+#: give.
+LENGTH_MATCHED_ACTION_THRESHOLDS = {"no_action": 0.517, "monitor": 0.622, "escalate": 0.703}
+
+
 def body_word_count(text: str) -> int:
     """The new paper's length measured the way past papers are cut: the body
     only, with the bibliography and other back matter removed first. Counting

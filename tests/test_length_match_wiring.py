@@ -97,6 +97,7 @@ _AUDIT = (
     "length_match_mode",
     "length_match_pieces",
     "length_match_deviation_preview",
+    "length_match_action_preview",
 )
 
 
@@ -151,6 +152,7 @@ def test_on_changes_the_score_through_the_route(lenw_tenant, spy, monkeypatch):
     assert spy["result"].length_match_applied is True
     assert on["authorship"]["deviation_score"] != shadow["authorship"]["deviation_score"]
     assert on["authorship"]["deviation_score"] == shadow["length_match_deviation_preview"]
+    assert on["recommendation"]["action"] == shadow["length_match_action_preview"]
     # The stored student is untouched: still four papers, measured whole.
     stored = get_repository().get(_SID)
     assert not isinstance(stored, LengthMatchedState)
