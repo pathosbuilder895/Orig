@@ -14,7 +14,8 @@ score is byte-for-byte what it was before they existed
 ``MATTER_SPLITTER_ENABLED`` (default off)
     On: ``features/matter.py`` sets aside the heading block, section headings,
     running heads and page numbers, footnote text and a verified list of
-    sources before anything is measured, in place of the older back-matter rule.
+    sources before anything is measured, in place of the older back-matter
+    rule. Cover letters and notes without years are not detected.
 
 ``UPLOAD_ALSO_MEASURE`` (default empty)
     A measurement id (e.g. ``fs2+matter``): each newly added past paper also
