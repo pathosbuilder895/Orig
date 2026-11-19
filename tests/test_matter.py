@@ -277,7 +277,7 @@ def test_a_decorated_heading_still_needs_entries_after_it():
 
 def test_numbered_notes_without_years_are_notes():
     body = "\n\n".join([PROSE] * 6)
-    notes = "1. See Berlin 131 on the two concepts.\n2. Gray argues the opposite.\n3. Ibid."
+    notes = "1. See Berlin 131 on the two concepts.\n2. Gray argues the opposite, 44.\n3. Ibid."
     assert [p.kind for p in matter.find_matter(f"{body}\n\nNotes\n\n{notes}\n")] == ["back_matter"]
     # Notes followed by a bibliography: the notes end at the next heading, so
     # the entries after it do not dilute them, and both are set aside.
@@ -292,6 +292,9 @@ def test_numbered_notes_without_years_are_notes():
     assert empty[parts[-1].start :].startswith("Works Cited")
     mixed = "1. See Berlin 131.\nA sentence that is not a note at all, said plainly.\n2. Ibid."
     assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{mixed}\n")
+    # A note that points nowhere makes the section ambiguous: kept as prose.
+    vague = "1. See Berlin 131.\n2. Gray argues the opposite.\n3. Ibid."
+    assert "back_matter" not in _kinds(f"{body}\n\nNotes\n\n{vague}\n")
 
 
 LETTER = (
@@ -351,7 +354,7 @@ def test_a_long_letter_stays_prose_and_is_logged(caplog):
 
 
 def test_a_letter_is_kept_out_of_the_soft_share_and_survives_its_refusal():
-    short_letter = "Dear Ms. Park,\nHere it is.\nThanks,\nSam\n"
+    short_letter = "Dear Ms. Park,\nHere is my paper.\nThanks,\nSam\n"
     heavy = (
         short_letter
         + "\nJane Doe\nENGL 1101\n17 May 2026\nA Title Here\n\n"
@@ -423,3 +426,62 @@ def test_a_long_list_after_a_few_long_paragraphs_is_found():
     kinds = _kinds(text)
     assert kinds[-1] == "back_matter"
     assert "Abel, Ann" not in _kept(text)
+
+
+# ── New rules keep prose (score-integrity review of the gap PR) ──────────────
+
+
+def test_notes_without_years_must_all_be_short_reference_lines():
+    body = "\n\n".join([PROSE] * 12)
+    notes = "\n".join(f"{i}. See Berlin 10{i} for the point." for i in range(1, 9))
+    after = "\n".join([PROSE * 12] * 2)  # prose after the notes, unnumbered
+    text = f"{body}\n\nNotes\n\n{notes}\n{after}\n"
+    assert PROSE.strip() in _kept(text[text.index("Notes") :])
+    assert "back_matter" not in _kinds(text)
+    observations = "\n".join(
+        f"{i}. The writer keeps returning to the same image because the argument "
+        "has not been settled for them yet, and the return is the point."
+        for i in range(1, 6)
+    )
+    for heading in ("Notes", "## Notes", "**Notes**"):
+        essay = f"{body}\n\n{heading}\n\n{observations}\n"
+        assert "back_matter" not in _kinds(essay), heading
+
+
+def test_letter_shaped_student_writing_is_not_a_cover_letter():
+    body = "\n\n".join([PROSE] * 6)
+    sermon = f"{body}\n\nDear friends,\n\n{PROSE * 3}\n\nThank you.\n"
+    assert "cover_letter" not in _kinds(sermon)
+    assignment = (
+        "Dear Senator Alvarez,\n\nI am writing to urge you to support the bill on rural "
+        "clinics, which would bring care to my town.\n\nSincerely,\nJordan Reyes\n\n"
+        f"Reflection\n\n{body}\n"
+    )
+    assert "cover_letter" not in _kinds(assignment)
+    title = f"Dear John: Letters Home from the Front\n\n{PROSE * 2}\n\nBest wishes\n\n{body}\n"
+    assert "cover_letter" not in _kinds(title)
+    long_note = (
+        "Dear Professor Hartley,\n\n"
+        + ("I attach my paper. " + PROSE * 4) * 4
+        + "\n\nSincerely,\nJo\n"
+    )
+    assert "cover_letter" not in _kinds(long_note + "\n" + body * 6)
+
+
+def test_lines_above_a_letter_go_with_it_and_no_quote_reaches_it(monkeypatch):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    ev.engine_view.cache_clear()
+    text = (
+        "Maria Lindqvist\n123 Elm Street\nDear Dr. Okafor,\n\nPlease find my final paper "
+        "attached; it is a day early.\n\nSincerely,\nMaria Lindqvist\n\n" + "\n\n".join([PROSE] * 8)
+    )
+    kinds = _kinds(text)
+    assert kinds[:2] == ["cover_letter", "cover_letter"]
+    kept = _kept(text)
+    assert "Elm Street" not in kept and "Okafor" not in kept
+    reading = ev.read_paper(text, "mean_sentence_length")
+    assert reading is not None
+    for place in reading.places or []:
+        quoted = text[place.sentence_start : place.sentence_end]
+        assert "Okafor" not in quoted and "Elm Street" not in quoted
+    ev.engine_view.cache_clear()

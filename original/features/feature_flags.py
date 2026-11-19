@@ -12,9 +12,10 @@ score is byte-for-byte what it was before they existed
     "then", "first", "that is"). Any other value means ``1``.
 
 ``MATTER_SPLITTER_ENABLED`` (default off)
-    On: ``features/matter.py`` sets aside the heading block, section headings,
-    running heads and page numbers, footnote text and a verified list of
-    sources before anything is measured, in place of the older back-matter rule.
+    On: ``features/matter.py`` sets aside a cover letter to the teacher, the
+    heading block, section headings, running heads and page numbers, footnote
+    text and a verified list of sources or notes before anything is measured,
+    in place of the older back-matter rule.
 
 Do not switch either on for live scoring yet. Past papers keep the vector made
 when they were added, so a paper scored under a new setting would be compared

@@ -13,18 +13,24 @@ text, each with a kind:
     first 40% of the paper and when most lines after it start like entries
     and carry a year. Markdown, numbering and emphasis around the heading are
     ignored ("## References", "7. References", "**Works Cited**").
-    "Notes"/"Endnotes" also need numbered lines. So a
+    "Notes"/"Endnotes" also need numbered lines; notes without years are
+    trusted only when every line is a short numbered line pointing somewhere
+    (a page, "Ibid.", "See", "Cf."). So a
     one-word paragraph "Notes", or a sentence starting "References to ...",
     no longer cuts off the rest of the paper (it did under the old rule).
 ``cover_letter``
-    A letter to the teacher at the very start or the very end of the paper:
-    a salutation line ("Dear Professor Hartley," or "To whom it may concern")
-    and, after it, a closing line ("Sincerely,", "Best regards,") followed by
-    at most three short signature lines. Both are required, the letter must
-    sit before the paper's first line of prose or after its last, and it may
-    not be more than 35% of the paper's words; otherwise it stays prose. It is
-    never compared with the student's past papers (there is no record of
-    their letters to compare it with).
+    A note to the teacher at the very start or the very end of the paper: a
+    salutation line of at most six words ending in "," or ":" ("Dear Professor
+    Hartley,", "To whom it may concern:"; not "Dear friends," or another
+    general audience) and, after it, a closing line ("Sincerely,", "Best
+    regards,") followed by at most three short signature lines. All of these
+    are required: the letter sits before the paper's first line of prose (the
+    short lines above its salutation, a name or an address, go with it) or
+    after its last; it says what it accompanies ("paper", "essay",
+    "assignment", "attached" and the like), so a letter that is itself the
+    assignment stays prose; and it is at most 200 words and 35% of the paper.
+    Otherwise it stays prose. It is never compared with the student's past
+    papers (there is no record of their letters to compare it with).
 ``front_matter``
     The heading block at the top (name, teacher, course, date, title), only
     when it carries a date, a course code or a teacher's title; otherwise only
@@ -66,11 +72,13 @@ LOG_SOFT_SHARE = 0.15
 MAX_SOFT_SHARE = 0.30
 #: A list of sources longer than this share of the paper is logged.
 LOG_BACK_SHARE = 0.20
-#: Under a "Notes" heading, this share of numbered lines is trusted as notes
-#: even without years.
-NOTES_NUMBERED_SHARE = 0.8
+#: A "Notes" section without years is trusted only when every line is a short
+#: numbered reference line of at most this many words.
+NOTE_MAX_WORDS = 40
 #: A letter longer than this share of the paper's words is kept as prose.
 LETTER_MAX_SHARE = 0.35
+#: ... or longer than this many words: a cover note, not an essay.
+LETTER_MAX_WORDS = 200
 #: Short lines allowed after a letter's closing (name, course, email).
 LETTER_SIGNATURE_LINES = 3
 
@@ -96,10 +104,20 @@ _HEADING_DECOR = re.compile(
 )
 _HEADING_TAIL = re.compile(r"[ \t]*[*_]{0,2}[ \t]*(:?)[ \t]*$")
 _SALUTATION = re.compile(
-    r"^[ \t]*(?:dear[ \t]+\S[^\n]{0,60}?|to[ \t]+whom[ \t]+it[ \t]+may[ \t]+concern)"
-    r"[ \t]*[,:]?[ \t]*$",
+    r"^[ \t]*(?:dear[ \t]+(?!(?:my[ \t]+)?(?:friends|brothers|sisters|brethren|church"
+    r"|congregation|everyone|all|readers|colleagues|family|beloved)\b)\S[^\n,:]{0,50}"
+    r"|to[ \t]+whom[ \t]+it[ \t]+may[ \t]+concern)[ \t]*[,:][ \t]*$",
     re.IGNORECASE,
 )
+# A cover note says what it accompanies.
+_SUBMISSION_WORD = re.compile(
+    r"\b(?:paper|essay|assignment|draft|submission|submit(?:ted|ting)?|attached|enclosed"
+    r"|course|class|thesis|project)\b",
+    re.IGNORECASE,
+)
+# A note line that points somewhere: a page or number after the note number,
+# or a reference word.
+_NOTE_REFERENCE = re.compile(r"^\s*\d{1,3}\.?\s+(?:.*\d|(?:ibid|see|cf)\b)", re.IGNORECASE)
 _CLOSING = re.compile(
     r"^[ \t]*(?:(?:yours[ \t]+)?sincerely(?:[ \t]+yours)?|respectfully(?:[ \t]+yours)?"
     r"|(?:with[ \t]+)?(?:best|kind|warm(?:est)?)[ \t]+(?:regards|wishes)|regards"
@@ -223,9 +241,11 @@ def _back_matter(lines: list[str]) -> int | None:
             numbered = sum(1 for r in section if _NUMBERED.match(r))
             if not section or numbered / len(section) < 0.5:
                 continue
-            # Notes rarely carry a year ("1. See Berlin 131 ..."); a run that
-            # is almost all numbered lines is notes without one.
-            if numbered / len(section) >= NOTES_NUMBERED_SHARE:
+            # Notes rarely carry a year ("1. See Berlin 131 ..."). Without one,
+            # trust the section only when every line is a short numbered line
+            # that points somewhere, so a student's own numbered points, or
+            # prose after the notes, stay prose.
+            if all(_NOTE_REFERENCE.match(r) and _words(r) <= NOTE_MAX_WORDS for r in section):
                 return i
         starts = sum(1 for r in rest if _ENTRY_START.match(r) and _YEAR.search(r))
         if starts and starts / len(rest) >= 0.5:
@@ -254,6 +274,10 @@ def _front_matter(lines: list[str], stop: int, start: int = 0) -> list[int]:
     return run[:1] if run and _heading_like(lines[run[0]]) else []
 
 
+def _is_salutation(line: str) -> bool:
+    return bool(_SALUTATION.match(line)) and _words(line) <= 6
+
+
 def _letter_end(lines: list[str], filled: list[int], s: int) -> int | None:
     """Position in ``filled`` of a letter's last line, given its salutation at
     ``filled[s]``: the first closing line after it plus up to
@@ -280,10 +304,12 @@ def _cover_letter(lines: list[str], stop: int) -> list[int]:
     found: list[int] = []
     # At the start: only short lines (a date, an address) before the salutation.
     for s, i in enumerate(filled[:6]):
-        if _SALUTATION.match(lines[i]):
+        if _is_salutation(lines[i]):
             end = _letter_end(lines, filled, s)
             if end is not None and end + 1 < len(filled):
-                found = filled[s : end + 1]
+                # The short lines above the salutation (a name, an address, a
+                # date) belong to the letter.
+                found = filled[: end + 1]
             break
         if _words(lines[i]) > 10:
             break
@@ -291,20 +317,24 @@ def _cover_letter(lines: list[str], stop: int) -> list[int]:
     # signature after the closing.
     if not found:
         for s in range(len(filled) - 1, len(filled) // 2 - 1, -1):
-            if _SALUTATION.match(lines[filled[s]]):
+            if _is_salutation(lines[filled[s]]):
                 end = _letter_end(lines, filled, s)
                 if end == len(filled) - 1:
                     found = filled[s:]
                 break
     if not found:
         return []
+    if not any(_SUBMISSION_WORD.search(lines[i]) for i in found):
+        return []  # a letter that is the student's writing, not a note about it
     words = sum(_words(lines[i]) for i in found)
-    if words / total > LETTER_MAX_SHARE:
+    if words / total > LETTER_MAX_SHARE or words > LETTER_MAX_WORDS:
         log.info(
-            "matter: a letter of %d of %d words is over %.0f%% of the paper; kept as prose",
+            "matter: a letter of %d of %d words is over %.0f%% of the paper or %d words; "
+            "kept as prose",
             words,
             total,
             LETTER_MAX_SHARE * 100,
+            LETTER_MAX_WORDS,
         )
         return []
     log.info("matter: setting aside a cover letter of %d words", words)
