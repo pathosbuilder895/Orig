@@ -72,3 +72,42 @@ The splitter removes the colon-heading and short-paper harm. A markdown
 "## References" heading and a cover letter are still measured as prose; ADR-015
 names both as the gaps to close. Plain papers moved +0.003 on average on that
 branch, which sits on an older base, so the shift is not attributed here.
+
+## Against PR #359 (the gaps ADR-015 named)
+
+A diagnostic run, not a validation: the same 9 published 19th-century authors
+(public-domain books, not student writing), one genuine paper each, scored plain
+and with parts added, on PR #359 (`claude/matter-gaps`) with the splitter on
+(pilot flags, `MATTER_SPLITTER_ENABLED=1`, `FEATURE_SET=1`). n = 9 per row; the
+rules were developed against this experiment, so it is not an independent test.
+The figures show direction and rough size; they are not false-alarm rates for
+students. Raw rows `rows_splitter_pr359.json`, summary `summary_splitter_pr359.json`.
+
+For scale: under these flags, 8 of the 9 plain papers already read "monitor",
+and 7 of 9 short plain papers read "schedule a conversation".
+
+- Under each of the three headings tried ("Works Cited", "Works Cited:",
+  "## References"), the same fixed list of sources moved the reading by 0.000 on
+  all 9 papers. That is the only change from #354 on this experiment, where
+  "## References" had raised the reading by +0.090 on average and moved 3 of 9 up
+  a band. Other headings and other kinds of list were not tested.
+- A cover letter is still measured as prose (#359 tried a rule for it and
+  dropped it after three reviews found student writing it set aside). It moved
+  full-length readings both ways, +0.005 on average, between -0.032 and +0.076,
+  2 of 9 within 0.01, no band change.
+- Notes without years are also measured as prose. Notes plus a bibliography moved
+  the reading by -0.002 on average, between -0.022 and +0.045, 4 of 9 within
+  0.01, no band change.
+- All the parts together raised the reading by +0.012 on average, at most
+  +0.078; 2 of 9 stayed within 0.01, and one paper went up a band (Edwards,
+  "monitor" to "schedule a conversation", +0.071).
+- On a ~430-word paper against ~1,500-word past papers, a cover letter moved
+  readings between -0.054 and +0.022 and took one paper up a band (Newman,
+  +0.022). The short rows mix this with the length mismatch.
+- A title block left 8 of 9 readings exactly unchanged. The exception is
+  Douglass (+0.056, no band change), and the cause is the splitter, not the title
+  block: his excerpt opens with an all-caps chapter summary from the Gutenberg
+  edition, and with a dated heading block above it the splitter took six of its
+  seven lines (48 of his own words) as part of the heading block. A student's own
+  capitalised lines under a heading block could be taken the same way; that has
+  not been tested.

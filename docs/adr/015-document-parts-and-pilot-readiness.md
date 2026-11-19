@@ -232,12 +232,23 @@ document part, so it comes first in the order of work.
    (The nav pill strip already fades at its edge on phones; not a bug.)
 
 **W1, false alarms on honest papers:**
-1. [ ] Review and merge PR #334 (length-matched baseline).
-2. [ ] Merge the stack in order: #353, #352, #354, #355.
-3. [ ] On top of #354: markdown and numbered source headings; cover letters as a
-   matter kind; the experiment as a regression test (every "+part" variant
-   within 0.01 of plain with the splitter on).
-4. [ ] Paper profile lists what was set aside, with a "count as prose" control.
+1. [ ] Review and merge PR #334 (length-matched baseline). Checked 2026-11-19:
+   clean on flag-off and shadow; its action cut points are set and tested in
+   #358 (stacked on #334).
+2. [ ] Merge the stack in order: #353, #354, #355 (clean against main 0ceaaec,
+   suite 0 failed, 2026-11-19); #352 after #326, since both change Writing State.
+3. [x] On top of #354 (#359, merges into #354): markdown, numbered and
+   emphasised source headings, now set aside under each heading tried (0.000 on
+   9 authors, a diagnostic the rules were developed against); two footnote and
+   heading-block rules narrowed so numbered paragraphs and dated sentences stay
+   prose. **Cover letters are not a matter kind after all:** three independent
+   reviews kept finding student writing that automatic letter rules set aside
+   (letter assignments, a sermon's closing prayer, "Dear Reader,"), and the same
+   for year-less notes, so on Andrew's decision both stay prose until item 4.
+   Results: `validation/diagnostics/document_parts_2026-11-18/README.md`.
+4. [ ] A teacher control to set a part aside or count it as prose (now the way
+   cover letters and year-less notes are handled), with the paper profile
+   listing what was set aside.
 
 **W2, measurement fixes not in #354 (each flagged, byte-identical off, versioned through #355):** citation double
 count; footnote-marker pattern; apostrophe-aware tokenizer; authority and hedge
