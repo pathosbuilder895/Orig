@@ -228,6 +228,15 @@ class TestIdentityAxisIntegration:
 # ── 3b. Wiring: the matrix actually supersedes the typicality-only action ──
 
 
+def _compare_every_code(monkeypatch) -> None:
+    """Score as if past papers had values for the comparison codes."""
+    from original.quantum import state as state_module
+
+    none = np.zeros(FEATURE_DIM, dtype=bool)
+    monkeypatch.setattr(scoring_module, "NOT_COMPUTED_FOR_BASELINES_MASK", none)
+    monkeypatch.setattr(state_module, "NOT_COMPUTED_FOR_BASELINES_MASK", none)
+
+
 class TestIdentityAxisWiring:
     def test_identity_axis_disabled_never_calls_matrix(self, monkeypatch):
         def _boom(*a, **kw):
@@ -334,6 +343,13 @@ class TestIdentityAxisWiring:
         ghostwriting trigger below is asserted unconditionally, not gated
         behind an `if`, so it must fire every run."""
         monkeypatch.setattr(scoring_module, "_identity_axis_action", lambda b, s, l: "no_action")
+        # error_kl_divergence is a comparison code, which past papers have no
+        # value for today, so scoring leaves it out and the override cannot
+        # fire through score() (ADR-013, "Comparison measurements";
+        # tests/test_comparison_not_compared.py). This test keeps the
+        # override's wiring checked for when past papers do get real values:
+        # it scores as if they had them.
+        _compare_every_code(monkeypatch)
         rng = np.random.default_rng(20260730001)
         samples = [
             BaselineSample(

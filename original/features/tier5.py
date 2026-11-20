@@ -29,9 +29,9 @@ def _get_nlp():
     global _nlp, _spacy_warning_logged
     if _nlp is None:
         try:
-            import spacy
+            from .spacy_model import load_view
 
-            _nlp = spacy.load("en_core_web_sm", disable=["ner", "lemmatizer"])
+            _nlp = load_view(disable=("ner", "lemmatizer"))
         except (ImportError, OSError):
             _nlp = "unavailable"
             if not _spacy_warning_logged:

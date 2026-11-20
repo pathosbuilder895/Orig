@@ -7,9 +7,9 @@ can deserialise with a single fetch() call and no transformation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 # ── Request models ────────────────────────────────────────────────────────────
 
@@ -287,6 +287,24 @@ class RosterStudent(BaseModel):
     name: str = Field("", description="Display name")
 
 
+class WriterCreateRequest(BaseModel):
+    """POST /students: a writer added by name, with no course or account."""
+
+    # No control characters: Postgres refuses a NUL in text, and a tab or
+    # newline is never part of a name a page should print.
+    name: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=120,
+            pattern=r"^[^\x00-\x1f\x7f]*$",
+        ),
+    ] = Field(
+        ..., description="The writer's name, 1-120 characters once trimmed, no control characters"
+    )
+
+
 class RosterAddRequest(BaseModel):
     """POST /bluebook/courses/{course_id}/students."""
 
@@ -311,6 +329,25 @@ class InviteRedeemRequest(BaseModel):
     accept_terms: bool = Field(
         False,
         description="Required when an invited professor sets their first password",
+    )
+
+
+class JoinLinkInfoRequest(BaseModel):
+    """POST /auth/join/info and POST /bluebook/me/join — a course sign-up link."""
+
+    token: str
+
+
+class JoinLinkRequest(BaseModel):
+    """POST /auth/join — create a student account from a course sign-up link."""
+
+    token: str
+    name: str
+    email: str
+    password: str
+    accept_terms: bool = Field(
+        False,
+        description="Must be true: the student notice, terms and privacy policy",
     )
 
 
@@ -728,6 +765,22 @@ class WindowScoreOut(BaseModel):
     )
 
 
+class MeasurementOut(BaseModel):
+    """Which way a score's papers were measured (original/measurement.py)."""
+
+    requested: str = Field(description="The measurement the switches asked for.")
+    used: str = Field(description='The measurement actually used ("v1" = the default).')
+    past_papers: int
+    past_papers_measured: int = Field(
+        description="Past papers that already carry the requested measurement."
+    )
+    fallback: str | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Why the default was used instead, when it was.",
+    )
+
+
 class BlendResultOut(BaseModel):
     """Aggregated blend-detection result for a single submission (Phase 7)."""
 
@@ -756,6 +809,8 @@ class BlendResultOut(BaseModel):
             "MODEL_CARD.md) — not comparable to the document-level thresholds."
         ),
     )
+    # Versioned measurements: left out of the JSON when only the default was asked for.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -1055,6 +1110,58 @@ class FusedScoreOut(BaseModel):
     trained_on: str
 
 
+class PreliminaryScoreOut(BaseModel):
+    """Optional preliminary score (ADR-013). Staff and teachers only, never a
+    student session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from
+    the deviation score and action band this response already carries."""
+
+    label: str
+    score: float | None
+    band: str | None
+    band_words: str
+    note: str
+
+
+class RuleDObservationOut(BaseModel):
+    """Rule D (RULE_D_OBSERVATION=on), staff and teachers only, never a student session.
+
+    A report-only, testing-phase consistency observation: does the new paper read like the
+    student's earlier approved writing, compared with the same workspace's other students?
+    Plain-English reasons both ways and a confidence note tied to measured results on
+    published scholarly prose. Never a probability, never a verdict, and it never changes
+    ``deviation_score`` or the recommended action. "inconclusive" below the class-size floor
+    or for a very short paper."""
+
+    status: str
+    testing_phase_label: str
+    study_id: str
+    reason: str | None = None
+    reads_less_like_student: bool | None = None
+    summary: str
+    configuration: str | None = None
+    configuration_note: str = ""
+    index: float | None = None
+    threshold: float | None = None
+    components: dict[str, float] = {}
+    reads_like: list[str] = []
+    reads_less_like: list[str] = []
+    confidence_note: str
+    classmates: int = 0
+    classmate_papers: int = 0
+
+
+class PastPaperExamplesResponse(BaseModel):
+    """Real sentences from a student's past papers for one habit and its family
+    (ADR-013). Staff only; this response never changes any score.
+    ``baseline_papers`` matches the score response's ``evidence.baseline_papers``."""
+
+    baseline_papers: list[dict[str, Any]]
+    family: str
+    habit: str
+    families: list[dict[str, Any]]
+    features: list[dict[str, Any]]
+
+
 class Layer7OutputResponse(BaseModel):
     student_id: str
     submission_id: str
@@ -1131,6 +1238,37 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    # Opportunity mask (OPPORTUNITY_MASK) audit trail + shadow preview. Same
+    # arrangement as the characteristic block above: defaults match
+    # Layer7Output's own, and opportunity_deviation_preview is report-only
+    # and never influences `recommendation`.
+    opportunity_mask_applied: bool = False
+    opportunity_mode: str | None = None
+    unmeasured_features: list[str] | None = None
+    opportunity_deviation_preview: float | None = None
+    # Length-matched baseline (LENGTH_MATCHED_BASELINE) audit trail + shadow
+    # preview. Defaults match Layer7Output's own; the preview is report-only
+    # and never influences `recommendation`.
+    length_match_applied: bool = False
+    length_match_mode: str | None = None
+    length_match_pieces: int | None = None
+    length_match_deviation_preview: float | None = None
+    length_match_action_preview: str | None = None
+    # ADR-013 explainability, staff/teacher only and never on a student
+    # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
+    # differing habits with verbatim located passages from this paper and the
+    # baseline papers for countable habits (original/evidence.py). Null when
+    # the flag is off, so the default response is unchanged.
+    evidence: dict[str, Any] | None = None
+    preliminary: PreliminaryScoreOut | None = None
+    # Rule D (RULE_D_OBSERVATION=on): report-only consistency observation for staff.
+    # Null when the flag is off or shadow, so the default response is unchanged.
+    rule_d: RuleDObservationOut | None = None
+    # Versioned measurements (original/measurement.py): which measurement this
+    # score used. Present only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask
+    # for something other than the default; left out of the JSON entirely
+    # otherwise (absent means "v1"), so the default response is byte-identical.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Student state summary ─────────────────────────────────────────────────────
@@ -1142,6 +1280,14 @@ class SampleSummary(BaseModel):
     provenance: str
     submitted_at: str
     auth_weight: float
+    source: str = Field(
+        "unknown",
+        description=(
+            "How the sample got into the baseline, derived at read time: "
+            "'staff_or_supervised' | 'take_home' | 'shared_paper' | "
+            "'student_upload' | 'unknown'. Wording only; never read by scoring."
+        ),
+    )
 
 
 class StudentStateResponse(BaseModel):
@@ -1170,8 +1316,8 @@ class ReadinessResponse(BaseModel):
     """
     Pilot-facing baseline-readiness check (GET /students/{id}/readiness).
 
-    verdict: "ready" (>= 5 authenticated samples AND >= 3 effective),
-    "developing" (>= 2 authenticated), else "insufficient". Pure read —
+    verdict: "ready" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),
+    "developing" (1 or more), else "insufficient". Pure read:
     computed from the same StudentState the score endpoint uses.
     """
 
@@ -1184,6 +1330,11 @@ class ReadinessResponse(BaseModel):
     word_stats: BaselineWordStats | None = None
     verdict: str
     recommendations: list[str]
+    # The drift check's mode (DRIFT_GATE), as on /health: "advisory" admits every
+    # paper a teacher adds or approves; "hold" keeps an unusual one out. Voice
+    # Baseline words its rule from this. It is here as well as on /health
+    # because some browsers' blockers refuse a page's request to /health.
+    drift_gate: str = "hold"
 
 
 # ── Student read-model (ADR-005): the redacting VoiceView ─────────────────────
@@ -1302,6 +1453,10 @@ class HealthResponse(BaseModel):
     # Deployed commit SHA. Render injects RENDER_GIT_COMMIT at runtime; "dev"
     # off-platform (local/CI) where no such env var exists.
     commit: str = "dev"
+    # The baseline drift check's mode (DRIFT_GATE): "advisory" admits every
+    # paper a teacher adds or approves and only reports an unusual one; "hold"
+    # keeps an unusual paper out. Voice Baseline words its rule from this.
+    drift_gate: str = "hold"
     # Active persistence backend: "sqlite" | "sqlite+shadow" | "postgres".
     # Lets an operator confirm the WS-6 P5 cutover took effect (and roll back
     # by env var if it didn't). See repository.backend_name().

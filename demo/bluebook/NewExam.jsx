@@ -47,7 +47,7 @@ function FormField({ label, hint, children, id }) {
             plainly secondary to the field's own BB.cream value text. */}
         {hint && <span style={{
           fontFamily: fontBody, fontStyle: 'italic',
-          fontSize: 13, color: BB.fade,
+          fontSize: '.8125rem', color: BB.fade,
         }}>{hint}</span>}
       </div>
       {children}
@@ -61,7 +61,7 @@ const fieldBase = {
   border: 'none',
   borderBottom: '1px solid rgba(201,169,97,0.35)',
   padding: '8px 2px',
-  fontFamily: fontBody, fontSize: 17,
+  fontFamily: fontBody, fontSize: '1.0625rem',
   color: BB.cream, outline: 'none',
   letterSpacing: '0.02em',
   transition: 'border-color 0.3s',
@@ -138,10 +138,10 @@ function ToggleRow({ label, desc, value, onChange }) {
       padding: '13px 0',
     }}>
       <div>
-        <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.cream, margin: '0 0 2px' }}>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.cream, margin: '0 0 2px' }}>
           {label}
         </p>
-        {desc && <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 14, color: BB.fade, margin: 0 }}>
+        {desc && <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.875rem', color: BB.fade, margin: 0 }}>
           {desc}
         </p>}
       </div>
@@ -190,6 +190,8 @@ export function NewExamScreen({ onNavigate }) {
   // ── Secondary conditions ──
   const [spellChk,  setSpellChk]  = useNEState(pick('spellChk', false));
   const [phoneBlk,  setPhoneBlk]  = useNEState(pick('phoneBlk', true));
+  // Phone parking (2026-10): off unless the teacher switches it on.
+  const [phonePark, setPhonePark] = useNEState(pick('phonePark', false));
   // Writing consistency is never restored from a draft: it starts off every time.
   const [aiDetect,  setAiDetect]  = useNEState(false);
   // ── Collection type (More options): in class + timed + no size by default,
@@ -226,7 +228,7 @@ export function NewExamScreen({ onNavigate }) {
   }, []);
 
   const restoredDraft = Object.keys(draft0).length > 0;
-  const draftValues = { title, course, duration, minWords, maxWords, prompts, blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, setting, timed, size, opensAt, closesAt };
+  const draftValues = { title, course, duration, minWords, maxWords, prompts, blockAI, blockWeb, blockCopy, spellChk, phoneBlk, phonePark, aiDetect, setting, timed, size, opensAt, closesAt };
   React.useEffect(() => {
     if (saved) return;
     const empty = !title.trim() && !prompts.some(p => p.trim()) && !String(minWords).trim() && !String(maxWords).trim() && !opensAt && !closesAt;
@@ -276,7 +278,7 @@ export function NewExamScreen({ onNavigate }) {
 
   async function handleSave(publish = false) {
     if (!canSubmit || saving) return;
-    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, aiDetect, ...optionConditions({ timed, setting, size }) };
+    const conditions = { blockAI, blockWeb, blockCopy, spellChk, phoneBlk, phonePark: phonePark === true, aiDetect, ...optionConditions({ timed, setting, size }) };
     const courseCode = pickedCourse ? (pickedCourse.code || pickedCourse.name) : (selectedCourse || '').trim();
     const prompt = combinePrompts(prompts);
     const opensIso = fromLocalInput(opensAt);
@@ -321,7 +323,7 @@ export function NewExamScreen({ onNavigate }) {
       // usable from the live config above.
       if (BB_API.isAuthed()) {
         setSaving(false);
-        setSaveError(`The collection was not saved: ${(e && e.message) || 'unknown error'}.`);
+        setSaveError(`The collection was not saved. ${(e && e.message) || 'Please try again.'}`);
         return;
       }
       console.warn('Collections exam persistence failed:', e && e.message);
@@ -340,10 +342,10 @@ export function NewExamScreen({ onNavigate }) {
       <div style={{ textAlign: 'center' }}>
         <Seal size={48} verified glow />
         <p style={{
-          fontFamily: fontDisplay, fontSize: 28, color: BB.cream,
+          fontFamily: fontDisplay, fontSize: '1.75rem', color: BB.cream,
           margin: '20px 0 8px', fontWeight: 400,
         }}>Collection Created</p>
-        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade }}>
+        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: BB.fade }}>
           Returning to Collections…
         </p>
       </div>
@@ -365,7 +367,7 @@ export function NewExamScreen({ onNavigate }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
           <button onClick={() => onNavigate('sessions')} style={{
-            fontFamily: fontMono, fontSize: 10, letterSpacing: '0.18em',
+            fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
             textTransform: 'uppercase', color: BB.fade,
             background: 'none', border: 'none', cursor: 'pointer',
             transition: 'color 0.25s',
@@ -374,7 +376,7 @@ export function NewExamScreen({ onNavigate }) {
             onMouseLeave={e => e.currentTarget.style.color = BB.fade}
           >← Collections</button>
           <GoldRule style={{ width: 1, height: 16, borderTop: 'none', borderLeft: '1px solid rgba(201,169,97,0.3)' }} />
-          <p style={{ fontFamily: fontBody, fontVariant: 'small-caps', fontSize: 16, color: BB.fade, letterSpacing: '0.1em', margin: 0 }}>
+          <p style={{ fontFamily: fontBody, fontVariant: 'small-caps', fontSize: '1rem', color: BB.fade, letterSpacing: '0.1em', margin: 0 }}>
             New Collection
           </p>
         </div>
@@ -386,15 +388,15 @@ export function NewExamScreen({ onNavigate }) {
 
         {/* Title */}
         <h1 style={{
-          fontFamily: fontDisplay, fontSize: 32, fontWeight: 400,
+          fontFamily: fontDisplay, fontSize: '2rem', fontWeight: 400,
           color: BB.cream, letterSpacing: '0.01em',
           margin: '0 0 4px',
         }}>New Collection</h1>
-        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 17, color: BB.fade, margin: '0 0 36px' }}>
+        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: BB.fade, margin: '0 0 36px' }}>
           Every assignment is a collection. Fill in the basics; open More options for timing windows, lockdown and other settings. Students see a published collection in their course.
         </p>
         {restoredDraft && (
-          <p role="status" data-testid="draft-restored" style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 15, color: BB.fade, margin: '0 0 16px' }}>
+          <p role="status" data-testid="draft-restored" style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: BB.fade, margin: '0 0 16px' }}>
             Your unsaved form was kept on this computer and has been restored.
           </p>
         )}
@@ -422,7 +424,7 @@ export function NewExamScreen({ onNavigate }) {
             <FormField label="Course" id={loadingCourses ? undefined : 'neCourse'}>
               {loadingCourses ? (
                 <p role="status" style={{
-                  fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
+                  fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem',
                   color: BB.fade, margin: '8px 0 0',
                 }}>Loading your courses…</p>
               ) : courses.length ? (
@@ -439,7 +441,7 @@ export function NewExamScreen({ onNavigate }) {
                     placeholder="PHIL 401"
                   />
                   <p role="status" style={{
-                    fontFamily: fontBody, fontSize: 15,
+                    fontFamily: fontBody, fontSize: '.9375rem',
                     color: BB.fade, margin: '2px 0 0',
                   }}>
                     {coursesFailed
@@ -447,7 +449,7 @@ export function NewExamScreen({ onNavigate }) {
                       : 'No courses yet. Type a code to carry on, or '}
                     {!coursesFailed && (
                       <button onClick={() => onNavigate('courses')} style={{
-                        fontFamily: fontBody, fontSize: 15, color: BB.gold,
+                        fontFamily: fontBody, fontSize: '.9375rem', color: BB.gold,
                         background: 'none', border: 'none', padding: 0,
                         cursor: 'pointer', textDecoration: 'underline',
                       }}>add one on the Courses screen →</button>
@@ -468,7 +470,7 @@ export function NewExamScreen({ onNavigate }) {
             <FormField label="Duration" hint={timed ? 'minutes' : 'untimed'} id="neDuration">
               {timed
                 ? <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
-                : <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '8px 0 0' }}>No time limit</p>}
+                : <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '8px 0 0' }}>No time limit</p>}
             </FormField>
             <FormField label="Minimum Words" hint="optional" id="neMinWords">
               <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="None" />
@@ -491,7 +493,7 @@ export function NewExamScreen({ onNavigate }) {
                   <MetaLabel htmlFor={`nePrompt${i}`}>Question {['I','II','III','IV','V'][i] || i + 1}</MetaLabel>
                   {prompts.length > 1 && (
                     <button onClick={() => removePrompt(i)} style={{
-                      fontFamily: fontMono, fontSize: 9, letterSpacing: '0.15em',
+                      fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.15em',
                       textTransform: 'uppercase', color: 'rgba(196,122,107,0.7)',
                       background: 'none', border: 'none', cursor: 'pointer',
                     }}>Remove</button>
@@ -517,7 +519,7 @@ export function NewExamScreen({ onNavigate }) {
             ))}
             {prompts.length < 5 && (
               <button onClick={addPrompt} style={{
-                fontFamily: fontBody, fontStyle: 'italic', fontSize: 15,
+                fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem',
                 color: BB.gold, background: 'none', border: 'none',
                 cursor: 'pointer', textAlign: 'left', padding: '4px 0',
                 letterSpacing: '0.02em',
@@ -537,7 +539,7 @@ export function NewExamScreen({ onNavigate }) {
             hidden from the server: the defaults below are what is saved. ── */}
         <details id="neMore" className="bb-ne-more" style={{ marginBottom: 40 }}>
           <summary style={{
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             textTransform: 'uppercase', color: BB.gold, cursor: 'pointer',
             marginBottom: 24,
           }}>More options</summary>
@@ -555,8 +557,8 @@ export function NewExamScreen({ onNavigate }) {
             <FormField label="Size" hint="optional" id="neSize">
               <SelectInput id="neSize" value={size} onChange={chooseSize} options={[
                 { value: '', label: 'Any length' },
-                { value: 'small', label: `Small (under ${SMALLS_GREATS_CUTOFF.toLocaleString()} words)` },
-                { value: 'great', label: `Great (${SMALLS_GREATS_CUTOFF.toLocaleString()} words or more)` },
+                { value: 'small', label: `Small (${SMALLS_GREATS_CUTOFF.toLocaleString()} words or fewer)` },
+                { value: 'great', label: `Great (over ${SMALLS_GREATS_CUTOFF.toLocaleString()} words)` },
               ]} />
             </FormField>
           </div>
@@ -564,7 +566,7 @@ export function NewExamScreen({ onNavigate }) {
             <ToggleRow label="Timed" desc="Off: no time limit; the sitting stays open until the collection closes" value={timed} onChange={setTimed} />
           </div>
           {setting === 'take_home' && (
-            <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '8px 0 0' }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '8px 0 0' }}>
               Take-home work is not supervised. It never counts as an in-class sample; you can approve a paper one at a
               time to extend a student's existing reference writing, and only if it is close to what is already there.
             </p>
@@ -584,7 +586,7 @@ export function NewExamScreen({ onNavigate }) {
               <TextInput id="neCloses" type="datetime-local" value={closesAt} onChange={setClosesAt} />
             </FormField>
           </div>
-          <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, margin: '12px 0 0' }}>
+          <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '12px 0 0' }}>
             Students can start only while the exam is open. A sitting that starts
             near the closing time is shortened so it ends when the exam closes.
           </p>
@@ -595,7 +597,7 @@ export function NewExamScreen({ onNavigate }) {
         {/* ── Section IV: Lockdown ── */}
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Secure Lockdown</MetaLabel>
-          <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: 15, color: BB.fade, margin: '0 0 16px' }}>
+          <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: BB.fade, margin: '0 0 16px' }}>
             The conditions you switch on apply for the whole sitting, and students are told
             about them before they begin.
           </p>
@@ -618,6 +620,8 @@ export function NewExamScreen({ onNavigate }) {
             <ToggleRow label="Allow spell check"    desc="Browser spell-check is permitted" value={spellChk}  onChange={setSpellChk} />
             <GoldRule faint />
             <ToggleRow label="Phone blocker"        desc="Prompt students to silence devices" value={phoneBlk} onChange={setPhoneBlk} />
+            <GoldRule faint />
+            <ToggleRow label="Phone parking" desc="Before beginning, each student scans a code on their own screen with their phone and puts it where you ask. You can let a student without a phone begin." value={phonePark} onChange={setPhonePark} />
             <GoldRule faint />
             {BB_API.hasOriginal() && (
               <>
@@ -653,7 +657,7 @@ export function NewExamScreen({ onNavigate }) {
         {!canSubmit && (
           <p style={{
             textAlign: 'right', marginTop: 10,
-            fontFamily: fontMono, fontSize: 12.5, letterSpacing: '0.14em',
+            fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
             color: BB.fade, textTransform: 'uppercase',
           }}>Title and at least one prompt are required</p>
         )}

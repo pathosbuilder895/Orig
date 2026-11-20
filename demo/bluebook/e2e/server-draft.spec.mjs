@@ -76,8 +76,13 @@ test('an unsealed draft written in one browser opens in another, and is gone aft
   await B.page.locator('#bbLoginEmail').fill(email)
   await B.page.locator('#bbLoginPass').fill(PASS)
   await B.page.getByRole('button', { name: 'Sign in' }).last().click()
-  await B.page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: /^(Open|Resume)$/ }).click({ timeout: 10_000 })
-  await B.page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  // Signing in resumes at the exam's briefing (resume-location.jsx), or the
+  // student opens it from their list.
+  const begin = B.page.getByRole('button', { name: /Begin Examination|Resume Examination/ })
+  const openRow = B.page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: /^(Open|Resume)$/ })
+  await expect(begin.or(openRow)).toBeVisible({ timeout: 10_000 })
+  if (!(await begin.isVisible())) await openRow.click()
+  await begin.click()
   const box = B.page.getByLabel('Your examination answer')
   await expect(box).toHaveValue(words, { timeout: 10_000 })
   B.page.once('dialog', d => d.accept())

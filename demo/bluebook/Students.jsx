@@ -74,7 +74,7 @@ export function StudentsScreen({ onNavigate }) {
     <div style={{ flex:1, overflowY:'auto', padding:'44px 48px', background:BB.deep }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:10 }}>
         <div>
-          <h1 style={{ fontFamily:fontDisplay, fontSize:34, color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
+          <h1 style={{ fontFamily:fontDisplay, fontSize:'2.125rem', color:BB.cream, fontWeight:400, letterSpacing:'0.01em', margin:'0 0 6px' }}>
             Students
           </h1>
           <MetaLabel>
@@ -89,7 +89,7 @@ export function StudentsScreen({ onNavigate }) {
         <div style={{ display:'flex', gap:2, border:'1px solid rgba(201,169,97,0.22)' }}>
           {[['all','All Students'],...(showMark ? [['flagged','Worth a look']] : [])].map(([val, label]) => (
             <button key={val} onClick={() => setFilter(val)} style={{
-              fontFamily:fontMono, fontSize:10, letterSpacing:'0.15em',
+              fontFamily:fontMono, fontSize:'.75rem', letterSpacing:'0.15em',
               textTransform:'uppercase', padding:'8px 18px',
               background: filter === val ? BB.gold : 'transparent',
               color: filter === val ? BB.deep : BB.fade,
@@ -101,7 +101,7 @@ export function StudentsScreen({ onNavigate }) {
       </div>
       <GoldRule double style={{ margin:'20px 0 20px' }} />
       {/* The "worth a look" count, filter and badge are Original's mark: say what it is, once. */}
-      {showMark && <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:14, lineHeight:1.5 }} />}
+      {showMark && <WorthALookNote style={{ marginBottom:'1.4rem', color:BB.fade, fontFamily:fontBody, fontSize:'.875rem', lineHeight:1.5 }} />}
 
       <div style={{ border:'1px solid rgba(201,169,97,0.2)' }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 120px 80px 120px 80px', padding:'10px 20px', borderBottom:'1px solid rgba(201,169,97,0.35)' }}>
@@ -125,11 +125,11 @@ export function StudentsScreen({ onNavigate }) {
                   width:28, height:28, border:'1px solid rgba(201,169,97,0.3)',
                   display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
                 }}>
-                  <span style={{ fontFamily:fontMono, fontSize:9, color:BB.gold, letterSpacing:'0.05em' }}>
+                  <span style={{ fontFamily:fontMono, fontSize:'.75rem', color:BB.gold, letterSpacing:'0.05em' }}>
                     {s.name.split(' ').map(n=>n[0]).join('')}
                   </span>
                 </div>
-                <span style={{ fontFamily:fontBody, fontSize:16, color:BB.cream }}>{s.name}</span>
+                <span style={{ fontFamily:fontBody, fontSize:'1rem', color:BB.cream }}>{s.name}</span>
               </div>
               <MetaLabel>No. {s.candidateId}</MetaLabel>
               <MetaLabel style={{ color:BB.gold }}>{s.course}</MetaLabel>

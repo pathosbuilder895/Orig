@@ -9,17 +9,27 @@ from __future__ import annotations
 
 import io
 import logging
+from datetime import date as _date
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
+from .. import measurement as _measurement
 from .. import principal as principal_mod
 from ..constants import AUTH_WEIGHTS
+from ..features import feature_flags as _ff
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ._shared import _authorize_provenance, _persist_or_503, _repo, _require_guard, _require_staff
+from ._shared import (
+    _authorize_provenance,
+    _persist_or_503,
+    _repo,
+    _require_guard,
+    _require_staff,
+    drift_gate_advisory,
+)
 
 router = APIRouter()
 
@@ -146,7 +156,12 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
                 "purity": state.purity,
             }
 
-    vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    # Stored vectors are always the default measurement (original/measurement.py).
+    with _ff.measuring(_measurement.DEFAULT):
+        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    extra_vectors = _measurement.extra_vectors_at_upload(
+        req.text, req.keystroke_data, extract=feature_vector
+    )
 
     # Genre label — classify the text at ingestion time so the Hierarchical
     # Bayesian prior (BAYESIAN_PRIOR_ENABLED=1) has cross-student genre data.
@@ -176,6 +191,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         # Tier 17's (currently-disabled) feature extraction is unaffected.
         keystroke_data=_strip_raw_keystroke_arrays(req.keystroke_data),
         composition_summary=req.composition_summary,
+        extra_vectors=extra_vectors,
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -197,7 +213,11 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
 
     # check_drift mutates _consecutive_drift_count regardless of recommendation;
     # persist the counter even on flag/rebaseline so the workflow is sticky.
-    if drift_result is not None and drift_result.recommendation != "accept":
+    if (
+        drift_result is not None
+        and drift_result.recommendation != "accept"
+        and not drift_gate_advisory()
+    ):
         # Sample is held for review — DO NOT admit to state.samples.
         _persist_or_503(state)  # persist counter mutation
         body = DriftPendingResponse(
@@ -233,6 +253,18 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
             state.baseline_kappa = new_mean
 
     _persist_or_503(state)  # persist to SQLite
+
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing): derive the new paper's
+    # statistics now so scoring does not have to. Off: nothing is computed or stored.
+    from ..rule_d import mode as _rule_d_mode
+
+    if _rule_d_mode() != "off":
+        try:
+            from ..rule_d.service import sync_profiles
+
+            sync_profiles(_repo(), state, feature_vector)
+        except Exception:  # never let a report-only mechanism fail an approval
+            logging.getLogger(__name__).exception("rule_d profile build failed at baseline add")
 
     # Audit log — record the baseline addition
     _repo().log_audit(
@@ -452,6 +484,7 @@ def upload_baseline_batch(
     files: list[UploadFile] = File(...),
     provenance: str = Form("verified"),
     assignment: str = Form(""),
+    submitted_at: str = Form(""),
     request: Request = None,
 ):
     """
@@ -474,6 +507,17 @@ def upload_baseline_batch(
         raise HTTPException(
             status_code=422, detail=f"provenance must be one of: {list(AUTH_WEIGHTS)}"
         )
+    # The date the papers were written, recorded with each one exactly as the
+    # single add records it (it never changes a weight). Without it every
+    # imported paper read "date not recorded" wherever it is quoted.
+    submitted_at = submitted_at.strip()
+    if submitted_at:
+        try:
+            _date.fromisoformat(submitted_at)
+        except ValueError:
+            raise HTTPException(
+                status_code=422, detail="submitted_at must be a date, YYYY-MM-DD"
+            ) from None
 
     # Gate high-trust provenance behind staff/attestation (see
     # _authorize_provenance) — the batch route previously skipped this.
@@ -541,7 +585,9 @@ def upload_baseline_batch(
 
         # ── Feature extraction & store ────────────────────────────────────────
         try:
-            vec = feature_vector(text)
+            with _ff.measuring(_measurement.DEFAULT):
+                vec = feature_vector(text)
+            extra_vectors = _measurement.extra_vectors_at_upload(text, extract=feature_vector)
         except Exception as exc:
             errors.append(f"{filename}: feature extraction failed — {exc}")
             continue
@@ -553,7 +599,8 @@ def upload_baseline_batch(
             provenance=provenance,
             auth_weight=AUTH_WEIGHTS[provenance],
             assignment=label,
-            submitted_at="",
+            submitted_at=submitted_at,
+            extra_vectors=extra_vectors,
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.
@@ -567,7 +614,7 @@ def upload_baseline_batch(
         if AUTH_WEIGHTS[provenance] > 0:
             try:
                 dr = state.check_drift(sample)
-                if dr.recommendation != "accept":
+                if dr.recommendation != "accept" and not drift_gate_advisory():
                     drift_holds.append(
                         {
                             "filename": filename,

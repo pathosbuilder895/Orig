@@ -2044,6 +2044,23 @@ class TestRosterStatus:
         assert roster["sem:named"]["sample_count"] == 3
         assert roster["sem:named"]["authenticated_count"] == 3  # instructor_verified
 
+    def test_a_named_writer_with_no_papers_is_listed_and_deleted(self, repo):
+        # POST /students (routers/students.py:create_writer) makes a writer
+        # from get_or_create + set_display_name only: no put(), no samples.
+        repo.get_or_create("sem:writer")
+        repo.set_display_name("sem:writer", "Ada Writer")
+        assert "sem:writer" in repo.list_ids_for_tenant("sem")
+        roster = {r["id"]: r for r in repo.roster_for_tenant("sem")}
+        assert roster["sem:writer"]["name"] == "Ada Writer"
+        assert roster["sem:writer"]["has_name"] is True
+        assert roster["sem:writer"]["sample_count"] == 0
+        assert roster["sem:writer"]["status"] == "no_baseline"
+
+        assert repo.delete_student("sem:writer") is True
+        assert repo.get("sem:writer") is None
+        assert repo.get_display_name("sem:writer") == ""
+        assert "sem:writer" not in {r["id"] for r in repo.roster_for_tenant("sem")}
+
 
 # ── Manifest read-model gaps (WS-6 P1 gap closure, branch-coverage part 1,
 #    task 2: put_manifest / list_manifests / manifest_stats /
@@ -2229,6 +2246,7 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        repo.put_rule_d_profile("sem:ferpa", "b" * 64, {"words": 300})
         # C1, 2026-09 fix pass: four more student-scoped tables the original
         # erasure pass missed — each carries FERPA-relevant PII (a display
         # name, an email + unredeemed magic link, or just identifying rows).
@@ -2285,6 +2303,7 @@ class TestDeleteStudentFullFootprint:
         assert repo.get_display_name("sem:ferpa") == ""
         assert "sem:ferpa" not in {r["id"] for r in repo.roster_for_tenant("sem")}
         assert repo.get_fused_scores(student_id="sem:ferpa") == []
+        assert repo.get_rule_d_profiles("sem:ferpa") == {}
         assert repo.get_ai_likelihood_scores(student_id="sem:ferpa") == []
         assert repo.get_authentic_fidelities("sem:ferpa") == []
         assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
@@ -2700,6 +2719,7 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
     repo.put_fused_score(                                       # fused_scores
         "sub-t08", scoped_id, 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
     )
+    repo.put_rule_d_profile(scoped_id, "a" * 64, {"words": 300})  # rule_d_profiles
     # A correction on a submission that has NO manifest, so this row can only
     # be reached through its student_id — the submission_id sweep both
     # backends also run would otherwise mask a student_id gap.
@@ -3073,6 +3093,22 @@ class TestBluebookSelfServeContract:
         assert repo.get_bluebook_exam("ss-exam") is None
         assert repo.delete_bluebook_exam("ss-exam") is False
 
+    def test_deleting_an_exam_removes_its_drafts_sittings_and_phone_parks(self, repo):
+        repo.put_tenant("ss-d", "SS", environment="pilot")
+        for exam_id in ("ss-gone", "ss-kept"):
+            repo.put_bluebook_exam({"id": exam_id, "tenant_id": "ss-d", "title": exam_id})
+            repo.put_exam_draft(exam_id, "ss-d:ann", "ss-d", "unsealed words", '["unsealed words"]', 1)
+            repo.get_or_create_bluebook_session(exam_id, "ss-d:ann", "ss-d", 600)
+            repo.put_phone_park(exam_id, "ss-d:ann", "ss-d", {})
+        assert repo.delete_bluebook_exam("ss-gone") is True
+        assert repo.get_exam_draft("ss-gone", "ss-d:ann") is None
+        assert repo.get_bluebook_session("ss-gone", "ss-d:ann") is None
+        assert repo.get_phone_park("ss-gone", "ss-d:ann") is None
+        # Another exam's rows for the same student are untouched.
+        assert repo.get_exam_draft("ss-kept", "ss-d:ann")["content"] == "unsealed words"
+        assert repo.get_bluebook_session("ss-kept", "ss-d:ann") is not None
+        assert repo.get_phone_park("ss-kept", "ss-d:ann") is not None
+
     def test_submission_text_warnings_and_queries(self, repo):
         repo.put_tenant("ss-s", "SS", environment="pilot")
         repo.put_tenant("ss-s2", "SS2", environment="pilot")
@@ -3173,6 +3209,42 @@ class TestBluebookSelfServeContract:
         assert repo.get_invite_by_hash("h1")["voided_at"] is None
         assert repo.void_invites_for_user("ss-i:ann") == 0
 
+    def test_join_links_one_active_per_course_and_voiding(self, repo):
+        repo.put_tenant("ss-j", "SS", environment="pilot")
+        repo.put_bluebook_course(
+            {"id": "jc1", "tenant_id": "ss-j", "name": "C", "code": None, "term": None}
+        )
+
+        def link(link_id, token_hash, created_at, course_id="jc1"):
+            return {
+                "link_id": link_id,
+                "tenant_id": "ss-j",
+                "course_id": course_id,
+                "token_hash": token_hash,
+                "created_by": "prof",
+                "created_at": created_at,
+            }
+
+        assert repo.active_join_link_for_course("jc1") is None
+        repo.put_join_link(link("j1", "jh1", "2026-10-01T00:00:00+00:00"))
+        got = repo.get_join_link_by_hash("jh1")
+        assert (got["link_id"], got["course_id"], got["voided_at"]) == ("j1", "jc1", None)
+        assert repo.get_join_link_by_hash("nope") is None
+        assert repo.active_join_link_for_course("jc1")["link_id"] == "j1"
+        assert repo.void_join_links_for_course("jc1") == 1
+        assert repo.void_join_links_for_course("jc1") == 0
+        assert repo.active_join_link_for_course("jc1") is None
+        assert repo.get_join_link_by_hash("jh1")["voided_at"] is not None
+
+        repo.put_join_link(link("j2", "jh2", "2026-10-02T00:00:00+00:00"))
+        repo.put_join_link(link("j3", "jh3", "2026-10-03T00:00:00+00:00", course_id="jc2"))
+        assert repo.active_join_link_for_course("jc1")["link_id"] == "j2"
+        # Deleting the course removes its links, never another course's.
+        assert repo.delete_bluebook_course("jc1") is True
+        assert repo.get_join_link_by_hash("jh2") is None
+        assert repo.get_join_link_by_hash("jh1") is None
+        assert repo.get_join_link_by_hash("jh3")["link_id"] == "j3"
+
 
 class TestBluebookRound2Contract:
     """Round 2 (2026-10): questions, release, answers and grading, both backends."""
@@ -3236,3 +3308,141 @@ class TestExamDrafts:
         repo.put_exam_draft("exam-e", sid, tenant, "words", '["words"]', 1)
         repo.delete_student(sid)
         assert repo.get_exam_draft("exam-e", sid) is None
+
+
+class TestLastLocation:
+    """Where an account last was (2026-10): one row per account, upserted,
+    read back, deleted, and erased by delete_student — on every backend."""
+
+    def test_put_get_upsert_delete(self, repo):
+        tenant = "tenant-loc"
+        key = f"{tenant}:ann"
+        assert repo.get_last_location(key) is None
+        repo.put_last_location(key, tenant, "student", {"screen": "student-home"})
+        repo.put_last_location(
+            key, tenant, "student",
+            {"screen": "student-submission", "entity_kind": "submission", "entity_id": "sub-1",
+             "tab": "", "scroll_fraction": 0.25, "scroll_anchor": "row-sub-1"},
+        )
+        loc = repo.get_last_location(key)
+        assert loc["screen"] == "student-submission" and loc["entity_id"] == "sub-1"
+        assert loc["scroll_fraction"] == 0.25 and loc["scroll_anchor"] == "row-sub-1"
+        assert loc["role"] == "student" and loc["tenant_id"] == tenant and loc["updated_at"]
+        assert repo.get_last_location(f"{tenant}:ben") is None
+        repo.delete_last_location(key)
+        assert repo.get_last_location(key) is None
+
+    def test_delete_student_erases_location(self, repo):
+        tenant = "tenant-loc2"
+        sid = f"{tenant}:cy"
+        repo.put_last_location(sid, tenant, "student", {"screen": "student-account"})
+        repo.delete_student(sid)
+        assert repo.get_last_location(sid) is None
+
+
+class TestDisplayPrefs:
+    """Text font and size (2026-11): one row per account, upserted, read
+    back, deleted, and erased by delete_student — on every backend."""
+
+    def test_put_get_upsert_delete(self, repo):
+        key = "tenant-disp:ann"
+        assert repo.get_display_prefs(key) is None
+        repo.put_display_prefs(key, {"font": "sans", "size": "large"})
+        repo.put_display_prefs(key, {"font": "readable", "size": "xlarge"})
+        got = repo.get_display_prefs(key)
+        assert got["font"] == "readable" and got["size"] == "xlarge" and got["updated_at"]
+        assert repo.get_display_prefs("tenant-disp:ben") is None
+        repo.delete_display_prefs(key)
+        assert repo.get_display_prefs(key) is None
+
+    def test_delete_student_erases_prefs(self, repo):
+        sid = "tenant-disp2:cy"
+        repo.put_display_prefs(sid, {"font": "classic", "size": "small"})
+        repo.delete_student(sid)
+        assert repo.get_display_prefs(sid) is None
+
+
+class TestPhoneParks:
+    """A student's own parked phone per collection (2026-10): upserted field
+    by field, listed per exam, and erased by delete_student — on every backend."""
+
+    def test_put_get_list_and_delete_student(self, repo):
+        tenant = "tenant-pp"
+        sid, other = f"{tenant}:ann", f"{tenant}:ben"
+        assert repo.get_phone_park("exam-p", sid) is None
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "parked",
+                            "parked_at": "2026-10-22T13:00:00+00:00",
+                            "last_seen_at": "2026-10-22T13:00:00+00:00"})
+        repo.put_phone_park("exam-p", sid, tenant, {"state": "foreground_lost",
+                            "last_seen_at": "2026-10-22T13:00:10+00:00"})
+        repo.put_phone_park("exam-p", other, tenant, {"override_by": "prof",
+                            "override_at": "2026-10-22T13:01:00+00:00", "override_note": "no phone"})
+        row = repo.get_phone_park("exam-p", sid)
+        assert row["state"] == "foreground_lost" and row["parked_at"].startswith("2026-10-22T13:00:00")
+        assert row["last_seen_at"].startswith("2026-10-22T13:00:10") and row["override_at"] is None
+        ov = repo.get_phone_park("exam-p", other)
+        assert ov["override_by"] == "prof" and ov["override_note"] == "no phone" and ov["parked_at"] is None
+        assert [r["student_key"] for r in repo.list_phone_parks("exam-p")] == [sid, other]
+        assert repo.list_phone_parks("exam-q") == []
+        repo.delete_student(sid)
+        assert repo.get_phone_park("exam-p", sid) is None
+        assert repo.get_phone_park("exam-p", other) is not None
+
+
+class TestSampleSourceLookups:
+    """The two reads GET /students/{id} uses to say how a self-upload got in
+    (2026-11): a student's sealed submissions WITH their text and answers,
+    and their past papers with text and status, on every backend."""
+
+    def test_submission_texts_for_student(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        repo.put_bluebook_exam({"id": "exam-src", "tenant_id": "sem", "title": "Take-home"})
+        base = {"tenant_id": "sem", "exam_id": "exam-src", "candidate": "Alice"}
+        repo.put_bluebook_submission({**base, "id": "bbsub-s1", "student_id": "sem:alice",
+                                      "text": "Question 1.\n\nOne.", "answers": ["One.", "Two."]})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s2", "student_id": "sem:alice",
+                                      "text": "Plain text."})
+        repo.put_bluebook_submission({**base, "id": "bbsub-s3", "student_id": "sem:bob",
+                                      "text": "Bob's.", "answers": ["Bob's."]})
+        rows = {r["id"]: r for r in repo.list_bluebook_submission_texts_for_student("sem:alice")}
+        assert set(rows) == {"bbsub-s1", "bbsub-s2"}
+        assert rows["bbsub-s1"]["text"] == "Question 1.\n\nOne."
+        assert rows["bbsub-s1"]["answers"] == ["One.", "Two."]
+        assert rows["bbsub-s2"]["text"] == "Plain text." and rows["bbsub-s2"]["answers"] == []
+        assert repo.list_bluebook_submission_texts_for_student("sem:nobody") == []
+
+    def test_audit_actions_for_student_oldest_first(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for action, sid, sub, result in (
+            ("baseline_approve", "sem:alice", "s1", "added"),
+            ("score", "sem:alice", "s1", "ok"),
+            ("baseline_remove", "sem:alice", "s1", "removed"),
+            ("baseline_approve", "sem:bob", "s2", "added"),
+            ("baseline_approve", "sem:alice", "s3", "held"),
+        ):
+            repo.log_audit(action=action, student_id=sid, tenant_id="sem", actor="prof",
+                           result=result, details={"submission_id": sub})
+        repo.log_audit(action="baseline_approve", student_id="other:alice", tenant_id="other",
+                       actor="prof", result="added", details={"submission_id": "s9"})
+        rows = repo.list_audit_actions_for_student(
+            "sem:alice", ["baseline_approve", "baseline_remove"]
+        )
+        assert [(r["action"], r["result"], r["details"]["submission_id"]) for r in rows] == [
+            ("baseline_approve", "added", "s1"),
+            ("baseline_remove", "removed", "s1"),
+            ("baseline_approve", "held", "s3"),
+        ]
+        assert repo.list_audit_actions_for_student("sem:nobody", ["baseline_approve"]) == []
+        assert repo.list_audit_actions_for_student("sem:alice", []) == []
+
+    def test_past_papers_for_student_carry_text_and_status(self, repo):
+        repo.put_tenant("sem", "Seminary", environment="demo")
+        for pid, sid, status in (("pp-1", "sem:alice", "approved"), ("pp-2", "sem:alice", "pending"),
+                                 ("pp-3", "sem:bob", "approved")):
+            repo.put_past_paper({"paper_id": pid, "tenant_id": "sem", "student_id": sid,
+                                 "title": pid, "text": f"text of {pid}", "word_count": 3,
+                                 "status": status})
+        rows = {r["paper_id"]: r for r in repo.list_past_papers("sem", "sem:alice")}
+        assert set(rows) == {"pp-1", "pp-2"}
+        assert rows["pp-1"]["text"] == "text of pp-1" and rows["pp-1"]["status"] == "approved"
+        assert rows["pp-2"]["status"] == "pending"
