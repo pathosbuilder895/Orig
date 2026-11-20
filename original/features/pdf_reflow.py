@@ -8,8 +8,8 @@ take out the running heads, page numbers, footnote blocks and the other
 parts; this module joins what is left back into paragraphs, so the measured
 prose of a PDF is the prose of the same paper pasted.
 
-It runs only on text that ``upload_utils`` stored from a PDF (it carries
-``matter.PDF_PAGE_BREAK``) and only on the measured body, with the splitter
+It runs only on text that ``upload_utils`` stored from a PDF (it ends with
+``matter.PDF_TAG``, one page or many) and only on the measured body, with the splitter
 on (``features.preprocess._body``; ``evidence.engine_view`` applies the same
 edits to its offset map). Stored text is never changed, and a PDF stored
 before page markers were kept is measured as it is (no reflow).
@@ -79,7 +79,7 @@ def reflow_ops(body: str) -> list[tuple[int, int, str]]:
     ops: list[tuple[int, int, str]] = []
     for a, b in zip(content, content[1:], strict=False):
         between = [spans[i][2] for i in range(a + 1, b)]
-        marks = sum(1 for c in between if PAGE_MARK in c)
+        marks = sum(1 for c in between if c in (PAGE_MARK, PAGE_MARK * 2))
         if marks > 1:
             continue  # an empty page between them
         across = marks == 1  # a blank line next to a page marker is the page's edge

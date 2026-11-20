@@ -16,6 +16,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from .. import principal as principal_mod
 from .. import student_auth
+from ..features.matter import without_page_breaks
 from ..repository import get_repository
 from ..schemas import (
     BaselineWordStats,
@@ -374,7 +375,7 @@ def get_sample_text(student_id: str, index: int):
         "submitted_at": s.submitted_at,
         "auth_weight": s.auth_weight,
         "word_count": len((s.text or "").split()),
-        "char_count": len(s.text or ""),
+        "char_count": len(without_page_breaks(s.text or "")),  # page markers do not count
         "text": s.text or "",
     }
 

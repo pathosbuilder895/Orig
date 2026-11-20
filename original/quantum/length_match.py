@@ -34,6 +34,7 @@ from ..constants import FEATURE_DIM, RECENCY_DECAY
 from ..features import feature_flags as _ff
 from ..features import preprocess as _pp
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
+from ..features.matter import without_page_breaks
 from ..features.preprocess import _strip_backmatter
 from .state import StudentState
 
@@ -132,7 +133,8 @@ def _body(text: str) -> str:
     the same parts aside."""
     if _ff.matter_splitter_enabled():
         return _pp._body(text)
-    return _strip_backmatter(text)
+    # An upload's page markers dropped, so the pieces are the base pieces.
+    return without_page_breaks(_strip_backmatter(text))
 
 
 def body_word_count(text: str) -> int:

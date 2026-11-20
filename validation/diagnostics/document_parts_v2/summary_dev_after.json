@@ -7,8 +7,8 @@
   "james",
   "newman"
  ],
- "code_hash": "0753db9e35c9c81c6e540fd07f2866e96fe5866d0ccf6cabadfa0e9a1721a603",
- "commit": "76fc2d5eac967afca1d470d4b4ab9a796e8c859d",
+ "code_hash": "c2a0f40b8144200008657a7f68e59407c47d78ceffc395ea01a717fabef91453",
+ "commit": "8c2fb237b5c365bf449b5f1223d063f713fb4d98",
  "determinism": {
   "case_id": "augustine/prose/paste",
   "deviations": [
@@ -32,7 +32,7 @@
     "with_breaks": 78
    },
    "pdf": {
-    "breaks": 643,
+    "breaks": 769,
     "records": 126,
     "with_breaks": 126
    }
@@ -3337,13 +3337,13 @@
       "augustine": 0.0,
       "boethius": 0.0,
       "douglass": 0.0,
-      "edwards": 0.0,
+      "edwards": 0.0024,
       "james": 0.0,
       "newman": 0.0
      },
      "compared_with": "prose",
-     "max": 0.0,
-     "mean": 0.0,
+     "max": 0.0024,
+     "mean": 0.0004,
      "min": 0.0,
      "n": 6,
      "within_001": 6
@@ -3363,21 +3363,21 @@
       "augustine": -0.0278,
       "boethius": -0.0043,
       "douglass": -0.066,
-      "edwards": -0.0089,
+      "edwards": -0.012,
       "james": -0.001,
       "newman": 0.0036
      },
      "compared_with": "prose",
      "max": 0.0036,
-     "mean": -0.0174,
+     "mean": -0.0179,
      "min": -0.066,
      "n": 6,
-     "within_001": 4
+     "within_001": 3
     }
    }
   }
  },
- "runtime_seconds": 515,
+ "runtime_seconds": 522,
  "segmentation_by_format": {
   "off": {
    "docx": {
@@ -4695,11 +4695,11 @@
       "footnote": {
        "chars": 4249,
        "max_case": 1.0,
-       "min_case": 1.0,
+       "min_case": 0.6198,
        "n_cases": 12,
-       "pooled": 1.0,
-       "possible": 0,
-       "set_aside": 4249
+       "pooled": 0.935,
+       "possible": 276,
+       "set_aside": 3973
       },
       "note_marker": {
        "chars": 72,
@@ -11100,11 +11100,11 @@
       "footnote": {
        "chars": 2121,
        "max_case": 1.0,
-       "min_case": 1.0,
+       "min_case": 0.6506,
        "n_cases": 6,
-       "pooled": 1.0,
-       "possible": 0,
-       "set_aside": 2121
+       "pooled": 0.9349,
+       "possible": 138,
+       "set_aside": 1983
       },
       "note_marker": {
        "chars": 36,
@@ -11167,11 +11167,11 @@
       "footnote": {
        "chars": 2128,
        "max_case": 1.0,
-       "min_case": 1.0,
+       "min_case": 0.6198,
        "n_cases": 6,
-       "pooled": 1.0,
-       "possible": 0,
-       "set_aside": 2128
+       "pooled": 0.9352,
+       "possible": 138,
+       "set_aside": 1990
       },
       "note_marker": {
        "chars": 36,
