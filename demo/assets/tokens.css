@@ -80,8 +80,11 @@
    means two places. */
 .shell{
   position:relative;z-index:30;flex-shrink:0;
-  /* Flex, wrapping: at the largest text sizes on a phone the account button
-     drops under the switch instead of pushing the page wider than the screen. */
+  /* Flex, wrapping: the page pills take a row of their own. Row one always
+     holds the brand, the switch and the account button: the switch's flex
+     basis is 0 (see .app-switch), so it never pushes the account button onto
+     a second line, and at the largest text sizes on a phone its two names
+     stack inside it instead. */
   display:flex;flex-wrap:wrap;align-items:center;column-gap:1.1rem;row-gap:.45rem;
   padding:1rem 1.7rem .6rem;min-height:7.2rem;
   font-family:var(--body);
@@ -102,13 +105,17 @@
 .shell .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;flex-shrink:0;}
 
 .shell .app-switch{
-  display:inline-flex;flex-wrap:wrap;max-width:100%;align-items:center;gap:2px;padding:3px;
-  border:1px solid var(--line);border-radius:var(--r-pill);background:rgba(255,255,255,0.025);
+  /* Basis 0, growing up to its own width: it takes the room left on row one
+     and no more, so a wide screen draws it exactly as wide as its names. */
+  flex:1 1 0;min-width:0;max-width:max-content;
+  display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px;padding:3px;
+  /* A pill on one line, a rounded box when its names stack. */
+  border:1px solid var(--line);border-radius:1.35rem;background:rgba(255,255,255,0.025);
 }
 .shell .app-switch a{
   display:inline-flex;align-items:center;justify-content:center;
-  padding:.3rem .85rem;border-radius:var(--r-pill);
-  font-size:var(--fs-sm);letter-spacing:.02em;color:var(--dim);text-decoration:none;white-space:nowrap;
+  padding:.3rem .85rem;border-radius:1.1rem;
+  font-size:var(--fs-sm);letter-spacing:.02em;color:var(--dim);text-decoration:none;text-align:center;
   transition:background .15s,color .15s;
 }
 .shell .app-switch a:hover{color:var(--cream);}
@@ -126,7 +133,7 @@
 .shell .pill:hover{color:var(--cream);}
 .shell .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
 
-.shell .nav-right{margin-left:auto;display:flex;align-items:center;position:relative;}
+.shell .nav-right{margin-left:auto;flex-shrink:0;display:flex;align-items:center;position:relative;}
 .shell .avatar{
   width:40px;height:40px;border-radius:50%;cursor:pointer;
   background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);
