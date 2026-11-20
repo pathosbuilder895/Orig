@@ -84,6 +84,43 @@ def test_llm_cells_score_imitations_only_at_their_own_n(tmp_path, monkeypatch):
     assert report.llm_cache_status()["present"] is True
 
 
+def test_genuine_slice_cuts_each_holdout_to_the_imitations_length(tmp_path, monkeypatch):
+    """G-A2's comparator: the victim's own held-out documents cut to the
+    word count of the imitation at that N, scored as genuine documents
+    against the same baseline, and only at an N that has an imitation."""
+    _write_llm_cache(tmp_path, "emerson")
+    monkeypatch.setattr(_LLMCacheGenerator, "CACHE_DIR", tmp_path)
+    cells = report.build_cells(kinds=("llm_imitation", "genuine_slice"), ns=(3, 5, 10))
+    by_key = {(c.kind, c.n): c for c in cells}
+    assert ("genuine_slice", 10) not in by_key  # no imitation written from ten essays
+    for n, imitation in ((3, "an imitation written from three essays"),
+                         (5, "an imitation written from five essays")):
+        sliced = by_key[("genuine_slice", n)].profile
+        attack = by_key[("llm_imitation", n)].profile
+        assert sliced.impostor_docs == []
+        assert sliced.baselines == attack.baselines
+        width = len(imitation.split())
+        assert sliced.genuine_holdout, "emerson has held-out documents"
+        for doc in sliced.genuine_holdout:
+            assert len(doc.split()) == width
+    # The cut keeps the document's own text: each slice opens one holdout.
+    profile = next(
+        p for p in report.build_victim_profiles(3, seed=report.HARNESS_SEED)
+        if p.victim_id == "emerson"
+    )
+    for slice_, whole in zip(by_key[("genuine_slice", 3)].profile.genuine_holdout,
+                             profile.genuine_holdout, strict=True):
+        assert whole.startswith(slice_)
+
+
+def test_length_matched_slices_one_per_holdout_and_width():
+    holdouts = ["one two three four five", "a b c"]
+    got = report.length_matched_slices(holdouts, [2, 4])
+    assert got == ["one two", "a b", "one two three four", "a b c"]
+    # A holdout shorter than every width is kept once, whole.
+    assert report.length_matched_slices(["a b"], [5, 9]) == ["a b"]
+
+
 def _write_rj_corpus(root, chunks_per_participant=6):
     essays = {"control": ["c1", "c2", "c3"], "obfuscation": ["o1"], "imitation": ["i1"]}
     for condition, pids in essays.items():
@@ -178,6 +215,23 @@ def test_run_cells_scopes_the_live_flags_and_restores_the_callers(monkeypatch):
     assert rows[0]["kind"] == "clean" and rows[0]["holdout_scores"] == [0.1]
 
 
+def test_rows_record_the_scored_documents_word_counts(monkeypatch):
+    from validation.adversarial import runner
+
+    def fake_run_attack(profile, attack, path="score", **kw):
+        return runner.AttackResult(
+            victim_id=profile.victim_id, attack=attack, path=path, n_baselines=3,
+            holdout_actions=("no_action",), impostor_actions=("monitor",),
+            holdout_max_action="no_action", impostor_max_action="monitor",
+            imitation_success=0.0, poisoning_success=None, sigma_proxy=None,
+        )
+
+    monkeypatch.setattr(runner, "run_attack", fake_run_attack)
+    profile = VictimProfile("v", ["a", "b", "c"], ["one two three"], ["four five"])
+    (row,) = report.run_cells([report.Cell("public_authors", "clean", 3, "none", profile)])
+    assert row["holdout_words"] == [3] and row["impostor_words"] == [2]
+
+
 def test_default_workers_honours_the_env(monkeypatch):
     monkeypatch.setenv("ADVERSARIAL_WORKERS", "3")
     assert report.default_workers() == 3
@@ -224,6 +278,45 @@ def test_attack_populations_use_the_same_victims_clean_holdouts():
     assert pop["name"] == "llm_imitation N=3" and pop["family"] == "llm_imitation"
     assert pop["attack_scores"] == [0.9] and pop["genuine_scores"] == [0.1]
     assert pop["coverage"] == [1, 2]
+
+
+def test_imitation_populations_carry_the_length_matched_comparator():
+    rows = [
+        _row("clean", victim="a", holdout_scores=[0.1, 0.2], holdout_words=[9000, 4000]),
+        _row("clean", victim="b", holdout_scores=[0.3]),
+        _row("llm_imitation", victim="a", corpus="llm_attacks", impostor_actions=["monitor"],
+             impostor_scores=[0.6], impostor_words=[650]),
+        _row("llm_imitation", victim="b", corpus="llm_attacks", impostor_actions=["monitor"],
+             impostor_scores=[0.7]),
+        _row("genuine_slice", victim="a", corpus="llm_attacks",
+             holdout_actions=["monitor", "schedule_conversation"],
+             holdout_scores=[0.65, 0.7], holdout_words=[650, 650]),
+        # A slice at another N belongs to another population.
+        _row("genuine_slice", n=5, victim="a", corpus="llm_attacks", holdout_scores=[0.99]),
+    ]
+    (pop,) = report.attack_populations(rows, ("llm_imitation",))
+    # The full-length comparator is still reported, for the record.
+    assert pop["genuine_scores"] == [0.1, 0.2, 0.3]
+    assert pop["genuine_words"] == [9000, 4000]
+    assert pop["attack_words"] == [650]
+    assert pop["length_matched_genuine_scores"] == [0.65, 0.7]
+    assert pop["length_matched_genuine_actions"] == ["monitor", "schedule_conversation"]
+    assert pop["length_matched_genuine_words"] == [650, 650]
+    # b has an imitation but no slice cell: the comparator covers 1 of 2.
+    assert pop["length_matched_coverage"] == [1, 2]
+    assert pop["length_matched_refused"] == 0
+
+
+def test_only_imitations_get_a_length_matched_comparator():
+    rows = [_row("clean"), _row("llm_paraphrase", corpus="llm_attacks"),
+            _row("genuine_slice", corpus="llm_attacks")]
+    (pop,) = report.attack_populations(rows, ("llm_paraphrase",))
+    assert "length_matched_genuine_scores" not in pop
+
+
+def test_g_a2_leg_scores_the_slices():
+    assert "genuine_slice" in report.LEG_KINDS["G-A2"]
+    assert "genuine_slice" not in report.LEG_KINDS["G-A3"]
 
 
 def test_populations_are_split_by_n_never_pooled():

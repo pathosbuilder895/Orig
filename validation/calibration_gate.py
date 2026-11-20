@@ -45,7 +45,10 @@ validation/adversarial/ through the LIVE score route under the pilot's
 scoring flags (not the typicality path above): cold-start same-author FPR
 per baseline size, LLM imitation, LLM paraphrase/MT laundering, peer swap,
 sigma-inflation and baseline-integrity detection. G-A2/G-A3 read
-uninformative until the LLM attack cache is generated and committed. See
+uninformative until the LLM attack cache is generated and committed. G-A2's
+separation leg compares the imitations with the victims' genuine documents
+cut to the imitation's length (report.py's genuine_slice cells), never with
+the full-length documents (2026-11-20, gap register T-71). See
 docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-
 design.md §4.
 """
@@ -1517,7 +1520,10 @@ def evaluate_g8_genre_discrimination(
 # The catch gates carry a separation leg (deviation_score AUROC, attack docs
 # vs. the same students' genuine holdouts) because at cold start the live path
 # flags nearly everything: a catch rate alone would pass a verifier that
-# cannot tell anyone apart.
+# cannot tell anyone apart. G-A2's genuine side is those holdouts cut to the
+# imitation's length: a ~650-word paper against 2,500-19,400-word past papers
+# reads as unlike them whoever wrote it, so a full-length comparator measured
+# length (AUROC 0.83-0.87 full-length, 0.27-0.43 length-matched, 2026-11-19).
 #
 # Every population arrives split by baseline size N (report.py's reducers):
 # the same documents recur across N, so pooling would count one document up
@@ -1547,8 +1553,11 @@ _GA_CATCH_CRITERION = (
     "AUROC against the same students' genuine holdouts >= {auc:.2f}, for EVERY "
     "population, live scoring path"
 )
-_GA2_CRITERION = _GA_CATCH_CRITERION.format(
-    what="LLM imitations of the student's own baselines", catch=_GA_CATCH_BAR, auc=_GA_AUC_BAR
+_GA2_CRITERION = (
+    f"LLM imitations of the student's own baselines caught (action at monitor or above) "
+    f">= {_GA_CATCH_BAR:.0%} AND deviation_score AUROC against the same students' genuine "
+    f"holdouts CUT TO THE IMITATION'S LENGTH >= {_GA_AUC_BAR:.2f}, for EVERY population, "
+    "live scoring path"
 )
 _GA3_CRITERION = _GA_CATCH_CRITERION.format(
     what="LLM paraphrases and MT round-trips of the student's own work",
@@ -1575,6 +1584,15 @@ _GA6_CRITERION = (
 
 def _ga_flagged(actions: list[str]) -> int:
     return sum(1 for a in actions if a != "no_action")
+
+
+def _ga_median(values) -> float | None:
+    """Median of a list of numbers (word counts), None when empty."""
+    values = sorted(values or [])
+    if not values:
+        return None
+    mid = len(values) // 2
+    return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
 
 
 def _ga_auroc(attack_scores: list[float], genuine_scores: list[float]) -> float | None:
@@ -1802,17 +1820,21 @@ def _evaluate_ga_catch(
     required: tuple[str, ...],
     required_ns: tuple[int, ...],
     informational: dict | None,
+    genuine_key: str = "genuine_scores",
+    extra_reasons: list[str] | None = None,
 ) -> GateResult:
     """Shared body of G-A2/G-A3/G-A4: per population a catch leg (attack
     docs at monitor+ >= 60%) and a separation leg (deviation_score AUROC of
-    the attack docs against the same students' genuine holdouts >= 0.60).
+    the attack docs against the same students' genuine holdouts >= 0.60,
+    read from `pop[genuine_key]`).
 
     A would-be pass is withheld (uninformative) when a `required` family has
     no population with attack docs at some N in `required_ns`, when a
     population covers fewer victims
     than have a clean baseline (`coverage` = [covered, expected], a partly
-    generated cache), or when any profile was refused scoring. With no legs
-    at all the gate is uninformative and says why (`absent_reason`)."""
+    generated cache), when any profile was refused scoring, or for any of
+    the caller's `extra_reasons`. With no legs at all the gate is
+    uninformative and says why (`absent_reason`)."""
     legs: list[dict] = []
     reasons: list[str] = []
     measured: list[str] = []
@@ -1827,10 +1849,15 @@ def _evaluate_ga_catch(
         )
         legs.append(
             _ga_auc_leg(f"{pop['name']} AUROC", pop.get("attack_scores") or [],
-                        pop.get("genuine_scores") or [])
+                        pop.get(genuine_key) or [])
         )
         coverage = pop.get("coverage")
-        if coverage and coverage[0] < coverage[1]:
+        if coverage and coverage[1] == 0:
+            # No clean cell at this N: how many victims the population
+            # should cover is unknown, so a partly generated cache would
+            # otherwise pass unremarked.
+            reasons.append(f"{pop['name']}: no clean cell to count the expected victims")
+        elif coverage and coverage[0] < coverage[1]:
             reasons.append(
                 f"{pop['name']} covers {coverage[0]} of {coverage[1]} victim profiles"
             )
@@ -1843,6 +1870,7 @@ def _evaluate_ga_catch(
         missing = _ga_missing_populations(measured, required, required_ns)
         if missing:
             reasons.append(f"not measured: {', '.join(missing)}")
+        reasons += list(extra_reasons or [])
     return _ga_result(
         name, criterion, legs, reasons=reasons, informational=informational,
         extra_detail={"required": list(required), "required_ns": list(required_ns)},
@@ -1859,16 +1887,88 @@ def evaluate_g_a2_imitation(
     """
     G-A2: imitation of the student's own baselines (attacks 4 and 8): an LLM
     told "write like these essays". `populations` holds one entry per
-    (attack kind, N): {"name": "<family> N=<n>", "attack_actions",
-    "attack_scores", "genuine_scores", "coverage", "n_refused"}.
-    Uninformative while validation/adversarial/corpus/llm_attacks/ is absent
-    (plan Task 15 Step 4: generating it needs an API key and the owner's
-    approval), never a pass.
+    (attack kind, N), as report.attack_populations builds them:
+    {"name": "<family> N=<n>", "attack_actions", "attack_scores",
+    "length_matched_genuine_scores", "length_matched_genuine_actions",
+    "length_matched_coverage", "length_matched_refused", "coverage",
+    "n_refused"}, plus the full-length "genuine_scores" and the word counts
+    ("attack_words", "genuine_words", "length_matched_genuine_words").
+
+    The separation leg reads `length_matched_genuine_scores`: the same
+    victims' genuine held-out documents cut to the imitation's length and
+    scored against the same baselines. It never reads `genuine_scores`, the
+    full-length documents: on 2026-11-19 the ~650-word imitations separated
+    from 2,500-19,400-word genuine documents (AUROC 0.83-0.87) and not from
+    the same documents cut to 650 words (0.27-0.43), because a short paper
+    against long past papers reads as unlike them whoever wrote it (gap
+    register T-71). A population without the length-matched side has an
+    unmeasured separation leg and cannot pass, whatever its full-length
+    AUROC; the full-length AUROC is reported under
+    detail["comparators"] for the record. A would-be pass is also withheld
+    when the length-matched side covers fewer victims than have imitations
+    or any of its profiles was refused scoring.
+
+    The catch leg reads the imitations alone, as before; only the comparator
+    side can be length-matched without changing the live configuration.
+    "Flag every short document" passes the catch leg and is refused by the
+    length-matched separation leg (AUROC 0.5). detail["comparators"] also
+    gives the length-matched genuine documents' own rate at monitor+, so the
+    catch can be read against what same-length honest work gets.
+
+    Uninformative while validation/adversarial/corpus/llm_attacks/ is absent,
+    never a pass.
 
     SIGNATURE NOTE: pass every argument after the first BY KEYWORD.
     """
+    reasons: list[str] = []
+    comparators: dict[str, dict] = {}
+    for pop in populations or []:
+        if not pop.get("attack_actions"):
+            continue
+        label = pop["name"]
+        attack = pop.get("attack_scores") or []
+        matched = pop.get("length_matched_genuine_scores") or []
+        full = pop.get("genuine_scores") or []
+        if not matched:
+            reasons.append(
+                f"{label}: no length-matched genuine comparator was scored (report.py "
+                "genuine_slice cells); the full-length genuine documents are not one "
+                "(gap register T-71)"
+            )
+        coverage = pop.get("length_matched_coverage")
+        if coverage and coverage[0] < coverage[1]:
+            reasons.append(
+                f"{label}: the length-matched genuine comparator covers {coverage[0]} of "
+                f"{coverage[1]} victims with imitations"
+            )
+        if pop.get("length_matched_refused"):
+            reasons.append(
+                f"{label}: {pop['length_matched_refused']} length-matched genuine profile(s) "
+                "refused scoring"
+            )
+        matched_actions = pop.get("length_matched_genuine_actions") or []
+        comparators[label] = {
+            "attack_median_words": _ga_median(pop.get("attack_words")),
+            "length_matched_genuine": {
+                "n": len(matched),
+                "flagged_rate": (
+                    _ga_flagged(matched_actions) / len(matched_actions)
+                    if matched_actions else None
+                ),
+                "median_words": _ga_median(pop.get("length_matched_genuine_words")),
+            },
+            "full_length_genuine": {
+                "role": "informational only, never a leg: length-confounded (T-71)",
+                "n": len(full),
+                "auc": _ga_auroc(attack, full),
+                "median_words": _ga_median(pop.get("genuine_words")),
+            },
+        }
     return _evaluate_ga_catch(
-        "G-A2", _GA2_CRITERION, populations, absent_reason, required, required_ns, informational
+        "G-A2", _GA2_CRITERION, populations, absent_reason, required, required_ns,
+        {**(informational or {}), "comparators": comparators},
+        genuine_key="length_matched_genuine_scores",
+        extra_reasons=reasons,
     )
 
 

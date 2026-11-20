@@ -2,7 +2,7 @@
 validation/adversarial/imitation_controls.py: report-only controls for the
 two confounds a validation review found in gate G-A2 (2026-11-19).
 
-G-A2 compares ~650-word AI imitations with the victim's genuine held-out
+G-A2 compared ~650-word AI imitations with the victim's genuine held-out
 documents, which run 2,500 to 19,400 words; and for the six cross-work
 victims every baseline and held-out document is one unbroken paragraph,
 while the imitations have paragraphs. A short paper against long past
@@ -28,7 +28,10 @@ and full-length genuine scores are read from the G-A2 report rather than
 re-scored, so run this at the commit that report was scored at: imitations
 left unflattened are re-scored as a check, must match the report bit for
 bit (`reproduction_check`), and the run exits 1 when they do not.
-Report-only: no gate reads it.
+Report-only: no gate reads it. Since 2026-11-20 G-A2 itself compares the
+imitations with genuine_slice cells built by the harness
+(`report.length_matched_slices`, the same cut at the same W), so this module
+now serves as the layout control and the record of the 2026-11-19 numbers.
 
 Layout turned out not to matter for the single-paragraph victims: their
 `avg_paragraph_length` is the same in every baseline, so

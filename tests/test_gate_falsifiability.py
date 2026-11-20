@@ -354,7 +354,7 @@ class TestAdversarialWitnesses:
     @pytest.mark.parametrize(
         "name, failing_leg",
         [
-            ("evaluate_g_a2_imitation", "llm_imitation N=3 catch"),
+            ("evaluate_g_a2_imitation", "llm_imitation N=3 AUROC"),
             ("evaluate_g_a3_paraphrase", "llm_roundtrip_de N=3 catch"),
             ("evaluate_g_a4_peer_imitation", "public_authors/peer_swap N=3 AUROC"),
         ],
@@ -363,6 +363,24 @@ class TestAdversarialWitnesses:
         result = GATE_CONTRACTS[name].failure_witness()
         assert result.detail["failed_legs"] == [failing_leg]
         assert result.detail["unmeasured_legs"] == []
+
+    def test_g_a2_fails_only_because_it_reads_the_length_matched_side(self):
+        """The witness is the 2026-11-19 shape (T-71): the imitations separate
+        cleanly from the author's full-length documents and not at all from
+        the same documents cut to the imitation's length. Read against the
+        full-length side, the same input would be a DEMONSTRATED pass: catch
+        passes and the full-length AUROC's lower bound clears the bar. So the
+        fail can only come from the gate reading the length-matched side."""
+        from validation.calibration_gate import _GA_AUC_BAR, _ga_auroc_lower
+
+        result = GATE_CONTRACTS["evaluate_g_a2_imitation"].failure_witness()
+        catch, auroc = result.detail["legs"]
+        assert catch["state"] is True and catch["demonstrated"] is True
+        assert auroc["auc"] < _GA_AUC_BAR
+        full = result.detail["comparators"]["llm_imitation N=3"]["full_length_genuine"]
+        lower = _ga_auroc_lower(full["auc"], auroc["n_attack"], full["n"])
+        assert full["auc"] == 1.0 and lower > _GA_AUC_BAR
+        assert result.detail["required_ns"] == [3]
 
     def test_g_a4_witness_is_the_flag_everything_shape(self):
         result = GATE_CONTRACTS["evaluate_g_a4_peer_imitation"].failure_witness()

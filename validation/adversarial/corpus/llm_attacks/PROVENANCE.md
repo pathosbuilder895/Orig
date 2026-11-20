@@ -124,13 +124,14 @@ covered.
 - **Strong prompts.** The imitation prompt hands the model every baseline
   in full (up to 58,000 words); a student would paste less.
 - **Imitations are short.** The imitation prompt asks for about 600
-  words, while the genuine documents G-A2 compares them with run
-  2,500-19,400 words, and a short paper scored against long past papers
-  reads as unlike them whoever wrote it. Measured
+  words, while the victims' genuine held-out documents run 2,500-19,400
+  words, and a short paper scored against long past papers reads as
+  unlike them whoever wrote it. Measured
   (`validation/adversarial/imitation_controls.py`): against the authors'
   own excerpts cut to the imitations' length, the separation does not
-  survive (AUROC 0.27 to 0.43). Do not read G-A2's AUROC as style; see the
-  findings addendum.
+  survive (AUROC 0.27 to 0.43). Since 2026-11-20 G-A2 compares the
+  imitations with exactly those excerpts (the harness's `genuine_slice`
+  cells), not with the full-length documents; see the findings addenda.
 - **Layout differs, but the score does not see it.** For the six
   cross-work victims every baseline and held-out document is one unbroken
   paragraph, while every imitation has paragraphs (3 to 27). Their

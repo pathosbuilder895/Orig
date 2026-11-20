@@ -35,11 +35,20 @@ public_authors (`profiles.build_victim_profiles`, N in {3, 5, 10}):
   sigma_inflation         G-A5 (against `clean` at the same N); its
                           integrity detection is informational in G-A6.
   mechanical_obfuscation  report-only sanity cell (submissions obfuscated).
-llm_attacks (`corpus/llm_attacks/`, absent until `gen_llm_attacks.py` runs
-with an API key):
-  llm_imitation           G-A2
-  llm_paraphrase,         G-A3
-  llm_roundtrip_de/_ja
+llm_attacks (`corpus/llm_attacks/`, committed 2026-11-19; extended by
+`gen_llm_attacks.py` with an API key or `llm_attack_jobs.py`):
+  llm_imitation           G-A2's attack side.
+  genuine_slice           G-A2's genuine side: each of the victim's genuine
+                          held-out documents cut to the first W words, W the
+                          word count of that victim's imitation at that N,
+                          scored against the same baseline. Imitations are
+                          ~650 words and the held-out documents 2,500-19,400,
+                          and a short paper against long past papers reads
+                          as unlike them whoever wrote it, so the full-length
+                          holdouts measured length, not imitation (2026-11-19,
+                          gap register T-71).
+  llm_paraphrase,         G-A3 (against the full-length holdouts they
+  llm_roundtrip_de/_ja    rewrite, which keep their length).
 riddell_juola (attack splits committed; needs each participant's prior
 writing under `corpus/riddell_juola/baselines/`, see fetch_riddell_juola):
   rj_clean                control participants: their own control essay is a
@@ -106,6 +115,10 @@ PUBLIC_AUTHOR_KINDS: tuple[str, ...] = (
 )
 LLM_KINDS: tuple[str, ...] = (
     "llm_imitation",
+    # Not an attack: G-A2's length-matched genuine comparator. Built from the
+    # same cache (it needs each imitation's word count), so it exists exactly
+    # where imitations do.
+    "genuine_slice",
     "llm_paraphrase",
     "llm_roundtrip_de",
     "llm_roundtrip_ja",
@@ -123,7 +136,7 @@ RJ_KINDS: tuple[str, ...] = (
 # report-only and run only from this module's CLI.
 LEG_KINDS: dict[str, tuple[str, ...]] = {
     "G-A1": ("clean", "rj_clean"),
-    "G-A2": ("clean", "llm_imitation"),
+    "G-A2": ("clean", "llm_imitation", "genuine_slice"),
     "G-A3": ("clean", "llm_paraphrase", "llm_roundtrip_de", "llm_roundtrip_ja"),
     "G-A4": ("clean", "rj_clean"),
     "G-A5": ("clean", "sigma_inflation"),
@@ -236,6 +249,22 @@ def llm_cache_status() -> dict:
     return {"present": manifest.exists(), "manifest": _display_path(manifest)}
 
 
+def length_matched_slices(holdouts: list[str], widths) -> list[str]:
+    """Each holdout cut to its first `w` words for every width in `widths`
+    (`imitation_controls.cut_words`: cut on the original text, so its line
+    breaks are kept), in width-then-holdout order. A holdout shorter than a
+    width comes back whole, and a slice already produced is not repeated."""
+    from validation.adversarial.imitation_controls import cut_words
+
+    out: list[str] = []
+    for width in widths:
+        for doc in holdouts:
+            piece = cut_words(doc, width)
+            if piece not in out:
+                out.append(piece)
+    return out
+
+
 def _llm_cells(profiles_by_n, kinds) -> list[Cell]:
     """LLM attack docs scored against the same victim's clean baseline.
 
@@ -243,9 +272,11 @@ def _llm_cells(profiles_by_n, kinds) -> list[Cell]:
     manifest `n_baselines`): an imitation of three essays scored against a
     ten-essay baseline answers a different question. Paraphrase and
     round-trip docs rewrite the victim's genuine holdout, which does not
-    depend on N, so they are scored at every N the victim has. The genuine
-    comparator is the `clean` cell of the same (victim, N), so these cells
-    score only the attack docs."""
+    depend on N, so they are scored at every N the victim has. These cells
+    score only the attack docs: G-A3's genuine comparator is the `clean`
+    cell of the same (victim, N), and G-A2's is the `genuine_slice` cell
+    built here, the same victim's holdouts cut to the length of its
+    imitation at that N and scored as genuine documents."""
     from validation.adversarial.generators import LLMImitation, LLMParaphrase, LLMRoundTrip
 
     readers = {
@@ -258,6 +289,11 @@ def _llm_cells(profiles_by_n, kinds) -> list[Cell]:
     for n, profiles in profiles_by_n.items():
         for profile in profiles:
             for kind in kinds:
+                if kind == "genuine_slice":
+                    cell = _genuine_slice_cell(profile, n, LLMImitation(profile.victim_id))
+                    if cell is not None:
+                        cells.append(cell)
+                    continue
                 if kind not in readers:
                     continue
                 reader = readers[kind](profile.victim_id)
@@ -285,6 +321,32 @@ def _llm_cells(profiles_by_n, kinds) -> list[Cell]:
                     )
                 )
     return cells
+
+
+def _genuine_slice_cell(profile: VictimProfile, n: int, reader) -> Cell | None:
+    """The `genuine_slice` cell for one (victim, N), or None when the victim
+    has no imitation written from N essays."""
+    if not reader.configured:
+        return None
+    widths = sorted(
+        {len(text.split()) for entry, text in reader.load_entries()
+         if entry.get("n_baselines") == n}
+    )
+    slices = length_matched_slices(profile.genuine_holdout, widths)
+    if not slices:
+        return None
+    return Cell(
+        corpus="llm_attacks",
+        kind="genuine_slice",
+        n=n,
+        attack="none",
+        profile=VictimProfile(
+            victim_id=profile.victim_id,
+            baselines=list(profile.baselines),
+            genuine_holdout=slices,
+            impostor_docs=[],
+        ),
+    )
 
 
 def riddell_juola_status() -> dict:
@@ -433,6 +495,11 @@ def _row(cell: Cell, path: str) -> dict:
         "injected_indices": list(cell.injected_indices),
         "impostor_in_baseline": list(cell.impostor_in_baseline),
         "n_baseline_docs": len(cell.profile.baselines),
+        # Whitespace word counts of the documents as given to the runner
+        # (before any mechanical obfuscation), so a reducer can show how
+        # long each side of a comparison was.
+        "holdout_words": [len(t.split()) for t in cell.profile.genuine_holdout],
+        "impostor_words": [len(t.split()) for t in cell.profile.impostor_docs],
     }
     row.update(json.loads(json.dumps(asdict(result))))
     return row
@@ -604,25 +671,59 @@ def _population(name, family, n, attack_rows, genuine_scores, coverage=None) -> 
     }
 
 
+# Attack kinds whose genuine comparator is a length-matched cell rather than
+# the full-length clean holdouts (see the module docstring's genuine_slice).
+LENGTH_MATCHED_COMPARATOR: dict[str, str] = {"llm_imitation": "genuine_slice"}
+
+
 def attack_populations(rows: list[dict], kinds) -> list[dict]:
     """One population per (attack kind, N): the attack docs' actions and
     scores, the genuine-holdout scores of the SAME victims' public-author
     clean cells at that N (the LLM attacks are written against those
-    victims) as the separation comparator, and `coverage` = [victims with
-    attack docs, victims with a clean cell] so a partly generated cache
-    cannot pass."""
+    victims) as `genuine_scores`, and `coverage` = [victims with attack
+    docs, victims with a clean cell] so a partly generated cache cannot
+    pass.
+
+    For a kind in LENGTH_MATCHED_COMPARATOR (llm_imitation) the population
+    also carries that cell kind's holdouts for the same victims and N as
+    `length_matched_genuine_scores` / `_actions` / `_words`, with
+    `length_matched_coverage` = [victims with that cell, victims with attack
+    docs] and `length_matched_refused`. G-A2 reads its separation leg from
+    those; `genuine_scores` stays as the full-length record. Word counts
+    (`attack_words`, `genuine_words`) come from rows that carry them."""
     clean = {(r["victim_id"], r["n"]): r for r in _rows(rows, "clean")}
     expected = {n: len(group) for n, group in _by_n(_rows(rows, "clean")).items()}
     populations = []
     for kind in kinds:
+        matched_kind = LENGTH_MATCHED_COMPARATOR.get(kind)
+        matched = (
+            {(r["victim_id"], r["n"]): r for r in _rows(rows, matched_kind)} if matched_kind else {}
+        )
         for n, kind_rows in _by_n(_rows(rows, kind)).items():
             victims = sorted({r["victim_id"] for r in kind_rows})
-            genuine = [
-                s for v in victims for s in (clean.get((v, n)) or {}).get("holdout_scores", [])
-            ]
-            populations.append(
-                _population(kind, kind, n, kind_rows, genuine, [len(victims), expected.get(n, 0)])
+            clean_rows = [clean[(v, n)] for v in victims if (v, n) in clean]
+            genuine = [s for r in clean_rows for s in r.get("holdout_scores", [])]
+            pop = _population(
+                kind, kind, n, kind_rows, genuine, [len(victims), expected.get(n, 0)]
             )
+            pop["attack_words"] = [
+                w for r in kind_rows for w in kept_impostors(r, "impostor_words")
+            ]
+            pop["genuine_words"] = [w for r in clean_rows for w in r.get("holdout_words") or []]
+            if matched_kind:
+                m_rows = [matched[(v, n)] for v in victims if (v, n) in matched]
+                pop["length_matched_genuine_scores"] = [
+                    s for r in m_rows for s in r["holdout_scores"]
+                ]
+                pop["length_matched_genuine_actions"] = [
+                    a for r in m_rows for a in r["holdout_actions"]
+                ]
+                pop["length_matched_genuine_words"] = [
+                    w for r in m_rows for w in r.get("holdout_words") or []
+                ]
+                pop["length_matched_coverage"] = [len(m_rows), len(victims)]
+                pop["length_matched_refused"] = sum(1 for r in m_rows if r["scoring_refused"])
+            populations.append(pop)
     return populations
 
 

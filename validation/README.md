@@ -225,10 +225,14 @@ has no cache path, and baseline-dependent comparison dimensions are always recom
     # approval; see its PROVENANCE.md). Without that directory they are
     # UNINFORMATIVE, never covered. Extending it needs the owner's approval
     # again: gen_llm_attacks.py (API key) or llm_attack_jobs.py (Claude
-    # subagents). A G-A2 PASS IS NOT READABLE YET: it compares ~650-word
-    # imitations with full-length genuine documents, and that separation
-    # does not survive length matching (validation/adversarial/
-    # imitation_controls.py, gap register T-71).
+    # subagents). Since 2026-11-20 G-A2's separation leg compares the
+    # ~650-word imitations with the same victims' genuine documents CUT TO
+    # EACH IMITATION'S LENGTH (report.py's genuine_slice cells), never with
+    # the full-length documents: a short paper against long past papers
+    # reads as unlike them whoever wrote it, and the full-length AUROC
+    # (0.83-0.87) did not survive length matching (gap register T-71). A
+    # population without the length-matched side cannot pass; the
+    # full-length AUROC is kept in the gate's detail for the record only.
     .venv/bin/python -m validation.calibration_gate --strict \
         --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"
     # the same harness with its report-only cells, raw rows to JSON; --reuse

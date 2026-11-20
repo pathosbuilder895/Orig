@@ -14,7 +14,7 @@ authors and against the CC0 Riddell-Juola corpus of non-professional writers:
 | Gate | Verdict | In one line |
 |---|---|---|
 | G-A1 cold-start FPR | **fail** | 85% / 94% / 88% of genuine documents land at `monitor` or above at N=3/5/10 (bar 5%). At `schedule_conversation` or above: 15% / 16% / 12%. |
-| G-A2 LLM imitation | **uninformative** | Measured 2026-11-19 (addendum below). The gate reads uninformative on sample size, but its separation does not survive length matching: against the author's own excerpts of the same length, the imitations were not told apart (AUROC 0.27 to 0.43). |
+| G-A2 LLM imitation | **fail** | Measured 2026-11-19, re-gated 2026-11-20 against a length-matched comparator (addenda below). Against the author's own writing cut to the imitation's length, Claude's imitations were not told apart from the author (AUROC 0.27 / 0.35 / 0.43 at N=3/5/10, bar 0.60). The earlier separation (0.83 to 0.87) came from comparing ~650-word imitations with full-length documents. |
 | G-A3 LLM paraphrase / MT | **fail** | Measured 2026-11-19 (addendum below): an AI rewording or German round trip of a student's own work was not told apart from the work itself (AUROC 0.56 to 0.59, bar 0.60). |
 | G-A4 peer swap | **fail** | Published authors from other eras separate well (AUROC 0.86 to 0.90 at `4bab200`; see the addendum for drift since). For classmates answering the **same prompt** no separation was observed (AUROC 0.46 to 0.51; the 95% intervals reach about 0.7, so modest separation is not excluded). |
 | G-A5 sigma inflation | **fail** | Replacing a third to two fifths of a baseline with someone else's writing cuts the catch of other people's writing at `schedule_conversation`+ from 61% to 24% (same documents, same victims), and at `monitor`+ below the bar at N=5 and N=10. |
@@ -119,7 +119,8 @@ What this says, plainly:
    victims under this design would most likely produce a pass for the
    wrong reason. Before a G-A2 pass can be read, its genuine comparator
    has to be matched in length (a gate change, with its own failure
-   witness; recorded as T-71's debt).
+   witness; recorded as T-71's debt). Done 2026-11-20: see the next
+   addendum.
 2. **AI rewording of a student's own work was not told apart from the
    work.** A paraphrase or a German round trip of a genuine document is
    flagged about as often as the document itself (within one or two
@@ -227,6 +228,75 @@ Caveats that go with these numbers:
 ```
 
 Run A took 635 s on 8 workers, run B 157 s.
+
+## Addendum 2026-11-20: G-A2 against a length-matched comparator
+
+*Report: `validation/adversarial/reports/2026-11-20_ga2_length_matched.json`
+(75 cells: `clean`, `llm_imitation`, `genuine_slice`; 397 s on 8 workers),
+scored on the live path with the same pilot flags, from a tree whose
+`original/` is unchanged since `216c3e2d`. Read only G-A2 from it.*
+
+**The gate change.** G-A2's separation leg now compares the imitations with
+the same victims' genuine held-out documents cut to the first W words, W
+the word count of that victim's imitation at that N, scored against the
+same baselines (the harness's `genuine_slice` cells,
+`validation/adversarial/report.py`). It no longer reads the full-length
+documents: a population without the length-matched side cannot pass, and
+neither can one where that side covers fewer victims than have imitations.
+The bars are unchanged (caught at `monitor`+ >= 60%, AUROC >= 0.60). The
+catch leg still reads the imitations alone, because only the comparator side
+can be matched in length without changing the live configuration; "flag
+every short document" passes that leg and fails the separation leg. The
+full-length AUROC stays in the gate's detail for the record, never as a leg.
+Failure witness (`validation/gate_contracts.py`): the length-confound shape,
+on which reading the full-length side would be a demonstrated pass.
+
+| Gate | Verdict | In one line |
+|---|---|---|
+| G-A2 LLM imitation | **fail** | Every imitation is caught at `monitor`+, and so is every same-length excerpt of the author's own writing; the imitations do not out-score those excerpts at any N (AUROC 0.27 / 0.35 / 0.43, bar 0.60). |
+
+| N | Victims | Imitations / same-length genuine | Caught at `monitor`+ | AUROC vs same-length genuine (95% interval) | AUROC vs full-length genuine (record only) | `schedule_conversation`+: imitation / same-length / full-length genuine | Median words: imitation / same-length / full-length |
+|---|---|---|---|---|---|---|---|
+| 3 | 13 | 13 / 26 | 100% (same-length genuine: 100%) | 0.269 (0.13 to 0.58) | 0.867 | 46% / 77% / 8% | 661 / 661 / 3,867 |
+| 5 | 6 | 6 / 12 | 100% (100%) | 0.347 (0.10 to 0.70) | 0.833 | 67% / 75% / 17% | 658 / 658 / 2,500 |
+| 10 | 6 | 6 / 12 | 100% (100%) | 0.431 (0.19 to 0.81) | 0.847 | 67% / 67% / 25% | 662 / 662 / 2,500 |
+
+The intervals are the gates' screen (Wilson over the smaller side). Mean
+deviation: imitations 0.59 / 0.62 / 0.64, same-length genuine 0.66 / 0.64 /
+0.65.
+
+What this says, plainly:
+
+1. **G-A2 fails at every N.** On the live path, Claude's imitations of a
+   student's own papers were not told apart from that student's own
+   writing of the same length; if anything they read slightly closer to
+   the author than the author's excerpts did. At N=3 the whole interval
+   sits below the 0.60 bar; at N=5 and N=10, with six victims, the fail
+   stands on the point estimate, the same rule G-A3's fail stands on.
+2. **The catch leg passing says nothing about imitation.** 100% of the
+   imitations reach `monitor`, but so does 100% of the authors' own
+   same-length writing: at this length against these baselines, the live
+   path flags everything.
+3. **This is the 2026-11-19 control promoted into the gate, not a new
+   measurement.** All 75 cells reproduced the 2026-11-19 reports bit for
+   bit: the clean and imitation rows against
+   `2026-11-19_llm_attacks.json`, the same-length genuine rows against the
+   `genuine_slice` rows of `2026-11-19_imitation_controls.json`. Every
+   caveat of the 2026-11-19 addendum applies unchanged: one generator,
+   published authors, a model that knew it was being tested, excerpts that
+   start mid-sentence, and five plain-manifest victims whose first ~650
+   words are headings, synopses or verse (the six cross-work victims alone
+   give 0.18 at N=3).
+4. **What a pass would now mean.** Imitations scoring further from the
+   student than the student's own writing of the same length: a reading of
+   style, not of length. It would still not cover a real student's
+   imitation, a different generator, or imitations of another length; each
+   needs its own corpus.
+
+```bash
+.venv/bin/python -m validation.adversarial.report --kinds clean,llm_imitation,genuine_slice \
+    --out /tmp/ga2_length_matched.json
+```
 
 ## What was measured, and how
 
@@ -429,7 +499,8 @@ less like anyone's established voice, as R2 predicts.
 
 - **LLM attacks (G-A2, G-A3), in this first run.** The cache did not exist
   on 2026-10-21, so both gates read uninformative. They were measured on
-  2026-11-19 once it was generated; see the addendum below.
+  2026-11-19 once it was generated, and G-A2 was re-gated on 2026-11-20
+  against a length-matched comparator; see the two addenda near the top.
 - **Seminary corpus.** It has no real per-author grouping (G1 buckets its
   files into pseudo-students), so it cannot supply a genuine same-author
   holdout.

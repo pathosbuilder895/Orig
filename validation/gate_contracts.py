@@ -467,36 +467,57 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     "evaluate_g_a2_imitation": GateContract(
         gate="G-A2",
         claims="LLM imitations of a student's own baselines are caught (monitor+) "
-        ">= 60% AND out-score that student's genuine holdouts (AUROC >= 0.60)",
+        ">= 60% AND out-score that student's genuine holdouts CUT TO THE "
+        "IMITATION'S LENGTH (AUROC >= 0.60)",
         failure_witness=lambda: evaluate_g_a2_imitation(
             [
                 {
                     "name": "llm_imitation N=3",
-                    "attack_actions": ["no_action"] * 7 + ["monitor"] * 3,
-                    "attack_scores": [0.8] * 10,
-                    "genuine_scores": [0.2] * 10,
+                    "attack_actions": ["monitor"] * 12,
+                    "attack_scores": [0.55, 0.60, 0.65] * 4,
+                    # the author's own documents cut to the imitation's length
+                    "length_matched_genuine_scores": [0.62, 0.67, 0.72] * 4,
+                    "length_matched_genuine_actions": ["monitor"] * 12,
+                    "length_matched_coverage": [12, 12],
+                    # the same documents at full length
+                    "genuine_scores": [0.30, 0.35, 0.40] * 4,
                 }
-            ]
+            ],
+            required_ns=(3,),
         ),
         label_destruction=lambda: evaluate_g_a2_imitation(
             [
                 {
                     "name": "llm_imitation N=3",
-                    "attack_actions": ["monitor"] * 10,
+                    "attack_actions": ["monitor"] * 12,
                     "attack_scores": [0.3, 0.5, 0.7] * 4,
-                    "genuine_scores": [0.3, 0.5, 0.7] * 4,
+                    "length_matched_genuine_scores": [0.3, 0.5, 0.7] * 4,
+                    "length_matched_genuine_actions": ["monitor"] * 12,
                 }
             ]
         ),
         notes=(
-            "The failure witness is the published threat (R3, ~50% attack "
-            "success): 7 of 10 imitations land at no_action. It fails on the "
-            "catch leg while the AUROC leg passes (1.0), so the fail cannot "
-            "come from the separation leg. The label-destruction leg makes the "
-            "imitations exchangeable with genuine work: every document is "
-            "flagged, so the catch leg passes at 100%, and the AUROC is exactly "
-            "0.5, which fails. That is the cold-start 'flag everything' shape "
-            "the separation leg exists to refuse."
+            "The failure witness is the length confound measured on "
+            "2026-11-19 (gap register T-71): short imitations out-score the "
+            "author's full-length documents (AUROC 1.0 here, 0.83-0.87 "
+            "measured) and score BELOW the same documents cut to the "
+            "imitation's length (0.11 here, 0.27-0.43 measured), because a "
+            "short paper against long past papers reads as unlike them "
+            "whoever wrote it. Every imitation is caught, so the catch leg "
+            "passes and is demonstrated (12 of 12), and required_ns is (3,), "
+            "so read against the full-length side this exact input would be a "
+            "DEMONSTRATED PASS (AUROC 1.0, lower bound above 0.60). It fails "
+            "only because the separation leg reads the length-matched side; "
+            "pinned in TestAdversarialWitnesses.test_g_a2_fails_only_because_"
+            "it_reads_the_length_matched_side. The catch leg's own failure "
+            "(7 of 10 imitations at no_action, the published R3 threat) is "
+            "tests/adversarial/test_gates.py::TestGA2LengthMatched::test_"
+            "catch_failure_stands_with_perfect_length_matched_separation. "
+            "The label-destruction leg makes the imitations exchangeable with "
+            "the author's same-length writing: every document is flagged, so "
+            "the catch leg passes at 100%, and the AUROC is exactly 0.5, "
+            "which fails. That is the 'flag every short document' shape the "
+            "length-matched separation leg exists to refuse."
         ),
     ),
     "evaluate_g_a3_paraphrase": GateContract(
