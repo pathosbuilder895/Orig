@@ -495,13 +495,14 @@ git commit -m "Docs: macro-only keystroke posture; retire Tier 17 runbook (ADR-0
 
 - [x] **Step 3: Implement the generators as cache-readers** (no API client in the product/test path). Implement `gen_llm_attacks.py` as the offline populator: it imports `anthropic`, reads victim profiles, prompts the latest Claude model (imitation = "write ~N words on {topic} in the style of these baselines: …"; paraphrase = "rewrite preserving meaning"; round-trip = EN→DE→EN and EN→JA→EN), and writes docs + manifest into `corpus/llm_attacks/`. Lock the env (`validation/benchmark/reproducibility.lock_environment()` pattern) before importing `original.*`.
 
-- [ ] **Step 4: BLOCKED — needs a human with an `ANTHROPIC_API_KEY` in the validation environment.** Not run in this session (no key available). Run the offline generator once to populate and commit the cache:
+- [x] **Step 4: Done 2026-11-19 by another route (see the note below). Originally: BLOCKED, needs a human with an `ANTHROPIC_API_KEY` in the validation environment.** Not run in this session (no key available). Run the offline generator once to populate and commit the cache:
 ```bash
 pip install anthropic   # not installed in this venv yet
 ANTHROPIC_API_KEY=sk-ant-… /Users/andrew/Desktop/Original/.venv/bin/python -m validation.adversarial.gen_llm_attacks --n-baselines 3,5,10
 ```
 Until this runs, `validation/adversarial/corpus/llm_attacks/` does not exist, and `LLMImitation`/`LLMParaphrase`/`LLMRoundTrip` correctly report `configured=False` — gates G-A2/G-A3 (Task 19) will read as `uninformative`, by design, not `fail`.
   *Still open 2026-10-21:* not run (no key in the validation environment, and generating attacks needs the owner's approval). G-A2/G-A3 are wired and read `uninformative` with that reason; once the cache is committed, `python -m validation.adversarial.report` scores it with no code change.
+  *Done 2026-11-19:* with no API key, the owner approved generating the cache with Claude itself. `validation/adversarial/llm_attack_jobs.py` builds each prompt with this script's own prompt builders (so `prompt_sha` means the same thing), Claude Code subagents on `claude-opus-5-5` answered them, and `assemble` checked and wrote 61 docs: 25 imitations (every victim at every N), and paraphrases plus German and Japanese round trips of the 6 cross-work victims' 12 held-out documents. The 7 plain-manifest victims (held-out documents 2,800-19,400 words, 12 of 14 over 7,500) have imitations only (owner deferred the rest), so G-A3 at N=3 covers 6 of 13. How it was made and where it differs from this script: `validation/adversarial/corpus/llm_attacks/PROVENANCE.md`. This script itself has still not been run, and its `max_tokens=4096` would truncate a long translation without saying so.
 
 - [x] **Step 5: Run tests, expect PASS. Step 6: Commit** the generators, the script (cache-reader classes + populator script only — the committed cache itself is Step 4's output, still pending).
 

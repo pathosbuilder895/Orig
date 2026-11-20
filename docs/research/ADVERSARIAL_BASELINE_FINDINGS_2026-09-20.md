@@ -14,9 +14,9 @@ authors and against the CC0 Riddell-Juola corpus of non-professional writers:
 | Gate | Verdict | In one line |
 |---|---|---|
 | G-A1 cold-start FPR | **fail** | 85% / 94% / 88% of genuine documents land at `monitor` or above at N=3/5/10 (bar 5%). At `schedule_conversation` or above: 15% / 16% / 12%. |
-| G-A2 LLM imitation | **uninformative** | Not measured: the LLM attack cache has not been generated. |
-| G-A3 LLM paraphrase / MT | **uninformative** | Not measured, same reason. |
-| G-A4 peer swap | **fail** | Published authors from other eras separate well (AUROC 0.86 to 0.90). For classmates answering the **same prompt** no separation was observed (AUROC 0.46 to 0.51; the 95% intervals reach about 0.7, so modest separation is not excluded). |
+| G-A2 LLM imitation | **uninformative** | Measured 2026-11-19 (addendum below). The gate reads uninformative on sample size, but its separation does not survive length matching: against the author's own excerpts of the same length, the imitations were not told apart (AUROC 0.27 to 0.43). |
+| G-A3 LLM paraphrase / MT | **fail** | Measured 2026-11-19 (addendum below): an AI rewording or German round trip of a student's own work was not told apart from the work itself (AUROC 0.56 to 0.59, bar 0.60). |
+| G-A4 peer swap | **fail** | Published authors from other eras separate well (AUROC 0.86 to 0.90 at `4bab200`; see the addendum for drift since). For classmates answering the **same prompt** no separation was observed (AUROC 0.46 to 0.51; the 95% intervals reach about 0.7, so modest separation is not excluded). |
 | G-A5 sigma inflation | **fail** | Replacing a third to two fifths of a baseline with someone else's writing cuts the catch of other people's writing at `schedule_conversation`+ from 61% to 24% (same documents, same victims), and at `monitor`+ below the bar at N=5 and N=10. |
 | G-A6 baseline integrity | **fail** | A drift-gate hold or an integrity outlier note appears on 15% to 58% of **clean** baselines and points at the injected document on 0% to 33% of poisoned ones: it does not tell them apart. |
 
@@ -25,7 +25,8 @@ What this says, plainly:
 1. **`monitor` carries no information on its own.** It is the normal outcome
    for honest work (73% to 100% of genuine documents, depending on corpus
    and N). The bar that asks a teacher to act is `schedule_conversation`;
-   there, honest published prose is flagged 4% to 8% of the time and honest
+   there, honest published prose is flagged 4% to 8% of the time (first run,
+   at `4bab200`; 8% to 25% at `216c3e2d`, see the 2026-11-19 addendum) and honest
    non-professional essays on a new topic 15% to 30%.
 2. **The classroom case was not detected.** On a classmate's essay to the
    same prompt, no separation from the student's own essay was observed
@@ -57,6 +58,175 @@ What this says, plainly:
 None of this changed a score, a constant or a flag. These are measurements
 of the pipeline as it ships, and the numbers every later sub-project must
 report against.
+
+## Addendum 2026-11-19: LLM attacks (G-A2, G-A3)
+
+*Corpus: `validation/adversarial/corpus/llm_attacks/`, 61 documents written
+by Claude Opus 5.5 through Claude Code subagents. No API key was available,
+so the owner approved generating them with Claude itself; how they were
+made, and every way that differs from `gen_llm_attacks.py`, is in that
+directory's `PROVENANCE.md`. Report:
+`validation/adversarial/reports/2026-11-19_llm_attacks.json`, scored at
+`216c3e2d` on the live path with the same pilot flags as the first run. That
+report re-scored only the public-author clean cells and the LLM cells, so
+read only G-A2 and G-A3 from it.*
+
+| Gate | Verdict | In one line |
+|---|---|---|
+| G-A2 LLM imitation | **uninformative** | The gate's own verdict: every point estimate clears its bar (caught at `monitor`+ 100%, AUROC 0.83 to 0.87), but with 13 and 6 victims no AUROC's 95% lower bound clears 0.60 (0.58 / 0.44 / 0.44). That separation does not survive length matching: scored against the author's own excerpts cut to the imitation's length, the imitations were not told apart (AUROC 0.27 to 0.43). |
+| G-A3 LLM paraphrase / MT | **fail** | Paraphrases and German round trips of a student's own work were not told apart from the work itself: AUROC 0.56 to 0.59 at N=3, 5 and 10, below the 0.60 bar on the point estimate. Japanese round trips 0.61 to 0.64, none demonstrated. |
+
+Each population is scored against the same victims' genuine held-out
+documents at the same N: all 13 victims for imitation at N=3, the 6
+cross-work victims everywhere else.
+
+| Attack | N | Docs | `monitor`+ | `schedule_conversation`+ | Genuine at `schedule_conversation`+ | AUROC (95% lower bound) |
+|---|---|---|---|---|---|---|
+| imitation | 3 | 13 | 100% | 46% | 8% (2/26) | 0.867 (0.578) |
+| imitation | 5 | 6 | 100% | 67% | 17% (2/12) | 0.833 (0.436) |
+| imitation | 10 | 6 | 100% | 67% | 25% (3/12) | 0.847 (0.436) |
+| paraphrase | 3 | 12 | 83% | 17% | 17% (2/12) | 0.556 |
+| paraphrase | 5 | 12 | 100% | 17% | 17% (2/12) | 0.583 |
+| paraphrase | 10 | 12 | 92% | 17% | 25% (3/12) | 0.590 |
+| round trip, German | 3 | 12 | 83% | 25% | 17% (2/12) | 0.576 |
+| round trip, German | 5 | 12 | 83% | 25% | 17% (2/12) | 0.562 |
+| round trip, German | 10 | 12 | 92% | 17% | 25% (3/12) | 0.576 |
+| round trip, Japanese | 3 | 12 | 92% | 17% | 17% (2/12) | 0.611 |
+| round trip, Japanese | 5 | 12 | 92% | 8% | 17% (2/12) | 0.639 |
+| round trip, Japanese | 10 | 12 | 92% | 17% | 25% (3/12) | 0.632 (0.391) |
+
+For comparison, another published author's own writing under the same
+victims' names (the clean cells' peer swaps) reaches
+`schedule_conversation`+ 65% / 60% / 70% of the time at N=3/5/10.
+
+What this says, plainly:
+
+1. **AI imitation was not told apart from the author; the gate's separation
+   came from length.**
+   Claude's imitations are about 650 words, and G-A2 compares them with
+   genuine documents of 2,500 to 19,400 words. A short paper against long
+   past papers reads as unlike them whoever wrote it
+   (`docs/research/2026-11-14-length-matched-baseline.md`), so a control
+   scored each victim's genuine held-out documents cut to the imitation's
+   own length, on the same path and baselines (the length and layout
+   controls below). Against those, the imitations were not told apart from
+   the author: AUROC 0.27 / 0.35 / 0.43 at N=3/5/10, and the author's own
+   excerpts reached `schedule_conversation`+ more often (77% / 75% / 67%)
+   than the imitations (46% / 67% / 67%). The reverse ordering, imitations
+   reading as more like the author than the author's excerpts, is not
+   demonstrated either (lower bounds 0.50 / 0.30 / 0.19 in that
+   direction). So G-A2's uninformative verdict understates the gap: more
+   victims under this design would most likely produce a pass for the
+   wrong reason. Before a G-A2 pass can be read, its genuine comparator
+   has to be matched in length (a gate change, with its own failure
+   witness; recorded as T-71's debt).
+2. **AI rewording of a student's own work was not told apart from the
+   work.** A paraphrase or a German round trip of a genuine document is
+   flagged about as often as the document itself (within one or two
+   documents of 12 at either bar). No separation was observed; with 12
+   documents a side the intervals reach about 0.8, so modest separation is
+   not excluded. This asks whether the laundering step is visible, and on
+   this corpus it was not: the rewrites keep each document's order and
+   content, though the paraphrases keep only 2% to 17% of its word 8-grams.
+   This corpus laundered only the victims' own texts, so it says nothing
+   about a purchased essay passing as the student's.
+3. **Japanese round trips keep less of the source's wording than German
+   ones** (7% to 18% of its word 8-grams against 16% to 54%). Their AUROCs
+   are higher (0.61 to 0.64 against 0.56 to 0.58), but that gap is within
+   the noise of 12 documents a side and is not demonstrated.
+
+### Length and layout controls for G-A2 (report-only)
+
+`validation/adversarial/imitation_controls.py`, results in
+`validation/adversarial/reports/2026-11-19_imitation_controls.json`, scored
+at `216c3e2d` on the same live path and baselines as G-A2 (50 cells). Two
+controls for the two differences the validation review found:
+
+- **genuine_slice:** each genuine held-out document cut to the first W
+  words, W the word count of that victim's imitation at that N, keeping
+  its own formatting. Matches length.
+- **imitation_flat:** the imitation with its paragraph breaks removed, for
+  the six cross-work victims, whose baselines and held-out documents are
+  each one unbroken paragraph (the imitations have 3 to 27). Matches
+  layout as well; it turned out not to matter (below).
+
+| N | Victims | Imitation vs full-length genuine | Imitation vs same-length genuine | Flattened imitation vs same-length genuine | `schedule_conversation`+: imitation / same-length genuine / full-length genuine |
+|---|---|---|---|---|---|
+| 3 | 13 | 0.867 | 0.269 | 0.275 | 46% / 77% / 8% |
+| 5 | 6 | 0.833 | 0.347 | 0.361 | 67% / 75% / 17% |
+| 10 | 6 | 0.847 | 0.431 | 0.389 | 67% / 67% / 25% |
+
+Mean deviation: imitations 0.59 / 0.62 / 0.64, same-length genuine
+excerpts 0.66 / 0.64 / 0.65. The separation does not survive length
+matching; at N=3 the screen's upper bound in the detection direction is
+about 0.50, below the 0.60 bar. Removing the paragraph breaks changes almost
+nothing, and could not change much: these victims' paragraph length is the same in every baseline, so the score leaves that feature out (`StudentState.active_feature_mask`, `original/quantum/state.py`). Ten of the 18 flattened
+imitations score exactly as before and the rest move by at most 0.025.
+
+Two caveats on the excerpts. An excerpt starts mid-sentence and is cut from
+a longer work, while an imitation is a complete piece. And in five of the
+seven plain-manifest victims the first ~650 words are not ordinary prose:
+douglass, newman and kempis open with chapter or discourse headings,
+all-capitals synopses or footnotes, boethius and james with indented verse
+or quotation. That raises those excerpts' scores and pushes the AUROC down,
+but it does not drive the result: the six cross-work victims, whose
+excerpts are running prose (an inline chapter title at most), give 0.18 at N=3 on their own, and the seven
+plain-manifest victims 0.30.
+
+```bash
+.venv/bin/python -m validation.adversarial.imitation_controls \
+    --report validation/adversarial/reports/2026-11-19_llm_attacks.json \
+    --out /tmp/imitation_controls.json
+```
+
+Caveats that go with these numbers:
+
+- **One generator, published authors, and the model knew.** Every document
+  is Claude Opus 5.5 answering a brief that said it was a test; the victims
+  are nineteenth- and early-twentieth-century prose. See `PROVENANCE.md`.
+- **Famous originals can be recalled.** A German round trip of Mill shares
+  54% of its word 8-grams with Mill's own text, likely from memory. That
+  makes a round trip look more like its author than it would for a student,
+  so these round trips are, if anything, harder to catch than a student's.
+- **G-A3 at N=3 covers 6 of 13 victims.** The seven plain-manifest victims
+  (held-out documents 2,800-19,400 words, 12 of 14 over 7,500) have
+  imitations only (the owner deferred the rest), so a G-A3 pass at N=3
+  would have been withheld anyway; the fail stands on its point estimates.
+- **Small, repeated samples.** Each G-A3 comparison is 12 laundered against
+  12 genuine documents, two per victim from six victims, so the effective
+  sample is nearer six; G-A2 at N=3 compares 13 imitations with 26 genuine
+  documents. The same 36 laundered documents are scored at every N, so
+  "at every N" is one corpus against three baseline sizes, not three
+  independent replications. The AUROC screen assumes independent documents
+  (lower bound 0.39 at 0.63).
+- **Paraphrases added paragraphs.** The sources of the six victims are each
+  one paragraph; the paraphrases of chesterton, dickens and emerson split
+  them into about 15 to 55. That likely matters little: these victims' paragraph length is the same in every baseline, so the score leaves that feature out (`StudentState.active_feature_mask`, `original/quantum/state.py`), and
+  flattening the imitations moved their scores by at most 0.025.
+- **The report's metadata was annotated by hand.** Its `reused_from` and
+  `read_only_these_gates` fields were written by hand (the scratch paths
+  replaced), and its top-level `kinds`, `n_cells`, `corpus_fingerprint` and
+  `runtime_seconds` describe run A only, because `--reuse` keeps the first
+  input's metadata; both runs' are under `merged_meta`. The G-A1, G-A4, G-A5
+  and G-A6 entries in it are partial and are not results.
+- **Honest-paper scores moved since the first run.** Re-scored at
+  `216c3e2d`, the public-author genuine documents reach `monitor`+ 62% /
+  83% / 75% at N=3/5/10 (first run, at `4bab200`: 73% / 83% / 92%) and
+  `schedule_conversation`+ 8% / 17% / 25% (4% / 8% / 8%). The mean
+  deviation moved by -0.016, the largest single document by 0.29. Peer-swap
+  AUROC on public authors moved too, from 0.892 / 0.897 / 0.864 to
+  0.907 / 0.808 / 0.817 (drift, not a G-A4 result: this run has no
+  Riddell-Juola cells). 86 commits touching `original/` landed between the
+  two; which one moved these was not investigated here, and every other
+  number in this document outside this addendum is from the first run.
+
+```bash
+.venv/bin/python -m validation.adversarial.report --out /tmp/a.json --kinds clean,llm_imitation,llm_paraphrase
+.venv/bin/python -m validation.adversarial.report --out /tmp/b.json --kinds llm_roundtrip_de,llm_roundtrip_ja
+.venv/bin/python -m validation.adversarial.report --out /tmp/llm.json --reuse /tmp/a.json /tmp/b.json
+```
+
+Run A took 635 s on 8 workers, run B 157 s.
 
 ## What was measured, and how
 
@@ -257,12 +427,9 @@ less like anyone's established voice, as R2 predicts.
 
 ## What was excluded, and why
 
-- **LLM attacks (G-A2, G-A3).** `validation/adversarial/corpus/llm_attacks/`
-  does not exist: `gen_llm_attacks.py` needs an `ANTHROPIC_API_KEY` and the
-  owner's approval (plan Task 15 Step 4). Both gates are uninformative by
-  design, never a pass. Imitation by an LLM of a student's own baselines and
-  LLM laundering of a student's draft, the two threats the audit called most
-  realistic in 2026, remain unmeasured.
+- **LLM attacks (G-A2, G-A3), in this first run.** The cache did not exist
+  on 2026-10-21, so both gates read uninformative. They were measured on
+  2026-11-19 once it was generated; see the addendum below.
 - **Seminary corpus.** It has no real per-author grouping (G1 buckets its
   files into pseudo-students), so it cannot supply a genuine same-author
   holdout.

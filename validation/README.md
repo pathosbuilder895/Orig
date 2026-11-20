@@ -219,10 +219,16 @@ has no cache path, and baseline-dependent comparison dimensions are always recom
     # adversarial verification gates G-A1..G-A6 (SP1 red-team harness,
     # validation/adversarial/). Unlike G1-G6 these score through the LIVE
     # path (pilot flags, typicality off) in parallel workers
-    # (ADVERSARIAL_WORKERS, default cores-2). G-A2/G-A3 are UNINFORMATIVE
-    # until validation/adversarial/corpus/llm_attacks/ exists: generating it
-    # needs an API key and the owner's approval (gen_llm_attacks.py), and the
-    # gates must never read as covered without it.
+    # (ADVERSARIAL_WORKERS, default cores-2). G-A2/G-A3 read the committed
+    # validation/adversarial/corpus/llm_attacks/ (61 Claude Opus 5.5 docs,
+    # generated 2026-11-19 through llm_attack_jobs.py with the owner's
+    # approval; see its PROVENANCE.md). Without that directory they are
+    # UNINFORMATIVE, never covered. Extending it needs the owner's approval
+    # again: gen_llm_attacks.py (API key) or llm_attack_jobs.py (Claude
+    # subagents). A G-A2 PASS IS NOT READABLE YET: it compares ~650-word
+    # imitations with full-length genuine documents, and that separation
+    # does not survive length matching (validation/adversarial/
+    # imitation_controls.py, gap register T-71).
     .venv/bin/python -m validation.calibration_gate --strict \
         --only "G-A1,G-A2,G-A3,G-A4,G-A5,G-A6"
     # the same harness with its report-only cells, raw rows to JSON; --reuse
