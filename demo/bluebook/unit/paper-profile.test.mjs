@@ -51,3 +51,60 @@ test('server strings are escaped', () => {
   assert.doesNotMatch(html, /<b>Works<\/b>|<i>p<\/i>/);
   assert.match(html, /&lt;b&gt;Works&lt;\/b&gt;/);
 });
+
+// Parts of the paper (paper_profile.parts, only with MATTER_SPLITTER_ENABLED on).
+const parts = [
+  { kind: 'title_page', label: 'Title page', possible: false, rules_status: 'set_aside', status: 'set_aside', by: 'rules', words: 34, first_line: 'A Strong Rod Broken', ranges: [[0, 187]] },
+  { kind: 'abstract', label: 'Abstract', possible: false, rules_status: 'set_aside', status: 'measured', by: 'teacher', words: 182, first_line: 'Abstract', ranges: [[189, 1375]] },
+  { kind: 'notes', label: 'Notes', possible: true, rules_status: 'measured', status: 'measured', by: 'rules', words: 40, first_line: 'Notes', ranges: [[5000, 5300]] },
+  { kind: 'back_matter', label: 'References', possible: false, rules_status: 'set_aside', status: 'set_aside', by: 'rules', words: 1, first_line: '<b>References</b>', ranges: [[10087, 11163]] },
+];
+
+test('each part in plain words', () => {
+  assert.equal(PP.partWords(parts[0]), 'Title page: set aside, 34 words');
+  assert.equal(PP.partWords(parts[1]), 'Abstract: measured (your choice), 182 words');
+  assert.equal(PP.partWords(parts[2]), 'Possible notes: measured, 40 words');
+  assert.equal(PP.partWords(parts[3]), 'References: set aside, 1 word');
+  assert.equal(PP.partWords(null), '');
+});
+
+test('the parts row appears only when the server listed parts', () => {
+  assert.doesNotMatch(PP.table(profile), /Parts of the paper/);
+  const withParts = PP.table({ ...profile, this_paper: { ...mla, parts }, past_papers: [{ paper: 'past paper 1', ...none, parts: [] }] });
+  assert.match(withParts, /<th scope="row">Parts of the paper<\/th><td><div class="pp-pl">Title page: set aside, 34 words<\/div><div class="pp-pl">Abstract: measured \(your choice\), 182 words<\/div><div class="pp-pl">Possible notes: measured, 40 words<\/div><div class="pp-pl">References: set aside, 1 word<\/div><\/td><td>Nothing set aside<\/td>/);
+  assert.equal(PP.hasParts({ paper_profile: profile }), false);
+  assert.equal(PP.hasParts({ paper_profile: { this_paper: { parts: [] } } }), true);
+});
+
+test('the list carries one button per part, worded for what it would do, escaped', () => {
+  const html = PP.partsList(parts);
+  assert.equal((html.match(/<button/g) || []).length, 4);
+  assert.match(html, /data-part="0" data-act="measured">Measure this part</);
+  assert.match(html, /data-part="1" data-act="set_aside">Set this part aside</);
+  assert.match(html, /data-part="2" data-act="set_aside">Set this part aside</);
+  assert.match(html, /&lt;b&gt;References&lt;\/b&gt;/);
+  assert.doesNotMatch(html, /<b>References/);
+  assert.equal(PP.partsList([]), '');
+  assert.doesNotMatch(PP.partsList(parts, { control: false }), /<button/);
+});
+
+test('the choice is read from the server and changed one part at a time', () => {
+  const now = PP.choiceOf({ parts, choice: { exclude_ranges: [], include_ranges: [[189, 1375]] } });
+  assert.deepEqual(now, { exclude_ranges: [], include_ranges: [[189, 1375]] });
+  assert.deepEqual(PP.choiceOf({ exclude_ranges: [[3, 4], [1, 2]], include_ranges: 'x' }), { exclude_ranges: [[1, 2], [3, 4]], include_ranges: [] });
+  assert.deepEqual(PP.choiceOf(null), { exclude_ranges: [], include_ranges: [] });
+  // Set the possible notes aside: a new range set aside.
+  const a = PP.nextChoice(now, parts[2], 'set_aside');
+  assert.deepEqual(a, { exclude_ranges: [[5000, 5300]], include_ranges: [[189, 1375]] });
+  // The abstract back to what the rules do: it leaves both lists.
+  const b = PP.nextChoice(a, parts[1], 'set_aside');
+  assert.deepEqual(b, { exclude_ranges: [[5000, 5300]], include_ranges: [] });
+  // Measure the title page, then set it aside again: back to the rules.
+  const c = PP.nextChoice(b, parts[0], 'measured');
+  assert.deepEqual(c.include_ranges, [[0, 187]]);
+  assert.deepEqual(PP.nextChoice(c, parts[0], 'set_aside'), b);
+  // A part inside a range of the opposite choice is cut out of it, never both.
+  const d = PP.nextChoice({ exclude_ranges: [[0, 2000]], include_ranges: [] }, parts[1], 'measured');
+  assert.deepEqual(d, { exclude_ranges: [[0, 189], [1375, 2000]], include_ranges: [[189, 1375]] });
+  assert.deepEqual(PP.nextChoice(null, { ranges: 'x', rules_status: 'measured' }, 'set_aside'), { exclude_ranges: [], include_ranges: [] });
+});
