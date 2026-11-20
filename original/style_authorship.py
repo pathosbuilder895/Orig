@@ -228,8 +228,8 @@ def predict_style_authorship(
     states: Iterable[StudentState],
 ) -> StyleAuthorshipResult | None:
     """Return same-author consistency evidence or abstain with ``None``."""
-    text = without_page_breaks(text)  # a stored page break is not writing
     try:
+        text = without_page_breaks(text)  # a stored page break is not writing
         if len(text.split()) < MIN_WORDS or not _ensure_loaded():
             return None
         artifact = _artifact

@@ -145,8 +145,8 @@ def predict_fused_score_with_reason(
     the logs with the WARNING the blanket handler below emits for a genuine
     bug.
     """
-    text = without_page_breaks(text)  # a stored page break is not writing
     try:
+        text = without_page_breaks(text)  # a stored page break is not writing
         # Cheapest checks first: a short probe or a missing artifact must not
         # pay for eight peer profiles before abstaining.
         if len(text.split()) < MIN_WORDS:
