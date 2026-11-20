@@ -820,7 +820,7 @@ def test_a_verse_or_a_range_is_never_a_note_marker(prose, number):
     assert not matter.has_note_marker(number, prose)
 
 
-@pytest.mark.parametrize("prose, number", [("him?6 We", 6), ("xi.2 3.", 2), ("rod_.5", 5)])
+@pytest.mark.parametrize("prose, number", [("him?6 We", 6), ("xi.2 3.", 2), ("rod_.5", 5), ("why.3 The", 3)])
 def test_a_superscript_note_number_is_a_marker(prose, number):
     assert matter.has_note_marker(number, prose)
 
@@ -838,3 +838,50 @@ def test_page_bottom_footnotes_count_toward_the_soft_cap(caplog):
         assert "footnote" not in _kinds(text)
     assert "keeping them as prose" in caplog.text
     assert any(kind == "footnote" for kind, _ in _possible(text))
+
+
+def test_dotted_references_and_unmarked_points_are_not_footnotes():
+    """Second score-integrity witness: dotted references ("Romans 8.1",
+    "Institutes 3.2.7") are not note markers, an author-date bracket is not a
+    note citation, and the student's three numbered points ending a page stay
+    prose (61 of 441 words were set aside before the fix)."""
+    p = (
+        "Calvin reads Romans 8.1 as the hinge of the letter, and his exposition in the "
+        "Institutes 3.2.7 develops it at length for the church. This paper argues that the "
+        "reading has three practical consequences for pastoral care, which I set out below. "
+    ) * 3
+    items = [
+        "1. Assurance comes first, as Webster argues (2003), so pastoral care begins from the "
+        "gift and not the demand.",
+        "2. The Spirit, not willpower, is the agent of change, as Barth insists (1956), so "
+        "counsel should point there first.",
+        "3. Suffering is not a sign of rejection, as Calvin says (1559), and the pastor can say "
+        "so plainly to the grieving.",
+    ]
+    p2 = (
+        "The second section turns to the wider argument of the letter and how the church "
+        "received it over the centuries, with attention to the way the claims were preached. "
+    ) * 4
+    for brk in (FF, matter.PDF_PAGE_BREAK):
+        text = p + "\n\n" + "\n\n".join(items) + brk + p2 + "\n\n" + p2
+        assert matter.find_matter(text) == []
+        assert len(pp._body(text).split()) == len(text.split())
+        assert any(kind == "footnote" for kind, _ in _possible(text))  # listed, measured
+
+
+@pytest.mark.parametrize(
+    "prose, number",
+    [("Romans 8.1 as", 1), ("Institutes 3.2.7 develops", 7), ("Institutes 3.2.7", 2),
+     ("Isaiah 53.5 says", 5), ("in v.3 he", 3), ("in vv.4-5", 4), ("section 2.1 shows", 1)],
+)  # fmt: skip
+def test_a_dotted_reference_is_never_a_note_marker(prose, number):
+    assert not matter.has_note_marker(number, prose)
+
+
+def test_a_marker_on_an_earlier_page_does_not_vouch_for_a_block():
+    page1 = "The sentence is famous because it is honest.1 " + PARA
+    page2 = PARA + "\n\n1 Marsden, Jonathan Edwards, 63."
+    text = f"{page1}{FF}{page2}{FF}{PARA}\n"
+    assert "1 Marsden" in _kept(text)
+    same_page = f"{page1}\n\n1 Marsden, Jonathan Edwards, 63.{FF}{PARA}\n"
+    assert "1 Marsden" not in _kept(same_page)  # the marker above it, on its page

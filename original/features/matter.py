@@ -124,11 +124,17 @@ PAGE_BREAK = "\n" + PAGE_MARK + "\n"
 #: A PDF page boundary: two marks, so the matter path knows the lines around
 #: it are as pypdf printed them (hard-wrapped) and may reflow them.
 PDF_PAGE_BREAK = "\n" + PAGE_MARK * 2 + "\n"
-#: A stored page marker. ``features.preprocess`` drops it before anything is
-#: measured (and ``evidence.engine_view`` mirrors that), as do the duplicate
-#: checks and the raw-text experts, so a paper with page markers measures and
-#: hashes exactly as the same paper extracted before they were kept.
-LONE_PAGE_MARK = re.compile(r"^\x1f{1,2}$", re.MULTILINE)
+#: Appended to every PDF's text (one page or many), after a newline, so the
+#: matter path can tell a PDF's hard-wrapped lines from a paste's. Trailing
+#: whitespace to Python, so ``strip`` would drop it: ``upload_utils``
+#: keeps it where a route strips an upload (``strip_upload``).
+PDF_TAG = "\n" + PAGE_MARK * 3
+#: A stored page marker or PDF tag. ``features.preprocess`` drops them before
+#: anything is measured (and ``evidence.engine_view`` mirrors that), as do the
+#: duplicate checks and the raw-text experts, so a paper with page markers
+#: measures and hashes exactly as the same paper extracted before they were
+#: kept.
+LONE_PAGE_MARK = re.compile(r"^\x1f{1,2}$|\n\x1f{3}\Z", re.MULTILINE)
 
 
 def without_page_breaks(text: str) -> str:
@@ -138,7 +144,7 @@ def without_page_breaks(text: str) -> str:
 
 def is_pdf_text(text: str) -> bool:
     """Stored text extracted from a PDF since page markers were kept."""
-    return PDF_PAGE_BREAK in text
+    return text.endswith(PDF_TAG) or PDF_PAGE_BREAK in text
 
 
 #: Setting aside more than this share of the body's words as low-confidence
@@ -156,6 +162,8 @@ ABSTRACT_MAX_WORDS = 350
 ABSTRACT_WITHIN = 0.25
 #: A footnote longer than this is read as prose.
 NOTE_MAX_WORDS = 100
+#: An unnumbered line continues a footnote only up to this many words.
+NOTE_CONTINUATION_WORDS = 25
 #: A list of sources with no heading needs at least this many entries.
 UNHEADED_MIN_ENTRIES = 5
 
@@ -251,7 +259,15 @@ _FOOTNOTE_LINE = re.compile(
 )
 # A year inside brackets with a comma before it in the note: "(2019): 119",
 # "(New Haven: Yale, 2003)".
-_NOTE_CITE = re.compile(r",[^()]*\([^()]*\b(?:1[5-9]\d\d|20\d\d)\b[^()]*\)")
+# A note-shaped citation inside a note: a publication bracket "(New Haven:
+# Yale, 2003)", a journal issue "(2019): 119", "Ibid." / "op. cit.", or a URL.
+# Not a bare author-date bracket ("as Barth insists (1956)"), which prose has.
+_NOTE_CITE = re.compile(
+    r"\([^()]*:[^()]*\b(?:1[5-9]\d\d|20\d\d)\b[^()]*\)"
+    r"|\((?:1[5-9]\d\d|20\d\d)\):\s*\d"
+    r"|\bibid\b|\bop\.\s*cit\b|https?://|\bdoi:",
+    re.IGNORECASE,
+)
 _SECTION_NAMES = frozenset(
     {
         "abstract", "introduction", "method", "methods", "methodology", "participants",
@@ -417,7 +433,7 @@ def _is_mark_line(raw: str) -> bool:
 def _doc(text: str) -> _Doc:
     spans = _lines(text)
     lines_raw = [s for _, _, s in spans]
-    lines = [s.replace(PAGE_MARK, "") if _is_mark_line(s) else s for _, _, s in spans]
+    lines = [s.replace(PAGE_MARK, "") for _, _, s in spans]  # only uploads carry marks
     brk, pending = [], False
     for _, _, raw in spans:
         if _is_mark_line(raw):
@@ -644,10 +660,16 @@ def _abstract(d: _Doc, taken: set[int]) -> tuple[tuple[int, int] | None, tuple[i
 
 def has_note_marker(number: int, text: str) -> bool:
     """A note number printed right after a word or punctuation (a superscript
-    run into the text), e.g. "him?6 We", "xi.2 3.". A verse or a range is
-    never a marker: not after or before a colon ("8:1", "1:"), not inside a
-    range ("8:1-2", "12-14")."""
-    pat = r"(?<=[A-Za-z.,;!?\"'”’)\]_])" + str(number) + r"(?![\d:])(?![-\u2013]\d)"
+    run into the text), e.g. "him?6 We", "rod_.5". A reference is never a
+    marker: not a colon verse ("8:1", "1:"), not a dotted reference or
+    section number ("Romans 8.1", "Institutes 3.2.7", "Isaiah 53.5"), not
+    after "v." or "vv.", not inside a range ("8:1-2", "12-14"). (A paragraph
+    number run into a marker, "5.1 And", is read as a reference: measured.)"""
+    pat = (
+        r"(?<=[A-Za-z.,;!?\"'\u201d\u2019)\]_])(?<!\d\.)(?<!\bv\.)(?<!\bvv\.)"
+        + str(number)
+        + r"(?![\d:])(?!\.\d)(?![-\u2013]\d)"
+    )
     return re.search(pat, text) is not None
 
 
@@ -696,10 +718,17 @@ def _notes_section(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], list
     return [], possible
 
 
-def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> list[int]:
-    """Footnote blocks at the foot of a page (a paper with page breaks)."""
+def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], list[tuple]]:
+    """Footnote blocks at the foot of a page (a paper with page markers):
+    (lines, possible ranges). A block starts at the next note number in the
+    paper; every numbered line in it continues the count with its marker
+    printed in the same page's prose above the block; an unnumbered line
+    continues a note only when it is short (a wrapped line, at most
+    ``NOTE_CONTINUATION_WORDS`` words); a note is at most ``NOTE_MAX_WORDS``
+    words; and at least half the notes carry a note-shaped citation. A
+    numbered run at a page's foot that fails any check is only possible."""
     if not d.has_breaks:
-        return []
+        return [], []
     pages: list[list[int]] = [[]]
     for i in d.filled:
         if i >= stop:
@@ -708,45 +737,49 @@ def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> list[int]:
             pages.append([])
         pages[-1].append(i)
     out: list[int] = []
+    possible: list[tuple] = []
     expected = 1
     for page in pages:
         foot = [i for i in page if i not in taken]
         while foot and _PAGE_LINE.match(d.lines[foot[-1]]):
             foot.pop()  # a page number under the notes (raw PDF text)
+        if not foot:
+            continue
+        page_start = d.spans[foot[0]][0]
         for s_pos, s in enumerate(foot):
             m = NOTE_START.match(d.lines[s])
-            if not m or int(m.group(1)) != expected:
-                continue
-            before = d.text[: d.spans[s][0]]
-            if not has_note_marker(expected, before):
-                continue
-            if s_pos == 0:
+            if s_pos == 0 or not m or int(m.group(1)) != expected:
                 continue  # a footnote block sits under some of the page's prose
+            before = d.text[page_start : d.spans[s][0]]  # this page's prose above it
             k, run, ok, note_words = expected - 1, [], True, 0
             notes: list[list[str]] = []
             for j in foot[s_pos:]:
-                mm = NOTE_START.match(d.lines[j])
+                line = d.lines[j]
+                mm = NOTE_START.match(line)
                 if mm and int(mm.group(1)) == k + 1 and has_note_marker(k + 1, before):
                     k, note_words = k + 1, 0
                     notes.append([])
-                elif not run:
-                    ok = False
+                elif (
+                    _NOTE_NUMBER.match(line) or not run or (_words(line) > NOTE_CONTINUATION_WORDS)
+                ):
+                    ok = False  # an unmarked numbered item, or a paragraph
                     break
-                note_words += _words(d.lines[j])
+                note_words += _words(line)
                 if note_words > NOTE_MAX_WORDS:
                     ok = False  # a paragraph of prose, not a note
                     break
                 run.append(j)
-                notes[-1].append(d.lines[j].strip())
+                notes[-1].append(line.strip())
             # At least half the notes carry a citation shape, as under a
             # Notes heading: a student's own numbered points do not.
             cited = sum(1 for note in notes if _note_cited(" ".join(note)))
-            ok = ok and 2 * cited >= len(notes)
-            if ok:
+            if ok and notes and 2 * cited >= len(notes):
                 out.extend(run)
                 expected = k + 1
-                break
-    return out
+            else:
+                possible.append((s, foot[-1] + 1))
+            break
+    return out, possible
 
 
 def _repeating_page_lines(d: _Doc, stop: int) -> set[int]:
@@ -830,7 +863,8 @@ def find_parts(text: str) -> Parts:
     possible += [(a, b, "notes") for a, b in maybe_notes]
     for i in notes:
         hard[i] = "notes"
-    page_notes = _page_bottom_notes(d, stop, set(hard))
+    page_notes, maybe_notes = _page_bottom_notes(d, stop, set(hard))
+    possible += [(a, b, "footnote") for a, b in maybe_notes]
 
     kinds: dict[int, str] = {}
     if "title_page" not in hard.values():

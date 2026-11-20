@@ -24,7 +24,13 @@ from original import evidence as ev
 from original import upload_utils as uu
 from original.features import matter
 from original.features import preprocess as pp
-from original.features.matter import PAGE_BREAK, PAGE_MARK, PDF_PAGE_BREAK, without_page_breaks
+from original.features.matter import (
+    PAGE_BREAK,
+    PAGE_MARK,
+    PDF_PAGE_BREAK,
+    PDF_TAG,
+    without_page_breaks,
+)
 from original.features.pipeline import feature_vector
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,7 +144,7 @@ P3 = (
     "2 Ibid., 14.\n"
 )
 P4 = "Ruiz 4\nWorks Cited\nRuiz, Ana. A Book of Notes. Boston: Press, 2001. https://\nexample.org/x."
-PDF_TEXT = PDF_PAGE_BREAK.join([P1, P2, P3, P4])
+PDF_TEXT = PDF_PAGE_BREAK.join([P1, P2, P3, P4]) + PDF_TAG
 
 
 def test_a_pdf_is_reflowed_when_measured_with_the_switch_on(monkeypatch):
@@ -176,12 +182,53 @@ def test_stored_pdf_text_does_not_depend_on_the_switch(monkeypatch):
     assert without_page_breaks(plain) == _old_pdf(raw)
 
 
+def _one_page_pdf(src: Path, page: int) -> bytes:
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter()
+    writer.add_page(PdfReader(str(src)).pages[page])
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
+
+
+def test_a_one_page_pdf_is_known_as_a_pdf_and_reflowed(monkeypatch):
+    raw = _one_page_pdf(SAMPLES / "mla.pdf", 1)  # a page of hard-wrapped prose
+    text = uu.extract_text_from_bytes(raw, "one.pdf")
+    assert text.endswith(PDF_TAG) and PDF_PAGE_BREAK not in text
+    assert without_page_breaks(text) == _old_pdf(raw)  # stored and hashed as before
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    assert pp.reflows(text)
+    wrapped = without_page_breaks(text).count("\n")
+    assert pp._body(text).count("\n") < wrapped / 3  # lines joined into paragraphs
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "0")
+    assert not pp.reflows(text)
+
+
+def test_stripping_an_upload_keeps_the_pdf_tag():
+    raw = (SAMPLES / "mla.pdf").read_bytes()
+    text = uu.extract_text_from_bytes(raw, "mla.pdf")
+    assert uu.strip_upload("  \n" + text).endswith(PDF_TAG)
+    assert without_page_breaks(uu.strip_upload(text)) == _old_pdf(raw).strip()
+    assert uu.strip_upload("  pasted text \n") == "pasted text"
+
+
+def test_rule_d_profiles_ignore_page_markers():
+    from original.rule_d import textprofile as tp
+
+    plain = _paper()
+    marked = plain.replace("\n\n", PDF_PAGE_BREAK) + PDF_TAG
+    for vec in tp.vectorizers().values():
+        assert vec.profile(marked) == vec.profile(plain)
+
+
 def test_a_keywords_line_is_not_joined_to_the_next_pages_title():
     from original.features import pdf_reflow
 
     long_kw = "Keywords: " + ", ".join(["civil rulers"] * 7)
     page2 = "Abstract\n" + ("word " * 16 + "\n") * 3 + long_kw
     text = PDF_PAGE_BREAK.join(["Title", page2, "A Title on Page Three\nProse starts here."])
+    text += PDF_TAG
     out = without_page_breaks(pdf_reflow.apply_ops(text, pdf_reflow.reflow_ops(text)))
     assert long_kw + "\n\nA Title on Page Three" in out
 
@@ -221,7 +268,7 @@ def test_a_paper_with_page_breaks_measures_exactly_as_without(switch, monkeypatc
 def test_a_pdf_upload_with_the_switch_off_measures_exactly_as_before(monkeypatch):
     monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
     plain = _paper()
-    paged = plain.replace("\n\n", PDF_PAGE_BREAK)
+    paged = plain.replace("\n\n", PDF_PAGE_BREAK) + PDF_TAG
     assert np.array_equal(
         np.asarray(feature_vector(plain)), np.asarray(feature_vector(paged))
     )
@@ -281,6 +328,8 @@ def test_without_page_breaks_only_drops_a_page_marker_alone_on_its_line():
     m = PAGE_MARK
     assert without_page_breaks(f"a\n{m}\nb") == "a\n\nb"
     assert without_page_breaks(f"a\n{m}{m}\nb") == "a\n\nb"  # a PDF page
+    assert without_page_breaks(f"a\nb\n{m}{m}{m}") == "a\nb"  # the PDF tag
+    assert without_page_breaks(f"a{m}{m}{m}b") == f"a{m}{m}{m}b"  # only at the end
     assert without_page_breaks(f"a\n{m}\n\n{m}\nb") == "a\n\n\n\nb"  # an empty page
     assert without_page_breaks(f"a{m}b") == f"a{m}b"  # not alone on its line
     assert without_page_breaks("a\n\f\nb") == "a\n\f\nb"  # a pasted form feed stays

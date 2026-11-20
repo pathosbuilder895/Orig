@@ -23,7 +23,9 @@ line) where the file breaks a page, in the blank line that stood there:
     footnotes stay out, as before.
 ``.pdf``
     The pages as pypdf reads them, joined by ``matter.PDF_PAGE_BREAK`` (two
-    marks) where they were joined by a blank line. Nothing else changes:
+    marks) where they were joined by a blank line, and ``matter.PDF_TAG``
+    (a newline and three marks) at the end, so a one-page PDF is known as a
+    PDF too. Nothing else changes:
     running heads, page numbers and footnotes are set aside, and hard-wrapped
     lines reflowed, only when the paper is measured with the splitter on
     (``features.matter``, ``features.pdf_reflow``), so the stored text is the
@@ -49,7 +51,7 @@ from __future__ import annotations
 import hashlib
 import io
 
-from .features.matter import PAGE_BREAK, PDF_PAGE_BREAK, without_page_breaks
+from .features.matter import PAGE_BREAK, PDF_PAGE_BREAK, PDF_TAG, without_page_breaks
 
 ACCEPTED = ".txt, .pdf, .docx"
 
@@ -91,7 +93,9 @@ def extract_text_from_bytes(raw: bytes, filename: str) -> str:
             pages = [page.extract_text() or "" for page in reader.pages]
         except Exception as exc:
             raise ValueError(f"PDF extraction failed: {exc}") from exc
-        return PDF_PAGE_BREAK.join(pages)
+        text = PDF_PAGE_BREAK.join(pages)
+        # A PDF with no text (a scan) stays as empty as before: no tag.
+        return text + PDF_TAG if text.strip() else text
 
     if name_lower.endswith(".docx"):
         try:
@@ -110,6 +114,14 @@ def extract_text_from_bytes(raw: bytes, filename: str) -> str:
 def word_count(text: str) -> int:
     """Return word count for text."""
     return len(text.split())
+
+
+def strip_upload(text: str) -> str:
+    """``text.strip()`` that keeps a PDF's tag (``matter.PDF_TAG``): the tag
+    is whitespace to Python, so a plain strip would drop it and the paper
+    would no longer be known as a PDF."""
+    out = text.strip()
+    return out + PDF_TAG if out and text.endswith(PDF_TAG) else out
 
 
 def text_digest(text: str) -> str:
