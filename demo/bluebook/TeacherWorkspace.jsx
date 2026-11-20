@@ -152,14 +152,14 @@ export function SessionSetup({ courses, exams, loading, error, onRetry, onCreate
             <p className="hint">Write it the way you’d say it aloud. Students see exactly these words.</p>
           </section>
           <section className="teacher-step"><h3>Which class?</h3><div className="class-choices" aria-label="Choose a class">
-            {loading?<p role="status">Loading your classes…</p>:courses.map(c=><button type="button" key={c.id} disabled={busy} aria-pressed={selected?.id===c.id} onClick={()=>setCourseId(c.id)}>{c.code||c.name} · {c.students??0} student{c.students===1?'':'s'}</button>)}
+            {loading?<p role="status">Loading your classes…</p>:courses.map(c=><button type="button" className="btn-chip" key={c.id} disabled={busy} aria-pressed={selected?.id===c.id} onClick={()=>setCourseId(c.id)}>{c.code||c.name} · {c.students??0} student{c.students===1?'':'s'}</button>)}
           </div>{!loading&&!courses.length&&!error&&<p>No classes yet. <button type="button" className="quiet-button" onClick={onCourses}>Create your first course</button></p>}</section>
           <section className="teacher-step"><h3><label htmlFor="teacher-duration">How long do they get?</label></h3><div className="time-row"><input id="teacher-duration" aria-label="Collection duration in minutes" type="range" min="15" max="120" step="5" value={duration} disabled={busy} onChange={e=>setDuration(Number(e.target.value))}/><output htmlFor="teacher-duration">{duration} min</output></div>
             <div className="quiet-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg><p><strong>Everything else is already handled.</strong> Drafts save on the student’s device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</p></div>
           </section>
         </div>
         {saveError&&<p className="teacher-error" role="alert">{saveError}</p>}
-        <div className="launch-row"><button className="teacher-primary" disabled={busy||loading||!!error||!courses.length} type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>{busy?'Opening…':'Open the booklets'}</button><span>{selected?.code||selected?.name||'Choose a class'} · {questions.length} question{questions.length>1?'s':''} · {duration} minutes</span></div>
+        <div className="launch-row"><button className="btn-gold teacher-primary" disabled={busy||loading||!!error||!courses.length} type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>{busy?'Opening…':'Open the booklets'}</button><span>{selected?.code||selected?.name||'Choose a class'} · {questions.length} question{questions.length>1?'s':''} · {duration} minutes</span></div>
         {receipt&&<div className="code-chip" role="status" ref={chip}><div className="code">OPEN</div><div className="cc-l">Collection is open. Students on this class roster find it under <b>My collections</b>.</div><button type="button" onClick={()=>onManage(receipt)}>Manage collection and read submissions →</button></div>}
       </form>
       <aside><section className="teacher-card session-history"><div className="section-title"><h2>Collections</h2><span>{demo?'example term':`${exams.length} in total`}</span></div>
@@ -240,10 +240,10 @@ export function TeacherOverview({ onNavigate, courses, exams, loading, error, on
       {!courses.length && <div className="teacher-card teacher-list" style={{ marginBottom: '1.5rem' }}>
         <h2>Start here</h2>
         <p style={{ margin: '.8rem 0' }}>Create a course, add your students by email, then publish a collection for them.</p>
-        <button className="teacher-primary" onClick={() => onNavigate('courses')}>Create your first course →</button>
+        <button className="btn-gold teacher-primary" onClick={() => onNavigate('courses')}>Create your first course →</button>
       </div>}
       {!!courses.length && <div className="bb-actions" style={{ marginBottom: '1.5rem' }}>
-        <button className="teacher-primary" onClick={() => onNavigate('new-exam')}>New collection →</button>
+        <button className="btn-gold teacher-primary" onClick={() => onNavigate('new-exam')}>New collection →</button>
         <button className="quiet-button" onClick={() => onNavigate('courses')}>Manage courses and invitations</button>
       </div>}
       {unreleased.length > 0 && <Section title="Ready to release">

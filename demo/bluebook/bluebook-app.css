@@ -36,13 +36,8 @@
 .bb-stat small{display:block;color:var(--gold);font:.75rem var(--mono);letter-spacing:.08em;margin-top:.3rem}
 
 /* Buttons */
-.bb-btn{display:inline-flex;align-items:center;gap:.4rem;border-radius:999px;padding:.6rem 1.2rem;font:inherit;cursor:pointer;
-  border:1px solid rgba(201,160,40,.4);background:none;color:var(--gold);min-height:44px;transition:background .15s}
-.bb-btn:hover:not(:disabled){background:rgba(201,160,40,.08)}
-.bb-btn.primary{background:linear-gradient(160deg,#e0be55,#c9a028);color:#0d1530;border:none;font-weight:600;box-shadow:0 6px 18px rgba(201,160,40,.25)}
-.bb-btn.primary:hover:not(:disabled){background:linear-gradient(160deg,#e0be55,#c9a028);filter:brightness(1.05)}
+.bb-btn{min-height:44px}  /* colour, shape and type: .btn-gold / .btn-ghost (../assets/tokens.css) */
 .bb-btn.danger{color:#ffb4a3;border-color:#ffb4a366}
-.bb-btn:disabled{opacity:.55;cursor:not-allowed}
 .bb-link{border:0;background:none;color:var(--gold);text-decoration:underline;text-underline-offset:3px;padding:.35rem .4rem;font:inherit;cursor:pointer;min-height:36px}
 .bb-link.muted{color:var(--dim)}
 .bb-link.danger{color:#ffb4a3}
@@ -90,9 +85,6 @@ select.bb-input option{color:#111}
 /* Results: sealed submissions as expandable rows */
 .bb-label{display:block;font:.75rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-bottom:.6rem}
 .bb-filter{display:inline-flex;flex-wrap:wrap;gap:.3rem;margin-bottom:1rem}
-.bb-filter button{border:1px solid var(--line-soft);background:rgba(255,255,255,.03);color:var(--dim);border-radius:999px;padding:.4rem .95rem;font:inherit;font-size:.92rem;cursor:pointer;transition:all .15s}
-.bb-filter button:hover{color:var(--cream);border-color:var(--line)}
-.bb-filter button[aria-pressed=true]{background:rgba(201,160,40,.13);border-color:rgba(201,160,40,.45);color:var(--gold)}
 .bb-results{border:1px solid var(--line-soft);border-radius:18px;background:rgba(255,255,255,.035);overflow:hidden}
 .bb-rgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.3fr) 76px 64px 130px;gap:1rem;align-items:center;padding:.85rem 1.3rem}
 .bb-rhead{padding-top:.8rem;padding-bottom:.8rem;border-bottom:1px solid var(--line-soft);font:.75rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2)}
@@ -165,6 +157,9 @@ select.bb-input option{color:#111}
 .bb-linkrow{display:flex;gap:.5rem;align-items:center;min-width:0}
 .bb-linkrow input{flex:1;min-width:0;font:.75rem ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bb-table td.bb-date{white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* The card the sign-in and the other public account screens sit in, on the navy page */
+.bb-auth-card{background:rgba(255,255,255,.035);border:1px solid var(--line-soft);border-radius:var(--r-lg)}
 
 /* Student shell (no teacher frame): the shared bar (AppBar.jsx) over its own background */
 .bb-student{min-height:100vh;background:radial-gradient(120% 90% at 82% 8%,#1b2a52,#0a0a10 70%)}
