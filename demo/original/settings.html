@@ -266,6 +266,8 @@
     Live.api('/auth/password',{method:'POST',body:{current_password:cur.value,new_password:nw.value}}).then(res=>{
       busy=false; btn.disabled=false;
       if(res.ok){
+        // The change ends every earlier sign-in, this page's included: keep the fresh one.
+        Live.keepSignIn(res.data);
         cur.value=''; nw.value=''; again.value='';
         say('ok','Your password was changed.');
       } else {

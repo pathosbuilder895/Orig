@@ -206,7 +206,7 @@ function App() {
   switch (screen) {
     case 'login':
       content = <>
-        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your exam. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your collection. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
         <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
       </>;
       break;
@@ -376,9 +376,9 @@ function App() {
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
-            { label: '⑤ Exam Briefing',         value: 'briefing'  },
+            { label: '⑤ Briefing',              value: 'briefing'  },
             { label: '⑥ New Collection',         value: 'new-exam'  },
-            { label: '⑦ Active Examination',    value: 'exam'      },
+            { label: '⑦ Writing',                value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}
           onChange={(v) => navigate(v)}

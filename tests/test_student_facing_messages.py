@@ -20,7 +20,7 @@ def test_an_unusable_launch_link_gives_a_browser_a_page_not_json(live_client, st
     r = live_client.get("/bluebook/launch", params={"t": "not-a-token"}, headers=_BROWSER)
     assert r.status_code == 400
     assert r.headers["content-type"].startswith("text/html")
-    assert "This exam link has expired or is not valid." in r.text
+    assert "This collection link has expired or is not valid." in r.text
     assert "Please ask your teacher for a new one." in r.text
     assert '"detail"' not in r.text
 
@@ -28,14 +28,14 @@ def test_an_unusable_launch_link_gives_a_browser_a_page_not_json(live_client, st
 def test_an_unusable_launch_link_stays_json_for_an_api_caller(live_client, store_reset):
     r = live_client.get("/bluebook/launch", params={"t": "not-a-token"})
     assert r.status_code == 400
-    assert r.json()["detail"] == "This exam link has expired or is not valid. Please ask your teacher for a new one."
+    assert r.json()["detail"] == "This collection link has expired or is not valid. Please ask your teacher for a new one."
 
 
 def test_a_launch_link_without_a_student_is_explained_plainly(live_client, store_reset):
     token = student_auth.mint_launch_token("", _TENANT, exam="exam-1", name="")
     r = live_client.get("/bluebook/launch", params={"t": token}, headers=_BROWSER)
     assert r.status_code == 400
-    assert "This exam link is incomplete." in r.text
+    assert "This collection link is incomplete." in r.text
     assert "student binding" not in r.text
 
 
