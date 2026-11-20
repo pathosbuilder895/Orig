@@ -161,6 +161,13 @@
   .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
   .prov .len{white-space:nowrap;}
   .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .pp-table{width:100%;border-collapse:collapse;font-size:.95rem;}
+  .pp-table th,.pp-table td{text-align:left;vertical-align:top;padding:.55rem .6rem;border-bottom:1px solid #efe8d5;overflow-wrap:anywhere;}
+  .pp-table thead th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:500;border-bottom:1px solid var(--rule);}
+  .pp-table tbody th{font-weight:500;color:var(--ink-2);white-space:nowrap;}
+  .rd-list{list-style:disc;padding-left:1.1rem;font-size:.95rem;line-height:1.55;}
+  .rd-list li+li{margin-top:.4rem;}
+  .rd-sum{font-size:1rem;line-height:1.6;margin:.6rem 0 1rem;}
   .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
   .p-foot{margin-top:1.6rem;display:flex;justify-content:space-between;gap:1rem;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;color:var(--ink-2);}
 
@@ -174,6 +181,7 @@
     .ex{grid-template-columns:1fr;}
     .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
     .prov{display:block;overflow-x:auto;}
+    .pp-table{display:block;overflow-x:auto;}
     .chrome{flex-wrap:wrap;}
     .p-head{flex-direction:column;gap:1rem;}
     .p-meta{text-align:left;}
@@ -205,7 +213,6 @@
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
         <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
       </div>
     </div>
@@ -227,12 +234,17 @@
         <div class="notice"><b>This is a starting point, not a verdict.</b> Original measures how this paper compares with the student&rsquo;s own past papers. A difference is a reason to read both closely and talk with the student; on its own it is never evidence of anything.</div>
         <div data-testing-notice="on-paper"></div>
         <nav class="toc" aria-label="On this page">
-          <a href="#s-summary">Summary</a><a href="#s-diff">Biggest differences</a><a href="#s-steady">Where it held steady</a><a href="#s-all">Every measurement</a><a href="#s-past">Past papers</a>
+          <a href="#s-summary">Summary</a><a href="#s-ruled" id="toc-ruled" hidden>Reads like this student?</a><a href="#s-diff">Biggest differences</a><a href="#s-steady">Where it held steady</a><a href="#s-all">Every measurement</a><a href="#s-past">Past papers</a>
         </nav>
 
         <section id="s-summary" aria-labelledby="h-summary">
           <h2 class="sec-t" id="h-summary">What the comparison found <span>from the numbers only</span></h2>
           <div class="summary" id="p-summary"></div>
+        </section>
+
+        <section id="s-ruled" aria-labelledby="h-ruled" hidden>
+          <h2 class="sec-t" id="h-ruled">Does it read like this student? <span>rule D, a class-relative consistency observation</span></h2>
+          <div id="p-ruled"></div>
         </section>
 
         <section id="s-diff" aria-labelledby="h-diff">
@@ -254,6 +266,10 @@
           <h2 class="sec-t" id="h-past">Past papers <span>what this paper was compared with</span></h2>
           <div id="p-past"></div>
         </section>
+        <section id="s-about" aria-labelledby="h-about" hidden>
+          <h2 class="sec-t" id="h-about">About the papers <span>headings, citations and sources; not part of the comparison</span></h2>
+          <div id="p-about"></div>
+        </section>
         <div class="p-foot"><span>Original · writing-consistency comparison</span><span id="p-foot-date"></span></div>
       </article>
     </div>
@@ -262,6 +278,7 @@
 <script src="live.js?v=2026-11-18.1"></script>
 <script src="js/evidence-view.js?v=2026-11-18.1"></script>
 <script src="js/evidence-cards.js?v=2026-11-18.1"></script>
+<script src="js/paper-profile.js?v=2026-11-18.1"></script>
 <script>
 (function(){
   'use strict';
@@ -379,6 +396,18 @@
     $('p-summary').innerHTML=html;
     return sum;
   }
+  // Versioned measurements (original/measurement.py): present only when the
+  // newer measuring rules were asked for; absent means the default rules.
+  const MEASURE_NAMES={v1:'the default rules',fs2:'the reworked word-list rules',matter:'the rules that set aside headings, footnotes and the list of sources','fs2+matter':'the reworked word-list rules and the rules that set aside headings, footnotes and the list of sources'};
+  function renderMeasurement(m){
+    if(!isObj(m)||typeof m.used!=='string'||typeof m.requested!=='string') return;
+    const name=k=>MEASURE_NAMES[k]||k;
+    const n=num(m.past_papers), done=num(m.past_papers_measured);
+    const text=m.used===m.requested
+      ?'Measured with '+name(m.used)+', for this paper and '+(n!=null?EV.plural(n,'past paper'):'its past papers')+' alike.'
+      :name(m.requested).charAt(0).toUpperCase()+name(m.requested).slice(1)+' were asked for, but '+(n!=null&&done!=null?(n-done)+' of '+n+' past papers are':'some past papers are')+' not measured that way yet, so this paper and its past papers were all measured with '+name(m.used)+'.';
+    $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="measured-as">'+esc(text)+'</p>');
+  }
   function renderTop(ev,byCode){
     const top=Array.isArray(ev.features)?ev.features.filter(isObj):[];
     if(!top.length){ $('p-diff').innerHTML='<p class="none-line">Original&rsquo;s top list is empty for this paper: no measurement sits far enough from the past papers to make it.</p>'; return; }
@@ -475,6 +504,37 @@
       (score!=null?'<b>'+esc(score.toFixed(2))+'</b> · ':'')+esc(EV.clean(pre.band_words,''))+'</span>';
   }
 
+  // Rule D (RULE_D_OBSERVATION=on, staff only): the server's own sentences, each passed
+  // through the banned-wording check, under its testing-phase label. Shown only when sent.
+  function renderRuleD(rd){
+    if(!isObj(rd)||typeof rd.status!=='string') return;
+    const label=EV.clean(rd.testing_phase_label,'Testing phase · not validated on student writing');
+    const items=a=>(Array.isArray(a)?a:[]).map(t=>EV.clean(t,'')).filter(Boolean).map(t=>'<li>'+esc(t)+'</li>').join('');
+    const col=(cls,title,a)=>'<div class="ex-col"><div class="ex-lbl '+cls+'">'+esc(title)+'</div>'+
+      (items(a)?'<ul class="rd-list">'+items(a)+'</ul>':'<p class="ex-unit">Nothing to note.</p>')+'</div>';
+    let html='<span class="chip" id="ruled-chip"><span class="lbl">'+esc(label)+'</span></span>'+
+      '<p class="rd-sum" id="ruled-summary">'+esc(EV.clean(rd.summary,''))+'</p>';
+    if(rd.status==='observed'){
+      html+='<div class="ex" id="ruled-reasons"><div class="ex-h"><b>Why</b><span>reasons both ways, from the writing itself</span></div>'+
+        col('base','Reads like this student',rd.reads_like)+col('this','Reads less like this student',rd.reads_less_like)+
+        (rd.configuration_note?'<div class="ex-note">'+esc(EV.clean(rd.configuration_note,''))+'</div>':'')+'</div>';
+    }
+    html+='<p class="prov-note" id="ruled-confidence">'+esc(EV.clean(rd.confidence_note,''))+'</p>';
+    $('p-ruled').innerHTML=html;
+    $('s-ruled').hidden=false;
+    $('toc-ruled').hidden=false;
+  }
+
+  // About the papers (teacher only): the server's paper_profile as one table
+  // (js/paper-profile.js), with its own contents link. Only when it was sent.
+  function renderAbout(ev){
+    const PP=window.PaperProfile;
+    if(!PP||!PP.has(ev)) return;
+    $('p-about').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'prov-note'});
+    $('s-about').hidden=false;
+    const toc=document.querySelector('nav.toc');
+    if(toc&&!toc.querySelector('a[href="#s-about"]')) toc.insertAdjacentHTML('beforeend','<a href="#s-about">About the papers</a>');
+  }
   // A current server records each past paper's `source` in the analysis itself. This is
   // only the fallback for an older one that sends provenance only. When exactly one sample on the
   // student's record matches a paper (same title, date and provenance), or every match
@@ -517,10 +577,13 @@
     if(!sum.pastCount){
       $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="insufficient">No past papers with stored text are on file for this analysis, so there is nothing to set beside it. Add past papers on the Reference papers by student page, then analyse again.</p>');
     }
+    renderRuleD(d.result.rule_d);
+    renderMeasurement(ev.measurement);
     renderTop(ev,byCode);
     renderSteady(ev);
     renderAll(ev);
     renderPast(ev,d);
+    renderAbout(ev);
     $('status').hidden=true;
     $('paper').hidden=false;
     openFromHash();

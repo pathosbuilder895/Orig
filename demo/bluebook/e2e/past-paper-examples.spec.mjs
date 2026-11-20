@@ -23,7 +23,7 @@
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor, staffStorageState } from './fixtures/api-setup.mjs'
-import { DATES, PAST, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
+import { DATES, PAST, seedPastPapers, analyse, openLookCloser } from './fixtures/evidence-papers.mjs'
 
 // The name the roster gives the student (fixtures/api-setup.mjs studentLogin).
 const ROSTER_NAME = 'E2E Student'
@@ -66,6 +66,7 @@ test.describe('past-paper examples, flags set to 0', () => {
     await expect(page.locator('#hero-evi')).toBeHidden()
     await expect(page.locator('#evi-past')).toBeHidden()
     // A tier chip only pins its tier, as before.
+    await openLookCloser(page)
     const chip = page.locator('.tchip[data-tier="tier2"]')
     await chip.click()
     await expect(chip).toHaveClass(/\bon\b/)
@@ -257,6 +258,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
 
     // A bar elsewhere on the page opens its family with that habit in full.
     const passive = voice.features.find(f => f.code === 'passive_voice_ratio')
+    await openLookCloser(page)
     await page.locator('#heatmap [data-code="passive_voice_ratio"]').click()
     await expect(page.locator('#evi-name')).toHaveText(passive.name)
     await expect(page.locator('#evi-fams button[aria-pressed="true"]')).toHaveText('Voice')
@@ -286,6 +288,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     await expect(page.locator('#hero-name')).toHaveText(ROSTER_NAME, { timeout: 20_000 })
 
     // A habit that is not one of the quotable ones: today's numbers-only panel.
+    await openLookCloser(page)
     await page.locator('#heatmap [data-code="type_token_ratio"]').click()
     await expect(page.locator('#evi-past')).toBeHidden()
     await expect(page.locator('#hero-evi .evi-cols')).toBeVisible()
@@ -360,6 +363,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
 
     // A bar in a family not yet asked for, then a bar in a cached one: the cached one stays.
     const claimsAnswer = late('hedging_density')
+    await openLookCloser(page)
     await page.locator('#heatmap [data-code="hedging_density"]').click()
     await page.locator('#heatmap [data-code="comma_rate"]').click()
     await expect(page.locator('#evi-name')).toHaveText(name('comma_rate'))
@@ -373,6 +377,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     // a second click on the pinned chip unpins it and closes the panel, as after an analysis.
     await page.locator('#evi-close').click()
     await expect(page.locator('#hero-evi')).toBeHidden()
+    await openLookCloser(page)
     const chip = page.locator('.tchip[data-tier="tier2"]')
     await chip.click()
     await expect(page.locator('#hero-evi')).toBeVisible()
@@ -402,6 +407,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     await expect(page.locator('#hero-evi')).toBeHidden()
 
     // A habit now opens this paper beside the past papers, as before.
+    await openLookCloser(page)
     await page.locator('#heatmap [data-code="comma_rate"]').click()
     await expect(page.locator('#hero-evi')).toBeVisible()
     await expect(page.locator('#evi-sub-lbl')).toHaveText('This paper')

@@ -24,7 +24,8 @@ jobs:
     # (validation/calibration_gate.py) and merged below; a job that still
     # overruns fails its leg and shows up as a missing leg in the merged
     # report, never as a silent pass. Legs are grouped by measured cost (run
-    # 34226363871, 2026-09-08, cold cache): G2 12m, G2b 12m, G6+G7+G8+T 9m,
+    # 34226363871, 2026-09-08, cold cache): G2 12m, G2b 12m, G6+G7+G8+T 9m
+    # (G9 rides with them: a skip until a student corpus exists),
     # G1+G1p 1h33m, G3+G4 2h32m, G5 4h26m.
     #
     # No continue-on-error: a leg job is red only on ERROR (see the run step),
@@ -42,7 +43,7 @@ jobs:
           - { name: g2b, legs: "G2b" }
           - { name: g3g4, legs: "G3,G4" }
           - { name: g5, legs: "G5" }
-          - { name: g6g7g8t, legs: "G6,G7,G8,T" }
+          - { name: g6g7g8t, legs: "G6,G7,G8,G9,T" }
     env:
       CALIBRATION_GATE_VECTOR_CACHE: .benchmark_cache/calibration_gate/vectors
     steps:

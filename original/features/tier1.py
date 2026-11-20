@@ -9,6 +9,7 @@ in its natural unit. Normalization to [0,1] happens in pipeline.py.
 import re
 
 from ..constants import FUNCTION_WORDS, MODAL_VERBS, PASSIVE_PATTERNS, STOP_WORDS
+from . import feature_flags as _ff
 
 # ── TextDoc: lightweight NLP container ──────────────────────────────────────
 
@@ -171,6 +172,10 @@ def modal_verb_ratio(doc: TextDoc) -> float:
     """Modal verb tokens / total word tokens."""
     if not doc.word_count:
         return 0.0
+    if _ff.lexicon_v2():
+        from .lexicon_v2 import modal_spans
+
+        return len(modal_spans(doc)) / doc.word_count
     modals = sum(1 for w in doc.lower_words if w in MODAL_VERBS)
     return modals / doc.word_count
 

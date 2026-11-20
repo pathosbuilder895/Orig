@@ -95,7 +95,7 @@ def my_voice(request: Request):
         corrections=corrections,
         pathway=pathway,
     )
-    return VoiceView(**view)
+    return VoiceView(**voice_mod.drop_staff_only(view))
 
 
 @router.post("/me/work", response_model=VoiceSubmitResult)
@@ -140,7 +140,7 @@ def my_work(request: Request, body: VoiceSubmitRequest):
         return VoiceSubmitResult(**voice_mod.project_no_baseline_result())
 
     result = voice_mod.project_submission_result(layer7, name)
-    return VoiceSubmitResult(**result)
+    return VoiceSubmitResult(**voice_mod.drop_staff_only(result))
 
 
 @router.post("/me/formation/advance", response_model=VoiceView)

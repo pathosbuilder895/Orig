@@ -7,6 +7,7 @@ students.py for file size.
 
 from __future__ import annotations
 
+import contextvars
 import dataclasses
 import logging
 import os
@@ -15,6 +16,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import measurement as _measurement
+from ..features import feature_flags as _ff
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -23,6 +26,7 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    MeasurementOut,
     PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
@@ -144,6 +148,14 @@ def score_submission(
     force: bool = False,
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
+    """Score one paper against the student's past papers.
+
+    Runs in a copy of the current context so the measurement chosen for this
+    score (original/measurement.py, a ContextVar) ends with it."""
+    return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
+
+
+def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
@@ -158,6 +170,15 @@ def score_submission(
             "Add at least one 'proctored' or 'verified' sample first.",
         )
     _require_min_baseline(state)
+
+    # ── Versioned measurements (original/measurement.py) ──────────────────────
+    # Default (both measurement switches off): plan.used == "v1", the state is
+    # unchanged and nothing is stamped. Otherwise the requested measurement is
+    # used only when every past paper has it, and everything below (this
+    # paper, evidence re-reads, peer texts) is measured the same way.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -233,6 +254,8 @@ def score_submission(
         nonlocal _all_states_cache
         if _all_states_cache is None:
             _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
+            if plan.used != _measurement.DEFAULT:
+                _all_states_cache = _measurement.states_measured_as(_all_states_cache, plan.used)
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -749,9 +772,57 @@ def score_submission(
     except Exception:
         pass
 
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing). Computed
+    # after the score and action are final and from separate inputs, so it cannot change
+    # either. Only for staff HTTP callers: not computed at all for ``/me/work``
+    # (request=None) or a student principal, who could never be shown it.
+    from ..rule_d import mode as _rule_d_mode
+
+    _rd_mode = _rule_d_mode()
+    _rule_d_obs = None
+    _rd_principal = getattr(getattr(request, "state", None), "principal", None)
+    _rd_staff = request is not None and getattr(_rd_principal, "role", None) != "student"
+    if _rd_mode != "off" and _rd_staff:
+        try:
+            from ..rule_d.service import observe_for
+
+            _rule_d_obs = observe_for(_repo(), state, _all_states(), req.text, vec, feature_vector)
+            logging.getLogger(__name__).info(
+                "rule_d_observation mode=%s status=%s configuration=%s reads_less_like=%s classmates=%d",
+                _rd_mode,
+                _rule_d_obs.status,
+                _rule_d_obs.configuration,
+                _rule_d_obs.reads_less_like_student,
+                _rule_d_obs.classmates,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("rule_d observation failed; omitted")
+            _rule_d_obs = None
+
     response = _to_response(result, arc, report=report)
+    stamp = plan.stamp()
+    if stamp is not None:
+        response.measurement = MeasurementOut(**stamp)
     _attach_staff_explainability(response, request, req.text, state, result, student_id)
+    if _rd_mode == "on" and _rule_d_obs is not None:
+        try:
+            _attach_rule_d(response, request, _rule_d_obs)
+        except Exception:  # a report-only field must never fail a score request
+            logging.getLogger(__name__).exception("rule_d attach failed; omitted")
+            response.rule_d = None
     return response
+
+
+def _attach_rule_d(response, request, obs) -> None:
+    """Rule D is for staff only: never for a student session, never in-process."""
+    if request is None:
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    from ..schemas import RuleDObservationOut
+
+    response.rule_d = RuleDObservationOut(**obs.as_dict())
 
 
 def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
@@ -806,7 +877,15 @@ def _attach_staff_explainability(
     (``/me/work`` scores a student's own piece with ``request=None``) never
     get either, and neither changes the score or the action.
     """
-    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+    from ..evidence import (
+        build_evidence,
+        evidence_enabled,
+        load_band_rates,
+        preliminary_enabled,
+        preliminary_score,
+        range_counts,
+    )
+    from ..paper_profile import build_paper_profiles, paper_profile_enabled
 
     want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
     if request is None or not (want_evidence or want_preliminary):
@@ -823,11 +902,23 @@ def _attach_staff_explainability(
         # exactly three papers, so the old "ready" line (5 papers) made every
         # alpha reading inconclusive. Below the floor the route 422s anyway.
         ready = confidence.authenticated_count >= min_baseline_samples()
+        # The counted samples' own vectors, the same ones the score compared
+        # against; a count that cannot be made is simply absent.
+        try:
+            outside, compared = range_counts(
+                result.feature_vector, [s.vector for s in state.samples if s.auth_weight > 0]
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("range counts failed; omitted")
+            outside = compared = None
         response.preliminary = PreliminaryScoreOut(
             **preliminary_score(
                 result.authorship.deviation_score,
                 result.recommendation.action,
                 inconclusive=not ready,
+                habits_outside=outside,
+                habits_compared=compared,
+                band_rates=load_band_rates(),
             )
         )
     if want_evidence:
@@ -849,6 +940,18 @@ def _attach_staff_explainability(
             response.evidence["baseline_papers"] = _baseline_papers(
                 state, used, baselines, student_id
             )
+            if paper_profile_enabled():
+                # Teacher-only description of each paper's headings, citations and
+                # sources (original/paper_profile.py). Reads the stored texts only;
+                # nothing it returns feeds the score. A failure leaves it out.
+                try:
+                    response.evidence["paper_profile"] = build_paper_profiles(text, baselines)
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "paper profile failed; omitted from the response"
+                    )
+            if getattr(response, "measurement", None) is not None:
+                response.evidence["measurement"] = response.measurement.model_dump()
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
@@ -907,6 +1010,10 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    return contextvars.copy_context().run(_score_blend, student_id, req, request)
+
+
+def _score_blend(student_id: str, req: BlendDetectionRequest, request):
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
@@ -922,6 +1029,13 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         )
 
     _require_min_baseline(state)
+
+    # Same rule as /score: like with like, stamped when anything but the default
+    # was asked for.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
+    stamp = plan.stamp()
 
     from ..context.blend import detect_blend
 
@@ -952,4 +1066,5 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         fallback_reason=result.fallback_reason,
         ai_window_max=result.ai_window_max,
         ai_window_mean=result.ai_window_mean,
+        measurement=MeasurementOut(**stamp) if stamp is not None else None,
     )

@@ -262,7 +262,9 @@ jobs:
   pytest-rest:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 20
+    # 30, not 20: on main 90a868f (2026-11-20) this shard's pytest step took
+    # 17m54s and the job 19m40s, so the next few tests cancelled it at 97%.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -556,6 +558,9 @@ jobs:
           # the @evidence-on run below covers the default-on path.
           EVIDENCE_PASSAGES_ENABLED: "0"
           PRELIMINARY_SCORE_ENABLED: "0"
+          # Rule D's observation is also ON by default while testing (owner
+          # decision, 2026-11); off here for the same reason.
+          RULE_D_OBSERVATION: "off"
         # --skip-seed is mandatory here: seeding hard-refuses when
         # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),
         # and CI boots exactly the way the Render pilot does.
