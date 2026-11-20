@@ -181,6 +181,7 @@
   .pp-part-btn:disabled{opacity:.5;cursor:default;}
   .pp-part-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .ti-parts .ppm{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
+  .ti-parts .ppn{color:var(--gold-2);}
   .ti-parts .ppm.err{color:var(--bad,#e0725a);}
   @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.3rem;}}
   .wt-note{margin-top:.9rem;font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;}
@@ -949,6 +950,7 @@
     const m=S.partsMsg&&S.partsMsg.i===i?S.partsMsg:null;
     box.innerHTML='<div class="pph">Parts of this paper</div>'+
       '<p class="ppl">'+(parts.length?'Original measures the writer\u2019s own prose and sets aside the parts that are not. When its rules are unsure, it measures the part and lists it as possible. A change here is kept with this paper and measures it again, so the baseline changes only when you choose.':'Original found no title page, abstract or list of sources to set aside in this paper; all of it is measured.')+'</p>'+
+      (got.measurement_in_use===false&&typeof got.measurement_note==='string'?'<p class="ppl ppn">'+esc(got.measurement_note)+'</p>':'')+
       PP.partsList(parts,{listClass:'pp-parts'})+
       '<p class="ppm'+(m&&m.err?' err':'')+'" role="status" aria-live="polite">'+(m?esc(m.text):'')+'</p>';
     box.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=!!S.saving; });

@@ -628,8 +628,10 @@ def test_with_the_splitter_off_the_length_match_is_unchanged(monkeypatch):
 # ── A teacher's choice of parts (features/part_overrides.py) ─────────────────
 
 
-@pytest.mark.parametrize("splitter", ["0", "1"])
-def test_a_teachers_choice_cuts_the_length_match_as_it_cuts_the_reading(monkeypatch, splitter):
+@pytest.mark.parametrize("splitter, profile", [("1", "1"), ("0", "1"), ("1", "0"), ("0", "0")])
+def test_a_teachers_choice_cuts_the_length_match_only_where_it_cuts_the_reading(
+    monkeypatch, splitter, profile
+):
     from original.features import part_overrides as po
     from original.features import preprocess as pp
     from original.quantum.length_match import body_word_count
@@ -637,46 +639,63 @@ def test_a_teachers_choice_cuts_the_length_match_as_it_cuts_the_reading(monkeypa
     body = _text(900)
     paper = f"{_TITLE}{_ABSTRACT}\n\n{body}\n\nWorks Cited\n{_WORKS}\n"
     monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)
     no_choice = (body_word_count(paper), paper_pieces(paper, 300))
-    start = paper.index(body)
-    cut = (start, start + paper[start:].index(" ", 600))  # the body's opening words
-    choice = po.PartOverride(exclude=(cut,))
-    with po.applying({paper: choice}):
-        measured = pp._body(paper)
-        assert body_word_count(paper) == len(measured.split()) < no_choice[0]
-        assert paper_pieces(paper, 300) == split_into_pieces(measured, 300)
-        assert paper[cut[0] : cut[1]] not in " ".join(paper_pieces(paper, 300))
-    # A choice for another text, or none at all: exactly as before.
-    with po.applying({"another paper": choice}):
-        assert (body_word_count(paper), paper_pieces(paper, 300)) == no_choice
+    opening = paper.index("This paper argues")
+    choice = po.validate(paper, [[opening, opening + 20]], None)  # the abstract's paragraph
+    carried = po.chosen(paper, choice)
+    if splitter == profile == "1":
+        measured = pp._body(carried)
+        assert body_word_count(carried) == len(measured.split()) < no_choice[0]
+        assert paper_pieces(carried, 300) == split_into_pieces(measured, 300)
+    else:  # either switch off: exactly as with no choice
+        assert (body_word_count(carried), paper_pieces(carried, 300)) == no_choice
+    # The plain text never carries a choice.
     assert (body_word_count(paper), paper_pieces(paper, 300)) == no_choice
 
 
-def test_each_past_paper_is_cut_with_its_own_stored_choice(monkeypatch):
+def test_a_choice_moves_the_length_match_with_both_switches_on(monkeypatch):
+    from original.features import part_overrides as po
+    from original.quantum.length_match import body_word_count
+
+    body = _text(900)
+    paper = f"{_TITLE}{_ABSTRACT}\n\n{body}\n\nWorks Cited\n{_WORKS}\n"
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+    from original.features.matter import find_parts
+
+    works = next(r for r in find_parts(paper).set_aside if r.kind == "back_matter")
+    carried = po.chosen(paper, po.validate(paper, None, [[works.start, works.end]]))
+    assert body_word_count(carried) > body_word_count(paper)
+
+
+@pytest.mark.parametrize("on", [True, False])
+def test_each_past_paper_is_cut_with_its_own_stored_choice(monkeypatch, on):
     from original.features import part_overrides as po
 
-    monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1" if on else "0")
     texts = [_text(1200, "a"), _text(1200, "b")]
-    choice = {"exclude_ranges": [[0, len(texts[0]) // 2]], "include_ranges": []}
+    # The first paper's first half set aside (a whole line: the text is one line).
+    lines = "\n".join(texts[0][i : i + 400] for i in range(0, len(texts[0]), 400))
+    texts[0] = lines
+    half = lines.index("\n", len(lines) // 2) + 1
+    choice = po.validate(lines, [[0, half]], None)
     samples = [
         BaselineSample(text=t, vector=np.full(FEATURE_DIM, 0.5), provenance="proctored",
-                       auth_weight=1.0, part_overrides=choice if i == 0 else None)
+                       auth_weight=1.0, part_overrides=po.to_stored(choice, t) if i == 0 else None)
         for i, t in enumerate(texts)
     ]  # fmt: skip
     state = StudentState("s", samples=samples)
-    cut_lengths: list[int] = []
+    vectorised: list[int] = []
 
     def vectorise(piece):
-        cut_lengths.append(len(piece.split()))
+        vectorised.append(len(piece.split()))
         return np.full(FEATURE_DIM, 0.5)
 
-    plain = build_length_matched_state(state, 300, vectorise)
-    plain_pieces = list(cut_lengths)
-    cut_lengths.clear()
-    with po.applying(po.of_samples(state.samples)):
-        chosen = build_length_matched_state(state, 300, vectorise)
-    assert plain is not None and chosen is not None
-    # The first paper loses about half its words to the teacher's choice, so it
-    # is too short to cut and stands whole; the second is cut as before.
-    assert (plain.papers_cut, len(plain_pieces)) == (2, 8)
-    assert (chosen.papers_cut, len(cut_lengths), len(chosen.piece_vectors)) == (1, 4, 5)
+    built = build_length_matched_state(state, 300, vectorise)
+    assert built is not None
+    if on:  # about half the first paper is set aside, so it is too short to cut
+        assert (built.papers_cut, len(vectorised)) == (1, 4)
+    else:  # a switch off: the stored choice changes nothing
+        assert (built.papers_cut, len(vectorised)) == (2, 8)

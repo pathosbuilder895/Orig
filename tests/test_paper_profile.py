@@ -297,7 +297,13 @@ def test_an_appendix_after_the_list_of_sources_is_listed_as_measured():
     assert any(p["label"] == "Bibliography" and p["status"] == "set_aside" for p in parts)
 
 
-def test_a_teachers_choice_is_shown_on_the_parts_it_touches():
+@pytest.fixture
+def switches(monkeypatch):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+
+
+def test_a_teachers_choice_is_shown_on_the_parts_it_touches(switches):
     from original.features import part_overrides as po
 
     text = _docx("apa_student")
@@ -305,18 +311,18 @@ def test_a_teachers_choice_is_shown_on_the_parts_it_touches():
     title, abstract = parts["title_page"]["ranges"][0], parts["abstract"]["ranges"][0]
     body = parts["back_matter"]["ranges"][0][0] - 300  # inside the body, in none of the parts
     choice = po.validate(text, [[body, body + 100]], [abstract])
-    with po.applying({text: choice}):
-        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    snapped = [list(r) for r in choice.exclude]
+    shown = {p["kind"]: p for p in pp.paper_parts(po.chosen(text, choice))}
     assert (shown["abstract"]["status"], shown["abstract"]["by"]) == ("measured", "teacher")
     assert shown["abstract"]["rules_status"] == "set_aside"
     assert (shown["title_page"]["status"], shown["title_page"]["by"]) == ("set_aside", "rules")
-    assert shown["chosen"]["ranges"] == [[body, body + 100]] and shown["chosen"]["by"] == "teacher"
+    assert shown["chosen"]["ranges"] == snapped and shown["chosen"]["by"] == "teacher"
     assert shown["chosen"]["status"] == "set_aside" and shown["chosen"]["label"] == "A part you chose"
     assert title == shown["title_page"]["ranges"][0]
-    assert {p["kind"] for p in pp.paper_parts(text)} == set(parts)  # nothing outlives the block
+    assert {p["kind"] for p in pp.paper_parts(text)} == set(parts)  # the plain text: the rules
 
 
-def test_a_choice_marks_only_the_parts_it_changed():
+def test_a_choice_marks_only_the_parts_it_changed(switches):
     """Setting an appendix aside covers the "Appendix A" heading too, which the
     rules set aside already: the headings stay the rules' doing. Measuring the
     headings afterwards cuts that line out of the appendix's range, and the
@@ -326,28 +332,31 @@ def test_a_choice_marks_only_the_parts_it_changed():
     text = _docx("turabian_appendix")
     parts = {p["kind"]: p for p in pp.paper_parts(text)}
     appendix = parts["appendix"]["ranges"][0]
-    with po.applying({text: po.validate(text, [appendix], None)}):
-        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    shown = {p["kind"]: p for p in pp.paper_parts(po.chosen(text, po.validate(text, [appendix], None)))}
     assert (shown["appendix"]["status"], shown["appendix"]["by"]) == ("set_aside", "teacher")
     assert (shown["heading"]["status"], shown["heading"]["by"]) == ("set_aside", "rules")
     heading = parts["heading"]["ranges"][0]
     rest = po.minus_ranges([tuple(appendix)], [tuple(heading)])
-    with po.applying({text: po.validate(text, rest, [heading])}):
-        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    choice = po.validate(text, rest, [heading])
+    shown = {p["kind"]: p for p in pp.paper_parts(po.chosen(text, choice))}
     assert (shown["heading"]["status"], shown["heading"]["by"]) == ("measured", "teacher")
     assert (shown["appendix"]["status"], shown["appendix"]["by"]) == ("set_aside", "teacher")
 
 
-def test_the_profile_carries_the_choice_in_force(monkeypatch):
+def test_the_profile_carries_the_choice_only_with_both_switches(monkeypatch):
     from original.features import part_overrides as po
 
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
     text = _docx("apa_student")
+    title = next(p for p in pp.paper_parts(text) if p["kind"] == "title_page")["ranges"]
+    carried = po.chosen(text, po.validate(text, None, title))
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")
+    assert pp.paper_profile(carried)["choice"] == {"exclude_ranges": [], "include_ranges": []}
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
     assert pp.paper_profile(text)["choice"] == {"exclude_ranges": [], "include_ranges": []}
-    with po.applying({text: po.PartOverride(include=((0, 10),))}):
-        assert pp.paper_profile(text)["choice"] == {"exclude_ranges": [], "include_ranges": [[0, 10]]}
+    assert pp.paper_profile(carried)["choice"] == {"exclude_ranges": [], "include_ranges": title}
     monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "0")
-    assert "choice" not in pp.paper_profile(text)
+    assert "choice" not in pp.paper_profile(carried)
 
 
 def test_a_long_first_line_is_cut_short():

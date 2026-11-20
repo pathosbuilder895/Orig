@@ -131,11 +131,11 @@ def _body(text: str) -> str:
     force): the text outside ``features.matter``'s set-aside parts (title
     page, abstract, notes, list of sources), the same ranges
     ``features.preprocess`` measures, so the length match and the reading set
-    the same parts aside. A teacher's choice of parts in force for this text
-    (``features.part_overrides``, put in force by the score route for the
-    paper and for each past paper) is honoured the same way, with the switch
-    on or off, because ``preprocess`` applies it; with none, nothing changes."""
-    if _ff.matter_splitter_enabled() or _part_overrides.for_text(text) is not None:
+    the same parts aside. A teacher's choice of parts carried by ``text``
+    (``features.part_overrides``) is honoured the same way, because
+    ``preprocess`` applies it, and only where it applies there: both switches
+    on and the splitter's measurement in use."""
+    if _ff.matter_splitter_enabled():
         return _pp._body(text)
     # An upload's page markers dropped, so the pieces are the base pieces.
     return without_page_breaks(_strip_backmatter(text))
@@ -182,7 +182,8 @@ def build_length_matched_state(
         return None
     if any(not (s.text or "").strip() for s in contributing):
         return None
-    plans = [paper_pieces(s.text, n_words) for s in contributing]
+    # Each past paper is cut with its own stored choice of parts, if any.
+    plans = [paper_pieces(_part_overrides.text_of(s), n_words) for s in contributing]
     cut = [len(p) > 1 for p in plans]
     if not any(cut) or sum(cut) > max_pieces:
         return None

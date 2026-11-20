@@ -149,10 +149,10 @@ def backfill(
             if not (apply or measure_in_dry_run):
                 continue
             try:
-                # A teacher's stored choice of parts for this paper, if any
-                # (original/features/part_overrides.py), applies here too.
-                with part_overrides.applying({sample.text: part_overrides.of_sample(sample)}):
-                    new[i] = _measure(sample.text, measurement, extract)
+                # A teacher's stored choice of parts for this paper, if any,
+                # rides on its text (original/features/part_overrides.py); it
+                # applies only to a splitter measurement with both switches on.
+                new[i] = _measure(part_overrides.text_of(sample), measurement, extract)
             except Exception as exc:
                 log.warning("%s paper %d: measurement failed: %s", student_id, i, exc)
                 report.failed.append(f"{student_id}#{i}")

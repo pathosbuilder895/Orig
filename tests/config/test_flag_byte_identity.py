@@ -1531,7 +1531,9 @@ def test_api_paper_profile_only_adds_its_own_staff_field(api_call):
 def test_api_empty_part_choice_is_byte_identical(api_call):
     """``exclude_ranges`` / ``include_ranges`` (features/part_overrides.py) sent
     empty, or null, is no choice: the response is the default's, byte for byte,
-    with the switches off and with the splitter and the paper profile on."""
+    with the switches off and with the splitter and the paper profile on. (A
+    real choice is refused with 409 with a switch off, and moves only the
+    splitter's measurement with both on: tests/test_part_overrides.py.)"""
     for env in ({}, {"EVIDENCE_PASSAGES_ENABLED": "1", "MATTER_SPLITTER_ENABLED": "1",
                      "PAPER_PROFILE_ENABLED": "1"}):  # fmt: skip
         reference = api_call(env)
@@ -1540,13 +1542,6 @@ def test_api_empty_part_choice_is_byte_identical(api_call):
             {"exclude_ranges": None, "include_ranges": None},
         ):
             assert changed_paths(reference, api_call(env, extra)) == set(), (env, extra)
-
-
-def test_api_part_choice_moves_the_measurement(api_call):
-    """A real choice does what it says: setting the paper's opening aside moves
-    the measured vector (so the arm above is not vacuous)."""
-    moved = changed_paths(api_call({}), api_call({}, {"exclude_ranges": [[0, 400]]}))
-    assert any(path.startswith("feature_vector") for path in moved), sorted(moved)
 
 
 def test_api_topic_on_is_uninformative(api_call):

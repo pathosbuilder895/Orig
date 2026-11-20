@@ -130,9 +130,9 @@ def upload_also_measure() -> str | None:
 
 def text_cache(maxsize: int) -> Callable[[Callable[[str], T]], Callable[[str], T]]:
     """``functools.lru_cache`` for a function of one paper's text, keyed on the
-    text *and* the switch state (and any teacher's choice of parts in force for
-    that text), so a value computed under one setting is never served under
-    another. Keeps ``cache_clear``/``cache_info``/``__wrapped__``.
+    text *and* the switch state (and the teacher's choice of parts that text
+    carries, when it applies), so a value computed under one setting is never
+    served under another. Keeps ``cache_clear``/``cache_info``/``__wrapped__``.
     With both switches off it caches exactly as ``lru_cache(maxsize)`` did."""
 
     def deco(fn: Callable[[str], T]) -> Callable[[str], T]:
@@ -142,8 +142,8 @@ def text_cache(maxsize: int) -> Callable[[Callable[[str], T]], Callable[[str], T
 
         @functools.wraps(fn)
         def wrapper(text: str) -> T:
-            # A teacher's choice of parts for this text (features.part_overrides)
-            # is part of the key too; None (no choice) for every other score.
+            # The teacher's choice this paper's text carries, when it applies
+            # (features.part_overrides), is part of the key; None otherwise.
             return keyed(text, cache_key(), _part_overrides.for_text(text))
 
         wrapper.cache_clear = keyed.cache_clear  # type: ignore[attr-defined]

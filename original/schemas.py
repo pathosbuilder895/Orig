@@ -131,35 +131,26 @@ class ScoreSubmissionRequest(BaseModel):
     exclude_ranges: list[tuple[int, int]] | None = Field(
         None,
         max_length=64,
-        description="Staff only (a student session gets 403). Character ranges of `text`, "
-        "as [start, end] pairs, sorted and non-overlapping, that are set aside before "
-        "measuring whatever the rules say: a teacher's 'Set this part aside'. At most 60% "
-        "of the paper's words. Absent: the rules alone, as before.",
+        description="Staff only (a student session gets 403); 409 unless "
+        "MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. Character ranges of "
+        "`text`, as [start, end] pairs, sorted and non-overlapping, set aside by the "
+        "splitter's measurement whatever its rules say: a teacher's 'Set this part aside'. "
+        "Snapped to whole lines; each must hold a word; together at most 60% of the words "
+        "the rules measure (422 otherwise). Never changes the default measurement. Absent, "
+        "empty or null: the rules alone, as before.",
     )
     include_ranges: list[tuple[int, int]] | None = Field(
         None,
         max_length=64,
-        description="Staff only (a student session gets 403). Character ranges of `text` "
-        "that are measured whatever the rules say: a teacher's 'Measure this part'. Sorted, "
-        "non-overlapping, and never overlapping `exclude_ranges`.",
+        description="Staff only, same switches as `exclude_ranges`. Parts the rules set "
+        "aside (or listed as possible) that the splitter's measurement measures anyway: a "
+        "teacher's 'Measure this part'. Each range must be exactly such a part (or touching "
+        "parts merged), never overlapping `exclude_ranges` (422 otherwise).",
     )
 
     @model_validator(mode="after")
     def _no_keystroke_data(self):
         return _discard_keystroke_derived(self)
-
-    @model_validator(mode="after")
-    def _part_ranges_fit_the_text(self):
-        from .features.part_overrides import validate
-
-        validate(self.text, self.exclude_ranges, self.include_ranges)
-        return self
-
-    def part_override(self):
-        """The teacher's choice of parts, checked (None when none was sent)."""
-        from .features.part_overrides import validate
-
-        return validate(self.text, self.exclude_ranges, self.include_ranges)
 
 
 class PartChoiceRequest(BaseModel):

@@ -77,11 +77,12 @@ def body_segments(text: str) -> list[tuple[int, int]]:
     Default: one range, everything before the first back-matter heading
     (``_strip_backmatter``), exactly as before. With MATTER_SPLITTER_ENABLED on:
     the text outside ``features.matter.find_matter``'s front and back matter.
-    ``evidence.engine_view`` maps quotes through the same ranges. A teacher's
-    own choice for this text (``features.part_overrides``), when one is in
-    force, wins over the rules; with none the ranges are returned untouched."""
+    ``evidence.engine_view`` maps quotes through the same ranges. With the
+    splitter on, a teacher's own choice carried by this paper's text
+    (``features.part_overrides``) wins over the rules when both switches are
+    on; any other text gets the rules' ranges untouched."""
     if not _ff.matter_splitter_enabled():
-        return _po.apply(text, [(0, len(_strip_backmatter(text)))])
+        return [(0, len(_strip_backmatter(text)))]
     return _po.apply(text, _matter_kept_ranges(text))
 
 

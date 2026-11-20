@@ -1,12 +1,16 @@
 """A teacher's own choice of which parts of a paper are measured
 (original/features/part_overrides.py, steps 4-5 of the document-parts plan).
 
-Checked here: (1) the choice is validated against the text, (2) the hook in
-``preprocess.body_segments`` wins over the rules only when a choice is in
-force, and with none is the identical list, (3) caches never serve a value
-measured under another choice, (4) the score route takes the choice from
-staff only, (5) a past paper keeps its choice on both storage backends and is
-measured again when it changes, and (6) a backfill applies it.
+The rule under test: a choice changes only the splitter's measurement
+(``matter``), never the default ``v1`` vector, and does nothing at all unless
+MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. A choice
+belongs to one paper (it rides on that paper's text object), never to a
+string: a submission whose words equal a past paper's never picks up that
+paper's choice. Checked here: the validation (whole lines, a word per range,
+the cap against what the rules keep, includes only of the rules' parts, the
+PDF tag and page markers never split), the one hook in
+``preprocess.body_segments``, caches, storage on both backends, the backfill,
+and the score and past-paper routes (staff only, 409 with a switch off).
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import pickle
 import sys
 from pathlib import Path
 
@@ -25,155 +30,218 @@ from original.constants import FEATURE_DIM
 from original.features import feature_flags as ff
 from original.features import part_overrides as po
 from original.features import preprocess as pre
+from original.features.matter import PAGE_MARK, PDF_TAG, find_parts, kept_ranges
 from original.quantum.state import BaselineSample, StudentState
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLES = ROOT / "validation" / "diagnostics" / "document_parts_v2" / "samples"
-TEXT = "Title Page\n\nThe first paragraph is mine.\n\nThe second paragraph is also mine.\n"
+MLA = (ROOT / "tests" / "fixtures" / "paper_matter" / "mla_docx.txt").read_text(encoding="utf-8")
+FIRST = MLA.index("Wendell Berry writes")
+SECOND = MLA.index("Critics have often")
 
 
-def _apa_docx_text() -> str:
+def _upload(name: str) -> str:
     from original.upload_utils import extract_text_from_bytes
 
-    return extract_text_from_bytes((SAMPLES / "apa_student.docx").read_bytes(), "paper.docx")
+    return extract_text_from_bytes((SAMPLES / name).read_bytes(), name)
 
 
 @pytest.fixture(autouse=True)
-def _tfidf_tier10(monkeypatch):
-    """Tier 10 on its TF-IDF backend, so the route tests need no model download."""
+def _quiet(monkeypatch):
+    """Tier 10 on its TF-IDF backend (no model download), rule D off (slow),
+    and every switch this file turns on starts off."""
     from original.features import tier10
 
     monkeypatch.setattr(tier10, "_st_model", None)
     monkeypatch.setattr(tier10, "_st_failed", True)
-    # Rule D's piece vectors are not what these tests are about, and are slow.
     monkeypatch.setenv("RULE_D_OBSERVATION", "off")
+    for name in ("MATTER_SPLITTER_ENABLED", "PAPER_PROFILE_ENABLED", "UPLOAD_ALSO_MEASURE"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
-def splitter(monkeypatch):
+def switches(monkeypatch):
     monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
     monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
-    # Past papers carry the splitter's measurement too, so a score uses it.
-    monkeypatch.setenv("UPLOAD_ALSO_MEASURE", "matter")
+
+
+def _cut_first() -> po.PartOverride:
+    return po.validate(MLA, [[FIRST, SECOND]], None)
 
 
 # ── validation ───────────────────────────────────────────────────────────────
 
 
 def test_no_choice_is_none():
-    assert po.validate(TEXT, None, None) is None
-    assert po.validate(TEXT, [], []) is None
+    assert po.validate(MLA, None, None) is None
+    assert po.validate(MLA, [], []) is None
 
 
-def test_a_valid_choice_is_kept_sorted_and_hashable():
-    o = po.validate(TEXT, [[0, 10], (12, 20)], [[30, 40]])
-    assert o == po.PartOverride(((0, 10), (12, 20)), ((30, 40),))
-    assert hash(o) == hash(po.PartOverride(((0, 10), (12, 20)), ((30, 40),)))
-    assert o.to_doc() == {"exclude_ranges": [[0, 10], [12, 20]], "include_ranges": [[30, 40]]}
+def test_ranges_are_snapped_to_whole_lines():
+    inside = po.validate(MLA, [[FIRST + 10, FIRST + 20]], None)
+    line_end = MLA.index("\n", FIRST) + 1
+    assert inside.exclude == ((FIRST, line_end),)
+    assert inside.to_doc() == {"exclude_ranges": [[FIRST, line_end]], "include_ranges": []}
+    assert hash(inside) == hash(po.PartOverride(((FIRST, line_end),), ()))
 
 
 @pytest.mark.parametrize(
     "exclude, include, words",
     [
-        ([[0, len(TEXT) + 1]], None, "not within the text"),
+        ([[0, len(MLA) + 1]], None, "not within the text"),
         ([[-1, 3]], None, "not within the text"),
         ([[5, 5]], None, "not within the text"),
-        ([[10, 20], [0, 5]], None, "sorted"),
+        ([[20, 30], [0, 5]], None, "sorted"),
         ([[0, 10], [5, 15]], None, "sorted"),
-        (None, [[0, 10], [9, 15]], "sorted"),
-        ([[0, 10]], [[5, 15]], "both set aside and measured"),
         ([[0, 10, 12]], None, "pairs"),
         ("0-10", None, "pairs"),
         ([[0, True]], None, "whole-number"),
         ([[0.0, 3]], None, "whole-number"),
-        ([[0, 3]] * 0 + [[i, i + 1] for i in range(65)], None, "more than 64"),
-        ([[12, len(TEXT)]], None, "60%"),
+        ([[i, i + 1] for i in range(65)], None, "more than 64"),
+        ([[FIRST - 1, FIRST]], None, "holds no words"),  # a blank line
+        (None, [[0, len(MLA)]], "not a part"),  # the whole paper
+        (None, [[FIRST, SECOND]], "not a part"),  # prose the rules measure
+        ([[1020, 1040]], [[1020, 1290]], "both set aside and measured"),
     ],
 )
 def test_a_choice_that_does_not_fit_is_refused(exclude, include, words):
     with pytest.raises(po.OverrideError, match=words):
-        po.validate(TEXT, exclude, include)
+        po.validate(MLA, exclude, include)
 
 
-def test_up_to_sixty_percent_may_be_set_aside():
-    text = " ".join(["word"] * 10)
-    assert po.validate(text, [[0, len("word " * 6) - 1]], None) is not None  # 6 of 10
-    with pytest.raises(po.OverrideError):
-        po.validate(text, [[0, len("word " * 7) - 1]], None)  # 7 of 10
+def test_single_spaces_are_not_words():
+    """W3: 64 one-space ranges once counted zero words and passed."""
+    spaces = [i for i, ch in enumerate(MLA[FIRST:SECOND], FIRST) if ch == " "][:64]
+    with pytest.raises(po.OverrideError, match="no words"):
+        po.validate(MLA, [[i, i + 1] for i in spaces], None)
 
 
-def test_a_stored_choice_that_no_longer_fits_is_ignored():
-    assert po.PartOverride.from_doc({"exclude_ranges": [[0, 999]]}, "short") is None
-    assert po.PartOverride.from_doc("garbage", "short") is None
-    assert po.PartOverride.from_doc(None, "short") is None
-    sample = BaselineSample(text=TEXT, vector=np.zeros(1), provenance="verified", auth_weight=1.0)
-    assert po.of_sample(sample) is None
-    sample.part_overrides = {"exclude_ranges": [[0, 10]], "include_ranges": []}
-    assert po.of_samples([sample]) == {TEXT: po.PartOverride(((0, 10),), ())}
+def test_the_cap_counts_the_words_the_rules_keep_not_the_whole_text():
+    """W2: a long list of sources once let a teacher set aside the whole body
+    (under 60% of the text, all of what the rules measure)."""
+    padded = (
+        MLA
+        + "\n"
+        + "".join(f"Smith, J{i}. A title of a work. Publisher, 2020.\n\n" for i in range(200))
+    )
+    body = [(a, b) for a, b in kept_ranges(padded)]
+    kept = sum(len(padded[a:b].split()) for a, b in body)
+    assert kept < 0.6 * len(padded.split())  # the old cap would have passed it
+    with pytest.raises(po.OverrideError, match="60%"):
+        po.validate(padded, [[body[0][0], body[-1][1]]], None)
+    assert po.validate(padded, [[FIRST, SECOND]], None) is not None  # one paragraph is fine
 
 
-# ── the hook ─────────────────────────────────────────────────────────────────
+def test_an_include_must_be_one_of_the_rules_parts():
+    parts = find_parts(MLA)
+    works = next(r for r in parts.set_aside if r.kind == "back_matter")
+    assert po.validate(MLA, None, [[works.start, works.end]]).include == ((works.start, works.end),)
+    heading = [r for r in parts.set_aside if r.kind == "front_matter"]
+    # Two heading-block lines separated by a blank line are two parts, not one.
+    with pytest.raises(po.OverrideError, match="not a part"):
+        po.validate(MLA, None, [[heading[0].start, heading[1].end]])
+    assert po.validate(MLA, None, [[heading[0].start, heading[0].end]]) is not None
+
+
+def test_the_pdf_tag_is_never_inside_a_range_and_never_reaches_the_body(switches):
+    """W4/finding 6: a range ending on, or reaching into, the PDF tag is cut
+    short of it; one holding only the tag holds no words."""
+    text = _upload("apa_student.pdf")
+    assert text.endswith(PDF_TAG)
+    n, end = len(text), len(text) - len(PDF_TAG)
+    with pytest.raises(po.OverrideError, match="no words"):
+        po.validate(text, [[n - 3, n]], None)
+    with pytest.raises(po.OverrideError, match="no words"):
+        po.validate(text, [[n - 4, n - 3]], None)
+    last = text.rfind("\n", 0, end) + 1
+    choice = po.validate(text, [[last + 1, n]], None)
+    assert choice.exclude == ((last, end),)
+    with ff.measuring("matter"):
+        assert PAGE_MARK not in pre._body(po.chosen(text, choice))
+
+
+@pytest.mark.parametrize("name", ["apa_student.pdf", "apa_student.docx", "turabian.pdf"])
+def test_no_page_marker_reaches_the_measured_body_whatever_is_set_aside(switches, name):
+    """Every line of the paper set aside on its own (where the cap allows):
+    the measured body never carries a page marker or the PDF tag."""
+    text = _upload(name)
+    starts = [0] + [i + 1 for i, ch in enumerate(text) if ch == "\n"]
+    tried = 0
+    for a, b in zip(starts, starts[1:] + [len(text)], strict=True):
+        if not text[a:b].split():
+            continue
+        for lo, hi in ((a, b), (max(0, a - 3), min(len(text), b + 3))):
+            try:
+                choice = po.validate(text, [[lo, hi]], None)
+            except po.OverrideError:
+                continue
+            with ff.measuring("matter"):
+                assert PAGE_MARK not in pre._body(po.chosen(text, choice)), (a, b)
+            tried += 1
+    assert tried > 20
+
+
+# ── the gate and the hook ────────────────────────────────────────────────────
 
 
 def test_combine_adds_included_and_removes_excluded_ranges():
     o = po.PartOverride(exclude=((5, 8),), include=((20, 30),))
     assert po.combine([(0, 10), (25, 40)], o) == [(0, 5), (8, 10), (20, 40)]
-    assert po.combine([], po.PartOverride(include=((3, 4),))) == [(3, 4)]
     assert po.combine([(0, 10)], po.PartOverride(exclude=((0, 10),))) == []
 
 
-def test_without_a_choice_the_rules_ranges_are_returned_untouched(monkeypatch):
-    segments = [(0, 4), (9, 12)]
-    assert po.apply(TEXT, segments) is segments
-    with po.applying({"another paper": po.PartOverride(exclude=((0, 1),))}):
-        assert po.apply(TEXT, segments) is segments
-    for on in ("0", "1"):
-        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", on)
-        before = pre.body_segments(TEXT)
-        with po.applying({}):
-            assert pre.body_segments(TEXT) == before
-        assert pre.preprocess(TEXT) == pre.preprocess(TEXT)
+@pytest.mark.parametrize(
+    "splitter, profile, measurement",
+    [("0", "0", None), ("1", "0", None), ("0", "1", None), ("1", "1", "v1"), ("0", "1", "matter")],
+)
+def test_a_choice_does_nothing_unless_both_switches_and_the_splitter_measurement(
+    monkeypatch, splitter, profile, measurement
+):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)
+    carried = po.chosen(MLA, _cut_first())
+
+    def measured():
+        return pre.body_segments(carried), pre.preprocess(carried)
+
+    if measurement is None:
+        assert measured() == (pre.body_segments(MLA), pre.preprocess(MLA))
+        assert po.for_text(carried) is None
+    else:
+        with ff.measuring(measurement):
+            assert measured() == (pre.body_segments(MLA), pre.preprocess(MLA))
+            assert po.for_text(carried) is None
 
 
-@pytest.mark.parametrize("splitter_on", ["0", "1"])
-def test_a_choice_wins_over_the_rules_only_while_in_force(monkeypatch, splitter_on):
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter_on)
-    first = TEXT.index("The first")
-    second = TEXT.index("The second")
-    before = pre.preprocess(TEXT)[0]
-    with po.applying({TEXT: po.PartOverride(exclude=((first, second),))}):
-        cut = pre.preprocess(TEXT)[0]
-        assert "first paragraph" not in cut and "second paragraph" in cut
-        with po.applying({TEXT: None}):  # a nested block may lift the choice
-            assert pre.preprocess(TEXT)[0] == before
-    assert pre.preprocess(TEXT)[0] == before
+def test_with_both_switches_on_the_choice_wins_over_the_rules(switches):
+    carried = po.chosen(MLA, _cut_first())
+    before = pre.preprocess(MLA)[0]
+    cut = pre.preprocess(carried)[0]
+    assert "Wendell Berry writes" in before and "Wendell Berry writes" not in cut
+    assert "Critics have often" in cut
+    segments = kept_ranges(MLA)
+    assert pre.body_segments(MLA) == segments  # the plain text: the rules alone
 
 
-def test_measuring_the_title_page_puts_it_back(monkeypatch):
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    text = _apa_docx_text()
-    from original.features.matter import find_parts
-
+def test_measuring_a_title_page_puts_it_back(switches):
+    text = _upload("apa_student.docx")
     title = next(r for r in find_parts(text).set_aside if r.kind == "title_page")
-    before = pre.preprocess(text)[0]
-    assert "Hannah Price" not in before
-    with po.applying({text: po.PartOverride(include=((title.start, title.end),))}):
-        assert "Hannah Price" in pre.preprocess(text)[0]
+    assert "Hannah Price" not in pre.preprocess(text)[0]
+    carried = po.chosen(text, po.validate(text, None, [[title.start, title.end]]))
+    assert "Hannah Price" in pre.preprocess(carried)[0]
 
 
-def test_the_choice_never_leaks_into_another_context():
-    import contextvars
+def test_equal_words_are_not_the_same_paper(switches):
+    """Finding 3: the choice is the paper's, not the string's."""
+    carried = po.chosen(MLA, _cut_first())
+    plain = str(carried)
+    assert plain == carried and po.for_text(plain) is None
+    assert pre.preprocess(plain) == pre.preprocess(MLA) != pre.preprocess(carried)
+    assert pickle.loads(pickle.dumps(carried)) == MLA  # never leaves the process with a choice
+    assert type(pickle.loads(pickle.dumps(carried))) is str
 
-    def inner():
-        po.set_in_force({TEXT: po.PartOverride(exclude=((0, 5),))})
-        return po.for_text(TEXT)
 
-    assert contextvars.copy_context().run(inner) is not None
-    assert po.for_text(TEXT) is None
-
-
-def test_text_caches_key_on_the_choice(monkeypatch):
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+def test_text_caches_key_on_the_choice(switches):
     calls = []
 
     @ff.text_cache(maxsize=8)
@@ -181,96 +249,38 @@ def test_text_caches_key_on_the_choice(monkeypatch):
         calls.append(1)
         return "".join(text[a:b] for a, b in pre.body_segments(text))
 
-    plain = measured(TEXT)
-    assert measured(TEXT) == plain and len(calls) == 1
-    with po.applying({TEXT: po.PartOverride(exclude=((0, 12),))}):
-        assert measured(TEXT) != plain
-    assert measured(TEXT) == plain and len(calls) == 2
+    plain = measured(MLA)
+    carried = po.chosen(MLA, _cut_first())
+    assert measured(carried) != plain and measured(MLA) == plain and len(calls) == 2
 
 
-def test_evidence_reads_the_same_ranges_as_the_measurement(monkeypatch):
+def test_a_choice_composes_with_a_pdfs_reflow_and_the_evidence_rebuild(switches):
     from original import evidence
 
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    first = TEXT.index("The first")
-    second = TEXT.index("The second")
-    with po.applying({TEXT: po.PartOverride(exclude=((first, second),))}):
-        prose = pre.preprocess(TEXT)[0]
-        view = evidence.engine_view(TEXT)
-    assert view is not None and "first paragraph" not in prose
-
-
-def test_a_choice_composes_with_a_pdfs_reflow_and_page_markers(monkeypatch):
-    """Offsets are into the stored text, page markers and all; the PDF reflow
-    runs over whatever the ranges keep, and the evidence pages' rebuild of
-    the measured text still matches the engine's byte for byte."""
-    from original import evidence
-    from original.features.matter import PAGE_MARK, find_parts
-    from original.upload_utils import extract_text_from_bytes
-
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    text = extract_text_from_bytes((SAMPLES / "apa_student.pdf").read_bytes(), "paper.pdf")
-    assert PAGE_MARK in text and pre.reflows(text)
-    parts = {r.kind: r for r in find_parts(text).set_aside}
-    abstract = parts["abstract"]
-    body_start = abstract.end + 400
-    choice = po.PartOverride(
-        exclude=((body_start, body_start + 300),), include=((abstract.start, abstract.end),)
-    )
-    before = pre.preprocess(text)[0]
-    with po.applying({text: choice}):
-        prose = pre.preprocess(text)[0]
-        view = evidence.engine_view(text)
-    assert prose != before and PAGE_MARK not in prose
+    text = _upload("apa_student.pdf")
+    assert pre.reflows(text)
+    abstract = next(r for r in find_parts(text).set_aside if r.kind == "abstract")
+    choice = po.validate(text, None, [[abstract.start, abstract.end]])
+    carried = po.chosen(text, choice)
+    prose = pre.preprocess(carried)[0]
     assert "This paper studies a funeral sermon" in prose
-    assert "This paper studies a funeral sermon" not in before
-    assert view is not None and view.prose.text == prose
-
-
-def test_the_pdf_tag_is_in_the_offsets_but_never_a_part_or_a_word(monkeypatch):
-    """A PDF's stored text ends with the PDF tag: ranges may reach it (they are
-    offsets into the stored text), it counts toward no word total, and it is
-    never listed as a part or shown as a first line."""
-    from original.features.matter import PAGE_MARK, PDF_TAG
-    from original.paper_profile import paper_parts
-    from original.upload_utils import extract_text_from_bytes
-
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    text = extract_text_from_bytes((SAMPLES / "apa_student.pdf").read_bytes(), "paper.pdf")
-    assert text.endswith(PDF_TAG)
-    tail = len(text) - len(PDF_TAG)
-    # A range over the tag alone, or ending on it, fits the text.
-    assert po.validate(text, [[tail, len(text)]], None) is not None
-    parts = paper_parts(text)
-    back = next(p for p in parts if p["kind"] == "back_matter")
-    assert po.validate(text, None, back["ranges"]) is not None
-    for p in parts:
-        assert p["words"] == sum(
-            len(text[a:b].replace(PAGE_MARK, " ").split()) for a, b in p["ranges"]
-        )
-        assert p["first_line"] and PAGE_MARK not in p["first_line"]
-        assert any(text[a:b].split() for a, b in p["ranges"])
-    # Setting the tag aside changes nothing measured and lists nothing new.
-    before = pre.preprocess(text)[0]
-    with po.applying({text: po.validate(text, [[tail, len(text)]], None)}):
-        assert [p["kind"] for p in paper_parts(text)] == [p["kind"] for p in parts]
-        assert pre.preprocess(text)[0] == before
+    assert "This paper studies a funeral sermon" not in pre.preprocess(text)[0]
+    view = evidence.engine_view(carried)
+    assert view is not None and view.prose.text == prose and PAGE_MARK not in prose
 
 
 # ── storage ──────────────────────────────────────────────────────────────────
 
 
-def _sample(text: str = TEXT, choice: dict | None = None) -> BaselineSample:
+def _sample(text: str = MLA, choice: po.PartOverride | None = None, **kw) -> BaselineSample:
     return BaselineSample(
         text=text,
         vector=np.full(FEATURE_DIM, 0.5),
         provenance="verified",
         auth_weight=1.0,
-        part_overrides=choice,
+        part_overrides=po.to_stored(choice, text),
+        **kw,
     )
-
-
-CHOICE = {"exclude_ranges": [[0, 10]], "include_ranges": []}
 
 
 def test_a_paper_with_no_choice_stores_exactly_as_before():
@@ -282,14 +292,21 @@ def test_a_paper_with_no_choice_stores_exactly_as_before():
     assert "part_overrides" not in pg["samples"][0]
 
 
-def test_the_choice_round_trips_through_both_documents():
+def test_the_choice_round_trips_and_belongs_to_its_own_text():
     from original.postgres_repository import PostgresRepository
 
-    state = StudentState("t:a", samples=[_sample(choice=CHOICE), _sample("Another.")])
-    back = store._deserialize(store._serialize(state))
-    assert [s.part_overrides for s in back.samples] == [CHOICE, None]
-    pg_back = PostgresRepository._doc_to_state(PostgresRepository._state_to_doc(state))
-    assert [s.part_overrides for s in pg_back.samples] == [CHOICE, None]
+    state = StudentState("t:a", samples=[_sample(choice=_cut_first()), _sample("Another.")])
+    for back in (
+        store._deserialize(store._serialize(state)),
+        PostgresRepository._doc_to_state(PostgresRepository._state_to_doc(state)),
+    ):
+        assert po.of_sample(back.samples[0]) == _cut_first()
+        assert back.samples[1].part_overrides is None
+    # Moved onto another paper's text, a stored choice is ignored.
+    moved = _sample("Another paper entirely.\n" * 40)
+    moved.part_overrides = state.samples[0].part_overrides
+    assert po.of_sample(moved) is None
+    assert po.text_of(moved) == moved.text and po.for_text(po.text_of(moved)) is None
 
 
 def _postgres_available() -> bool:
@@ -329,15 +346,15 @@ def repo(request, store_reset):
 
 
 def test_the_choice_survives_the_repository(repo):
-    repo.put(StudentState("t:a", samples=[_sample(choice=CHOICE), _sample("Another one.")]))
+    repo.put(StudentState("t:a", samples=[_sample(choice=_cut_first()), _sample("Another.")]))
     got = repo.get("t:a")
-    assert [s.part_overrides for s in got.samples] == [CHOICE, None]
+    assert po.of_sample(got.samples[0]) == _cut_first() and got.samples[1].part_overrides is None
     got.samples[0].part_overrides = None
     repo.put(got)
     assert repo.get("t:a").samples[0].part_overrides is None
 
 
-def test_a_backfill_measures_with_the_stored_choice(repo):
+def test_a_backfill_measures_the_splitter_with_the_stored_choice_only(repo, monkeypatch):
     spec = importlib.util.spec_from_file_location(
         "backfill_measurements_po", ROOT / "scripts" / "backfill_measurements.py"
     )
@@ -347,13 +364,20 @@ def test_a_backfill_measures_with_the_stored_choice(repo):
     seen = []
 
     def extract(text):
-        seen.append(po.for_text(text))
+        seen.append((ff.current_measurement(), po.for_text(text)))
         return np.full(FEATURE_DIM, 0.25)
 
-    repo.put(StudentState("t:a", samples=[_sample(choice=CHOICE), _sample("Another one.")]))
+    repo.put(StudentState("t:a", samples=[_sample(choice=_cut_first()), _sample("Another.")]))
     bf.backfill(repo, "matter", apply=True, extract=extract)
-    assert seen == [po.PartOverride(((0, 10),), ()), None]
-    assert repo.get("t:a").samples[0].part_overrides == CHOICE
+    assert seen == [("matter", None), ("matter", None)]  # switches off: the rules alone
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+    seen.clear()
+    bf.backfill(repo, "fs2+matter", apply=True, extract=extract)
+    assert seen == [("fs2+matter", _cut_first()), ("fs2+matter", None)]
+    seen.clear()
+    bf.backfill(repo, "fs2", apply=True, extract=extract)  # no splitter: no choice
+    assert seen == [("fs2", None), ("fs2", None)]
 
 
 # ── the routes ───────────────────────────────────────────────────────────────
@@ -380,9 +404,9 @@ BASELINES = [
 ]
 
 
-def _seed(sid: str) -> None:
-    """Three counted past papers, stored directly (no extraction), each also
-    carrying the splitter's measurement so a score with it switched on uses it."""
+def _seed(sid: str, texts=BASELINES, matter: bool = True) -> None:
+    """Counted past papers, stored directly (no extraction); with ``matter``
+    each also carries the splitter's measurement, so a score uses it."""
     from original.constants import AUTH_WEIGHTS
 
     flat = np.full(FEATURE_DIM, 0.5)
@@ -396,9 +420,9 @@ def _seed(sid: str) -> None:
                     provenance="proctored",
                     auth_weight=AUTH_WEIGHTS["proctored"],
                     assignment=f"Paper {i + 1}",
-                    extra_vectors={"matter": flat.copy()},
+                    extra_vectors={"matter": flat.copy()} if matter else None,
                 )
-                for i, text in enumerate(BASELINES)
+                for i, text in enumerate(texts)
             ],
         )
     )
@@ -413,99 +437,182 @@ def _login(client, institution, email):
     return body["token"], body["student_id"]
 
 
-def test_a_student_session_cannot_choose_parts(live_client, store_reset):
+def test_a_student_session_cannot_choose_parts(live_client, store_reset, switches):
     token, sid = _login(live_client, "Parts Academy", "parts@student.edu")
+    auth = {"Authorization": f"Bearer {token}"}
     for body in (
         {"exclude_ranges": [[0, 5]]},
         {"include_ranges": []},
         {"exclude_ranges": None, "include_ranges": [[0, 5]]},
     ):
         r = live_client.post(
-            f"/students/{sid}/score",
-            json={"text": BASELINES[0], **body},
-            headers={"Authorization": f"Bearer {token}"},
+            f"/students/{sid}/score", json={"text": BASELINES[0], **body}, headers=auth
         )
         assert r.status_code == 403, r.text[:300]
         assert "staff" in r.json()["detail"].lower()
-    r = live_client.get(
-        f"/students/{sid}/samples/0/parts", headers={"Authorization": f"Bearer {token}"}
-    )
+    for method in ("get", "delete"):
+        r = getattr(live_client, method)(f"/students/{sid}/samples/0/parts", headers=auth)
+        assert r.status_code == 403
+    r = live_client.put(f"/students/{sid}/samples/0/parts", json={}, headers=auth)
     assert r.status_code == 403
 
 
-def test_staff_choice_is_validated_and_changes_the_measurement(live_client, store_reset, splitter):
+def test_a_choice_is_refused_with_a_switch_off(live_client, store_reset, monkeypatch):
+    """Finding 2 (W1): with every switch off, ranges once changed the score."""
+    sid = "parts_school_off"
+    _seed(sid)
+    for splitter, profile in (("0", "0"), ("1", "0"), ("0", "1")):
+        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
+        monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)
+        r = live_client.post(
+            f"/students/{sid}/score", json={"text": MLA, "exclude_ranges": [[FIRST, SECOND]]}
+        )
+        assert r.status_code == 409, r.text[:300]
+        r = live_client.put(f"/students/{sid}/samples/0/parts", json={"exclude_ranges": [[0, 12]]})
+        assert r.status_code == 409
+        got = live_client.get(f"/students/{sid}/samples/0/parts").json()
+        assert got == {"enabled": False, "index": 0, "parts": []}
+    assert store.get(sid).samples[0].part_overrides is None
+
+
+def test_staff_choice_is_checked_and_moves_only_the_splitter_measurement(
+    live_client, store_reset, switches
+):
     sid = "parts_school_ana"
     _seed(sid)
-    paper = _apa_docx_text()
+    paper = _upload("apa_student.docx")
     url = f"/students/{sid}/score"
-    bad = live_client.post(url, json={"text": paper, "exclude_ranges": [[0, len(paper) + 5]]})
-    assert bad.status_code == 422
+    bad = live_client.post(url, json={"text": paper, "include_ranges": [[0, len(paper)]]})
+    assert bad.status_code == 422 and "not a part" in bad.json()["detail"]
     plain = live_client.post(url, json={"text": paper, "submission_id": "s1"})
     assert plain.status_code == 200
-
-    parts = plain.json()["evidence"]["paper_profile"]["this_paper"]["parts"]
-    abstract = next(p for p in parts if p["kind"] == "abstract")
+    assert plain.json()["measurement"]["used"] == "matter"
+    profile = plain.json()["evidence"]["paper_profile"]["this_paper"]
+    abstract = next(p for p in profile["parts"] if p["kind"] == "abstract")
     assert abstract["status"] == "set_aside" and abstract["by"] == "rules"
+    assert profile["choice"] == {"exclude_ranges": [], "include_ranges": []}
     measured = live_client.post(
         url, json={"text": paper, "submission_id": "s1", "include_ranges": abstract["ranges"]}
     )
     assert measured.status_code == 200
     assert measured.json()["feature_vector"] != plain.json()["feature_vector"]
-    again = measured.json()["evidence"]["paper_profile"]["this_paper"]["parts"]
-    after = next(p for p in again if p["kind"] == "abstract")
+    again = measured.json()["evidence"]["paper_profile"]["this_paper"]
+    after = next(p for p in again["parts"] if p["kind"] == "abstract")
     assert (after["status"], after["by"], after["rules_status"]) == (
         "measured",
         "teacher",
         "set_aside",
     )
+    assert again["choice"]["include_ranges"] == abstract["ranges"]
 
 
-def test_a_past_paper_choice_is_stored_and_measured_again(live_client, store_reset, splitter):
+def test_a_past_papers_choice_is_its_own(live_client, store_reset, switches):
+    """Finding 3's witness: a submission whose words equal a past paper's does
+    not pick up that paper's stored choice, and a past paper's choice moves
+    only that paper's splitter measurement, never its v1 vector."""
     sid = "parts_school_ben"
-    _seed(sid)
-    url = f"/students/{sid}/samples/0/parts"
-    got = live_client.get(url)
-    assert got.status_code == 200 and got.json()["enabled"] is True
-    assert got.json()["exclude_ranges"] == [] and got.json()["include_ranges"] == []
-    before = store.get(sid).samples[0].vector.copy()
+    papers = [MLA, *BASELINES[1:]]
+    _seed(sid, papers)
+    score = lambda: live_client.post(  # noqa: E731
+        f"/students/{sid}/score", json={"text": MLA, "submission_id": "same"}
+    )
+    before = score()
+    assert before.status_code == 200
+    v1 = store.get(sid).samples[0].vector.copy()
+    matter = store.get(sid).samples[0].extra_vectors["matter"].copy()
 
-    head = len("Running Head\n\n")
-    cut = [head, head + 200]  # the opening sentences of the paper
-    r = live_client.put(url, json={"exclude_ranges": [cut]})
+    r = live_client.put(
+        f"/students/{sid}/samples/0/parts", json={"exclude_ranges": [[FIRST, SECOND]]}
+    )
     assert r.status_code == 200, r.text[:300]
     sample = store.get(sid).samples[0]
-    assert sample.part_overrides == {"exclude_ranges": [cut], "include_ranges": []}
-    assert r.json()["exclude_ranges"] == [cut]
-    chosen = [p for p in r.json()["parts"] if p["by"] == "teacher"]
-    assert chosen and all(p["status"] == "set_aside" for p in chosen)
-    assert sample.vector.shape == before.shape and not np.allclose(sample.vector, before)
-    assert set(sample.extra_vectors) == {"matter"}
-    measured_once = sample.vector.copy()
-    # Back to the rules: the choice is gone and the paper measures as an upload would.
-    r = live_client.put(url, json={"exclude_ranges": [], "include_ranges": []})
-    assert r.status_code == 200
-    sample = store.get(sid).samples[0]
-    assert sample.part_overrides is None and not np.allclose(sample.vector, measured_once)
+    assert np.array_equal(sample.vector, v1)  # the default measurement is never touched
+    assert not np.array_equal(sample.extra_vectors["matter"], matter)
+    assert po.of_sample(sample) == _cut_first()
+    assert r.json()["exclude_ranges"] == [list(_cut_first().exclude[0])]
+    assert r.json()["measurement_in_use"] is True
+
+    after = score()
+    assert after.status_code == 200
+    assert after.json()["feature_vector"] == before.json()["feature_vector"]
+    past = after.json()["evidence"]["paper_profile"]["past_papers"][0]
+    assert any(p["by"] == "teacher" for p in past["parts"])  # the past paper keeps its own
+    assert all(
+        p["by"] == "rules" for p in after.json()["evidence"]["paper_profile"]["this_paper"]["parts"]
+    )
+
+
+def test_back_to_the_rules_whatever_the_switches_say(
+    live_client, store_reset, switches, monkeypatch
+):
     from original.features.pipeline import feature_vector
 
-    with ff.measuring("v1"):
-        assert np.allclose(sample.vector, feature_vector(BASELINES[0]))
-
-    assert live_client.put(url, json={"exclude_ranges": [[0, 10**6]]}).status_code == 422
-    assert live_client.get(f"/students/{sid}/samples/9/parts").status_code == 404
-    assert live_client.get("/students/parts_school_nobody/samples/0/parts").status_code == 404
-
-
-def test_the_past_paper_control_is_off_with_either_switch_off(
-    live_client, store_reset, monkeypatch
-):
     sid = "parts_school_cy"
-    _seed(sid)
-    for splitter_on, profile_on in (("0", "1"), ("1", "0"), ("0", "0")):
-        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter_on)
-        monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile_on)
-        got = live_client.get(f"/students/{sid}/samples/0/parts")
-        assert got.status_code == 200 and got.json() == {"enabled": False, "index": 0, "parts": []}
-        put = live_client.put(f"/students/{sid}/samples/0/parts", json={"exclude_ranges": [[0, 4]]})
-        assert put.status_code == 409
-    assert store.get(sid).samples[0].part_overrides is None
+    _seed(sid, [MLA, *BASELINES[1:]])
+    url = f"/students/{sid}/samples/0/parts"
+    assert live_client.put(url, json={"exclude_ranges": [[FIRST, SECOND]]}).status_code == 200
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")
+    assert live_client.delete(url).status_code == 200
+    sample = store.get(sid).samples[0]
+    assert sample.part_overrides is None
+    with ff.measuring("matter"):
+        assert np.allclose(sample.extra_vectors["matter"], feature_vector(MLA))
+    assert live_client.put(url, json={}).status_code == 200  # already the rules
+    assert live_client.get(f"/students/{sid}/samples/9/parts").status_code == 404
+
+
+def test_the_get_says_when_the_splitter_measurement_is_not_in_use(
+    live_client, store_reset, switches
+):
+    """Finding 7: one past paper without the splitter's measurement, so scores
+    use the default; the GET says so, and a PUT measures only that paper's
+    splitter measurement (creating it), never its default vector."""
+    sid = "parts_school_di"
+    _seed(sid, [MLA, *BASELINES[1:]], matter=False)
+    url = f"/students/{sid}/samples/0/parts"
+    got = live_client.get(url).json()
+    assert got["enabled"] is True and got["measurement_in_use"] is False
+    assert "3 of 3 past papers" in got["measurement_note"]
+    v1 = store.get(sid).samples[0].vector.copy()
+    put = live_client.put(url, json={"exclude_ranges": [[FIRST, SECOND]]}).json()
+    sample = store.get(sid).samples[0]
+    assert np.array_equal(sample.vector, v1) and set(sample.extra_vectors) == {"matter"}
+    assert "2 of 3 past papers" in put["measurement_note"]
+    assert store.get(sid).samples[1].extra_vectors is None
+
+
+def test_with_a_switch_off_stored_choices_change_nothing(
+    live_client, store_reset, switches, monkeypatch
+):
+    """Finding 4 (W5): a student with stored choices scores byte-identically
+    to one without once a switch is off."""
+    _seed("parts_school_x", [MLA, *BASELINES[1:]])
+    _seed("parts_school_y", [MLA, *BASELINES[1:]])
+    choice = {"exclude_ranges": [[FIRST, SECOND]]}
+    for sid in ("parts_school_x", "parts_school_y"):
+        r = live_client.put(f"/students/{sid}/samples/0/parts", json=choice)
+        assert r.status_code == 200
+    # y goes back to the rules: its splitter measurement is then the rules'
+    # own, the one x keeps beside its choice.
+    assert live_client.delete("/students/parts_school_y/samples/0/parts").status_code == 200
+    assert store.get("parts_school_x").samples[0].part_overrides is not None
+    assert store.get("parts_school_y").samples[0].part_overrides is None
+    for splitter, profile in (("1", "1"), ("0", "0"), ("1", "0"), ("0", "1")):
+        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
+        monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)
+        out = []
+        for sid in ("parts_school_x", "parts_school_y"):
+            body = live_client.post(
+                f"/students/{sid}/score", json={"text": BASELINES[1], "submission_id": "same"}
+            ).json()
+            for key in ("student_id", "submission_id", "timestamp", "scored_at"):
+                body.pop(key, None)
+            out.append(
+                json.dumps(body, sort_keys=True)
+                .replace("parts_school_x", "S")
+                .replace("parts_school_y", "S")
+            )
+        if splitter == profile == "1":  # both on: x's choice is in its measurement
+            assert out[0] != out[1]
+        else:
+            assert out[0] == out[1], (splitter, profile)

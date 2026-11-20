@@ -4243,7 +4243,7 @@
                 "type": "null"
               }
             ],
-            "description": "Staff only (a student session gets 403). Character ranges of `text`, as [start, end] pairs, sorted and non-overlapping, that are set aside before measuring whatever the rules say: a teacher's 'Set this part aside'. At most 60% of the paper's words. Absent: the rules alone, as before.",
+            "description": "Staff only (a student session gets 403); 409 unless MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. Character ranges of `text`, as [start, end] pairs, sorted and non-overlapping, set aside by the splitter's measurement whatever its rules say: a teacher's 'Set this part aside'. Snapped to whole lines; each must hold a word; together at most 60% of the words the rules measure (422 otherwise). Never changes the default measurement. Absent, empty or null: the rules alone, as before.",
             "title": "Exclude Ranges"
           },
           "include_ranges": {
@@ -4269,7 +4269,7 @@
                 "type": "null"
               }
             ],
-            "description": "Staff only (a student session gets 403). Character ranges of `text` that are measured whatever the rules say: a teacher's 'Measure this part'. Sorted, non-overlapping, and never overlapping `exclude_ranges`.",
+            "description": "Staff only, same switches as `exclude_ranges`. Parts the rules set aside (or listed as possible) that the splitter's measurement measures anyway: a teacher's 'Measure this part'. Each range must be exactly such a part (or touching parts merged), never overlapping `exclude_ranges` (422 otherwise).",
             "title": "Include Ranges"
           },
           "keystroke_data": {
@@ -9849,6 +9849,51 @@
       }
     },
     "/students/{student_id}/samples/{index}/parts": {
+      "delete": {
+        "description": "Go back to the rules for one past paper (staff only), whatever the switches say.",
+        "operationId": "delete_sample_parts_students__student_id__samples__index__parts_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Sample Parts"
+      },
       "get": {
         "description": "The parts of one past paper and what happens to each (staff only).",
         "operationId": "get_sample_parts_students__student_id__samples__index__parts_get",
@@ -9895,7 +9940,7 @@
         "summary": "Get Sample Parts"
       },
       "put": {
-        "description": "Store the teacher's choice of parts for one past paper and measure it\nagain (staff only). Empty lists go back to the rules.",
+        "description": "Store the teacher's choice of parts for one past paper and measure its\nsplitter measurement again (staff only). Empty lists go back to the rules.",
         "operationId": "put_sample_parts_students__student_id__samples__index__parts_put",
         "parameters": [
           {

@@ -10,58 +10,79 @@ teacher (``paper_profile``). This module lets the teacher overrule them:
 ``exclude_ranges``
     Stored-text character ranges that are set aside, whatever the rules say.
 ``include_ranges``
-    Ranges that are measured, whatever the rules say.
+    Parts the rules set aside or listed as possible that are measured anyway.
 
-The hook
+One rule
 --------
-``features.preprocess.body_segments`` passes the rules' ranges through
-``apply(text, segments)``. With no choice in force for that exact text it
-returns ``segments`` itself, so a score without a choice is byte-for-byte what
-it was. A choice is put in force for the length of one score or one
-re-measurement with ``applying()`` / ``set_in_force()``, keyed on the paper's
-text, so the paper being scored and each past paper carry their own choice.
-It is a ContextVar, like ``feature_flags.measuring``: it never leaks into
-another request.
+A choice changes only the splitter's measurement (``matter``, ``fs2+matter``),
+never the default ``v1`` measurement, and does nothing at all unless both
+``MATTER_SPLITTER_ENABLED`` and ``PAPER_PROFILE_ENABLED`` are on. With either
+switch off a choice, stored or sent, has no effect anywhere: a past paper's
+stored splitter measurement made with a choice is then replaced, in
+``measurement.vector_for``, by the rules-only one stored beside the choice.
 
-Where choices come from
------------------------
-* ``POST /students/{id}/score`` takes ``exclude_ranges`` / ``include_ranges``
-  for the paper being scored (staff only; a student session gets 403).
-* A past paper keeps its choice in ``BaselineSample.part_overrides`` (set with
-  ``PUT /students/{id}/samples/{index}/parts``), applied whenever that paper is
-  measured again: its re-measurement, a backfill, and the evidence pages'
-  re-reading of it.
+How it travels
+--------------
+A choice belongs to one paper, never to a string of text: the scored
+submission's choice (from its request) and each past paper's stored choice
+(``BaselineSample.part_overrides``) ride on that paper's own text object,
+``ChosenText``, a ``str`` that carries ``part_choice``. A submission whose
+words equal a past paper's is a different object and never picks up that
+paper's choice. ``features.preprocess.body_segments`` reads the choice with
+``for_text`` (the one hook); every other string measures by the rules alone,
+so a score without a choice is byte-for-byte what it was.
 
-Nothing here reads the text's content; it only checks and combines ranges.
+Checks (``validate``)
+---------------------
+Ranges are snapped to whole lines, so a page marker or the PDF tag is never
+split and line structure survives in the measured body; the PDF tag itself
+is never inside a range. Every range must hold at least one word. The ranges
+set aside may take at most ``MAX_EXCLUDED_SHARE`` of the words the rules
+keep. An included range must be exactly a part the rules set aside or listed
+as possible (or touching such parts merged), never anything else.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from collections.abc import Iterable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
-from contextvars import ContextVar
+import os
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from . import matter as _matter
+
 log = logging.getLogger(__name__)
 
-#: The most of a paper's words a teacher may set aside by hand. Above it the
-#: choice is refused: what is left would not be the paper.
+#: The most of the words the rules keep that a teacher may set aside by hand.
 MAX_EXCLUDED_SHARE = 0.60
 #: The most ranges in either list (a paper has a handful of parts).
 MAX_RANGES = 64
 
 Range = tuple[int, int]
+_ON_VALUES = frozenset({"1", "on", "true", "yes"})
 
 
 class OverrideError(ValueError):
     """A choice of ranges that cannot be applied to this text."""
 
 
+def switches_on() -> bool:
+    """Both MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are on."""
+    return all(
+        os.environ.get(name, "0").strip().lower() in _ON_VALUES
+        for name in ("MATTER_SPLITTER_ENABLED", "PAPER_PROFILE_ENABLED")
+    )
+
+
+def text_digest(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+
+
 @dataclass(frozen=True)
 class PartOverride:
-    """Checked, sorted, non-overlapping ranges (hashable, so caches can key on it)."""
+    """Checked, sorted, non-overlapping, whole-line ranges (hashable)."""
 
     exclude: tuple[Range, ...] = ()
     include: tuple[Range, ...] = ()
@@ -72,23 +93,43 @@ class PartOverride:
             "include_ranges": [[a, b] for a, b in self.include],
         }
 
-    @classmethod
-    def from_doc(cls, doc: Any, text: str) -> PartOverride | None:
-        """A stored choice, checked again against ``text``. Anything that does
-        not check out is logged and ignored (the paper is then measured by the
-        rules alone), so a bad stored value can never fail a score."""
-        if not doc:
-            return None
-        try:
-            return validate(text, doc.get("exclude_ranges"), doc.get("include_ranges"))
-        except (OverrideError, AttributeError, TypeError, ValueError):
-            log.warning("part_overrides: a stored choice does not fit its paper; ignored")
-            return None
+
+class ChosenText(str):
+    """A paper's text carrying that paper's own choice of parts."""
+
+    part_choice: PartOverride | None
+
+    def __new__(cls, text: str, choice: PartOverride | None):
+        obj = super().__new__(cls, text)
+        obj.part_choice = choice
+        return obj
+
+    def __reduce__(self):  # pickles as the plain text: a choice never leaves the process
+        return (str, (str(self),))
 
 
-def _ranges(raw: Any, text_len: int, name: str) -> tuple[Range, ...]:
+def chosen(text: str, choice: PartOverride | None) -> str:
+    """``text`` carrying ``choice``; the plain text when there is none."""
+    return ChosenText(text, choice) if choice is not None else text
+
+
+def for_text(text: str) -> PartOverride | None:
+    """The choice this paper carries, when it may apply: both switches on and
+    the splitter's measurement in force. None otherwise."""
+    choice = getattr(text, "part_choice", None)
+    if choice is None or not switches_on():
+        return None
+    from . import feature_flags as _ff  # feature_flags imports this module
+
+    return choice if _ff.matter_splitter_enabled() else None
+
+
+# ── Checks ───────────────────────────────────────────────────────────────────
+
+
+def _ranges(raw: Any, text_len: int, name: str) -> list[Range]:
     if raw is None:
-        return ()
+        return []
     if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes)):
         raise OverrideError(f"{name} must be a list of [start, end] pairs")
     if len(raw) > MAX_RANGES:
@@ -105,91 +146,125 @@ def _ranges(raw: Any, text_len: int, name: str) -> tuple[Range, ...]:
         if out and a < out[-1][1]:
             raise OverrideError(f"{name} must be sorted and must not overlap")
         out.append((a, b))
-    return tuple(out)
+    return out
 
 
 def _words(text: str, ranges: Iterable[Range]) -> int:
-    return sum(len(text[a:b].split()) for a, b in ranges)
+    return sum(len(text[a:b].split()) for a, b in ranges)  # a page marker is whitespace
+
+
+def _content_end(text: str) -> int:
+    """Where the paper's lines end: before the PDF tag, if it carries one."""
+    tag = _matter.PDF_TAG
+    return len(text) - len(tag) if text.endswith(tag) else len(text)
+
+
+def _snap(text: str, a: int, b: int) -> Range:
+    """``[a, b)`` widened to whole lines (the last line's newline included),
+    never into the PDF tag."""
+    end = _content_end(text)
+    a = text.rfind("\n", 0, min(a, end)) + 1
+    nl = text.find("\n", max(b - 1, a), end)
+    b = end if nl < 0 else nl + 1
+    return a, min(b, end)
+
+
+def intersect(a: Sequence[Range], b: Sequence[Range]) -> list[Range]:
+    return [(max(x, y), min(p, q)) for x, p in a for y, q in b if max(x, y) < min(p, q)]
 
 
 def validate(text: str, exclude: Any, include: Any) -> PartOverride | None:
     """The choice as a ``PartOverride``, or None when both lists are empty or
-    absent. Raises ``OverrideError`` when a range is outside the text, the
-    ranges are unsorted or overlap, a range is in both lists, or the ranges set
-    aside hold more than ``MAX_EXCLUDED_SHARE`` of the paper's words."""
-    text = text or ""
-    ex = _ranges(exclude, len(text), "exclude_ranges")
+    absent. Raises ``OverrideError`` (see the module notes for the checks)."""
+    text = str(text or "")
+    ex_raw = _ranges(exclude, len(text), "exclude_ranges")
     inc = _ranges(include, len(text), "include_ranges")
-    for a, b in ex:
-        if any(a < d and c < b for c, d in inc):
-            raise OverrideError("a range cannot be both set aside and measured")
+    for a, b in [*ex_raw, *inc]:
+        if not text[a:b].split():
+            raise OverrideError(f"range [{a}, {b}] holds no words")
+    ex = union_ranges(_snap(text, a, b) for a, b in ex_raw)
+    if ex_raw and not ex:  # only the PDF tag
+        raise OverrideError("exclude_ranges holds no words")
+    if inc:
+        found = _matter.find_parts(text)
+        rule_ranges = {(r.start, r.end) for r in [*found.set_aside, *found.possible]}
+        for a, b in inc:
+            # Exactly one part, or touching parts merged into one range.
+            inside = [r for r in rule_ranges if a <= r[0] and r[1] <= b]
+            if union_ranges(inside) != [(a, b)]:
+                raise OverrideError(
+                    f"include_ranges [{a}, {b}] is not a part the rules set aside or listed"
+                )
+    if intersect(ex, inc):
+        raise OverrideError("a range cannot be both set aside and measured")
     if ex:
-        total = len(text.split())
-        if _words(text, ex) > MAX_EXCLUDED_SHARE * total:
+        kept = _matter.kept_ranges(text)
+        kept_words = _words(text, kept)
+        if _words(text, intersect(ex, kept)) > MAX_EXCLUDED_SHARE * kept_words:
             raise OverrideError(
-                f"the parts set aside hold more than {MAX_EXCLUDED_SHARE:.0%} of the paper's words"
+                f"the parts set aside hold more than {MAX_EXCLUDED_SHARE:.0%} of the words "
+                "the rules measure"
             )
     if not ex and not inc:
         return None
-    return PartOverride(ex, inc)
+    return PartOverride(tuple(ex), tuple(inc))
 
 
-# ── In force for one score or re-measurement ─────────────────────────────────
-
-_IN_FORCE: ContextVar[Mapping[str, PartOverride] | None] = ContextVar(
-    "part_overrides_in_force", default=None
-)
+# ── Stored with a past paper ─────────────────────────────────────────────────
 
 
-def for_text(text: str) -> PartOverride | None:
-    """The choice in force for this exact text, or None."""
-    in_force = _IN_FORCE.get()
-    if not in_force:
+def to_stored(
+    choice: PartOverride | None, text: str, rules_vectors: dict[str, Any] | None = None
+) -> dict | None:
+    """The document stored with a past paper: the ranges, the digest of the
+    text they belong to, and that paper's splitter measurements made by the
+    rules alone (``rules_vectors``), which stand in whenever a switch is off."""
+    if choice is None:
         return None
-    return in_force.get(text)
+    doc: dict[str, Any] = {**choice.to_doc(), "text_sha256": text_digest(text)}
+    if rules_vectors:
+        doc["rules_vectors"] = {k: [float(x) for x in v] for k, v in sorted(rules_vectors.items())}
+    return doc
 
 
-def _merged(overrides: Mapping[str, PartOverride | None]) -> dict[str, PartOverride] | None:
-    out = dict(_IN_FORCE.get() or {})
-    for text, o in overrides.items():
-        if o is None:
-            out.pop(text, None)
-        else:
-            out[text] = o
-    return out or None
+def rules_vector(sample: Any, measurement: str):
+    """A past paper's ``measurement`` made by the rules alone, when it carries
+    a stored choice and a switch is off (the stored ``extra_vectors`` entry
+    then holds the choice's measurement); None otherwise."""
+    doc = getattr(sample, "part_overrides", None)
+    if not doc or switches_on():
+        return None
+    raw = (doc.get("rules_vectors") or {}).get(measurement)
+    if raw is None:
+        return None
+    import numpy as np
 
+    from ..constants import FEATURE_DIM
 
-@contextmanager
-def applying(overrides: Mapping[str, PartOverride | None]) -> Iterator[None]:
-    """Measure each text in ``overrides`` with its choice inside this block
-    (None removes a choice already in force for that text)."""
-    token = _IN_FORCE.set(_merged(overrides))
-    try:
-        yield
-    finally:
-        _IN_FORCE.reset(token)
-
-
-def set_in_force(overrides: Mapping[str, PartOverride | None]) -> None:
-    """``applying()`` for the rest of the current context; for a caller that
-    already runs in its own copied context (the score route)."""
-    _IN_FORCE.set(_merged(overrides))
+    vector = np.asarray(raw, dtype=np.float64)
+    return vector if vector.shape == (FEATURE_DIM,) else None
 
 
 def of_sample(sample: Any) -> PartOverride | None:
-    """A past paper's stored choice, checked against its text."""
+    """A past paper's stored choice, checked again against that paper's text.
+    A choice whose digest is not this paper's, or that no longer passes the
+    checks, is logged and ignored (the paper then measures by the rules)."""
     doc = getattr(sample, "part_overrides", None)
-    return PartOverride.from_doc(doc, getattr(sample, "text", "") or "") if doc else None
+    if not doc:
+        return None
+    text = getattr(sample, "text", "") or ""
+    try:
+        if doc.get("text_sha256") != text_digest(text):
+            raise OverrideError("the stored choice belongs to another text")
+        return validate(text, doc.get("exclude_ranges"), doc.get("include_ranges"))
+    except (OverrideError, AttributeError, TypeError, ValueError):
+        log.warning("part_overrides: a stored choice does not fit its paper; ignored")
+        return None
 
 
-def of_samples(samples: Iterable[Any]) -> dict[str, PartOverride]:
-    """Stored choices of past papers, keyed on their text."""
-    out: dict[str, PartOverride] = {}
-    for s in samples:
-        o = of_sample(s)
-        if o is not None:
-            out[s.text] = o
-    return out
+def text_of(sample: Any) -> str:
+    """A past paper's text, carrying that paper's own stored choice."""
+    return chosen(getattr(sample, "text", "") or "", of_sample(sample))
 
 
 # ── The hook ─────────────────────────────────────────────────────────────────
@@ -228,8 +303,8 @@ def combine(segments: Sequence[Range], override: PartOverride) -> list[Range]:
 
 
 def apply(text: str, segments: list[Range]) -> list[Range]:
-    """``segments`` with the choice in force for ``text`` applied; ``segments``
-    itself (the same list) when there is none."""
+    """``segments`` with this paper's choice applied when it may apply
+    (``for_text``); ``segments`` itself (the same list) otherwise."""
     override = for_text(text)
     if override is None:
         return segments
