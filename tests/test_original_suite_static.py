@@ -2946,6 +2946,8 @@ def test_the_classic_page_shows_scores_as_values_not_percentages():
     part = _classic_teacher_part()
     pct = re.compile(r"(deviation|prob|traj|score|purity)\b[^;\n]*\*\s*100\)+\s*\+\s*'%'")
     assert pct.findall(part) == []
+    # The Voice Profile rows once carried fixed sample figures that no code replaced.
+    assert re.findall(r'class="trait-pct"[^>]*>\s*\d', part) == []
     for gone in ("Voice Match", "Voice Confirmed", "voice consistency confirmed", "% consistent with"):
         assert gone not in part, gone
     for shown in (
