@@ -603,9 +603,13 @@ def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
             _seed_api_store(client)
             cache: dict[tuple[tuple[str, str], ...], dict] = {}
 
-            def call(env: dict[str, str] | None = None) -> dict:
+            def call(env: dict[str, str] | None = None, extra: dict | None = None) -> dict:
+                # extra: more request fields (e.g. a teacher's exclude_ranges);
+                # none for every arm but the part-choice ones.
                 env = dict(env or {})
                 key = tuple(sorted((k, "\0unset" if v is None else v) for k, v in env.items()))
+                if extra:
+                    key += (("\0body", json.dumps(extra, sort_keys=True)),)
                 if key not in cache:
                     with pytest.MonkeyPatch.context() as mp:
                         for name, value in env.items():
@@ -615,7 +619,11 @@ def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
                                 mp.setenv(name, value)
                         response = client.post(
                             f"/students/{STUDENT_ID}/score",
-                            json={"text": SUBMISSION_TEXT, "submission_id": SUBMISSION_ID},
+                            json={
+                                "text": SUBMISSION_TEXT,
+                                "submission_id": SUBMISSION_ID,
+                                **(extra or {}),
+                            },
                         )
                     assert response.status_code == 200, response.text[:400]
                     cache[key] = normalise_api(response.json())
@@ -658,7 +666,7 @@ def api_call() -> Iterator[Callable[[dict[str, str]], dict]]:
     # comparison is quantized-vs-quantized and cross-platform last-bit noise
     # in linalg-derived fields cannot register as a change.
     with api_harness() as call:
-        yield lambda env: _quantize(call(env))
+        yield lambda env, extra=None: _quantize(call(env, extra))
 
 
 @pytest.fixture(scope="module")
@@ -1518,6 +1526,27 @@ def test_api_paper_profile_only_adds_its_own_staff_field(api_call):
     assert all(path.startswith("evidence.paper_profile") for path in changed), sorted(changed)
     # Without evidence there is nowhere to attach it: the response is the default.
     assert changed_paths(api_call({}), api_call({"PAPER_PROFILE_ENABLED": "1"})) == set()
+
+
+def test_api_empty_part_choice_is_byte_identical(api_call):
+    """``exclude_ranges`` / ``include_ranges`` (features/part_overrides.py) sent
+    empty, or null, is no choice: the response is the default's, byte for byte,
+    with the switches off and with the splitter and the paper profile on."""
+    for env in ({}, {"EVIDENCE_PASSAGES_ENABLED": "1", "MATTER_SPLITTER_ENABLED": "1",
+                     "PAPER_PROFILE_ENABLED": "1"}):  # fmt: skip
+        reference = api_call(env)
+        for extra in (
+            {"exclude_ranges": [], "include_ranges": []},
+            {"exclude_ranges": None, "include_ranges": None},
+        ):
+            assert changed_paths(reference, api_call(env, extra)) == set(), (env, extra)
+
+
+def test_api_part_choice_moves_the_measurement(api_call):
+    """A real choice does what it says: setting the paper's opening aside moves
+    the measured vector (so the arm above is not vacuous)."""
+    moved = changed_paths(api_call({}), api_call({}, {"exclude_ranges": [[0, 400]]}))
+    assert any(path.startswith("feature_vector") for path in moved), sorted(moved)
 
 
 def test_api_topic_on_is_uninformative(api_call):

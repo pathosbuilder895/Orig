@@ -34,6 +34,7 @@ from original import store
 from original.features.pipeline import feature_vector
 from original.constants import FEATURE_DIM
 from original.features.feature_flags import measuring
+from original.features.part_overrides import applying, of_sample
 
 
 def reextract_student(student_id: str, dry_run: bool = False) -> tuple:
@@ -53,7 +54,8 @@ def reextract_student(student_id: str, dry_run: bool = False) -> tuple:
     for i, sample in enumerate(state.samples):
         try:
             # Re-extract feature vector from stored text
-            with measuring("v1"):
+            # A teacher's stored choice of parts for this paper, if any, applies.
+            with measuring("v1"), applying({sample.text: of_sample(sample)}):
                 new_vector = feature_vector(sample.text)
 
             # Verify dimension

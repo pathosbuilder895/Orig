@@ -59,6 +59,7 @@ import numpy as np  # noqa: E402
 
 from original.constants import FEATURE_DIM  # noqa: E402
 from original.features import feature_flags as ff  # noqa: E402
+from original.features import part_overrides  # noqa: E402
 
 log = logging.getLogger("backfill_measurements")
 
@@ -148,7 +149,10 @@ def backfill(
             if not (apply or measure_in_dry_run):
                 continue
             try:
-                new[i] = _measure(sample.text, measurement, extract)
+                # A teacher's stored choice of parts for this paper, if any
+                # (original/features/part_overrides.py), applies here too.
+                with part_overrides.applying({sample.text: part_overrides.of_sample(sample)}):
+                    new[i] = _measure(sample.text, measurement, extract)
             except Exception as exc:
                 log.warning("%s paper %d: measurement failed: %s", student_id, i, exc)
                 report.failed.append(f"{student_id}#{i}")

@@ -86,6 +86,13 @@ class BaselineSample:
     # UPLOAD_ALSO_MEASURE is set, at upload. Read only by original/measurement.py.
     extra_vectors: dict[str, np.ndarray] | None = None
 
+    # ── A teacher's own choice of parts (additive: None for every sample
+    # with no choice made). ``{"exclude_ranges": [[start, end], ...],
+    # "include_ranges": [...]}`` in this sample's ``text``; applied whenever
+    # the paper is measured (features/part_overrides.py). Set only by
+    # PUT /students/{id}/samples/{index}/parts.
+    part_overrides: dict | None = None
+
 
 @dataclass
 class TrajectoryResult:

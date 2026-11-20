@@ -3529,6 +3529,51 @@
         "title": "ParkOpenRequest",
         "type": "object"
       },
+      "PartChoiceRequest": {
+        "description": "A teacher's choice of which parts of one past paper are measured\n(``PUT /students/{id}/samples/{index}/parts``). Checked against the\npaper's text the same way as the score request's fields.",
+        "properties": {
+          "exclude_ranges": {
+            "description": "Character ranges of the paper set aside whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Exclude Ranges",
+            "type": "array"
+          },
+          "include_ranges": {
+            "description": "Character ranges of the paper measured whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Include Ranges",
+            "type": "array"
+          }
+        },
+        "title": "PartChoiceRequest",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "description": "POST /auth/password.",
         "properties": {
@@ -4174,6 +4219,58 @@
             ],
             "description": "Macro-only composition timing (session_seconds, word_count, paste_attempts, focus_losses, started_at, ended_at, exam_config) — the ADR-010 replacement for keystroke_data's per-key telemetry. No per-key timing is collected; per the T-69/T-74 macro-only keystroke posture, only session-level metrics are captured. While the 'behavioral' feature group is disabled (the default), only those fields (and block_copy, min_words, duration_min inside exam_config) are kept; anything else is discarded on arrival.",
             "title": "Composition Summary"
+          },
+          "exclude_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only (a student session gets 403). Character ranges of `text`, as [start, end] pairs, sorted and non-overlapping, that are set aside before measuring whatever the rules say: a teacher's 'Set this part aside'. At most 60% of the paper's words. Absent: the rules alone, as before.",
+            "title": "Exclude Ranges"
+          },
+          "include_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only (a student session gets 403). Character ranges of `text` that are measured whatever the rules say: a teacher's 'Measure this part'. Sorted, non-overlapping, and never overlapping `exclude_ranges`.",
+            "title": "Include Ranges"
           },
           "keystroke_data": {
             "anyOf": [
@@ -9749,6 +9846,108 @@
           }
         },
         "summary": "Request Proctored Baseline"
+      }
+    },
+    "/students/{student_id}/samples/{index}/parts": {
+      "get": {
+        "description": "The parts of one past paper and what happens to each (staff only).",
+        "operationId": "get_sample_parts_students__student_id__samples__index__parts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sample Parts"
+      },
+      "put": {
+        "description": "Store the teacher's choice of parts for one past paper and measure it\nagain (staff only). Empty lists go back to the rules.",
+        "operationId": "put_sample_parts_students__student_id__samples__index__parts_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartChoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Sample Parts"
       }
     },
     "/students/{student_id}/samples/{index}/text": {

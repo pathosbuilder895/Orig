@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from .. import measurement as _measurement
 from ..features import feature_flags as _ff
+from ..features import part_overrides as _po
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -155,8 +156,21 @@ def score_submission(
     return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
 
 
+def _refuse_student_part_choice(req: ScoreSubmissionRequest, request: Request | None) -> None:
+    """``exclude_ranges`` / ``include_ranges`` are a teacher's control: a
+    student session that sends either gets 403 (nothing is scored)."""
+    if req.exclude_ranges is None and req.include_ranges is None:
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        raise HTTPException(
+            status_code=403, detail="Only staff can choose which parts of a paper are measured."
+        )
+
+
 def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
+    _refuse_student_part_choice(req, request)
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
@@ -179,6 +193,15 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
     plan = _measurement.plan_for(state)
     state = plan.state
     _ff.set_measurement(plan.used)
+    # A teacher's own choice of parts (features/part_overrides.py): each past
+    # paper's stored choice, and this paper's from the request. None of either
+    # (every score before this control existed) puts nothing in force.
+    _choices: dict = _po.of_samples(state.samples)
+    _this_choice = req.part_override()
+    if _this_choice is not None:
+        _choices[req.text] = _this_choice
+    if _choices:
+        _po.set_in_force(_choices)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -978,8 +1001,10 @@ def past_paper_examples(
         raise HTTPException(status_code=422, detail="Unknown habit")
     try:
         used, baselines = _past_papers_of(state)
+        with _po.applying(_po.of_samples(used)):  # each past paper's stored choice of parts
+            examples = evidence.build_past_paper_examples(habit, baselines)
         body = {
-            **evidence.build_past_paper_examples(habit, baselines),
+            **examples,
             "baseline_papers": _baseline_papers(state, used, baselines, student_id),
         }
         return PastPaperExamplesResponse(**body)

@@ -885,6 +885,14 @@ def _extra_vectors_doc(sample) -> dict:
     return {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
 
 
+def _part_overrides_doc(sample) -> dict:
+    """``{"part_overrides": {...}}`` for a sample with a teacher's choice of
+    parts (features/part_overrides.py), else {}: a sample with none stores
+    exactly as before."""
+    choice = getattr(sample, "part_overrides", None)
+    return {"part_overrides": choice} if choice else {}
+
+
 def _extra_vectors_from_doc(s: dict, student_id: str) -> dict | None:
     """Stored other measurements, read with ``.get()``; a vector of the wrong
     length is dropped (that paper then counts as not yet measured that way)."""
@@ -945,6 +953,8 @@ def _serialize(state: StudentState) -> str:
             # Versioned measurements (additive): written only when present,
             # so a document with none is byte-identical to before.
             **_extra_vectors_doc(s),
+            # A teacher's choice of parts (additive, same rule).
+            **_part_overrides_doc(s),
         }
         for s in state.samples
     ]
@@ -1020,6 +1030,7 @@ def _deserialize(data: str) -> StudentState:
                 # field existed.
                 composition_summary=s.get("composition_summary"),
                 extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
+                part_overrides=s.get("part_overrides") or None,
             )
         )
     return state
