@@ -200,6 +200,33 @@ def test_evidence_reads_the_same_ranges_as_the_measurement(monkeypatch):
     assert view is not None and "first paragraph" not in prose
 
 
+def test_a_choice_composes_with_a_pdfs_reflow_and_page_markers(monkeypatch):
+    """Offsets are into the stored text, page markers and all; the PDF reflow
+    runs over whatever the ranges keep, and the evidence pages' rebuild of
+    the measured text still matches the engine's byte for byte."""
+    from original import evidence
+    from original.features.matter import PAGE_MARK, find_parts
+    from original.upload_utils import extract_text_from_bytes
+
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    text = extract_text_from_bytes((SAMPLES / "apa_student.pdf").read_bytes(), "paper.pdf")
+    assert PAGE_MARK in text and pre.reflows(text)
+    parts = {r.kind: r for r in find_parts(text).set_aside}
+    abstract = parts["abstract"]
+    body_start = abstract.end + 400
+    choice = po.PartOverride(
+        exclude=((body_start, body_start + 300),), include=((abstract.start, abstract.end),)
+    )
+    before = pre.preprocess(text)[0]
+    with po.applying({text: choice}):
+        prose = pre.preprocess(text)[0]
+        view = evidence.engine_view(text)
+    assert prose != before and PAGE_MARK not in prose
+    assert "This paper studies a funeral sermon" in prose
+    assert "This paper studies a funeral sermon" not in before
+    assert view is not None and view.prose.text == prose
+
+
 # ── storage ──────────────────────────────────────────────────────────────────
 
 
