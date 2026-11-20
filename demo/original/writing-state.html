@@ -235,7 +235,14 @@
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
   /* State vector heatmap */
-  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  /* --hm-col: one habit's column. 12px with a mouse; on a phone or touch screen each is 44px wide,
+     a comfortable tap, and the strip scrolls sideways inside the card (the hint says so). */
+  .hm-wrap{--hm-col:12px;overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-hint{display:none;margin:0 0 .6rem;font-size:.82rem;font-style:italic;color:var(--dim);}
+  @media (max-width:760px),(pointer:coarse){
+    .hm-wrap{--hm-col:44px;overscroll-behavior-x:contain;}
+    .hm-hint{display:block;position:sticky;left:0;}
+  }
   .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
   .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
   .hm-band{display:grid;gap:5px;margin-top:8px;}
@@ -550,6 +557,7 @@
           <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
           <div class="deep-body">
             <div class="card hm-wrap">
+              <p class="hm-hint">Swipe sideways along the strip for every habit; tap one to open it.</p>
               <div class="hm-grid" id="heatmap"></div>
               <div class="hm-band" id="heatmap-band"></div>
               <div class="hm-labels" id="heatmap-labels"></div>
@@ -845,9 +853,9 @@
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
-      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       labels.style.display='none'; band.style.display='';
-      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
       syncTab();
@@ -866,9 +874,9 @@
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
-      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
-      labels.style.gridTemplateColumns='repeat('+N+',12px)';
-      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      labels.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      band.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
       heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
