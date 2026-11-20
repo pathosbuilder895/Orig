@@ -780,7 +780,12 @@ def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], 
                 out.extend(run)
                 expected = k + 1
             else:
-                possible.append((s, foot[-1] + 1))
+                # Show the teacher a run only if it is note-sized: at most
+                # NOTE_MAX_WORDS words per numbered line, not a paragraph.
+                tail = foot[s_pos:]
+                numbered = sum(1 for j in tail if _NOTE_NUMBER.match(d.lines[j]))
+                if sum(_words(d.lines[j]) for j in tail) <= NOTE_MAX_WORDS * numbered:
+                    possible.append((s, foot[-1] + 1))
             break
     return out, possible
 
