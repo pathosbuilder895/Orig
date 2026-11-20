@@ -245,6 +245,8 @@
   .pp-table thead th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:500;}
   .pp-table tbody th{font-weight:500;color:var(--dim);white-space:nowrap;}
   .pp-note{font-size:.86rem;font-style:italic;color:var(--dim);line-height:1.55;margin-top:.7rem;}
+  /* On a phone the card scrolls sideways instead of squeezing each paper's column to one letter. */
+  @media (max-width:760px){.pp-table{min-width:36rem;}}
   @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
