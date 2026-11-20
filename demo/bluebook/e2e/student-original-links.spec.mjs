@@ -43,7 +43,7 @@ test('a student in a workspace with Original sees no My voice or My work link', 
   const nav = page.getByRole('navigation', { name: 'Student navigation' })
 
   await page.goto('/bluebook/')
-  await expect(nav.getByRole('button', { name: 'My exams' })).toBeVisible({ timeout: 10_000 })
+  await expect(nav.getByRole('button', { name: 'My collections' })).toBeVisible({ timeout: 10_000 })
   await expect(nav.getByRole('link', { name: 'My voice' })).toHaveCount(0)
   await expect(nav.getByRole('link', { name: 'My work' })).toHaveCount(0)
 

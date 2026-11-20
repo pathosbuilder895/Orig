@@ -38,7 +38,9 @@
                      {note:false} leaves out the lower-weight note
    Live.howAdded(s)  one sample's "how it got in" label, for a table cell
    Live.signOut()    forget the session and the kept papers, go to the sign-in page
-                     (a student's is Collections', a teacher's the main one) */
+                     (a student's is Collections', a teacher's the main one)
+   Live.keepSignIn(d) keep the fresh sign-in a password change returns; the
+                     change ends every earlier one, this page's included (T-79) */
 (function (window, document) {
   'use strict';
 
@@ -97,6 +99,13 @@
 
   function read(key) {
     try { return window.localStorage.getItem(key) || ''; } catch (e) { return ''; }
+  }
+
+  // Only the token the server returned is kept, never anything typed.
+  function keepSignIn(data) {
+    if (!data || !data.token) return;
+    var key = data.role === 'student' ? 'original_session_token' : 'original_principal_token';
+    try { window.localStorage.setItem(key, data.token); } catch (e) { /* storage blocked */ }
   }
 
   function failed() {
@@ -794,6 +803,7 @@
     approvals: approvals,
     approvalWords: approvalWords,
     howAdded: howAdded,
-    signOut: signOut
+    signOut: signOut,
+    keepSignIn: keepSignIn
   };
 })(window, document);

@@ -118,7 +118,7 @@ test('a refresh mid-sitting goes back to that exam, once', () => {
   const exams = [{ exam_id: 'a', session: { x: 1 }, submitted: false }, { exam_id: 'b' }];
   m.rememberSitting('a');
   assert.equal(m.takeSittingToResume(exams).exam_id, 'a');
-  // Used once: choosing "My exams" from the briefing then stays on the list.
+  // Used once: choosing "My collections" from the briefing then stays on the list.
   assert.equal(m.takeSittingToResume(exams), null);
   // Nothing to go back to: submitted, never started, or forgotten after the seal.
   m.rememberSitting('a');
@@ -181,7 +181,7 @@ test("the avatar shows letters only, and Original's link says it is in testing",
 test('the sealed screen says nothing about comparison when writing consistency is off', () => {
   window.BB_LAST_SUBMISSION = { ok: true, words: 120, title: 'Practice prompt 1', courseTitle: 'ALPHA1', candidate: 'Ada', withOriginal: true, compared: false };
   const t = text(m.sealed());
-  assert.match(t, /Examination Sealed/);
+  assert.match(t, /Collection Sealed/);
   assert.doesNotMatch(t, /compar|score|consisten/i);
   assert.ok(t.includes(m.REFERENCE_WRITING_LINE), 'a workspace with Original tells the student about reference writing (NORTH_STAR rule 10)');
 });

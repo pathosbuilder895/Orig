@@ -56,7 +56,7 @@ test('during the alpha, students in a workspace that holds Original get the alph
   assert.match(html, /four papers you wrote yourself/);
   assert.match(html, /There is no exam to sit and nothing new to write\./);
   assert.match(html, /one is kept aside for the test/);
-  assert.doesNotMatch(html, /question 1|question 2|\(Q1\)|\(Q2\)|Begin Examination|Seal &amp; Submit|Seal & Submit/);
+  assert.doesNotMatch(html, /question 1|question 2|\(Q1\)|\(Q2\)|Begin Examination|Begin writing|Seal &amp; Submit|Seal & Submit/);
   assert.doesNotMatch(html, /ask an AI|ChatGPT|Claude|AI tool you used|Give it the topic/i);
   // The imitation is the teacher's to make, and the volunteer is told so plainly.
   assert.match(html, /the person running the test writes one extra piece in the style of your papers/);
@@ -70,13 +70,13 @@ test('during the alpha, students in a workspace that holds Original get the alph
 test('a Bluebook-only workspace keeps the general student guide', () => {
   products(['bluebook']);
   const html = decode(guide('student'));
-  assert.match(html, />Taking an exam</);
+  assert.match(html, />Writing a collection</);
   assert.doesNotMatch(html, /Alpha test|past paper|AI tool/);
 });
 
 test('after the alpha, students get the general guide back', () => {
   const plain = instructionsFor('student', false, false);
-  assert.equal(plain.title, 'Taking an exam');
+  assert.equal(plain.title, 'Writing a collection');
   assert.deepEqual(plain.steps, STUDENT_STEPS);
   assert.ok(!plain.notes.includes(REFERENCE_WRITING_LINE));
   // NORTH_STAR rule 10: with Original on, students are told their booklet may become reference writing.
@@ -96,8 +96,8 @@ test('every button the guide names is labelled that way in the app', () => {
   const labels = {
     'Teacher.jsx': ['+ New collection', 'Release results', 'Export CSV', 'Turn on sign-up link'],
     'NewExam.jsx': ['Publish Collection'],
-    'Exam.jsx': ['Begin Examination', 'Resume Examination', 'Seal & Submit', '`Q${i + 1}`'],
-    'Account.jsx': ['My exams', 'Share a past paper', 'title="Examinations"', "'Open'"],
+    'Exam.jsx': ['Begin writing', 'Resume writing', 'Seal & Submit', '`Q${i + 1}`'],
+    'Account.jsx': ['My collections', 'Share a past paper', 'title="Collections"', "'Open'"],
   };
   for (const [file, names] of Object.entries(labels)) {
     for (const name of names) assert.ok(src(file).includes(name), `${name} in ${file}`);
