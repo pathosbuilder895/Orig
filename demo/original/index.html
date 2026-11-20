@@ -225,14 +225,14 @@
           <div class="u" id="stat1-u">Loading</div>
         </div>
         <div class="card stat">
-          <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed exams to review</div>
+          <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed booklets to review</div>
           <div class="led-num" id="stat2-n">-</div>
           <div class="u" id="stat2-u">Loading</div>
         </div>
       </div>
       <div class="card trend">
         <div class="trend-top">
-          <div><div class="card-t" id="trend-t">Sealed exams per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
+          <div><div class="card-t" id="trend-t">Sealed booklets per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
           <div class="led-num" id="trend-num">-</div>
         </div>
         <div class="bars" id="bars"></div>
@@ -252,7 +252,7 @@
           <div class="ops-h"><b>Students</b><span id="ops-count"></span></div>
           <div id="ops-wrap">
             <table>
-              <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed exam</th><th class="r"></th></tr></thead>
+              <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed booklet</th><th class="r"></th></tr></thead>
               <tbody id="ops-body"></tbody>
             </table>
           </div>
@@ -378,28 +378,28 @@
     bars.classList.remove('tiers');
     const sum=counts.reduce((a,b)=>a+b,0);
     if(!sum){
-      Live.empty(bars,list===subs?(subs.length?'No sealed exams in the last '+WEEKS+' weeks':'No sealed exams yet'):'No sealed exams from this student in the last '+WEEKS+' weeks');
+      Live.empty(bars,list===subs?(subs.length?'No sealed booklets in the last '+WEEKS+' weeks':'No sealed booklets yet'):'No sealed booklets from this student in the last '+WEEKS+' weeks');
       return 0;
     }
     const max=Math.max.apply(null,counts), hot=WEEKS-1, delta=counts[hot]-counts[hot-1], ticks=weekTicks();
     bars.innerHTML=counts.map((v,i)=>{
       const h=v===0?4:Math.max(8,Math.round(v/max*100));
       const tag=(i===hot&&delta!==0)?'<span class="tag">'+(delta>0?'+':'')+delta+'</span>':'';
-      return '<div class="bar'+(i===hot?' hot':'')+'" title="'+esc(plural(v,'sealed exam')+', week of '+ticks[i])+'">'+tag+
+      return '<div class="bar'+(i===hot?' hot':'')+'" title="'+esc(plural(v,'sealed booklet')+', week of '+ticks[i])+'">'+tag+
         '<span class="stem" style="height:'+h+'%"></span><span class="tick">'+esc(ticks[i])+'</span></div>';
     }).join('');
     return counts[hot];
   }
 
-  function bbNote(){ return bb==='off'?'Collections is off':'Could not load sealed exams'; }
+  function bbNote(){ return bb==='off'?'Collections is off':'Could not load sealed booklets'; }
 
   function renderTerm(first){
     $('back-term').classList.remove('show');
     $('sum-term').style.display='flex';
     $('sum-stu').style.display='none';
     $('stat1-l').textContent='Enrolled';
-    $('stat2-l').textContent='Sealed exams to review';
-    $('trend-t').textContent='Sealed exams per week';
+    $('stat2-l').textContent='Sealed booklets to review';
+    $('trend-t').textContent='Sealed booklets per week';
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
 
     // "Ready" is the server's verdict (GET /students/{id}/readiness), never a rule of this page.
@@ -435,8 +435,8 @@
         ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' a ready baseline.'+(unread?' Readiness could not be read for '+unread+'.':'')+(beyondCap?' Readiness was not checked for '+beyondCap+'.':'')
         : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
       if(bb==='ok') h+=pending>0
-        ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Collections.'
-        : ' No sealed exams are waiting for your review.';
+        ? ' <span class="fW">'+plural(pending,'sealed booklet')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Collections.'
+        : ' No sealed booklets are waiting for your review.';
       pr.innerHTML=h;
     }
   }
@@ -485,7 +485,7 @@
     if(r.counted==null) return 'Sample counts are not available for this student here.';
     let h='<b>'+plural(r.counted,'counted sample')+'</b> in their baseline'+(r.total>r.counted?', out of '+r.total+' samples in all':'')+'.';
     h+=' Baseline: '+Live.verdictWord(r.verdict)+'.';
-    if(bb==='ok') h+=r.last?' Last sealed exam: '+esc(fmtDate(r.last))+'.':' No sealed exam yet.';
+    if(bb==='ok') h+=r.last?' Last sealed booklet: '+esc(fmtDate(r.last))+'.':' No sealed booklet yet.';
     return h;
   }
 
@@ -500,8 +500,8 @@
     if(r.counted==null){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Not available here'); }
     else { setNum($('stat1-n'),r.counted); setU($('stat1-u'),r.total>r.counted?'of '+r.total+' on file':'all on file'); }
 
-    $('stat2-l').textContent='Sealed exams';
-    $('trend-t').textContent='Sealed exams per week';
+    $('stat2-l').textContent='Sealed booklets';
+    $('trend-t').textContent='Sealed booklets per week';
     if(bb==='ok'){
       setNum($('stat2-n'),r.sealed); setU($('stat2-u'),r.pending>0?r.pending+' awaiting review':'none awaiting review',r.pending>0);
       setNum($('trend-num'),renderBars(subs.filter(s=>s.student_id===id)));

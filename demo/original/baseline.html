@@ -418,9 +418,9 @@
           </div>
 
           <div style="margin-top:1.3rem;" id="sealed-sec">
-            <div class="sec-h"><b>Sealed Collections exams</b><span id="sealed-sub">waiting for your approval</span></div>
+            <div class="sec-h"><b>Sealed Collections booklets</b><span id="sealed-sub">waiting for your approval</span></div>
             <div class="card ex-card">
-              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. <span data-drift="exam">If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</span></div>
+              <div class="rule-note">A sealed booklet joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. <span data-drift="exam">If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</span></div>
               <div class="save-note" id="save-note-sealed" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
               <div id="sealed-list"><div class="live-empty">Loading</div></div>
             </div>
@@ -506,7 +506,7 @@
     student:null,        // GET /students/{id}
     ready:null,          // GET /students/{id}/readiness
     status:'loading',    // loading | ok | none | forbidden | auth | error
-    known:false,         // on the roster, or has sat a sealed exam
+    known:false,         // on the roster, or has sealed a booklet
     ro:null,             // the shared roster answer
     sealed:'loading',    // loading | ok | none | off | error  (Live.sealed())
     exams:[],
@@ -565,7 +565,7 @@
     proctored:{word:'Supervised sitting',color:'#4d90c8',tag:n=>plural(n,'supervised sitting')},
     verified:{word:'Verified by teacher',color:'#5aab7a',tag:n=>n+' verified by teacher'},
     canvas:{word:'Imported',color:'#9a7ad0',tag:n=>n+' imported'},
-    take_home:{word:'Take-home exam approved by you',color:'#5aab7a',tag:n=>plural(n,'take-home exam')+' approved by you'},
+    take_home:{word:'Take-home collection approved by you',color:'#5aab7a',tag:n=>plural(n,'take-home collection')+' approved by you'},
     shared_paper:{word:'Shared paper approved by you',color:'#5aab7a',tag:n=>plural(n,'shared paper')+' approved by you'},
     unverified:{word:'Student upload',color:'#d8b04a',tag:n=>plural(n,'student upload')}
   };
@@ -695,7 +695,7 @@
   }
 
   // ── hero ──
-  const NO_WRITING='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Collections exams you approve.';
+  const NO_WRITING='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Collections booklets you approve.';
   function renderHero(){
     const t=$('hero-title'), sum=$('hero-sum'), tags=$('hero-tags'), eb=$('hero-eyebrow');
     tags.innerHTML=''; $('hero-cap').hidden=!ID;
@@ -758,7 +758,7 @@
     const name=esc(nm());
     if(unknownStudent()){ Live.empty(el,'No student with this id is on your roster, so there is no baseline to show.'); return; }
     if(S.status==='none'||!samples().length){
-      el.innerHTML='<p>Original has <b>no approved writing</b> for '+name+' yet. '+esc(RULE)+' Add papers below, or approve a sealed Collections exam.</p>'+
+      el.innerHTML='<p>Original has <b>no approved writing</b> for '+name+' yet. '+esc(RULE)+' Add papers below, or approve a sealed Collections booklet.</p>'+
         '<p>The rule is simple: <em>writing joins a baseline when a teacher approves it</em>.</p>';
       return;
     }
@@ -804,7 +804,7 @@
       if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
     }
     if(bits.length) paras.push(bits.join(' '));
-    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home exams and shared papers you approved count at the same lower weight as uploads.':''));
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections booklets you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home collections and shared papers you approved count at the same lower weight as uploads.':''));
     el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
   }
 
@@ -946,7 +946,7 @@
   function bluebookHref(){
     const list=S.sealed==='ok'?S.exams:[];
     const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
-    // No sealed exam to open: Original's own "Start a new session" page, not the roster.
+    // No sealed exam to open: Original's own "Start a new collection" page, not the roster.
     return pick?'/bluebook/#exam/'+enc(pick.exam_id):'bluebook.html';
   }
   function renderSealed(){
@@ -955,11 +955,11 @@
     $('bb-cta').href=bluebookHref();
     if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
     if(S.sealed==='loading'){ return; }
-    if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Collections is off for this workspace, so there are no sealed exams to approve.'); return; }
-    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed exams could not be loaded just now. If your sign-in has ended, sign in again; otherwise reload the page.'); return; }
-    if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed exams for this student yet.'); return; }
+    if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Collections is off for this workspace, so there are no sealed booklets to approve.'); return; }
+    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed booklets could not be loaded just now. If your sign-in has ended, sign in again; otherwise reload the page.'); return; }
+    if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed booklets for this student yet.'); return; }
     const waiting=S.exams.filter(m=>m.in_baseline!==true&&m.has_text!==false&&!m.held).length;
-    sub.textContent=waiting?plural(waiting,'exam')+' waiting for your approval':'none waiting for your approval';
+    sub.textContent=waiting?plural(waiting,'booklet')+' waiting for your approval':'none waiting for your approval';
     const dis=S.saving?' disabled':'';
     const lbl=(act,m,text)=>(S.saving===act&&S.savingId===m.id)?'Saving...':text;
     el.innerHTML=S.exams.map(m=>{
@@ -975,16 +975,16 @@
       else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
       let ask='';
       if(m.confirm){
-        ask='<div class="ex-ask">Take this exam out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
+        ask='<div class="ex-ask">Take this booklet out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
           '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
       }
-      return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled exam')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
+      return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled collection')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
         (m.msg?'<div class="ex-msg'+(m.kind?' '+m.kind:'')+'" role="status">'+esc(m.msg)+'</div>':'')+'</div>'+
         '<div class="ex-side">'+st+(btns?'<div class="ex-btns">'+btns+'</div>':'')+'</div></div>';
     }).join('');
   }
 
-  const HELD='Not added: this exam differs strongly from the student’s existing samples. Approval does not override this check.';
+  const HELD='Not added: this booklet differs strongly from the student’s existing samples. Approval does not override this check.';
   const MAYBE='The server did not confirm the save, so it may not have been saved. Reload the page to check.';
   const writeFailed=res=>res.status===0||res.status>=500;
   async function actOnExam(id,kind){
@@ -999,7 +999,7 @@
     if(res.ok&&kind==='approve'){
       if(word==='added'){ m.in_baseline=true; m.msg='Added to the baseline.'; m.kind='ok'; changed=true; }
       else if(word==='already_in_baseline'){ m.in_baseline=true; m.msg='It was already in the baseline.'; m.kind='ok'; }
-      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this exam on this visit.'; m.kind='err'; }
+      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this booklet on this visit.'; m.kind='err'; }
       else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
     } else if(res.ok&&kind==='undo'){
       if(word==='removed'){ m.in_baseline=false; m.msg='Taken out of the baseline. The baseline was recalculated from the remaining samples.'; m.kind='ok'; changed=true; }
@@ -1009,7 +1009,7 @@
     else if(writeFailed(res)){ m.msg=MAYBE; m.kind='err'; }
     else if(res.status===403||res.status===404||res.status===422){
       if(res.status===422&&/nothing written/i.test(detail)) m.has_text=false;
-      m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err';
+      m.msg=detail||(res.status===403?'You do not have access to this booklet.':'This booklet could not be found.'); m.kind='err';
     }
     else { m.msg='That did not go through, so nothing changed.'; m.kind='err'; }
     if(changed&&!(await refreshAfterWrite())) m.msg+=' '+NOT_REFRESHED;
@@ -1040,7 +1040,7 @@
     off.hidden=false; body.hidden=true;
     off.textContent=S.status==='forbidden'?'You do not have access to this student.':
       S.status==='auth'?'Your sign-in has ended. Sign in again to add writing.':
-      unknownStudent()?'Writing can only be added for a student on your roster or one who has sat a sealed exam.':
+      unknownStudent()?'Writing can only be added for a student on your roster or one who has sealed a booklet.':
       'Writing cannot be added until this student has loaded. Try reloading the page.';
   }
   const TABS=['paste','files'];

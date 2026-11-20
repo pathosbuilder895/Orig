@@ -190,7 +190,7 @@
       <div class="s"><div class="l" data-verdict="ready">Baseline: Ready</div><div class="v green" id="v-ready">-</div></div>
       <div class="s"><div class="l" data-verdict="developing">Baseline: Building</div><div class="v amber" id="v-building">-</div></div>
       <div class="s"><div class="l" data-verdict="insufficient">Baseline: Needs more</div><div class="v red" id="v-none">-</div></div>
-      <div class="s"><div class="l">Sealed exams to review</div><div class="v" id="v-review">-</div></div>
+      <div class="s"><div class="l">Sealed booklets to review</div><div class="v" id="v-review">-</div></div>
     </div>
     <div class="filters" role="group" aria-label="Filter students by baseline">
       <button type="button" class="chip on" data-f="all" aria-pressed="true">All</button>
@@ -201,7 +201,7 @@
     </div>
     <div class="roster">
       <div class="r-head">
-        <div>Student</div><div>Courses</div><div>Baseline</div><div>Deviation from their voice</div><div class="r" title="Date of the most recent sealed exam">Last exam</div><div></div>
+        <div>Student</div><div>Courses</div><div>Baseline</div><div>Deviation from their voice</div><div class="r" title="Date of the most recent sealed booklet">Last booklet</div><div></div>
       </div>
       <div id="rows"></div>
       <div class="empty" id="empty" style="display:block">Loading</div>
@@ -339,7 +339,7 @@
       rv.textContent=String(res.sealedToReview);
       rv.className='v'+(res.sealedToReview>0?' red':'');
     } else {
-      rv.textContent=res.bluebookOff?'Collections is off':'Could not load sealed exams';
+      rv.textContent=res.bluebookOff?'Collections is off':'Could not load sealed booklets';
       rv.className='v note';
     }
     // Without Bluebook there is nowhere to add a student from here.
