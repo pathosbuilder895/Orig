@@ -16,10 +16,10 @@ One invite gives a teacher a private workspace, with no IT department, no LMS an
 
 *In a PR:* walk that path on a laptop and on a phone at 375 px. If a step needs the quickstart to explain it, the screen is wrong, not the teacher.
 
-### 3. Show, don't score
-No percentage beside a name, no AI label, no verdict. Original shows what is different, with real sentences from this paper next to sentences from past papers (ADR-013). When the evidence is thin it says "inconclusive". Every result is a reason for a conversation (NORTH_STAR rules 1 to 3).
+### 3. Show the real reading, and the evidence behind it
+Original shows its actual percentage and its reading, next to what is different: real sentences from this paper beside sentences from past papers (ADR-013). When the evidence is thin it says "inconclusive". Until the numbers are validated on real student writing, every reading carries the testing-phase label (NORTH_STAR rule 10). Our job is to make the percentages and readings right, not to hide them.
 
-*In a PR:* a number that a teacher could read as a probability needs a reason to exist. Leave out anything a teacher could screenshot and send to a dean as proof.
+*In a PR:* every number and reading on screen is the engine's real output for this student, never a placeholder or a figure written into the page.
 
 ### 4. Students are users, not suspects
 Students see which conditions are on before they begin, see neutral notes for their teacher, and are told their sealed work may become reference writing that the teacher can take back out. Students keep their work if something goes wrong: drafts autosave, and the seal retries.
@@ -40,15 +40,18 @@ Run this on any PR that changes a screen a teacher or student sees. Each "no" is
 - [ ] **Phone width.** No horizontal scroll at 375 px, and tap targets are big enough for a thumb.
 - [ ] **Keyboard and screen reader.** Focus is visible and moves somewhere sensible after each action; the axe checks in `demo/bluebook/e2e/` pass.
 - [ ] **No sample data leaks.** No fictional name, course or number can reach a real account.
+- [ ] **Real numbers only.** Every percentage and reading on screen is the engine's output for this student; no fixed or sample figure stands in for one.
 - [ ] **No banned words** (list below), in the UI, in emails and in the docs a teacher or student reads.
 - [ ] **Docs match the screen.** If a button's name changes, `docs/release/PROFESSOR_QUICKSTART.md` changes in the same PR.
 - [ ] **Built and committed.** After a JSX edit, `bluebook.bundle.js` is rebuilt and committed (Render has no Node).
 
 ## Words
 
-**Use:** collection, booklet, course, sealed, released, reference writing, usual range, consistency, inconclusive, a reason for a conversation, notes for your teacher.
+**Use:** collection, booklet, course, sealed, released, reference writing, usual range, consistency, inconclusive, notes for your teacher.
 
-**Never use:** verdict, authentic or confirmed authentic, fingerprint, authorship verification or probability, AI score, AI-written, cheating, flagged student, candidate, and any percentage beside a student's name. Where code already bans a word, a test enforces it (for example the ADR-013 wording tests); this list is the wider bar for copy and docs.
+**Never use:** cheating, flagged student, candidate. Where code already bans a word, a test enforces it (for example the ADR-013 wording tests); this list is the wider bar for copy and docs.
+
+Percentages and readings ("Voice Match", "confirmed authentic") are shown as the engine produces them (Andrew, 2026-11-20). NORTH_STAR rules 1 and 2 still say otherwise; an edit to them is proposed and waiting on Andrew.
 
 ## Known gaps against this bar (checked 18 Nov 2026)
 These are tracked elsewhere; this list says why each one matters to a teacher. `docs/STATUS.md` and `docs/testing/10-gap-register.md` have the current state.

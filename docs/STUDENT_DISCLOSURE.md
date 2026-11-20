@@ -5,18 +5,17 @@ syllabus paragraph (bottom) in every participating course.*
 
 ## What this course uses
 
-This course uses **Original**, a writing-consistency tool, with
+This course uses **Original**, an authorship-verification tool, with
 **Collections**, its in-class writing environment. The goal is to protect the
-value of your own work: the system learns how *you* usually write, so your
-teacher can see whether a new piece fits your own earlier writing. It is a
-reason for a conversation, never a verdict.
+value of your own work: the system learns *your* writing voice so your authentic
+work is recognizably yours.
 
 ## What is collected
 
 | When | What | Why |
 |---|---|---|
 | Any analyzed submission | the text you submitted | to compare against your own earlier writing |
-| Any analyzed submission | numerical style measurements derived from the text (sentence length, punctuation, word choice and similar) | a profile of your usual writing style |
+| Any analyzed submission | numerical style measurements derived from the text (sentence length, punctuation, word choice and similar) | your "voice fingerprint" |
 | Supervised collections only | a session-level summary: how long you took, your word count, how many times you pasted, how many times you lost window focus (a count, not individual timestamped events), and your session start/end times | documents the writing conditions and overall pace |
 
 We do **not** collect or analyze the rhythm or timing of your individual
@@ -38,7 +37,7 @@ deletion.
 - Your data is **never** sold.
 - No camera, no microphone, no screen recording — Collections watches the
   writing page only, and only while you write.
-- **No score ever decides an outcome by itself.** An unusual result prompts a
+- **No score ever decides an outcome by itself.** A flag prompts a
   conversation with your professor, in which you can always explain your work.
 
 ## During a collection
@@ -81,8 +80,8 @@ deleted with the rest of your data if you withdraw.
 
 ## Suggested syllabus paragraph
 
-> Written work in this course is analyzed by **Original**, a writing-
-> consistency tool that compares submissions against your own earlier writing.
+> Written work in this course is analyzed by **Original**, an authorship-
+> verification tool that compares submissions against your own earlier writing.
 > In-class writing uses **Collections**, a secure writing page that runs full-screen,
 > disables copy/paste, and records a session-level summary (time taken, word
 > count, paste attempts, and a count of window-focus losses) — not the rhythm
