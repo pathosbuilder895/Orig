@@ -217,8 +217,17 @@ Caveats that go with these numbers:
   AUROC on public authors moved too, from 0.892 / 0.897 / 0.864 to
   0.907 / 0.808 / 0.817 (drift, not a G-A4 result: this run has no
   Riddell-Juola cells). 86 commits touching `original/` landed between the
-  two; which one moved these was not investigated here, and every other
-  number in this document outside this addendum is from the first run.
+  two, and every other number in this document outside this addendum is
+  from the first run.
+  **Traced 2026-11-20:** all of the drift is PR #316 (merge `827f8ab9`,
+  2026-10-25, declared "changes scores", approved, not behind a flag), which
+  fixed quotation and indent stripping in `original/features/preprocess.py`;
+  no flag-off byte-identity promise was broken and the other 85 commits left
+  these scores unchanged. The first run predates it, so it measured 68% of
+  the public-author documents' words (90% after) and 70% of the Riddell-Juola
+  baselines' (98% after): every first-run number in this document was computed on
+  partly stripped text and should be re-run before it is quoted again. See
+  `docs/research/2026-11-20-sp1-honest-score-drift.md`.
 
 ```bash
 .venv/bin/python -m validation.adversarial.report --out /tmp/a.json --kinds clean,llm_imitation,llm_paraphrase
