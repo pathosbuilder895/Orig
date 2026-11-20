@@ -98,6 +98,10 @@
   .r-row:hover .go svg,.r-row:focus-within .go svg{stroke:var(--gold-2);transform:translateX(2px);}
   .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
   .foot{margin-top:.8rem;font-size:.84rem;color:var(--dim-2);font-style:italic;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
+  /* Essentials first: the attention card, then the folds (suite.css styles both). */
+  .attn{margin-bottom:1.2rem;}
+  .look{display:flex;flex-direction:column;gap:.9rem;}
+  .look .strip{margin-bottom:0;}
   @media (max-width:900px){
     body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
     /* Two counts a row, or one when 8rem each no longer fits, so the labels wrap between words. */
@@ -140,28 +144,47 @@
       </div>
       <div class="w-msg" id="writer-msg" role="alert"></div>
     </form>
-    <div class="strip">
-      <div class="s"><div class="l">Enrolled</div><div class="v" id="v-all">-</div></div>
-      <div class="s"><div class="l" data-verdict="ready">Baseline: Ready</div><div class="v green" id="v-ready">-</div></div>
-      <div class="s"><div class="l" data-verdict="developing">Baseline: Building</div><div class="v amber" id="v-building">-</div></div>
-      <div class="s"><div class="l" data-verdict="insufficient">Baseline: Needs more</div><div class="v red" id="v-none">-</div></div>
-      <div class="s"><div class="l">Sealed booklets to review</div><div class="v" id="v-review">-</div></div>
+    <!-- The essentials: who needs the teacher now, each with one action.
+         The counts and the whole roster are one click further down. -->
+    <section class="attn" id="attention" aria-labelledby="attention-h" aria-busy="true">
+      <div class="attn-eyebrow">Needs your attention</div>
+      <h2 class="attn-h" id="attention-h">Loading</h2>
+    </section>
+    <div class="look">
+      <div class="deep-head"><b>Look closer</b><span>the counts and every student</span></div>
+      <details class="deep on-photo" id="deep-counts">
+        <summary><b>Baselines in numbers</b><span>enrolled, ready, building, needs more, booklets to review</span></summary>
+        <div class="deep-body">
+          <div class="strip">
+            <div class="s"><div class="l">Enrolled</div><div class="v" id="v-all">-</div></div>
+            <div class="s"><div class="l" data-verdict="ready">Baseline: Ready</div><div class="v green" id="v-ready">-</div></div>
+            <div class="s"><div class="l" data-verdict="developing">Baseline: Building</div><div class="v amber" id="v-building">-</div></div>
+            <div class="s"><div class="l" data-verdict="insufficient">Baseline: Needs more</div><div class="v red" id="v-none">-</div></div>
+            <div class="s"><div class="l">Sealed booklets to review</div><div class="v" id="v-review">-</div></div>
+          </div>
+        </div>
+      </details>
+      <details class="deep on-photo" id="deep-roster">
+        <summary><b>Every student</b><span id="roster-sum">filter by baseline, find by name</span></summary>
+        <div class="deep-body">
+          <div class="filters" role="group" aria-label="Filter students by baseline">
+            <button type="button" class="chip btn-chip on" data-f="all" aria-pressed="true">All</button>
+            <button type="button" class="chip btn-chip green" data-f="ready" aria-pressed="false">Ready</button>
+            <button type="button" class="chip btn-chip" data-f="developing" aria-pressed="false">Building</button>
+            <button type="button" class="chip btn-chip red" data-f="insufficient" aria-pressed="false">Needs more</button>
+            <div class="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="q" type="text" placeholder="Find a student" aria-label="Find a student by name, id or email" autocomplete="off" /></div>
+          </div>
+          <div class="roster">
+            <div class="r-head">
+              <div>Student</div><div>Courses</div><div>Baseline</div><div>Deviation from their voice</div><div class="r" title="Date of the most recent sealed booklet">Last booklet</div><div></div>
+            </div>
+            <div id="rows"></div>
+            <div class="empty" id="empty" style="display:block">Loading</div>
+          </div>
+          <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
+        </div>
+      </details>
     </div>
-    <div class="filters" role="group" aria-label="Filter students by baseline">
-      <button type="button" class="chip btn-chip on" data-f="all" aria-pressed="true">All</button>
-      <button type="button" class="chip btn-chip green" data-f="ready" aria-pressed="false">Ready</button>
-      <button type="button" class="chip btn-chip" data-f="developing" aria-pressed="false">Building</button>
-      <button type="button" class="chip btn-chip red" data-f="insufficient" aria-pressed="false">Needs more</button>
-      <div class="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="q" type="text" placeholder="Find a student" aria-label="Find a student by name, id or email" autocomplete="off" /></div>
-    </div>
-    <div class="roster">
-      <div class="r-head">
-        <div>Student</div><div>Courses</div><div>Baseline</div><div>Deviation from their voice</div><div class="r" title="Date of the most recent sealed booklet">Last booklet</div><div></div>
-      </div>
-      <div id="rows"></div>
-      <div class="empty" id="empty" style="display:block">Loading</div>
-    </div>
-    <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
   </main>
 </div>
 <script src="live.js?v=2026-11-20.8"></script>
@@ -269,7 +292,6 @@
       const unknown=students.filter(s=>!s.verdict).length;
       const parts=[];
       if(res.bluebook==='ok'&&res.courseCount>0) parts.push(plural(res.courseCount,'course'));
-      if(students.length) parts.push('sorted by baseline readiness');
       if(unknown) parts.push('readiness not available for '+unknown);
       $('sub').textContent=parts.join(' · ');
     }
@@ -285,6 +307,31 @@
     // Without Bluebook there is nowhere to add a student from here.
     if(res.bluebookOff) $('add-btn').style.display='none';
     applyF();
+    renderAttention(res);
+  }
+
+  // ── the essentials: who needs the teacher now, each with one action ──
+  // Live.rosterCard builds it from the roster alone (the same card as Overview).
+  // "Show all" opens Every student, which lists those who need writing first.
+  function openRoster(){
+    const d=$('deep-roster');
+    d.open=true;
+    if(d.scrollIntoView) d.scrollIntoView({block:'start',behavior:'smooth'});
+  }
+  function renderAttention(res){
+    const card=Live.rosterCard(res,{
+      show:6,
+      firstText:'For someone who sends you their papers, their name is enough.'+(res.bluebookOff?'':' Students in a Collections course appear here too.'),
+      firstAct:{label:'New writer',id:'writer',primary:true},
+      more:n=>({label:'Show all '+n,id:'all'})
+    });
+    card.on={
+      reload:()=>location.reload(),
+      all:openRoster,
+      writer:()=>{ const b=$('writer-btn'); if($('writer-form').hidden) b.click(); else $('writer-name').focus(); b.scrollIntoView&&b.scrollIntoView({block:'nearest'}); }
+    };
+    Live.attention($('attention'),card);
+    if(res.ok&&students.length) $('roster-sum').textContent=plural(students.length,'student')+', those who need writing first · filter, find by name';
   }
 
   // ── add a writer ──

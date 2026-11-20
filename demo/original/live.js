@@ -18,6 +18,8 @@
    Live.notices()    fills every [data-testing-notice] with the label, and every
                      [data-student-notice] with the student label
    Live.empty(el,t)  an honest empty state inside a card
+   Live.attention(el, card)  the "needs your attention" card a page opens on
+   Live.rosterCard(r, o)  that card for Overview and Students, from a Live.roster() result
    Live.gate(el, o)  sign-in / "Original is off" panel, or the session; with
                      {audience:'student'} the same for the student pages
    Live.roster()     the teacher's students with the server's baseline verdicts
@@ -246,6 +248,57 @@
   function empty(el, text) {
     if (!el) return;
     el.innerHTML = '<div class="live-empty">' + esc(text) + '</div>';
+  }
+
+  // ── Live.attention ───────────────────────────────────────────────────────
+  // The "needs your attention" card that Overview, Students and Submissions
+  // open on (W3, ADR-015: the essentials first, as on Writing State). It draws
+  // only what a page hands it and escapes every word:
+  //   card.head   the one-line answer (an <h2>)
+  //   card.lede   an optional sentence under it
+  //   card.items  [{ title, text, act, rows, more }], each a thing to do now
+  //               act:  { label, href } a link, or { label, id } a button the
+  //                     page answers through card.on[id]; primary: true for gold;
+  //                     aria: a fuller name that starts with the label
+  //               rows: [{ name, note, act }] one line per student or booklet
+  //               more: { label, id } a button under the rows ("Show all 9")
+  //   card.on     { id: function } for the buttons
+  function attnAct(a) {
+    if (!a || !a.label) return '';
+    var cls = (a.primary ? 'btn-gold' : 'btn-ghost') + ' attn-go';
+    // aria: a longer name for a repeated label ("Add past writing for Sam Okafor"); it starts with the label.
+    var aria = a.aria ? ' aria-label="' + esc(a.aria) + '"' : '';
+    if (a.href) return '<a class="' + cls + ' tap-mid" href="' + esc(a.href) + '"' + aria + '>' + esc(a.label) + '</a>';
+    return '<button type="button" class="' + cls + '" data-attn="' + esc(a.id) + '"' + aria + '>' + esc(a.label) + '</button>';
+  }
+  function attnTxt(b, s) {
+    return '<div class="attn-txt"><b>' + esc(b) + '</b>' + (s ? '<span>' + esc(s) + '</span>' : '') + '</div>';
+  }
+  function attention(el, card) {
+    if (!el || !card) return;
+    // The heading keeps the id the card's aria-labelledby names (<card id>-h).
+    var h = '<div class="attn-eyebrow">Needs your attention</div>' +
+      '<h2 class="attn-h"' + (el.id ? ' id="' + esc(el.id + '-h') + '"' : '') + '>' + esc(card.head) + '</h2>' +
+      (card.lede ? '<p class="attn-lede">' + esc(card.lede) + '</p>' : '');
+    var items = Array.isArray(card.items) ? card.items : [];
+    if (items.length) {
+      h += '<ul class="attn-items">' + items.map(function (it) {
+        var rows = Array.isArray(it.rows) ? it.rows : [];
+        return '<li class="attn-item"><div class="attn-row">' + attnTxt(it.title, it.text) + attnAct(it.act) + '</div>' +
+          (rows.length ? '<ul class="attn-names">' + rows.map(function (r) {
+            return '<li class="attn-row">' + attnTxt(r.name, r.note) + attnAct(r.act) + '</li>';
+          }).join('') + '</ul>' : '') +
+          (it.more ? '<div class="attn-more">' + attnAct(it.more) + '</div>' : '') +
+          '</li>';
+      }).join('') + '</ul>';
+    }
+    el.innerHTML = h;
+    el.setAttribute('aria-busy', 'false');
+    var on = card.on || {};
+    [].forEach.call(el.querySelectorAll('[data-attn]'), function (b) {
+      var fn = on[b.getAttribute('data-attn')];
+      if (typeof fn === 'function') b.addEventListener('click', fn);
+    });
   }
 
   function panel(el, title, text, href, label) {
@@ -647,6 +700,84 @@
     });
   }
 
+  // ── Live.rosterCard ──────────────────────────────────────────────────────
+  // The attention card Overview and Students open on, built from a Live.roster()
+  // result and nothing else: the server's baseline verdict, the counted samples
+  // and the sealed booklets with no graded_at. Original keeps no readings on
+  // these pages, so a ready student's next step is a reading on Writing State.
+  //   opts.show       names listed per group before "more" (default 4)
+  //   opts.more(n)    the act under a group longer than that
+  //   opts.firstAct   the act for an empty roster
+  // Returns a card for Live.attention; the page adds card.on for its buttons.
+  function rosterCard(res, opts) {
+    opts = opts || {};
+    var show = opts.show || 4;
+    var enc = encodeURIComponent;
+    if (!res || !res.ok) {
+      return {
+        head: 'Your students could not be loaded just now.',
+        items: [{ title: 'Nothing here could be read', text: 'Your students and their papers are still on file.', act: { label: 'Reload the page', id: 'reload' } }]
+      };
+    }
+    var list = res.students || [];
+    if (!list.length) {
+      return {
+        head: 'No students yet.',
+        lede: 'Original compares a new paper with a student\u2019s own past writing, so each student starts with ' + MIN_RULE + '.',
+        items: [{ title: 'Add your first student', text: opts.firstText || '', act: opts.firstAct }]
+      };
+    }
+    var counted = function (st) { return st.counted == null ? '' : ' \u00b7 ' + plur(st.counted, 'counted sample'); };
+    var rank = function (v) { return v === 'insufficient' ? 0 : 1; };
+    var need = list.filter(function (st) { return st.verdict === 'insufficient' || st.verdict === 'developing'; })
+      .sort(function (a, b) { return rank(a.verdict) - rank(b.verdict); });
+    var ready = list.filter(function (st) { return st.verdict === 'ready'; });
+    var pend = res.bluebook === 'ok' ? (res.submissions || []).filter(pendingReview) : [];
+    var items = [], head = [];
+    if (need.length) {
+      head.push(plur(need.length, 'student') + (need.length === 1 ? ' needs' : ' need') + ' more past writing');
+      items.push({
+        title: 'More past writing needed',
+        text: 'Original reads a new paper once a student has ' + MIN_RULE + '. Until then a reading is inconclusive.',
+        rows: need.slice(0, show).map(function (st) {
+          return { name: st.name, note: 'Baseline: ' + verdictWord(st.verdict) + counted(st),
+            act: { label: 'Add past writing', aria: 'Add past writing for ' + st.name, href: 'baseline.html?student=' + enc(st.id) + '#add-writing' } };
+        }),
+        more: need.length > show && opts.more ? opts.more(need.length) : null
+      });
+    }
+    if (pend.length) {
+      head.push(plur(pend.length, 'sealed booklet') + (pend.length === 1 ? ' is' : ' are') + ' waiting for your review');
+      var byId = new Map(list.map(function (st) { return [st.id, st.name]; }));
+      var who = [];
+      pend.forEach(function (x) { var n = byId.get(x.student_id); if (n && who.indexOf(n) < 0) who.push(n); });
+      items.push({
+        title: plur(pend.length, 'sealed booklet') + ' to review',
+        text: (who.length ? 'From ' + who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '') + '. ' : '') +
+          'Submissions lists each one with its next step.',
+        act: { label: 'Open Submissions', href: 'submissions.html', primary: !need.length }
+      });
+    }
+    if (ready.length) {
+      items.push({
+        title: plur(ready.length, 'student') + (ready.length === 1 ? ' is' : ' are') + ' ready for a reading',
+        text: 'Original keeps no readings on this page yet. Analyse a paper on Writing State to see how it compares with their past writing.',
+        rows: ready.slice(0, show).map(function (st) {
+          return { name: st.name, note: 'Baseline: ' + verdictWord(st.verdict) + counted(st),
+            act: { label: 'Analyse a paper', aria: 'Analyse a paper by ' + st.name, href: 'writing-state.html?student=' + enc(st.id) } };
+        }),
+        more: ready.length > show && opts.more ? opts.more(ready.length) : null
+      });
+    }
+    var unknown = list.filter(function (st) { return !st.verdict; }).length;
+    var text = head.length ? head.join(', and ') + '.' : (ready.length === list.length ? 'Every baseline is ready.' : 'Nothing needs you right now.');
+    return {
+      head: text.charAt(0).toUpperCase() + text.slice(1),
+      lede: unknown ? 'Baseline readiness could not be read for ' + plur(unknown, 'student') + '.' : '',
+      items: items
+    };
+  }
+
   // Memoised like Live.sealed: the first call starts the load, every later call
   // in the same page load gets the same answer without a request. The result is
   // frozen because it is shared by every caller.
@@ -792,6 +923,8 @@
     session: session,
     notices: notices,
     empty: empty,
+    attention: attention,
+    rosterCard: rosterCard,
     gate: gate,
     roster: roster,
     VERDICT_WORDS: VERDICT_WORDS,

@@ -134,13 +134,49 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
   html .tap-line { line-height: 44px; }
 }
 
-/* ── Look closer (W3, ADR-015) ─────────────────────────────────────────────
-   A page that opens on its essentials folds everything else under "Look
-   closer": one closed <details class="deep"> per section, opened with one
-   click on its heading.
+/* ── Essentials first (W3, ADR-015) ────────────────────────────────────────
+   Writing State, Overview, Students and Submissions open on what matters now
+   and fold everything else under "Look closer": one closed <details
+   class="deep"> per section, opened with one click on its heading.
 
+   .attn        the "needs your attention" card (Live.attention fills it)
    .deep-head   the "Look closer" heading over the folds
    details.deep one fold; .deep-body its content */
+.attn {
+  padding: 1.3rem 1.4rem 1.25rem;
+  background: rgba(12,20,46,0.86);
+  border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 18px;
+}
+.attn-eyebrow {
+  font-family: var(--mono, 'IBM Plex Mono', monospace); font-size: .64rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--gold, #c9a028); margin-bottom: .45rem;
+}
+.attn-h {
+  font: 500 1.5rem/1.2 var(--display, 'Playfair Display', Georgia, serif);
+  color: var(--cream, #f5efe0);
+}
+.attn-lede {
+  margin-top: .45rem; max-width: 62ch;
+  font: italic .92rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
+}
+.attn-items { list-style: none; margin-top: 1rem; display: flex; flex-direction: column; gap: .9rem; }
+.attn-item { border-top: 1px solid var(--line-soft, rgba(255,255,255,0.07)); padding-top: .9rem; }
+.attn-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .45rem .9rem; }
+.attn-txt { flex: 1 1 14rem; min-width: 0; }
+.attn-txt b { display: block; font-weight: 600; font-size: 1rem; color: var(--cream, #f5efe0); overflow-wrap: anywhere; }
+.attn-txt span { display: block; margin-top: .12rem; font-size: .88rem; line-height: 1.45; color: var(--dim, rgba(245,239,224,0.68)); }
+.attn-names { list-style: none; margin-top: .6rem; display: flex; flex-direction: column; gap: .5rem; }
+.attn-names .attn-row { padding: .55rem .75rem; border-radius: 12px; background: rgba(255,255,255,0.03); }
+.attn-names .attn-txt b { font-weight: 500; }
+.attn-go { flex-shrink: 0; font-size: .86rem; padding: .45rem 1rem; }
+.attn-more { margin-top: .55rem; }
+.attn-more .attn-go { font-size: .82rem; }
+@media (max-width: 600px) {
+  .attn { padding: 1.1rem 1rem 1rem; }
+  .attn-names .attn-row { padding: .55rem .6rem; }
+}
+
 .deep-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .55rem; margin: .4rem 0 -.6rem; }
 .deep-head b { font: 500 1.1rem var(--display, 'Playfair Display', Georgia, serif); color: var(--cream, #f5efe0); }
 .deep-head span { color: var(--dim-2, rgba(245,239,224,0.56)); font-size: .84rem; font-style: italic; }
@@ -165,3 +201,5 @@ details.deep > summary:focus-visible { outline: 2px solid var(--gold-2, #e0be55)
   details.deep > summary { padding: .85rem 1rem; }
   .deep-body { padding: .2rem 1rem 1rem; }
 }
+/* A fold over a photograph (Students, Submissions) reads on a dark wash of its own. */
+details.deep.on-photo { background: rgba(10,16,38,0.82); }
