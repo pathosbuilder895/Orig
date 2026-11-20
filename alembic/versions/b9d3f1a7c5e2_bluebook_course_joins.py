@@ -16,7 +16,7 @@ the live view, the student-count cap) sees them until the teacher approves.
 Deleted with the student's data on erasure and with the course.
 
 Revision ID: b9d3f1a7c5e2
-Revises: a1d5f3c7e9b2
+Revises: c3e7a9d1f5b8
 Create Date: 2026-10-26
 """
 
@@ -27,7 +27,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "b9d3f1a7c5e2"
-down_revision: str | None = "a1d5f3c7e9b2"
+down_revision: str | None = "c3e7a9d1f5b8"
 branch_labels = None
 depends_on = None
 
