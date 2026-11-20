@@ -181,7 +181,7 @@ function ScoredResultsScreen({ onNavigate }) {
         {filtered.length === 0 && (
           <p role="status" className="bb-empty" style={{ padding: '1rem' }}>
             {serverResults === null && BB_API.isAuthed() ? 'Loading submissions…'
-              : results.length ? 'Nothing matches this filter.' : 'No sealed exams yet. They appear here as students submit them.'}
+              : results.length ? 'Nothing matches this filter.' : 'No sealed booklets yet. They appear here as students submit them.'}
           </p>
         )}
         {filtered.map(result => (
