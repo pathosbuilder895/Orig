@@ -25,6 +25,18 @@ export async function seedPastPapers(request, student) {
 
 // Analyse the paper on Writing State as the teacher; returns the score response.
 // `beforeFill` runs once the form is on the page, before anything is typed into it.
+// Since 2026-10-30 Writing State leads with the essentials and keeps the
+// heatmap, the tier chips and the detail rows in closed "Look closer"
+// sections. A teacher opens them with one click on each heading; the specs do
+// the same before they reach for a bar, a chip or a row.
+export async function openLookCloser(page) {
+  for (const id of ['deep-habits', 'deep-tiers']) {
+    const fold = page.locator(`#${id}`)
+    if (!(await fold.evaluate(el => el.open))) await fold.locator(':scope > summary').click()
+    await expect(fold).toHaveAttribute('open', '')
+  }
+}
+
 export async function analyse(page, studentId, { beforeFill } = {}) {
   await page.goto(`/original/writing-state.html?student=${encodeURIComponent(studentId)}`)
   await expect(page.locator('#an-form')).toBeVisible({ timeout: 20_000 })

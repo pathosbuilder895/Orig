@@ -1,0 +1,608 @@
+{
+ "A": {
+  "summary": {
+   "plain": {
+    "mean": 0.4752777475634854,
+    "dmean": 0.0,
+    "dmax": 0.0,
+    "up": 0,
+    "sched": 0
+   },
+   "title block": {
+    "mean": 0.4811836181289337,
+    "dmean": 0.005905870565448267,
+    "dmax": 0.04101115568565761,
+    "up": 0,
+    "sched": 0
+   },
+   "cover letter": {
+    "mean": 0.47341738346231743,
+    "dmean": -0.0018603641011679414,
+    "dmax": 0.08318512823546104,
+    "up": 0,
+    "sched": 0
+   },
+   "bibliography": {
+    "mean": 0.4752777475634854,
+    "dmean": 0.0,
+    "dmax": 0.0,
+    "up": 0,
+    "sched": 0
+   },
+   "notes + bibliography": {
+    "mean": 0.4752777475634854,
+    "dmean": 0.0,
+    "dmax": 0.0,
+    "up": 0,
+    "sched": 0
+   },
+   "all front and back matter": {
+    "mean": 0.48214613229190767,
+    "dmean": 0.006868384728422296,
+    "dmax": 0.08186286774272805,
+    "up": 0,
+    "sched": 0
+   }
+  },
+  "authors": [
+   "augustine",
+   "boethius",
+   "chesterton",
+   "douglass",
+   "edwards",
+   "james",
+   "kempis",
+   "mill",
+   "newman"
+  ],
+  "per": {
+   "augustine|plain": [
+    0.4612369007329102,
+    "monitor"
+   ],
+   "augustine|title block": [
+    0.45848867625240985,
+    "monitor"
+   ],
+   "augustine|cover letter": [
+    0.457880731597896,
+    "monitor"
+   ],
+   "augustine|bibliography": [
+    0.4612369007329102,
+    "monitor"
+   ],
+   "augustine|notes + bibliography": [
+    0.4612369007329102,
+    "monitor"
+   ],
+   "augustine|all front and back matter": [
+    0.4556100445830668,
+    "monitor"
+   ],
+   "boethius|plain": [
+    0.47522397961415136,
+    "monitor"
+   ],
+   "boethius|title block": [
+    0.4814836859107207,
+    "monitor"
+   ],
+   "boethius|cover letter": [
+    0.45877752428996876,
+    "monitor"
+   ],
+   "boethius|bibliography": [
+    0.47522397961415136,
+    "monitor"
+   ],
+   "boethius|notes + bibliography": [
+    0.47522397961415136,
+    "monitor"
+   ],
+   "boethius|all front and back matter": [
+    0.46208868567682587,
+    "monitor"
+   ],
+   "chesterton|plain": [
+    0.4908821597991004,
+    "monitor"
+   ],
+   "chesterton|title block": [
+    0.4930616040229894,
+    "monitor"
+   ],
+   "chesterton|cover letter": [
+    0.4658213591642485,
+    "monitor"
+   ],
+   "chesterton|bibliography": [
+    0.4908821597991004,
+    "monitor"
+   ],
+   "chesterton|notes + bibliography": [
+    0.4908821597991004,
+    "monitor"
+   ],
+   "chesterton|all front and back matter": [
+    0.4698916894050637,
+    "monitor"
+   ],
+   "douglass|plain": [
+    0.3070102017587599,
+    "no_action"
+   ],
+   "douglass|title block": [
+    0.3004304573783933,
+    "no_action"
+   ],
+   "douglass|cover letter": [
+    0.39019532999422096,
+    "no_action"
+   ],
+   "douglass|bibliography": [
+    0.3070102017587599,
+    "no_action"
+   ],
+   "douglass|notes + bibliography": [
+    0.3070102017587599,
+    "no_action"
+   ],
+   "douglass|all front and back matter": [
+    0.388873069501488,
+    "no_action"
+   ],
+   "edwards|plain": [
+    0.5491646505866018,
+    "monitor"
+   ],
+   "edwards|title block": [
+    0.5505101210424891,
+    "monitor"
+   ],
+   "edwards|cover letter": [
+    0.551122494514019,
+    "monitor"
+   ],
+   "edwards|bibliography": [
+    0.5491646505866018,
+    "monitor"
+   ],
+   "edwards|notes + bibliography": [
+    0.5491646505866018,
+    "monitor"
+   ],
+   "edwards|all front and back matter": [
+    0.5509170081727995,
+    "monitor"
+   ],
+   "james|plain": [
+    0.5287513142631849,
+    "monitor"
+   ],
+   "james|title block": [
+    0.5697624699488425,
+    "monitor"
+   ],
+   "james|cover letter": [
+    0.5236256336536926,
+    "monitor"
+   ],
+   "james|bibliography": [
+    0.5287513142631849,
+    "monitor"
+   ],
+   "james|notes + bibliography": [
+    0.5287513142631849,
+    "monitor"
+   ],
+   "james|all front and back matter": [
+    0.5658755064440681,
+    "monitor"
+   ],
+   "kempis|plain": [
+    0.4935004471578489,
+    "monitor"
+   ],
+   "kempis|title block": [
+    0.4948309017108027,
+    "monitor"
+   ],
+   "kempis|cover letter": [
+    0.45610272463190465,
+    "monitor"
+   ],
+   "kempis|bibliography": [
+    0.4935004471578489,
+    "monitor"
+   ],
+   "kempis|notes + bibliography": [
+    0.4935004471578489,
+    "monitor"
+   ],
+   "kempis|all front and back matter": [
+    0.4795432201605811,
+    "monitor"
+   ],
+   "mill|plain": [
+    0.47220415178926084,
+    "monitor"
+   ],
+   "mill|title block": [
+    0.4843085626794924,
+    "monitor"
+   ],
+   "mill|cover letter": [
+    0.4569244494220151,
+    "monitor"
+   ],
+   "mill|bibliography": [
+    0.47220415178926084,
+    "monitor"
+   ],
+   "mill|notes + bibliography": [
+    0.47220415178926084,
+    "monitor"
+   ],
+   "mill|all front and back matter": [
+    0.46731541438185786,
+    "monitor"
+   ],
+   "newman|plain": [
+    0.49952592236955023,
+    "monitor"
+   ],
+   "newman|title block": [
+    0.497776084214263,
+    "monitor"
+   ],
+   "newman|cover letter": [
+    0.5003062038928915,
+    "monitor"
+   ],
+   "newman|bibliography": [
+    0.49952592236955023,
+    "monitor"
+   ],
+   "newman|notes + bibliography": [
+    0.49952592236955023,
+    "monitor"
+   ],
+   "newman|all front and back matter": [
+    0.4992005523014182,
+    "monitor"
+   ]
+  },
+  "moved": [
+   [
+    "list_marker_preference",
+    0.4222222222222222
+   ],
+   [
+    "source_integration_style",
+    0.42139014014014015
+   ],
+   [
+    "metric_flatness_score",
+    0.25230932973216286
+   ],
+   [
+    "paragraph_topic_position",
+    0.19523868046743864
+   ],
+   [
+    "abbreviation_tendency",
+    0.18762183235867447
+   ],
+   [
+    "temporal_ratio",
+    0.12990774657441323
+   ],
+   [
+    "adversative_ratio",
+    0.07773399440066107
+   ],
+   [
+    "thematic_progression_score",
+    0.06743978924014896
+   ],
+   [
+    "avg_paragraph_length",
+    0.0673177403127188
+   ],
+   [
+    "arc_resolution_score",
+    0.0651164707437221
+   ],
+   [
+    "causal_ratio",
+    0.061642061642061666
+   ],
+   [
+    "filler_hedge_cluster_rate",
+    0.0538283940980517
+   ]
+  ]
+ },
+ "B": {
+  "summary": {
+   "plain": {
+    "mean": 0.4752777475634854,
+    "dmean": 0.0,
+    "dmax": 0.0,
+    "up": 0,
+    "sched": 0,
+    "ref": "plain"
+   },
+   "bibliography 'Works Cited:'": {
+    "mean": 0.5816000436396194,
+    "dmean": 0.10632229607613393,
+    "dmax": 0.17946026902946371,
+    "up": 3,
+    "sched": 2,
+    "ref": "plain"
+   },
+   "bibliography '## References' (APA)": {
+    "mean": 0.5701911177930665,
+    "dmean": 0.09491337022958118,
+    "dmax": 0.21527371232741432,
+    "up": 3,
+    "sched": 2,
+    "ref": "plain"
+   },
+   "short plain": {
+    "mean": 0.6264452391086036,
+    "dmean": 0.0,
+    "dmax": 0.0,
+    "up": 0,
+    "sched": 8,
+    "ref": "short plain"
+   },
+   "short + cover letter": {
+    "mean": 0.6156264744457661,
+    "dmean": -0.010818764662837432,
+    "dmax": 0.016351755948260438,
+    "up": 0,
+    "sched": 7,
+    "ref": "short plain"
+   },
+   "short + title + 'Works Cited:'": {
+    "mean": 0.725743564961975,
+    "dmean": 0.09929832585337148,
+    "dmax": 0.16809235056492894,
+    "up": 3,
+    "sched": 9,
+    "ref": "short plain"
+   }
+  },
+  "authors": [
+   "augustine",
+   "boethius",
+   "chesterton",
+   "douglass",
+   "edwards",
+   "james",
+   "kempis",
+   "mill",
+   "newman"
+  ],
+  "per": {
+   "augustine|plain": [
+    0.4612369007329102,
+    "monitor"
+   ],
+   "augustine|bibliography 'Works Cited:'": [
+    0.546330503484002,
+    "monitor"
+   ],
+   "augustine|bibliography '## References' (APA)": [
+    0.5504813405854776,
+    "monitor"
+   ],
+   "augustine|short plain": [
+    0.49918873822518445,
+    "monitor"
+   ],
+   "augustine|short + cover letter": [
+    0.5094480062939238,
+    "monitor"
+   ],
+   "augustine|short + title + 'Works Cited:'": [
+    0.6672810887901134,
+    "schedule_conversation"
+   ],
+   "boethius|plain": [
+    0.47522397961415136,
+    "monitor"
+   ],
+   "boethius|bibliography 'Works Cited:'": [
+    0.5614920325777291,
+    "monitor"
+   ],
+   "boethius|bibliography '## References' (APA)": [
+    0.5292730835156778,
+    "monitor"
+   ],
+   "boethius|short plain": [
+    0.6902802265557311,
+    "schedule_conversation"
+   ],
+   "boethius|short + cover letter": [
+    0.6399704760394308,
+    "schedule_conversation"
+   ],
+   "boethius|short + title + 'Works Cited:'": [
+    0.7365664593348423,
+    "schedule_conversation"
+   ],
+   "chesterton|plain": [
+    0.4908821597991004,
+    "monitor"
+   ],
+   "chesterton|bibliography 'Works Cited:'": [
+    0.5405546267014695,
+    "monitor"
+   ],
+   "chesterton|bibliography '## References' (APA)": [
+    0.528399580212328,
+    "monitor"
+   ],
+   "chesterton|short plain": [
+    0.6178187788661458,
+    "schedule_conversation"
+   ],
+   "chesterton|short + cover letter": [
+    0.6341705348144062,
+    "schedule_conversation"
+   ],
+   "chesterton|short + title + 'Works Cited:'": [
+    0.7295896982635768,
+    "schedule_conversation"
+   ],
+   "douglass|plain": [
+    0.3070102017587599,
+    "no_action"
+   ],
+   "douglass|bibliography 'Works Cited:'": [
+    0.48647047078822364,
+    "monitor"
+   ],
+   "douglass|bibliography '## References' (APA)": [
+    0.5222839140861743,
+    "monitor"
+   ],
+   "douglass|short plain": [
+    0.6084055307301166,
+    "schedule_conversation"
+   ],
+   "douglass|short + cover letter": [
+    0.6226119191535504,
+    "schedule_conversation"
+   ],
+   "douglass|short + title + 'Works Cited:'": [
+    0.7072338446830357,
+    "schedule_conversation"
+   ],
+   "edwards|plain": [
+    0.5491646505866018,
+    "monitor"
+   ],
+   "edwards|bibliography 'Works Cited:'": [
+    0.6309121274322417,
+    "schedule_conversation"
+   ],
+   "edwards|bibliography '## References' (APA)": [
+    0.6037373889982086,
+    "schedule_conversation"
+   ],
+   "edwards|short plain": [
+    0.7170195937217256,
+    "schedule_conversation"
+   ],
+   "edwards|short + cover letter": [
+    0.6911585724051341,
+    "schedule_conversation"
+   ],
+   "edwards|short + title + 'Works Cited:'": [
+    0.755351291470133,
+    "escalate"
+   ],
+   "james|plain": [
+    0.5287513142631849,
+    "monitor"
+   ],
+   "james|bibliography 'Works Cited:'": [
+    0.6944162075596698,
+    "schedule_conversation"
+   ],
+   "james|bibliography '## References' (APA)": [
+    0.7054985069100531,
+    "schedule_conversation"
+   ],
+   "james|short plain": [
+    0.6548228327342219,
+    "schedule_conversation"
+   ],
+   "james|short + cover letter": [
+    0.6225524963846144,
+    "schedule_conversation"
+   ],
+   "james|short + title + 'Works Cited:'": [
+    0.7579742939153692,
+    "escalate"
+   ],
+   "kempis|plain": [
+    0.4935004471578489,
+    "monitor"
+   ],
+   "kempis|bibliography 'Works Cited:'": [
+    0.5835794263118529,
+    "monitor"
+   ],
+   "kempis|bibliography '## References' (APA)": [
+    0.5617787831827032,
+    "monitor"
+   ],
+   "kempis|short plain": [
+    0.6393524016319518,
+    "schedule_conversation"
+   ],
+   "kempis|short + cover letter": [
+    0.5925545366992271,
+    "monitor"
+   ],
+   "kempis|short + title + 'Works Cited:'": [
+    0.7494918746843936,
+    "schedule_conversation"
+   ],
+   "mill|plain": [
+    0.47220415178926084,
+    "monitor"
+   ],
+   "mill|bibliography 'Works Cited:'": [
+    0.5963496499939055,
+    "monitor"
+   ],
+   "mill|bibliography '## References' (APA)": [
+    0.5394937435247485,
+    "monitor"
+   ],
+   "mill|short plain": [
+    0.6108943914684963,
+    "schedule_conversation"
+   ],
+   "mill|short + cover letter": [
+    0.625233475113179,
+    "schedule_conversation"
+   ],
+   "mill|short + title + 'Works Cited:'": [
+    0.7411521673483631,
+    "schedule_conversation"
+   ],
+   "newman|plain": [
+    0.49952592236955023,
+    "monitor"
+   ],
+   "newman|bibliography 'Works Cited:'": [
+    0.5942953479074798,
+    "monitor"
+   ],
+   "newman|bibliography '## References' (APA)": [
+    0.590773719122228,
+    "monitor"
+   ],
+   "newman|short plain": [
+    0.6002246580438585,
+    "schedule_conversation"
+   ],
+   "newman|short + cover letter": [
+    0.6029382531084294,
+    "schedule_conversation"
+   ],
+   "newman|short + title + 'Works Cited:'": [
+    0.6870513661679483,
+    "schedule_conversation"
+   ]
+  }
+ }
+}
