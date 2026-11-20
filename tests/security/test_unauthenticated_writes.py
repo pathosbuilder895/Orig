@@ -134,7 +134,7 @@ ANONYMOUS_ALLOWLIST: dict[tuple[str, str], str] = {
     # Course class codes (2026-10): a student joins a course with the code its
     # teacher turned on. Never writes an existing account without that
     # account's own password; rate limited per client, and failures per email
-    # (tests/test_course_join.py).
+    # (tests/test_bluebook_course_join.py).
     ("POST", "/auth/class-code/{code}"): (
         "public course join by a teacher-enabled class code; an existing account "
         "needs its own password; see original/routers/course_join.py"
