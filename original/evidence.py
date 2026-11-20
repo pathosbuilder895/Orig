@@ -70,6 +70,7 @@ from .constants import (
 from .evidence_features import feature_info
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
+from .features import matter as _matter
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
 from .features.baseline_scope import NOT_COMPARED_WORDS
@@ -383,6 +384,7 @@ def engine_view(text: str) -> EngineView | None:
         "".join(text[a:b] for a, b in segments),
         tuple(i for a, b in segments for i in range(a, b)),
     )
+    m = _drop(m, _matter.LONE_FORM_FEED)  # a stored page break is not measured
     if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
         m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 

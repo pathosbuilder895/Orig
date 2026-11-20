@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 
 from . import feature_flags as _ff
 from .matter import kept_ranges as _matter_kept_ranges
+from .matter import without_page_breaks
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
@@ -81,7 +82,12 @@ def body_segments(text: str) -> list[tuple[int, int]]:
 
 
 def _body(text: str) -> str:
-    return "".join(text[a:b] for a, b in body_segments(text))
+    """The measured body. A stored page break (``matter.PAGE_BREAK``, a form
+    feed alone between two newlines, kept by uploads for the splitter) is
+    dropped here, so a paper measures exactly as it did before page breaks
+    were stored, with the switch on or off (``evidence.engine_view`` drops it
+    the same way)."""
+    return without_page_breaks("".join(text[a:b] for a, b in body_segments(text)))
 
 
 # ══════════════════════════════════════════════════════════════════════════════

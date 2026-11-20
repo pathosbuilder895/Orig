@@ -487,3 +487,301 @@ def test_a_later_decorated_list_cannot_vouch_for_prose_above_it():
     entries = "\n".join(BIB_LINES.splitlines()[:2])
     text = f"{body}\n\nFurther Reading\n\n{mine}\n\n{mine}\n\n## References\n\n{entries}\n"
     assert mine in _kept(text)
+
+
+# ── Step 3 of the document-parts plan: page breaks, title pages, abstracts,
+#    more list headings, appendices, unheaded lists and notes ────────────────
+
+FF = matter.PAGE_BREAK
+PARA = (
+    "The writer returns to the question of authority in every section of the "
+    "paper, and each return adds a small qualification to the claim before it. "
+)
+
+
+def _body(n: int = 8) -> str:
+    return "\n\n".join([PARA * 2] * n)
+
+
+def _aside(text):
+    return "".join(text[r.start : r.end] for r in matter.find_matter(text))
+
+
+def _possible(text):
+    return [(r.kind, text[r.start : r.end].strip()) for r in matter.find_parts(text).possible]
+
+
+APA_TITLE = (
+    "A Strong Rod Broken: Rulers and Grief\n\nHannah Price\n\n"
+    "Department of Homiletics, Westfield College\n\nHOMI 520: Preaching\n\n"
+    "Dr. Peter Vance\n\nMarch 14, 2026"
+)
+
+
+def test_the_first_page_of_an_upload_is_a_title_page():
+    text = APA_TITLE + FF + _body()
+    parts = matter.find_matter(text)
+    assert parts[0].kind == "title_page"
+    assert text[parts[0].start : parts[0].end].strip().endswith("March 14, 2026")
+    assert PARA.strip() in _kept(text)
+
+
+def test_a_professional_title_page_with_its_author_note_is_a_title_page():
+    page = (
+        "Running head: A STRONG ROD BROKEN\n\nA Strong Rod Broken\n\nHannah Price\n\n"
+        "Westfield College\n\nAuthor Note\n\nHannah Price is an undergraduate student in the "
+        "Department of Homiletics. Correspondence concerning this paper should be addressed "
+        "to Hannah Price. Email: hp@example.edu"
+    )
+    text = page + FF + _body()
+    assert [r.kind for r in matter.find_matter(text)][:1] == ["title_page"]
+    assert "Correspondence concerning" in _aside(text)
+
+
+def test_a_first_page_of_prose_or_without_a_signal_is_not_a_title_page():
+    prose_first = PARA * 2 + FF + _body()
+    assert "title_page" not in _kinds(prose_first)
+    poem = "Because I could not stop for Death\n\nHe kindly stopped for me\n\nThe Carriage held"
+    text = poem + FF + _body()
+    assert "title_page" not in _kinds(text)
+    assert "He kindly stopped for me" in _kept(text)
+    assert ("title_page", poem) in _possible(text)  # listed for the teacher, measured
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["Running head: THE STRONG ROD", "A Paper Submitted to Dr. Peter Vance",
+     "In Partial Fulfilment of the Requirements", "Presented to the Faculty", "Spring 2026",
+     "05/02/2026", "Northfield Theological Seminary", "by"],
+)  # fmt: skip
+def test_title_page_signals_in_pasted_text(line):
+    text = f"A Strong Rod Broken\n{line}\nHannah Price\n\n{_body()}"
+    assert _kinds(text).count("front_matter") == 3, line
+    assert PARA.strip() in _kept(text)
+
+
+def test_a_pasted_author_note_paragraph_goes_with_its_title_page_but_prose_stops_it():
+    text = (
+        "Running head: A STRONG ROD\nA Strong Rod Broken\nHannah Price\nAuthor Note\n"
+        "Hannah Price is a student. Correspondence should be addressed to her.\n"
+        "Abstract\n" + ("This paper studies a funeral sermon and its account of rule. " * 6)
+        + "\nKeywords: sermon, rulers\n" + _body()
+    )
+    aside = _aside(text)
+    assert "Correspondence should be addressed" in aside
+    assert "This paper studies a funeral sermon" in aside  # the abstract
+    assert PARA.strip() in _kept(text)
+
+
+ABSTRACT = "This paper studies a funeral sermon and the account of public authority it gives. " * 5
+
+
+@pytest.mark.parametrize("head", ["Abstract", "**Abstract**", "## Abstract", "ABSTRACT"])
+def test_an_abstract_and_its_keywords_are_set_aside(head):
+    text = f"A Title Of The Paper\n\n{head}\n\n{ABSTRACT}\n\nKeywords: sermon, rulers\n\n{_body()}"
+    parts = [r for r in matter.find_matter(text) if r.kind == "abstract"]
+    assert len(parts) == 1
+    block = text[parts[0].start : parts[0].end]
+    assert head in block and "funeral sermon" in block and "Keywords: sermon" in block
+    assert PARA.strip() in _kept(text)
+
+
+def test_an_abstract_ends_at_a_heading_or_a_page_break():
+    for after in ("\n\nIntroduction\n\n", FF):
+        text = f"Abstract\n\n{ABSTRACT}{after}{_body()}"
+        assert "funeral sermon" in _aside(text), repr(after)
+        assert PARA.strip() in _kept(text)
+    inline = f"Abstract: {ABSTRACT}\n\nIntroduction\n\n{_body()}"
+    assert "funeral sermon" in _aside(inline)
+
+
+def test_an_abstract_with_no_clear_end_is_only_possible():
+    """No heading, page break or keywords line after the abstract: the rule
+    cannot tell where the abstract stops, so it is measured and listed."""
+    text = f"Abstract\n\n{ABSTRACT}\n\n{_body(14)}"
+    assert "abstract" not in _kinds(text)
+    assert ABSTRACT.strip()[:40] in _kept(text)
+    assert any(kind == "abstract" for kind, _ in _possible(text))
+
+
+def test_the_word_abstract_in_prose_is_never_an_abstract():
+    for opening in (
+        "Abstract as this distinction may sound, it decides the whole argument.",
+        "The abstract nature of the question is what makes it hard to answer.",
+        "In the abstract, everyone agrees; in practice nobody does.",
+    ):
+        text = f"{opening} {PARA}\n\n{_body()}"
+        assert "abstract" not in _kinds(text), opening
+        assert opening in _kept(text)
+
+
+ENTRIES = "\n\n".join(
+    f"{name}, A. (19{i}). A long title of one more book on the subject. Press."
+    for i, name in enumerate(["Abel", "Baker", "Cole", "Dunn", "Eliot", "Frye"], 70)
+)
+
+
+@pytest.mark.parametrize(
+    "heading", ["Reference List", "Literature Cited", "Annotated Bibliography", "References Cited"]
+)
+def test_more_list_headings(heading):
+    text = f"{_body()}\n\n{heading}\n\n{ENTRIES}\n"
+    assert _kinds(text)[-1:] == ["back_matter"]
+    assert "Abel, A." not in _kept(text)
+
+
+def test_a_short_paper_with_a_long_list_is_measured_by_words_not_lines():
+    short = "\n\n".join([PARA * 3] * 3)  # about 200 words in 3 lines
+    many = "\n".join(
+        f"{n}, Jo. A Title of a Book on the Subject. Press, 19{i:02d}."
+        for i, n in enumerate(["Abel", "Baker", "Cole", "Dunn", "Eliot", "Frye", "Gray",
+                               "Hart", "Ives", "Jones", "Keller", "Lowe"])
+    )  # fmt: skip
+    text = f"{short}\n\nWorks Cited\n\n{many}\n"
+    assert _kinds(text) == ["back_matter"]
+    assert PARA.strip() in _kept(text)
+
+
+def test_an_early_list_after_a_page_break_is_trusted_but_not_before_prose():
+    text = PARA * 3 + FF + "References" + FF.replace("\f", "") + ENTRIES
+    assert "back_matter" in _kinds(text)
+    later = f"{PARA}\n\nReferences\n\n{ENTRIES}\n\n{_body(6)}"
+    assert "back_matter" not in _kinds(later)  # the paper goes on after the list
+    assert PARA.strip() in _kept(later)
+
+
+def test_entries_without_a_year_count_with_a_url_or_nd():
+    undated = "\n\n".join(
+        [
+            "Center for Reading. Guide to Primary Sources. https://example.org/guide.",
+            "Writing Center. Writing About Texts. (n.d.). Westfield College.",
+            "Library Guide. Citing Classical Texts. www.example.edu/classical",
+        ]
+    )
+    text = f"{_body()}\n\nBibliography\n\n{undated}\n"
+    assert _kinds(text) == ["back_matter"]
+
+
+def test_wrapped_entries_count_once():
+    """A PDF wraps an entry over two lines; the second line does not start
+    like an entry, so line by line the list fails. Counted whole it passes."""
+    wrapped = "\n".join(
+        [
+            'Hollis, Margaret A. "Reading Historical Sources in the Undergraduate',
+            "Classroom.\" Journal of Humanities Pedagogy 14, no. 2 (2019): 115-132.",
+            "Pelikan, Jaroslav. The Emergence of the Catholic Tradition (100-600). Chicago:",
+            "University of Chicago Press, 1971.",
+            "Stout, Harry S. The New England Soul: Preaching and Religious Culture in",
+            "Colonial New England. New York: Oxford University Press, 1986.",
+        ]
+    )
+    text = f"{_body()}\nBibliography\n{wrapped}\n"
+    assert _kinds(text)[-1:] == ["back_matter"]
+
+
+def test_a_list_ends_at_an_appendix_and_the_appendix_is_measured():
+    mine = "In the appendix I set out the interview questions in my own words, as asked."
+    text = f"{_body()}\n\nReferences\n\n{ENTRIES}\n\nAppendix A: Interview Questions\n\n{mine}\n"
+    back = [r for r in matter.find_matter(text) if r.kind == "back_matter"]
+    assert len(back) == 1 and "Abel, A." in text[back[0].start : back[0].end]
+    assert mine in _kept(text)
+    assert "Appendix A" not in text[back[0].start : back[0].end]
+
+
+def test_a_mid_paper_references_sentence_and_a_lone_heading_stay_prose():
+    mid = "References to Augustine in this paper follow the Chadwick translation throughout."
+    text = f"{_body(4)}\n\n{mid}\n\n{_body(4)}"
+    assert mid in _kept(text) and "back_matter" not in _kinds(text)
+
+
+def test_an_unheaded_list_at_the_end_is_set_aside():
+    text = f"{_body()}\n\n{ENTRIES}\n"
+    assert _kinds(text)[-1:] == ["back_matter"]
+    assert "Abel, A." not in _kept(text) and PARA.strip() in _kept(text)
+
+
+def test_a_weak_unheaded_list_is_only_possible():
+    three = "\n\n".join(ENTRIES.split("\n\n")[:3])
+    text = f"{_body()}\n\n{three}\n"
+    assert "back_matter" not in _kinds(text)
+    assert "Abel, A." in _kept(text)
+    assert any(kind == "back_matter" for kind, _ in _possible(text))
+
+
+def test_a_short_paper_whose_last_paragraph_is_prose_keeps_it():
+    last = (
+        "Rawls, writing in 1971, gave the argument its modern form. Gray, in 1996, "
+        "defended it again. Both, I think, missed what the sermon saw."
+    )
+    text = "\n\n".join([PARA * 2] * 3) + "\n\n" + last + "\n"
+    assert matter.find_matter(text) == []
+    assert last in _kept(text)
+
+
+def test_a_sermons_closing_prayer_and_a_letter_assignment_stay_prose():
+    prayer = "Let us pray.\nO Lord, keep us faithful.\nTeach us to number our days.\nAmen."
+    sermon = f"{_body()}\n\n{prayer}\n"
+    assert all(line in _kept(sermon) for line in prayer.splitlines())
+    letter = (
+        "Dear Thomas,\n\n" + _body(4) + "\n\nWith affection,\nHannah\n"
+    )  # a letter-to-a-friend assignment
+    assert "Dear Thomas," in _kept(letter) and "With affection," in _kept(letter)
+    paged = letter.replace("\n\nWith affection", FF + "With affection")
+    assert "With affection," in _kept(paged)
+
+
+NOTES = (
+    "1. Jonathan Edwards, Sermons and Discourses (New Haven: Yale University Press, 2003), 216.\n\n"
+    "2. Ibid., 179.\n\n"
+    "3. George M. Marsden, Jonathan Edwards: A Life (New Haven: Yale University Press, 2003), 78.\n\n"
+    "4. Edwards, Strong Rod, 72.\n\n"
+    '5. Tunde Adeyemi, "Primary Texts," Teaching Philosophy Today 8, no. 1 (2021): 57.\n\n'
+    "6. Marsden, Jonathan Edwards, 136."
+)
+
+
+def test_endnotes_with_their_short_notes_are_set_aside():
+    text = f"{_body()}\n\nNotes\n\n{NOTES}\n\nBibliography\n\n{ENTRIES}\n"
+    aside = _aside(text)
+    assert "4. Edwards, Strong Rod, 72." in aside and "6. Marsden" in aside
+    assert PARA.strip() in _kept(text)
+
+
+def test_numbered_points_under_notes_are_still_prose():
+    points = "\n\n".join(
+        f"{i}. The writer keeps returning to image {i} because the argument is unsettled."
+        for i in range(1, 5)
+    )
+    text = f"{_body()}\n\nNotes\n\n{points}\n"
+    assert "1. The writer keeps returning" in _kept(text)
+
+
+def test_footnotes_at_a_pages_foot_are_set_aside():
+    page1 = "The sentence is famous because it is honest.1 It names a problem.2 " + PARA
+    notes1 = "1 Augustine, Confessions, trans. Chadwick (Oxford: OUP, 1991), 230.\n2 Ibid., 232."
+    page2 = "Time, he concludes, is a distension of the mind.3 " + PARA
+    notes2 = "3 Marsden, Jonathan Edwards, 63."
+    text = f"{page1}\n\n{notes1}{FF}{page2}\n\n{notes2}{FF}Bibliography\n\n{ENTRIES}\n"
+    aside = _aside(text)
+    assert "1 Augustine" in aside and "2 Ibid." in aside and "3 Marsden" in aside
+    assert "The sentence is famous" in _kept(text) and "Time, he concludes" in _kept(text)
+
+
+def test_a_numbered_line_without_its_marker_is_not_a_footnote():
+    page1 = "A page of prose with no note markers at all. " + PARA
+    text = f"{page1}\n\n1 Peter writes to the scattered churches.{FF}{PARA}\n"
+    assert "1 Peter writes" in _kept(text)
+
+
+def test_parts_are_consistent_with_kept_ranges():
+    text = APA_TITLE + FF + f"Abstract\n\n{ABSTRACT}\n\nKeywords: a, b" + FF + _body()
+    text += FF + f"References\n\n{ENTRIES}\n\nAppendix A\n\n{PARA}\n"
+    parts = matter.find_matter(text)
+    kinds = [p.kind for p in parts]
+    assert kinds[:2] == ["title_page", "abstract"] and "back_matter" in kinds
+    covered = sorted([(p.start, p.end) for p in parts] + matter.kept_ranges(text))
+    pos = 0
+    for a, b in covered:
+        assert a == pos
+        pos = b
+    assert pos == len(text)
