@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-reextract_baselines.py — Re-extract all baseline feature vectors to current 74-dim pipeline.
+reextract_baselines.py — Re-extract every stored baseline ``vector`` with the
+current pipeline (FEATURE_DIM dimensions), always measured the default way ("v1").
 
-Run this after updating the feature extraction code to ensure all stored baselines
-are compatible with the current model. Safe to run multiple times (idempotent).
+Run this after a change to the default extraction so stored baselines match it.
+Safe to run multiple times (idempotent). It rewrites ``vector`` only, and always
+inside ``measuring("v1")``: FEATURE_SET / MATTER_SPLITTER_ENABLED in the
+environment do not leak into stored vectors. To store a *second* measurement
+next to each paper (FEATURE_SET=2, the splitter), use
+scripts/backfill_measurements.py instead; it never touches ``vector``.
 
 Usage:
     python scripts/reextract_baselines.py [--dry-run] [--student STUDENT_ID]
@@ -28,6 +33,7 @@ log = logging.getLogger(__name__)
 from original import store
 from original.features.pipeline import feature_vector
 from original.constants import FEATURE_DIM
+from original.features.feature_flags import measuring
 
 
 def reextract_student(student_id: str, dry_run: bool = False) -> tuple:
@@ -47,7 +53,8 @@ def reextract_student(student_id: str, dry_run: bool = False) -> tuple:
     for i, sample in enumerate(state.samples):
         try:
             # Re-extract feature vector from stored text
-            new_vector = feature_vector(sample.text)
+            with measuring("v1"):
+                new_vector = feature_vector(sample.text)
 
             # Verify dimension
             if new_vector.shape[0] != FEATURE_DIM:

@@ -14,6 +14,7 @@ import re
 from collections import Counter
 
 from ..constants import DISCOURSE_MARKERS, FUNCTION_WORDS, STOP_WORDS, TRANSITION_PHRASES
+from . import feature_flags as _ff
 from .tier1 import TextDoc, _tokenize
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,6 +42,10 @@ def _content_words(sentence: str) -> list[str]:
 
 def _find_discourse_markers(text: str):
     """Return list of (marker, category) found in text (lower-cased)."""
+    if _ff.lexicon_v2():
+        from .lexicon_v2 import discourse_markers
+
+        return discourse_markers(text)
     lower = text.lower()
     found = []
     for marker, cat in DISCOURSE_MARKERS.items():
@@ -377,6 +382,10 @@ def transition_density(doc: TextDoc) -> float:
     """Transition phrases per 100 words."""
     if not doc.word_count:
         return 0.0
+    if _ff.lexicon_v2():
+        from .lexicon_v2 import transition_spans
+
+        return len(transition_spans(doc)) / doc.word_count * 100
     lower = doc.clean.lower()
     count = 0
     for phrase in TRANSITION_PHRASES:

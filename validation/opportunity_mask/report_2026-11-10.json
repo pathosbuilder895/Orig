@@ -1,0 +1,464 @@
+{
+  "cells": [
+    {
+      "baseline_words": 1200,
+      "control": {
+        "auc": 0.7624,
+        "genuine_flag_rate": 0.7603,
+        "impostor_catch_rate": 0.953,
+        "mean_genuine_deviation": 0.6345,
+        "mean_impostor_deviation": 0.6865
+      },
+      "delta_auc_ci95": [
+        -0.0104,
+        0.0077
+      ],
+      "exploratory_min_count_sweep": {
+        "10": {
+          "genuine_flag_rate": 0.6446,
+          "impostor_catch_rate": 0.9081
+        },
+        "2": {
+          "genuine_flag_rate": 0.7521,
+          "impostor_catch_rate": 0.9402
+        },
+        "3": {
+          "genuine_flag_rate": 0.7273,
+          "impostor_catch_rate": 0.9359
+        },
+        "5": {
+          "genuine_flag_rate": 0.6777,
+          "impostor_catch_rate": 0.938
+        }
+      },
+      "genuine_discordant": {
+        "flag_added": 2,
+        "flag_removed": 3
+      },
+      "genuine_engagement": 0.8595,
+      "impostor_discordant": {
+        "flag_added": 2,
+        "flag_removed": 4
+      },
+      "mean_unmeasured_genuine": 1.512,
+      "n_claimed_authors": 13,
+      "n_genuine": 121,
+      "n_impostor": 468,
+      "off": {
+        "auc": 0.7654,
+        "genuine_flag_rate": 0.7769,
+        "impostor_catch_rate": 0.953,
+        "mean_genuine_deviation": 0.6348,
+        "mean_impostor_deviation": 0.6871
+      },
+      "on": {
+        "auc": 0.7648,
+        "genuine_flag_rate": 0.7686,
+        "impostor_catch_rate": 0.9487,
+        "mean_genuine_deviation": 0.6339,
+        "mean_impostor_deviation": 0.6861
+      },
+      "probe_words": 300,
+      "unmeasured_rate_by_feature": {
+        "abbreviation_tendency": 0.4132,
+        "additive_ratio": 0.0165,
+        "adversative_ratio": 0.0165,
+        "causal_ratio": 0.0165,
+        "citation_position_pref": 0.281,
+        "epistemic_certainty_ratio": 0.0496,
+        "first_person_ratio": 0.0083,
+        "ibid_usage_rate": 0.0,
+        "polysyndeton_ratio": 0.2893,
+        "pronoun_ambiguity_rate": 0.0083,
+        "signal_verb_assertiveness": 0.2645,
+        "source_loyalty_index": 0.0,
+        "temporal_ratio": 0.0165,
+        "that_which_ratio": 0.1322
+      }
+    },
+    {
+      "baseline_words": 1200,
+      "control": {
+        "auc": 0.7703,
+        "genuine_flag_rate": 0.2526,
+        "impostor_catch_rate": 0.6439,
+        "mean_genuine_deviation": 0.5544,
+        "mean_impostor_deviation": 0.6277
+      },
+      "delta_auc_ci95": [
+        -0.0086,
+        0.0064
+      ],
+      "exploratory_min_count_sweep": {
+        "10": {
+          "genuine_flag_rate": 0.2211,
+          "impostor_catch_rate": 0.5808
+        },
+        "2": {
+          "genuine_flag_rate": 0.2316,
+          "impostor_catch_rate": 0.6086
+        },
+        "3": {
+          "genuine_flag_rate": 0.2316,
+          "impostor_catch_rate": 0.601
+        },
+        "5": {
+          "genuine_flag_rate": 0.2105,
+          "impostor_catch_rate": 0.5783
+        }
+      },
+      "genuine_discordant": {
+        "flag_added": 1,
+        "flag_removed": 1
+      },
+      "genuine_engagement": 0.7368,
+      "impostor_discordant": {
+        "flag_added": 4,
+        "flag_removed": 12
+      },
+      "mean_unmeasured_genuine": 1.011,
+      "n_claimed_authors": 12,
+      "n_genuine": 95,
+      "n_impostor": 396,
+      "off": {
+        "auc": 0.7711,
+        "genuine_flag_rate": 0.2421,
+        "impostor_catch_rate": 0.6465,
+        "mean_genuine_deviation": 0.5544,
+        "mean_impostor_deviation": 0.6279
+      },
+      "on": {
+        "auc": 0.7705,
+        "genuine_flag_rate": 0.2421,
+        "impostor_catch_rate": 0.6263,
+        "mean_genuine_deviation": 0.5526,
+        "mean_impostor_deviation": 0.6269
+      },
+      "probe_words": 600,
+      "unmeasured_rate_by_feature": {
+        "abbreviation_tendency": 0.3789,
+        "additive_ratio": 0.0,
+        "adversative_ratio": 0.0,
+        "causal_ratio": 0.0,
+        "citation_position_pref": 0.2737,
+        "epistemic_certainty_ratio": 0.0,
+        "first_person_ratio": 0.0,
+        "ibid_usage_rate": 0.0,
+        "polysyndeton_ratio": 0.1053,
+        "pronoun_ambiguity_rate": 0.0,
+        "signal_verb_assertiveness": 0.2105,
+        "source_loyalty_index": 0.0,
+        "temporal_ratio": 0.0,
+        "that_which_ratio": 0.0421
+      }
+    },
+    {
+      "baseline_words": 1200,
+      "control": {
+        "auc": 0.7764,
+        "genuine_flag_rate": 0.1507,
+        "impostor_catch_rate": 0.4704,
+        "mean_genuine_deviation": 0.5018,
+        "mean_impostor_deviation": 0.5902
+      },
+      "delta_auc_ci95": [
+        -0.0014,
+        0.0134
+      ],
+      "exploratory_min_count_sweep": {
+        "10": {
+          "genuine_flag_rate": 0.1233,
+          "impostor_catch_rate": 0.4444
+        },
+        "2": {
+          "genuine_flag_rate": 0.137,
+          "impostor_catch_rate": 0.4519
+        },
+        "3": {
+          "genuine_flag_rate": 0.137,
+          "impostor_catch_rate": 0.4519
+        },
+        "5": {
+          "genuine_flag_rate": 0.137,
+          "impostor_catch_rate": 0.4407
+        }
+      },
+      "genuine_discordant": {
+        "flag_added": 0,
+        "flag_removed": 0
+      },
+      "genuine_engagement": 0.4521,
+      "impostor_discordant": {
+        "flag_added": 3,
+        "flag_removed": 3
+      },
+      "mean_unmeasured_genuine": 0.589,
+      "n_claimed_authors": 10,
+      "n_genuine": 73,
+      "n_impostor": 270,
+      "off": {
+        "auc": 0.7771,
+        "genuine_flag_rate": 0.1644,
+        "impostor_catch_rate": 0.4778,
+        "mean_genuine_deviation": 0.5015,
+        "mean_impostor_deviation": 0.5901
+      },
+      "on": {
+        "auc": 0.7805,
+        "genuine_flag_rate": 0.1644,
+        "impostor_catch_rate": 0.4778,
+        "mean_genuine_deviation": 0.5008,
+        "mean_impostor_deviation": 0.5903
+      },
+      "probe_words": 1200,
+      "unmeasured_rate_by_feature": {
+        "abbreviation_tendency": 0.1918,
+        "additive_ratio": 0.0,
+        "adversative_ratio": 0.0,
+        "causal_ratio": 0.0,
+        "citation_position_pref": 0.2055,
+        "epistemic_certainty_ratio": 0.0,
+        "first_person_ratio": 0.0,
+        "ibid_usage_rate": 0.0,
+        "polysyndeton_ratio": 0.0137,
+        "pronoun_ambiguity_rate": 0.0,
+        "signal_verb_assertiveness": 0.1644,
+        "source_loyalty_index": 0.0,
+        "temporal_ratio": 0.0,
+        "that_which_ratio": 0.0137
+      }
+    },
+    {
+      "baseline_words": 300,
+      "control": {
+        "auc": 0.7791,
+        "genuine_flag_rate": 0.1231,
+        "impostor_catch_rate": 0.5064,
+        "mean_genuine_deviation": 0.5164,
+        "mean_impostor_deviation": 0.5979
+      },
+      "delta_auc_ci95": [
+        -0.0021,
+        0.0021
+      ],
+      "exploratory_min_count_sweep": {
+        "10": {
+          "genuine_flag_rate": 0.1154,
+          "impostor_catch_rate": 0.5171
+        },
+        "2": {
+          "genuine_flag_rate": 0.1231,
+          "impostor_catch_rate": 0.5107
+        },
+        "3": {
+          "genuine_flag_rate": 0.1231,
+          "impostor_catch_rate": 0.5021
+        },
+        "5": {
+          "genuine_flag_rate": 0.1231,
+          "impostor_catch_rate": 0.5107
+        }
+      },
+      "genuine_discordant": {
+        "flag_added": 0,
+        "flag_removed": 0
+      },
+      "genuine_engagement": 0.6538,
+      "impostor_discordant": {
+        "flag_added": 6,
+        "flag_removed": 1
+      },
+      "mean_unmeasured_genuine": 0.777,
+      "n_claimed_authors": 13,
+      "n_genuine": 130,
+      "n_impostor": 468,
+      "off": {
+        "auc": 0.7773,
+        "genuine_flag_rate": 0.1308,
+        "impostor_catch_rate": 0.5085,
+        "mean_genuine_deviation": 0.5179,
+        "mean_impostor_deviation": 0.5982
+      },
+      "on": {
+        "auc": 0.7769,
+        "genuine_flag_rate": 0.1308,
+        "impostor_catch_rate": 0.5192,
+        "mean_genuine_deviation": 0.5183,
+        "mean_impostor_deviation": 0.5987
+      },
+      "probe_words": 300,
+      "unmeasured_rate_by_feature": {
+        "abbreviation_tendency": 0.3462,
+        "additive_ratio": 0.0,
+        "adversative_ratio": 0.0,
+        "causal_ratio": 0.0,
+        "citation_position_pref": 0.0,
+        "epistemic_certainty_ratio": 0.0308,
+        "first_person_ratio": 0.0,
+        "ibid_usage_rate": 0.0,
+        "polysyndeton_ratio": 0.2769,
+        "pronoun_ambiguity_rate": 0.0077,
+        "signal_verb_assertiveness": 0.0,
+        "source_loyalty_index": 0.0,
+        "temporal_ratio": 0.0,
+        "that_which_ratio": 0.1154
+      }
+    },
+    {
+      "baseline_words": 600,
+      "control": {
+        "auc": 0.8206,
+        "genuine_flag_rate": 0.1157,
+        "impostor_catch_rate": 0.5385,
+        "mean_genuine_deviation": 0.5026,
+        "mean_impostor_deviation": 0.5997
+      },
+      "delta_auc_ci95": [
+        -0.0006,
+        0.0072
+      ],
+      "exploratory_min_count_sweep": {
+        "10": {
+          "genuine_flag_rate": 0.1074,
+          "impostor_catch_rate": 0.5363
+        },
+        "2": {
+          "genuine_flag_rate": 0.1074,
+          "impostor_catch_rate": 0.5171
+        },
+        "3": {
+          "genuine_flag_rate": 0.1074,
+          "impostor_catch_rate": 0.5064
+        },
+        "5": {
+          "genuine_flag_rate": 0.1157,
+          "impostor_catch_rate": 0.515
+        }
+      },
+      "genuine_discordant": {
+        "flag_added": 0,
+        "flag_removed": 1
+      },
+      "genuine_engagement": 0.6033,
+      "impostor_discordant": {
+        "flag_added": 3,
+        "flag_removed": 7
+      },
+      "mean_unmeasured_genuine": 0.769,
+      "n_claimed_authors": 13,
+      "n_genuine": 121,
+      "n_impostor": 468,
+      "off": {
+        "auc": 0.8223,
+        "genuine_flag_rate": 0.1157,
+        "impostor_catch_rate": 0.5427,
+        "mean_genuine_deviation": 0.5025,
+        "mean_impostor_deviation": 0.5997
+      },
+      "on": {
+        "auc": 0.825,
+        "genuine_flag_rate": 0.1074,
+        "impostor_catch_rate": 0.5342,
+        "mean_genuine_deviation": 0.5004,
+        "mean_impostor_deviation": 0.5981
+      },
+      "probe_words": 600,
+      "unmeasured_rate_by_feature": {
+        "abbreviation_tendency": 0.5041,
+        "additive_ratio": 0.0,
+        "adversative_ratio": 0.0,
+        "causal_ratio": 0.0,
+        "citation_position_pref": 0.1322,
+        "epistemic_certainty_ratio": 0.0,
+        "first_person_ratio": 0.0,
+        "ibid_usage_rate": 0.0,
+        "polysyndeton_ratio": 0.0661,
+        "pronoun_ambiguity_rate": 0.0,
+        "signal_verb_assertiveness": 0.0496,
+        "source_loyalty_index": 0.0,
+        "temporal_ratio": 0.0,
+        "that_which_ratio": 0.0165
+      }
+    }
+  ],
+  "pooled": {
+    "control": {
+      "auc": 0.7442,
+      "genuine_flag_rate": 0.2907,
+      "impostor_catch_rate": 0.6362,
+      "mean_genuine_deviation": 0.5445,
+      "mean_impostor_deviation": 0.623
+    },
+    "delta_auc_ci95": [
+      -0.0015,
+      0.0033
+    ],
+    "exploratory_min_count_sweep": {
+      "10": {
+        "genuine_flag_rate": 0.2519,
+        "impostor_catch_rate": 0.6126
+      },
+      "2": {
+        "genuine_flag_rate": 0.2815,
+        "impostor_catch_rate": 0.6203
+      },
+      "3": {
+        "genuine_flag_rate": 0.2759,
+        "impostor_catch_rate": 0.6135
+      },
+      "5": {
+        "genuine_flag_rate": 0.263,
+        "impostor_catch_rate": 0.6121
+      }
+    },
+    "genuine_discordant": {
+      "flag_added": 3,
+      "flag_removed": 5
+    },
+    "genuine_engagement": 0.6759,
+    "impostor_discordant": {
+      "flag_added": 18,
+      "flag_removed": 27
+    },
+    "mean_unmeasured_genuine": 0.956,
+    "n_claimed_authors": 13,
+    "n_genuine": 540,
+    "n_impostor": 2070,
+    "off": {
+      "auc": 0.7443,
+      "genuine_flag_rate": 0.2963,
+      "impostor_catch_rate": 0.6391,
+      "mean_genuine_deviation": 0.5448,
+      "mean_impostor_deviation": 0.6233
+    },
+    "on": {
+      "auc": 0.7453,
+      "genuine_flag_rate": 0.2926,
+      "impostor_catch_rate": 0.6348,
+      "mean_genuine_deviation": 0.5438,
+      "mean_impostor_deviation": 0.6226
+    },
+    "unmeasured_rate_by_feature": {
+      "abbreviation_tendency": 0.3815,
+      "additive_ratio": 0.0037,
+      "adversative_ratio": 0.0037,
+      "causal_ratio": 0.0037,
+      "citation_position_pref": 0.1685,
+      "epistemic_certainty_ratio": 0.0185,
+      "first_person_ratio": 0.0019,
+      "ibid_usage_rate": 0.0,
+      "polysyndeton_ratio": 0.1667,
+      "pronoun_ambiguity_rate": 0.0037,
+      "signal_verb_assertiveness": 0.1296,
+      "source_loyalty_index": 0.0,
+      "temporal_ratio": 0.0037,
+      "that_which_ratio": 0.0704
+    }
+  },
+  "verdict": {
+    "C_catch": true,
+    "E_engagement": true,
+    "H_honest": true,
+    "verdict": "pass"
+  }
+}
