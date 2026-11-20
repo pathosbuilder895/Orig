@@ -109,3 +109,19 @@ def test_marker_ratios_share_one_count():
     }
     assert len(shared) == 1
     assert shared.pop() >= 2
+
+
+def test_epistemic_counts_follow_the_word_list_version(monkeypatch):
+    """The mask must count what the extractor divides by under FEATURE_SET=2
+    too: the shared helper dispatches, not a v1-only copy."""
+    from original.features import lexicon_v2 as v2
+    from original.features.tier1 import TextDoc
+    from original.features.tier3 import _epistemic_counts, epistemic_certainty_ratio
+
+    text = "It may rain in May 2026. It is clearly wrong, and perhaps it will clear."
+    monkeypatch.setenv("FEATURE_SET", "2")
+    doc = TextDoc(text)
+    hedges, asserts = _epistemic_counts(doc)
+    assert (hedges, asserts) == (len(v2.hedge_spans(doc)), len(v2.assertion_spans(doc)))
+    total = hedges + asserts
+    assert epistemic_certainty_ratio(doc) == (asserts / total if total else 0.5)

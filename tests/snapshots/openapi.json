@@ -596,6 +596,16 @@
             ],
             "title": "Fallback Reason"
           },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "n_tokens": {
             "default": 0,
             "title": "N Tokens",
@@ -2767,6 +2777,17 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "length_match_action_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Action Preview"
+          },
           "length_match_applied": {
             "default": false,
             "title": "Length Match Applied",
@@ -2804,6 +2825,16 @@
               }
             ],
             "title": "Length Match Pieces"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "opportunity_deviation_preview": {
             "anyOf": [
@@ -2849,6 +2880,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ScoringReportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule_d": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleDObservationOut"
               },
               {
                 "type": "null"
@@ -3203,6 +3244,50 @@
           "by_length_regime"
         ],
         "title": "ManifestStatsResponse",
+        "type": "object"
+      },
+      "MeasurementOut": {
+        "description": "Which way a score's papers were measured (original/measurement.py).",
+        "properties": {
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the default was used instead, when it was.",
+            "title": "Fallback"
+          },
+          "past_papers": {
+            "title": "Past Papers",
+            "type": "integer"
+          },
+          "past_papers_measured": {
+            "description": "Past papers that already carry the requested measurement.",
+            "title": "Past Papers Measured",
+            "type": "integer"
+          },
+          "requested": {
+            "description": "The measurement the switches asked for.",
+            "title": "Requested",
+            "type": "string"
+          },
+          "used": {
+            "description": "The measurement actually used (\"v1\" = the default).",
+            "title": "Used",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested",
+          "used",
+          "past_papers",
+          "past_papers_measured"
+        ],
+        "title": "MeasurementOut",
         "type": "object"
       },
       "MilestoneOut": {
@@ -3731,6 +3816,134 @@
           "email"
         ],
         "title": "RosterStudent",
+        "type": "object"
+      },
+      "RuleDObservationOut": {
+        "description": "Rule D (RULE_D_OBSERVATION=on), staff and teachers only, never a student session.\n\nA report-only, testing-phase consistency observation: does the new paper read like the\nstudent's earlier approved writing, compared with the same workspace's other students?\nPlain-English reasons both ways and a confidence note tied to measured results on\npublished scholarly prose. Never a probability, never a verdict, and it never changes\n``deviation_score`` or the recommended action. \"inconclusive\" below the class-size floor\nor for a very short paper.",
+        "properties": {
+          "classmate_papers": {
+            "default": 0,
+            "title": "Classmate Papers",
+            "type": "integer"
+          },
+          "classmates": {
+            "default": 0,
+            "title": "Classmates",
+            "type": "integer"
+          },
+          "components": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Components",
+            "type": "object"
+          },
+          "confidence_note": {
+            "title": "Confidence Note",
+            "type": "string"
+          },
+          "configuration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration"
+          },
+          "configuration_note": {
+            "default": "",
+            "title": "Configuration Note",
+            "type": "string"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "reads_less_like": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reads Less Like",
+            "type": "array"
+          },
+          "reads_less_like_student": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reads Less Like Student"
+          },
+          "reads_like": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reads Like",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "study_id": {
+            "title": "Study Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "testing_phase_label": {
+            "title": "Testing Phase Label",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "status",
+          "testing_phase_label",
+          "study_id",
+          "summary",
+          "confidence_note"
+        ],
+        "title": "RuleDObservationOut",
         "type": "object"
       },
       "SampleSummary": {
@@ -9419,6 +9632,7 @@
     },
     "/students/{student_id}/score": {
       "post": {
+        "description": "Score one paper against the student's past papers.\n\nRuns in a copy of the current context so the measurement chosen for this\nscore (original/measurement.py, a ContextVar) ends with it.",
         "operationId": "score_submission_students__student_id__score_post",
         "parameters": [
           {

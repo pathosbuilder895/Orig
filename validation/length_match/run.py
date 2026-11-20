@@ -68,6 +68,7 @@ import numpy as np
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
+from original.constants import ACTION_THRESHOLDS  # noqa: E402
 from original.features.pipeline import extract_features, feature_vector  # noqa: E402
 from original.quantum.length_match import (  # noqa: E402
     build_length_matched_state,
@@ -78,7 +79,6 @@ from original.quantum.scoring import score as quantum_score  # noqa: E402
 from original.quantum.state import BaselineSample, StudentState  # noqa: E402
 from validation.opportunity_mask.run import (  # noqa: E402
     AUTHORS,
-    FLAGGED,
     IMPOSTOR_PER_PAIR,
     N_BASELINE,
     _words,
@@ -156,7 +156,14 @@ def _score(state: StudentState, text: str, n_tokens: int, mode: str = "off", mat
         scoring_config=ScoringConfig(length_matched_baseline=mode),
         length_matched_state=matched,
     )
-    return float(res.authorship.deviation_score), res.recommendation.action in FLAGGED, res
+    # Flagged is read from deviation against the PRODUCT's cut points, so the
+    # "on" arm keeps measuring the matched reference alone. Since 2026-11-19
+    # the code reads "on" against LENGTH_MATCHED_ACTION_THRESHOLDS, so the
+    # recommended action would mix the reference with the new cut points
+    # (those are studied in validation/length_match_thresholds/). Under these
+    # defaults the two agree for "off" and "wide".
+    d = float(res.authorship.deviation_score)
+    return d, d >= ACTION_THRESHOLDS["schedule_conversation"][0], res
 
 
 def _material(corpus_dir: Path, base_len: int, probe_len: int) -> dict:

@@ -765,6 +765,22 @@ class WindowScoreOut(BaseModel):
     )
 
 
+class MeasurementOut(BaseModel):
+    """Which way a score's papers were measured (original/measurement.py)."""
+
+    requested: str = Field(description="The measurement the switches asked for.")
+    used: str = Field(description='The measurement actually used ("v1" = the default).')
+    past_papers: int
+    past_papers_measured: int = Field(
+        description="Past papers that already carry the requested measurement."
+    )
+    fallback: str | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Why the default was used instead, when it was.",
+    )
+
+
 class BlendResultOut(BaseModel):
     """Aggregated blend-detection result for a single submission (Phase 7)."""
 
@@ -793,6 +809,8 @@ class BlendResultOut(BaseModel):
             "MODEL_CARD.md) — not comparable to the document-level thresholds."
         ),
     )
+    # Versioned measurements: left out of the JSON when only the default was asked for.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -1104,6 +1122,34 @@ class PreliminaryScoreOut(BaseModel):
     note: str
 
 
+class RuleDObservationOut(BaseModel):
+    """Rule D (RULE_D_OBSERVATION=on), staff and teachers only, never a student session.
+
+    A report-only, testing-phase consistency observation: does the new paper read like the
+    student's earlier approved writing, compared with the same workspace's other students?
+    Plain-English reasons both ways and a confidence note tied to measured results on
+    published scholarly prose. Never a probability, never a verdict, and it never changes
+    ``deviation_score`` or the recommended action. "inconclusive" below the class-size floor
+    or for a very short paper."""
+
+    status: str
+    testing_phase_label: str
+    study_id: str
+    reason: str | None = None
+    reads_less_like_student: bool | None = None
+    summary: str
+    configuration: str | None = None
+    configuration_note: str = ""
+    index: float | None = None
+    threshold: float | None = None
+    components: dict[str, float] = {}
+    reads_like: list[str] = []
+    reads_less_like: list[str] = []
+    confidence_note: str
+    classmates: int = 0
+    classmate_papers: int = 0
+
+
 class PastPaperExamplesResponse(BaseModel):
     """Real sentences from a student's past papers for one habit and its family
     (ADR-013). Staff only; this response never changes any score.
@@ -1209,6 +1255,7 @@ class Layer7OutputResponse(BaseModel):
     length_match_mode: str | None = None
     length_match_pieces: int | None = None
     length_match_deviation_preview: float | None = None
+    length_match_action_preview: str | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the
@@ -1216,6 +1263,14 @@ class Layer7OutputResponse(BaseModel):
     # the flag is off, so the default response is unchanged.
     evidence: dict[str, Any] | None = None
     preliminary: PreliminaryScoreOut | None = None
+    # Rule D (RULE_D_OBSERVATION=on): report-only consistency observation for staff.
+    # Null when the flag is off or shadow, so the default response is unchanged.
+    rule_d: RuleDObservationOut | None = None
+    # Versioned measurements (original/measurement.py): which measurement this
+    # score used. Present only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask
+    # for something other than the default; left out of the JSON entirely
+    # otherwise (absent means "v1"), so the default response is byte-identical.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Student state summary ─────────────────────────────────────────────────────

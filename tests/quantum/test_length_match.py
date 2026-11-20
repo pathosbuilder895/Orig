@@ -41,6 +41,7 @@ _REPORT_FIELDS = {
     "length_match_mode",
     "length_match_pieces",
     "length_match_deviation_preview",
+    "length_match_action_preview",
 }
 
 
@@ -469,4 +470,126 @@ def test_shadow_preview_equals_on(extra, kwargs, n):
         **kw,
     )
     assert shadow.length_match_deviation_preview == on.authorship.deviation_score
+    assert shadow.length_match_action_preview == on.recommendation.action
     assert on.authorship.deviation_score != shadow.authorship.deviation_score
+
+
+# ── Cut points for the matched reference ─────────────────────────────────────
+
+
+def test_the_cut_points_are_the_ones_the_study_derived():
+    """The constant must stay the study's output, not a hand-tuned copy."""
+    import json
+    from pathlib import Path
+
+    from original.quantum.length_match import LENGTH_MATCHED_ACTION_THRESHOLDS
+
+    derived = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "validation"
+            / "length_match_thresholds"
+            / "derived_cut_points.json"
+        ).read_text()
+    )["cut_points"]
+    assert LENGTH_MATCHED_ACTION_THRESHOLDS == {
+        "no_action": derived["monitor"],
+        "monitor": derived["schedule_conversation"],
+        "escalate": derived["escalate"],
+    }
+
+
+_EVERYTHING_ESCALATES = {"no_action": 0.0, "monitor": 0.0, "escalate": 0.0}
+
+
+def test_on_reads_the_action_against_the_matched_cut_points(monkeypatch):
+    from original.quantum import scoring
+
+    state = _state()
+    matched = _matched(state)
+    sub = _submission()
+    before = _score(state, sub, "on", matched)
+    monkeypatch.setattr(scoring, "LENGTH_MATCHED_ACTION_THRESHOLDS", _EVERYTHING_ESCALATES)
+    after = _score(state, sub, "on", matched)
+    assert after.authorship.deviation_score == before.authorship.deviation_score
+    assert after.recommendation.action == "escalate"
+
+
+def test_off_and_an_abstained_match_keep_the_product_cut_points(monkeypatch):
+    from original.quantum import scoring
+
+    state = _state()
+    sub = _submission()
+    off = _score(state, sub, "off", _matched(state))
+    abstained = _score(state, sub, "on", None)  # nothing to cut: the route passes None
+    monkeypatch.setattr(scoring, "LENGTH_MATCHED_ACTION_THRESHOLDS", _EVERYTHING_ESCALATES)
+    _same(dataclasses.asdict(_score(state, sub, "off", _matched(state))), dataclasses.asdict(off))
+    _same(dataclasses.asdict(_score(state, sub, "on", None)), dataclasses.asdict(abstained))
+    assert off.recommendation.action != "escalate"
+
+
+def test_the_matched_cut_points_take_precedence_over_an_admin_tuned_set(monkeypatch):
+    """An admin-tuned set was made for whole-paper references too, so it
+    applies only when the match did not."""
+    from original.quantum import scoring
+
+    state = _state()
+    matched = _matched(state)
+    sub = _submission()
+    tuned = {"no_action": 0.99, "monitor": 0.995, "escalate": 0.999}  # all no_action
+    monkeypatch.setattr(scoring, "LENGTH_MATCHED_ACTION_THRESHOLDS", _EVERYTHING_ESCALATES)
+    on = _score(
+        state,
+        sub,
+        matched=matched,
+        config=ScoringConfig(length_matched_baseline="on", tuned_action_thresholds=tuned),
+    )
+    off = _score(
+        state,
+        sub,
+        matched=matched,
+        config=ScoringConfig(length_matched_baseline="off", tuned_action_thresholds=tuned),
+    )
+    assert on.recommendation.action == "escalate"
+    assert off.recommendation.action == "no_action"
+
+
+def test_shadow_previews_the_matched_action_without_using_it(monkeypatch):
+    from original.quantum import scoring
+
+    state = _state()
+    matched = _matched(state)
+    sub = _submission()
+    off = _score(state, sub, "off", matched)
+    monkeypatch.setattr(scoring, "LENGTH_MATCHED_ACTION_THRESHOLDS", _EVERYTHING_ESCALATES)
+    shadow = _score(state, sub, "shadow", matched)
+    assert shadow.length_match_action_preview == "escalate"
+    assert shadow.recommendation.action == off.recommendation.action
+    assert _strip(shadow) == _strip(off)
+
+
+def test_a_failing_preview_reports_neither_number():
+    from original.quantum.scoring import _length_match_preview
+
+    def boom():
+        raise RuntimeError("preview")
+
+    assert _length_match_preview(boom) == (None, None)
+
+
+def test_the_real_cut_points_pass_the_band_guard():
+    """Every precedence test above patches the constant; this one uses the
+    real dict, so a guard rejecting it (and falling back silently to the
+    product's cut points) would fail here."""
+    from original.constants import ACTION_THRESHOLDS
+    from original.quantum.length_match import LENGTH_MATCHED_ACTION_THRESHOLDS
+    from original.quantum.scoring import _tuned_action_bands
+
+    bands = _tuned_action_bands(LENGTH_MATCHED_ACTION_THRESHOLDS)
+    assert bands != ACTION_THRESHOLDS
+    assert bands == {
+        "no_action": (0.0, 0.517),
+        "monitor": (0.517, 0.622),
+        "schedule_conversation": (0.622, 0.703),
+        "escalate": (0.703, 1.0),
+    }

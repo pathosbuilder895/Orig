@@ -7,7 +7,8 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags set to 0; on is the default since 2026-11): Writing State shows no new link,
+ * - the main run (flags set to 0, and RULE_D_OBSERVATION=off; on is the default since
+ *   2026-11): Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
@@ -326,6 +327,40 @@ test.describe('side by side, flags on @evidence-on', () => {
     expect(await quotesByCode('#p-diff > .ex')).toEqual(onWritingState)
     // No page along the way (the panel, the side-by-side link, the packet) threw.
     expect(errors).toEqual([])
+    await context.close()
+  })
+
+  // A tall open habit used to squeeze the hero to its 600px floor, so its
+  // bottom-aligned title spilled upward over the testing notice, out of
+  // scroll reach (82px on a desktop, 707px on a phone, measured 2026-11-18).
+  test('an open habit after an analysis keeps the top of the page in reach @evidence-on', async ({ browser, request, testTenant }) => {
+    test.setTimeout(150_000)
+    const { staff, student, baseURL } = testTenant
+    await seedPastPapers(request, student)
+    const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff), viewport: { width: 1440, height: 1000 } })
+    const page = await context.newPage()
+    const body = await analyse(page, student.student_id)
+    expect(body.evidence, 'this run needs a server started with EVIDENCE_PASSAGES_ENABLED=1').toBeTruthy()
+    // Scrolled all the way up: where the hero's title sits against the scroll area and the testing notice.
+    const atTop = () => page.evaluate(() => {
+      const rs = document.getElementById('right-scroll')
+      rs.scrollTop = 0
+      const title = document.querySelector('.hero-title').getBoundingClientRect().top
+      const notice = document.getElementById('result-notice')
+      return {
+        belowScrollTop: Math.round(title - rs.getBoundingClientRect().top),
+        belowNotice: notice.hidden ? null : Math.round(title - notice.getBoundingClientRect().bottom),
+      }
+    })
+    for (const size of [{ width: 1440, height: 1000 }, { width: 375, height: 812 }]) {
+      await page.setViewportSize(size)
+      await page.locator('#heatmap [data-code="comma_rate"]').click()
+      await expect(page.locator('#hero-evi')).toBeVisible()
+      await expect(page.locator('#evi-past')).toBeHidden()
+      const at = await atTop()
+      expect(at.belowScrollTop, `title in scroll reach at ${size.width}px`).toBeGreaterThanOrEqual(0)
+      if (at.belowNotice !== null) expect(at.belowNotice, `title below the testing notice at ${size.width}px`).toBeGreaterThanOrEqual(0)
+    }
     await context.close()
   })
 

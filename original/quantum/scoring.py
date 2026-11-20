@@ -67,7 +67,7 @@ from ..constants import (
     TRAJECTORY_REGRESSIVE_THRESHOLD,
 )
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
-from .length_match import LengthMatchedState
+from .length_match import LENGTH_MATCHED_ACTION_THRESHOLDS, LengthMatchedState
 from .state import StudentState, _unit
 
 log = logging.getLogger(__name__)
@@ -555,14 +555,16 @@ def _parse_characteristic_mode(raw: str) -> str:
 _OPPORTUNITY_MASK_MODES = frozenset({"off", "shadow", "on"})
 
 
-def _length_match_preview(run) -> float | None:
-    """The deviation_score ``run()`` produces under "on", or None if it
-    raised. Shadow must never fail a request that off would have served."""
+def _length_match_preview(run) -> tuple[float | None, str | None]:
+    """The deviation_score and recommended action ``run()`` produces under
+    "on", or (None, None) if it raised. Shadow must never fail a request that
+    off would have served."""
     try:
-        return float(run().authorship.deviation_score)
+        res = run()
+        return float(res.authorship.deviation_score), res.recommendation.action
     except Exception:
         log.exception("length-match shadow preview failed: reported without it")
-        return None
+        return None, None
 
 
 def _parse_length_matched_baseline_mode(raw: str) -> str:
@@ -902,6 +904,10 @@ class Layer7Output:
     # Shadow only: the deviation_score "on" would have produced. Never
     # influences `recommendation`.
     length_match_deviation_preview: float | None = field(default=None)
+    # Shadow only: the recommended action "on" would have produced, read
+    # against LENGTH_MATCHED_ACTION_THRESHOLDS. Never influences
+    # `recommendation`.
+    length_match_action_preview: str | None = field(default=None)
 
     # Corpus-level AI-likelihood (orthogonal signal, set at the API layer
     # after quantum score when AI_LIKELIHOOD_ENABLED=1). Report-only: never
@@ -1224,6 +1230,7 @@ def score(
     _length_state: LengthMatchedState | None = None
     _length_applied = False
     _length_preview: float | None = None
+    _length_action_preview: str | None = None
     if (
         config.length_matched_baseline in ("on", "shadow")
         and isinstance(length_matched_state, LengthMatchedState)
@@ -1234,7 +1241,7 @@ def score(
             state = _length_state
             _length_applied = True
         else:
-            _length_preview = _length_match_preview(
+            _length_preview, _length_action_preview = _length_match_preview(
                 lambda: score(
                     state=state,
                     submission_vector=submission_vector,
@@ -1880,7 +1887,11 @@ def score(
         llr_deviation_score=llr_deviation_score,
         identity_axis_enabled=config.identity_axis_enabled,
         null_model=config.null_model,
-        tuned_action_thresholds=config.tuned_action_thresholds,
+        # A matched reference reads against its own cut points: the product's
+        # and an admin-tuned set were both made for whole-paper references.
+        tuned_action_thresholds=(
+            LENGTH_MATCHED_ACTION_THRESHOLDS if _length_applied else config.tuned_action_thresholds
+        ),
     )
 
     # ── Per-writer line (WRITER_LINE) ─────────────────────────────────────────
@@ -2027,6 +2038,7 @@ def score(
             int(len(_length_state.piece_vectors)) if _length_state is not None else None
         ),
         length_match_deviation_preview=_length_preview,
+        length_match_action_preview=_length_action_preview,
     )
 
 

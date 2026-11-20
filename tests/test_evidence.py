@@ -4,7 +4,8 @@ What these pin:
 * every quote is a verbatim slice of the stored text at its recorded offsets;
 * located places are exactly what the engine's own measurement counted;
 * same input -> same evidence;
-* both features are off by default and never reach a student session.
+* evidence is on by default while testing, the preliminary score off; neither reaches a
+  student session.
 """
 from __future__ import annotations
 

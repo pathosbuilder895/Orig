@@ -640,6 +640,7 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         length_match_mode=getattr(r, "length_match_mode", None),
         length_match_pieces=getattr(r, "length_match_pieces", None),
         length_match_deviation_preview=getattr(r, "length_match_deviation_preview", None),
+        length_match_action_preview=getattr(r, "length_match_action_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))

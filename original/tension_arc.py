@@ -51,9 +51,9 @@ def load_models() -> None:
     global _nlp, _embedder, _spacy_available, _embedder_available
     if _nlp is None:
         try:
-            import spacy as _spacy
+            from .features.spacy_model import shared_nlp
 
-            _nlp = _spacy.load("en_core_web_sm")
+            _nlp = shared_nlp()
             _spacy_available = True
         except (ImportError, OSError) as exc:
             _spacy_available = False

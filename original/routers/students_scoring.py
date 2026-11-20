@@ -7,6 +7,7 @@ students.py for file size.
 
 from __future__ import annotations
 
+import contextvars
 import dataclasses
 import logging
 import os
@@ -15,6 +16,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import measurement as _measurement
+from ..features import feature_flags as _ff
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -23,6 +26,7 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    MeasurementOut,
     PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
@@ -69,6 +73,16 @@ def _throttle_score(request: Request | None) -> None:
     _score_calls[key] = window
     if len(_score_calls) > 10_000:  # bound memory under caller churn
         _score_calls.clear()
+
+
+def _score_source(request: Request | None) -> str:
+    """Where a scoring call came from, for shadow-soak lines only: a student's
+    own practice check (/me/work, which passes no request), a student's exam
+    seal, or staff. A soak should not mix practice traffic into its rates."""
+    if request is None:
+        return "practice"
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    return "exam" if principal is not None and principal.role == "student" else "staff"
 
 
 def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
@@ -134,6 +148,14 @@ def score_submission(
     force: bool = False,
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
+    """Score one paper against the student's past papers.
+
+    Runs in a copy of the current context so the measurement chosen for this
+    score (original/measurement.py, a ContextVar) ends with it."""
+    return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
+
+
+def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
@@ -148,6 +170,15 @@ def score_submission(
             "Add at least one 'proctored' or 'verified' sample first.",
         )
     _require_min_baseline(state)
+
+    # ── Versioned measurements (original/measurement.py) ──────────────────────
+    # Default (both measurement switches off): plan.used == "v1", the state is
+    # unchanged and nothing is stamped. Otherwise the requested measurement is
+    # used only when every past paper has it, and everything below (this
+    # paper, evidence re-reads, peer texts) is measured the same way.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -223,6 +254,8 @@ def score_submission(
         nonlocal _all_states_cache
         if _all_states_cache is None:
             _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
+            if plan.used != _measurement.DEFAULT:
+                _all_states_cache = _measurement.states_measured_as(_all_states_cache, plan.used)
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -384,12 +417,16 @@ def score_submission(
     # piece, up to LENGTH_MATCH_MAX_PIECES. Pieces are measured the way past
     # papers are (feature_vector on plain text). A failure here leaves the
     # state None, which score() treats exactly as flag-off.
+    # The paper's length here is its BODY, counted as past papers are cut
+    # (body_word_count); _n_tokens stays the raw count everywhere else.
     _length_state = None
+    _body_words = 0
     if _scoring_config_env.length_matched_baseline != "off":
         try:
-            from ..quantum.length_match import build_length_matched_state
+            from ..quantum.length_match import body_word_count, build_length_matched_state
 
-            _length_state = build_length_matched_state(state, _n_tokens, feature_vector)
+            _body_words = body_word_count(req.text)
+            _length_state = build_length_matched_state(state, _body_words, feature_vector)
         except Exception:
             logging.getLogger(__name__).exception("length match failed: scored without it")
 
@@ -413,14 +450,18 @@ def score_submission(
     # the flag was inert for it. No student id, counts only.
     if _scoring_config_env.length_matched_baseline != "off":
         logging.getLogger(__name__).info(
-            "length_match mode=%s pieces=%d papers_cut=%d n_tokens=%d deviation=%.4f "
-            "deviation_preview=%s",
+            "length_match mode=%s source=%s pieces=%d papers_cut=%d n_tokens=%d body_words=%d "
+            "deviation=%.4f action=%s deviation_preview=%s action_preview=%s",
             _scoring_config_env.length_matched_baseline,
+            _score_source(request),
             result.length_match_pieces or 0,
             _length_state.papers_cut if _length_state is not None else 0,
             _n_tokens,
+            _body_words,
             result.authorship.deviation_score,
+            result.recommendation.action,
             result.length_match_deviation_preview,
+            result.length_match_action_preview,
         )
 
     # ── Opportunity mask audit line ───────────────────────────────────────────
@@ -749,9 +790,57 @@ def score_submission(
     except Exception:
         pass
 
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing). Computed
+    # after the score and action are final and from separate inputs, so it cannot change
+    # either. Only for staff HTTP callers: not computed at all for ``/me/work``
+    # (request=None) or a student principal, who could never be shown it.
+    from ..rule_d import mode as _rule_d_mode
+
+    _rd_mode = _rule_d_mode()
+    _rule_d_obs = None
+    _rd_principal = getattr(getattr(request, "state", None), "principal", None)
+    _rd_staff = request is not None and getattr(_rd_principal, "role", None) != "student"
+    if _rd_mode != "off" and _rd_staff:
+        try:
+            from ..rule_d.service import observe_for
+
+            _rule_d_obs = observe_for(_repo(), state, _all_states(), req.text, vec, feature_vector)
+            logging.getLogger(__name__).info(
+                "rule_d_observation mode=%s status=%s configuration=%s reads_less_like=%s classmates=%d",
+                _rd_mode,
+                _rule_d_obs.status,
+                _rule_d_obs.configuration,
+                _rule_d_obs.reads_less_like_student,
+                _rule_d_obs.classmates,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("rule_d observation failed; omitted")
+            _rule_d_obs = None
+
     response = _to_response(result, arc, report=report)
+    stamp = plan.stamp()
+    if stamp is not None:
+        response.measurement = MeasurementOut(**stamp)
     _attach_staff_explainability(response, request, req.text, state, result, student_id)
+    if _rd_mode == "on" and _rule_d_obs is not None:
+        try:
+            _attach_rule_d(response, request, _rule_d_obs)
+        except Exception:  # a report-only field must never fail a score request
+            logging.getLogger(__name__).exception("rule_d attach failed; omitted")
+            response.rule_d = None
     return response
+
+
+def _attach_rule_d(response, request, obs) -> None:
+    """Rule D is for staff only: never for a student session, never in-process."""
+    if request is None:
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    from ..schemas import RuleDObservationOut
+
+    response.rule_d = RuleDObservationOut(**obs.as_dict())
 
 
 def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
@@ -849,6 +938,8 @@ def _attach_staff_explainability(
             response.evidence["baseline_papers"] = _baseline_papers(
                 state, used, baselines, student_id
             )
+            if getattr(response, "measurement", None) is not None:
+                response.evidence["measurement"] = response.measurement.model_dump()
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
@@ -907,6 +998,10 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    return contextvars.copy_context().run(_score_blend, student_id, req, request)
+
+
+def _score_blend(student_id: str, req: BlendDetectionRequest, request):
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
@@ -922,6 +1017,13 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         )
 
     _require_min_baseline(state)
+
+    # Same rule as /score: like with like, stamped when anything but the default
+    # was asked for.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
+    stamp = plan.stamp()
 
     from ..context.blend import detect_blend
 
@@ -952,4 +1054,5 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         fallback_reason=result.fallback_reason,
         ai_window_max=result.ai_window_max,
         ai_window_mean=result.ai_window_mean,
+        measurement=MeasurementOut(**stamp) if stamp is not None else None,
     )

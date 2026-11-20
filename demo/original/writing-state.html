@@ -120,7 +120,10 @@
   .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
   .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
-  .hero-inner{position:relative;min-height:600px;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
+  /* flex-shrink:0: an open habit panel can make the hero taller than its 600px floor.
+     Allowed to shrink, the scrolling column squeezes it back to that floor and its
+     bottom-aligned content spills upward over the testing notice, out of scroll reach. */
+  .hero-inner{position:relative;min-height:600px;flex-shrink:0;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
   .hero-inner .fpq-toggle,.hero-inner .fpq-btn,.hero-inner .triage,.hero-inner .tri-btn,.hero-inner a{pointer-events:auto;}
   .hero-title{font-family:var(--display);font-size:2.3rem;font-weight:500;line-height:1.04;color:var(--cream);}
   .hero-title span{color:var(--dim);}
@@ -162,10 +165,6 @@
   /* Past-paper mode (no analysis yet): one column per past paper, then the family's other habits.
      Past work keeps the blue of the analysed view's "Their own past work" column. */
   .evi-past{display:flex;flex-direction:column;gap:.85rem;}
-  /* The past-paper panel is taller than the hero's 600px floor: without this the column
-     flexbox shrinks the hero to that floor and its bottom-aligned content overflows upward,
-     out of scroll reach. Set only while past papers show, so the analysed view is unchanged. */
-  .hero-inner.evi-past-on{flex-shrink:0;}
   .evi-fams{display:flex;gap:.4rem;flex-wrap:wrap;}
   .evi-fam{background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.28rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .14s;}
   .evi-fam:hover{color:var(--cream);}
@@ -1228,7 +1227,6 @@
     // The analysed view's parts hide while past papers are shown; render() and close() bring them back.
     function pastParts(on){
       $('evi-past').hidden=!on;
-      box.parentNode.classList.toggle('evi-past-on',on);
       box.querySelector('.evi-cols').hidden=on;
       if(on){ $('evi-tabs').hidden=true; $('evi-foot').hidden=true; $('evi-flag').hidden=true; $('evi-one').hidden=true; }
     }
@@ -1879,6 +1877,7 @@
     // behind EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED).
     if(hasEvidence(r)) keep.result.evidence=r.evidence;
     if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;
+    if(r.rule_d&&typeof r.rule_d==='object') keep.result.rule_d=r.rule_d;
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
   }
 

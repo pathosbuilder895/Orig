@@ -161,6 +161,10 @@ class TestThroughLiveRoutes:
             return real(text, keystroke_data=keystroke_data)
 
         monkeypatch.setattr(pipeline, "feature_vector", counting)
+        # Rule D (on by default while testing) also measures each 300-word piece of an
+        # approved paper; this test pins the vector cache's one-extraction-per-text, so
+        # rule D is off here.
+        monkeypatch.setenv("RULE_D_OBSERVATION", "off")
         monkeypatch.setattr(vector_cache, "semantic_backend", lambda: "tfidf")
         monkeypatch.setenv(vector_cache.ENV_VAR, str(tmp_path))
         restore, description = vector_cache.maybe_install_from_env()
