@@ -53,11 +53,11 @@
     },
     deviation: {
       title: 'How the score is computed',
-      body:  'Each submission is compared with the student\'s approved past papers, measurement by measurement. The comparison produces a deviation between 0 and 1: 0 is the same as their usual writing, higher is further away. It is not a probability, and it does not decide who wrote anything.',
+      body:  'Each submission is compared with the student\'s established voice across 103 stylometric features in seventeen tiers. The comparison produces a deviation score in [0, 1] which we present as authenticity = (1 − deviation) × 100. Higher is closer to the voice we already know.',
     },
     tiers: {
       title: 'Tier breakdown',
-      body:  'Tiers group the measurements by what they measure — sentence rhythm, character habits, citation style, etc. Tiers most resistant to editing (character n-grams, error patterns) weight slightly more heavily when something looks unusual.',
+      body:  'Seventeen tiers group the 103 features by what they measure — sentence rhythm, character habits, citation style, etc. Tiers most resistant to editing (character n-grams, error patterns) weight slightly more heavily when something looks unusual.',
     },
     peerCompare: {
       title: 'Compared with classmates',
