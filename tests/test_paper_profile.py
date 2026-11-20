@@ -240,3 +240,126 @@ def test_voice_drops_staff_only_keys_at_any_depth():
     assert voice.drop_staff_only(blob) == {"headline": "h", "arc": [{"period": "p"}], "deep": {"a": {"b": 4}}}
     assert blob == original  # the input is not changed
     assert voice.drop_staff_only("text") == "text" and voice.drop_staff_only([1, {"k": 2}]) == [1, {"k": 2}]
+
+
+# ── Parts of the paper (features.matter.find_parts) ──────────────────────────
+
+SAMPLES = Path(__file__).parents[1] / "validation" / "diagnostics" / "document_parts_v2" / "samples"
+
+
+def _docx(name: str) -> str:
+    from original.upload_utils import extract_text_from_bytes
+
+    return extract_text_from_bytes((SAMPLES / f"{name}.docx").read_bytes(), f"{name}.docx")
+
+
+def test_parts_are_listed_only_with_the_splitter_on(monkeypatch):
+    text = _docx("apa_student")
+    monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
+    assert "parts" not in pp.paper_profile(text)
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    assert pp.paper_profile(text)["parts"] == pp.paper_parts(text)
+
+
+def test_an_apa_paper_lists_its_title_page_abstract_and_references():
+    text = _docx("apa_student")
+    parts = pp.paper_parts(text)
+    by_kind = {p["kind"]: p for p in parts}
+    for kind, label in (("title_page", "Title page"), ("abstract", "Abstract"), ("back_matter", "References")):
+        part = by_kind[kind]
+        assert (part["label"], part["status"], part["by"], part["possible"]) == (label, "set_aside", "rules", False)
+        assert part["rules_status"] == "set_aside"
+        a, b = part["ranges"][0]
+        assert 0 <= a < b <= len(text) and (part["start"], part["end"]) == (a, part["ranges"][-1][1])
+        assert part["words"] == sum(len(text[x:y].split()) for x, y in part["ranges"]) > 0
+        assert part["first_line"] and len(part["first_line"]) <= pp.FIRST_LINE_CHARS
+        assert "\x1f" not in part["first_line"]  # a page marker is never shown
+    assert by_kind["abstract"]["first_line"] == "Abstract"
+    assert by_kind["back_matter"]["first_line"] == "References"
+    # Section headings are one part, all their lines together.
+    headings = by_kind["heading"]
+    assert headings["label"] == "Section headings" and len(headings["ranges"]) == headings["lines"] == 3
+    assert [p["start"] for p in parts] == sorted(p["start"] for p in parts)
+    json.dumps(parts)
+
+
+def test_a_part_the_rules_were_unsure_of_is_measured_and_marked_possible():
+    text = _paper("apa")  # an "Abstract" heading with no clear end
+    possible = [p for p in pp.paper_parts(text) if p["possible"]]
+    assert [p["kind"] for p in possible] == ["abstract"]
+    assert possible[0]["status"] == possible[0]["rules_status"] == "measured"
+
+
+def test_an_appendix_after_the_list_of_sources_is_listed_as_measured():
+    parts = pp.paper_parts(_docx("turabian_appendix"))
+    appendix = [p for p in parts if p["kind"] == "appendix"]
+    assert len(appendix) == 1 and appendix[0]["status"] == "measured" and appendix[0]["first_line"] == "Appendix A"
+    assert any(p["label"] == "Bibliography" and p["status"] == "set_aside" for p in parts)
+
+
+def test_a_teachers_choice_is_shown_on_the_parts_it_touches():
+    from original.features import part_overrides as po
+
+    text = _docx("apa_student")
+    parts = {p["kind"]: p for p in pp.paper_parts(text)}
+    title, abstract = parts["title_page"]["ranges"][0], parts["abstract"]["ranges"][0]
+    body = parts["back_matter"]["ranges"][0][0] - 300  # inside the body, in none of the parts
+    choice = po.validate(text, [[body, body + 100]], [abstract])
+    with po.applying({text: choice}):
+        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    assert (shown["abstract"]["status"], shown["abstract"]["by"]) == ("measured", "teacher")
+    assert shown["abstract"]["rules_status"] == "set_aside"
+    assert (shown["title_page"]["status"], shown["title_page"]["by"]) == ("set_aside", "rules")
+    assert shown["chosen"]["ranges"] == [[body, body + 100]] and shown["chosen"]["by"] == "teacher"
+    assert shown["chosen"]["status"] == "set_aside" and shown["chosen"]["label"] == "A part you chose"
+    assert title == shown["title_page"]["ranges"][0]
+    assert {p["kind"] for p in pp.paper_parts(text)} == set(parts)  # nothing outlives the block
+
+
+def test_a_choice_marks_only_the_parts_it_changed():
+    """Setting an appendix aside covers the "Appendix A" heading too, which the
+    rules set aside already: the headings stay the rules' doing. Measuring the
+    headings afterwards cuts that line out of the appendix's range, and the
+    appendix is still mostly set aside."""
+    from original.features import part_overrides as po
+
+    text = _docx("turabian_appendix")
+    parts = {p["kind"]: p for p in pp.paper_parts(text)}
+    appendix = parts["appendix"]["ranges"][0]
+    with po.applying({text: po.validate(text, [appendix], None)}):
+        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    assert (shown["appendix"]["status"], shown["appendix"]["by"]) == ("set_aside", "teacher")
+    assert (shown["heading"]["status"], shown["heading"]["by"]) == ("set_aside", "rules")
+    heading = parts["heading"]["ranges"][0]
+    rest = po.minus_ranges([tuple(appendix)], [tuple(heading)])
+    with po.applying({text: po.validate(text, rest, [heading])}):
+        shown = {p["kind"]: p for p in pp.paper_parts(text)}
+    assert (shown["heading"]["status"], shown["heading"]["by"]) == ("measured", "teacher")
+    assert (shown["appendix"]["status"], shown["appendix"]["by"]) == ("set_aside", "teacher")
+
+
+def test_the_profile_carries_the_choice_in_force(monkeypatch):
+    from original.features import part_overrides as po
+
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    text = _docx("apa_student")
+    assert pp.paper_profile(text)["choice"] == {"exclude_ranges": [], "include_ranges": []}
+    with po.applying({text: po.PartOverride(include=((0, 10),))}):
+        assert pp.paper_profile(text)["choice"] == {"exclude_ranges": [], "include_ranges": [[0, 10]]}
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "0")
+    assert "choice" not in pp.paper_profile(text)
+
+
+def test_a_long_first_line_is_cut_short():
+    line = "A Very Long Title " * 10
+    assert pp._first_line(line + "\n\nBody.", 0, len(line)).endswith("…")
+    assert len(pp._first_line(line, 0, len(line))) == pp.FIRST_LINE_CHARS
+    assert pp._first_line("\n\x1f\n  Short  line \n", 0, 20) == "Short line"
+
+
+def test_parts_reach_staff_only(monkeypatch):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    profile = pp.build_paper_profiles(_docx("apa_student"), [])
+    assert profile["this_paper"]["parts"]
+    student_view = voice.drop_staff_only({"evidence": {"paper_profile": profile}, "headline": "h"})
+    assert student_view == {"evidence": {}, "headline": "h"}
