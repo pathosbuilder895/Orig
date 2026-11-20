@@ -272,6 +272,9 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # ADR-013 staff explainability: report-only, never moves a score.
     "EVIDENCE_PASSAGES_ENABLED": "0",
     "PRELIMINARY_SCORE_ENABLED": "0",
+    # Teacher-only paper profile (original/paper_profile.py): descriptive,
+    # never moves a score; off by default.
+    "PAPER_PROFILE_ENABLED": "0",
     # Rule D: report-only, staff-only consistency observation; never moves a score.
     "RULE_D_OBSERVATION": "off",
     # Measurement versions (features/feature_flags.py): off = the old measurement.
@@ -1502,6 +1505,19 @@ def test_api_on_arm_is_not_inert(api_call, caplog, arm):
         assert changed == expected, f"{arm} moved {sorted(changed)}, not exactly {sorted(expected)}"
         return
     assert expected <= changed, f"{arm} did not move {sorted(expected - changed)}"
+
+
+def test_api_paper_profile_only_adds_its_own_staff_field(api_call):
+    """PAPER_PROFILE_ENABLED=1 is report-only: with evidence on, it adds
+    ``evidence.paper_profile`` and moves nothing else in the response."""
+    evidence_on = {"EVIDENCE_PASSAGES_ENABLED": "1"}
+    reference = api_call(evidence_on)
+    assert "paper_profile" not in (reference.get("evidence") or {})
+    changed = changed_paths(reference, api_call({**evidence_on, "PAPER_PROFILE_ENABLED": "1"}))
+    assert changed, "PAPER_PROFILE_ENABLED=1 attached nothing"
+    assert all(path.startswith("evidence.paper_profile") for path in changed), sorted(changed)
+    # Without evidence there is nowhere to attach it: the response is the default.
+    assert changed_paths(api_call({}), api_call({"PAPER_PROFILE_ENABLED": "1"})) == set()
 
 
 def test_api_topic_on_is_uninformative(api_call):

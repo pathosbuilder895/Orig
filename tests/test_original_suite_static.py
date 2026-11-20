@@ -288,6 +288,7 @@ VERSIONED = (
     "js/fingerprint.js",
     "js/evidence-view.js",
     "js/evidence-cards.js",
+    "js/paper-profile.js",
     "suite.css",
     "fonts.css",
 )
@@ -4099,7 +4100,9 @@ def test_evidence_page_is_keyboard_and_motion_friendly():
     assert '<details class="m"' in page
     # Section headings are real headings, in order.
     heads = re.findall(r'<h2 class="sec-t" id="(h-[a-z]+)"', page)
-    assert heads == ["h-summary", "h-ruled", "h-diff", "h-steady", "h-all", "h-past"]
+    # h-ruled: rule D, hidden unless sent. h-about: "About the papers", hidden
+    # unless the server sent a paper profile.
+    assert heads == ["h-summary", "h-ruled", "h-diff", "h-steady", "h-all", "h-past", "h-about"]
 
 
 def test_writing_state_links_to_the_side_by_side_page_only_with_evidence():
@@ -4269,3 +4272,31 @@ def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one
     assert r"/^Candidate No\.\s*\d+$/" in code  # the stock placeholder is never a name
     assert "if(!r.named&&!counted.has(sid)) return '<div class=\"q-act\"><span class=\"q-gone\">No longer on your roster</span></div>';" in code
     assert "String(r.student_id||'Unknown student')" not in code  # never an id for a name
+
+
+# ── About the papers (paper_profile, teacher only) ───────────────────────────
+# Writing State and the side-by-side page draw the server's paper_profile with
+# one builder (js/paper-profile.js), only when evidence.paper_profile was sent
+# (PAPER_PROFILE_ENABLED, off by default). No student page loads it.
+
+
+@pytest.mark.parametrize("name", ["writing-state.html", "evidence.html"])
+def test_staff_pages_draw_the_paper_profile_only_when_sent(name):
+    page = (SUITE / name).read_text(encoding="utf-8")
+    assert '<script src="js/paper-profile.js?v=' in page
+    assert "PP.has(ev)" in page and "PP.table(ev.paper_profile" in page
+    assert "About the papers" in page and "not part of the comparison" in page
+    # The section starts hidden: nothing new appears unless the server sent it.
+    assert re.search(r'id="(?:pp|s-about)"[^>]*\bhidden\b', page)
+
+
+def test_no_student_page_loads_the_paper_profile():
+    for name in sorted(STUDENT_PAGES):
+        assert "paper-profile" not in (SUITE / name).read_text(encoding="utf-8"), name
+
+
+def test_paper_profile_words_are_plain():
+    code = (SUITE / "js" / "paper-profile.js").read_text(encoding="utf-8").lower()
+    for bad in ("ai detection", "cheat", "authorship verification", "fingerprint", "score", "verdict"):
+        assert bad not in code, bad
+    assert "best guess" not in code or "citation style" in code
