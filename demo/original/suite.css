@@ -12,7 +12,7 @@
 .live-testing {
   display: block; margin-top: .8rem; max-width: 62ch;
   padding: .6rem .85rem;
-  border: 1px solid rgba(201,160,40,0.38); border-radius: 10px;
+  border: 1px solid rgba(201,160,40,0.3); border-radius: 10px;
   background: rgba(201,160,40,0.08);
   font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
   color: rgba(245,239,224,0.84);
@@ -46,6 +46,21 @@
   -webkit-mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
   mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
 }
+
+/* Scrollbars: every scrolling pane shows one, thin and quiet, in the suite's
+   gold on a clear track. The standard properties are what current Chrome,
+   Edge and Firefox use (scrollbar-color is inherited; scrollbar-width is not,
+   hence *); the ::-webkit-scrollbar rules are for Safari, which has no
+   scrollbar-color. */
+html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
+* { scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(201,160,40,0.3) padding-box;
+  border: 2px solid transparent; border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(201,160,40,0.55); }
 
 .live-empty {
   margin: auto 0;
