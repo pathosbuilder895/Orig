@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Original · Sessions</title>
+<title>Original · Collections</title>
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
@@ -137,9 +137,9 @@
   <main class="body" id="live-main">
     <div class="head">
       <div>
-        <div class="eyebrow">Sessions</div>
+        <div class="eyebrow">Collections</div>
         <h1>In-class writing, in their own hand.</h1>
-        <div class="sub">A Collections session is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
+        <div class="sub">A collection is a supervised essay written live in class. Sealed booklets stay as written. If Original is on, <b>you choose</b> which become reference writing for each student, and you can undo that choice.</div>
       </div>
       <a class="head-link btn-ghost" href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
     </div>
@@ -147,9 +147,9 @@
       <form class="card setup" id="setup" novalidate>
         <div class="setup-h">
           <div class="bb-mark"></div>
-          <div><b>Start a new session</b><span>Three questions. That's the whole setup.</span></div>
+          <div><b>Start a new collection</b><span>Three questions. That's the whole setup.</span></div>
         </div>
-        <div class="card-off" id="setup-off" role="status" hidden><b>Collections is off for this workspace</b>Sessions, classes and sealed booklets live in Collections, which this workspace does not include.</div>
+        <div class="card-off" id="setup-off" role="status" hidden><b>Collections is off for this workspace</b>Collections, classes and sealed booklets live in Collections, which this workspace does not include.</div>
         <div id="setup-live">
           <div class="stepper">
             <div class="step">
@@ -165,12 +165,12 @@
             <div class="step">
               <div class="step-q"><label for="time-slider">How long do they get?</label></div>
               <div class="time-row">
-                <input type="range" id="time-slider" min="15" max="120" step="5" value="50" aria-label="Session length in minutes" />
+                <input type="range" id="time-slider" min="15" max="120" step="5" value="50" aria-label="Time allowed in minutes" />
                 <output class="time-val" id="time-val" for="time-slider">50 min</output>
               </div>
               <div class="quiet-note">
                 <svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7z"/><path d="M9 12l2 2 4-4"/></svg>
-                <div><b>Everything else is already handled.</b> Drafts save on the student's device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few session facts (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</div>
+                <div><b>Everything else is already handled.</b> Drafts save on the student's device every few seconds, and the finished booklet reaches you when they seal it. Collections keeps the text and a few facts about the sitting (time spent, word count, paste attempts, print or save attempts, times the window lost focus), never the screen or camera. Session facts are context for you to read afterward, not evidence.</div>
               </div>
             </div>
           </div>
@@ -187,8 +187,8 @@
       </form>
       <div>
         <div class="card rev">
-          <div class="rev-h"><b>Past sessions</b><span id="rev-count">newest first</span></div>
-          <p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Collections.</p>
+          <div class="rev-h"><b>Past collections</b><span id="rev-count">newest first</span></div>
+          <p class="rev-note" id="demo-note" hidden>Sign in to open collections in Collections.</p>
           <div id="sessions"><div class="live-empty">Loading</div></div>
           <button type="button" class="more btn-chip" id="more" hidden></button>
           <p class="rev-note" id="rev-note" hidden></p>
@@ -284,7 +284,7 @@
     const row=$('course-row');
     if(coursesState==='loading'){ row.innerHTML='<span class="row-note">Loading your classes</span>'; return; }
     if(coursesState==='error'){ row.innerHTML='<span class="row-note">Your classes could not be loaded just now. Try reloading the page.</span>'; return; }
-    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Collections first</a>, then come back here to open a session for it.</span>'; return; }
+    if(!courses.length){ row.innerHTML='<span class="row-note"><a href="/bluebook/#courses">Add a course in Collections first</a>, then come back here to open a collection for it.</span>'; return; }
     const sel=selected();
     row.innerHTML=courses.map(c=>{
       const on=c===sel;
@@ -313,7 +313,7 @@
     const d=res&&!res.ok&&res.data&&res.data.detail;
     if(typeof d==='string'&&d.trim()) return d.trim();
     if(res&&res.status===0) return 'Could not reach the server. Your questions are still here.';
-    return 'The session could not be saved. Your questions are still here.';
+    return 'The collection could not be saved. Your questions are still here.';
   }
 
   // What the create call returned, and what is true for students: there is no
@@ -324,7 +324,7 @@
     const st=examState(exam);
     const roster=course.code||course.name;
     $('cc-code').textContent=st==='open'?'OPEN':STATE_WORD[st].toUpperCase();
-    $('cc-text').innerHTML=(st==='open'?'Session is open. ':'Session saved: '+esc(STATE_WORD[st].toLowerCase())+'. ')+
+    $('cc-text').innerHTML=(st==='open'?'Collection is open. ':'Collection saved: '+esc(STATE_WORD[st].toLowerCase())+'. ')+
       'Students on the <b>'+esc(roster)+'</b> roster find it under <b>My collections</b> when they sign in to Collections at <b>'+esc(window.location.host)+'/bluebook/</b>.'+
       '<span class="cc-links"><a href="/bluebook/#live/'+id+'">Open the live room</a><a href="/bluebook/#exam/'+id+'">Manage it in Collections</a></span>';
     const chip=$('code-chip');
@@ -425,9 +425,9 @@
   function rowHTML(e){
     const st=examState(e);
     const meta=[courseOf(e),fmtDate(e.created_at),e.duration!=null?e.duration+' min':''].filter(Boolean).join(' · ');
-    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this session in Collections">'+
+    return '<a class="sess" href="/bluebook/#exam/'+encodeURIComponent(e.id)+'" data-exam="'+esc(e.id)+'" title="Opens this collection in Collections">'+
       '<div class="s-ic'+(st==='closed'?' done':'')+'"></div>'+
-      '<div class="s-main"><div class="s-t">'+esc(e.title||'Untitled session')+'</div><div class="s-m">'+esc(meta)+'</div></div>'+
+      '<div class="s-main"><div class="s-t">'+esc(e.title||'Untitled collection')+'</div><div class="s-m">'+esc(meta)+'</div></div>'+
       '<div class="s-right">'+rightHTML(e)+'</div>'+
     '</a>';
   }
@@ -451,12 +451,12 @@
     const el=$('sessions'), more=$('more'), note=$('rev-note');
     more.hidden=true; note.hidden=true;
     if(examsState==='loading'){ Live.empty(el,'Loading'); return; }
-    if(examsState==='error'){ $('rev-count').textContent=''; Live.empty(el,'Your sessions could not be loaded just now. Try reloading the page.'); return; }
-    if(!exams.length){ $('rev-count').textContent=''; Live.empty(el,'No sessions yet. Your first one will appear here.'); return; }
-    $('rev-count').textContent=plural(exams.length,'session')+' · newest first';
+    if(examsState==='error'){ $('rev-count').textContent=''; Live.empty(el,'Your collections could not be loaded just now. Try reloading the page.'); return; }
+    if(!exams.length){ $('rev-count').textContent=''; Live.empty(el,'No collections yet. Your first one will appear here.'); return; }
+    $('rev-count').textContent=plural(exams.length,'collection')+' · newest first';
     const list=exams.slice(0,shown);
     el.innerHTML=list.map(rowHTML).join('');
-    if(exams.length>shown){ more.textContent='Show all '+exams.length+' sessions'; more.hidden=false; }
+    if(exams.length>shown){ more.textContent='Show all '+exams.length+' collections'; more.hidden=false; }
     if(sealedState==='error'){ note.textContent='Sealed booklets could not be counted just now.'; note.hidden=false; }
     askBaselines(list);
   }

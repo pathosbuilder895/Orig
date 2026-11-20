@@ -719,7 +719,7 @@ def test_no_file_but_live_js_names_the_sealed_exam_list_route(live_js):
         for path in _code_files()
         if path != SUITE / "live.js" and SEALED_LIST_ROUTE.search(path.read_text(encoding="utf-8"))
     ]
-    assert not named, f"{named} name the sealed exam list route; call Live.sealed() instead"
+    assert not named, f"{named} name the sealed booklet list route; call Live.sealed() instead"
 
 
 def test_reports_page_counts_only_what_live_roster_returns():
@@ -1842,7 +1842,7 @@ def _course(cid: str, code: str) -> dict:
 
 
 def _two_course_scenario(**extra) -> dict:
-    """Four students; two courses; five sealed exams, one of them (s4) on an
+    """Four students; two courses; five sealed booklets, one of them (s4) on an
     exam with no course and one (s5) from a student on no roster course."""
     roster = [
         {"id": sid, "name": sid.upper(), "authenticated_count": 5, "sample_count": 5}
@@ -1892,27 +1892,27 @@ def _two_course_scenario(**extra) -> dict:
     return scenario
 
 
-NOTE = "Counted by student for exams without a course: a student in two courses appears in both."
+NOTE = "Counted by student for booklets without a course: a student in two courses appears in both."
 
 
 @needs_node
 def test_reports_course_tabs_count_a_sealed_exam_under_the_exams_own_course():
     everything, c1, c2 = _page("reports.html", **_two_course_scenario())["snaps"]
     # All courses: five exams, four waiting. No fallback is in play, so no note.
-    assert "4 sealed exams</b> are waiting" in everything["headline"]
-    assert everything["termD"] == "2 courses · 4 students · 5 sealed exams"
+    assert "4 sealed booklets</b> are waiting" in everything["headline"]
+    assert everything["termD"] == "2 courses · 4 students · 5 sealed booklets"
     assert everything["tabNote"]["hidden"] is True
     assert 'data-c="c1"' in everything["tabs"] and 'data-c="c2"' in everything["tabs"]
     # THEO 301: s1 and s3 by their exam, s4 by its student (c). Student c's s3 is
     # not counted in BIB 101 even though c is on both rosters.
     assert c1["headline"].startswith("THEO 301: ")
-    assert "3 sealed exams</b> are waiting" in c1["headline"]
-    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed exams"
+    assert "3 sealed booklets</b> are waiting" in c1["headline"]
+    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed booklets"
     assert c1["reviewed"] == ["0", "of 3 sealed · 3 waiting"]
     # BIB 101: s2 (reviewed) by its exam, s4 by its student.
     assert c2["headline"].startswith("BIB 101: ")
-    assert "1 sealed exam</b> is waiting" in c2["headline"]
-    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed exams"
+    assert "1 sealed booklet</b> is waiting" in c2["headline"]
+    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed booklets"
     assert c2["reviewed"] == ["1", "of 2 sealed · 1 waiting"]
     # The note appears exactly in the tabs where an exam was counted by student.
     for tab in (c1, c2):
@@ -1925,7 +1925,7 @@ def test_reports_course_tab_with_every_exam_on_a_known_course_shows_no_note():
     subs = [r for r in scenario["bbSubmissions"][1]["submissions"] if r["exam_id"] != "e3"]
     scenario["bbSubmissions"] = [200, {"submissions": subs}]
     _, c1, c2 = _page("reports.html", **scenario)["snaps"]
-    assert "2 sealed exams</b> are waiting" in c1["headline"]  # s1, s3
+    assert "2 sealed booklets</b> are waiting" in c1["headline"]  # s1, s3
     assert c1["tabNote"]["hidden"] is True and c2["tabNote"]["hidden"] is True
 
 
@@ -1964,9 +1964,9 @@ def test_reports_course_tab_counts_unread_readiness_within_its_own_students():
 @pytest.mark.parametrize(
     "scenario,term",
     [
-        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed exams"),
-        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed exams"),
-        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed exams · 1 student"),
+        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed booklets"),
+        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed booklets"),
+        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed booklets · 1 student"),
     ],
     ids=["all", "students", "sealed"],
 )
@@ -3102,6 +3102,17 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+def test_the_classic_voice_profile_shows_the_students_own_figures():
+    """demo/professor.html's Voice Profile rows once carried fixed sample figures
+    (84%, 78%, 67%, 71%) that no code replaced, so every student showed the same
+    numbers. Each figure is now filled from that student's baseline values."""
+    page = (SUITE.parent / "professor.html").read_text(encoding="utf-8")
+    assert re.findall(r'class="trait-pct"[^>]*>\s*\d', page) == []
+    for i in range(1, 5):
+        assert f'<span class="trait-pct" id="ptv{i}">' in page
+    assert "document.getElementById(id.replace('ptb', 'ptv'))" in page
+
+
 # authenticated_count is every sample the server weighs above zero: a teacher-approved one or
 # a student's own upload. It is "counted", never "approved" (a count of what a teacher
 # approved needs the sample list and its provenance). So no file may call a sample
@@ -3373,9 +3384,9 @@ def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a
     )
     assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
     # The lower-weight note is its own sentence, after the bracket, whenever a take-home exam is counted.
-    assert all_you["line"].endswith("Take-home exams and shared papers you approved count at a lower weight.")
+    assert all_you["line"].endswith("Take-home collections and shared papers you approved count at a lower weight.")
     assert all_you["note"].count("count at a lower weight.") == 1
-    assert "lower weight" not in mixed["line"].replace("Take-home exams and shared papers you approved count at a lower weight.", "")
+    assert "lower weight" not in mixed["line"].replace("Take-home collections and shared papers you approved count at a lower weight.", "")
     assert "(3 counted samples, 2 approved by you, 1 student upload; ready needs" in mixed["line"]
     assert "(2 counted samples, none approved by you, 2 student uploads; ready needs" in upload_only["line"]
     assert "(3 counted samples, 1 approved by you, 2 student uploads; ready needs" in missing["line"]
@@ -3439,15 +3450,15 @@ def test_live_approvals_counts_who_approved_each_sample_and_says_so_in_plain_wor
     assert run.returncode == 0, run.stderr
     mixed, uploads, old, one, unknown, empty = json.loads(run.stdout)
     assert mixed["a"] == {"counted": 4, "byYou": 4, "supervised": 1, "takeHome": 2, "shared": 1, "uploads": 0, "unknown": 0}
-    assert mixed["words"] == "all approved by you (2 take-home exams and 1 shared paper count at a lower weight)"
+    assert mixed["words"] == "all approved by you (2 take-home collections and 1 shared paper count at a lower weight)"
     assert mixed["bare"] == "all approved by you"
     assert uploads["a"]["byYou"] == 1 and uploads["a"]["uploads"] == 2
     assert uploads["words"] == "1 approved by you, 2 student uploads"
     assert old["a"] == {"counted": 3, "byYou": 2, "supervised": 2, "takeHome": 0, "shared": 0, "uploads": 1, "unknown": 0}
     assert old["words"] == "2 approved by you, 1 student upload"
     assert old["how"] == ["Supervised sitting", "Imported", "Student upload"]
-    assert one["words"] == "all approved by you (1 take-home exam counts at a lower weight)"
-    assert one["how"] == ["Take-home exam approved by you"]
+    assert one["words"] == "all approved by you (1 take-home collection counts at a lower weight)"
+    assert one["how"] == ["Take-home collection approved by you"]
     assert unknown["a"]["unknown"] == 2 and unknown["words"] == ""
     assert empty["a"]["counted"] == 0 and empty["words"] == ""
     for c in (mixed, uploads, old, one):
@@ -3623,8 +3634,8 @@ def test_packet_says_a_take_home_exam_was_approved_by_you_and_a_student_upload_w
     ]
     out = _packet_run(counts, student=[200, {"authenticated_count": 3, "samples": samples}])
     assert "<b>3 counted samples</b> (2 approved by you, 1 student upload)" in out["sub"]
-    assert "On file now: 3 samples, 2 approved by you (1 take-home exam and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
-    assert '<span class="how">Take-home exam approved by you</span>' in out["baseline"]
+    assert "On file now: 3 samples, 2 approved by you (1 take-home collection and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
+    assert '<span class="how">Take-home collection approved by you</span>' in out["baseline"]
     assert '<span class="how">Shared paper approved by you</span>' in out["baseline"]
     assert out["baseline"].count('<span class="how">Student upload</span>') == 1
 
@@ -4150,7 +4161,7 @@ def test_bluebook_page_lists_past_sessions_newest_first_with_counts_from_the_sea
     assert re.findall(r'<div class="s-t">([^<]*)</div>', s["sessions"]) == ["Midterm", "In-class essay", "Reformation causes"]
     hrefs = re.findall(r'<a class="sess" href="([^"]*)"', s["sessions"])
     assert hrefs == ["/bluebook/#exam/e-new", "/bluebook/#exam/e-mid", "/bluebook/#exam/e-old"]
-    assert s["count"] == "3 sessions · newest first"
+    assert s["count"] == "3 collections · newest first"
     # e-new is open with one ungraded booklet; e-mid has two, both graded, one in a baseline.
     assert "Open now" in s["sessions"] and "1 sealed · 1 to review" in s["sessions"]
     assert "All reviewed" in s["sessions"] and "2 sealed · 1 in a baseline" in s["sessions"]
@@ -4173,7 +4184,7 @@ def test_bluebook_page_asks_about_baselines_for_the_visible_rows_only_six_at_a_t
     asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
     assert asked == [f"/bluebook/exams/e{i:02d}/baseline" for i in range(4, 10)]
     assert out["max"] <= 6
-    assert out["before"]["more"] == "Show all 10 sessions"
+    assert out["before"]["more"] == "Show all 10 collections"
 
 
 @needs_node
@@ -4191,7 +4202,7 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     }}]
     after = out["after"]
     assert after["err"] == ""
-    assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
+    assert "Collection is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
     assert "<b>My collections</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
     assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
@@ -4209,10 +4220,10 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
         ),
         (
             {"ok": False, "status": 422, "data": {"detail": [{"msg": "field required"}]}},
-            "The session could not be saved. Your questions are still here.",
+            "The collection could not be saved. Your questions are still here.",
         ),
         ({"ok": False, "status": 0, "data": None}, "Could not reach the server. Your questions are still here."),
-        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The session could not be saved. Your questions are still here."),
+        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The collection could not be saved. Your questions are still here."),
     ],
     ids=["server-sentence", "validation-list", "no-network", "no-id"],
 )
@@ -4220,7 +4231,7 @@ def test_bluebook_page_shows_the_servers_refusal_as_text(reply, said):
     out = _bluebook_run(**_bb_scenario(created=reply), form={"questions": ["A question."]})
     # Set as textContent, so markup in the server's words is shown, never run.
     assert out["after"]["err"] == said
-    assert "Session is open." not in out["after"]["chip"]
+    assert "Collection is open." not in out["after"]["chip"]
 
 
 @needs_node
@@ -4257,7 +4268,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     s = out["before"]
     assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in s["courses"]
     assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
-    assert "No sessions yet. Your first one will appear here." in s["sessions"]
+    assert "No collections yet. Your first one will appear here." in s["sessions"]
 
 
 @needs_node
@@ -4265,7 +4276,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     "scenario,where,said",
     [
         (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "courses", "Your classes could not be loaded just now."),
-        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your sessions could not be loaded just now."),
+        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your collections could not be loaded just now."),
         (dict(rejectOn=["^/bluebook/submissions$"]), "note", "Sealed booklets could not be counted just now."),
     ],
     ids=["courses-500", "exams-not-a-list", "sealed-down"],
@@ -4452,9 +4463,9 @@ def test_writing_state_loads_a_sealed_exam_but_never_analyses_it_by_itself():
     fail = fail[: fail.index("\n  }\n")]
     assert "$('an-text').value=''; $('an-assign').value='';" in fail and "msg(text,true)" in fail
     for words in (
-        "This sealed exam was not found in your workspace, so nothing was loaded.",
-        "You do not have access to this sealed exam, so nothing was loaded.",
-        "This sealed exam was written by a different student, so it was not loaded.",
+        "This sealed booklet was not found in your workspace, so nothing was loaded.",
+        "You do not have access to this sealed booklet, so nothing was loaded.",
+        "This sealed booklet was written by a different student, so it was not loaded.",
     ):
         assert words in body
 
@@ -4493,7 +4504,7 @@ def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
 
 
 def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
-    """2026-11-17, live pilot: a sealed exam whose student had since been removed
+    """2026-11-17, live pilot: a sealed booklet whose student had since been removed
     from every roster showed the exam app's stock "Candidate No. 00042" as its
     student and offered "Add writing first", a link to a student page that
     cannot open. A removed student is now said to be one, with no link."""

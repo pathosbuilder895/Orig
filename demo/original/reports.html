@@ -143,8 +143,8 @@
     <div class="card">
       <div class="card-h">
         <div>
-          <div class="t">Sealed exams each week</div>
-          <div class="s" id="chart-s">Each sealed exam is counted once: reviewed by you, or still waiting for review.</div>
+          <div class="t">Sealed booklets each week</div>
+          <div class="s" id="chart-s">Each sealed booklet is counted once: reviewed by you, or still waiting for review.</div>
         </div>
       </div>
       <div class="legend" id="legend">
@@ -255,7 +255,7 @@
     return {weeks:out,drawn:drawn,older:older,undated:undated};
   }
 
-  function bbNote(){ return res.bluebook==='off'?'Collections is off':'Could not load sealed exams'; }
+  function bbNote(){ return res.bluebook==='off'?'Collections is off':'Could not load sealed booklets'; }
 
   // ── pieces ──
   function renderTabs(){
@@ -293,25 +293,25 @@
       }
       else h='<b>'+plural(n,'student')+'</b> on your roster.';
       if(bbOk) h+=pending>0
-        ? ' <b>'+plural(pending,'sealed exam')+'</b> '+(pending===1?'is':'are')+' waiting for your review.'
-        : (t.total?' No sealed exams are waiting for your review.':' No exams have been sealed yet.');
+        ? ' <b>'+plural(pending,'sealed booklet')+'</b> '+(pending===1?'is':'are')+' waiting for your review.'
+        : (t.total?' No sealed booklets are waiting for your review.':' No booklets have been sealed yet.');
       if(sc.label) h=esc(sc.label)+': '+h;
     }
     $('headline').innerHTML=h;
 
     const parts=[], sealedFailed=res.bluebook==='error';
-    if(!res.ok&&sealedFailed) parts.push('Could not load your students or sealed exams');
+    if(!res.ok&&sealedFailed) parts.push('Could not load your students or sealed booklets');
     else {
       if(!res.ok) parts.push('Could not load your students');
-      if(sealedFailed) parts.push('Could not load sealed exams');
+      if(sealedFailed) parts.push('Could not load sealed booklets');
     }
     if(res.ok&&bbOk&&cur==='all'&&res.courseCount>0) parts.push(plural(res.courseCount,'course'));
     if(res.ok) parts.push(plural(n,'student'));
-    if(bbOk) parts.push(plural(t.total,'sealed exam'));
+    if(bbOk) parts.push(plural(t.total,'sealed booklet'));
     $('term-d').textContent=(sc.label?sc.label+' · ':'')+parts.join(' · ');
 
     const note=$('tab-note');
-    note.textContent='Counted by student for exams without a course: a student in two courses appears in both.';
+    note.textContent='Counted by student for booklets without a course: a student in two courses appears in both.';
     note.hidden=!(bbOk&&sc.byStudent>0);
   }
 
@@ -325,7 +325,7 @@
     const n=sc.students.length, bbOk=res.bluebook==='ok';
     const pending=t.total-t.reviewed;
     if(bbOk){
-      setKpi(3,String(t.reviewed),t.total?('of '+t.total+' sealed · '+(pending>0?pending+' waiting':'none waiting')):'No sealed exams yet',false);
+      setKpi(3,String(t.reviewed),t.total?('of '+t.total+' sealed · '+(pending>0?pending+' waiting':'none waiting')):'No sealed booklets yet',false);
     } else setKpi(3,DASH,bbNote(),true);
 
     const checked=sc.students.filter(s=>s.verdict).length, ready=sc.students.filter(s=>s.verdict==='ready').length;
@@ -345,18 +345,18 @@
     };
     const bars=$('bars'), tip=$('tip');
     bars.innerHTML=''; tip.classList.remove('on');
-    $('chart-s').textContent='Each sealed exam is counted once: reviewed by you, or still waiting for review.';
+    $('chart-s').textContent='Each sealed booklet is counted once: reviewed by you, or still waiting for review.';
     if(res.bluebook!=='ok'){ show(false); Live.empty(empty,bbNote()); return; }
     const w=weekly(sc.subs);
     if(!w.drawn){
       show(false);
-      Live.empty(empty,sc.subs.length?'No sealed exams in the last '+WEEKS+' weeks':'No sealed exams yet');
+      Live.empty(empty,sc.subs.length?'No sealed booklets in the last '+WEEKS+' weeks':'No sealed booklets yet');
       return;
     }
     show(true);
-    $('chart-s').textContent='The last '+WEEKS+' weeks. Each sealed exam is counted once: reviewed by you, or still waiting for review.'+
-      (w.older>0?' '+plural(w.older,'older exam')+(w.older===1?' is':' are')+' not drawn.':'')+
-      (w.undated>0?' '+plural(w.undated,'exam')+' without a readable date '+(w.undated===1?'is':'are')+' not drawn.':'');
+    $('chart-s').textContent='The last '+WEEKS+' weeks. Each sealed booklet is counted once: reviewed by you, or still waiting for review.'+
+      (w.older>0?' '+plural(w.older,'older booklet')+(w.older===1?' is':' are')+' not drawn.':'')+
+      (w.undated>0?' '+plural(w.undated,'booklet')+' without a readable date '+(w.undated===1?'is':'are')+' not drawn.':'');
 
     // Whole-number gridlines: four steps up to a ceiling at or above the tallest week.
     const max=Math.max.apply(null,w.weeks.map(x=>x.rev+x.wait));
@@ -369,7 +369,7 @@
       const total=x.rev+x.wait;
       const col=document.createElement('div'); col.className='col';
       col.tabIndex=0; col.setAttribute('role','img');
-      col.setAttribute('aria-label','Week of '+label+': '+plural(x.rev,'sealed exam')+' reviewed, '+x.wait+' waiting for review');
+      col.setAttribute('aria-label','Week of '+label+': '+plural(x.rev,'sealed booklet')+' reviewed, '+x.wait+' waiting for review');
       const fromEnd=WEEKS-1-i;
       col.innerHTML='<div class="stack">'+
         (x.rev?'<div class="seg ok" style="height:'+(x.rev/top*100)+'%"></div>':'')+
