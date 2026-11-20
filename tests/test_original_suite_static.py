@@ -2908,6 +2908,17 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+def test_the_classic_voice_profile_shows_the_students_own_figures():
+    """demo/professor.html's Voice Profile rows once carried fixed sample figures
+    (84%, 78%, 67%, 71%) that no code replaced, so every student showed the same
+    numbers. Each figure is now filled from that student's baseline values."""
+    page = (SUITE.parent / "professor.html").read_text(encoding="utf-8")
+    assert re.findall(r'class="trait-pct"[^>]*>\s*\d', page) == []
+    for i in range(1, 5):
+        assert f'<span class="trait-pct" id="ptv{i}">' in page
+    assert "document.getElementById(id.replace('ptb', 'ptv'))" in page
+
+
 # authenticated_count is every sample the server weighs above zero: a teacher-approved one or
 # a student's own upload. It is "counted", never "approved" (a count of what a teacher
 # approved needs the sample list and its provenance). So no file may call a sample
