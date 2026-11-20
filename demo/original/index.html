@@ -197,7 +197,6 @@
         <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
         <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
         <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
         <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
       </div>
     </div>
@@ -207,7 +206,7 @@
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
         <div>
           <div class="greet-eyebrow" id="greet-name">Your workspace</div>
-          <div class="greet" id="greet">Hello,</div>
+          <div class="greet" id="greet">Hello.</div>
         </div>
         <button class="back-term" id="back-term">← Back to term view</button>
       </div>
@@ -300,8 +299,11 @@
     $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
     $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
     const h=new Date().getHours();
-    $('greet').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+',';
-    $('greet-name').textContent=sess.name||(sess.mode==='demo'?'Demo workspace':'Your workspace');
+    // The greeting carries the first name ("Good afternoon, Andrew.") or ends plainly
+    // ("Good afternoon."): never a comma with nothing after it.
+    const first=String(sess.name||'').trim().split(/\s+/)[0].replace(/[^\p{L}\p{M}'\u2019-]/gu,'');
+    $('greet').textContent=(h<12?'Good morning':h<18?'Good afternoon':'Good evening')+(first?', '+first+'.':'.');
+    $('greet-name').textContent=sess.mode==='demo'?'Demo workspace':'Your workspace';
   }
 
   // ── numbers ──

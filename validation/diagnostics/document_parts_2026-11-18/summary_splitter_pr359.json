@@ -1,0 +1,87 @@
+{
+  "branch": "claude/matter-gaps (PR #359) at c3532b2c; matter.py unchanged for these variants at a4fafe0b",
+  "flags": {
+    "FEATURE_SET": "1",
+    "MATTER_SPLITTER_ENABLED": "1"
+  },
+  "n_authors": 9,
+  "variants": {
+    "all front and back matter": {
+      "action_changed": [
+        "edwards"
+      ],
+      "compared_with": "plain",
+      "max_change": 0.0777,
+      "mean_change": 0.0123,
+      "min_change": -0.0287,
+      "within_0.01": 2
+    },
+    "bibliography": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0,
+      "mean_change": 0.0,
+      "min_change": 0.0,
+      "within_0.01": 9
+    },
+    "bibliography '## References' (APA)": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0,
+      "mean_change": 0.0,
+      "min_change": 0.0,
+      "within_0.01": 9
+    },
+    "bibliography 'Works Cited:'": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0,
+      "mean_change": 0.0,
+      "min_change": 0.0,
+      "within_0.01": 9
+    },
+    "cover letter": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0762,
+      "mean_change": 0.0046,
+      "min_change": -0.0321,
+      "within_0.01": 2
+    },
+    "notes + bibliography": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0451,
+      "mean_change": -0.0024,
+      "min_change": -0.0217,
+      "within_0.01": 4
+    },
+    "short + cover letter": {
+      "action_changed": [
+        "newman"
+      ],
+      "compared_with": "short plain",
+      "max_change": 0.0219,
+      "mean_change": -0.0064,
+      "min_change": -0.0536,
+      "within_0.01": 0
+    },
+    "short + title + 'Works Cited:'": {
+      "action_changed": [],
+      "compared_with": "short plain",
+      "max_change": 0.014,
+      "mean_change": 0.0016,
+      "min_change": 0.0,
+      "within_0.01": 8
+    },
+    "title block": {
+      "action_changed": [],
+      "compared_with": "plain",
+      "max_change": 0.0558,
+      "mean_change": 0.0062,
+      "min_change": 0.0,
+      "within_0.01": 8
+    }
+  },
+  "writing": "9 published 19th-century authors, public-domain; not student writing"
+}

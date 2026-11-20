@@ -518,7 +518,11 @@
         return;
       }
       if(res.status===403){
-        panel('Original is off for your class','Your class uses Collections only, so there is no writing voice to show here.','/bluebook/','Open Collections');
+        // Two different refusals: this page is closed to students during the pilot
+        // (original/routers/me.py, STUDENT_ORIGINAL_PAGES), or the class has no Original.
+        const why=res.data&&typeof res.data.detail==='string'?res.data.detail:'';
+        if(/during the pilot/i.test(why)) panel('Not open to students yet','Your writing voice page is not shown to students during this pilot. Your sealed work in Collections is unchanged.','/bluebook/','Open Collections');
+        else panel('Original is off for your class','Your class uses Collections only, so there is no writing voice to show here.','/bluebook/','Open Collections');
         return;
       }
       if(!res.ok||!res.data||typeof res.data!=='object'||Array.isArray(res.data)){
