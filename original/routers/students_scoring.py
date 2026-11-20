@@ -877,7 +877,14 @@ def _attach_staff_explainability(
     (``/me/work`` scores a student's own piece with ``request=None``) never
     get either, and neither changes the score or the action.
     """
-    from ..evidence import build_evidence, evidence_enabled, preliminary_enabled, preliminary_score
+    from ..evidence import (
+        build_evidence,
+        evidence_enabled,
+        load_band_rates,
+        preliminary_enabled,
+        preliminary_score,
+        range_counts,
+    )
     from ..paper_profile import build_paper_profiles, paper_profile_enabled
 
     want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
@@ -895,11 +902,23 @@ def _attach_staff_explainability(
         # exactly three papers, so the old "ready" line (5 papers) made every
         # alpha reading inconclusive. Below the floor the route 422s anyway.
         ready = confidence.authenticated_count >= min_baseline_samples()
+        # The counted samples' own vectors, the same ones the score compared
+        # against; a count that cannot be made is simply absent.
+        try:
+            outside, compared = range_counts(
+                result.feature_vector, [s.vector for s in state.samples if s.auth_weight > 0]
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("range counts failed; omitted")
+            outside = compared = None
         response.preliminary = PreliminaryScoreOut(
             **preliminary_score(
                 result.authorship.deviation_score,
                 result.recommendation.action,
                 inconclusive=not ready,
+                habits_outside=outside,
+                habits_compared=compared,
+                band_rates=load_band_rates(),
             )
         )
     if want_evidence:
