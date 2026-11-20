@@ -33,6 +33,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from .features import preprocess as _pp
+from .features.matter import without_page_breaks
 
 #: Values that switch PAPER_PROFILE_ENABLED on. Anything else (unset, "0", a typo)
 #: leaves it off: a new staff field appears only when someone turns it on.
@@ -371,7 +372,7 @@ _NOTE_LINE = re.compile(r"^[ \t]*\d{1,3}\.?\s+[A-Z][^\n]*?(?:\(\s*[^()]*:\s*[^()
 def paper_profile(text: str) -> dict[str, Any]:
     """Plain descriptive facts about one paper's headings, citations, quotations
     and list of sources. Deterministic; reads ``text`` only."""
-    text = text or ""
+    text = without_page_breaks(text or "")  # an upload's page breaks, as before
     lines = text.split("\n")
     list_at, list_name = _source_list(lines)
     body_stop = list_at if list_at is not None else len(lines)

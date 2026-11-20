@@ -10,7 +10,6 @@ students_scoring.py — same route group, split only for file size.
 
 from __future__ import annotations
 
-import io
 import secrets
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
@@ -25,6 +24,7 @@ from ..schemas import (
     StudentStateResponse,
     WriterCreateRequest,
 )
+from ..upload_utils import ExtractorUnavailableError, extract_text_from_bytes
 from ._shared import (
     _bluebook_tenant,
     _repo,
@@ -533,33 +533,17 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
 
     raw = file.file.read()
 
-    if ext == "txt":
-        text = raw.decode("utf-8", errors="replace")
-    elif ext == "docx":
-        try:
-            from docx import Document
-
-            doc = Document(io.BytesIO(raw))
-            text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="python-docx not installed") from exc
-        except Exception as exc:  # corrupt file: the caller's input
-            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
-    elif ext == "pdf":
-        try:
-            from pypdf import PdfReader
-
-            reader = PdfReader(io.BytesIO(raw))
-            text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="pypdf not installed") from exc
-        except Exception as exc:  # corrupt file: the caller's input
-            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
-    else:
+    if ext not in ("txt", "docx", "pdf"):
         raise HTTPException(
             status_code=422,
             detail=f"Unsupported file type '.{ext}'. Use .txt, .docx, or .pdf.",
         )
+    try:
+        text = extract_text_from_bytes(raw, f"upload.{ext}")
+    except ExtractorUnavailableError as exc:
+        raise HTTPException(status_code=500, detail=f"{exc.package} not installed") from exc
+    except ValueError as exc:  # corrupt file: the caller's input
+        raise HTTPException(status_code=422, detail="This file could not be read.") from exc
 
     word_count = len(text.split())
     return {"text": text, "filename": filename, "word_count": word_count}

@@ -7,7 +7,6 @@ group split out of students.py for file size.
 
 from __future__ import annotations
 
-import io
 import logging
 from datetime import date as _date
 
@@ -22,6 +21,7 @@ from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
+from ..upload_utils import extract_text_from_bytes
 from ._shared import (
     _authorize_provenance,
     _persist_or_503,
@@ -552,18 +552,8 @@ def upload_baseline_batch(
 
         # ── Text extraction ───────────────────────────────────────────────────
         try:
-            if ext == "txt":
-                text = raw.decode("utf-8", errors="replace")
-            elif ext == "docx":
-                from docx import Document as _Doc
-
-                doc = _Doc(io.BytesIO(raw))
-                text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-            elif ext == "pdf":
-                from pypdf import PdfReader as _PdfReader
-
-                reader = _PdfReader(io.BytesIO(raw))
-                text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
+            if ext in ("txt", "docx", "pdf"):
+                text = extract_text_from_bytes(raw, f"upload.{ext}")
             else:
                 errors.append(f"{filename}: unsupported type '.{ext}' — use .txt, .docx, or .pdf")
                 continue

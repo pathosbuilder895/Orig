@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..features.matter import without_page_breaks
 from ..principal import tenant_of
 from ..quantum.state import StudentState
 from .channels import compressed_size, function_word_matrix
@@ -137,8 +138,10 @@ def clear_student(student_id: str) -> None:
 
 
 def _authenticated_texts(state: StudentState) -> list[str]:
+    # A stored page break (an uploaded file's form feed) is not writing:
+    # dropped here as features.preprocess drops it before measuring.
     return [
-        sample.text
+        without_page_breaks(sample.text)
         for sample in state.samples
         if sample.auth_weight > 0
         and isinstance(sample.text, str)
