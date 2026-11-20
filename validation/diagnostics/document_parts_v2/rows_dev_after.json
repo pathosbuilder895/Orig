@@ -19487,10 +19487,12 @@
 "set_aside": {
 "title_page": 229,
 "page_header": 7,
-"footnote": 395,
+"footnote": 257,
 "references": 1087
 },
-"possible": {},
+"possible": {
+"footnote": 138
+},
 "page_breaks": 6,
 "product_kind": {
 "title_page": {
@@ -19508,14 +19510,17 @@
 "kept": 6
 },
 "footnote": {
-"footnote": 395
+"kept": 138,
+"footnote": 257
 },
 "references": {
 "back_matter": 1087
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"1 Jonathan Edwards, \"A Strong Rod Broken and Withered,\" in Sermons and Discourses, 1743- 1"
+]
 },
 {
 "case_id": "edwards/turabian_appendix/paste",
@@ -19860,10 +19865,12 @@
 "set_aside": {
 "title_page": 229,
 "page_header": 8,
-"footnote": 363,
+"footnote": 225,
 "references": 1135
 },
-"possible": {},
+"possible": {
+"footnote": 138
+},
 "page_breaks": 7,
 "product_kind": {
 "title_page": {
@@ -19881,7 +19888,8 @@
 "kept": 6
 },
 "footnote": {
-"footnote": 363
+"kept": 138,
+"footnote": 225
 },
 "references": {
 "back_matter": 1135
@@ -19892,6 +19900,7 @@
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
+"1 Jonathan Edwards, \"A Strong Rod Broken and Withered,\" in Sermons and Discourses, 1743- 1",
 "Appendix A As government is absolutely necessary, so there is a necessity of _strong rods_"
 ]
 },
@@ -45546,7 +45555,7 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.5746355106439781,
+"deviation": 0.5770475394002528,
 "action": "monitor",
 "measurement": "matter",
 "words": 1822
@@ -45658,7 +45667,7 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.5657746794266774,
+"deviation": 0.5625896357384762,
 "action": "monitor",
 "measurement": "matter",
 "words": 2143

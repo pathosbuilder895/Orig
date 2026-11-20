@@ -345,7 +345,9 @@ review:
 - **Uploads store page markers.** The extractor returns exactly the text it
   returned before, plus a page marker (U+001F, alone on a line) where the file
   breaks a page: one mark for a .docx page or section break, two between PDF
-  pages. Nothing else in the stored text changes, whatever the switch says.
+  pages, and a PDF tag (a newline and three marks) at the end of every PDF
+  with text, so a one-page PDF is known as a PDF too. Nothing else in the
+  stored text changes, whatever the switch says.
   Every measurement, the raw-text experts and every duplicate hash drop the
   marker first. A form feed a teacher pasted is ordinary text, measured as
   before.
@@ -359,6 +361,13 @@ review:
 - **Papers stored before page markers existed** carry none: the rules then
   work from the text alone (no title-page-by-page-break, no page-bottom
   footnote rule, no reflow), which is how they read pasted text.
+- **Score risk: upload date.** The original file bytes are not kept, so this
+  cannot be repaired after the fact. With the switch on, a student whose past
+  papers are PDFs stored before page markers existed is measured on those
+  papers without page rules or reflow, while a new PDF upload gets both: the
+  two sides of the comparison are then cut differently, and the reading can
+  move for that reason alone. The remedy is to upload those past papers
+  again. (Switch off, nothing differs.)
 - **The length match** cuts what the reading cuts.
 
 Rebuilt with:
@@ -395,7 +404,7 @@ characters set aside; last column: share of the true prose set aside.
 | Turabian | paste | 12 | 96% / 100% |  |  |  |  | 100% / 100% | 49% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | paste_word | 12 | 12% / 100% |  |  |  |  | 100% / 100% | 47% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | docx | 12 | 96% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| Turabian | pdf | 12 | 12% / 100% |  |  |  |  | 0% / 100% | 16% / 100% | 0% / 0% | 100% / 100% | **0% / 0%** |
+| Turabian | pdf | 12 | 12% / 100% |  |  |  |  | 0% / 100% | 16% / 94% | 0% / 0% | 100% / 100% | **0% / 0%** |
 | prose only | paste | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | paste_word | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | docx | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
@@ -410,21 +419,25 @@ Notes on the table:
 - MLA references "before" 46% pools `mla_short_long_refs` and
   `mla_unheaded_refs` (0% each) with lists that were found; Turabian notes'
   "before" 49% (pasted) was 27-64% per paper.
+- Turabian PDF notes at 94%: the one note missed (edwards, both variants) has
+  its marker run into a paragraph number ("5.1 And"), which the rules read as
+  a reference (like "Romans 8.1") and leave as prose.
 - Section headings at 94%: the misses are headings whose preceding line does
   not end a sentence (a paragraph ending in a colon before a quotation),
   which the rules leave as prose on purpose.
-- No part was listed as `possible` on the dev split.
+- On the dev split, only that one footnote is listed as `possible`.
 
 **Reading, splitter on.** Every variant except `turabian_appendix` now reads
-as its prose alone: change exactly 0 for all 6 papers in every input type,
-except james's APA variants (+0.0003 to +0.0006 in a single-newline paste
-and as a PDF: the one section heading left as prose). Before: up to +0.219,
-and 28 of 66 paper-variants up a band with a blank-line paste, 28 of 66 as a
-PDF; after: 0 up. `turabian_appendix` reads -0.066 to +0.004 against the
-prose alone, 2 of 6 down a band with a single-newline paste: that is the
-appendix being measured, not a part leaking in (the prose alone has no
-appendix). The negative controls read exactly as their prose alone in every
-input type, PDF included (before: +0.047 and +0.048 as PDFs).
+within 0.0024 of its prose alone, for all 6 papers in every input type
+(exactly 0 for most; james's APA variants +0.0003 to +0.0006, the one
+section heading left as prose; edwards's Turabian PDF +0.0024, the one
+footnote left as prose). Before: up to +0.219, and 28 of 66 paper-variants
+up a band with a blank-line paste, 28 of 66 as a PDF; after: 0 up.
+`turabian_appendix` reads -0.066 to +0.004 against the prose alone, 2 of 6
+down a band with a single-newline paste: that is the appendix being
+measured, not a part leaking in (the prose alone has no appendix). The
+negative controls read exactly as their prose alone in every input type, PDF
+included (before: +0.047 and +0.048 as PDFs).
 
 **Input type.** With the splitter on, the same prose as a PDF now reads as the
 blank-line paste (0.000 on 5 of 6, -0.001 on one; before -0.040 to +0.051),
@@ -450,7 +463,7 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | Turabian | paste | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | paste_word | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | docx | 12 | 0% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| Turabian | pdf | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 0% | 21% / 100% | **0% / 0%** |
+| Turabian | pdf | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 94% | 100% / 0% | 21% / 100% | **0% / 0%** |
 | prose only | paste | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | paste_word | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | docx | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
@@ -475,11 +488,11 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | turabian | paste | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% |  |  | **0% / 0%** |
 | turabian | paste_word | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% |  |  | **0% / 0%** |
 | turabian | docx | 6 | 0% / 100% |  |  |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| turabian | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% |  | 14% / 100% | **0% / 0%** |
+| turabian | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 93% |  | 14% / 100% | **0% / 0%** |
 | turabian_appendix | paste | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | turabian_appendix | paste_word | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | turabian_appendix | docx | 6 | 0% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| turabian_appendix | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 0% | 27% / 100% | **0% / 0%** |
+| turabian_appendix | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 94% | 100% / 0% | 27% / 100% | **0% / 0%** |
 | apa_reference_list | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_reference_list | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_reference_list | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
@@ -564,11 +577,11 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | turabian | paste | 6 | +0.038 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
 | turabian | paste_word | 6 | -0.003 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | turabian | docx | 6 | +0.038 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
-| turabian | pdf | 6 | -0.003 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
+| turabian | pdf | 6 | -0.003 / +0.000 | +0.000 to +0.002 | 6 | 0 / 0 |
 | turabian_appendix | paste | 6 | +0.038 / -0.014 | -0.049 to -0.002 | 3 | 3 / 0 |
 | turabian_appendix | paste_word | 6 | -0.003 / -0.009 | -0.017 to +0.000 | 3 | 0 / 0 |
 | turabian_appendix | docx | 6 | +0.038 / -0.014 | -0.049 to -0.002 | 3 | 3 / 0 |
-| turabian_appendix | pdf | 6 | -0.002 / -0.017 | -0.066 to +0.004 | 4 | 0 / 0 |
+| turabian_appendix | pdf | 6 | -0.002 / -0.018 | -0.066 to +0.004 | 3 | 0 / 0 |
 | apa_reference_list | paste | 6 | +0.121 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
 | apa_reference_list | paste_word | 6 | +0.083 / +0.000 | +0.000 to +0.000 | 6 | 1 / 0 |
 | apa_reference_list | docx | 6 | +0.121 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
@@ -618,6 +631,29 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | paste_word | 0% | 0% |  | 0% | 0% | 0% |  | 0% | 0% | 0% | 0% | 0% | 0 |
 | docx | 0% | 0% | 100% | 0% | 100% |  | 100% | 0% | 0% | 0% | 0% | 0% | 0 |
 | pdf | 0% | 0% | 0% | 0% | 0% |  | 0% | 0% | 0% | 0% | 0% | 0% | 0 |
+
+#### Listed as possible, splitter on (measured as prose, shown to the teacher)
+
+Share of each part's characters, and of the true prose, inside a `possible` range and not set aside.
+
+| Format | Input | n | title page | heading block | title | abstract | section headings | references | notes | appendix | running head | prose |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| MLA | paste | 42 |  | 0% | 0% |  |  | 0% |  |  |  | 0% |
+| MLA | paste_word | 42 |  | 0% | 0% |  |  | 0% |  |  |  | 0% |
+| MLA | docx | 42 |  | 0% | 0% |  |  | 0% |  |  |  | 0% |
+| MLA | pdf | 42 |  | 0% | 0% |  |  | 0% |  |  | 0% | 0% |
+| APA | paste | 36 | 0% |  | 0% | 0% | 0% | 0% |  |  |  | 0% |
+| APA | paste_word | 36 | 0% |  | 0% | 0% | 0% | 0% |  |  |  | 0% |
+| APA | docx | 36 | 0% |  | 0% | 0% | 0% | 0% |  |  |  | 0% |
+| APA | pdf | 36 | 0% |  | 0% | 0% | 0% | 0% |  |  | 0% | 0% |
+| Turabian | paste | 12 | 0% |  |  |  |  | 0% | 0% | 0% |  | 0% |
+| Turabian | paste_word | 12 | 0% |  |  |  |  | 0% | 0% | 0% |  | 0% |
+| Turabian | docx | 12 | 0% |  |  |  |  | 0% |  | 0% |  | 0% |
+| Turabian | pdf | 12 | 0% |  |  |  |  | 0% | 6% | 0% | 0% | 0% |
+| prose only | paste | 36 |  |  |  |  |  |  |  |  |  | 0% |
+| prose only | paste_word | 36 |  |  |  |  |  |  |  |  |  | 0% |
+| prose only | docx | 36 |  |  |  |  |  |  |  |  |  | 0% |
+| prose only | pdf | 36 |  |  |  |  |  |  |  |  |  | 0% |
 <!-- /tables:dev_after -->
 
 ## Caveats
