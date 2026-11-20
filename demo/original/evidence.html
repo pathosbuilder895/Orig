@@ -477,7 +477,7 @@
     const tpLine=tp&&num(tp.stored_words)!=null?'<p class="prov-note">'+esc('This paper: '+EV.plural(tp.stored_words,'word')+(num(tp.measured_words)!=null&&tp.measured_words!==tp.stored_words?' ('+tp.measured_words+' measured)':'')+'.')+'</p>':'';
     // The table scrolls sideways on a phone, so it takes focus and a name (axe: scrollable-region-focusable).
     $('p-past').innerHTML='<table class="prov" tabindex="0" aria-label="Past papers this comparison used"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table>'+tpLine+
-      (papers.some(p=>{const k=Live.sampleKind(p);return k==='take_home'||k==='shared_paper';})?'<p class="prov-note">Take-home exams and shared papers you approved count in the baseline at a lower weight.</p>':'')+
+      (papers.some(p=>{const k=Live.sampleKind(p);return k==='take_home'||k==='shared_paper';})?'<p class="prov-note">Take-home collections and shared papers you approved count in the baseline at a lower weight.</p>':'')+
       '<p class="prov-note">Only past papers whose text is stored are shown and counted here. Lengths are the words stored; any text set aside from measuring (quotations, references) is left out of the measured count.</p>'+thinNote(d,labels.length);
   }
   // The server's readiness rule, as packet.html applies it to the counts
