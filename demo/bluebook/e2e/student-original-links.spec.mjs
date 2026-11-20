@@ -15,6 +15,7 @@
 
 import { test, expect } from '@playwright/test'
 import { provisionTenantWithStaff, studentLogin } from './fixtures/api-setup.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 test('a student in a workspace with Original sees no My voice or My work link', async ({ browser, request, baseURL }) => {
   test.setTimeout(90_000)
@@ -48,8 +49,9 @@ test('a student in a workspace with Original sees no My voice or My work link', 
   await expect(nav.getByRole('link', { name: 'My work' })).toHaveCount(0)
 
   // Nor on the Account screen's navigation.
-  await nav.getByRole('button', { name: 'Account' }).click()
-  await expect(nav.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-current', 'page')
+  await clickAccountMenuItem(page, 'Account')
+  await page.locator('#me-btn').click()
+  await expect(page.locator('#me-menu').getByRole('button', { name: 'Account', exact: true })).toHaveAttribute('aria-current', 'page')
   await expect(nav.getByRole('link')).toHaveCount(0)
 
   await ctx.close()

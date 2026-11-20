@@ -5,7 +5,7 @@ import {
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
-import { InstructionsButton } from './instructions.jsx';
+import { AppBar, MenuIcon, ORIGINAL_NAV_LABEL, avatarInitials } from './AppBar.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -537,22 +537,25 @@ export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
   const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
-  const tab = (key, label) => (
-    <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
-  );
+  // The shared bar (AppBar.jsx): a student is offered the Original side of the
+  // switch only where the shell used to offer Original's pages (none in the pilot).
+  const original = studentOriginalLinks.length
+    ? { href: studentOriginalLinks[0][0], label: ORIGINAL_NAV_LABEL, title: 'Original is in its testing phase and is not yet validated on real student writing.' }
+    : null;
   return (
     <div className="bb-student">
-      <nav className="bb-student-nav" aria-label="Student navigation">
-        <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
-        <div className="tabs">
-          {tab('student-home', 'My collections')}
-          {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
-          <InstructionsButton who="student" />
-          <TextSettingsButton className="bb-text-btn" />
-          {tab('student-account', 'Account')}
-          <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
-        </div>
-      </nav>
+      <AppBar
+        sticky
+        navLabel="Student navigation"
+        pills={[{ key: 'student-home', label: 'My collections', current: active === 'student-home', icon: <MenuIcon name="book" />, onClick: () => onNavigate('student-home') }]}
+        original={original}
+        account={{ current: active === 'student-account', onClick: () => onNavigate('student-account') }}
+        guideFor="student"
+        onSignOut={() => { BB_API.logout(); onNavigate('landing'); }}
+        name={id.name}
+        sub="Student"
+        initials={avatarInitials(id.name, 'S')}
+      />
       <main className="bb-student-body">
         {id.name && <p className="sr-only" style={{ position: 'absolute', left: -9999 }}>Signed in as {id.name}</p>}
         {children}

@@ -154,11 +154,26 @@
 .shell a:focus-visible,.shell button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .shell .pill:focus-visible,.shell .app-switch a:focus-visible{outline-offset:-2px;}
 
+/* Collections draws its pages as buttons (they change screens inside one page);
+   Original's are links. Both read the same. */
+.shell button.pill{background:none;font-family:var(--body);cursor:pointer;}
+.shell .pill.on{background:rgba(255,255,255,0.05);}
+.shell .app-switch a:not([href]){cursor:default;}
+
+/* Tap targets on a phone or a touch screen: every control in the bar is at
+   least 44px tall, the account button 44px wide too (WCAG 2.5.5). */
+@media (max-width:760px),(pointer:coarse){
+  .shell .pill,.shell .app-switch a,.shell .me-menu a,.shell .me-menu button{min-height:44px;}
+  .shell .avatar{min-width:44px;min-height:44px;}
+}
+
 /* Phones: the brand keeps its mark and lets the switch name the app. */
 @media (max-width:560px){
   .shell,.shell.shell-bar{padding:.7rem 1rem .5rem;column-gap:.6rem;min-height:0;}
   .shell .brand .bn{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
   .shell .app-switch a{padding:.3rem .7rem;}
+  /* A bar with no switch (an app drawn alone) keeps its name. */
+  .shell.no-switch .brand .bn{position:static;width:auto;height:auto;overflow:visible;clip:auto;}
 }
 @media print{
   .shell{display:none !important;}

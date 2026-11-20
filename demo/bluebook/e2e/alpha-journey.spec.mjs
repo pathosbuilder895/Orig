@@ -75,8 +75,9 @@ test.describe('Alpha journey @alpha', () => {
       await teacher.goto(COLLECTIONS_HOME)
       const nav = teacher.getByRole('navigation', { name: 'Teacher navigation' })
       await expect(nav.getByRole('button', { name: 'Collections', exact: true })).toBeVisible({ timeout: 10_000 })
-      await expect(nav.locator('.teacher-brand')).toHaveText('Collections')
-      await expect(nav.getByRole('button', { name: 'Original (in testing) ↗' })).toBeVisible()
+      await expect(nav.locator('.brand')).toHaveText('Collections')
+      // Original is the other side of the app switch, labelled as in testing.
+      await expect(nav.getByRole('link', { name: 'Original (in testing)' })).toBeVisible()
     })
 
     let links

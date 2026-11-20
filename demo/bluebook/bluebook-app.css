@@ -166,15 +166,8 @@ select.bb-input option{color:#111}
 .bb-linkrow input{flex:1;min-width:0;font:.75rem ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bb-table td.bb-date{white-space:nowrap;font-variant-numeric:tabular-nums}
 
-/* Student shell (no teacher frame): same tokens, own background */
+/* Student shell (no teacher frame): the shared bar (AppBar.jsx) over its own background */
 .bb-student{min-height:100vh;background:radial-gradient(120% 90% at 82% 8%,#1b2a52,#0a0a10 70%)}
-.bb-student-nav{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 1.6rem;border-bottom:1px solid rgba(255,255,255,.13)}
-.bb-student-nav .tabs{display:flex;gap:.3rem;flex-wrap:wrap}
-.bb-student-nav button{border:1px solid transparent;border-radius:999px;background:none;color:#c5c2be;padding:.5rem .9rem;font:1.0625rem var(--bb-font-body);cursor:pointer;min-height:44px}
-.bb-student-nav .tabs a{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:999px;color:#c5c2be;padding:.5rem .9rem;font:1.0625rem var(--bb-font-body);text-decoration:none;min-height:44px}
-.bb-student-nav .tabs a:hover,.bb-student-nav .tabs a:focus-visible{color:#f5efe0;border-color:#c9a02840}
-.bb-student-nav button[aria-current=page]{color:#f5efe0;background:#ffffff0d;border-color:#c9a02840}
-.bb-student-nav .brand{font:600 1.3rem var(--bb-font-display);color:#f5efe0;background:none;border:0}
 .bb-student-body{max-width:980px;margin:0 auto;padding:2rem 1.6rem 3rem}
 
 @media(max-width:1000px){
@@ -187,7 +180,6 @@ select.bb-input option{color:#111}
   .bb-card{padding:1rem 1.1rem;border-radius:14px}
   .bb-page h1{font-size:1.5rem}
   .bb-student-body{padding:1.2rem 1rem 2rem}
-  .bb-student-nav{padding:.8rem 1rem}
   .bb-table-wrap{border:0;background:none;overflow:visible}
   .bb-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .bb-table,.bb-table tbody,.bb-table tr,.bb-table td{display:block;width:100%}
@@ -255,4 +247,3 @@ select.bb-input option{color:#111}
 .bb-print-text{white-space:pre-wrap}
 .bb-print-foot{margin-top:1.6rem;font-size:9pt;font-style:italic}
 
-.bb-student-nav .bb-text-btn{color:#c5c2be;border-color:rgba(197,194,190,.45);font-size:.9rem}

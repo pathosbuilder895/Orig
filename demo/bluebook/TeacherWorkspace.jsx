@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BB_API, MockupFonts, TextSettingsButton } from './components.jsx';
+import { BB_API, MockupFonts } from './components.jsx';
 import { Badge, LinkBtn, Section, Stat, Table, when } from './forms.jsx';
-import { InstructionsButton } from './instructions.jsx';
+import { AppBar, ORIGINAL_NAV_LABEL, avatarInitials, roleLabel } from './AppBar.jsx';
 import './teacher-workspace.css';
 
 const dateLabel = value => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
@@ -48,17 +48,7 @@ function usePillFade(ref, deps) {
   }, deps);
 }
 
-// The avatar's letters: the first letter of the first two words of the
-// teacher's name, letters and digits only ("Andrew (Alpha test)" is "AA",
-// never "A("). "T" when there is no name to read.
-export function avatarInitials(name) {
-  const words = String(name || '').split(/\s+/).map(w => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean);
-  return words.slice(0, 2).map(w => w[0].toUpperCase()).join('') || 'T';
-}
-
-// The way from Collections into Original, labelled as in testing wherever it
-// is offered (NORTH_STAR rule 10).
-export const ORIGINAL_NAV_LABEL = 'Original (in testing) ↗';
+export { avatarInitials, ORIGINAL_NAV_LABEL } from './AppBar.jsx';
 
 // Screens that belong to the one Collections area (nav key 'sessions').
 export const COLLECTIONS_SCREENS = ['sessions', 'collections', 'exams', 'manage-exam', 'new-exam'];
@@ -67,7 +57,10 @@ export const COLLECTIONS_SCREENS = ['sessions', 'collections', 'exams', 'manage-
 // (demo/original/assets/CREDITS.md); the Collections screens keep the library.
 const TEACHER_PHOTO = { overview: 'night', dashboard: 'night', students: 'quad', submissions: 'interior', results: 'interior', reports: 'caius' };
 
-export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
+// The teacher's top bar: the shared bar (AppBar.jsx, demo/assets/tokens.css) with Collections'
+// own pages. TeacherFrame holds it inside the window; New Collection (NewExam.jsx) holds it
+// over a full-width page (`sticky`).
+export function TeacherBar({ demo = false, active = 'sessions', onNavigate, sticky = false }) {
   const pills = useRef(null);
   usePillFade(pills, [active, demo]);
   const identity = demo ? {name: 'Professor · demonstration'} : BB_API.identity();
@@ -79,24 +72,31 @@ export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, ch
   // collection aliases all light the Collections pill.
   const here = COLLECTIONS_SCREENS.includes(active) ? 'sessions' : active;
   const withOriginal = !demo && BB_API.hasOriginal();
+  const pillList = items.map(([label,key]) => ({ key, label, current: here===key, icon: <NavIcon name={key}/>, onClick: () => onNavigate(key) }));
+  // The app is Collections; Original is the switch's other side when the workspace holds it.
+  return (
+    <AppBar
+      sticky={sticky}
+      navLabel="Teacher navigation"
+      appName={demo ? 'Original' : 'Collections'}
+      pills={pillList}
+      pillsRef={pills}
+      pillsClass="teacher-pills"
+      original={withOriginal ? { href: '../original/', label: ORIGINAL_NAV_LABEL, title: 'Original is in its testing phase and is not yet validated on real student writing.' } : null}
+      account={demo ? null : { current: active === 'account', onClick: () => onNavigate('account') }}
+      guideFor={demo ? null : 'teacher'}
+      onSignOut={demo ? null : () => { BB_API.logout(); onNavigate('landing'); }}
+      name={identity.name}
+      sub={demo ? 'Demonstration' : roleLabel(identity.role)}
+      initials={demo ? 'P' : initials}
+    />
+  );
+}
+
+export function TeacherFrame({ demo = false, active = 'sessions', onNavigate, children }) {
+  const here = COLLECTIONS_SCREENS.includes(active) ? 'sessions' : active;
   return <div className="teacher-ui">{!demo && <MockupFonts />}<div className="teacher-frame" data-photo={TEACHER_PHOTO[here] || 'library'}>
-    <nav className="teacher-nav" aria-label="Teacher navigation">
-      {/* The app is Collections; Original is the link below when the workspace holds it. */}
-      <div className="teacher-brand"><span className="mk" aria-hidden="true"/>{demo ? 'Original' : 'Collections'}</div>
-      <div ref={pills} className={'teacher-pills'+(items.length + (withOriginal ? 1 : 0) > 6 ? ' dense' : '')}>
-        {items.map(([label,key]) => <button key={key} className={here===key?'on':''} aria-current={here===key?'page':undefined} onClick={()=>onNavigate(key)}><NavIcon name={key}/>{label}</button>)}
-        {withOriginal && <button title="Original is in its testing phase and is not yet validated on real student writing." onClick={()=>{window.location.href='../original/';}}><NavIcon name="reports"/>{ORIGINAL_NAV_LABEL}</button>}
-      </div>
-      <div className="teacher-nav-right">
-        <TextSettingsButton className="teacher-text-btn"/>
-        {!demo && <>
-          <InstructionsButton who="teacher" className="quiet-link"/>
-          <button className="quiet-link" onClick={()=>onNavigate('account')}>Account</button>
-          <button className="quiet-link" onClick={()=>{BB_API.logout();onNavigate('landing');}}>Sign out</button>
-        </>}
-        <span className="teacher-avatar" title={identity.name} aria-label={identity.name}>{demo?'P':initials}</span>
-      </div>
-    </nav>
+    <TeacherBar demo={demo} active={active} onNavigate={onNavigate} />
     {demo && <div className="teacher-mode is-demo">
       <span>DEMONSTRATION · FICTIONAL RECORDS · NO DATA IS SAVED</span>
       <button onClick={()=>onNavigate('reset')}>Reset demo</button>
