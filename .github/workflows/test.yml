@@ -556,6 +556,9 @@ jobs:
           # the @evidence-on run below covers the default-on path.
           EVIDENCE_PASSAGES_ENABLED: "0"
           PRELIMINARY_SCORE_ENABLED: "0"
+          # Rule D's observation is also ON by default while testing (owner
+          # decision, 2026-11); off here for the same reason.
+          RULE_D_OBSERVATION: "off"
         # --skip-seed is mandatory here: seeding hard-refuses when
         # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),
         # and CI boots exactly the way the Render pilot does.

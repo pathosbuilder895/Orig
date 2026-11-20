@@ -109,6 +109,12 @@ services:
         value: "0"
       - key: LONGITUDINAL_DRIFT_ENABLED
         value: "0"
+      # Testing phase (owner decision, 2026-11): rule D's report-only consistency
+      # observation is ON for teachers by default (on the side-by-side page, whose
+      # evidence flag is set below). It never changes a score or a recommended
+      # action; students never see it. To turn off: RULE_D_OBSERVATION=off.
+      - key: RULE_D_OBSERVATION
+        value: "on"
       # run.py --demo would otherwise setdefault NULL_MODEL=impostor, and with
       # the default LLR_ACTION_MODE=gate that can move a recommended action
       # once Original is on. Not validated on real student writing, so the
