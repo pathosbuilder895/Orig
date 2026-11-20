@@ -7,7 +7,8 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags set to 0; on is the default since 2026-11): Writing State shows no new link,
+ * - the main run (flags set to 0, and RULE_D_OBSERVATION=off; on is the default since
+ *   2026-11): Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
