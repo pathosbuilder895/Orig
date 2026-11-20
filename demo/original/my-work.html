@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.6" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.6" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.6" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.7" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.7" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.7" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -29,7 +29,7 @@
   .head h1{font-family:var(--display);font-weight:500;font-size:2.1rem;line-height:1.1;margin-top:.4rem;}
   .head .s{font-size:1rem;color:var(--dim);font-style:italic;margin-top:.4rem;max-width:58ch;text-wrap:pretty;}
   /* layout */
-  .cols{display:grid;grid-template-columns:1fr 366px;gap:1.5rem;align-items:start;}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) clamp(366px,21rem,34vw);gap:1.5rem;align-items:start;}
   .doc{background:var(--paper);color:var(--ink);border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,0.45);overflow:hidden;}
   .doc-h{padding:1.5rem 2.2rem 1.1rem;border-bottom:1px solid var(--rule);background:#f4eddb;}
   .doc-h input{display:block;width:100%;border:0;border-bottom:1px dashed transparent;outline:0;background:transparent;color:var(--ink);font-family:var(--display);font-weight:500;font-size:1.5rem;padding:0 0 .1rem;}
@@ -68,18 +68,22 @@
   .sum-note b{font-style:normal;color:var(--gold-2);font-weight:500;}
   .footer-note{margin-top:1.6rem;font-size:.9rem;color:var(--dim);font-style:italic;text-align:center;}
   @media (max-width:960px){
-    .cols{grid-template-columns:1fr;}
+    .cols{grid-template-columns:minmax(0,1fr);}
     .side{position:static;}
     .doc-body{padding:1.4rem 1.3rem 1.8rem;}
     .doc-body textarea{font-size:1.05rem;min-height:320px;}
     .doc-h{padding:1.2rem 1.3rem 1rem;}
     .head{flex-direction:column;align-items:flex-start;}
   }
+  /* Phones: the title field's placeholder fits on one line at every Text setting. */
+  @media (max-width:600px){
+    .doc-h input{font-size:1.2rem;}
+  }
 </style>
 </head>
 <body>
 <nav class="shell shell-bar" data-audience="student" data-current="my-work" aria-label="Original"></nav>
-<script src="shell.js?v=2026-11-20.6"></script>
+<script src="shell.js?v=2026-11-20.7"></script>
 
 <main class="page" id="live-main">
 <div class="gate" id="gate" hidden></div>
@@ -121,7 +125,7 @@
 </div>
 </main>
 
-<script src="live.js?v=2026-11-20.6"></script>
+<script src="live.js?v=2026-11-20.7"></script>
 <script>
 (function(){
   'use strict';

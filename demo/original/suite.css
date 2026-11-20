@@ -9,13 +9,12 @@
    The colour variables come from ../assets/tokens.css (and a page's own
    :root on top) and fall back to the navy suite palette. */
 
-/* Text size. ../assets/type.css sets the root size from the reader's Text
-   setting (display-prefs.js) on an 18px base, the reading size of
-   Collections' writing screens. These pages are dense staff dashboards laid
-   out in rem on a 16px base, so the suite keeps 16px as its default and
-   scales it by the same setting: Small to Largest still apply on every page,
-   and a reader's own browser text size still counts. */
-html { font-size: calc(100% * var(--bb-text-scale, 1)); }
+/* Text size comes from ../assets/type.css alone: an 18px base (112.5% of the
+   browser's 16px, so a reader's own browser text size still counts) times the
+   reader's Text setting (display-prefs.js), the same base as Collections.
+   Owner decision 2026-11-20: both apps read at 18px. A page that crowds at
+   18px is fixed by its layout (columns that shrink, headings and strips that
+   wrap), not by a smaller root. */
 
 .live-testing {
   display: block; margin-top: .8rem; max-width: 62ch;
@@ -79,9 +78,9 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
 .live-panel {
   grid-column: 1 / -1;
   align-self: center; justify-self: center;
-  width: min(520px, calc(100% - 3rem));
+  width: min(520px, 100%);
   margin: 2rem 0;
-  padding: 2rem 2rem 1.9rem;
+  padding: 2rem min(2rem, 6vw) 1.9rem;
   text-align: center;
   background: rgba(255,255,255,0.035);
   border: 1px solid var(--line-soft, rgba(255,255,255,0.07));
@@ -97,7 +96,7 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
   color: var(--dim, rgba(245,239,224,0.68));
 }
 .live-panel a {
-  display: inline-block; margin-top: 1.2rem;
+  display: inline-block; max-width: 100%; margin-top: 1.2rem;
   padding: .5rem 1.15rem;
   border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 999px;
   font: 1rem var(--body, 'Source Serif 4', Georgia, serif);
