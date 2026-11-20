@@ -127,6 +127,7 @@
   .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
   .prov .len{white-space:nowrap;}
   .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .prov:focus-visible{outline:2px solid var(--base);outline-offset:2px;}
   .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
   /* conversation guide */
   .guide{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
@@ -447,7 +448,9 @@
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
         '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
     }).join('');
-    return '<table class="prov"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // On a phone the table scrolls sideways (.prov is a scroll box there), so it takes focus
+    // and a name: a keyboard can reach and scroll it (axe: scrollable-region-focusable).
+    return '<table class="prov" tabindex="0" aria-label="Writing samples this comparison used"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
   // Word counts are not in the sample list: each comes from its own
   // GET /students/{id}/samples/{i}/text (word_count), four at a time.
