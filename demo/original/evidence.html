@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js" data-float></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-17.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-17.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -130,7 +130,7 @@
   .ex-note p+p{margin-top:.35rem;}
   .ex-note .nums-line{font-size:.86rem;}
   .ex{transition:border-color .18s,box-shadow .18s;}
-  .ex:hover,.ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
+  .ex:focus-within{border-color:#d3c59d;box-shadow:0 6px 20px rgba(38,34,26,0.08);}
   .m:target>summary{background:#f6f0e0;}
   /* every measurement */
   .m{border:1px solid var(--rule);border-radius:8px;margin-bottom:.45rem;}
@@ -268,10 +268,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-17.1"></script>
-<script src="js/evidence-view.js?v=2026-11-17.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-17.1"></script>
-<script src="js/paper-profile.js?v=2026-11-17.1"></script>
+<script src="live.js?v=2026-11-18.1"></script>
+<script src="js/evidence-view.js?v=2026-11-18.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-18.1"></script>
+<script src="js/paper-profile.js?v=2026-11-18.1"></script>
 <script>
 (function(){
   'use strict';
@@ -388,6 +388,18 @@
     }
     $('p-summary').innerHTML=html;
     return sum;
+  }
+  // Versioned measurements (original/measurement.py): present only when the
+  // newer measuring rules were asked for; absent means the default rules.
+  const MEASURE_NAMES={v1:'the default rules',fs2:'the reworked word-list rules',matter:'the rules that set aside headings, footnotes and the list of sources','fs2+matter':'the reworked word-list rules and the rules that set aside headings, footnotes and the list of sources'};
+  function renderMeasurement(m){
+    if(!isObj(m)||typeof m.used!=='string'||typeof m.requested!=='string') return;
+    const name=k=>MEASURE_NAMES[k]||k;
+    const n=num(m.past_papers), done=num(m.past_papers_measured);
+    const text=m.used===m.requested
+      ?'Measured with '+name(m.used)+', for this paper and '+(n!=null?EV.plural(n,'past paper'):'its past papers')+' alike.'
+      :name(m.requested).charAt(0).toUpperCase()+name(m.requested).slice(1)+' were asked for, but '+(n!=null&&done!=null?(n-done)+' of '+n+' past papers are':'some past papers are')+' not measured that way yet, so this paper and its past papers were all measured with '+name(m.used)+'.';
+    $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="measured-as">'+esc(text)+'</p>');
   }
   function renderTop(ev,byCode){
     const top=Array.isArray(ev.features)?ev.features.filter(isObj):[];
@@ -537,6 +549,7 @@
     if(!sum.pastCount){
       $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="insufficient">No past papers with stored text are on file for this analysis, so there is nothing to set beside it. Add past papers on the Reference papers by student page, then analyse again.</p>');
     }
+    renderMeasurement(ev.measurement);
     renderTop(ev,byCode);
     renderSteady(ev);
     renderAll(ev);

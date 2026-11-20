@@ -256,6 +256,8 @@ FLAG_OFF_VALUES: dict[str, str] = {
     "LENGTH_ADAPTIVE_WEIGHTS": "0",
     "TOPIC_VARIANCE_INFLATION": "off",
     "CHARACTERISTIC_WEIGHTS": "off",
+    "OPPORTUNITY_MASK": "off",
+    "LENGTH_MATCHED_BASELINE": "off",
     "RANK_REMEDIATION": "none",
     "AI_LIKELIHOOD_ENABLED": "0",
     "AI_LIKELIHOOD_SHADOW": "0",
@@ -273,6 +275,11 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # Teacher-only paper profile (original/paper_profile.py): descriptive,
     # never moves a score; off by default.
     "PAPER_PROFILE_ENABLED": "0",
+    # Measurement versions (features/feature_flags.py): off = the old measurement.
+    "FEATURE_SET": "1",
+    "MATTER_SPLITTER_ENABLED": "0",
+    # ADR-014: a second stored measurement on new uploads; never moves a score.
+    "UPLOAD_ALSO_MEASURE": "",
 }
 
 
@@ -719,6 +726,8 @@ UNIT_OFF_ARMS: dict[str, dict[str, Any]] = {
     "llr_action_mode": {"llr_action_mode": "gate"},
     "topic_variance_inflation": {"topic_variance_inflation": "off"},
     "characteristic_weights": {"characteristic_weights": "off"},
+    "opportunity_mask": {"opportunity_mask": "off"},
+    "length_matched_baseline": {"length_matched_baseline": "off"},
     "authentic_fidelities": {"authentic_fidelities": None},
     "genre_stats": {"genre_stats": None},
     "tuned_action_thresholds": {"tuned_action_thresholds": None},
@@ -1095,6 +1104,16 @@ TYPICALITY = {"TYPICALITY_SCORING": "1"}
 PRIOR = {"BAYESIAN_PRIOR_ENABLED": "1"}
 LLR_SHADOW = {"NULL_MODEL": "impostor", "LLR_ACTION_MODE": "shadow"}
 
+#: The version stamp a fallback adds (original/measurement.py), and nothing else.
+_MEASUREMENT_STAMP_PATHS = {
+    "measurement.requested",
+    "measurement.used",
+    "measurement.past_papers",
+    "measurement.past_papers_measured",
+    "measurement.fallback",
+}
+
+
 API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, str]] = {
     "CONTEXT_MANIFEST_ENABLED=1": (
         {},
@@ -1237,6 +1256,28 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {"recommendation.action"},
         "",
     ),
+    # ADR-014 versioned measurements. The profile's past papers were added
+    # with every flag unset, so none carries the requested measurement: the
+    # score falls back to the default for paper and past papers alike and only
+    # the `measurement` stamp appears (asserted EXACTLY, so a fallback that
+    # moved any score would fail). With every past paper measured the new way
+    # the score does move: tests/test_versioned_measurements.py.
+    "FEATURE_SET=2": ({}, {"FEATURE_SET": "2"}, _MEASUREMENT_STAMP_PATHS, ""),
+    "MATTER_SPLITTER_ENABLED=1": (
+        {},
+        {"MATTER_SPLITTER_ENABLED": "1"},
+        _MEASUREMENT_STAMP_PATHS,
+        "",
+    ),
+    "UPLOAD_ALSO_MEASURE=fs2+matter": (
+        {},
+        {"UPLOAD_ALSO_MEASURE": "fs2+matter"},
+        None,
+        "it only adds a stored second measurement to past papers added while it "
+        "is set; this profile's past papers were added before, and a score never "
+        "reads it unless FEATURE_SET / MATTER_SPLITTER_ENABLED ask for it "
+        "(tests/test_versioned_measurements.py)",
+    ),
     "TOPIC_VARIANCE_INFLATION=on": (
         MANIFEST,
         {"TOPIC_VARIANCE_INFLATION": "on"},
@@ -1249,7 +1290,9 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
 
 # Arms whose changed set is asserted as an equality rather than a subset,
 # because the flag's documented blast radius is exactly known.
-_EXACT_API_ON_ARMS = frozenset({"NULL_MODEL=impostor"})
+_EXACT_API_ON_ARMS = frozenset(
+    {"NULL_MODEL=impostor", "FEATURE_SET=2", "MATTER_SPLITTER_ENABLED=1"}
+)
 
 
 # ── measurements behind the API `uninformative` verdicts ─────────────────────

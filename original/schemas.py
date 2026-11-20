@@ -765,6 +765,22 @@ class WindowScoreOut(BaseModel):
     )
 
 
+class MeasurementOut(BaseModel):
+    """Which way a score's papers were measured (original/measurement.py)."""
+
+    requested: str = Field(description="The measurement the switches asked for.")
+    used: str = Field(description='The measurement actually used ("v1" = the default).')
+    past_papers: int
+    past_papers_measured: int = Field(
+        description="Past papers that already carry the requested measurement."
+    )
+    fallback: str | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Why the default was used instead, when it was.",
+    )
+
+
 class BlendResultOut(BaseModel):
     """Aggregated blend-detection result for a single submission (Phase 7)."""
 
@@ -793,6 +809,8 @@ class BlendResultOut(BaseModel):
             "MODEL_CARD.md) — not comparable to the document-level thresholds."
         ),
     )
+    # Versioned measurements: left out of the JSON when only the default was asked for.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Layer 7 response models ───────────────────────────────────────────────────
@@ -1192,6 +1210,22 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    # Opportunity mask (OPPORTUNITY_MASK) audit trail + shadow preview. Same
+    # arrangement as the characteristic block above: defaults match
+    # Layer7Output's own, and opportunity_deviation_preview is report-only
+    # and never influences `recommendation`.
+    opportunity_mask_applied: bool = False
+    opportunity_mode: str | None = None
+    unmeasured_features: list[str] | None = None
+    opportunity_deviation_preview: float | None = None
+    # Length-matched baseline (LENGTH_MATCHED_BASELINE) audit trail + shadow
+    # preview. Defaults match Layer7Output's own; the preview is report-only
+    # and never influences `recommendation`.
+    length_match_applied: bool = False
+    length_match_mode: str | None = None
+    length_match_pieces: int | None = None
+    length_match_deviation_preview: float | None = None
+    length_match_action_preview: str | None = None
     # ADR-013 explainability, staff/teacher only and never on a student
     # session. `evidence` (EVIDENCE_PASSAGES_ENABLED=1): the engine's top
     # differing habits with verbatim located passages from this paper and the
@@ -1199,6 +1233,11 @@ class Layer7OutputResponse(BaseModel):
     # the flag is off, so the default response is unchanged.
     evidence: dict[str, Any] | None = None
     preliminary: PreliminaryScoreOut | None = None
+    # Versioned measurements (original/measurement.py): which measurement this
+    # score used. Present only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask
+    # for something other than the default; left out of the JSON entirely
+    # otherwise (absent means "v1"), so the default response is byte-identical.
+    measurement: MeasurementOut | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 # ── Student state summary ─────────────────────────────────────────────────────
@@ -1260,6 +1299,11 @@ class ReadinessResponse(BaseModel):
     word_stats: BaselineWordStats | None = None
     verdict: str
     recommendations: list[str]
+    # The drift check's mode (DRIFT_GATE), as on /health: "advisory" admits every
+    # paper a teacher adds or approves; "hold" keeps an unusual one out. Voice
+    # Baseline words its rule from this. It is here as well as on /health
+    # because some browsers' blockers refuse a page's request to /health.
+    drift_gate: str = "hold"
 
 
 # ── Student read-model (ADR-005): the redacting VoiceView ─────────────────────
