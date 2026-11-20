@@ -273,12 +273,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "prose": 7297,
 "references": 866
 },
 "set_aside": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "references": 866
@@ -286,6 +288,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 35
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -643,6 +649,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -651,6 +658,7 @@
 "references": 775
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -660,6 +668,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 159
 },
@@ -1023,6 +1035,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 160,
 "title_page": 434,
 "abstract": 972,
 "title": 56,
@@ -1031,6 +1044,7 @@
 "references": 838
 },
 "set_aside": {
+"page_header": 160,
 "title_page": 434,
 "abstract": 972,
 "title": 56,
@@ -1040,6 +1054,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 20,
+"page_header": 140
+},
 "title_page": {
 "title_page": 434
 },
@@ -1351,6 +1369,7 @@
 "flag": "on",
 "chars": {
 "title_page": 236,
+"page_header": 7,
 "prose": 7297,
 "note_marker": 6,
 "footnote": 331,
@@ -1358,14 +1377,20 @@
 },
 "set_aside": {
 "title_page": 236,
+"page_header": 7,
 "footnote": 331,
 "references": 944
 },
 "possible": {},
-"page_breaks": 5,
+"page_breaks": 6,
 "product_kind": {
 "title_page": {
 "title_page": 236
+},
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
 },
 "prose": {
 "kept": 7297
@@ -1374,7 +1399,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 331
+"footnote": 331
 },
 "references": {
 "back_matter": 944
@@ -1716,6 +1741,7 @@
 "flag": "on",
 "chars": {
 "title_page": 236,
+"page_header": 8,
 "prose": 7297,
 "note_marker": 6,
 "footnote": 335,
@@ -1724,15 +1750,20 @@
 },
 "set_aside": {
 "title_page": 236,
+"page_header": 8,
 "footnote": 335,
-"references": 939,
-"appendix": 9
+"references": 939
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
 "title_page": {
 "title_page": 236
+},
+"page_header": {
+"title_page": 1,
+"page_header": 6,
+"back_matter": 1
 },
 "prose": {
 "kept": 7297
@@ -1741,19 +1772,18 @@
 "kept": 6
 },
 "footnote": {
-"notes": 335
+"footnote": 335
 },
 "references": {
 "back_matter": 939
 },
 "appendix": {
-"heading": 9,
-"kept": 1418
+"kept": 1427
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"Notwithstanding, in how many most petty and contemptible things is our curiosity daily tem"
+"Appendix A Notwithstanding, in how many most petty and contemptible things is our curiosit"
 ]
 },
 {
@@ -2089,6 +2119,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -2097,6 +2128,7 @@
 "references": 834
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -2106,6 +2138,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 159
 },
@@ -2461,6 +2497,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -2469,6 +2506,7 @@
 "references": 865
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 972,
 "title": 56,
@@ -2478,6 +2516,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 159
 },
@@ -2768,12 +2810,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "prose": 7297,
 "references": 877
 },
 "set_aside": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "references": 877
@@ -2781,6 +2825,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 35
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -3072,12 +3120,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 28,
 "heading_block": 61,
 "title": 56,
 "prose": 2078,
 "references": 2251
 },
 "set_aside": {
+"page_header": 28,
 "heading_block": 61,
 "title": 56,
 "references": 2251
@@ -3085,6 +3135,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 14,
+"back_matter": 7
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -3442,6 +3497,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 976,
 "title": 56,
@@ -3450,6 +3506,7 @@
 "references": 835
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 159,
 "abstract": 976,
 "title": 56,
@@ -3459,6 +3516,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 159
 },
@@ -3814,6 +3875,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 160,
 "abstract": 978,
 "title": 57,
@@ -3822,6 +3884,7 @@
 "references": 819
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 160,
 "abstract": 978,
 "title": 57,
@@ -3831,6 +3894,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 160
 },
@@ -4126,12 +4193,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "prose": 7587,
 "references": 874
 },
 "set_aside": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "references": 874
@@ -4139,6 +4208,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 35
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -4428,12 +4501,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "prose": 7533,
 "references": 887
 },
 "set_aside": {
+"page_header": 42,
 "heading_block": 61,
 "title": 56,
 "references": 887
@@ -4441,6 +4516,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 35
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -4691,17 +4770,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 35,
 "heading_block": 61,
 "title": 56,
 "prose": 7480
 },
 "set_aside": {
+"page_header": 35,
 "heading_block": 61,
 "title": 56
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 28
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -4918,15 +5003,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 35,
 "heading_block": 61,
 "prose": 7326
 },
 "set_aside": {
+"page_header": 35,
 "heading_block": 61
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 7,
+"page_header": 28
+},
 "heading_block": {
 "front_matter": 61
 },
@@ -5096,7 +5187,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7297
@@ -6218,12 +6309,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "prose": 6862,
 "references": 943
 },
 "set_aside": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "references": 943
@@ -6231,6 +6324,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 50
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -6588,6 +6685,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -6596,6 +6694,7 @@
 "references": 826
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -6605,6 +6704,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -6968,6 +7071,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 200,
 "title_page": 450,
 "abstract": 913,
 "title": 36,
@@ -6976,6 +7080,7 @@
 "references": 880
 },
 "set_aside": {
+"page_header": 200,
 "title_page": 450,
 "abstract": 913,
 "title": 36,
@@ -6985,6 +7090,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 25,
+"page_header": 175
+},
 "title_page": {
 "title_page": 450
 },
@@ -7296,6 +7405,7 @@
 "flag": "on",
 "chars": {
 "title_page": 228,
+"page_header": 7,
 "prose": 6862,
 "note_marker": 6,
 "footnote": 339,
@@ -7303,6 +7413,7 @@
 },
 "set_aside": {
 "title_page": 228,
+"page_header": 7,
 "footnote": 339,
 "references": 933
 },
@@ -7312,6 +7423,11 @@
 "title_page": {
 "title_page": 228
 },
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
+},
 "prose": {
 "kept": 6862
 },
@@ -7319,7 +7435,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 339
+"footnote": 339
 },
 "references": {
 "back_matter": 933
@@ -7661,6 +7777,7 @@
 "flag": "on",
 "chars": {
 "title_page": 228,
+"page_header": 8,
 "prose": 6862,
 "note_marker": 6,
 "footnote": 363,
@@ -7669,15 +7786,20 @@
 },
 "set_aside": {
 "title_page": 228,
+"page_header": 8,
 "footnote": 363,
-"references": 958,
-"appendix": 9
+"references": 958
 },
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
 "title_page": {
 "title_page": 228
+},
+"page_header": {
+"title_page": 1,
+"page_header": 6,
+"back_matter": 1
 },
 "prose": {
 "kept": 6862
@@ -7686,19 +7808,18 @@
 "kept": 6
 },
 "footnote": {
-"notes": 363
+"footnote": 363
 },
 "references": {
 "back_matter": 958
 },
 "appendix": {
-"heading": 9,
-"kept": 808
+"kept": 817
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"All that is, hath been, shall be, In one glance's compass, He Limitless descries; And, sav"
+"Appendix A All that is, hath been, shall be, In one glance's compass, He Limitless descrie"
 ]
 },
 {
@@ -8034,6 +8155,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -8042,6 +8164,7 @@
 "references": 900
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -8051,6 +8174,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -8406,6 +8533,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -8414,6 +8542,7 @@
 "references": 900
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 913,
 "title": 36,
@@ -8423,6 +8552,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -8713,12 +8846,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "prose": 6862,
 "references": 863
 },
 "set_aside": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "references": 863
@@ -8726,6 +8861,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 50
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -9017,12 +9156,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 40,
 "heading_block": 73,
 "title": 36,
 "prose": 2145,
 "references": 2303
 },
 "set_aside": {
+"page_header": 40,
 "heading_block": 73,
 "title": 36,
 "references": 2303
@@ -9030,6 +9171,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 20,
+"back_matter": 10
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -9387,6 +9533,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 917,
 "title": 36,
@@ -9395,6 +9542,7 @@
 "references": 876
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 917,
 "title": 36,
@@ -9404,6 +9552,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -9759,6 +9911,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 919,
 "title": 37,
@@ -9767,6 +9920,7 @@
 "references": 883
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 919,
 "title": 37,
@@ -9776,6 +9930,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -10071,12 +10229,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "prose": 7152,
 "references": 943
 },
 "set_aside": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "references": 943
@@ -10084,6 +10244,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 50
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -10373,12 +10537,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "prose": 7097,
 "references": 931
 },
 "set_aside": {
+"page_header": 60,
 "heading_block": 73,
 "title": 36,
 "references": 931
@@ -10386,6 +10552,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 50
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -10636,17 +10806,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 50,
 "heading_block": 73,
 "title": 36,
 "prose": 7045
 },
 "set_aside": {
+"page_header": 50,
 "heading_block": 73,
 "title": 36
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -10863,15 +11039,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 50,
 "heading_block": 73,
 "prose": 6893
 },
 "set_aside": {
+"page_header": 50,
 "heading_block": 73
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 10,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -12163,12 +12345,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "prose": 7799,
 "references": 854
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "references": 854
@@ -12176,6 +12360,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -12533,6 +12721,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -12541,6 +12730,7 @@
 "references": 814
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -12550,6 +12740,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 168
 },
@@ -12913,6 +13107,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 136,
 "title_page": 436,
 "abstract": 1022,
 "title": 54,
@@ -12921,6 +13116,7 @@
 "references": 805
 },
 "set_aside": {
+"page_header": 136,
 "title_page": 436,
 "abstract": 1022,
 "title": 54,
@@ -12930,6 +13126,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 17,
+"page_header": 119
+},
 "title_page": {
 "title_page": 436
 },
@@ -13241,6 +13441,7 @@
 "flag": "on",
 "chars": {
 "title_page": 246,
+"page_header": 7,
 "prose": 7799,
 "note_marker": 6,
 "footnote": 348,
@@ -13248,6 +13449,7 @@
 },
 "set_aside": {
 "title_page": 246,
+"page_header": 7,
 "footnote": 348,
 "references": 945
 },
@@ -13257,6 +13459,11 @@
 "title_page": {
 "title_page": 246
 },
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
+},
 "prose": {
 "kept": 7799
 },
@@ -13264,7 +13471,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 348
+"footnote": 348
 },
 "references": {
 "back_matter": 945
@@ -13606,6 +13813,7 @@
 "flag": "on",
 "chars": {
 "title_page": 246,
+"page_header": 9,
 "prose": 7799,
 "note_marker": 6,
 "footnote": 329,
@@ -13614,15 +13822,20 @@
 },
 "set_aside": {
 "title_page": 246,
+"page_header": 9,
 "footnote": 329,
-"references": 897,
-"appendix": 9
+"references": 897
 },
 "possible": {},
-"page_breaks": 7,
+"page_breaks": 8,
 "product_kind": {
 "title_page": {
 "title_page": 246
+},
+"page_header": {
+"title_page": 1,
+"page_header": 7,
+"back_matter": 1
 },
 "prose": {
 "kept": 7799
@@ -13631,19 +13844,19 @@
 "kept": 6
 },
 "footnote": {
-"notes": 329
+"footnote": 329
 },
 "references": {
 "back_matter": 897
 },
 "appendix": {
-"heading": 9,
-"kept": 2051
+"kept": 2060
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"The circumstances which I am about to narrate, and which gave rise to this fearful tempest"
+"Appendix A The circumstances which I am about to narrate, and which gave rise to this fear",
+"this side of God and heaven, a slave-woman is at the mercy of the power, caprice and passi"
 ]
 },
 {
@@ -13979,6 +14192,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -13987,6 +14201,7 @@
 "references": 869
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -13996,6 +14211,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 168
 },
@@ -14351,6 +14570,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -14359,6 +14579,7 @@
 "references": 790
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1022,
 "title": 54,
@@ -14368,6 +14589,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 168
 },
@@ -14658,12 +14883,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "prose": 7799,
 "references": 840
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "references": 840
@@ -14671,6 +14898,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -14962,12 +15193,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 20,
 "heading_block": 73,
 "title": 54,
 "prose": 2194,
 "references": 2257
 },
 "set_aside": {
+"page_header": 20,
 "heading_block": 73,
 "title": 54,
 "references": 2257
@@ -14975,6 +15208,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 10,
+"back_matter": 5
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -15332,6 +15570,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1026,
 "title": 54,
@@ -15340,6 +15579,7 @@
 "references": 793
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 168,
 "abstract": 1026,
 "title": 54,
@@ -15349,6 +15589,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 168
 },
@@ -15704,6 +15948,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 169,
 "abstract": 1028,
 "title": 55,
@@ -15712,6 +15957,7 @@
 "references": 818
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 169,
 "abstract": 1028,
 "title": 55,
@@ -15721,6 +15967,10 @@
 "possible": {},
 "page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 169
 },
@@ -16016,12 +16266,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "prose": 8089,
 "references": 871
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "references": 871
@@ -16029,6 +16281,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -16318,12 +16574,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "prose": 8034,
 "references": 867
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 73,
 "title": 54,
 "references": 867
@@ -16331,6 +16589,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -16581,17 +16843,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 25,
 "heading_block": 73,
 "title": 54,
 "prose": 7982
 },
 "set_aside": {
+"page_header": 25,
 "heading_block": 73,
 "title": 54
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 20
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -16808,15 +17076,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 25,
 "heading_block": 73,
 "prose": 7830
 },
 "set_aside": {
+"page_header": 25,
 "heading_block": 73
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 20
+},
 "heading_block": {
 "front_matter": 73
 },
@@ -16986,7 +17260,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7799
@@ -18108,19 +18382,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "prose": 7015,
 "references": 962
 },
 "set_aside": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "references": 962
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 30
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -18478,6 +18758,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -18486,6 +18767,7 @@
 "references": 928
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -18493,8 +18775,12 @@
 "references": 928
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -18858,6 +19144,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 136,
 "title_page": 431,
 "abstract": 986,
 "title": 49,
@@ -18866,6 +19153,7 @@
 "references": 968
 },
 "set_aside": {
+"page_header": 136,
 "title_page": 431,
 "abstract": 986,
 "title": 49,
@@ -18873,8 +19161,12 @@
 "references": 968
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 17,
+"page_header": 119
+},
 "title_page": {
 "title_page": 431
 },
@@ -19186,6 +19478,7 @@
 "flag": "on",
 "chars": {
 "title_page": 229,
+"page_header": 7,
 "prose": 7015,
 "note_marker": 6,
 "footnote": 395,
@@ -19193,14 +19486,20 @@
 },
 "set_aside": {
 "title_page": 229,
+"page_header": 7,
 "footnote": 395,
 "references": 1087
 },
 "possible": {},
-"page_breaks": 5,
+"page_breaks": 6,
 "product_kind": {
 "title_page": {
 "title_page": 229
+},
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
 },
 "prose": {
 "kept": 7015
@@ -19209,7 +19508,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 395
+"footnote": 395
 },
 "references": {
 "back_matter": 1087
@@ -19551,6 +19850,7 @@
 "flag": "on",
 "chars": {
 "title_page": 229,
+"page_header": 8,
 "prose": 7015,
 "note_marker": 6,
 "footnote": 363,
@@ -19559,15 +19859,20 @@
 },
 "set_aside": {
 "title_page": 229,
+"page_header": 8,
 "footnote": 363,
-"references": 1135,
-"appendix": 9
+"references": 1135
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
 "title_page": {
 "title_page": 229
+},
+"page_header": {
+"title_page": 1,
+"page_header": 6,
+"back_matter": 1
 },
 "prose": {
 "kept": 7015
@@ -19576,19 +19881,18 @@
 "kept": 6
 },
 "footnote": {
-"notes": 363
+"footnote": 363
 },
 "references": {
 "back_matter": 1135
 },
 "appendix": {
-"heading": 9,
-"kept": 1428
+"kept": 1437
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"As government is absolutely necessary, so there is a necessity of _strong rods_ in order t"
+"Appendix A As government is absolutely necessary, so there is a necessity of _strong rods_"
 ]
 },
 {
@@ -19924,6 +20228,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -19932,6 +20237,7 @@
 "references": 928
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -19939,8 +20245,12 @@
 "references": 928
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -20296,6 +20606,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -20304,6 +20615,7 @@
 "references": 944
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 986,
 "title": 49,
@@ -20311,8 +20623,12 @@
 "references": 944
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -20603,19 +20919,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "prose": 7015,
 "references": 937
 },
 "set_aside": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "references": 937
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 30
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -20907,12 +21229,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 24,
 "heading_block": 60,
 "title": 49,
 "prose": 2204,
 "references": 2353
 },
 "set_aside": {
+"page_header": 24,
 "heading_block": 60,
 "title": 49,
 "references": 2353
@@ -20920,6 +21244,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 12,
+"back_matter": 6
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -21277,6 +21606,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 990,
 "title": 49,
@@ -21285,6 +21615,7 @@
 "references": 941
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 990,
 "title": 49,
@@ -21292,8 +21623,12 @@
 "references": 941
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -21649,6 +21984,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 155,
 "abstract": 992,
 "title": 50,
@@ -21657,6 +21993,7 @@
 "references": 981
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 155,
 "abstract": 992,
 "title": 50,
@@ -21664,8 +22001,12 @@
 "references": 981
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 155
 },
@@ -21961,12 +22302,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "prose": 7305,
 "references": 936
 },
 "set_aside": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "references": 936
@@ -21974,6 +22317,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 30
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -22263,12 +22610,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "prose": 7249,
 "references": 954
 },
 "set_aside": {
+"page_header": 36,
 "heading_block": 60,
 "title": 49,
 "references": 954
@@ -22276,6 +22625,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 30
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -22526,17 +22879,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 60,
 "title": 49,
 "prose": 7198
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 60,
 "title": 49
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 24
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -22753,15 +23112,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 60,
 "prose": 7046
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 60
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 6,
+"page_header": 24
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -22931,7 +23296,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7015
@@ -23267,7 +23632,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7305
@@ -23435,7 +23800,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7249
@@ -24053,19 +24418,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "prose": 7251,
 "references": 906
 },
 "set_aside": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "references": 906
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -24426,6 +24797,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
@@ -24434,15 +24806,20 @@
 "references": 909
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
-"section_heading": 50,
+"section_heading": 29,
 "references": 909
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 150
 },
@@ -24456,14 +24833,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 50
+"heading": 29,
+"kept": 21
 },
 "references": {
 "back_matter": 909
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/apa_professional/paste",
@@ -24809,6 +25189,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 160,
 "title_page": 432,
 "abstract": 1045,
 "title": 44,
@@ -24817,15 +25198,20 @@
 "references": 878
 },
 "set_aside": {
+"page_header": 160,
 "title_page": 432,
 "abstract": 1045,
 "title": 44,
-"section_heading": 50,
+"section_heading": 29,
 "references": 878
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 20,
+"page_header": 140
+},
 "title_page": {
 "title_page": 432
 },
@@ -24839,14 +25225,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 50
+"heading": 29,
+"kept": 21
 },
 "references": {
 "back_matter": 878
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/turabian/paste",
@@ -25137,6 +25526,7 @@
 "flag": "on",
 "chars": {
 "title_page": 225,
+"page_header": 7,
 "prose": 7251,
 "note_marker": 6,
 "footnote": 384,
@@ -25144,14 +25534,20 @@
 },
 "set_aside": {
 "title_page": 225,
+"page_header": 7,
 "footnote": 384,
 "references": 1005
 },
 "possible": {},
-"page_breaks": 5,
+"page_breaks": 6,
 "product_kind": {
 "title_page": {
 "title_page": 225
+},
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
 },
 "prose": {
 "kept": 7251
@@ -25160,7 +25556,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 384
+"footnote": 384
 },
 "references": {
 "back_matter": 1005
@@ -25502,6 +25898,7 @@
 "flag": "on",
 "chars": {
 "title_page": 225,
+"page_header": 8,
 "prose": 7251,
 "note_marker": 6,
 "footnote": 414,
@@ -25510,15 +25907,20 @@
 },
 "set_aside": {
 "title_page": 225,
+"page_header": 8,
 "footnote": 414,
-"references": 1040,
-"appendix": 9
+"references": 1040
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
 "title_page": {
 "title_page": 225
+},
+"page_header": {
+"title_page": 1,
+"page_header": 6,
+"back_matter": 1
 },
 "prose": {
 "kept": 7251
@@ -25527,19 +25929,18 @@
 "kept": 6
 },
 "footnote": {
-"notes": 414
+"footnote": 414
 },
 "references": {
 "back_matter": 1040
 },
 "appendix": {
-"heading": 9,
-"kept": 766
+"kept": 775
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"\u201cNo words can express the wonderful love that was shed abroad in my heart. I wept aloud wi"
+"Appendix A \u201cNo words can express the wonderful love that was shed abroad in my heart. I we"
 ]
 },
 {
@@ -25878,6 +26279,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
@@ -25886,15 +26288,20 @@
 "references": 924
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
-"section_heading": 50,
+"section_heading": 29,
 "references": 924
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 150
 },
@@ -25908,14 +26315,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 50
+"heading": 29,
+"kept": 21
 },
 "references": {
 "back_matter": 924
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/apa_literature_cited/paste",
@@ -26253,6 +26663,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
@@ -26261,15 +26672,20 @@
 "references": 918
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1045,
 "title": 44,
-"section_heading": 50,
+"section_heading": 29,
 "references": 918
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 150
 },
@@ -26283,14 +26699,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 50
+"heading": 29,
+"kept": 21
 },
 "references": {
 "back_matter": 918
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/mla_unheaded_refs/paste",
@@ -26560,19 +26979,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "prose": 7251,
 "references": 869
 },
 "set_aside": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "references": 869
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -26864,12 +27289,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 32,
 "heading_block": 60,
 "title": 44,
 "prose": 2150,
 "references": 2315
 },
 "set_aside": {
+"page_header": 32,
 "heading_block": 60,
 "title": 44,
 "references": 2315
@@ -26877,6 +27304,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 16,
+"back_matter": 8
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -27237,6 +27669,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1049,
 "title": 44,
@@ -27245,15 +27678,20 @@
 "references": 900
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 150,
 "abstract": 1049,
 "title": 44,
-"section_heading": 50,
+"section_heading": 29,
 "references": 900
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 150
 },
@@ -27267,14 +27705,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 50
+"heading": 29,
+"kept": 21
 },
 "references": {
 "back_matter": 900
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/markdown_apa/paste",
@@ -27612,6 +28053,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 151,
 "abstract": 1051,
 "title": 45,
@@ -27620,15 +28062,20 @@
 "references": 871
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 151,
 "abstract": 1051,
 "title": 45,
-"section_heading": 56,
+"section_heading": 33,
 "references": 871
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 151
 },
@@ -27642,14 +28089,17 @@
 "kept": 7251
 },
 "section_heading": {
-"heading": 56
+"heading": 33,
+"kept": 23
 },
 "references": {
 "back_matter": 871
 }
 },
 "prose_set_aside_examples": [],
-"part_kept_examples": []
+"part_kept_examples": [
+"## The Ecstasy of Happiness"
+]
 },
 {
 "case_id": "james/neg_abstract_word/paste",
@@ -27924,19 +28374,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "prose": 7541,
 "references": 909
 },
 "set_aside": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "references": 909
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -28226,19 +28682,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "prose": 7483,
 "references": 908
 },
 "set_aside": {
+"page_header": 48,
 "heading_block": 60,
 "title": 44,
 "references": 908
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 40
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -28489,17 +28951,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 40,
 "heading_block": 60,
 "title": 44,
 "prose": 7434
 },
 "set_aside": {
+"page_header": 40,
 "heading_block": 60,
 "title": 44
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 32
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -28716,15 +29184,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 40,
 "heading_block": 60,
 "prose": 7280
 },
 "set_aside": {
+"page_header": 40,
 "heading_block": 60
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 8,
+"page_header": 32
+},
 "heading_block": {
 "front_matter": 60
 },
@@ -28894,7 +29368,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7251
@@ -29062,7 +29536,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 0,
+"page_breaks": 1,
 "product_kind": {
 "prose": {
 "kept": 2150
@@ -29230,7 +29704,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7541
@@ -29398,7 +29872,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7483
@@ -30016,19 +30490,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "prose": 7609,
 "references": 904
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "references": 904
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -30386,6 +30866,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -30394,6 +30875,7 @@
 "references": 868
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -30401,8 +30883,12 @@
 "references": 868
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -30766,6 +31252,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 168,
 "title_page": 429,
 "abstract": 949,
 "title": 43,
@@ -30774,6 +31261,7 @@
 "references": 925
 },
 "set_aside": {
+"page_header": 168,
 "title_page": 429,
 "abstract": 949,
 "title": 43,
@@ -30781,8 +31269,12 @@
 "references": 925
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 21,
+"page_header": 147
+},
 "title_page": {
 "title_page": 429
 },
@@ -31094,6 +31586,7 @@
 "flag": "on",
 "chars": {
 "title_page": 229,
+"page_header": 7,
 "prose": 7609,
 "note_marker": 6,
 "footnote": 324,
@@ -31101,14 +31594,20 @@
 },
 "set_aside": {
 "title_page": 229,
+"page_header": 7,
 "footnote": 324,
 "references": 1008
 },
 "possible": {},
-"page_breaks": 5,
+"page_breaks": 6,
 "product_kind": {
 "title_page": {
 "title_page": 229
+},
+"page_header": {
+"title_page": 1,
+"page_header": 5,
+"back_matter": 1
 },
 "prose": {
 "kept": 7609
@@ -31117,7 +31616,7 @@
 "kept": 6
 },
 "footnote": {
-"notes": 324
+"footnote": 324
 },
 "references": {
 "back_matter": 1008
@@ -31459,6 +31958,7 @@
 "flag": "on",
 "chars": {
 "title_page": 229,
+"page_header": 8,
 "prose": 7609,
 "note_marker": 6,
 "footnote": 324,
@@ -31467,15 +31967,20 @@
 },
 "set_aside": {
 "title_page": 229,
+"page_header": 8,
 "footnote": 324,
-"references": 983,
-"appendix": 9
+"references": 983
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
 "title_page": {
 "title_page": 229
+},
+"page_header": {
+"title_page": 1,
+"page_header": 6,
+"back_matter": 1
 },
 "prose": {
 "kept": 7609
@@ -31484,19 +31989,18 @@
 "kept": 6
 },
 "footnote": {
-"notes": 324
+"footnote": 324
 },
 "references": {
 "back_matter": 983
 },
 "appendix": {
-"heading": 9,
-"kept": 748
+"kept": 757
 }
 },
 "prose_set_aside_examples": [],
 "part_kept_examples": [
-"Hence it is that Cicero, in enumerating the various heads of mental excellence, lays down "
+"Appendix A Hence it is that Cicero, in enumerating the various heads of mental excellence,"
 ]
 },
 {
@@ -31832,6 +32336,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -31840,6 +32345,7 @@
 "references": 934
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -31847,8 +32353,12 @@
 "references": 934
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -32204,6 +32714,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -32212,6 +32723,7 @@
 "references": 938
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 949,
 "title": 43,
@@ -32219,8 +32731,12 @@
 "references": 938
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -32511,19 +33027,25 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "prose": 7609,
 "references": 857
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "references": 857
 },
 "possible": {},
-"page_breaks": 4,
+"page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -32815,12 +33337,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 20,
 "heading_block": 66,
 "title": 43,
 "prose": 2195,
 "references": 2295
 },
 "set_aside": {
+"page_header": 20,
 "heading_block": 66,
 "title": 43,
 "references": 2295
@@ -32828,6 +33352,11 @@
 "possible": {},
 "page_breaks": 3,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 10,
+"back_matter": 5
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -33185,6 +33714,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 953,
 "title": 43,
@@ -33193,6 +33723,7 @@
 "references": 913
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 153,
 "abstract": 953,
 "title": 43,
@@ -33200,8 +33731,12 @@
 "references": 913
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 153
 },
@@ -33557,6 +34092,7 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 955,
 "title": 44,
@@ -33565,6 +34101,7 @@
 "references": 900
 },
 "set_aside": {
+"page_header": 8,
 "title_page": 154,
 "abstract": 955,
 "title": 44,
@@ -33572,8 +34109,12 @@
 "references": 900
 },
 "possible": {},
-"page_breaks": 6,
+"page_breaks": 7,
 "product_kind": {
+"page_header": {
+"title_page": 1,
+"page_header": 7
+},
 "title_page": {
 "title_page": 154
 },
@@ -33869,12 +34410,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "prose": 7899,
 "references": 897
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "references": 897
@@ -33882,6 +34425,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -34171,12 +34718,14 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "prose": 7842,
 "references": 958
 },
 "set_aside": {
+"page_header": 30,
 "heading_block": 66,
 "title": 43,
 "references": 958
@@ -34184,6 +34733,10 @@
 "possible": {},
 "page_breaks": 5,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 25
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -34434,17 +34987,23 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 25,
 "heading_block": 66,
 "title": 43,
 "prose": 7792
 },
 "set_aside": {
+"page_header": 25,
 "heading_block": 66,
 "title": 43
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 20
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -34661,15 +35220,21 @@
 "input": "pdf",
 "flag": "on",
 "chars": {
+"page_header": 25,
 "heading_block": 66,
 "prose": 7640
 },
 "set_aside": {
+"page_header": 25,
 "heading_block": 66
 },
 "possible": {},
 "page_breaks": 4,
 "product_kind": {
+"page_header": {
+"front_matter": 5,
+"page_header": 20
+},
 "heading_block": {
 "front_matter": 66
 },
@@ -34839,7 +35404,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7609
@@ -35175,7 +35740,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7899
@@ -35343,7 +35908,7 @@
 },
 "set_aside": {},
 "possible": {},
-"page_breaks": 3,
+"page_breaks": 4,
 "product_kind": {
 "prose": {
 "kept": 7842
@@ -35800,7 +36365,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 2002
+"words": 2010
 },
 {
 "case_id": "augustine/apa_literature_cited/docx",
@@ -35912,7 +36477,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 2009
+"words": 2017
 },
 {
 "case_id": "augustine/apa_professional/docx",
@@ -36024,7 +36589,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 2046
+"words": 2094
 },
 {
 "case_id": "augustine/apa_reference_list/docx",
@@ -36136,7 +36701,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 2000
+"words": 2008
 },
 {
 "case_id": "augustine/apa_student/docx",
@@ -36248,7 +36813,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 1994
+"words": 2002
 },
 {
 "case_id": "augustine/markdown_apa/docx",
@@ -36360,7 +36925,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 2006
+"words": 2014
 },
 {
 "case_id": "augustine/mla/docx",
@@ -36472,7 +37037,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 1790
+"words": 1802
 },
 {
 "case_id": "augustine/mla_short_long_refs/docx",
@@ -36584,7 +37149,7 @@
 "deviation": 0.49535868156825374,
 "action": "monitor",
 "measurement": "matter",
-"words": 832
+"words": 840
 },
 {
 "case_id": "augustine/mla_unheaded_refs/docx",
@@ -36696,7 +37261,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 1796
+"words": 1808
 },
 {
 "case_id": "augustine/neg_abstract_word/docx",
@@ -36808,7 +37373,7 @@
 "deviation": 0.4377532776253804,
 "action": "monitor",
 "measurement": "matter",
-"words": 1857
+"words": 1869
 },
 {
 "case_id": "augustine/neg_letter/docx",
@@ -36920,7 +37485,7 @@
 "deviation": 0.5063819039619131,
 "action": "monitor",
 "measurement": "matter",
-"words": 1655
+"words": 1665
 },
 {
 "case_id": "augustine/neg_references_sentence/docx",
@@ -37032,7 +37597,7 @@
 "deviation": 0.46652110750713593,
 "action": "monitor",
 "measurement": "matter",
-"words": 1844
+"words": 1856
 },
 {
 "case_id": "augustine/neg_sermon_prayer/docx",
@@ -37144,7 +37709,7 @@
 "deviation": 0.510190736451208,
 "action": "monitor",
 "measurement": "matter",
-"words": 1702
+"words": 1712
 },
 {
 "case_id": "augustine/prose/docx",
@@ -37928,7 +38493,7 @@
 "deviation": 0.4640348389385845,
 "action": "monitor",
 "measurement": "matter",
-"words": 1873
+"words": 1880
 },
 {
 "case_id": "augustine/turabian_appendix/docx",
@@ -38037,10 +38602,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.4511586025623162,
+"deviation": 0.4362412491171578,
 "action": "monitor",
 "measurement": "matter",
-"words": 2189
+"words": 2197
 },
 {
 "case_id": "boethius/apa_bold_abstract/docx",
@@ -38152,7 +38717,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1814
+"words": 1822
 },
 {
 "case_id": "boethius/apa_literature_cited/docx",
@@ -38264,7 +38829,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1813
+"words": 1821
 },
 {
 "case_id": "boethius/apa_professional/docx",
@@ -38376,7 +38941,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1850
+"words": 1890
 },
 {
 "case_id": "boethius/apa_reference_list/docx",
@@ -38488,7 +39053,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1819
+"words": 1827
 },
 {
 "case_id": "boethius/apa_student/docx",
@@ -38600,7 +39165,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1807
+"words": 1815
 },
 {
 "case_id": "boethius/markdown_apa/docx",
@@ -38712,7 +39277,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1827
+"words": 1835
 },
 {
 "case_id": "boethius/mla/docx",
@@ -38824,7 +39389,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1626
+"words": 1638
 },
 {
 "case_id": "boethius/mla_short_long_refs/docx",
@@ -38936,7 +39501,7 @@
 "deviation": 0.6809459590076972,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 831
+"words": 840
 },
 {
 "case_id": "boethius/mla_unheaded_refs/docx",
@@ -39048,7 +39613,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1609
+"words": 1621
 },
 {
 "case_id": "boethius/neg_abstract_word/docx",
@@ -39160,7 +39725,7 @@
 "deviation": 0.4189262727217662,
 "action": "monitor",
 "measurement": "matter",
-"words": 1689
+"words": 1701
 },
 {
 "case_id": "boethius/neg_letter/docx",
@@ -39272,7 +39837,7 @@
 "deviation": 0.4803383760071906,
 "action": "monitor",
 "measurement": "matter",
-"words": 1476
+"words": 1486
 },
 {
 "case_id": "boethius/neg_references_sentence/docx",
@@ -39384,7 +39949,7 @@
 "deviation": 0.4203214601926786,
 "action": "monitor",
 "measurement": "matter",
-"words": 1674
+"words": 1686
 },
 {
 "case_id": "boethius/neg_sermon_prayer/docx",
@@ -39496,7 +40061,7 @@
 "deviation": 0.47924626758530525,
 "action": "monitor",
 "measurement": "matter",
-"words": 1519
+"words": 1529
 },
 {
 "case_id": "boethius/prose/docx",
@@ -40168,7 +40733,7 @@
 "deviation": 0.6809459590076972,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 465
+"words": 466
 },
 {
 "case_id": "boethius/turabian/docx",
@@ -40280,7 +40845,7 @@
 "deviation": 0.4310768259224815,
 "action": "monitor",
 "measurement": "matter",
-"words": 1694
+"words": 1701
 },
 {
 "case_id": "boethius/turabian_appendix/docx",
@@ -40389,10 +40954,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.4279124946844963,
+"deviation": 0.4267899209879486,
 "action": "monitor",
 "measurement": "matter",
-"words": 1878
+"words": 1886
 },
 {
 "case_id": "douglass/apa_bold_abstract/docx",
@@ -40504,7 +41069,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1993
+"words": 2002
 },
 {
 "case_id": "douglass/apa_literature_cited/docx",
@@ -40616,7 +41181,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1996
+"words": 2005
 },
 {
 "case_id": "douglass/apa_professional/docx",
@@ -40728,7 +41293,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 2036
+"words": 2069
 },
 {
 "case_id": "douglass/apa_reference_list/docx",
@@ -40840,7 +41405,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 2011
+"words": 2020
 },
 {
 "case_id": "douglass/apa_student/docx",
@@ -40952,7 +41517,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1996
+"words": 2005
 },
 {
 "case_id": "douglass/markdown_apa/docx",
@@ -41064,7 +41629,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 2001
+"words": 2010
 },
 {
 "case_id": "douglass/mla/docx",
@@ -41176,7 +41741,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1791
+"words": 1804
 },
 {
 "case_id": "douglass/mla_short_long_refs/docx",
@@ -41288,7 +41853,7 @@
 "deviation": 0.5790382542091311,
 "action": "monitor",
 "measurement": "matter",
-"words": 818
+"words": 826
 },
 {
 "case_id": "douglass/mla_unheaded_refs/docx",
@@ -41400,7 +41965,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1792
+"words": 1805
 },
 {
 "case_id": "douglass/neg_abstract_word/docx",
@@ -41512,7 +42077,7 @@
 "deviation": 0.36650348061683996,
 "action": "no_action",
 "measurement": "matter",
-"words": 1863
+"words": 1876
 },
 {
 "case_id": "douglass/neg_letter/docx",
@@ -41624,7 +42189,7 @@
 "deviation": 0.4000300281833028,
 "action": "monitor",
 "measurement": "matter",
-"words": 1656
+"words": 1667
 },
 {
 "case_id": "douglass/neg_references_sentence/docx",
@@ -41736,7 +42301,7 @@
 "deviation": 0.36973215137064824,
 "action": "no_action",
 "measurement": "matter",
-"words": 1850
+"words": 1863
 },
 {
 "case_id": "douglass/neg_sermon_prayer/docx",
@@ -41848,7 +42413,7 @@
 "deviation": 0.39795455725470347,
 "action": "no_action",
 "measurement": "matter",
-"words": 1700
+"words": 1711
 },
 {
 "case_id": "douglass/prose/docx",
@@ -41960,7 +42525,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1637
+"words": 1638
 },
 {
 "case_id": "douglass/prose_abstract_word/docx",
@@ -42072,7 +42637,7 @@
 "deviation": 0.36650348061683996,
 "action": "no_action",
 "measurement": "matter",
-"words": 1702
+"words": 1703
 },
 {
 "case_id": "douglass/prose_letter/docx",
@@ -42184,7 +42749,7 @@
 "deviation": 0.4000300281833028,
 "action": "monitor",
 "measurement": "matter",
-"words": 1642
+"words": 1643
 },
 {
 "case_id": "douglass/prose_references_sentence/docx",
@@ -42296,7 +42861,7 @@
 "deviation": 0.36973215137064824,
 "action": "no_action",
 "measurement": "matter",
-"words": 1687
+"words": 1688
 },
 {
 "case_id": "douglass/prose_sermon_prayer/docx",
@@ -42408,7 +42973,7 @@
 "deviation": 0.39795455725470347,
 "action": "no_action",
 "measurement": "matter",
-"words": 1678
+"words": 1679
 },
 {
 "case_id": "douglass/prose_short/docx",
@@ -42632,7 +43197,7 @@
 "deviation": 0.369722834838643,
 "action": "no_action",
 "measurement": "matter",
-"words": 1885
+"words": 1893
 },
 {
 "case_id": "douglass/turabian_appendix/docx",
@@ -42741,10 +43306,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.32106634774913373,
+"deviation": 0.30373668257325365,
 "action": "no_action",
 "measurement": "matter",
-"words": 2323
+"words": 2333
 },
 {
 "case_id": "edwards/apa_bold_abstract/docx",
@@ -42856,7 +43421,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1925
+"words": 1933
 },
 {
 "case_id": "edwards/apa_literature_cited/docx",
@@ -42968,7 +43533,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1924
+"words": 1932
 },
 {
 "case_id": "edwards/apa_professional/docx",
@@ -43080,7 +43645,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1975
+"words": 2015
 },
 {
 "case_id": "edwards/apa_reference_list/docx",
@@ -43192,7 +43757,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1921
+"words": 1929
 },
 {
 "case_id": "edwards/apa_student/docx",
@@ -43304,7 +43869,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1923
+"words": 1931
 },
 {
 "case_id": "edwards/markdown_apa/docx",
@@ -43416,7 +43981,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1942
+"words": 1950
 },
 {
 "case_id": "edwards/mla/docx",
@@ -43528,7 +44093,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1706
+"words": 1718
 },
 {
 "case_id": "edwards/mla_short_long_refs/docx",
@@ -43640,7 +44205,7 @@
 "deviation": 0.6930839530813248,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 884
+"words": 892
 },
 {
 "case_id": "edwards/mla_unheaded_refs/docx",
@@ -43752,7 +44317,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1704
+"words": 1716
 },
 {
 "case_id": "edwards/neg_abstract_word/docx",
@@ -43864,7 +44429,7 @@
 "deviation": 0.5680234295458699,
 "action": "monitor",
 "measurement": "matter",
-"words": 1772
+"words": 1784
 },
 {
 "case_id": "edwards/neg_letter/docx",
@@ -43976,7 +44541,7 @@
 "deviation": 0.6165176607663034,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 1550
+"words": 1560
 },
 {
 "case_id": "edwards/neg_references_sentence/docx",
@@ -44088,7 +44653,7 @@
 "deviation": 0.5745034810906302,
 "action": "monitor",
 "measurement": "matter",
-"words": 1758
+"words": 1770
 },
 {
 "case_id": "edwards/neg_sermon_prayer/docx",
@@ -44200,7 +44765,7 @@
 "deviation": 0.6176243002102849,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 1595
+"words": 1605
 },
 {
 "case_id": "edwards/prose/docx",
@@ -44984,7 +45549,7 @@
 "deviation": 0.5746355106439781,
 "action": "monitor",
 "measurement": "matter",
-"words": 1813
+"words": 1822
 },
 {
 "case_id": "edwards/turabian_appendix/docx",
@@ -45093,10 +45658,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.5627975757127112,
+"deviation": 0.5657746794266774,
 "action": "monitor",
 "measurement": "matter",
-"words": 2133
+"words": 2143
 },
 {
 "case_id": "james/apa_bold_abstract/docx",
@@ -45205,10 +45770,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3935300336190893,
 "action": "no_action",
 "measurement": "matter",
-"words": 1973
+"words": 1981
 },
 {
 "case_id": "james/apa_literature_cited/docx",
@@ -45317,10 +45882,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3935300336190893,
 "action": "no_action",
 "measurement": "matter",
-"words": 1975
+"words": 1983
 },
 {
 "case_id": "james/apa_professional/docx",
@@ -45429,10 +45994,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3935300336190893,
 "action": "no_action",
 "measurement": "matter",
-"words": 2005
+"words": 2037
 },
 {
 "case_id": "james/apa_reference_list/docx",
@@ -45541,10 +46106,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3935300336190893,
 "action": "no_action",
 "measurement": "matter",
-"words": 1975
+"words": 1983
 },
 {
 "case_id": "james/apa_student/docx",
@@ -45653,10 +46218,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3935300336190893,
 "action": "no_action",
 "measurement": "matter",
-"words": 1974
+"words": 1982
 },
 {
 "case_id": "james/markdown_apa/docx",
@@ -45765,10 +46330,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39307264970782035,
+"deviation": 0.3936562636520357,
 "action": "no_action",
 "measurement": "matter",
-"words": 1967
+"words": 1975
 },
 {
 "case_id": "james/mla/docx",
@@ -45880,7 +46445,7 @@
 "deviation": 0.39307264970782035,
 "action": "no_action",
 "measurement": "matter",
-"words": 1773
+"words": 1785
 },
 {
 "case_id": "james/mla_short_long_refs/docx",
@@ -45992,7 +46557,7 @@
 "deviation": 0.6694330608420797,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 832
+"words": 840
 },
 {
 "case_id": "james/mla_unheaded_refs/docx",
@@ -46104,7 +46669,7 @@
 "deviation": 0.39307264970782035,
 "action": "no_action",
 "measurement": "matter",
-"words": 1763
+"words": 1775
 },
 {
 "case_id": "james/neg_abstract_word/docx",
@@ -46216,7 +46781,7 @@
 "deviation": 0.38866249206627856,
 "action": "no_action",
 "measurement": "matter",
-"words": 1838
+"words": 1850
 },
 {
 "case_id": "james/neg_letter/docx",
@@ -46328,7 +46893,7 @@
 "deviation": 0.39679109728110723,
 "action": "no_action",
 "measurement": "matter",
-"words": 1629
+"words": 1639
 },
 {
 "case_id": "james/neg_references_sentence/docx",
@@ -46440,7 +47005,7 @@
 "deviation": 0.3855623297637987,
 "action": "no_action",
 "measurement": "matter",
-"words": 1820
+"words": 1832
 },
 {
 "case_id": "james/neg_sermon_prayer/docx",
@@ -46552,7 +47117,7 @@
 "deviation": 0.4156694381266627,
 "action": "monitor",
 "measurement": "matter",
-"words": 1673
+"words": 1683
 },
 {
 "case_id": "james/prose/docx",
@@ -47336,7 +47901,7 @@
 "deviation": 0.39307264970782035,
 "action": "no_action",
 "measurement": "matter",
-"words": 1870
+"words": 1877
 },
 {
 "case_id": "james/turabian_appendix/docx",
@@ -47445,10 +48010,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.39237350290259776,
+"deviation": 0.3920301023001984,
 "action": "no_action",
 "measurement": "matter",
-"words": 2079
+"words": 2087
 },
 {
 "case_id": "newman/apa_bold_abstract/docx",
@@ -47560,7 +48125,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1994
+"words": 2003
 },
 {
 "case_id": "newman/apa_literature_cited/docx",
@@ -47672,7 +48237,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 2005
+"words": 2014
 },
 {
 "case_id": "newman/apa_professional/docx",
@@ -47784,7 +48349,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 2038
+"words": 2087
 },
 {
 "case_id": "newman/apa_reference_list/docx",
@@ -47896,7 +48461,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1996
+"words": 2005
 },
 {
 "case_id": "newman/apa_student/docx",
@@ -48008,7 +48573,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1987
+"words": 1996
 },
 {
 "case_id": "newman/markdown_apa/docx",
@@ -48120,7 +48685,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1995
+"words": 2004
 },
 {
 "case_id": "newman/mla/docx",
@@ -48232,7 +48797,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1781
+"words": 1794
 },
 {
 "case_id": "newman/mla_short_long_refs/docx",
@@ -48344,7 +48909,7 @@
 "deviation": 0.6149622538062536,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 833
+"words": 842
 },
 {
 "case_id": "newman/mla_unheaded_refs/docx",
@@ -48456,7 +49021,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1776
+"words": 1789
 },
 {
 "case_id": "newman/neg_abstract_word/docx",
@@ -48568,7 +49133,7 @@
 "deviation": 0.509945708151246,
 "action": "monitor",
 "measurement": "matter",
-"words": 1841
+"words": 1854
 },
 {
 "case_id": "newman/neg_letter/docx",
@@ -48680,7 +49245,7 @@
 "deviation": 0.5624850219244063,
 "action": "monitor",
 "measurement": "matter",
-"words": 1634
+"words": 1645
 },
 {
 "case_id": "newman/neg_references_sentence/docx",
@@ -48792,7 +49357,7 @@
 "deviation": 0.5165630729554587,
 "action": "monitor",
 "measurement": "matter",
-"words": 1838
+"words": 1851
 },
 {
 "case_id": "newman/neg_sermon_prayer/docx",
@@ -48904,7 +49469,7 @@
 "deviation": 0.5598775052513316,
 "action": "monitor",
 "measurement": "matter",
-"words": 1680
+"words": 1691
 },
 {
 "case_id": "newman/prose/docx",
@@ -49016,7 +49581,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1616
+"words": 1617
 },
 {
 "case_id": "newman/prose_abstract_word/docx",
@@ -49128,7 +49693,7 @@
 "deviation": 0.509945708151246,
 "action": "monitor",
 "measurement": "matter",
-"words": 1681
+"words": 1682
 },
 {
 "case_id": "newman/prose_letter/docx",
@@ -49240,7 +49805,7 @@
 "deviation": 0.5624850219244063,
 "action": "monitor",
 "measurement": "matter",
-"words": 1621
+"words": 1622
 },
 {
 "case_id": "newman/prose_references_sentence/docx",
@@ -49352,7 +49917,7 @@
 "deviation": 0.5165630729554587,
 "action": "monitor",
 "measurement": "matter",
-"words": 1666
+"words": 1667
 },
 {
 "case_id": "newman/prose_sermon_prayer/docx",
@@ -49464,7 +50029,7 @@
 "deviation": 0.5598775052513316,
 "action": "monitor",
 "measurement": "matter",
-"words": 1657
+"words": 1658
 },
 {
 "case_id": "newman/prose_short/docx",
@@ -49576,7 +50141,7 @@
 "deviation": 0.6149622538062536,
 "action": "schedule_conversation",
 "measurement": "matter",
-"words": 458
+"words": 459
 },
 {
 "case_id": "newman/turabian/docx",
@@ -49688,7 +50253,7 @@
 "deviation": 0.514608865666496,
 "action": "monitor",
 "measurement": "matter",
-"words": 1874
+"words": 1882
 },
 {
 "case_id": "newman/turabian_appendix/docx",
@@ -49797,10 +50362,10 @@
 "flag": "on",
 "control": "prose",
 "is_control": false,
-"deviation": 0.5074556513708772,
+"deviation": 0.5181604169804411,
 "action": "monitor",
 "measurement": "matter",
-"words": 2039
+"words": 2048
 }
 ]
 }

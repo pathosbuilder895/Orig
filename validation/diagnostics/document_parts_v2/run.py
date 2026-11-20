@@ -22,10 +22,10 @@ flag-on row checks the response's ``measurement.used`` is ``matter``.
     .venv/bin/python validation/diagnostics/document_parts_v2/run.py --split holdout   # once
     .venv/bin/python validation/diagnostics/document_parts_v2/run.py --after   # today's extractor
 
-``--after`` reads ``cases_after.jsonl.xz`` (``make_cases.py --reextract``):
-the "on" rows of a PDF use its switch-on extraction (``text_on``), and the
-segmentation rows also count each part's characters listed as ``possible``
-by ``matter.find_parts`` and the page breaks in the text. Output goes to
+``--after`` reads ``cases_after.jsonl.xz`` (``make_cases.py --reextract``,
+today's extractor: the old text plus page markers), and the segmentation
+rows also count each part's characters listed as ``possible`` by
+``matter.find_parts`` and the page markers in the text. Output goes to
 ``*_after`` files, so the "before" results stay as they were.
 
 The hold-out run refuses to run again once ``summary_holdout.json`` exists.
@@ -137,8 +137,9 @@ def _runs(text: str, mask: list[bool], labels: list[str], want) -> list[str]:
 
 
 def text_for(rec: dict, flag: str) -> tuple[str, list[list]]:
-    """The text Original stores for this record with the switch ``flag``: a
-    PDF extracted with the switch on is restructured (``cases_after``)."""
+    """The text Original stores for this record. (An earlier draft of the
+    extractor stored a PDF differently with the switch on, as ``text_on``;
+    today's stores one text, and reflows a PDF only when measuring it.)"""
     if flag == "on" and "text_on" in rec:
         return rec["text_on"], rec["labels_on"]
     return rec["text"], rec["labels"]
@@ -193,7 +194,7 @@ def segment(rec: dict, flag: str) -> dict:
         "chars": total,
         "set_aside": out,
         "possible": possible,
-        "page_breaks": text.count("\f"),
+        "page_breaks": len(re.findall(r"(?m)^\x1f{1,2}$", text)),
         "product_kind": confusion,
         "prose_set_aside_examples": _runs(
             text, aside, labels, lambda i: aside[i] and labels[i] == "prose"

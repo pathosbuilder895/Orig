@@ -920,17 +920,15 @@ def reextract(out_name: str = "cases_after.jsonl.xz") -> None:
     Rebuilds the .docx/.pdf files exactly as ``main`` does (same documents,
     same LibreOffice), reads each one with ``extract_text_from_bytes``, and
     writes ``out_name``: pasted records copied from ``cases.jsonl.xz``
-    unchanged; each .docx/.pdf record's ``text`` is the extraction with the
-    switch off (page breaks kept, ``structure=False``), and a .pdf record
-    also carries ``text_on``/``labels_on``, the extraction with the switch on
-    (``structure=True``: running heads and page numbers removed, wrapped
-    lines joined, footnotes moved under their paragraph). Every record
-    states whether its switch-off text, page breaks dropped, is byte for byte
-    the text ``cases.jsonl.xz`` holds (``off_text_matches_before``).
+    unchanged; each .docx/.pdf record's ``text`` is today's extraction (the
+    old text plus page markers; it does not depend on the switch: a PDF is
+    reflowed only when measured with the splitter on). Every record states
+    whether its text, page markers dropped, is byte for byte the text
+    ``cases.jsonl.xz`` holds (``off_text_matches_before``).
     ``cases.jsonl.xz`` itself is not touched."""
     from pypdf import PdfReader
 
-    from original.features.matter import without_page_breaks
+    from original.features.matter import LONE_PAGE_MARK, without_page_breaks
     from original.upload_utils import extract_text_from_bytes
 
     with lzma.open(HERE / "cases.jsonl.xz", "rt", encoding="utf-8") as fh:
@@ -960,7 +958,7 @@ def reextract(out_name: str = "cases_after.jsonl.xz") -> None:
             raw = path.read_bytes()
             doc = docs[(a, v)]
             pages = old.get("pages") or len(PdfReader(str(files / f"{a}__{v}.pdf")).pages)
-            text = extract_text_from_bytes(raw, path.name, structure=False)
+            text = extract_text_from_bytes(raw, path.name)
             res = L.align(text, flow_units(doc), floating_units(doc, pages))
             rec.update(
                 text=text,
@@ -968,18 +966,8 @@ def reextract(out_name: str = "cases_after.jsonl.xz") -> None:
                 source=res["source"],
                 lost=res["lost"],
                 unattributed=res["unattributed"],
-                page_breaks=text.count("\f"),
+                page_breaks=len(LONE_PAGE_MARK.findall(text)),
             )
-            if inp == "pdf":
-                on = extract_text_from_bytes(raw, path.name, structure=True)
-                res_on = L.align(on, flow_units(doc), floating_units(doc, pages))
-                rec.update(
-                    text_on=on,
-                    labels_on=L.rle(res_on["labels"]),
-                    lost_on=res_on["lost"],
-                    unattributed_on=res_on["unattributed"],
-                    sha256_on=hashlib.sha256(on.encode("utf-8")).hexdigest(),
-                )
         rec["off_text_matches_before"] = without_page_breaks(rec["text"]) == old["text"]
         rec["sha256"] = hashlib.sha256(rec["text"].encode("utf-8")).hexdigest()
         records.append(rec)

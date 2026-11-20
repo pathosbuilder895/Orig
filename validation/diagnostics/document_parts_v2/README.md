@@ -339,27 +339,44 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 
 ## After steps 2, 3 and 6 (dev)
 
-Steps 2, 3 and 6 of the parts plan: uploads keep page breaks (and, with the
-splitter on, a PDF's pages are restructured), `features/matter.py` gained the
-title page, abstract, notes, appendix and unheaded-list rules, and the length
-match cuts what the reading cuts. Rebuilt with:
+Steps 2, 3 and 6 of the parts plan, as revised after the score-integrity
+review:
+
+- **Uploads store page markers.** The extractor returns exactly the text it
+  returned before, plus a page marker (U+001F, alone on a line) where the file
+  breaks a page: one mark for a .docx page or section break, two between PDF
+  pages. Nothing else in the stored text changes, whatever the switch says.
+  Every measurement, the raw-text experts and every duplicate hash drop the
+  marker first. A form feed a teacher pasted is ordinary text, measured as
+  before.
+- **The matter rules** (`features/matter.py`) gained the title page, abstract,
+  notes, appendix and unheaded-list rules, and read the page markers.
+- **A PDF is cleaned up only when it is measured with the splitter on**: the
+  rules set aside its running heads, page numbers and footnote blocks in the
+  raw text, and `features/pdf_reflow.py` rejoins the hard-wrapped lines of
+  what is left into paragraphs. So the `v1` and `matter` measurements of the
+  same stored paper always come from the same text.
+- **Papers stored before page markers existed** carry none: the rules then
+  work from the text alone (no title-page-by-page-break, no page-bottom
+  footnote rule, no reflow), which is how they read pasted text.
+- **The length match** cuts what the reading cuts.
+
+Rebuilt with:
 
 ```bash
 .venv/bin/python validation/diagnostics/document_parts_v2/make_cases.py --reextract   # cases_after.jsonl.xz (needs LibreOffice)
 .venv/bin/python -I validation/diagnostics/document_parts_v2/run.py --after           # summary_dev_after.json, rows_dev_after.json
 ```
 
-`cases_after.jsonl.xz` is the same set read by today's extractor:
-pasted records unchanged; each .docx/.pdf record's `text` is the extraction
-with the switch off (page breaks kept), and a .pdf record also carries
-`text_on`, the extraction with the switch on, which the harness uses for the
-"on" rows. `cases.jsonl.xz` and the "before" results above are untouched.
-The rules were tuned on this dev split, so these are not out-of-sample
-numbers; the hold-out has not been run against them.
+`cases_after.jsonl.xz` is the same set read by today's extractor: pasted
+records unchanged, each .docx/.pdf record's `text` the extraction with page
+markers. `cases.jsonl.xz` and the "before" results above are untouched. The
+rules were tuned on this dev split, so these are not out-of-sample numbers;
+the hold-out has not been run against them.
 
 **Byte identity.** All 504 switch-off rows (every dev paper, every input type)
 score exactly as before: same deviation to the last bit, same action. All
-756 switch-off texts (both splits), with their page breaks dropped, are byte
+756 extracted texts (both splits), with their page markers dropped, are byte
 for byte the texts in `cases.jsonl.xz`.
 
 **Segmentation, splitter on, before / after.** Share of each part's
@@ -370,15 +387,15 @@ characters set aside; last column: share of the true prose set aside.
 | MLA | paste | 42 |  | 100% / 100% | 100% / 100% |  |  | 46% / 100% |  |  |  | **0% / 0%** |
 | MLA | paste_word | 42 |  | 100% / 100% | 100% / 100% |  |  | 46% / 100% |  |  |  | **0% / 0%** |
 | MLA | docx | 42 |  | 100% / 100% | 100% / 100% |  |  | 46% / 100% |  |  |  | **0% / 0%** |
-| MLA | pdf | 42 |  | 100% / 100% | 100% / 100% |  |  | 10% / 100% |  |  | 100% /  | **0% / 0%** |
+| MLA | pdf | 42 |  | 100% / 100% | 100% / 100% |  |  | 10% / 100% |  |  | 100% / 100% | **0% / 0%** |
 | APA | paste | 36 | 72% / 100% |  | 78% / 100% | 1% / 100% | 100% / 100% | 67% / 100% |  |  |  | **0% / 0%** |
 | APA | paste_word | 36 | 64% / 100% |  | 0% / 100% | 1% / 100% | 81% / 94% | 67% / 100% |  |  |  | **0% / 0%** |
 | APA | docx | 36 | 72% / 100% |  | 78% / 100% | 1% / 100% | 100% / 100% | 67% / 100% |  |  |  | **0% / 0%** |
-| APA | pdf | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 75% / 100% | 66% / 100% |  |  | 30% /  | **0% / 0%** |
+| APA | pdf | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 75% / 94% | 66% / 100% |  |  | 30% / 100% | **0% / 0%** |
 | Turabian | paste | 12 | 96% / 100% |  |  |  |  | 100% / 100% | 49% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | paste_word | 12 | 12% / 100% |  |  |  |  | 100% / 100% | 47% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | docx | 12 | 96% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| Turabian | pdf | 12 | 12% / 100% |  |  |  |  | 0% / 100% | 16% / 100% | 0% / 1% | 100% /  | **0% / 0%** |
+| Turabian | pdf | 12 | 12% / 100% |  |  |  |  | 0% / 100% | 16% / 100% | 0% / 0% | 100% / 100% | **0% / 0%** |
 | prose only | paste | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | paste_word | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | docx | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
@@ -387,44 +404,33 @@ characters set aside; last column: share of the true prose set aside.
 Notes on the table:
 
 - Appendix: lower is the intended result. The appendix is the author's own
-  prose, and the list of sources now ends at its heading, so only the
-  "Appendix A" heading (a section heading) is set aside; before, the whole
-  appendix went with the list.
-- Running head, PDF "after": blank because with the switch on the PDF
-  extractor removes the running head and page numbers before the splitter
-  sees the text (100% lost in extraction by design, `per_input_switch_on`
-  in `summary_dev_after.json`).
+  prose, and the list of sources now ends at its heading, so at most the
+  "Appendix A" heading is set aside; before, the whole appendix went with the
+  list.
 - MLA references "before" 46% pools `mla_short_long_refs` and
   `mla_unheaded_refs` (0% each) with lists that were found; Turabian notes'
   "before" 49% (pasted) was 27-64% per paper.
-- Section headings in a single-newline paste: 94%; the misses are headings
-  whose preceding line does not end a sentence (a paragraph ending in a colon
-  before a quotation), which the rules leave as prose on purpose.
-- No part was listed as `possible` on the dev split: every part either passed
-  its checks or was not a candidate.
+- Section headings at 94%: the misses are headings whose preceding line does
+  not end a sentence (a paragraph ending in a colon before a quotation),
+  which the rules leave as prose on purpose.
+- No part was listed as `possible` on the dev split.
 
 **Reading, splitter on.** Every variant except `turabian_appendix` now reads
-as its prose alone: change exactly 0 in every input type for all 6 papers,
-except james's APA variants in a single-newline paste (+0.0003 to +0.0004,
-the one section heading left as prose, above;
-before: up to +0.219 and 28 of 66 paper-variants up a band with a blank-line
-paste, 28 of 66 as a PDF). `turabian_appendix` reads -0.049 to 0.000 against
-the prose alone, 2 of 6 down a band with a single-newline paste: that is the
+as its prose alone: change exactly 0 for all 6 papers in every input type,
+except james's APA variants (+0.0003 to +0.0006 in a single-newline paste
+and as a PDF: the one section heading left as prose). Before: up to +0.219,
+and 28 of 66 paper-variants up a band with a blank-line paste, 28 of 66 as a
+PDF; after: 0 up. `turabian_appendix` reads -0.066 to +0.004 against the
+prose alone, 2 of 6 down a band with a single-newline paste: that is the
 appendix being measured, not a part leaking in (the prose alone has no
 appendix). The negative controls read exactly as their prose alone in every
 input type, PDF included (before: +0.047 and +0.048 as PDFs).
 
 **Input type.** With the splitter on, the same prose as a PDF now reads as the
 blank-line paste (0.000 on 5 of 6, -0.001 on one; before -0.040 to +0.051),
-because the restructured PDF has the same paragraphs. The single-newline paste
+because the reflowed PDF has the same paragraphs. The single-newline paste
 still reads +0.022 to +0.063 above the blank-line paste in both settings: that
 finding is not addressed here.
-
-**Raw PDF text with the splitter on** (a PDF uploaded with the switch off and
-later measured as `matter` under `UPLOAD_ALSO_MEASURE`, ADR-014), computed
-ad hoc from the same records: title page 100%, abstract 100%, references 89%
-(MLA) to 100%, footnotes 100%, running head 100%, APA repeated title 0%,
-prose 0%.
 
 <!-- tables:dev_after -->
 Each cell: share of that part's characters set aside, splitter **off / on**; last column: share of the true prose set aside (false set-aside), off / on. Non-whitespace characters, pooled over the n papers in the row.
@@ -436,15 +442,15 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | MLA | paste | 42 |  | 0% / 100% | 0% / 100% |  |  | 85% / 100% |  |  |  | **0% / 0%** |
 | MLA | paste_word | 42 |  | 0% / 100% | 0% / 100% |  |  | 85% / 100% |  |  |  | **0% / 0%** |
 | MLA | docx | 42 |  | 0% / 100% | 0% / 100% |  |  | 85% / 100% |  |  |  | **0% / 0%** |
-| MLA | pdf | 42 |  | 0% / 100% | 0% / 100% |  |  | 85% / 100% |  |  | 3% /  | **0% / 0%** |
+| MLA | pdf | 42 |  | 0% / 100% | 0% / 100% |  |  | 85% / 100% |  |  | 3% / 100% | **0% / 0%** |
 | APA | paste | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 49% / 100% |  |  |  | **0% / 0%** |
 | APA | paste_word | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 49% / 100% |  |  |  | **0% / 0%** |
 | APA | docx | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 49% / 100% |  |  |  | **0% / 0%** |
-| APA | pdf | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 49% / 100% |  |  | 0% /  | **0% / 0%** |
+| APA | pdf | 36 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 49% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | Turabian | paste | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | paste_word | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | Turabian | docx | 12 | 0% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| Turabian | pdf | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 1% | 21% /  | **0% / 0%** |
+| Turabian | pdf | 12 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 0% | 21% / 100% | **0% / 0%** |
 | prose only | paste | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | paste_word | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose only | docx | 36 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
@@ -457,63 +463,63 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | mla | paste | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | mla | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | mla | docx | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| mla | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| mla | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | apa_student | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_student | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_student | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
-| apa_student | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| apa_student | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | apa_professional | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_professional | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_professional | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
-| apa_professional | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| apa_professional | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | turabian | paste | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% |  |  | **0% / 0%** |
 | turabian | paste_word | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% |  |  | **0% / 0%** |
 | turabian | docx | 6 | 0% / 100% |  |  |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| turabian | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% |  | 14% /  | **0% / 0%** |
+| turabian | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% |  | 14% / 100% | **0% / 0%** |
 | turabian_appendix | paste | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | turabian_appendix | paste_word | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 100% / 100% | 100% / 1% |  | **0% / 0%** |
 | turabian_appendix | docx | 6 | 0% / 100% |  |  |  |  | 100% / 100% |  | 100% / 1% |  | **0% / 0%** |
-| turabian_appendix | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 1% | 27% /  | **0% / 0%** |
+| turabian_appendix | pdf | 6 | 0% / 100% |  |  |  |  | 100% / 100% | 0% / 100% | 100% / 0% | 27% / 100% | **0% / 0%** |
 | apa_reference_list | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_reference_list | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_reference_list | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
-| apa_reference_list | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  | 0% /  | **0% / 0%** |
+| apa_reference_list | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | apa_literature_cited | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_literature_cited | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  |  | **0% / 0%** |
 | apa_literature_cited | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
-| apa_literature_cited | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  | 0% /  | **0% / 0%** |
+| apa_literature_cited | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | mla_unheaded_refs | paste | 6 |  | 0% / 100% | 0% / 100% |  |  | 0% / 100% |  |  |  | **0% / 0%** |
 | mla_unheaded_refs | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  | 0% / 100% |  |  |  | **0% / 0%** |
 | mla_unheaded_refs | docx | 6 |  | 0% / 100% | 0% / 100% |  |  | 0% / 100% |  |  |  | **0% / 0%** |
-| mla_unheaded_refs | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 0% / 100% |  |  | 0% /  | **0% / 0%** |
+| mla_unheaded_refs | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 0% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | mla_short_long_refs | paste | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | mla_short_long_refs | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | mla_short_long_refs | docx | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| mla_short_long_refs | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 25% /  | **0% / 0%** |
+| mla_short_long_refs | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 25% / 100% | **0% / 0%** |
 | apa_bold_abstract | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_bold_abstract | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  |  | **0% / 0%** |
 | apa_bold_abstract | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  |  | **0% / 0%** |
-| apa_bold_abstract | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| apa_bold_abstract | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | markdown_apa | paste | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
 | markdown_apa | paste_word | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  |  | **0% / 0%** |
 | markdown_apa | docx | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  |  | **0% / 0%** |
-| markdown_apa | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 100% | 0% / 100% |  |  | 0% /  | **0% / 0%** |
+| markdown_apa | pdf | 6 | 0% / 100% |  | 0% / 100% | 0% / 100% | 0% / 94% | 0% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | neg_abstract_word | paste | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | neg_abstract_word | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | neg_abstract_word | docx | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| neg_abstract_word | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| neg_abstract_word | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | neg_references_sentence | paste | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | neg_references_sentence | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
 | neg_references_sentence | docx | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  |  | **0% / 0%** |
-| neg_references_sentence | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% /  | **0% / 0%** |
+| neg_references_sentence | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  | 100% / 100% |  |  | 0% / 100% | **0% / 0%** |
 | neg_sermon_prayer | paste | 6 |  | 0% / 100% | 0% / 100% |  |  |  |  |  |  | **0% / 0%** |
 | neg_sermon_prayer | paste_word | 6 |  | 0% / 100% | 0% / 100% |  |  |  |  |  |  | **0% / 0%** |
 | neg_sermon_prayer | docx | 6 |  | 0% / 100% | 0% / 100% |  |  |  |  |  |  | **0% / 0%** |
-| neg_sermon_prayer | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  |  |  |  | 0% /  | **0% / 0%** |
+| neg_sermon_prayer | pdf | 6 |  | 0% / 100% | 0% / 100% |  |  |  |  |  | 0% / 100% | **0% / 0%** |
 | neg_letter | paste | 6 |  | 0% / 100% |  |  |  |  |  |  |  | **0% / 0%** |
 | neg_letter | paste_word | 6 |  | 0% / 100% |  |  |  |  |  |  |  | **0% / 0%** |
 | neg_letter | docx | 6 |  | 0% / 100% |  |  |  |  |  |  |  | **0% / 0%** |
-| neg_letter | pdf | 6 |  | 0% / 100% |  |  |  |  |  |  | 0% /  | **0% / 0%** |
+| neg_letter | pdf | 6 |  | 0% / 100% |  |  |  |  |  |  | 0% / 100% | **0% / 0%** |
 | prose | paste | 6 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose | paste_word | 6 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
 | prose | docx | 6 |  |  |  |  |  |  |  |  |  | **0% / 0%** |
@@ -550,11 +556,11 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | apa_student | paste | 6 | +0.029 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
 | apa_student | paste_word | 6 | -0.023 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | apa_student | docx | 6 | +0.029 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
-| apa_student | pdf | 6 | -0.013 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
+| apa_student | pdf | 6 | -0.013 / +0.000 | +0.000 to +0.001 | 6 | 0 / 0 |
 | apa_professional | paste | 6 | +0.026 / +0.000 | +0.000 to +0.000 | 6 | 2 / 0 |
 | apa_professional | paste_word | 6 | -0.022 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | apa_professional | docx | 6 | +0.026 / +0.000 | +0.000 to +0.000 | 6 | 2 / 0 |
-| apa_professional | pdf | 6 | +0.010 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
+| apa_professional | pdf | 6 | +0.010 / +0.000 | +0.000 to +0.001 | 6 | 0 / 0 |
 | turabian | paste | 6 | +0.038 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
 | turabian | paste_word | 6 | -0.003 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | turabian | docx | 6 | +0.038 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
@@ -562,15 +568,15 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | turabian_appendix | paste | 6 | +0.038 / -0.014 | -0.049 to -0.002 | 3 | 3 / 0 |
 | turabian_appendix | paste_word | 6 | -0.003 / -0.009 | -0.017 to +0.000 | 3 | 0 / 0 |
 | turabian_appendix | docx | 6 | +0.038 / -0.014 | -0.049 to -0.002 | 3 | 3 / 0 |
-| turabian_appendix | pdf | 6 | -0.002 / -0.014 | -0.049 to -0.001 | 3 | 0 / 0 |
+| turabian_appendix | pdf | 6 | -0.002 / -0.017 | -0.066 to +0.004 | 4 | 0 / 0 |
 | apa_reference_list | paste | 6 | +0.121 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
 | apa_reference_list | paste_word | 6 | +0.083 / +0.000 | +0.000 to +0.000 | 6 | 1 / 0 |
 | apa_reference_list | docx | 6 | +0.121 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
-| apa_reference_list | pdf | 6 | +0.101 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
+| apa_reference_list | pdf | 6 | +0.101 / +0.000 | +0.000 to +0.001 | 6 | 4 / 0 |
 | apa_literature_cited | paste | 6 | +0.124 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
 | apa_literature_cited | paste_word | 6 | +0.087 / +0.000 | +0.000 to +0.000 | 6 | 1 / 0 |
 | apa_literature_cited | docx | 6 | +0.124 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
-| apa_literature_cited | pdf | 6 | +0.107 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
+| apa_literature_cited | pdf | 6 | +0.107 / +0.000 | +0.000 to +0.001 | 6 | 4 / 0 |
 | mla_unheaded_refs | paste | 6 | +0.108 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
 | mla_unheaded_refs | paste_word | 6 | +0.067 / +0.000 | +0.000 to +0.000 | 6 | 1 / 0 |
 | mla_unheaded_refs | docx | 6 | +0.108 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
@@ -582,11 +588,11 @@ Each cell: share of that part's characters set aside, splitter **off / on**; las
 | apa_bold_abstract | paste | 6 | +0.029 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
 | apa_bold_abstract | paste_word | 6 | -0.023 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | apa_bold_abstract | docx | 6 | +0.029 / +0.000 | +0.000 to +0.000 | 6 | 3 / 0 |
-| apa_bold_abstract | pdf | 6 | -0.013 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
+| apa_bold_abstract | pdf | 6 | -0.013 / +0.000 | +0.000 to +0.001 | 6 | 0 / 0 |
 | markdown_apa | paste | 6 | +0.128 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
 | markdown_apa | paste_word | 6 | +0.089 / +0.000 | +0.000 to +0.000 | 6 | 1 / 0 |
 | markdown_apa | docx | 6 | +0.128 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
-| markdown_apa | pdf | 6 | +0.111 / +0.000 | +0.000 to +0.000 | 6 | 4 / 0 |
+| markdown_apa | pdf | 6 | +0.111 / +0.000 | +0.000 to +0.001 | 6 | 4 / 0 |
 | neg_abstract_word | paste | 6 | +0.036 / +0.000 | +0.000 to +0.000 | 6 | 2 / 0 |
 | neg_abstract_word | paste_word | 6 | -0.006 / +0.000 | +0.000 to +0.000 | 6 | 0 / 0 |
 | neg_abstract_word | docx | 6 | +0.036 / +0.000 | +0.000 to +0.000 | 6 | 2 / 0 |
