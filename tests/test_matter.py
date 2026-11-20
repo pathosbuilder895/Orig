@@ -885,3 +885,14 @@ def test_a_marker_on_an_earlier_page_does_not_vouch_for_a_block():
     assert "1 Marsden" in _kept(text)
     same_page = f"{page1}\n\n1 Marsden, Jonathan Edwards, 63.{FF}{PARA}\n"
     assert "1 Marsden" not in _kept(same_page)  # the marker above it, on its page
+
+
+def test_one_unverified_footnote_does_not_lose_the_notes_after_it():
+    page1 = "A paragraph number run into a marker, 5.1 And so on. " + PARA
+    notes1 = "1 Augustine, Confessions, trans. Chadwick (Oxford: OUP, 1991), 230."
+    page2 = "The point returns here.2 " + PARA
+    notes2 = "2 Ibid., 232."
+    text = f"{page1}\n\n{notes1}{FF}{page2}\n\n{notes2}{FF}{PARA}\n"
+    d = matter._doc(text)
+    found, _ = matter._page_bottom_notes(d, len(d.lines), set())
+    assert [d.lines[i] for i in found] == ["2 Ibid., 232."]  # "5.1" is read as a reference

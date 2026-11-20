@@ -721,8 +721,9 @@ def _notes_section(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], list
 def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], list[tuple]]:
     """Footnote blocks at the foot of a page (a paper with page markers):
     (lines, possible ranges). A block starts at the next note number in the
-    paper; every numbered line in it continues the count with its marker
-    printed in the same page's prose above the block; an unnumbered line
+    paper (or up to two past it, after a note that was not verified); every
+    numbered line in it continues the count with its marker printed in the
+    same page's prose above the block; an unnumbered line
     continues a note only when it is short (a wrapped line, at most
     ``NOTE_CONTINUATION_WORDS`` words); a note is at most ``NOTE_MAX_WORDS``
     words; and at least half the notes carry a note-shaped citation. A
@@ -748,10 +749,12 @@ def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], 
         page_start = d.spans[foot[0]][0]
         for s_pos, s in enumerate(foot):
             m = NOTE_START.match(d.lines[s])
-            if s_pos == 0 or not m or int(m.group(1)) != expected:
+            # The next note number, or up to two past it: one note the rules
+            # could not verify must not lose every note after it.
+            if s_pos == 0 or not m or not expected <= int(m.group(1)) <= expected + 2:
                 continue  # a footnote block sits under some of the page's prose
             before = d.text[page_start : d.spans[s][0]]  # this page's prose above it
-            k, run, ok, note_words = expected - 1, [], True, 0
+            k, run, ok, note_words = int(m.group(1)) - 1, [], True, 0
             notes: list[list[str]] = []
             for j in foot[s_pos:]:
                 line = d.lines[j]
