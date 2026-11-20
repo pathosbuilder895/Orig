@@ -776,7 +776,7 @@
   // One plain sentence, only when a take-home exam or shared paper is in the baseline.
   function lowerWeightNote(){
     const a=teacherApproved();
-    return a&&a.takeHome+a.shared?' Take-home exams and shared papers you approved count at a lower weight.':'';
+    return a&&a.takeHome+a.shared?' Take-home collections and shared papers you approved count at a lower weight.':'';
   }
   function countedPhrase(note){
     const w=approvalLine(note);
@@ -1772,18 +1772,18 @@
   }
   async function loadSealed(){
     const my=++openSeq;
-    msg('Loading the sealed exam from Collections.');
+    msg('Loading the sealed booklet from Collections.');
     const res=await Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId));
     if(my!==openSeq) return;  // the teacher has typed or opened a file since
     const d=res.data;
-    if(res.status===404){ sealedFail('This sealed exam was not found in your workspace, so nothing was loaded.'); return; }
-    if(res.status===401){ sealedFail('Your sign-in has ended. Sign in again, then open the exam from Collections.'); return; }
-    if(res.status===403){ sealedFail('You do not have access to this sealed exam, so nothing was loaded.'); return; }
-    if(!res.ok||!d||typeof d!=='object'){ sealedFail('The sealed exam could not be loaded just now. Try reloading the page.'); return; }
-    if(String(d.student_id||'')!==S.id){ sealedFail('This sealed exam was written by a different student, so it was not loaded. Open it from that student’s row in Submissions.'); return; }
+    if(res.status===404){ sealedFail('This sealed booklet was not found in your workspace, so nothing was loaded.'); return; }
+    if(res.status===401){ sealedFail('Your sign-in has ended. Sign in again, then open the booklet from Collections.'); return; }
+    if(res.status===403){ sealedFail('You do not have access to this sealed booklet, so nothing was loaded.'); return; }
+    if(!res.ok||!d||typeof d!=='object'){ sealedFail('The sealed booklet could not be loaded just now. Try reloading the page.'); return; }
+    if(String(d.student_id||'')!==S.id){ sealedFail('This sealed booklet was written by a different student, so it was not loaded. Open it from that student’s row in Submissions.'); return; }
     const text=sealedPaperText(d);
-    if(!text){ sealedFail('This sealed exam has no written answers to analyse.'); return; }
-    const exam=String(d.exam||'').trim()||'Untitled exam';
+    if(!text){ sealedFail('This sealed booklet has no written answers to analyse.'); return; }
+    const exam=String(d.exam||'').trim()||'Untitled collection';
     const t=d.created_at?new Date(d.created_at):null;
     const date=t&&!isNaN(t.getTime())?t.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
     const label=exam+(date?', sealed '+date:'');

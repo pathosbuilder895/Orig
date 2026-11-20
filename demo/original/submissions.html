@@ -155,19 +155,19 @@
       <div class="s"><div class="l">Worth a look</div><div class="v note">Appears once Original keeps analysis results</div></div>
       <div class="s"><div class="l">Reviewed this week</div><div class="v" id="v-week">-</div></div>
     </div>
-    <div class="filters" role="group" aria-label="Filter sealed exams by review">
+    <div class="filters" role="group" aria-label="Filter sealed booklets by review">
       <button type="button" class="chip on" data-f="all" aria-pressed="true">All</button>
       <button type="button" class="chip" data-f="await" aria-pressed="false">Awaiting review</button>
       <button type="button" class="chip green" data-f="done" aria-pressed="false">Reviewed</button>
     </div>
     <div class="queue">
       <div class="q-head">
-        <div>Sealed exam</div><div>Course</div><div>Submitted</div><div>Deviation</div><div class="r">Status</div>
+        <div>Sealed booklet</div><div>Course</div><div>Submitted</div><div>Deviation</div><div class="r">Status</div>
       </div>
       <div id="rows"></div>
       <div class="empty" id="empty" style="display:block">Loading</div>
     </div>
-    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens that exam in Collections.</p>
+    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens its collection in Collections.</p>
   </main>
 </div>
 <script src="live.js?v=2026-11-18.1"></script>
@@ -214,7 +214,7 @@
   // Who has a baseline, from the shared roster (Live.roster): student id to the
   // number of samples it counts. null until the roster answers, or if it fails.
   let counted=null;
-  let rows=[], curF='all', loaded=false, emptyText='No sealed exams yet. They appear here when a student seals an exam in Collections.';
+  let rows=[], curF='all', loaded=false, emptyText='No sealed booklets yet. They appear here when a student seals a booklet in Collections.';
 
   function rowHTML(r){
     const reviewed=!!r.graded_at;
@@ -224,7 +224,7 @@
     const date=fmtDate(r.created_at);
     // The exam the booklet was sealed in (Collections's #exam/<id> link); a row with no exam id opens the Collections list (#collections), so it stays in Collections rather than going home to Original.
     const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/#collections';
-    return '<div class="q-item"><a class="q-row" href="'+esc(href)+'" title="Opens this exam in Collections">'+
+    return '<div class="q-item"><a class="q-row" href="'+esc(href)+'" title="Opens its collection in Collections">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
       '<div class="when">'+esc(date||DASH)+(r.late?'<span class="late">Late</span>':'')+'</div>'+
@@ -254,7 +254,7 @@
     $('rows').innerHTML=list.map(rowHTML).join('');
     const e=$('empty');
     if(list.length){ e.style.display='none'; }
-    else { e.textContent=rows.length?'No sealed exams match that filter.':emptyText; e.style.display='block'; }
+    else { e.textContent=rows.length?'No sealed booklets match that filter.':emptyText; e.style.display='block'; }
     $('foot').style.display=list.length?'':'none';
   }
 
@@ -277,10 +277,10 @@
     if(!loaded){
       rows=[];
       const off=state==='off';
-      note('v-await',off?'Collections is off':'Could not load sealed exams');
-      note('v-week',off?'Collections is off':'Could not load sealed exams');
-      $('sub').textContent=off?'Collections is off for this workspace, so there are no sealed exams here.':'Sealed exams could not be loaded just now. Try reloading the page.';
-      emptyText=off?'Collections is off for this workspace.':'Your sealed exams could not be loaded just now. Try reloading the page.';
+      note('v-await',off?'Collections is off':'Could not load sealed booklets');
+      note('v-week',off?'Collections is off':'Could not load sealed booklets');
+      $('sub').textContent=off?'Collections is off for this workspace, so there are no sealed booklets here.':'Sealed booklets could not be loaded just now. Try reloading the page.';
+      emptyText=off?'Collections is off for this workspace.':'Your sealed booklets could not be loaded just now. Try reloading the page.';
       applyF();
       return;
     }
@@ -297,8 +297,8 @@
     const aw=$('v-await'); aw.textContent=String(waiting); aw.className='v'+(waiting>0?' amber':'');
     const wk=$('v-week'); wk.textContent=String(thisWeek); wk.className='v'+(thisWeek>0?' green':'');
     $('sub').innerHTML=waiting>0
-      ? '<b>'+esc(plural(waiting,'sealed exam'))+'</b> '+(waiting===1?'is':'are')+' waiting for your review.'
-      : (rows.length?'Every sealed exam has been reviewed.':'No sealed exams yet.');
+      ? '<b>'+esc(plural(waiting,'sealed booklet'))+'</b> '+(waiting===1?'is':'are')+' waiting for your review.'
+      : (rows.length?'Every sealed booklet has been reviewed.':'No sealed booklets yet.');
     applyF();
   }
 
@@ -310,7 +310,7 @@
     if(sl.bluebook!=='ok') return render(sl.bluebook,[]);
     const subs=sl.submissions.map(raw=>{
       const r=Object.assign({},raw), e=sl.exams.get(r.exam_id);
-      r.title=r.exam||(e&&e.title)||'Untitled exam';
+      r.title=r.exam||(e&&e.title)||'Untitled collection';
       r.courseLabel=r.course||(e&&e.course)||'';
       // The roster name, else the name written at the sitting. A student on no
       // roster any more (removed after sitting) has neither: the exam app's

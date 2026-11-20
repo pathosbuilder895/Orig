@@ -201,7 +201,7 @@
     const parts=[];
     if(c.term) parts.push(c.term);
     parts.push(plural(Number(c.students)||0,'student'));
-    parts.push(plural(Number(c.exams)||0,'exam'));
+    parts.push(plural(Number(c.exams)||0,'collection'));
     const status=String(c.status||'').toLowerCase();
     const right=c.active
       ? '<span class="st ok"><span class="d"></span>Active</span>'

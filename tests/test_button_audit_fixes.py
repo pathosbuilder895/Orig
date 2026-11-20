@@ -465,7 +465,7 @@ def test_bluebook_page_says_in_the_open_demo_that_sessions_open_for_a_signed_in_
     teacher = _patch_run(**_bb_scenario())
     assert teacher["demoHidden"] is True
     page = _bluebook_page()
-    assert '<p class="rev-note" id="demo-note" hidden>Sign in to open sessions in Collections.</p>' in page
+    assert '<p class="rev-note" id="demo-note" hidden>Sign in to open collections in Collections.</p>' in page
     assert "if(sess.mode==='demo') $('demo-note').hidden=false;" in page
 
 
@@ -507,19 +507,19 @@ def test_a_submissions_row_opens_its_own_exam_in_bluebook():
         bbSubmissions=[200, {"submissions": sealed}], bbExams=[200, {"exams": []}],
     )
     rows = out["rows"]
-    assert 'href="/bluebook/#exam/e-new" title="Opens this exam in Collections"' in rows
-    assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens this exam in Collections"' in rows  # an id is encoded, never spliced in
+    assert 'href="/bluebook/#exam/e-new" title="Opens its collection in Collections"' in rows
+    assert 'href="/bluebook/#exam/e%2Fodd%20id" title="Opens its collection in Collections"' in rows  # an id is encoded, never spliced in
     # A booklet with no exam id opens the Collections list. It carries a hash because the
     # bare /bluebook/ address now sends a teacher whose workspace has Original home to
     # Original (staffOriginalHome, demo/bluebook/deep-link.jsx).
-    assert 'href="/bluebook/#collections" title="Opens this exam in Collections"' in rows
+    assert 'href="/bluebook/#collections" title="Opens its collection in Collections"' in rows
     assert 'title="Opens Bluebook"' not in rows
 
 
 def test_the_submissions_page_no_longer_says_bluebook_has_no_address_for_an_exam():
     page = (SUITE / "submissions.html").read_text(encoding="utf-8")
     assert "no address" not in page and "Read &amp; mark" not in page
-    assert "Each row opens that exam in Collections." in page
+    assert "Each row opens its collection in Collections." in page
 
 
 def test_add_student_and_the_empty_roster_line_open_the_students_screen_and_courses_open_courses():
@@ -544,7 +544,7 @@ def test_settings_links_its_courses_to_bluebooks_courses_screen():
 # The student's own page: "Add more samples" goes to the exam a booklet is waiting in, else the Students screen.
 BB_CTA_TAIL = r"""
 (async () => {
-  for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"') && !/No sealed exams for this student/.test(el('sealed-list').innerHTML); i++) await sleep(10);
+  for (let i = 0; i < 300 && !el('sealed-list').innerHTML.includes('data-act="approve"') && !/No sealed booklets for this student/.test(el('sealed-list').innerHTML); i++) await sleep(10);
   process.stdout.write(JSON.stringify({ href: el('bb-cta').href, hidden: el('bb-cta').hidden, sealed: el('sealed-list').innerHTML }));
   process.exit(0);
 })();
