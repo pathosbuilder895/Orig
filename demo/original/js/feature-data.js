@@ -39,7 +39,7 @@
 (function () {
   const TIERS = [
     { key:'tier1', pill:'Tier 1', name:'Surface Stylometrics', status:'active', c:'#4d90c8',
-      blurb:'word & sentence choices so automatic a writer does not notice making them', features:[
+      blurb:'basic word and sentence counts: vocabulary variety, word and sentence length, common small words', features:[
       ['type_token_ratio','Vocabulary range','How many different words the writer uses compared with the total word count.'],
       ['hapax_legomena_rate','Words used only once','Share of words that appear exactly once: wide vocabularies use many one-offs.'],
       ['mean_sentence_length','Typical sentence length','Average words per sentence: short and punchy, or long and winding.'],
@@ -67,7 +67,7 @@
       ['transition_density','Transition phrases (for example, in fact)','Transition words and phrases (for example, in fact, however, therefore) per 100 words, every use counted wherever it falls in a sentence.'],
     ]},
     { key:'tier3', pill:'Tier 3', name:'Rhetorical Register', status:'active', c:'#5aab7a',
-      blurb:'the voice taken with a reader: certain, formal, persuasive', features:[
+      blurb:'stance words: certainty, hedging, claims, questions, first person, and how sources are introduced', features:[
       ['epistemic_certainty_ratio','Certainty versus hedging','Of all the hedging and certainty words found (perhaps, may, seems against clearly, certainly, must), the share that are certainty words. 0.5 when neither kind appears.'],
       ['hedging_density','Use of hedging words','Hedging words and phrases from Original\'s list (perhaps, may, seems, somewhat, to some extent) per 100 words. The list includes everyday words such as about and often, so not every match softens a claim.'],
       ['assertion_density','Certainty words (clearly, obviously)','Certainty words and phrases from Original\'s list (clearly, certainly, undoubtedly, must, it is obvious) per 100 words.'],
@@ -82,7 +82,7 @@
       ['theological_register_score','Theological vocabulary','How much specialised theological vocabulary appears.'],
     ]},
     { key:'tier4', pill:'Tier 4', name:'Char & Punctuation', status:'active', c:'#c88a3a',
-      blurb:'tiny punctuation & letter habits below conscious control', features:[
+      blurb:'punctuation marks and letter patterns, counted per 100 words', features:[
       ['char_trigram_entropy','Variety of letter combinations','How varied the three-character sequences (letters, spaces and punctuation) are across the whole paper; higher means more varied. Longer papers tend to score higher.'],
       ['punctuation_diversity','Punctuation variety','How evenly the paper\'s punctuation is spread across different marks; higher means more kinds of mark, used in more even amounts.'],
       ['comma_rate','Comma usage','How often a comma appears per stretch of words.'],
@@ -102,7 +102,7 @@
       ['clause_depth_mean','Depth of sentence structure','How deeply nested the sentences get.'],
     ]},
     { key:'tier6', pill:'Tier 6', name:'Idiosyncratic Patterns', status:'active', c:'#c85a9a',
-      blurb:'personal quirks below the level of any taught rule', features:[
+      blurb:'small habits: contractions, sentence openers, that or which, lists, abbreviations and citation formats', features:[
       ['contraction_rate','Use of contractions (don\'t, it\'s)','How often don\'t is written instead of do not.'],
       ['sentence_initial_conjunction_rate','Sentences opening with and/but','How often a sentence starts with And, But or So.'],
       ['that_which_ratio','That vs. which usage','The preference between these two when introducing a clause.'],
@@ -120,34 +120,34 @@
       ['filler_hedge_cluster_rate','Bunching of hedge words','Whether hedging words (perhaps, may, seems) bunch together or spread out, from how uneven the gaps between them are. Higher means more bunched; 0 with fewer than three.'],
     ]},
     { key:'tier8', pill:'Tier 8', name:'Prosodic Rhythm', status:'active', c:'#7aab2a',
-      blurb:'the musical rhythm of the sentences read aloud', features:[
+      blurb:'a rough syllable-stress rhythm estimated from spelling, and the spans between pauses', features:[
       ['stress_entropy_unigram','Balance of stressed syllables','How evenly syllables split between stressed and unstressed under a rough spelling rule (each vowel group is a syllable; longer words are stressed on the second-to-last). Higher means a more even split.'],
       ['stress_entropy_bigram','Variety in syllable rhythm','The same rough stress rule over pairs of neighbouring syllables; higher means the four possible pairs occur in more even amounts.'],
       ['clausulae_consistency','Steady final-syllable stress','How consistently sentences end on the same kind of syllable, stressed or not, under the same rough stress rule. In practice it tracks how consistently sentences end on a one-syllable word.'],
       ['breath_group_variance','Variation in syllables per sentence','How much the number of syllables in a sentence varies through the paper.'],
     ]},
     { key:'tier9', pill:'Tier 9', name:'Cognitive Sequencing', status:'active', c:'#a06a3a',
-      blurb:'the shape of how an argument is built, point by point', features:[
+      blurb:'the order of argument steps, tagged by keywords', features:[
       ['structural_centrist_penalty','Repetitive argument steps','Each sentence is tagged by keyword rules as a question, contrast, conclusion, evidence, claim or other. Higher means fewer different step-to-step pairs, so the same few sequences repeat.'],
       ['argument_sequence_likelihood','Usual order of argument steps','How usual this paper\'s order of sentence types (question, contrast, conclusion, evidence, claim, other, tagged by keyword rules) is, judged by the order those types follow in the past papers. Higher means a more familiar order.'],
     ]},
     { key:'tier10', pill:'Tier 10', name:'Semantic Gravity', status:'active', c:'#4a9b9b',
-      blurb:'whether ideas stay focused or wander', features:[
+      blurb:'how widely the sentences spread in meaning, and how close they sit to past papers', features:[
       ['semantic_field_dispersion','Spread of ideas across sentences','How much the distance in content between pairs of sentences varies, from a numerical summary of each sentence; higher means some pairs are much closer than others.'],
       ['semantic_centroid_proximity','Closeness to usual topics','How close this paper\'s sentences sit in content to the nearest past paper\'s average, from a numerical summary of each sentence; higher means closer.'],
     ]},
     { key:'tier11', pill:'Tier 11', name:'Error Ecology', status:'active', c:'#c85a5a',
-      blurb:'the mistakes made, and whether they match the usual ones', features:[
+      blurb:'three rough counts of slips (comma splices, stacked adjectives, doubled marks) compared with past papers', features:[
       ['error_kl_divergence','Mix of mistake types','How closely this paper\'s mix of three rough counts matches the past papers\' mix; higher means closer. The counts are commas straight after a clause\'s main word (a rough comma-splice sign), runs of three or more adjectives before a noun, and doubled punctuation such as ?! or ,, with no spelling check.'],
       ['stumble_rate_consistency','Overall mistake rate','How close this paper\'s combined rate of the same three rough counts (comma-splice signs, adjective runs, doubled punctuation) is to the past papers\' rate; higher means closer. It is not a spelling or grammar check.'],
       ['punctuation_error_ratio','Doubled punctuation marks','How close this paper\'s rate of doubled punctuation (two or more of . , ; ! ? in a row, which includes an ellipsis typed as full stops) is to the past papers\' rate; higher means closer.'],
     ]},
     { key:'tier12', pill:'Tier 12', name:'Tension Arc', status:'active', c:'#c8802a',
-      blurb:'the emotional/dramatic shape of the essay start to finish', features:[
+      blurb:'how much tension each paragraph raises and leaves open, start to finish', features:[
       ['catastrophe_index','Loose ends across paragraphs','Built from a rough tension reading for each sentence (unfinished clauses, questions and contrast words, shifts in content). For each paragraph Original notes how often a tension peak is followed by a drop; higher means fewer drops overall and more difference between paragraphs.'],
     ]},
     { key:'tier13', pill:'Tier 13', name:'Prosodic Depth', status:'active', c:'#5aab7a',
-      blurb:'a deeper layer of sentence music & whether structure resolves', features:[
+      blurb:'sentence endings, pauses and syllable patterns estimated from spelling, and whether sentences shorten toward the end', features:[
       ['clausula_type_consistency','Same rhythm at sentence ends','How consistently sentences close on the same rhythm pattern, read from their last syllables under the rough stress rule; higher means more alike.'],
       ['breath_group_regularity','Even spacing between pauses','How even the stretches of words are between commas, semicolons, colons, dashes and ellipses (full stops do not end a stretch); higher means more even.'],
       ['vowel_sonority_ratio','Share of long vowel sounds','Share of vowel groups spelled as common long-vowel pairs (ee, ea, oo, ou, ai and similar). It goes by spelling, not sound.'],
@@ -156,14 +156,14 @@
       ['clausula_shape_preference','Light or heavy sentence endings','The usual sentence ending, from light (0) to heavy classical endings (1), read from the last syllables under the rough stress rule.'],
     ]},
     { key:'tier14', pill:'Tier 14', name:'Error Topology', status:'active', c:'#c8955a',
-      blurb:'where and how the mistakes show up, not just how many', features:[
+      blurb:'where possible slips fall (comma splices, likely missing articles, possibly unclear pronouns), not just how many', features:[
       ['error_topology_consistency','Where comma splices fall','Where likely comma splices fall in their paragraphs (early, middle or late); higher means they cluster in one position within this paper. 0.5 with fewer than two, and splices are found by a word pattern, not a grammar check.'],
       ['article_omission_rate','Likely missing a, an, the','A rough count of singular nouns after a preposition with no a, an, the or similar word before them, per 100 words, scaled 0 to 1. Many are correct English (by faith, in practice), so this is not a count of mistakes.'],
       ['pronoun_ambiguity_rate','Possibly unclear pronouns','Of the sentences with he, she, it, they or their forms, the share whose two sentences before hold four or more noun-like words. A rough sign of where a reference could be unclear, not a check of what each pronoun refers to.'],
       ['comma_splice_rate','Comma splice frequency','Likely comma splices per 100 sentences, scaled 0 to 1: a comma followed by a word such as he, it, this or the, with a common verb on both sides. A word pattern, not a grammar check.'],
     ]},
     { key:'tier15', pill:'Tier 15', name:'Lexical Architecture', status:'active', c:'#8a7ad0',
-      blurb:'the shape of the vocabulary: where words come from & how arranged', features:[
+      blurb:'word endings and patterns: Latin endings, abstract nouns, and-chains, mirrored phrases, related main words', features:[
       ['semantic_field_concentration','How related the main nouns are','How related in meaning the 20 most frequent longer words are (four letters or more, nouns or not), from a table of word meanings; without that table, the share that start with the same four letters.'],
       ['polysyndeton_ratio','And-chains vs. comma lists','Whether items are strung with repeated "and"s instead of commas.'],
       ['chiasmus_rate','Mirrored sentence patterns (A-B-B-A)','How often the last three word classes (noun, verb, adjective and so on) of one sentence appear in reverse order at the start of the next, per 100 sentence pairs, scaled 0 to 1. It compares grammar labels only, not words or meaning.'],
