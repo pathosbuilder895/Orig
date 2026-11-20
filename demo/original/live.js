@@ -159,13 +159,14 @@
 
   // A signed-in staff workspace without Collections: every link into it would
   // land on screens the server refuses (403), so the account menu's "Open
-  // Collections" and the page's own head link are hidden. Best-effort DOM work.
+  // Collections", the top bar's switch to Collections (shell.js) and the page's
+  // own head link are hidden. Best-effort DOM work.
   function hideCollectionsLinks(products) {
     if (products.indexOf('bluebook') >= 0) return;
     var run = function () {
       try {
         if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"]');
+        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]');
         for (var i = 0; i < links.length; i++) { links[i].hidden = true; links[i].style.display = 'none'; }
       } catch (e) { /* a page without these links */ }
     };
@@ -702,7 +703,7 @@
     var strips = document.querySelectorAll('.pills');
     for (var i = 0; i < strips.length; i++) {
       (function (strip) {
-        var here = strip.querySelector('[aria-current="page"]');
+        var here = strip.querySelector('[aria-current]');
         if (here && strip.scrollWidth > strip.clientWidth) {
           var room = strip.clientWidth - here.offsetWidth;
           strip.scrollLeft = Math.max(0, here.offsetLeft - strip.offsetLeft - room / 2);
