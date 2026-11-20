@@ -696,6 +696,150 @@ def test_password_change_needs_an_account(live_client):
     assert r.status_code == 401
 
 
+def _redeem(client, invite_path: str, password: str = PW):
+    return client.post(
+        "/auth/invite/redeem", json={"token": _token_of(invite_path), "password": password}
+    )
+
+
+def _course_ids(client, token) -> list[str]:
+    me = client.get("/bluebook/me", headers=_auth(token))
+    assert me.status_code == 200, me.text
+    return sorted(c["course_id"] for c in me.json()["courses"])
+
+
+# ── T-78: one invite link per course until the student sets a password ───────
+
+
+@pytest.mark.parametrize("first", ["a", "b"])
+def test_second_course_keeps_the_first_course_link(live_client, first):
+    """Adding an invited student to a second course used to void the first
+    course's link while that roster still said "invited" (T-78). Each course
+    now holds its own link; whichever the student uses first voids the rest."""
+    t = _signup(live_client)
+    a = _course(live_client, t["token"], "Course A")
+    b = _course(live_client, t["token"], "Course B")
+    links = {
+        "a": _add_students(live_client, t["token"], a, "s@x.edu")[0]["invite_path"],
+        "b": _add_students(live_client, t["token"], b, "s@x.edu")[0]["invite_path"],
+    }
+    used = _redeem(live_client, links[first])
+    assert used.status_code == 200, used.text
+    assert _course_ids(live_client, used.json()["token"]) == sorted([a, b])
+    other = links["b" if first == "a" else "a"]
+    assert _redeem(live_client, other, "another-passw0rd").status_code == 400
+
+
+def test_removing_from_one_course_keeps_the_other_courses_link(live_client):
+    t = _signup(live_client)
+    a = _course(live_client, t["token"], "Course A")
+    b = _course(live_client, t["token"], "Course B")
+    row_a = _add_students(live_client, t["token"], a, "s@x.edu")[0]
+    row_b = _add_students(live_client, t["token"], b, "s@x.edu")[0]
+    sid = row_a["student_id"]
+    removed = live_client.delete(f"/bluebook/courses/{b}/students/{sid}", headers=_auth(t["token"]))
+    assert removed.status_code == 200
+    assert _redeem(live_client, row_b["invite_path"]).status_code == 400
+    used = _redeem(live_client, row_a["invite_path"])
+    assert used.status_code == 200
+    assert _course_ids(live_client, used.json()["token"]) == [a]
+
+
+def test_new_link_on_one_course_keeps_the_other_courses_link(live_client):
+    t = _signup(live_client)
+    a = _course(live_client, t["token"], "Course A")
+    b = _course(live_client, t["token"], "Course B")
+    row_a = _add_students(live_client, t["token"], a, "s@x.edu")[0]
+    sid = _add_students(live_client, t["token"], b, "s@x.edu")[0]["student_id"]
+    fresh = live_client.post(f"/bluebook/courses/{b}/students/{sid}/invite", headers=_auth(t["token"]))
+    assert fresh.status_code == 200
+    assert _redeem(live_client, row_a["invite_path"]).status_code == 200
+
+
+# ── T-79: a new password ends older sessions; reset links last a day ─────────
+
+
+def test_password_change_ends_older_student_sessions(live_client):
+    t = _signup(live_client)
+    first = _student(live_client, t["token"], _course(live_client, t["token"]), "s@x.edu")
+    second = live_client.post("/auth/login", json={"email": "s@x.edu", "password": PW}).json()
+    changed = live_client.post(
+        "/auth/password",
+        json={"current_password": PW, "new_password": "n3w-passw0rd"},
+        headers=_auth(second["token"]),
+    )
+    assert changed.status_code == 200, changed.text
+    body = changed.json()
+    assert body["ok"] is True and body["role"] == "student"
+    assert body["student_id"] == first["student_id"]
+    for old in (first["token"], second["token"]):
+        assert live_client.get("/bluebook/me", headers=_auth(old)).status_code == 401
+    assert live_client.get("/bluebook/me", headers=_auth(body["token"])).status_code == 200
+
+
+def test_password_change_ends_older_teacher_tokens(live_client):
+    t = _signup(live_client)
+    other = live_client.post("/auth/login", json={"email": t["email"], "password": PW}).json()
+    changed = live_client.post(
+        "/auth/password",
+        json={"current_password": PW, "new_password": "n3w-passw0rd"},
+        headers=_auth(t["token"]),
+    )
+    assert changed.status_code == 200, changed.text
+    fresh = changed.json()["token"]
+    for old in (t["token"], other["token"]):
+        assert live_client.get("/bluebook/courses", headers=_auth(old)).status_code == 401
+    assert live_client.get("/bluebook/courses", headers=_auth(fresh)).status_code == 200
+
+
+def test_a_redeemed_reset_link_ends_older_sessions(live_client):
+    t = _signup(live_client)
+    course = _course(live_client, t["token"])
+    s = _student(live_client, t["token"], course, "s@x.edu")
+    reset = live_client.post(
+        f"/bluebook/courses/{course}/students/{s['student_id']}/invite", headers=_auth(t["token"])
+    )
+    assert reset.status_code == 200
+    assert _redeem(live_client, reset.json()["invite_path"], "n3w-passw0rd").status_code == 200
+    assert live_client.get("/bluebook/me", headers=_auth(s["token"])).status_code == 401
+
+
+def test_staff_token_for_a_deleted_account_is_revoked(live_client):
+    t = _signup(live_client)
+    uid = get_repository().get_user_by_email(t["email"])["user_id"]
+    assert principal_mod._staff_token_live(uid, "anything") is False
+    tag = student_auth.password_tag(get_repository().get_user(uid)["password_hash"])
+    assert principal_mod._staff_token_live(uid, tag) is True
+    assert principal_mod._staff_token_live("nobody", tag) is False
+
+
+def test_tokens_without_a_password_tag_are_not_checked(live_client):
+    """Tokens minted before T-79 (and LTI staff tokens) carry no ``pw`` claim
+    and keep working until they expire."""
+    t = _signup(live_client)
+    s = _student(live_client, t["token"], _course(live_client, t["token"]), "s@x.edu")
+    legacy = student_auth.mint_session(s["student_id"], account=True)
+    assert "pw" not in student_auth.verify_session(legacy)
+    assert live_client.get("/bluebook/me", headers=_auth(legacy)).status_code == 200
+    uid = get_repository().get_user_by_email(t["email"])["user_id"]
+    lti = principal_mod.mint_principal_token(uid, "professor", t["tenant_id"])
+    assert live_client.get("/bluebook/courses", headers=_auth(lti)).status_code == 200
+
+
+@pytest.mark.parametrize("no_expiry", [False, True])
+def test_reset_link_for_an_active_student_lasts_a_day(live_client, monkeypatch, no_expiry):
+    if no_expiry:
+        monkeypatch.setenv("INVITE_NO_EXPIRY", "1")
+    t = _signup(live_client)
+    course = _course(live_client, t["token"])
+    s = _student(live_client, t["token"], course, "s@x.edu")
+    r = live_client.post(
+        f"/bluebook/courses/{course}/students/{s['student_id']}/invite", headers=_auth(t["token"])
+    )
+    left = datetime.fromisoformat(r.json()["invite_expires_at"]) - datetime.now(UTC)
+    assert timedelta(hours=23) < left <= invites_mod.RESET_TTL
+
+
 def test_operator_reset_link_for_a_teacher(live_client, guarded):
     t = _signup(live_client, "lost@x.edu")
     uid = get_repository().get_user_by_email("lost@x.edu")["user_id"]
@@ -1822,7 +1966,7 @@ def test_student_session_route_refuses_an_upcoming_exam_and_keeps_its_prompt_hid
     up = classroom["exams"]["upcoming"]["id"]
     r = _legacy_session(live_client, s["token"], up, s["student_id"])
     assert r.status_code == 409
-    assert r.json()["detail"] == "This exam has not opened yet."
+    assert r.json()["detail"] == "This collection has not opened yet."
     h = _auth(s["token"])
     assert live_client.get(f"/bluebook/me/exams/{up}", headers=h).json()["prompt"] is None
     assert live_client.post(f"/bluebook/me/exams/{up}/start", headers=h).status_code == 409
