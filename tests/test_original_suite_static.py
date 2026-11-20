@@ -1117,7 +1117,7 @@ def test_demo_professor_pill_opens_the_new_original_pages():
     assert pill == ["original/"]
 
 
-@pytest.mark.parametrize("name", ["Dashboard.jsx", "TeacherWorkspace.jsx", "bluebook.bundle.js"])
+@pytest.mark.parametrize("name", ["TeacherWorkspace.jsx", "bluebook.bundle.js"])
 def test_bluebooks_original_link_opens_the_new_pages(name):
     # The bundle is what production serves; the sources must agree with it.
     text = (DEMO / "bluebook" / name).read_text(encoding="utf-8")

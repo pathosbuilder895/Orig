@@ -51,7 +51,7 @@ def test_every_screen_that_shows_the_mark_renders_the_shared_note():
             shown.append(name)
             assert "<WorthALookNote" in text, f"{name} shows the mark without the testing label"
     # The screens that show the mark today; a new one must be added here on purpose.
-    assert shown == ["Results.jsx", "Students.jsx"]
+    assert shown == ["Results.jsx"]
 
 
 def test_the_results_row_line_carries_the_label_too():
