@@ -1,16 +1,14 @@
-"""Uploads keep a paper's page structure (step 2 of the document-parts plan).
+"""Uploads keep page markers; a PDF is reflowed only when measured.
 
 ``original.upload_utils.extract_text_from_bytes`` is the one extractor every
-upload route uses. It stores a page break as ``matter.PAGE_BREAK`` (a form
-feed on its own line, where a blank line stood before), and with
-``MATTER_SPLITTER_ENABLED`` on it also restructures a PDF's pages (running
-heads and page numbers out, wrapped lines joined, footnotes moved under the
-paragraph they interrupted).
+upload route uses. It stores exactly the text it returned before, plus a page
+marker (``matter.PAGE_MARK``, U+001F, alone on a line) where the file breaks a
+page. With ``MATTER_SPLITTER_ENABLED`` on, a PDF's measured body is reflowed
+(``features.pdf_reflow``); the stored text never depends on the switch.
 
-The guarantee that matters: a page break is never measured. A paper with page
-breaks gives exactly the feature vector, evidence view and score of the same
-paper with blank lines, switch off or on, and the extractor with the switch
-off returns exactly the old text once its page breaks are dropped.
+The guarantees: a page marker is never measured and never part of a duplicate
+hash, so an upload measures and hashes exactly as it did before markers were
+kept; a form feed a teacher pasted is measured exactly as before.
 """
 
 from __future__ import annotations
@@ -26,7 +24,7 @@ from original import evidence as ev
 from original import upload_utils as uu
 from original.features import matter
 from original.features import preprocess as pp
-from original.features.matter import PAGE_BREAK, without_page_breaks
+from original.features.matter import PAGE_BREAK, PAGE_MARK, PDF_PAGE_BREAK, without_page_breaks
 from original.features.pipeline import feature_vector
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -117,13 +115,13 @@ def test_a_break_before_the_first_words_breaks_nothing():
 @pytest.mark.parametrize("path", sorted(SAMPLES.glob("*.docx")) + sorted(SAMPLES.glob("*.pdf")))
 def test_switch_off_extraction_is_the_old_text_once_page_breaks_are_dropped(path):
     raw = path.read_bytes()
-    text = uu.extract_text_from_bytes(raw, path.name, structure=False)
+    text = uu.extract_text_from_bytes(raw, path.name)
     old = _old_docx(raw) if path.suffix == ".docx" else _old_pdf(raw)
-    assert "\f" in text
+    assert PAGE_MARK in text and "\f" not in text
     assert without_page_breaks(text) == old
 
 
-# ── .pdf restructuring (switch on) ───────────────────────────────────────────
+# ── .pdf: stored as read, reflowed only when measured with the switch on ────
 
 P1 = "Ana Ruiz\nProfessor Lee\nENGL 101\n12 May 2026\nRuiz 1"
 P2 = (
@@ -140,55 +138,58 @@ P3 = (
     "2 Ibid., 14.\n"
 )
 P4 = "Ruiz 4\nWorks Cited\nRuiz, Ana. A Book of Notes. Boston: Press, 2001. https://\nexample.org/x."
+PDF_TEXT = PDF_PAGE_BREAK.join([P1, P2, P3, P4])
 
 
-def test_pdf_pages_are_restructured_with_the_switch_on():
-    text = uu._structure_pdf([P1, P2, P3, P4])
-    assert "Ruiz 2" not in text and "Ruiz 3" not in text  # running head gone
-    assert not re.search(r"^\d+$", text, re.M)  # page numbers gone
-    paras = [p for p in re.split(r"\n[\f\n]*\n", text) if p.strip()]
-    assert (
+def test_a_pdf_is_reflowed_when_measured_with_the_switch_on(monkeypatch):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    ev.engine_view.cache_clear()
+    body = pp._body(PDF_TEXT)
+    assert "Ruiz 2" not in body and "Ruiz 3" not in body  # running heads set aside
+    assert "Ana Ruiz, A Book" not in body and "Ibid" not in body  # footnotes set aside
+    assert "Works Cited" not in body and "Professor Lee" not in body
+    assert PAGE_MARK not in body
+    paras = [p.strip() for p in body.split("\n\n") if p.strip()]
+    assert paras == [
+        "The first paragraph of the paper runs across the whole line and keeps going "
+        "until it ends here.1",
         "A second paragraph begins and it is long enough to fill the line of the page "
         "and then it carries on past the foot of the page into the next one, where it "
-        "finishes its sentence.2 4. A numbered point that is prose."
-    ) in paras  # joined across lines and across the page break
-    # The footnotes moved under the paragraph they interrupted, as one block
-    # just before a page break, one note per line.
-    assert "1 Ana Ruiz, A Book of Notes (Boston: Press, 2001), 12.\n2 Ibid., 14." + PAGE_BREAK in text
-    assert "Works Cited\n\nRuiz, Ana. A Book of Notes. Boston: Press, 2001. https://example.org/x." in (
-        text.replace(PAGE_BREAK, "\n\n")
-    )
-    # The heading block's short lines are not joined to each other.
-    assert text.startswith("Ana Ruiz\n\nProfessor Lee\n\nENGL 101\n\n12 May 2026")
+        "finishes its sentence.2 4. A numbered point that is prose.",
+    ]  # joined across lines and across the page break, a blank line between
+    view = ev.engine_view(PDF_TEXT)  # the evidence view makes the same edits
+    assert view is not None and view.prose.text == pp.preprocess(PDF_TEXT)[0]
+    ev.engine_view.cache_clear()
 
 
-def test_the_switch_decides_whether_a_pdf_is_restructured(monkeypatch):
+def test_with_the_switch_off_a_pdf_measures_as_it_was_read(monkeypatch):
+    monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
+    assert pp._body(PDF_TEXT) == pp._strip_backmatter(without_page_breaks(PDF_TEXT))
+
+
+def test_stored_pdf_text_does_not_depend_on_the_switch(monkeypatch):
     raw = (SAMPLES / "mla.pdf").read_bytes()
     monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "0")
     plain = uu.extract_text_from_bytes(raw, "mla.pdf")
     monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    shaped = uu.extract_text_from_bytes(raw, "mla.pdf")
+    assert uu.extract_text_from_bytes(raw, "mla.pdf") == plain
     assert without_page_breaks(plain) == _old_pdf(raw)
-    assert shaped != plain and shaped == uu.extract_text_from_bytes(raw, "x.pdf", structure=True)
 
 
 def test_a_keywords_line_is_not_joined_to_the_next_pages_title():
+    from original.features import pdf_reflow
+
     long_kw = "Keywords: " + ", ".join(["civil rulers"] * 7)
     page2 = "Abstract\n" + ("word " * 16 + "\n") * 3 + long_kw
-    text = uu._structure_pdf(["Title", page2, "A Title on Page Three\nProse starts here."])
-    assert long_kw + PAGE_BREAK + "A Title on Page Three" in text
+    text = PDF_PAGE_BREAK.join(["Title", page2, "A Title on Page Three\nProse starts here."])
+    out = without_page_breaks(pdf_reflow.apply_ops(text, pdf_reflow.reflow_ops(text)))
+    assert long_kw + "\n\nA Title on Page Three" in out
 
 
-def test_a_numbered_paragraph_is_not_a_footnote():
-    page = (
-        "Some prose that runs on and on to fill a line of the page, with a marker.1\n"
-        "1. And this is the writer's own numbered paragraph, long enough that it cannot be "
-        + "a note at all, " * 12
-        + "so it ends.\n"
-    )
-    text = uu._structure_pdf([page, "More prose."])
-    assert "1. And this is the writer's own numbered paragraph" in text
-    assert "\n\n1. And this" in text  # a paragraph of its own, not a notes block
+def test_a_pdf_stored_before_page_markers_is_measured_without_reflow(monkeypatch):
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    old = "\n\n".join([P1, P2, P3, P4])  # no markers: no reflow, rules on the text alone
+    assert "keeps going \nuntil" in pp._body(old)
 
 
 # ── A page break is never measured ───────────────────────────────────────────
@@ -206,15 +207,56 @@ def test_a_paper_with_page_breaks_measures_exactly_as_without(switch, monkeypatc
     ev.engine_view.cache_clear()
     plain = _paper()
     paged = plain.replace("\n\n", PAGE_BREAK)
-    assert paged.count("\f") > 3
+    assert paged.count(PAGE_MARK) > 3
     assert pp.preprocess(paged)[0] == pp.preprocess(plain)[0]
     a, b = np.asarray(feature_vector(plain)), np.asarray(feature_vector(paged))
     assert np.array_equal(a, b)
     va, vb = ev.engine_view(plain), ev.engine_view(paged)
     assert va is not None and vb is not None
     assert va.prose.text == vb.prose.text
-    assert all(paged[o] != "\f" for o in vb.prose.origin if o >= 0)
+    assert all(paged[o] != PAGE_MARK for o in vb.prose.origin if o >= 0)
     ev.engine_view.cache_clear()
+
+
+def test_a_pdf_upload_with_the_switch_off_measures_exactly_as_before(monkeypatch):
+    monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
+    plain = _paper()
+    paged = plain.replace("\n\n", PDF_PAGE_BREAK)
+    assert np.array_equal(
+        np.asarray(feature_vector(plain)), np.asarray(feature_vector(paged))
+    )
+
+
+PASTE = (
+    "Grace is not earned. It is given freely, and the giver asks nothing in return. "
+    "Yet many readers resist this."
+)
+QUOTE = (
+    "    For the law was given through Moses, but grace and truth\n"
+    "    came through the one who was sent, and of his fullness\n"
+    "    we have all received, grace upon grace, without measure."
+)
+
+
+@pytest.mark.parametrize("switch", ["0", "1"])
+def test_a_pasted_form_feed_is_measured_exactly_as_before(switch, monkeypatch):
+    """A form feed a teacher pasted (or a pdftotext .txt carries) is not a
+    page marker: nothing drops it, so the body is the one the measurement
+    had before page markers existed (switch off: everything before the first
+    back-matter heading; on: the matter ranges, joined), byte for byte."""
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", switch)
+    for text in (
+        f"{PASTE} {PASTE}\n\f\n{QUOTE}\n\n{PASTE}",
+        f"{PASTE}\n\fNext page starts here. {PASTE}",
+        uu.extract_text_from_bytes(f"{PASTE}\n\f\n{PASTE}".encode(), "notes.txt"),
+    ):
+        assert "\f" in text
+        if switch == "0":
+            want = text[: len(pp._strip_backmatter(text))]
+        else:
+            want = "".join(text[a:b] for a, b in matter.kept_ranges(text))
+        assert pp._body(text) == want
+        assert "\f" in pp.preprocess(text)[0] or "\f" not in want
 
 
 def test_page_breaks_do_not_reach_the_raw_text_experts():
@@ -235,11 +277,22 @@ def test_page_breaks_do_not_reach_the_raw_text_experts():
     )
 
 
-def test_without_page_breaks_only_drops_a_form_feed_alone_on_its_line():
-    assert without_page_breaks("a\n\f\nb") == "a\n\nb"
-    assert without_page_breaks("a\n\f\n\n\f\nb") == "a\n\n\n\nb"  # an empty page
-    assert without_page_breaks("a\fb\n\fc") == "a\fb\n\fc"  # any other form feed stays
+def test_without_page_breaks_only_drops_a_page_marker_alone_on_its_line():
+    m = PAGE_MARK
+    assert without_page_breaks(f"a\n{m}\nb") == "a\n\nb"
+    assert without_page_breaks(f"a\n{m}{m}\nb") == "a\n\nb"  # a PDF page
+    assert without_page_breaks(f"a\n{m}\n\n{m}\nb") == "a\n\n\n\nb"  # an empty page
+    assert without_page_breaks(f"a{m}b") == f"a{m}b"  # not alone on its line
+    assert without_page_breaks("a\n\f\nb") == "a\n\f\nb"  # a pasted form feed stays
     assert without_page_breaks("no breaks") == "no breaks"
+
+
+def test_the_page_marker_is_whitespace_and_not_a_line_boundary():
+    """So every word count, strip and line split in the app is unchanged."""
+    m = PAGE_MARK
+    assert m.isspace() and f"a\n{m}\nb".split() == ["a", "b"]
+    assert f"a\n{m}\nb".splitlines() == ["a", m, "b"]
+    assert re.fullmatch(r"\s", m)
 
 
 def test_a_scored_paper_with_page_breaks_scores_exactly_as_without(live_client, store_reset):
@@ -293,11 +346,70 @@ def test_the_upload_route_keeps_page_breaks(live_client, store_reset):
     assert r.json()["word_count"] == 2
 
 
-def test_matter_reads_a_page_break_in_any_stored_form():
-    # "\f" on its own line (an upload) and "\fFirst" (pdftotext's form) both
-    # mark the page; the line ranges still cover the text exactly.
-    for text in ("Title\n\f\nBody text here.", "Title\n\fBody text here."):
+def test_matter_reads_only_the_page_marker_as_a_page_break():
+    for text in ("Title" + PAGE_BREAK + "Body text here.", "Title" + PDF_PAGE_BREAK + "Body."):
         d = matter._doc(text)
         assert d.has_breaks and any(d.brk)
-        assert d.spans[-1][1] == len(text)
         assert "".join(text[a:b] for a, b, _ in d.spans) == text
+    for pasted in ("Title\n\f\nBody text here.", "Title\n\fBody text here."):
+        d = matter._doc(pasted)
+        assert not d.has_breaks and not any(d.brk)
+
+
+# ── Duplicate checks ignore page markers ─────────────────────────────────────
+
+
+@pytest.mark.parametrize("path", sorted(SAMPLES.glob("*.docx")) + sorted(SAMPLES.glob("*.pdf")))
+def test_an_uploads_duplicate_hash_is_the_hash_it_had_before(path):
+    import hashlib
+
+    raw = path.read_bytes()
+    old = _old_docx(raw) if path.suffix == ".docx" else _old_pdf(raw)
+    text = uu.extract_text_from_bytes(raw, path.name)
+    assert text != old
+    assert uu.text_digest(text) == hashlib.sha256(old.encode()).hexdigest()
+
+
+def test_pasted_and_txt_hashes_are_unchanged():
+    import hashlib
+
+    for text in (PASTE, f"{PASTE}\n\f\n{PASTE}"):
+        assert uu.text_digest(text) == hashlib.sha256(text.encode()).hexdigest()
+
+
+def test_a_file_stored_before_page_markers_is_a_duplicate_after(live_client, store_reset):
+    from docx.enum.text import WD_BREAK
+
+    paras = [_paper()[:1500], _paper()[1500:3000]]
+
+    def build(doc):
+        doc.add_paragraph(paras[0])
+        doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+        doc.add_paragraph(paras[1])
+
+    raw = _docx(build)
+    sid = "demo:dedup_upload"
+    before = _old_docx(raw)  # what the extractor stored before this change
+    r = live_client.post(
+        f"/students/{sid}/baseline",
+        json={"text": before, "provenance": "verified", "submitted_at": "2026-01-01"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    r = live_client.post(
+        f"/students/{sid}/baseline/upload-batch",
+        files=[("files", ("paper.docx", io.BytesIO(raw), "application/octet-stream"))],
+        data={"provenance": "verified"},
+    )
+    assert r.status_code == 200, r.text[:300]
+    assert r.json()["skipped_duplicates"] == 1 and r.json()["imported"] == 0
+
+
+def test_the_batch_route_reports_the_librarys_own_error(live_client, store_reset):
+    r = live_client.post(
+        "/students/demo:batch_err/baseline/upload-batch",
+        files=[("files", ("broken.docx", io.BytesIO(b"not a zip"), "application/msword"))],
+        data={"provenance": "verified"},
+    )
+    (err,) = r.json()["errors"]
+    assert err.startswith("broken.docx: extraction error ")
+    assert "DOCX extraction failed" not in err  # the wording before the shared extractor

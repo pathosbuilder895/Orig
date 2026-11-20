@@ -785,3 +785,56 @@ def test_parts_are_consistent_with_kept_ranges():
         assert a == pos
         pos = b
     assert pos == len(text)
+
+
+def test_verses_and_numbered_points_at_a_pages_foot_stay_prose():
+    """Score-integrity witness: Romans 8:1 and 8:2 are verses, not note
+    markers, and the student's own numbered points ending a page are not
+    footnotes (no citation shape). Before the fix all 52 words were set aside."""
+    p = (
+        "Paul writes in Romans 8:1 that there is no condemnation, and in 8:2 he explains why "
+        "the law of the Spirit sets us free. This paper argues that the passage has three "
+        "practical consequences for pastoral care today, which I set out below. "
+    )
+    p2 = (
+        "The second section turns to the wider argument of the letter and how the church "
+        "received it over the centuries, with attention to the way the claims were preached. "
+    ) * 3
+    items = [
+        "1. The believer is no longer under the sentence of the law, so pastoral care begins "
+        "from assurance.",
+        "2. The Spirit, not willpower, is the agent of change, so counsel should point there first.",
+        "3. Suffering is not a sign of rejection, and the pastor can say so plainly to the grieving.",
+    ]
+    text = p * 2 + "\n\n" + "\n\n".join(items) + FF + p2 + "\n\n" + p2
+    assert matter.find_matter(text) == []
+    assert len(pp._body(text).split()) == len(text.split())
+
+
+@pytest.mark.parametrize(
+    "prose, number",
+    [("Romans 8:1 says", 1), ("in 8:2 he", 2), ("verse 3:16-17 reads", 17), ("pages 12-14.", 12),
+     ("see pp.12-14", 12), ("chapter 1: the start", 1)],
+)  # fmt: skip
+def test_a_verse_or_a_range_is_never_a_note_marker(prose, number):
+    assert not matter.has_note_marker(number, prose)
+
+
+@pytest.mark.parametrize("prose, number", [("him?6 We", 6), ("xi.2 3.", 2), ("rod_.5", 5)])
+def test_a_superscript_note_number_is_a_marker(prose, number):
+    assert matter.has_note_marker(number, prose)
+
+
+def test_page_bottom_footnotes_count_toward_the_soft_cap(caplog):
+    """Footnotes at a page's foot are a soft part: a page that is mostly
+    numbered, cited lines under very little prose is kept as prose."""
+    page = "Short prose.1 More.2 And.3"
+    notes = "\n".join(
+        f"{i} Augustine, Confessions, trans. Chadwick (Oxford: OUP, 1991), {200 + i}."
+        for i in (1, 2, 3)
+    )
+    text = f"{page}\n\n{notes}{FF}{PARA}\n"
+    with caplog.at_level(logging.WARNING, logger="original.features.matter"):
+        assert "footnote" not in _kinds(text)
+    assert "keeping them as prose" in caplog.text
+    assert any(kind == "footnote" for kind, _ in _possible(text))

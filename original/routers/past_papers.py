@@ -28,7 +28,6 @@ Nothing else in the baseline, and no exam or submission, is touched.
 
 from __future__ import annotations
 
-import hashlib
 import sys
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -38,7 +37,7 @@ from pydantic import ValidationError
 
 from .. import principal as principal_mod
 from ..schemas import AddSampleRequest
-from ..upload_utils import extract_text_from_bytes
+from ..upload_utils import extract_text_from_bytes, text_digest
 from ._shared import _bluebook_tenant, _persist_or_503, _repo, _require_staff
 from .bluebook import _can_touch
 from .bluebook_accounts import _require_student
@@ -69,7 +68,8 @@ def _has_original(tenant_id: str | None) -> bool:
 
 
 def _sha(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+    """Duplicate-check hash: page markers dropped (``upload_utils``)."""
+    return text_digest(text)
 
 
 def _student_view(rec: dict) -> dict:

@@ -21,7 +21,7 @@ from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
-from ..upload_utils import extract_text_from_bytes
+from ..upload_utils import extract_text_from_bytes, text_digest
 from ._shared import (
     _authorize_provenance,
     _persist_or_503,
@@ -65,13 +65,11 @@ def _hashes_from_samples(samples) -> set[str]:
     (hashed from .text here). Pure — takes samples directly so a caller that
     already holds a fetched StudentState can dedup without a second repo
     round-trip."""
-    import hashlib as _hashlib
-
     hashes: set[str] = set()
     for s in samples:
         h = getattr(s, "text_hash", None)
         if not h and getattr(s, "text", None):
-            h = _hashlib.sha256(s.text.encode()).hexdigest()
+            h = text_digest(s.text)
         if h:
             hashes.add(h)
     return hashes
@@ -142,9 +140,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     # fetched/created above) rather than _existing_text_hashes(student_id),
     # which would redundantly re-fetch the same state from the repo.
     if req.submission_uuid:
-        import hashlib
-
-        text_hash = hashlib.sha256(req.text.encode()).hexdigest()
+        text_hash = text_digest(req.text)
         if text_hash in _hashes_from_samples(state.samples):
             return {
                 "skipped": True,
@@ -558,6 +554,9 @@ def upload_baseline_batch(
                 errors.append(f"{filename}: unsupported type '.{ext}' — use .txt, .docx, or .pdf")
                 continue
         except Exception as exc:
+            # The library's own message, as before the shared extractor (it
+            # chains its ValueError to the library's exception).
+            exc = exc.__cause__ or exc  # noqa: PLW2901
             errors.append(f"{filename}: extraction error — {exc}")
             continue
 
@@ -566,9 +565,9 @@ def upload_baseline_batch(
             continue
 
         # ── Deduplication ─────────────────────────────────────────────────────
-        import hashlib as _hashlib
-
-        text_hash = _hashlib.sha256(text.encode()).hexdigest()
+        # Page markers dropped, so a file uploaded before they were kept and
+        # the same file uploaded now are the same paper (upload_utils).
+        text_hash = text_digest(text)
         if text_hash in seen_hashes:
             skipped_duplicates += 1
             continue

@@ -9,10 +9,13 @@ text, each with a kind. ``find_parts(text)`` returns the same ranges plus the
 Those are measured as prose (when unsure, measure as prose) and are listed so a
 teacher can see them and decide.
 
-Page breaks: an uploaded .docx or .pdf carries them as ``PAGE_BREAK``
-(``upload_utils``); pasted text has none. A form feed is never measured
-(``features.preprocess`` drops it), but it is the strongest evidence of where a
-title page ends and a list of sources starts.
+Page breaks: an uploaded .docx or .pdf carries them as page markers
+(``PAGE_BREAK``, ``PDF_PAGE_BREAK``; ``upload_utils``); pasted text and papers
+stored before markers were kept have none, and the rules then fall back to
+the text alone. A page marker is never measured (``features.preprocess``
+drops it), but it is the strongest evidence of where a title page ends and a
+list of sources starts. A PDF's text is also reflowed before it is measured
+with the switch on (``features.pdf_reflow``).
 
 Verified parts (set aside whatever their size):
 
@@ -50,10 +53,8 @@ Verified parts (set aside whatever their size):
     after a page break) when every line is a note numbered 1, 2, 3, ... and at
     least two, and at least half, carry a citation shape (a year in brackets,
     a full note citation, "Ibid."): the short notes among them ("4. Edwards,
-    Strong Rod, 72.") go with them. And, in a paper with page breaks, a block
-    of footnotes at the foot of a page: lines from the next note number in
-    the paper to the page break, each number continuing the count and printed
-    as a marker in the prose above.
+    Strong Rod, 72.") go with them. This is the one part a soft-share cap
+    never touches besides the title page, abstract and list of sources.
 
 Low-confidence parts (soft; capped, see below):
 
@@ -74,7 +75,13 @@ Low-confidence parts (soft; capped, see below):
     (Oxford: ..., 1991), 230." or "2. Ibid., 232."). Only a page may follow
     the citation, and a numbered biblical book ("1 Peter 2:9 ...") is never a
     note number, so a numbered paragraph that cites a book and goes on stays
-    prose.
+    prose. And, in a paper with page markers, a block of footnotes at the
+    foot of a page: lines from the next note number in the paper to the page
+    break, each number continuing the count and printed as a marker in the
+    prose above (never a verse, "8:1", or a range, "12-14"), at most
+    ``NOTE_MAX_WORDS`` words a note, and at least half of them with a
+    citation shape (a full note, "Ibid.", or a short note "Marsden, Jonathan
+    Edwards, 63.").
 
 Not detected, so measured as prose: a cover letter to the teacher, and notes
 that carry no year outside a verified notes block. Rules for both kept
@@ -105,18 +112,33 @@ from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
-#: How an uploaded paper's page break is stored (``upload_utils``): a form
-#: feed on a line of its own, where a blank line ``"\n\n"`` stood before.
-PAGE_BREAK = "\n\f\n"
-#: The form feed of a stored page break. ``features.preprocess`` drops it
-#: before anything is measured (and ``evidence.engine_view`` mirrors that), so
-#: a paper with page breaks measures exactly as the same paper without them.
-LONE_FORM_FEED = re.compile(r"(?<=\n)\f(?=\n)")
+#: The page marker ``upload_utils`` stores where an uploaded file breaks a
+#: page: U+001F (UNIT SEPARATOR), a control character no paste or .txt file
+#: carries, alone on a line where a blank line ``"\n\n"`` stood before. It is
+#: whitespace to Python (``str.split``, ``str.strip``, regex ``\s``) and not a
+#: line boundary (``str.splitlines``), so word counts and line splits are
+#: what they were. A form feed a teacher pasted is ordinary text, as before.
+PAGE_MARK = "\x1f"
+#: A .docx page break (or a section break that starts a page).
+PAGE_BREAK = "\n" + PAGE_MARK + "\n"
+#: A PDF page boundary: two marks, so the matter path knows the lines around
+#: it are as pypdf printed them (hard-wrapped) and may reflow them.
+PDF_PAGE_BREAK = "\n" + PAGE_MARK * 2 + "\n"
+#: A stored page marker. ``features.preprocess`` drops it before anything is
+#: measured (and ``evidence.engine_view`` mirrors that), as do the duplicate
+#: checks and the raw-text experts, so a paper with page markers measures and
+#: hashes exactly as the same paper extracted before they were kept.
+LONE_PAGE_MARK = re.compile(r"^\x1f{1,2}$", re.MULTILINE)
 
 
 def without_page_breaks(text: str) -> str:
-    """``text`` as it was stored before page breaks were kept."""
-    return LONE_FORM_FEED.sub("", text) if "\f" in text else text
+    """``text`` as it was stored before page markers were kept."""
+    return LONE_PAGE_MARK.sub("", text) if PAGE_MARK in text else text
+
+
+def is_pdf_text(text: str) -> bool:
+    """Stored text extracted from a PDF since page markers were kept."""
+    return PDF_PAGE_BREAK in text
 
 
 #: Setting aside more than this share of the body's words as low-confidence
@@ -313,22 +335,11 @@ def _signal(line: str) -> bool:
 
 
 def _lines(text: str) -> list[tuple[int, int, str]]:
-    """(start, end including newline, line text without newline). A form feed
-    is a line boundary only together with a newline: ``"\\f"`` on its own line,
-    or opening a line ("\\fFirst words", as pdftotext writes a page)."""
-    out: list[tuple[int, int, str]] = []
-    pos = 0
-    carry = ""
+    """(start, end including newline, line text without newline)."""
+    out, pos = [], 0
     for chunk in text.splitlines(keepends=True):
-        if chunk.endswith("\f") and not chunk.endswith(("\n\f", "\r\f")):
-            carry += chunk  # rejoin what splitlines cut at a form feed
-            continue
-        chunk = carry + chunk
-        carry = ""
         out.append((pos, pos + len(chunk), chunk.rstrip("\r\n")))
         pos += len(chunk)
-    if carry:
-        out.append((pos, pos + len(carry), carry))
     return out
 
 
@@ -340,7 +351,7 @@ def _entries(lines: list[str], idx: list[int]) -> list[list[str]]:
     last = -2
     for j in idx:
         s = lines[j].strip()
-        if groups and (_URL.fullmatch(s) or (j == last + 1 and _continues(groups[-1][-1], s))):
+        if groups and (_URL.fullmatch(s) or (j == last + 1 and _continues(lines[last], s))):
             groups[-1].append(s)
         else:
             groups.append([s])
@@ -349,9 +360,18 @@ def _entries(lines: list[str], idx: list[int]) -> list[list[str]]:
 
 
 def _continues(prev: str, line: str) -> bool:
-    """Is ``line`` the wrapped rest of the entry ending ``prev``? Not when
-    ``prev`` ends an entry, and never for a numbered or quoted start, which
-    always opens an entry of its own."""
+    """Is ``line`` the wrapped rest of the entry ending ``prev``? Yes after the
+    trailing space a soft wrap leaves (a PDF's text) or before a lower-case or
+    "31, no. 1" start. Not when ``prev`` ends an entry, and never for a
+    numbered or quoted start, which always opens an entry of its own."""
+    if (
+        prev != prev.rstrip(" \t")
+        and prev.strip()
+        and not re.match(r"[ \t]*(?:\d{1,3}\.?\s|[\"\u201c])", line)
+    ):
+        return True
+    if re.match(r"[ \t]*(?:[a-z]|\d+[,:;)\-\u2013])", line):
+        return True  # an entry never starts in lower case or with "31, no. 1"
     if _ENTRY_END.search(prev.strip()):
         return False
     return not re.match(r"[ \t]*(?:\d{1,3}\.?\s|[\"\u201c])", line)
@@ -381,7 +401,7 @@ def _sort_key(group: list[str]) -> str:
 class _Doc:
     text: str
     spans: list[tuple[int, int, str]]
-    lines: list[str]  # line text, form feeds removed
+    lines: list[str]  # line text, page markers removed
     brk: list[bool]  # a page break between the previous non-blank line and this one
     filled: list[int]
     wpos: list[int]  # words before each line
@@ -389,14 +409,21 @@ class _Doc:
     has_breaks: bool
 
 
+def _is_mark_line(raw: str) -> bool:
+    """A stored page marker: one or two marks alone on a line."""
+    return raw in (PAGE_MARK, PAGE_MARK * 2)
+
+
 def _doc(text: str) -> _Doc:
     spans = _lines(text)
-    lines = [s.replace("\f", "") for _, _, s in spans]
+    lines_raw = [s for _, _, s in spans]
+    lines = [s.replace(PAGE_MARK, "") if _is_mark_line(s) else s for _, _, s in spans]
     brk, pending = [], False
     for _, _, raw in spans:
-        if "\f" in raw:
+        if _is_mark_line(raw):
             pending = True
-        if raw.replace("\f", "").strip():
+            brk.append(False)
+        elif raw.strip():
             brk.append(pending)
             pending = False
         else:
@@ -410,7 +437,7 @@ def _doc(text: str) -> _Doc:
     first = filled[0] if filled else 0
     if filled:
         brk[first] = False  # a page break before the first words breaks nothing
-    return _Doc(text, spans, lines, brk, filled, wpos, n, "\f" in text)
+    return _Doc(text, spans, lines, brk, filled, wpos, n, any(map(_is_mark_line, lines_raw)))
 
 
 def _back_matter(d: _Doc) -> tuple[tuple[int, int] | None, list[tuple[int, int]]]:
@@ -454,12 +481,22 @@ def _unheaded_list(d: _Doc) -> tuple[tuple[int, int] | None, tuple[int, int] | N
     lines, filled = d.lines, d.filled
     if len(filled) < 4:
         return None, None
+    # Page numbers and running heads (a PDF's text) are not entries and do
+    # not separate two lines of one entry.
+    skip = {i for i in filled if _PAGE_LINE.match(lines[i])} | _repeating_page_lines(d, len(lines))
+    marks = {i for i, (_, _, raw) in enumerate(d.spans) if _is_mark_line(raw)}
+
+    def adjacent(a: int, b: int) -> bool:
+        return all(i in skip or i in marks for i in range(a + 1, b))
+
     groups_idx: list[list[int]] = []
     last = -2
     for j in filled:
+        if j in skip:
+            continue
         s = lines[j].strip()
         cont = groups_idx and (
-            (j == last + 1 and _continues(lines[groups_idx[-1][-1]], s)) or _URL.fullmatch(s)
+            (adjacent(last, j) and _continues(lines[groups_idx[-1][-1]], s)) or _URL.fullmatch(s)
         )
         if cont:
             groups_idx[-1].append(j)
@@ -607,13 +644,27 @@ def _abstract(d: _Doc, taken: set[int]) -> tuple[tuple[int, int] | None, tuple[i
 
 def has_note_marker(number: int, text: str) -> bool:
     """A note number printed right after a word or punctuation (a superscript
-    run into the text), e.g. "him?6 We", "xi.2 3."."""
-    pat = r"(?<=[A-Za-z.,;:!?\"'”’)\]_])" + str(number) + r"(?!\d)"
+    run into the text), e.g. "him?6 We", "xi.2 3.". A verse or a range is
+    never a marker: not after or before a colon ("8:1", "1:"), not inside a
+    range ("8:1-2", "12-14")."""
+    pat = r"(?<=[A-Za-z.,;!?\"'”’)\]_])" + str(number) + r"(?![\d:])(?![-\u2013]\d)"
     return re.search(pat, text) is not None
+
+
+# A short note: "6. Marsden, Jonathan Edwards, 63." (surname, short title, page).
+_SHORT_NOTE = re.compile(
+    r"^\s*\d{1,3}\.?\s+[A-Z][\w'\u2019\-]+(?:\s[A-Z][\w'\u2019\-.]+){0,3},\s.{2,100}?,"
+    r"\s(?:pp?\.\s*)?\d+(?:[-\u2013]\d+)?\.?\s*$"
+)
 
 
 def _note_strong(line: str) -> bool:
     return bool(_FOOTNOTE_LINE.match(line) or _NOTE_CITE.search(line))
+
+
+def _note_cited(note: str) -> bool:
+    """A footnote with a citation shape: a full note, "Ibid.", or a short note."""
+    return _note_strong(note) or bool(_SHORT_NOTE.match(note))
 
 
 def _notes_section(d: _Doc, stop: int, taken: set[int]) -> tuple[list[int], list[tuple]]:
@@ -672,10 +723,12 @@ def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> list[int]:
             if s_pos == 0:
                 continue  # a footnote block sits under some of the page's prose
             k, run, ok, note_words = expected - 1, [], True, 0
+            notes: list[list[str]] = []
             for j in foot[s_pos:]:
                 mm = NOTE_START.match(d.lines[j])
                 if mm and int(mm.group(1)) == k + 1 and has_note_marker(k + 1, before):
                     k, note_words = k + 1, 0
+                    notes.append([])
                 elif not run:
                     ok = False
                     break
@@ -684,6 +737,11 @@ def _page_bottom_notes(d: _Doc, stop: int, taken: set[int]) -> list[int]:
                     ok = False  # a paragraph of prose, not a note
                     break
                 run.append(j)
+                notes[-1].append(d.lines[j].strip())
+            # At least half the notes carry a citation shape, as under a
+            # Notes heading: a student's own numbered points do not.
+            cited = sum(1 for note in notes if _note_cited(" ".join(note)))
+            ok = ok and 2 * cited >= len(notes)
             if ok:
                 out.extend(run)
                 expected = k + 1
@@ -772,14 +830,17 @@ def find_parts(text: str) -> Parts:
     possible += [(a, b, "notes") for a, b in maybe_notes]
     for i in notes:
         hard[i] = "notes"
-    for i in _page_bottom_notes(d, stop, set(hard)):
-        hard[i] = "notes"
+    page_notes = _page_bottom_notes(d, stop, set(hard))
 
     kinds: dict[int, str] = {}
     if "title_page" not in hard.values():
         for i in _front_matter(lines, stop):
             if i not in hard:
                 kinds[i] = "front_matter"
+    # Page-bottom footnotes are soft: they count toward the cap below (only a
+    # headed, verified Notes section may bypass it).
+    for i in page_notes:
+        kinds[i] = "footnote"
     repeating = _repeating_page_lines(d, stop)
     for i in [*range(stop), *tail]:
         if i in kinds or i in hard or not lines[i].strip():
@@ -788,7 +849,7 @@ def find_parts(text: str) -> Parts:
             kinds[i] = "page_header"
         elif _FOOTNOTE_LINE.match(lines[i]):
             kinds[i] = "footnote"
-        elif _is_heading(lines, i, after_part=(i - 1) in hard):
+        elif _is_heading(lines, i, after_part=(i - 1) in hard or kinds.get(i - 1) == "page_header"):
             kinds[i] = "heading"
 
     body_lines = [i for i in [*range(stop), *tail] if i not in hard]

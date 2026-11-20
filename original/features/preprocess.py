@@ -34,8 +34,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from . import feature_flags as _ff
+from . import pdf_reflow as _reflow
+from .matter import is_pdf_text, without_page_breaks
 from .matter import kept_ranges as _matter_kept_ranges
-from .matter import without_page_breaks
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
@@ -81,13 +82,23 @@ def body_segments(text: str) -> list[tuple[int, int]]:
     return _matter_kept_ranges(text)
 
 
+def reflows(text: str) -> bool:
+    """Is ``text`` a PDF upload measured with the splitter on? Then its body is
+    reflowed (``features.pdf_reflow``) before it is measured."""
+    return _ff.matter_splitter_enabled() and is_pdf_text(text)
+
+
 def _body(text: str) -> str:
-    """The measured body. A stored page break (``matter.PAGE_BREAK``, a form
-    feed alone between two newlines, kept by uploads for the splitter) is
-    dropped here, so a paper measures exactly as it did before page breaks
-    were stored, with the switch on or off (``evidence.engine_view`` drops it
-    the same way)."""
-    return without_page_breaks("".join(text[a:b] for a, b in body_segments(text)))
+    """The measured body. Stored page markers (``matter.PAGE_MARK``, kept by
+    uploads for the splitter) are dropped here, with the switch on or off, so
+    an uploaded paper measures exactly as it did before markers were kept; any
+    other character, a pasted form feed included, is measured as before. With
+    the splitter on, a PDF upload's body is first reflowed into paragraphs.
+    ``evidence.engine_view`` makes the same edits."""
+    body = "".join(text[a:b] for a, b in body_segments(text))
+    if reflows(text):
+        body = _reflow.apply_ops(body, _reflow.reflow_ops(body))
+    return without_page_breaks(body)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

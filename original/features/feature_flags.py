@@ -16,8 +16,9 @@ score is byte-for-byte what it was before they existed
     an abstract, section headings, running heads and page numbers, verified
     notes and footnotes and a verified list of sources (up to an appendix)
     before anything is measured, in place of the older back-matter rule; a
-    PDF upload's pages are also restructured (``upload_utils``). Cover letters
-    and notes without years outside a verified notes block are not detected.
+    PDF upload's measured body is also reflowed into paragraphs
+    (``features/pdf_reflow.py``; stored text never changes). Cover letters and
+    notes without years outside a verified notes block are not detected.
 
 ``UPLOAD_ALSO_MEASURE`` (default empty)
     A measurement id (e.g. ``fs2+matter``): each newly added past paper also
