@@ -233,9 +233,31 @@ def _repo_delete(sid: str) -> None:
     _repo().delete_student(sid)
 
 
+_CODE_HASH: list[str] = []
+
+
+def code_hash() -> str:
+    """A hash of every file under ``original/`` (path and bytes), so a cached
+    score is never served after the engine or the splitter's rules changed."""
+    if not _CODE_HASH:
+        h = hashlib.sha256()
+        src = ROOT / "original"
+        for path in sorted(src.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                continue
+            h.update(str(path.relative_to(src)).encode())
+            h.update(b"\x00")
+            h.update(path.read_bytes())
+            h.update(b"\x00")
+        _CODE_HASH.append(h.hexdigest())
+    return _CODE_HASH[0]
+
+
 def _task_key(task: tuple[str, list[str], list[dict]]) -> str:
     author, baselines, recs = task
-    h = hashlib.sha256(json.dumps([PILOT_ENV, baselines, [r["sha256"] for r in recs]]).encode())
+    h = hashlib.sha256(
+        json.dumps([code_hash(), PILOT_ENV, baselines, [r["sha256"] for r in recs]]).encode()
+    )
     return f"{author}_{recs[0]['input']}_{h.hexdigest()[:16]}"
 
 
@@ -555,6 +577,12 @@ def main() -> None:
         with ctx.Pool(1) as pool:
             determinism = pool.apply(_determinism_check, (meta["baselines"], recs))
         score_rows.sort(key=lambda r: (r["case_id"], r["flag"]))
+        # The main run's rows may come from build/score_cache; the check above
+        # always scores fresh, so the two must agree (stale cache guard).
+        main_run = [r["deviation"] for r in score_rows if r["case_id"] == determinism["case_id"]]
+        determinism["main_run_deviations"] = main_run
+        determinism["main_run_matches_fresh"] = main_run == determinism["deviations"][:2]
+        assert determinism["main_run_matches_fresh"], determinism
 
     variants = [v for v in VARIANTS if any(r["variant"] == v for r in recs)]
     commit = subprocess.run(
@@ -564,6 +592,7 @@ def main() -> None:
         "split": args.split,
         "authors": sorted({r["author"] for r in recs}),
         "commit": commit,
+        "code_hash": code_hash(),
         "flags": {k: v for k, v in PILOT_ENV.items() if k != "ORIGINAL_DB"},
         "libreoffice": meta["libreoffice"],
         "n_records": len(recs),
@@ -583,10 +612,13 @@ def main() -> None:
             "note": "Computed once and not reported. Any rule tuned after this date has "
             "seen these numbers only if someone opened this file; say so if you did.",
         }
-    (HERE / f"rows_{args.split}.json").write_text(
+    # A segmentation-only run has no reading or extraction sections, so it
+    # never overwrites a full run's files.
+    stem = f"{args.split}_segment_only" if args.segment_only else args.split
+    (HERE / f"rows_{stem}.json").write_text(
         json.dumps({"segmentation": seg_rows, "scores": score_rows}, indent=0) + "\n"
     )
-    (HERE / f"summary_{args.split}.json").write_text(
+    (HERE / f"summary_{stem}.json").write_text(
         json.dumps(summary, indent=1, sort_keys=True) + "\n"
     )
     if args.split == "dev" and score_rows:
@@ -602,7 +634,7 @@ def main() -> None:
                 flags=re.S,
             )
             readme.write_text(new)
-    print(f"done in {time.time() - t0:.0f}s: summary_{args.split}.json", flush=True)
+    print(f"done in {time.time() - t0:.0f}s: summary_{stem}.json", flush=True)
 
 
 if __name__ == "__main__":

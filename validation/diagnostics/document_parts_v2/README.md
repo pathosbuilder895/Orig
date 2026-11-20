@@ -59,15 +59,24 @@ reading?
 For scale: the prose alone reads "monitor" for 4 of 6 dev authors and "no
 action" for 2 (paste, docx, pdf); the ~450-word short prose reads "schedule a
 conversation" for 4 of 6. Reading changes below are against those, in the same
-input type. All rows n = 6.
+input type. All rows n = 6, so every band count below ("4 of 6 up a band") is
+**uninformative** as a proportion: it shows direction, not a rate.
 
-**Prose was never set aside.** In all 504 dev papers x 2 settings, not one
-character of true prose was left out of the measured body, negative controls
-included ("Abstract as this distinction may sound ...", "References to
-Augustine ...", a closing prayer, a letter's greeting and sign-off). With the
-splitter on, the four negative controls read exactly as their prose alone in
-pasted text and .docx (0.000 on all 6). The cost of the rules is all on the
-recall side.
+**No result here authorises `MATTER_SPLITTER_ENABLED=1`.** How often these
+parts appear in real submissions, and how they are shaped, is exactly what this
+corpus cannot supply. And `mla_short_long_refs` is a splitter-on regression
+against off (+0.120 on, +0.022 off, pasted).
+
+**No prose set aside was seen, on these templates.** In all 504 dev papers x 2
+settings, not one character of true prose was left out of the measured body,
+negative controls included ("Abstract as this distinction may sound ...",
+"References to Augustine ...", a closing prayer, a letter's greeting and
+sign-off). With the splitter on, the four negative controls read exactly as
+their prose alone in pasted text and .docx (0.000 on all 6). This is a bounded
+claim: the prose was cleaned of headings, all-caps lines and numbered lists
+before it was wrapped, and the negative controls are 4 fixed trigger texts
+repeated over 6 authors, so their effective n is 4, not 24. Real student prose
+(short lines, lists, numbered points) can still be set aside by these rules.
 
 **What the splitter catches** (on, pasted or .docx): the MLA heading block and
 title (100%), the APA student title page (100%), APA section headings (100%
@@ -102,7 +111,8 @@ blank-line paste or .docx, 0.000 on all 6 papers; with the splitter off the same
    an unheaded Works Cited list is never found (0%). Example (boethius,
    "Reference List", pasted): 0.431 alone, 0.534 on (0.546 off), both
    "monitor".
-4. **MLA as a PDF: +0.057 on average, 4 of 6 up a band** (off: +0.024, 3 of 6).
+4. **MLA as a PDF: +0.057 on average, 4 of 6 up a band** (off: +0.024, 3 of 6;
+   the effect size is **uninformative at n = 6**).
    The same wrapped-entry problem as 1: the Works Cited list is set aside for
    only 1 of 6 papers (augustine; 16% of the characters pooled). The negative controls inherit it
    in PDF form (+0.047, +0.048).
@@ -114,12 +124,14 @@ blank-line paste or .docx, 0.000 on all 6 papers; with the splitter off the same
    Word-style paste the APA professional title page ("Running head:", Author
    Note) is missed entirely. The reading moves less than for a bibliography and
    in both directions (APA student, pasted: +0.019, -0.012 to +0.042, 2 of 6 up;
-   Word-style paste: -0.026, down to -0.115), so this is distortion more than
-   false alarm.
+   Word-style paste: -0.026, down to -0.115). Whether this is distortion more
+   than false alarm is **uninformative at n = 6**.
 
 **Input type alone moves readings.** The same prose with one newline between
 paragraphs (a Word-style paste) reads +0.022 to +0.063 higher than with a blank
-line (6 of 6 higher, both settings; one moved up a band), and as a PDF from
+line (6 of 6 higher, both settings; 3 of 6 moved up a band: douglass and james
+from "no action" to "monitor", edwards from "monitor" to "schedule a
+conversation"), and as a PDF from
 -0.040 to +0.051. .docx extraction gives exactly the blank-line paste. This is
 not about parts, but it is as large as most part effects above.
 
@@ -353,6 +365,13 @@ mill and writes `rows_holdout.json` and `summary_holdout.json`, marked
 exists. Its numbers are not reported here. Anyone who opens that file before a
 rule change is tested on it should say so.
 
+**Its independence is weakened.** Chesterton's, Kempis's and Mill's prose was in
+the 2026-11-18 experiment the splitter's rules were developed against, and the
+part templates and heading words are shared across the two splits. So hold-out
+recall cannot test whether a rule generalises to parts it was not written for;
+the hold-out can only test false set-aside of prose and the reading change, on
+3 authors.
+
 ## Rerun
 
 From the repository root:
@@ -375,4 +394,9 @@ with like (ADR-014; every flag-on row checks `measurement.used == "matter"`).
 Each score runs on a fresh copy of the author's student, so no score sees
 another's history; `summary_dev.json` records a check that the same text
 scores identically on two copies (it does). Scores are cached per task in
-`build/score_cache/`, so a stopped run resumes.
+`build/score_cache/`, so a stopped run resumes. The cache key includes a hash
+of every file in `original/` (`run.py:code_hash`), so any change to the engine
+or the rules is rescored, never served stale; each run also scores one case
+fresh and asserts it matches the main run (`determinism.main_run_matches_fresh`).
+`--segment-only` writes `rows_dev_segment_only.json` and
+`summary_dev_segment_only.json`, never the full run's files.

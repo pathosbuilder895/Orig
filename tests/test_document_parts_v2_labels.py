@@ -75,10 +75,10 @@ def test_negative_controls_are_all_prose_apart_from_their_wrapper():
         "neg_sermon_prayer",
         "neg_letter",
     ):
-        text, kinds = MC.render_paste(MC.build("mill", variant, "paste"), "\n\n")
+        text, kinds = MC.render_paste(MC.build("newman", variant, "paste"), "\n\n")
         trick = {
             "neg_abstract_word": "Abstract as this",
-            "neg_references_sentence": "References to Mill",
+            "neg_references_sentence": "References to Newman",
             "neg_sermon_prayer": "Let us pray.",
             "neg_letter": "Dear Thomas,",
         }[variant]
