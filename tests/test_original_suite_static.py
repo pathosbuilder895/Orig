@@ -3920,8 +3920,9 @@ def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_ca
 # page; /bluebook/ itself is the public sign-up and learn site, and the Bluebook
 # app opens one exam from a link (#exam/<id>, #live/<id>; demo/bluebook/deep-link.jsx).
 # Owner decision 2026-11-20 (W3): one top bar for both apps. Its switch is the only
-# place "Collections" names the Collections app, so this suite page's pill is
-# "Sessions" and the same word never means two places.
+# place the bare word "Collections" names a place (the Collections app), so this
+# suite page's pill is "Your collections" (#361: a student sits a collection) and
+# the same word never means two places.
 
 _PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?([^<]*)</a>', re.S)
 _SWITCH = re.compile(r'<div class="app-switch"[^>]*>(.*?)</div>', re.S)
@@ -3933,13 +3934,13 @@ def _pills(path: Path) -> list[tuple[str, str]]:
 
 @needs_node
 @pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
-def test_the_sessions_pill_opens_the_suite_page_for_teachers_and_students_have_none(path):
+def test_the_collections_pill_opens_the_suite_page_for_teachers_and_students_have_none(path):
     pills = _pills(path)
-    sessions = [href for href, label in pills if label == "Sessions"]
+    sessions = [href for href, label in pills if label == "Your collections"]
     assert sessions == ([] if path.name in STUDENT_PAGES else ["bluebook.html"]), path.name
     # No page pill says Collections any more: the switch names the app.
     assert "Collections" not in [label for _, label in pills], path.name
-    want = ["My voice", "My work"] if path.name in STUDENT_PAGES else ["Overview", "Students", "Submissions", "Sessions", "Reports"]
+    want = ["My voice", "My work"] if path.name in STUDENT_PAGES else ["Overview", "Students", "Submissions", "Your collections", "Reports"]
     assert [label for _, label in pills] == want, path.name
 
 
@@ -3953,7 +3954,7 @@ def test_the_app_switch_names_both_apps_and_marks_original_current(path):
 
 
 @needs_node
-def test_the_sessions_pill_is_marked_current_only_on_the_bluebook_page():
+def test_the_collections_pill_is_marked_current_only_on_the_bluebook_page():
     nav = _shell_nav(SUITE / "bluebook.html")
     assert '<a class="pill on" href="bluebook.html" aria-current="page">' in nav
     for path in PAGES:

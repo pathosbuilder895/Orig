@@ -41,9 +41,10 @@
     out: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>'
   };
 
-  // The one definition of the bar. "Sessions" is this suite's page of
-  // Collections sessions (bluebook.html); the app switch is the only place the
-  // word Collections names the Collections app.
+  // The one definition of the bar. "Your collections" is this suite's page
+  // for opening a collection and seeing past ones (bluebook.html); the app
+  // switch is the only place the bare word Collections names a place, the
+  // Collections app. (#361: the thing a student sits is a collection.)
   var AUDIENCES = {
     teacher: {
       home: 'index.html',
@@ -52,7 +53,7 @@
         { id: 'index', href: 'index.html', label: 'Overview', icon: 'home' },
         { id: 'students', href: 'students.html', label: 'Students', icon: 'people' },
         { id: 'submissions', href: 'submissions.html', label: 'Submissions', icon: 'screen' },
-        { id: 'bluebook', href: 'bluebook.html', label: 'Sessions', icon: 'book' },
+        { id: 'bluebook', href: 'bluebook.html', label: 'Your collections', icon: 'book' },
         { id: 'reports', href: 'reports.html', label: 'Reports', icon: 'bars' }
       ],
       // The way back to the Collections dashboard comes first (bare /bluebook/
