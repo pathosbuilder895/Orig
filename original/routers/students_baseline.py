@@ -14,8 +14,10 @@ from datetime import date as _date
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
+from .. import measurement as _measurement
 from .. import principal as principal_mod
 from ..constants import AUTH_WEIGHTS
+from ..features import feature_flags as _ff
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
@@ -154,7 +156,12 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
                 "purity": state.purity,
             }
 
-    vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    # Stored vectors are always the default measurement (original/measurement.py).
+    with _ff.measuring(_measurement.DEFAULT):
+        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    extra_vectors = _measurement.extra_vectors_at_upload(
+        req.text, req.keystroke_data, extract=feature_vector
+    )
 
     # Genre label — classify the text at ingestion time so the Hierarchical
     # Bayesian prior (BAYESIAN_PRIOR_ENABLED=1) has cross-student genre data.
@@ -184,6 +191,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         # Tier 17's (currently-disabled) feature extraction is unaffected.
         keystroke_data=_strip_raw_keystroke_arrays(req.keystroke_data),
         composition_summary=req.composition_summary,
+        extra_vectors=extra_vectors,
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -577,7 +585,9 @@ def upload_baseline_batch(
 
         # ── Feature extraction & store ────────────────────────────────────────
         try:
-            vec = feature_vector(text)
+            with _ff.measuring(_measurement.DEFAULT):
+                vec = feature_vector(text)
+            extra_vectors = _measurement.extra_vectors_at_upload(text, extract=feature_vector)
         except Exception as exc:
             errors.append(f"{filename}: feature extraction failed — {exc}")
             continue
@@ -590,6 +600,7 @@ def upload_baseline_batch(
             auth_weight=AUTH_WEIGHTS[provenance],
             assignment=label,
             submitted_at=submitted_at,
+            extra_vectors=extra_vectors,
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.

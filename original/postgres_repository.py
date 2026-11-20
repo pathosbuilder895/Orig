@@ -75,6 +75,9 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vectors_doc,
+    _extra_vectors_from_doc,
+    _refuse_measurement_view,
     genre_stats_from_groups,
     park_iso_utc,
     park_utc,
@@ -169,6 +172,7 @@ class PostgresRepository:
     def _state_to_doc(state: StudentState) -> dict:
         """Mirrors store.py's _serialize — a dict, not a JSON string,
         since StudentProfile.data is already a JSON/JSONB column."""
+        _refuse_measurement_view(state)
         return {
             "student_id": state.student_id,
             "samples": [
@@ -192,6 +196,8 @@ class PostgresRepository:
                     # mirrors store.py's _serialize; None for legacy/
                     # summary-less samples.
                     "composition_summary": s.composition_summary,
+                    # Versioned measurements — mirrors store.py's _serialize.
+                    **_extra_vectors_doc(s),
                 }
                 for s in state.samples
             ],
@@ -249,6 +255,7 @@ class PostgresRepository:
                     # mirrors store.py's _deserialize; None for legacy/
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
+                    extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
                 )
             )
         return state

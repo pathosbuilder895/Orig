@@ -78,6 +78,14 @@ class BaselineSample:
     # change (out of scope here).
     composition_summary: dict | None = None
 
+    # ── Versioned measurements (additive — None for every sample stored
+    # before this field existed). ``vector`` is always the default "v1"
+    # measurement; this holds the same paper measured another way, keyed by
+    # measurement id ("fs2", "matter", "fs2+matter"; features/feature_flags.py
+    # MEASUREMENTS). Written by scripts/backfill_measurements.py or, when
+    # UPLOAD_ALSO_MEASURE is set, at upload. Read only by original/measurement.py.
+    extra_vectors: dict[str, np.ndarray] | None = None
+
 
 @dataclass
 class TrajectoryResult:

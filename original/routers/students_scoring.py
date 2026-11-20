@@ -7,6 +7,7 @@ students.py for file size.
 
 from __future__ import annotations
 
+import contextvars
 import dataclasses
 import logging
 import os
@@ -15,6 +16,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import measurement as _measurement
+from ..features import feature_flags as _ff
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -23,6 +26,7 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    MeasurementOut,
     PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
@@ -144,6 +148,14 @@ def score_submission(
     force: bool = False,
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
+    """Score one paper against the student's past papers.
+
+    Runs in a copy of the current context so the measurement chosen for this
+    score (original/measurement.py, a ContextVar) ends with it."""
+    return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
+
+
+def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
@@ -158,6 +170,15 @@ def score_submission(
             "Add at least one 'proctored' or 'verified' sample first.",
         )
     _require_min_baseline(state)
+
+    # ── Versioned measurements (original/measurement.py) ──────────────────────
+    # Default (both measurement switches off): plan.used == "v1", the state is
+    # unchanged and nothing is stamped. Otherwise the requested measurement is
+    # used only when every past paper has it, and everything below (this
+    # paper, evidence re-reads, peer texts) is measured the same way.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -233,6 +254,8 @@ def score_submission(
         nonlocal _all_states_cache
         if _all_states_cache is None:
             _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
+            if plan.used != _measurement.DEFAULT:
+                _all_states_cache = _measurement.states_measured_as(_all_states_cache, plan.used)
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -777,6 +800,9 @@ def score_submission(
             _rule_d_obs = None
 
     response = _to_response(result, arc, report=report)
+    stamp = plan.stamp()
+    if stamp is not None:
+        response.measurement = MeasurementOut(**stamp)
     _attach_staff_explainability(response, request, req.text, state, result, student_id)
     if _rd_mode == "on" and _rule_d_obs is not None:
         try:
@@ -894,6 +920,8 @@ def _attach_staff_explainability(
             response.evidence["baseline_papers"] = _baseline_papers(
                 state, used, baselines, student_id
             )
+            if getattr(response, "measurement", None) is not None:
+                response.evidence["measurement"] = response.measurement.model_dump()
         except Exception:
             logging.getLogger(__name__).exception(
                 "evidence passages failed; omitted from the response"
@@ -952,6 +980,10 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    return contextvars.copy_context().run(_score_blend, student_id, req, request)
+
+
+def _score_blend(student_id: str, req: BlendDetectionRequest, request):
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
@@ -967,6 +999,13 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         )
 
     _require_min_baseline(state)
+
+    # Same rule as /score: like with like, stamped when anything but the default
+    # was asked for.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
+    stamp = plan.stamp()
 
     from ..context.blend import detect_blend
 
@@ -997,4 +1036,5 @@ def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = 
         fallback_reason=result.fallback_reason,
         ai_window_max=result.ai_window_max,
         ai_window_mean=result.ai_window_mean,
+        measurement=MeasurementOut(**stamp) if stamp is not None else None,
     )
