@@ -466,6 +466,13 @@
   .evi-side{flex-shrink:0;font-size:.86rem;font-style:italic;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.32rem .9rem;}
   .evi-side:hover{color:var(--gold);border-color:var(--gold);}
   .fd-row.inert{cursor:default;}
+  /* On a phone the 128px bar and 58px number left the habit's name a column a
+     word wide and pushed the number past the card's edge: the name and its
+     description take the full row, the bar and number sit under them. */
+  @media (max-width:560px){
+    .fd-row{grid-template-columns:minmax(0,1fr) 58px;row-gap:.45rem;}
+    .fd-row>:first-child{grid-column:1/-1;}
+  }
 </style>
 </head>
 <body>
