@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your classes</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -213,7 +213,7 @@
       <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
         <div id="sum-term" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
           <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
-          <a href="students.html" style="font-size:.85rem;white-space:nowrap;color:var(--gold-2);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .95rem;">Open Students</a>
+          <a class="tap-mid" href="students.html" style="font-size:.85rem;white-space:nowrap;color:var(--gold-2);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .95rem;">Open Students</a>
         </div>
         <div id="sum-stu" style="display:none;"></div>
       </div>
@@ -260,8 +260,8 @@
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-11-20.1"></script>
-<script src="js/fingerprint.js?v=2026-11-20.1"></script>
+<script src="live.js?v=2026-11-20.2"></script>
+<script src="js/fingerprint.js?v=2026-11-20.2"></script>
 <script>
   (function(){
     function init(){
@@ -465,7 +465,7 @@
       const last=r.last?fmtDate(r.last):'';
       const href='writing-state.html?student='+encodeURIComponent(r.id);
       return '<tr class="flag-row" data-id="'+esc(r.id)+'" data-href="'+esc(href)+'" title="'+esc('Open '+r.name+'’s Writing State')+'">'+
-        '<td><div class="doc"><span class="ic">'+ICO+'</span><a class="nm-t nm-a" href="'+esc(href)+'">'+esc(r.name)+'</a></div></td>'+
+        '<td><div class="doc"><span class="ic">'+ICO+'</span><a class="nm-t nm-a tap-line" href="'+esc(href)+'">'+esc(r.name)+'</a></div></td>'+
         '<td class="crs">'+esc(r.courses.join(', '))+'</td>'+
         '<td>'+countedCell(r)+'</td>'+
         '<td style="color:var(--dim);">'+esc(bb==='ok'?(last||'None yet'):'-')+'</td>'+

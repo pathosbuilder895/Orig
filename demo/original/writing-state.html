@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -355,6 +355,12 @@
   .an-file:hover{color:var(--gold);}
   .an-file input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
   .an-file:focus-within{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:4px;}
+  /* Phones and touch screens: the file picker is a 44px target too, and "Change student" gets a
+     44px box centred on its words whose negative margins keep the heading row its own height. */
+  @media (max-width:760px),(pointer:coarse){
+    .an-file{display:inline-flex;align-items:center;min-height:44px;}
+    .an-change{display:inline-flex;align-items:center;margin-block:-13px;}
+  }
   .an-words{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--dim-2);}
   .an-btn{border:none;border-radius:999px;padding:.5rem 1.15rem;font-family:var(--body);font-size:.9rem;font-weight:600;cursor:pointer;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;transition:filter .15s;}
   .an-btn:hover{filter:brightness(1.07);}
@@ -408,7 +414,9 @@
   .ess-answer.ok{color:#9fd8b4;}.ess-answer.warn{color:#f0c56a;}.ess-answer.talk{color:#f2a08a;}.ess-answer.far{color:#f28b8b;}.ess-answer.inc{color:#8ba8dd;}
   .ess-sub{font-size:.92rem;font-style:italic;color:var(--dim);margin:-.2rem 0 .6rem;}
   .ess .plain-read{margin-top:.7rem;font-size:1rem;}
-  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
+  /* A habit's name inside the sentence reads as a link in running text, so it keeps the line's
+     height on a phone (min-height:0 undoes suite.css's 44px floor; WCAG 2.5.8's inline exception). */
+  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;min-height:0;}
   .plain-read .hab:hover,.plain-read .hab:focus-visible{text-decoration-style:solid;outline:none;}
   .ess-sure{margin-top:.7rem;font-size:.9rem;color:var(--dim);}
   .ess-sure b{color:var(--cream);font-weight:600;}
@@ -684,12 +692,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.1"></script>
-<script src="js/feature-data.js?v=2026-11-20.1"></script>
-<script src="js/fingerprint.js?v=2026-11-20.1"></script>
-<script src="js/evidence-view.js?v=2026-11-20.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.1"></script>
-<script src="js/paper-profile.js?v=2026-11-20.1"></script>
+<script src="live.js?v=2026-11-20.2"></script>
+<script src="js/feature-data.js?v=2026-11-20.2"></script>
+<script src="js/fingerprint.js?v=2026-11-20.2"></script>
+<script src="js/evidence-view.js?v=2026-11-20.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.2"></script>
+<script src="js/paper-profile.js?v=2026-11-20.2"></script>
 <script>
 (function(){
   'use strict';

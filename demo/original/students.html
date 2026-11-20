@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Students</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -88,6 +88,8 @@
   .search:focus-within{border-color:var(--line);}
   .search svg{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:1.8;}
   .search input{background:none;border:none;outline:none;color:var(--cream);font-family:var(--body);font-size:.88rem;width:150px;}
+  /* Phones and touch screens: the input inside is 44px tall (suite.css), so the pill loses its own padding. */
+  @media (max-width:760px),(pointer:coarse){.search{padding-block:0;}}
   .search input::placeholder{color:var(--dim-2);}
   /* table */
   .roster{border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;}
@@ -208,7 +210,7 @@
     <p class="foot" id="foot" style="display:none">Deviation appears here once Original keeps analysis results.</p>
   </main>
 </div>
-<script src="live.js?v=2026-11-20.1"></script>
+<script src="live.js?v=2026-11-20.2"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -271,7 +273,7 @@
     const chips=s.courses.map(c=>'<span class="ct">'+esc(c.code||c.name)+'</span>').join('');
     const id=encodeURIComponent(s.id);
     return '<div class="r-row">'+
-      '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><a class="s-nm r-main" href="'+esc('baseline.html?student='+id)+'" title="'+esc('Open '+s.name+'’s voice baseline')+'">'+esc(s.name)+'</a>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
+      '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><a class="s-nm r-main tap-row" href="'+esc('baseline.html?student='+id)+'" title="'+esc('Open '+s.name+'’s voice baseline')+'">'+esc(s.name)+'</a>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
       '<div class="courses">'+chips+'</div>'+
       '<div><span class="bpill '+p.cls+'"><span class="d"></span>'+p.label+'</span></div>'+
       '<div class="dev"><span class="dev-n none">'+DASH+'</span></div>'+
