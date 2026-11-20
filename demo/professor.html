@@ -1202,8 +1202,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             <div class="metric-card" id="mc1">
               <div class="metric-header">
                 <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
-                <span class="metric-title">Distance</span>
-                <span class="metric-sub">from usual writing (0 = same)</span>
+                <span class="metric-title">Distance from Usual Writing</span>
+                <span class="metric-sub">0 is the same as past papers; higher is further away</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline1"></div>
@@ -1611,7 +1611,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
     <!-- Deviation display (appears after scoring) -->
     <div class="panel-deviation" id="panelDeviation">
-      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Distance</div>
+      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Distance from Usual Writing</div>
       <div class="pd-row">
         <div class="pd-score" id="pdScore" style="color:var(--amber)">0.71</div>
         <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
@@ -1631,22 +1631,22 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
       <div class="trait-row">
         <span class="trait-label">Theological register</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb1" style="background:#2563EB;width:0%"></div></div>
-        <span class="trait-pct" id="ptv1">–</span>
+        <span class="trait-pct">84%</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Source integration</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb2" style="background:#D97706;width:0%"></div></div>
-        <span class="trait-pct" id="ptv2">–</span>
+        <span class="trait-pct">78%</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Epistemic certainty</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb3" style="background:#2563EB;width:0%"></div></div>
-        <span class="trait-pct" id="ptv3">–</span>
+        <span class="trait-pct">67%</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Sentence consistency</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#4A6B5C;width:0%"></div></div>
-        <span class="trait-pct" id="ptv4">–</span>
+        <span class="trait-pct">71%</span>
       </div>
     </div>
 
@@ -2235,10 +2235,6 @@ function updatePanelBars(bv) {
       bar.style.background = col;
       setTimeout(() => { bar.style.width = Math.round(bv[k] * 100) + '%'; }, 300);
     }
-    // The value beside the bar is this student's own, 0-1. The page used to
-    // carry fixed sample figures here that no code ever replaced.
-    const val = document.getElementById(id.replace('ptb', 'ptv'));
-    if (val) val.textContent = (bv[k] !== undefined && bv[k] !== null) ? Number(bv[k]).toFixed(2) : '–';
   });
 }
 
