@@ -68,6 +68,8 @@ from .constants import (
     TRANSITION_PHRASES,
 )
 from .evidence_features import feature_info
+from .features import feature_flags as _ff
+from .features import lexicon_v2 as _lex2
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
 from .features.baseline_scope import NOT_COMPARED_WORDS
@@ -372,12 +374,15 @@ class EngineView:
     doc: TextDoc
 
 
-@lru_cache(maxsize=16)
+@_ff.text_cache(maxsize=16)
 def engine_view(text: str) -> EngineView | None:
     """Rebuild the engine's measured strings with offsets, or None if the
     rebuild does not match the engine byte for byte (fail closed)."""
-    body_end = len(_pp._strip_backmatter(text))
-    m = Mapped(text[:body_end], tuple(range(body_end)))
+    segments = _pp.body_segments(text)  # the same ranges preprocess measures
+    m = Mapped(
+        "".join(text[a:b] for a, b in segments),
+        tuple(i for a, b in segments for i in range(a, b)),
+    )
     if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
         m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 
@@ -486,8 +491,13 @@ def _lower(view: EngineView) -> str | None:
     return lower if len(lower) == len(view.clean.text) else None
 
 
-def _phrases(vocabulary):
+def _phrases(vocabulary, v2: Callable[[TextDoc], list[tuple[int, int]]] | None = None):
+    """Spans of the old phrase count, or, under FEATURE_SET=2, of the
+    ``features.lexicon_v2`` rule ``v2`` (which counts on ``TextDoc.clean``)."""
+
     def locate(view: EngineView):
+        if v2 is not None and _ff.lexicon_v2():
+            return "clean", v2(view.doc)
         lower = _lower(view)
         return ("clean", _phrase_spans(lower, vocabulary)) if lower is not None else ("clean", None)
 
@@ -496,6 +506,8 @@ def _phrases(vocabulary):
 
 def _markers(category):
     def locate(view: EngineView):
+        if _ff.lexicon_v2():
+            return "clean", _lex2.first_marker_spans(view.clean.text, category)
         lower = _lower(view)
         return (
             ("clean", _first_marker_spans(lower, category))
@@ -506,8 +518,13 @@ def _markers(category):
     return locate
 
 
-def _tokens(vocabulary):
-    return lambda view: ("clean", _token_spans(view.clean.text, vocabulary))
+def _tokens(vocabulary, v2: Callable[[TextDoc], list[tuple[int, int]]] | None = None):
+    def locate(view: EngineView):
+        if v2 is not None and _ff.lexicon_v2():
+            return "clean", v2(view.doc)
+        return "clean", _token_spans(view.clean.text, vocabulary)
+
+    return locate
 
 
 def _chars(*needles):
@@ -617,7 +634,7 @@ LOCATABLE: dict[str, Locatable] = {
             "modal_verb_ratio",
             "modal verb (can, could, should, must, …)",
             "share of words",
-            _tokens(MODAL_VERBS),
+            _tokens(MODAL_VERBS, _lex2.modal_spans),
             _per_word,
             tier1.modal_verb_ratio,
         ),
@@ -665,7 +682,7 @@ LOCATABLE: dict[str, Locatable] = {
             "transition_density",
             "transition word or phrase",
             "per 100 words",
-            _phrases(TRANSITION_PHRASES),
+            _phrases(TRANSITION_PHRASES, _lex2.transition_spans),
             _per100,
             tier2.transition_density,
         ),
@@ -673,7 +690,7 @@ LOCATABLE: dict[str, Locatable] = {
             "hedging_density",
             "softening word (perhaps, might, seems, …)",
             "per 100 words",
-            _phrases(HEDGE_WORDS),
+            _phrases(HEDGE_WORDS, _lex2.hedge_spans),
             _per100,
             tier3.hedging_density,
         ),
@@ -681,7 +698,7 @@ LOCATABLE: dict[str, Locatable] = {
             "assertion_density",
             "confident-statement word (clearly, certainly, must, …)",
             "per 100 words",
-            _phrases(ASSERTION_WORDS),
+            _phrases(ASSERTION_WORDS, _lex2.assertion_spans),
             _per100,
             tier3.assertion_density,
         ),
@@ -873,7 +890,7 @@ def read_paper(text: str, code: str) -> PaperReading | None:
     return PaperReading(value, tuple(places))
 
 
-@lru_cache(maxsize=64)
+@_ff.text_cache(maxsize=64)
 def _kept_cached(text: str) -> bytes:
     view = engine_view(text)
     kept = bytearray(len(text))
@@ -1383,7 +1400,7 @@ KIND_WORDS = {
 }
 
 
-@lru_cache(maxsize=32)
+@_ff.text_cache(maxsize=32)
 def _paper_values(text: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """(raw, 0–1) values for every code in ``ALL_FEATURE_CODES``, one paper.
 
@@ -1401,7 +1418,7 @@ def _paper_values(text: str) -> tuple[tuple[float, ...], tuple[float, ...]]:
     return raw_row, norm_row
 
 
-@lru_cache(maxsize=64)
+@_ff.text_cache(maxsize=64)
 def _light_raw(text: str) -> dict[str, float]:
     """Raw values for the habits the pages show in plain units, and no others.
 
@@ -1413,7 +1430,9 @@ def _light_raw(text: str) -> dict[str, float]:
     run: they hold the catastrophe index's per-paragraph full-pipeline parse
     and sentence embeddings, and none of their values is shown in plain units.
     Cached by text, so analysing several papers for one student reads each
-    past paper once per process.
+    past paper once per process. (Under FEATURE_SET=2 the reworked hedging and
+    modal counts read word classes from the shared spaCy pipeline, so this
+    then parses the paper once with it; never under the default.)
     """
     from .features.tier7 import extract_tier7
     from .features.tier16 import extract_tier16

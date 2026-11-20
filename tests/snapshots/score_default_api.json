@@ -416,6 +416,14 @@
     },
     "total_probability": 0.8915057781
   },
+  "length_match_action_preview": null,
+  "length_match_applied": false,
+  "length_match_deviation_preview": null,
+  "length_match_mode": null,
+  "length_match_pieces": null,
+  "opportunity_deviation_preview": null,
+  "opportunity_mask_applied": false,
+  "opportunity_mode": null,
   "preliminary": null,
   "recommendation": {
     "action": "monitor",
@@ -464,5 +472,6 @@
   "typicality_n": 0,
   "typicality_p_central": null,
   "typicality_p_far": null,
-  "typicality_source": null
+  "typicality_source": null,
+  "unmeasured_features": null
 }

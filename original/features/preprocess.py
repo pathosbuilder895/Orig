@@ -33,6 +33,9 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
+from . import feature_flags as _ff
+from .matter import kept_ranges as _matter_kept_ranges
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
 # ══════════════════════════════════════════════════════════════════════════════
@@ -63,6 +66,22 @@ def _strip_backmatter(text: str) -> str:
     if m:
         text = text[: m.start()].rstrip()
     return text
+
+
+def body_segments(text: str) -> list[tuple[int, int]]:
+    """Ranges of ``text`` that make up the body, in order.
+
+    Default: one range, everything before the first back-matter heading
+    (``_strip_backmatter``), exactly as before. With MATTER_SPLITTER_ENABLED on:
+    the text outside ``features.matter.find_matter``'s front and back matter.
+    ``evidence.engine_view`` maps quotes through the same ranges."""
+    if not _ff.matter_splitter_enabled():
+        return [(0, len(_strip_backmatter(text)))]
+    return _matter_kept_ranges(text)
+
+
+def _body(text: str) -> str:
+    return "".join(text[a:b] for a, b in body_segments(text))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -302,8 +321,8 @@ def preprocess(text: str) -> tuple[str, CitationData]:
     citation_data : CitationData
         Structured citation usage data for Tier 16.
     """
-    # ── 1. Strip back-matter ──────────────────────────────────────────────────
-    body = _strip_backmatter(text)
+    # ── 1. Strip back-matter (and, if switched on, front matter) ──────────────
+    body = _body(text)
 
     # ── 2. Extract citation fingerprint data ──────────────────────────────────
     citation_data = _extract_citation_data(body)
