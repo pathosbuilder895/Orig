@@ -5,46 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
 <link rel="stylesheet" href="../assets/type.css" />
-<script src="../assets/display-prefs.js" data-float></script>
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.5" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.5" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.6" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.6" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.6" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.68); --dim-2:rgba(245,239,224,0.56);
-    --flag:#e0725a; --warn:#d8b04a; --ok:#6bbf8a;
-    --display:var(--bb-font-display); --body:var(--bb-font-body);
-    --mono:var(--bb-font-label);
-  }
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
   .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .pill:hover{color:var(--cream);}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
-  .nav-right .avatar{cursor:pointer;}
-  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
   .grid{flex:1;display:grid;grid-template-columns:360px 1fr;gap:0;min-height:0;}
   .left{padding:0.4rem 1.3rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-height:0;}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
@@ -52,9 +23,7 @@
   .greet-id{font-family:var(--mono);font-size:.58rem;letter-spacing:.05em;color:var(--dim-2);opacity:.75;margin-top:.35rem;overflow-wrap:anywhere;}
   .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;line-height:1.55;overflow-wrap:anywhere;}
   .side-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
-  .side-link{display:inline-block;font-size:.9rem;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;transition:all .15s;}
-  .side-link:hover{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);color:var(--cream);}
-  .side-link:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .side-link{font-size:.9rem;padding:.4rem .95rem;}
   .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
   /* kept: 3-metric card */
   .stat3{padding:.4rem .3rem;}
@@ -198,11 +167,7 @@
   .st.in{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
   .st.wait{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.25);}
   .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
-  .btn{font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.5rem 1.1rem;cursor:pointer;font-weight:600;white-space:nowrap;}
-  .btn.ghost{background:rgba(255,255,255,0.04);color:var(--cream);border:1px solid var(--line);font-weight:400;}
-  .btn.ghost:hover:not(:disabled){border-color:rgba(201,160,40,0.5);}
-  .btn:disabled{opacity:.45;cursor:not-allowed;}
-  .btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .btn{font-size:.9rem;padding:.5rem 1.1rem;}
   .rule-note{font-size:.84rem;color:var(--dim);line-height:1.5;margin-bottom:1rem;}
   .seg{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1.1rem;}
   .seg button{font-family:var(--body);font-size:.85rem;color:var(--dim);background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;cursor:pointer;transition:all .15s;}
@@ -264,7 +229,6 @@
     .grid{grid-template-columns:1fr;}
     .left{overflow:visible;}
     .right{min-height:520px;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
     .tier>summary,.tf{grid-template-columns:1fr;gap:.5rem;}
     .tier>summary .chev{display:none;}
     .ex{flex-direction:column;}.ex-side{align-items:flex-start;}.ex-btns{justify-content:flex-start;}
@@ -275,25 +239,8 @@
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill on" href="students.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="baseline" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-20.6"></script>
   <main class="grid" id="live-main">
     <aside class="left">
       <div>
@@ -302,9 +249,9 @@
         <div class="greet-meta" id="meta"></div>
         <div class="greet-id" id="greet-id" hidden></div>
         <div class="side-links">
-          <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
-          <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
-          <a class="side-link" id="all-link" href="baseline.html" hidden>All students</a>
+          <a class="side-link btn-ghost" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
+          <a class="side-link btn-ghost" id="add-link" href="#add-writing" hidden>Add writing</a>
+          <a class="side-link btn-ghost" id="all-link" href="baseline.html" hidden>All students</a>
         </div>
       </div>
 
@@ -452,7 +399,7 @@
                     <div class="fld"><label for="paste-assign">Assignment name (optional)</label><input id="paste-assign" type="text" maxlength="200" autocomplete="off" /></div>
                     <div class="fld"><label for="paste-date">Date it was written</label><input id="paste-date" type="date" /><div class="hint">Recorded with the paper. It does not change how the paper is weighted.</div></div>
                   </div>
-                  <button class="btn" id="paste-go" type="button">Add to baseline</button>
+                  <button class="btn btn-gold" id="paste-go" type="button">Add to baseline</button>
                 </div>
 
                 <div id="tab-files" hidden>
@@ -466,7 +413,7 @@
                     <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
                     <div class="fld"><label for="files-date">Date they were written</label><input id="files-date" type="date" /><div class="hint">Recorded with each paper and shown wherever it is quoted. It does not change how a paper is weighted.</div></div>
                   </div>
-                  <button class="btn" id="files-go" type="button" disabled>Import</button>
+                  <button class="btn btn-gold" id="files-go" type="button" disabled>Import</button>
                 </div>
 
                 <div class="save-note" id="save-note-add" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
@@ -479,9 +426,9 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-20.5"></script>
-<script src="js/feature-data.js?v=2026-11-20.5"></script>
-<script src="live.js?v=2026-11-20.5"></script>
+<script src="js/fingerprint.js?v=2026-11-20.6"></script>
+<script src="js/feature-data.js?v=2026-11-20.6"></script>
+<script src="live.js?v=2026-11-20.6"></script>
 <script>
 (function(){
   'use strict';
@@ -513,26 +460,6 @@
   };
   const nm=()=>S.rosterName||S.sealedName||ID;
   let queue=[];          // files waiting to be uploaded
-
-  // ── account menu (same as every page in the suite) ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-  function initials(name){
-    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
-  function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
-  }
 
   // ── small helpers ──
   function parseDate(s){
@@ -896,7 +823,7 @@
     }
     const d=rec.data, p=provOf(d.provenance);
     const meta=[p.word, fmtDate(d.submitted_at), (num(d.word_count)!==null?plural(d.word_count,'word'):'')].filter(Boolean).join(' · ');
-    cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost" data-close="1">Close</button></div><div class="pb"></div>';
+    cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost btn-ghost" data-close="1">Close</button></div><div class="pb"></div>';
     cur.querySelector('.pb').textContent=typeof d.text==='string'&&d.text?d.text:'(empty)';
   }
   function closePreview(){
@@ -964,14 +891,14 @@
       if(why.length) look='<div class="ex-look">Before approving, note: '+esc(why.join(', '))+'.</div>';
       let st, btns='';
       if(m.has_text===false){ st='<span class="st off"><span class="d"></span>Nothing written</span>'; }
-      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }
+      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost btn-ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }
       else if(m.held){ st='<span class="st off"><span class="d"></span>Held back</span>'; }
-      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
-      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
+      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn btn-gold" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
+      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn btn-gold" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
       let ask='';
       if(m.confirm){
         ask='<div class="ex-ask">Take this exam out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
-          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
+          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn btn-gold" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost btn-ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
       }
       return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled exam')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
         (m.msg?'<div class="ex-msg'+(m.kind?' '+m.kind:'')+'" role="status">'+esc(m.msg)+'</div>':'')+'</div>'+
@@ -1331,12 +1258,12 @@
   function sharedReadPanel(r){
     const rec=SH.read.get(r.paper_id);
     if(!rec||rec.state==='loading') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">Loading</div></div>';
-    if(rec.state!=='ok') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">'+esc(rec.status===404?'This paper is no longer available. Reload the page.':'This paper could not be loaded just now.')+'</div><div class="sh-acts"><button type="button" class="btn ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div></div>';
+    if(rec.state!=='ok') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">'+esc(rec.status===404?'This paper is no longer available. Reload the page.':'This paper could not be loaded just now.')+'</div><div class="sh-acts"><button type="button" class="btn ghost btn-ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div></div>';
     const who=r.student||'this student';
     return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="pb" tabindex="0" aria-label="Text of '+esc(r.title||'the paper')+'"></div>'+
-      '<div class="sh-acts"><button type="button" class="btn ghost" data-sact="copy" data-id="'+esc(r.paper_id)+'">'+(SH.copied===r.paper_id?'Copied':'Copy text')+'</button>'+
+      '<div class="sh-acts"><button type="button" class="btn ghost btn-ghost" data-sact="copy" data-id="'+esc(r.paper_id)+'">'+(SH.copied===r.paper_id?'Copied':'Copy text')+'</button>'+
       '<a href="writing-state.html?student='+enc(r.student_id)+'">Open Writing State for '+esc(who)+'</a>'+
-      '<button type="button" class="btn ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div>'+
+      '<button type="button" class="btn ghost btn-ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div>'+
       '<div class="sh-note">Reading a paper does not add it to the baseline or change its status.</div></div>';
   }
   function renderShared(){
@@ -1353,12 +1280,12 @@
       const st='<span class="st '+(r.status==='approved'?'in':r.status==='pending'?'wait':'off')+'"><span class="d"></span>'+esc(SHARED_STATUS[r.status]||r.status)+'</span>';
       const open=SH.open===r.paper_id;
       const saving=SH.busy===r.paper_id;
-      const read='<button type="button" class="btn ghost" data-sact="read" data-id="'+esc(r.paper_id)+'" aria-expanded="'+(open?'true':'false')+'">'+(open?'Hide paper':'Read this paper')+'</button>';
+      const read='<button type="button" class="btn ghost btn-ghost" data-sact="read" data-id="'+esc(r.paper_id)+'" aria-expanded="'+(open?'true':'false')+'">'+(open?'Hide paper':'Read this paper')+'</button>';
       let acts='';
-      if(r.status==='pending') acts='<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Approve')+'</button>';
-      if(r.status==='pending'||r.status==='held') acts+='<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button>';
+      if(r.status==='pending') acts='<button type="button" class="btn btn-gold" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Approve')+'</button>';
+      if(r.status==='pending'||r.status==='held') acts+='<button type="button" class="btn ghost btn-ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button>';
       const inBaseline=r.status==='approved';
-      if(inBaseline) acts='<button type="button" class="btn ghost" data-sact="unapprove" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Undo approval')+'</button>';
+      if(inBaseline) acts='<button type="button" class="btn ghost btn-ghost" data-sact="unapprove" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Undo approval')+'</button>';
       const btns='<div class="ex-btns">'+read+acts+'</div>';
       const m=SH.msg[r.paper_id];
       return '<div class="ex sh" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
@@ -1437,7 +1364,6 @@
   }
 
   // ── go ──
-  Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
     if(!sess) return;
     startFingerprint();

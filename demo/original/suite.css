@@ -6,15 +6,23 @@
    .live-empty     an honest empty state inside a card (Live.empty)
    .live-panel     the sign-in and "Original is off" panels (Live.gate)
 
-   The colour variables come from each page's own :root and fall back to
-   the navy suite palette. */
+   The colour variables come from ../assets/tokens.css (and a page's own
+   :root on top) and fall back to the navy suite palette. */
+
+/* Text size. ../assets/type.css sets the root size from the reader's Text
+   setting (display-prefs.js) on an 18px base, the reading size of
+   Collections' writing screens. These pages are dense staff dashboards laid
+   out in rem on a 16px base, so the suite keeps 16px as its default and
+   scales it by the same setting: Small to Largest still apply on every page,
+   and a reader's own browser text size still counts. */
+html { font-size: calc(100% * var(--bb-text-scale, 1)); }
 
 .live-testing {
   display: block; margin-top: .8rem; max-width: 62ch;
   padding: .6rem .85rem;
   border: 1px solid rgba(201,160,40,0.3); border-radius: 10px;
   background: rgba(201,160,40,0.08);
-  font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
+  font: italic .86rem/1.45 var(--body, 'Source Serif 4', Georgia, serif);
   color: rgba(245,239,224,0.84);
   pointer-events: auto;
 }
@@ -22,7 +30,7 @@
    the notice must read the same everywhere. */
 .live-testing.live-testing b {
   display: inline; margin: 0;
-  font-family: 'EB Garamond', Georgia, serif; font-size: 1em; font-style: normal; font-weight: 600;
+  font-family: var(--body, 'Source Serif 4', Georgia, serif); font-size: 1em; font-style: normal; font-weight: 600;
   color: #e0be55;
 }
 
@@ -64,7 +72,7 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
 
 .live-empty {
   margin: auto 0;
-  font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
+  font: italic .88rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
   color: var(--dim, rgba(245,239,224,0.68));
 }
 
@@ -85,14 +93,14 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
 }
 .live-panel p {
   margin-top: .7rem;
-  font: italic 1rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
+  font: italic 1rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
   color: var(--dim, rgba(245,239,224,0.68));
 }
 .live-panel a {
   display: inline-block; margin-top: 1.2rem;
   padding: .5rem 1.15rem;
   border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 999px;
-  font: 1rem var(--body, 'EB Garamond', Georgia, serif);
+  font: 1rem var(--body, 'Source Serif 4', Georgia, serif);
   color: var(--gold-2, #e0be55); text-decoration: none;
   transition: all .15s;
 }

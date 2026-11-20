@@ -4,20 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.5" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.5" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.6" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.6" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.6" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.68); --dim-2:rgba(245,239,224,0.56);
-    --flag:#e0725a; --ok:#6bbf8a; --t1:#4d90c8; --t2:#9a7ad0; --t3:#5aab7a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
+  /* This page's own colours, on top of ../assets/tokens.css. */
+  :root{--t1:#4d90c8;--t2:#9a7ad0;--t3:#5aab7a;}
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);
     background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
@@ -27,21 +23,10 @@
     border:1px solid var(--line);border-radius:26px;overflow:hidden;
     box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
     display:flex;flex-direction:column;}
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.4rem;margin-left:1rem;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .pill:hover{color:var(--cream);}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
   .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
   .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
 
   .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
-  nav{position:relative;z-index:1;}
   .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.12) hue-rotate(184deg);opacity:1;}
   .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
   .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
@@ -143,8 +128,6 @@
   .evi-flag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;color:#e05252;border:1px solid rgba(224,82,82,.4);background:rgba(224,82,82,.1);border-radius:4px;padding:.12rem .4rem;}
   .evi-nums{margin-left:auto;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--dim);}
   .evi-nums b{font-family:var(--mono);font-size:.66rem;color:var(--evc,#c9a028);}
-  .evi-close{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;}
-  .evi-close:hover{color:var(--cream);border-color:var(--line);}
   .evi-desc{width:100%;font-size:.9rem;font-style:italic;color:var(--dim);margin-top:-.3rem;}
   .evi-tabs{display:flex;gap:.4rem;align-items:center;}
   .evi-tabs .tl{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-right:.3rem;}
@@ -311,29 +294,16 @@
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;overflow:visible;}
-    .grid{grid-template-columns:1fr;}
+    /* minmax(0,…): at the largest text sizes a long button label wraps instead of
+       widening the column past the screen. */
+    .grid{grid-template-columns:minmax(0,1fr);}
+    .tri-btn{white-space:normal;text-align:center;}
     /* One page that scrolls, not two hidden inner panes (the card drew over the form). */
     .left,.right,.right-scroll{overflow:visible;}
     .right{min-height:0;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
   }
   /* ── live suite additions (writing-state.html) ── */
   [hidden]{display:none !important;}
-  nav{z-index:2;}
-  .pills{min-width:0;overflow-x:auto;}
-  a.pill{text-decoration:none;}
-  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
-  .nav-right{flex-shrink:0;position:relative;}
-  .nav-right .avatar{cursor:pointer;}
-  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
   .grid.gated{display:grid;}
   /* Analyse a paper (card style of the left rail) */
   .an-card{padding:1.1rem 1.2rem 1.2rem;}
@@ -360,10 +330,7 @@
     .an-change{display:inline-flex;align-items:center;margin-block:-13px;}
   }
   .an-words{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--dim-2);}
-  .an-btn{border:none;border-radius:999px;padding:.5rem 1.15rem;font-family:var(--body);font-size:.9rem;font-weight:600;cursor:pointer;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;transition:filter .15s;}
-  .an-btn:hover{filter:brightness(1.07);}
-  .an-btn:disabled{opacity:.55;cursor:default;filter:none;}
-  .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
   .an-msg.err{color:#f0a690;}
   .an-from{margin:.1rem 0 .55rem;font-size:.82rem;font-style:italic;color:var(--gold-2);}
@@ -374,8 +341,6 @@
   .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
   .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .an-done .d .an-restored{display:block;font-style:italic;font-size:.78rem;color:var(--dim);margin-top:.15rem;}
-  .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
-  .an-again:hover{color:var(--cream);border-color:var(--line);}
   /* Purity, inside a details block with its caveat */
   .fpq-readout details.rw{opacity:1;pointer-events:auto;}
   .fpq-readout summary{list-style:none;cursor:pointer;opacity:.78;}
@@ -477,25 +442,8 @@
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-20.6"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -525,13 +473,13 @@
             <span class="an-words" id="an-words"></span>
           </div>
           <div class="an-row">
-            <button class="an-btn" id="an-go" type="submit">Analyse</button>
+            <button class="an-btn btn-gold" id="an-go" type="submit">Analyse</button>
             <span class="an-msg" id="an-msg" role="status"></span>
           </div>
         </form>
         <div class="an-done" id="an-done" hidden>
           <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span><span class="an-restored" id="an-restored" hidden>Showing your last analysis of this paper.</span></div>
-          <button class="an-again" id="an-again" type="button">Analyse another</button>
+          <button class="an-again btn-chip" id="an-again" type="button">Analyse another</button>
         </div>
       </div>
 
@@ -564,7 +512,7 @@
           <div class="evi-head">
             <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
             <span class="evi-nums" id="evi-nums"></span>
-            <button class="evi-close" id="evi-close" type="button">✕ Close</button>
+            <button class="evi-close btn-chip" id="evi-close" type="button">✕ Close</button>
           </div>
           <div class="evi-desc" id="evi-desc"></div>
           <div class="evi-one" id="evi-one" hidden></div>
@@ -694,12 +642,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.5"></script>
-<script src="js/feature-data.js?v=2026-11-20.5"></script>
-<script src="js/fingerprint.js?v=2026-11-20.5"></script>
-<script src="js/evidence-view.js?v=2026-11-20.5"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.5"></script>
-<script src="js/paper-profile.js?v=2026-11-20.5"></script>
+<script src="live.js?v=2026-11-20.6"></script>
+<script src="js/feature-data.js?v=2026-11-20.6"></script>
+<script src="js/fingerprint.js?v=2026-11-20.6"></script>
+<script src="js/evidence-view.js?v=2026-11-20.6"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.6"></script>
+<script src="js/paper-profile.js?v=2026-11-20.6"></script>
 <script>
 (function(){
   'use strict';
@@ -808,26 +756,6 @@
     const c=contrib(f);
     if(c&&num(c.submission_value)!=null) return c.submission_value;
     return has(S.sub,f.code)?num(S.sub[f.code]):null;
-  }
-
-  // ── account menu ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-  function initials(name){
-    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
-  function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
   }
 
   // ── shared cross-highlight state ──
@@ -2189,7 +2117,6 @@
   }
 
   // ── go ──
-  Live.session().then(renderChrome);
   const main=document.querySelector('main');
   Live.gate(main).then(sess=>{
     if(!sess){ main.classList.add('gated'); return; }
