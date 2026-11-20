@@ -34,6 +34,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from . import feature_flags as _ff
+from . import part_overrides as _po
 from . import pdf_reflow as _reflow
 from .matter import is_pdf_text, without_page_breaks
 from .matter import kept_ranges as _matter_kept_ranges
@@ -76,10 +77,12 @@ def body_segments(text: str) -> list[tuple[int, int]]:
     Default: one range, everything before the first back-matter heading
     (``_strip_backmatter``), exactly as before. With MATTER_SPLITTER_ENABLED on:
     the text outside ``features.matter.find_matter``'s front and back matter.
-    ``evidence.engine_view`` maps quotes through the same ranges."""
+    ``evidence.engine_view`` maps quotes through the same ranges. A teacher's
+    own choice for this text (``features.part_overrides``), when one is in
+    force, wins over the rules; with none the ranges are returned untouched."""
     if not _ff.matter_splitter_enabled():
-        return [(0, len(_strip_backmatter(text)))]
-    return _matter_kept_ranges(text)
+        return _po.apply(text, [(0, len(_strip_backmatter(text)))])
+    return _po.apply(text, _matter_kept_ranges(text))
 
 
 def reflows(text: str) -> bool:
