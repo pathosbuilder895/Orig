@@ -32,6 +32,7 @@ import numpy as np
 
 from ..constants import FEATURE_DIM, RECENCY_DECAY
 from ..features import feature_flags as _ff
+from ..features import part_overrides as _part_overrides
 from ..features import preprocess as _pp
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
 from ..features.matter import without_page_breaks
@@ -130,8 +131,11 @@ def _body(text: str) -> str:
     force): the text outside ``features.matter``'s set-aside parts (title
     page, abstract, notes, list of sources), the same ranges
     ``features.preprocess`` measures, so the length match and the reading set
-    the same parts aside."""
-    if _ff.matter_splitter_enabled():
+    the same parts aside. A teacher's choice of parts in force for this text
+    (``features.part_overrides``, put in force by the score route for the
+    paper and for each past paper) is honoured the same way, with the switch
+    on or off, because ``preprocess`` applies it; with none, nothing changes."""
+    if _ff.matter_splitter_enabled() or _part_overrides.for_text(text) is not None:
         return _pp._body(text)
     # An upload's page markers dropped, so the pieces are the base pieces.
     return without_page_breaks(_strip_backmatter(text))

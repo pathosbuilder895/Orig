@@ -227,6 +227,36 @@ def test_a_choice_composes_with_a_pdfs_reflow_and_page_markers(monkeypatch):
     assert view is not None and view.prose.text == prose
 
 
+def test_the_pdf_tag_is_in_the_offsets_but_never_a_part_or_a_word(monkeypatch):
+    """A PDF's stored text ends with the PDF tag: ranges may reach it (they are
+    offsets into the stored text), it counts toward no word total, and it is
+    never listed as a part or shown as a first line."""
+    from original.features.matter import PAGE_MARK, PDF_TAG
+    from original.paper_profile import paper_parts
+    from original.upload_utils import extract_text_from_bytes
+
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    text = extract_text_from_bytes((SAMPLES / "apa_student.pdf").read_bytes(), "paper.pdf")
+    assert text.endswith(PDF_TAG)
+    tail = len(text) - len(PDF_TAG)
+    # A range over the tag alone, or ending on it, fits the text.
+    assert po.validate(text, [[tail, len(text)]], None) is not None
+    parts = paper_parts(text)
+    back = next(p for p in parts if p["kind"] == "back_matter")
+    assert po.validate(text, None, back["ranges"]) is not None
+    for p in parts:
+        assert p["words"] == sum(
+            len(text[a:b].replace(PAGE_MARK, " ").split()) for a, b in p["ranges"]
+        )
+        assert p["first_line"] and PAGE_MARK not in p["first_line"]
+        assert any(text[a:b].split() for a, b in p["ranges"])
+    # Setting the tag aside changes nothing measured and lists nothing new.
+    before = pre.preprocess(text)[0]
+    with po.applying({text: po.validate(text, [[tail, len(text)]], None)}):
+        assert [p["kind"] for p in paper_parts(text)] == [p["kind"] for p in parts]
+        assert pre.preprocess(text)[0] == before
+
+
 # ── storage ──────────────────────────────────────────────────────────────────
 
 

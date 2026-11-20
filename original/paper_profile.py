@@ -231,6 +231,8 @@ def _apply_choice(text: str, out: list[dict[str, Any]], found, choice) -> None:
         )
         part["by"] = "teacher" if changed else "rules"
     for a, b in choice.exclude:
+        if not text[a:b].split():  # only whitespace or page markers: nothing to show
+            continue
         if not any(_span([(a, b)], p["ranges"]) for p in out):
             extra = _part(text, "chosen", [(a, b)], "measured", False)
             extra["status"], extra["by"] = "set_aside", "teacher"
