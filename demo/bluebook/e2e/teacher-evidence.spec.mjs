@@ -345,6 +345,8 @@ test.describe('side by side, flags on @evidence-on', () => {
     const page = await context.newPage()
     const body = await analyse(page, student.student_id)
     expect(body.evidence, 'this run needs a server started with EVIDENCE_PASSAGES_ENABLED=1').toBeTruthy()
+    // The heatmap lives in the closed "Look closer" fold since the essentials redesign.
+    await openLookCloser(page)
     // Scrolled all the way up: where the hero's title sits against the scroll area and the testing notice.
     const atTop = () => page.evaluate(() => {
       const rs = document.getElementById('right-scroll')
