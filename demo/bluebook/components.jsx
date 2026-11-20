@@ -8,6 +8,25 @@ import { clearCollectionsTab } from './deep-link.jsx';
 
 // Keydown handler for div-as-button rows: Enter/Space activates like a
 // click (WS-4). Shared across every screen that renders a click-only row.
+// The old Oxford palette. No live screen uses it since the navy design; only the
+// dead Sidebar and ExamsScreen in Dashboard.jsx and the unrendered Courses.jsx and
+// Students.jsx still import it. Kept until the owner decides whether to delete them.
+export const BB = {
+  oxford:      '#002147',
+  deep:        '#001020',
+  oxfordLight: '#0A2D5E',
+  gold:        '#C9A961',
+  goldDark:    '#B8860B',
+  parchment:   '#F4EFE6',
+  parchmentDk: '#EDE5D8',
+  ink:         '#1A1A1A',
+  inkMid:      '#2C2C2C',
+  indigo:      '#3B4A6B',
+  fade:        '#8B9BB4',
+  cream:       '#F0EDE4',
+  fadedCream:  '#B8B4AC',
+};
+
 export function rowKeyDown(fn) {
   return (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
