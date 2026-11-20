@@ -53,9 +53,7 @@
 }
 
 /* ── Navigation ── */
-/* The top bar is the shared one (AppBar.jsx, ../assets/tokens.css .shell). What this app adds:
-   a dark wash behind the bar, so the switch and pills read over a bright photograph. */
-.teacher-frame .shell{background:linear-gradient(180deg,rgba(7,12,28,.82),rgba(7,12,28,.55))}
+/* The top bar is the shared one (AppBar.jsx, ../assets/tokens.css .shell), dark wash included. */
 /* On a phone the strip scrolls inside itself. TeacherFrame adds .fade-end while there are more
    pills past the right edge and .fade-start while there are more past the left, so the edge with
    more pills fades out. It draws only where the strip overflows. */
