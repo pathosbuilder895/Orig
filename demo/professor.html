@@ -1158,7 +1158,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </div>
           </div>
           <div class="input-notice">
-            Original compares this submission against the student's <strong>authenticated voice baseline</strong> across 103 stylometric features — verifying not just that it isn't AI, but that it <em>is</em> theirs.
+            Original compares this submission with the student's <strong>approved past papers</strong> and shows where their usual habits differ. It does not decide who wrote it.
           </div>
           <textarea class="submission-textarea" id="subText" rows="6"
             placeholder="Paste the student's submitted text here…"
@@ -1202,12 +1202,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             <div class="metric-card" id="mc1">
               <div class="metric-header">
                 <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
-                <span class="metric-title">Voice Match</span>
-                <span class="metric-sub">confirmed voice consistency</span>
+                <span class="metric-title">Distance from Usual Writing</span>
+                <span class="metric-sub">0 is the same as past papers; higher is further away</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline1"></div>
-                <div class="metric-value" id="mcVal1" style="color:var(--amber)">71%</div>
+                <div class="metric-value" id="mcVal1" style="color:var(--amber)">0.29</div>
               </div>
               <div class="metric-gloss" id="mcGloss1"></div>
             </div>
@@ -1219,7 +1219,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline2"></div>
-                <div class="metric-value" id="mcVal2" style="color:var(--red)">31%</div>
+                <div class="metric-value" id="mcVal2" style="color:var(--red)">0.31</div>
               </div>
               <div class="metric-gloss" id="mcGloss2"></div>
             </div>
@@ -1231,7 +1231,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline3"></div>
-                <div class="metric-value" id="mcVal3" style="color:var(--flag-green)">42%</div>
+                <div class="metric-value" id="mcVal3" style="color:var(--flag-green)">0.42</div>
               </div>
               <div class="metric-gloss" id="mcGloss3"></div>
             </div>
@@ -1268,7 +1268,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                    the corrections endpoint: that endpoint writes calibration
                    ground truth and must stay a considered act ("Correct
                    verdict" below). -->
-              <button class="action-btn" onclick="recordProfessorAction('no_action')">Voice Confirmed</button>
+              <button class="action-btn" onclick="recordProfessorAction('no_action')">Nothing to follow up</button>
               <button class="action-btn warn" onclick="recordProfessorAction('schedule_conversation')">Schedule a Conversation</button>
               <button class="action-btn danger" onclick="recordProfessorAction('escalate')">Needs Review</button>
               <button class="action-btn" id="correctBtn" style="margin-left:auto;background:var(--cream-warm)" onclick="openCorrectionForm()">Correct this reading</button>
@@ -1382,7 +1382,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                   <label style="display:block;font-size:0.75rem;font-weight:500;margin-bottom:6px" for="cVerdict">Corrected reading</label>
                   <select id="cVerdict" style="width:100%;padding:8px 12px;border:1px solid var(--cream-border);border-radius:6px;font-size:0.9rem">
                     <option value="">—</option>
-                    <option value="authentic">authentic</option>
+                    <option value="authentic">consistent with past papers</option>
                     <option value="uncertain">uncertain</option>
                     <option value="anomalous">anomalous</option>
                   </select>
@@ -1611,9 +1611,9 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
     <!-- Deviation display (appears after scoring) -->
     <div class="panel-deviation" id="panelDeviation">
-      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Voice Match</div>
+      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Distance from Usual Writing</div>
       <div class="pd-row">
-        <div class="pd-score" id="pdScore" style="color:var(--amber)">29%</div>
+        <div class="pd-score" id="pdScore" style="color:var(--amber)">0.71</div>
         <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
       </div>
     </div>
@@ -1814,7 +1814,7 @@ function loadRoster() {
 }
 let STUDENTS = loadRoster();
 
-/* ── Authenticated roster (ADR-003): when a principal token is present, the
+/* ── Signed-in roster (ADR-003): when a principal token is present, the
    roster comes from GET /students (tenant-scoped by the server), replacing the
    demo fallback above. No token → zero-login demo, unchanged. ── */
 function isAuthed() {
@@ -1945,7 +1945,7 @@ const TIER_META = [
   {key:'T4', name:'Char & Punctuation',     sub:'punctuation habits & rhythm',        c:'#D97706'},
   {key:'T5', name:'POS & Syntax',           sub:'grammar patterns & sentence structure', c:'#2563EB'},
   {key:'T6', name:'Idiosyncratic Patterns', sub:'unique phrases & word choices',      c:'#B08D3C'},
-  {key:'T7', name:'Voice Authenticity',     sub:'AI-associated & uncharacteristic patterns', c:'#4A6B5C'},
+  {key:'T7', name:'Uncharacteristic Patterns', sub:'AI-associated & uncharacteristic patterns', c:'#4A6B5C'},
   {key:'T8', name:'Prosodic Rhythm',       sub:'sentence-level stress patterns, cadence variation, and rhythmic habits', c:'#7c3aed'},
   {key:'T9', name:'Cognitive Sequencing',  sub:'order of idea presentation, argument scaffolding, and conceptual flow logic', c:'#0891b2'},
   {key:'T10', name:'Semantic Gravity',      sub:'abstraction level shifts, grounding moves, and conceptual density per sentence', c:'#be185d'},
@@ -1993,8 +1993,8 @@ function apiResponseToResult(resp) {
 
 /* ── Tension Arc rendering ── */
 const ARC_FLAG_STYLES = {
-  authentic:           {bg:'var(--green-l)',   color:'var(--green)',  label:'Authentic Human Arc'},
-  ai_typical:          {bg:'var(--red-l)',     color:'var(--red)',    label:'AI-Typical Arc'},
+  authentic:           {bg:'var(--green-l)',   color:'var(--green)',  label:'Usual Rhythm Arc'},
+  ai_typical:          {bg:'var(--red-l)',     color:'var(--red)',    label:'Unusually Even Arc'},
   review:              {bg:'var(--amber-l)',   color:'var(--amber)',  label:'Review — Inconclusive'},
   insufficient_length: {bg:'var(--surface-2)', color:'var(--text-muted)', label:'Too Short to Analyse'},
 };
@@ -2023,7 +2023,7 @@ function renderTensionArc(arc) {
       ? 'Rhythm partially matches — some divergence from this student\'s baseline'
       : 'Rhythm diverges significantly from this student\'s historical pattern';
     identityWrap.style.display = 'block';
-    document.getElementById('arcIdentityPct').textContent = pct + '%';
+    document.getElementById('arcIdentityPct').textContent = arc.authenticity_signal.toFixed(2);
     document.getElementById('arcIdentityPct').style.color = color;
     const fill = document.getElementById('arcIdentityFill');
     fill.style.width = pct + '%';
@@ -2113,7 +2113,7 @@ function renderTensionArc(arc) {
 }
 
 /* AI-generated sample: flat tone, no hedging, uniform sentence length, no first-person.
-   Designed to produce high deviation (>0.60) against any authentic student baseline. */
+   Designed to produce high deviation (>0.60) against any genuine student baseline. */
 const SAMPLE=`The doctrine of justification by faith alone constitutes the central pillar of Protestant soteriology. This doctrine asserts that sinners are declared righteous before God on the basis of faith rather than meritorious works. The Reformers of the sixteenth century identified this teaching as the article upon which the church stands or falls. Luther's rediscovery of this principle in the Pauline epistles catalyzed a comprehensive theological reformation across Western Christendom. The doctrine has continued to shape Protestant thought for five centuries without significant alteration.
 
 Paul articulates the doctrine of justification with systematic precision in the epistle to the Romans. The apostle demonstrates that all humanity stands under divine condemnation due to the universal prevalence of sin. Both Gentiles who violate the natural law and Jews who transgress the Mosaic covenant are equally subject to divine judgment. The solution Paul proposes is a righteousness that originates outside human capacity and is received through faith. This alien righteousness is imputed to the believer on the basis of Christ's atoning work at Calvary. The forensic declaration of righteousness constitutes the foundation of the believer's standing before God.
@@ -2210,7 +2210,7 @@ async function selectStudent(s) {
   if (data) {
     const pct = Math.round(data.purity * 100);
     document.getElementById('panelMeta').textContent =
-      `${data.authenticated_count} verified baselines · ${Math.round(data.purity * 100)}% baseline confidence`;
+      `${data.authenticated_count} counted samples · baseline consistency ${Number(data.purity).toFixed(2)}`;
     updatePanelBars(data.baseline_vector);
   } else {
     document.getElementById('panelMeta').textContent = 'No profile yet — add baselines to begin';
@@ -2286,7 +2286,7 @@ function renderHistory() {
   [...entries].reverse().forEach(h => {
     const action = h.response?.recommendation?.action || 'no_action';
     const score  = h.response?.authorship?.deviation_score ?? 0;
-    const matchPct = Math.max(0, Math.round((1 - score) * 100));
+    const shown  = Number(score).toFixed(2);
     const date   = h.timestamp ? new Date(h.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const c = originalActionColor(action);
     const note = h.professorAction
@@ -2298,7 +2298,7 @@ function renderHistory() {
       ? `<button onclick="rescoreSubmission('${h.id || ''}')" style="font-size:12.5px;padding:2px 8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:4px;cursor:pointer;color:#374151;">↻ Re-score</button>`
       : '';
     el.innerHTML += `<div class="hist-item">
-      <div class="hist-ring" style="color:${c};border-color:${c}">${matchPct}%</div>
+      <div class="hist-ring" style="color:${c};border-color:${c}" title="Distance from usual writing">${shown}</div>
       <div><div class="hist-title">${h.assignment || 'Untitled Submission'}</div><div class="hist-meta">${date}</div>${note}</div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="hist-badge ${action}">${originalActionLabel(action)}</div>
@@ -2498,8 +2498,8 @@ function renderBaselines() {
     <div style="margin-top:8px">
       <button class="add-base-btn" onclick="toggleAddBaseline()" id="addBaseBtn">+ Paste text instead</button>
       <div id="addBasePanel" style="display:none;margin-top:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
-        <textarea id="blPasteText" rows="4" placeholder="Paste authenticated text…"
-                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;resize:vertical;background:var(--surface);color:var(--text)" aria-label="Paste authenticated baseline text"></textarea>
+        <textarea id="blPasteText" rows="4" placeholder="Paste a past paper's text…"
+                  style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:Inter,sans-serif;font-size:0.83rem;resize:vertical;background:var(--surface);color:var(--text)" aria-label="Paste a past paper's text"></textarea>
         <div style="display:flex;justify-content:flex-end;margin-top:8px">
           <button onclick="submitPasted()" style="padding:8px 18px;background:var(--green-deep);color:var(--text-cream);border:none;border-radius:8px;font-family:Inter,sans-serif;font-weight:600;font-size:0.83rem;cursor:pointer">Add Baseline</button>
         </div>
@@ -2600,7 +2600,7 @@ async function submitAllFiles() {
   activeApiData = await API.getStudent(active.id);
   if (activeApiData) {
     document.getElementById('panelMeta').textContent =
-      `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+      `${activeApiData.authenticated_count} counted samples · baseline consistency ${Number(activeApiData.purity).toFixed(2)}`;
     updatePanelBars(activeApiData.baseline_vector);
   }
   _fileQueue = _fileQueue.filter(f => f.status !== 'done');
@@ -2633,7 +2633,7 @@ async function submitPasted() {
     renderBaselines();
     if (activeApiData) {
       document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+        `${activeApiData.authenticated_count} counted samples · baseline consistency ${Number(activeApiData.purity).toFixed(2)}`;
       updatePanelBars(activeApiData.baseline_vector);
     }
   } catch(e) {
@@ -2754,7 +2754,7 @@ async function importSelectedCanvas() {
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
       document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+        `${activeApiData.authenticated_count} counted samples · baseline consistency ${Number(activeApiData.purity).toFixed(2)}`;
       updatePanelBars(activeApiData.baseline_vector);
     }
     setTimeout(() => renderBaselines(), 1000);
@@ -2871,15 +2871,15 @@ function showToast(msg, type='info', duration=4000) {
 
 /* ── Metric gloss helpers ── */
 function getVoiceMatchGloss(v) {
-  // v = voice match % (0–100), derived from 1 - deviation
-  if (v >= 75) return 'strong voice consistency confirmed';
-  if (v >= 50) return 'voice partially confirmed — some variation present';
-  return 'significant variation from established voice';
+  // v = (1 - deviation) * 100, used only to pick the band; never shown.
+  if (v >= 75) return 'close to their usual writing';
+  if (v >= 50) return 'a few habits differ from their usual writing';
+  return 'several habits differ markedly from their usual writing';
 }
 function getProbGloss(v) {
-  if (v < 0.4) return 'low match to authenticated baseline voice';
-  if (v < 0.65) return 'partial match to authenticated baseline voice';
-  return 'strong match to authenticated baseline voice';
+  if (v < 0.4) return 'fits their approved past papers loosely';
+  if (v < 0.65) return 'fits their approved past papers in part';
+  return 'fits their approved past papers closely';
 }
 function getTrajGloss(v) {
   if (v < 0.4) return 'does not follow their expected growth arc';
@@ -2897,7 +2897,7 @@ function buildInterpretation(r, student) {
     'Char & Punctuation':     'Punctuation habits and rhythm',
     'POS & Syntax':           'Grammar patterns and sentence structure',
     'Idiosyncratic Patterns': 'Unique phrases and word choices',
-    'Voice Authenticity':      'Uncharacteristic writing patterns',
+    'Uncharacteristic Patterns': 'Uncharacteristic writing patterns',
   };
   const actionNextStep = {
     no_action:             'Consistent with this student’s earlier writing. Nothing here calls for a conversation.',
@@ -2911,15 +2911,16 @@ function buildInterpretation(r, student) {
   if (r.deviation >= 0.45 || r.prob < 0.65) severity = 'amber';
   if (r.deviation >= 0.65 || r.prob < 0.4)  severity = 'red';
 
-  // Headline — lead with the CONFIRMED percentage (Sutherland polarity reframe)
-  const voiceMatchPct = Math.max(0, Math.round((1 - r.deviation) * 100));
+  // Headline: plain words, no percentage. A number beside a name reads as a
+  // probability, and nothing here confirms who wrote anything (NORTH_STAR
+  // rules 1 and 2). The bands are unchanged.
   let headline;
   if (r.deviation >= 0.65 && r.prob < 0.4) {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — notable differences are present.`;
+    headline = `Several of ${name}'s habits differ from their usual writing here; notable differences are present.`;
   } else if (r.deviation >= 0.45 || r.prob < 0.65) {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice, with some areas worth exploring.`;
+    headline = `${name}'s writing here is mostly close to their usual writing, with some areas worth exploring.`;
   } else {
-    headline = `${name}'s writing is ${voiceMatchPct}% consistent with their established voice — confirmed authentic.`;
+    headline = `${name}'s writing here sits close to their usual writing.`;
   }
 
   // A thin baseline makes the deviation score unreliable in either
@@ -2933,12 +2934,11 @@ function buildInterpretation(r, student) {
     const topRec = (activeReadiness.recommendations || [])[0] || '';
     if (activeReadiness.verdict === 'insufficient') {
       severity = 'amber';
-      headline = `${name} doesn't have enough authenticated baseline samples yet for a reliable reading.` +
+      headline = `${name} doesn't have enough approved past papers yet for a reliable reading.` +
         (topRec ? ` ${topRec}` : '');
     } else {
       if (severity === 'red') severity = 'amber';
-      headline = `${name}'s baseline is still developing, so this reading is less certain than usual — ` +
-        `${voiceMatchPct}% consistent with their established voice so far.` +
+      headline = `${name}'s baseline is still developing, so treat this reading as inconclusive.` +
         (topRec ? ` ${topRec}` : '');
     }
   }
@@ -2955,7 +2955,7 @@ function buildInterpretation(r, student) {
     bullets.push(`${tierPlain[second.name] || second.name} also differs notably from their prior work.`);
   }
   if (r.prob < 0.4) {
-    bullets.push(`The writing style does not closely match ${name}'s authenticated baseline submissions.`);
+    bullets.push(`The writing style does not closely match ${name}'s approved past papers.`);
   }
   if (r.traj < 0.5) {
     bullets.push(`The submission does not follow ${name}'s typical writing development arc.`);
@@ -2978,7 +2978,7 @@ function renderResults(r) {
   // local portfolio) followed by the just-computed score. No invented prefix
   // points: when there isn't at least one real prior submission, there's no
   // trend to show, so the sparkline is left blank rather than faked.
-  // mc1 shows voice MATCH (1-deviation) so higher = better = green
+  // mc1 colour bands use (1-deviation): higher = closer = green
   const voiceMatch = Math.max(0, 1 - r.deviation);
   const priorEntries = readPortfolio();
   function priorSeries(mapFn) {
@@ -2994,8 +2994,10 @@ function renderResults(r) {
     if (vals.length < 2) return null; // not enough real data points for a trend
     return vals.map((v, i) => [i, v]);
   }
+  // Plots the deviation itself, so the line rises when the number beside it
+  // rises (the card shows distance, not closeness). Colour bands unchanged.
   const sp1 = spark(priorSeries(resp => resp?.authorship?.deviation_score !== undefined
-    ? Math.max(0, 1 - resp.authorship.deviation_score) : undefined), voiceMatch);
+    ? Math.min(1, Math.max(0, resp.authorship.deviation_score)) : undefined), Math.min(1, Math.max(0, r.deviation)));
   document.getElementById('sparkline1').innerHTML = sp1 ? sparkSVG(sp1,
     voiceMatch < 0.45 ? '#6B2737' : voiceMatch < 0.6 ? '#D97706' : '#4A6B5C') : '';
   const sp2 = spark(priorSeries(resp => resp?.authorship?.authorship_probability), r.prob);
@@ -3007,16 +3009,17 @@ function renderResults(r) {
     r.traj < 0.4 ? '#6B2737' : '#2563EB') : '';
 
   // Update metric values and colors dynamically
-  // mc1 = voice match % — higher is better (green); colors mirror match quality
+  // mc1 = deviation shown as 0-1 (a percentage beside a name reads as a
+  // probability). vmPct only picks the colour band, as before.
   const vmPct     = Math.max(0, Math.round((1 - r.deviation) * 100));
   const matchColor= vmPct >= 75 ? 'var(--green)' : vmPct >= 50 ? 'var(--amber)' : 'var(--red)';
   const probColor = r.prob <= 0.3 ? 'var(--red)' : r.prob <= 0.55 ? 'var(--amber)' : 'var(--green)';
   const trajColor = r.traj <= 0.35 ? 'var(--red)' : r.traj <= 0.6 ? 'var(--blue)' : 'var(--green)';
-  document.getElementById('mcVal1').textContent = vmPct + '%';
+  document.getElementById('mcVal1').textContent = r.deviation.toFixed(2);
   document.getElementById('mcVal1').style.color = matchColor;
-  document.getElementById('mcVal2').textContent = Math.round(r.prob * 100) + '%';
+  document.getElementById('mcVal2').textContent = r.prob.toFixed(2);
   document.getElementById('mcVal2').style.color = probColor;
-  document.getElementById('mcVal3').textContent = Math.round(r.traj * 100) + '%';
+  document.getElementById('mcVal3').textContent = r.traj.toFixed(2);
   document.getElementById('mcVal3').style.color = trajColor;
 
   // Catastrophic drift alert
@@ -3158,7 +3161,7 @@ function renderResults(r) {
   const pd = document.getElementById('panelDeviation');
   pd.classList.add('show');
   const pdColor = originalActionColor(r.action);
-  document.getElementById('pdScore').textContent = Math.max(0, Math.round((1 - r.deviation) * 100)) + '%';
+  document.getElementById('pdScore').textContent = r.deviation.toFixed(2);
   document.getElementById('pdScore').style.color = pdColor;
   document.getElementById('pdAction').textContent = originalActionLabel(r.action);
   document.getElementById('pdAction').style.color = pdColor;
@@ -3542,7 +3545,7 @@ async function runBatchUpload() {
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
       document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+        `${activeApiData.authenticated_count} counted samples · baseline consistency ${Number(activeApiData.purity).toFixed(2)}`;
       updatePanelBars(activeApiData.baseline_vector);
     }
     renderBaselines();
@@ -3796,7 +3799,7 @@ async function importCanvasFromDrawer() {
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
       document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+        `${activeApiData.authenticated_count} counted samples · baseline consistency ${Number(activeApiData.purity).toFixed(2)}`;
       updatePanelBars(activeApiData.baseline_vector);
     }
     renderBaselines();

@@ -2908,6 +2908,53 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+# The classic page (demo/professor.html) is linked from every Original page as
+# "Analysis (classic)" (ADR-012), so it follows the same rules. Its Validation
+# Study view is demo-only (`data-demo-only hidden`) and reports corpus labels,
+# so the check stops where that view's code starts. API names and values stay.
+CLASSIC = SUITE.parent / "professor.html"
+COMPONENTS = sorted((SUITE.parent / "_components").glob("*.js"))
+_CLASSIC_API = (
+    "authenticity_signal",
+    'value="authentic"',
+    "arc_flag === 'authentic'",
+    "  authentic:  ",
+)
+
+
+def _classic_teacher_part() -> str:
+    text = CLASSIC.read_text(encoding="utf-8")
+    head, marker, _ = text.partition("/* ── Validation section logic ── */")
+    assert marker, "the Validation Study marker moved; update this test"
+    for name in _CLASSIC_API:
+        head = head.replace(name, "")
+    return head
+
+
+def test_the_classic_page_shows_no_authentic_verdict():
+    assert _displayed_authentic(_classic_teacher_part()) == []
+
+
+@pytest.mark.parametrize("path", COMPONENTS, ids=lambda p: p.name)
+def test_shared_components_show_no_authentic_verdict(path):
+    assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
+
+
+def test_the_classic_page_shows_scores_as_values_not_percentages():
+    """A percentage beside a student's name reads as a probability (navy spec):
+    deviation, fit and trajectory are shown 0-1 with plain words."""
+    part = _classic_teacher_part()
+    pct = re.compile(r"(deviation|prob|traj|score|purity)\b[^;\n]*\*\s*100\)+\s*\+\s*'%'")
+    assert pct.findall(part) == []
+    for gone in ("Voice Match", "Voice Confirmed", "voice consistency confirmed", "% consistent with"):
+        assert gone not in part, gone
+    for shown in (
+        "document.getElementById('mcVal1').textContent = r.deviation.toFixed(2);",
+        "document.getElementById('pdScore').textContent = r.deviation.toFixed(2);",
+    ):
+        assert shown in part, shown
+
+
 # authenticated_count is every sample the server weighs above zero: a teacher-approved one or
 # a student's own upload. It is "counted", never "approved" (a count of what a teacher
 # approved needs the sample list and its provenance). So no file may call a sample
