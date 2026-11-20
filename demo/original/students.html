@@ -51,16 +51,18 @@
   .filters{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;}
   .chip.on.red{background:rgba(224,114,90,0.12);border-color:rgba(224,114,90,0.4);color:#f0a690;}
   .chip.on.green{background:rgba(107,191,138,0.12);border-color:rgba(107,191,138,0.4);color:var(--ok);}
-  .search{margin-left:auto;display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;}
+  .search{margin-left:auto;max-width:100%;display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;}
   .search:focus-within{border-color:var(--line);}
   .search svg{width:14px;height:14px;stroke:var(--dim);fill:none;stroke-width:1.8;}
-  .search input{background:none;border:none;outline:none;color:var(--cream);font-family:var(--body);font-size:.88rem;width:150px;}
+  .search input{background:none;border:none;outline:none;color:var(--cream);font-family:var(--body);font-size:.88rem;width:11.5em;min-width:0;}
   /* Phones and touch screens: the input inside is 44px tall (suite.css), so the pill loses its own padding. */
   @media (max-width:760px),(pointer:coarse){.search{padding-block:0;}}
   .search input::placeholder{color:var(--dim-2);}
   /* table */
   .roster{border:1px solid var(--line-soft);border-radius:16px;overflow:hidden;}
-  .r-head,.r-row{display:grid;grid-template-columns:2.4fr 1.3fr 1fr 1.4fr 1fr 150px;gap:1rem;align-items:center;padding:.85rem 1.2rem;}
+  /* The last column holds the Writing State link and its arrow, so it is sized in rem and grows with
+     the text; minmax(0,…) lets the others shrink instead of pushing it over its neighbour. */
+  .r-head,.r-row{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr) 9.5rem;gap:1rem;align-items:center;padding:.85rem 1.2rem;}
   .r-head{background:rgba(255,255,255,0.025);border-bottom:1px solid var(--line-soft);}
   .r-head div{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);}
   .r-head .r{text-align:right;}
@@ -79,8 +81,8 @@
   .s-nm{font-size:.98rem;color:var(--cream);font-weight:500;}
   .s-em{font-family:var(--mono);font-size:.64rem;color:var(--dim-2);margin-top:.1rem;}
   .s-nm,.s-em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .courses{display:flex;flex-wrap:wrap;gap:.3rem;}
-  .ct{font-family:var(--mono);font-size:.62rem;color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);border-radius:5px;padding:.15rem .45rem;white-space:nowrap;}
+  .courses{display:flex;flex-wrap:wrap;gap:.3rem;min-width:0;}
+  .ct{font-family:var(--mono);font-size:.62rem;color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);border-radius:5px;padding:.15rem .45rem;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
   .bpill{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.22rem .6rem;border-radius:999px;}
   .bpill .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
   .bpill.strong{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.22);}
@@ -98,12 +100,18 @@
   .foot{margin-top:.8rem;font-size:.84rem;color:var(--dim-2);font-style:italic;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
   @media (max-width:900px){
     body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
-    .strip{grid-template-columns:repeat(2,minmax(0,1fr));}
+    /* Two counts a row, or one when 8rem each no longer fits, so the labels wrap between words. */
+    .strip{grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));}
     .head{flex-wrap:wrap;align-items:flex-start;}.head-acts{justify-content:flex-start;}
-    .r-head{display:none;}.r-row{grid-template-columns:1fr auto;gap:.5rem .8rem;}
+    .r-head{display:none;}.r-row{grid-template-columns:minmax(0,1fr) auto;gap:.5rem .8rem;}
     .r-row>.courses,.r-row>.dev,.r-row>.last{grid-column:1/-1;}
     .last{text-align:left;}
+    .go{min-width:0;}.r-ws{white-space:normal;text-align:center;}
+    /* The search takes its own row, so "Find a student" stays whole at the largest Text setting. */
+    .search{flex:1 1 100%;margin-left:0;padding-inline:.6rem;}.search input{flex:1 1 auto;width:auto;font-size:.82rem;}
   }
+  /* Phones: a 1rem side gutter leaves the roster the width of the screen. */
+  @media (max-width:600px){.body{padding:0.4rem 1rem 1.5rem;}}
 </style>
 </head>
 <body>
@@ -201,7 +209,7 @@
 
   function rowHTML(s){
     const p=PILL[s.verdict]||UNKNOWN;
-    const chips=s.courses.map(c=>'<span class="ct">'+esc(c.code||c.name)+'</span>').join('');
+    const chips=s.courses.map(c=>'<span class="ct" title="'+esc(c.code||c.name)+'">'+esc(c.code||c.name)+'</span>').join('');
     const id=encodeURIComponent(s.id);
     return '<div class="r-row">'+
       '<div class="ident"><div class="s-av">'+esc(initials(s.name))+'</div><div><a class="s-nm r-main tap-row" href="'+esc('baseline.html?student='+id)+'" title="'+esc('Open '+s.name+'’s voice baseline')+'">'+esc(s.name)+'</a>'+(s.email?'<div class="s-em">'+esc(s.email)+'</div>':'')+'</div></div>'+
