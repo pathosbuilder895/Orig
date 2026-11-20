@@ -11,6 +11,18 @@
 
 export const SMALLS_GREATS_CUTOFF = 1000;
 
+// The most questions one collection can hold, the same number the server
+// enforces (original/bluebook_rules.py MAX_QUESTIONS). Creating and editing
+// a collection both stop here.
+export const MAX_QUESTIONS = 20;
+
+// "I" to "XX" for the new-collection form's question labels.
+export function romanNumeral(n) {
+  const tens = ['', 'X', 'XX'][Math.floor(n / 10)] || '';
+  const ones = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'][n % 10];
+  return n >= 1 && n <= 29 ? tens + ones : String(n);
+}
+
 // A collection's size: the one chosen, else read off its word range the way
 // the server does (bluebook_rules.size_class), so an older collection with a
 // range still reads as a Small or a Great. '' when neither applies.

@@ -75,7 +75,7 @@ test.describe('Exam screen access @a11y', () => {
     test.setTimeout(60_000)
     const exam = await createExam(request, testTenant, 'Access keyboard exam')
     await boot(studentPage, exam, testTenant)
-    await tabTo(studentPage, /^Begin Examination$/)
+    await tabTo(studentPage, /^Begin writing$/)
     await studentPage.keyboard.press('Enter')
 
     // Focus lands in the answer box: the student can start writing at once.
@@ -84,10 +84,15 @@ test.describe('Exam screen access @a11y', () => {
 
     // Tab leaves the answer box (no keyboard trap) and reaches the seal.
     await tabTo(studentPage, /^Seal & Submit$/, 6)
-    studentPage.once('dialog', d => d.accept())
+    await studentPage.keyboard.press('Enter')
+    // The confirmation opens on "Keep writing", so a stray Enter never
+    // seals; one Tab reaches "Seal and submit".
+    await expect(studentPage.getByRole('button', { name: 'Keep writing' })).toBeFocused()
+    await studentPage.keyboard.press('Tab')
+    await expect(studentPage.getByRole('button', { name: 'Seal and submit' })).toBeFocused()
     await studentPage.keyboard.press('Enter')
 
-    const done = studentPage.getByRole('heading', { name: 'Examination Sealed' })
+    const done = studentPage.getByRole('heading', { name: 'Collection Sealed' })
     await expect(done).toBeVisible({ timeout: 20_000 })
     // Focus moves to the result, so a screen reader reads it out.
     await expect(done).toBeFocused()
@@ -96,7 +101,7 @@ test.describe('Exam screen access @a11y', () => {
   test('the answer box and every control show a visible focus indicator', async ({ studentPage, testTenant, request }) => {
     const exam = await createExam(request, testTenant, 'Access focus exam')
     await boot(studentPage, exam, testTenant)
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     await expect(studentPage.locator(BOX)).toBeFocused()
     const box = await focusRing(studentPage, '.bk-writing')
     expect(box.style).not.toBe('none')
@@ -124,7 +129,7 @@ test.describe('Exam screen access @a11y', () => {
     const exam = await createExam(request, testTenant, 'Access timer exam')
     const session = studentPage.waitForResponse(r => r.url().includes(`/bluebook/exams/${exam.id}/session`) && r.ok())
     await boot(studentPage, exam, testTenant)
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     await session
     const timer = studentPage.getByRole('timer')
     await expect(timer).toHaveText(/^1:59:\d\d$/, { timeout: 5_000 })
@@ -139,7 +144,7 @@ test.describe('Exam screen access @a11y', () => {
   }) => {
     const exam = await createExam(request, testTenant, 'Access words exam')
     await boot(studentPage, exam, testTenant)
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     const box = studentPage.locator(BOX)
     await expect(box).toHaveAccessibleDescription(/0 words written\. Write at least 12 words to submit\./)
     const seal = studentPage.getByRole('button', { name: 'Seal & Submit' })
@@ -160,7 +165,7 @@ test.describe('Exam screen access @a11y', () => {
   test('a notice about leaving the window is polite, never an alert', async ({ studentPage, testTenant, request }) => {
     const exam = await createExam(request, testTenant, 'Access notice exam')
     await boot(studentPage, exam, testTenant, { blockWeb: true })
-    await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
+    await studentPage.getByRole('button', { name: 'Begin writing' }).click()
     await expect(studentPage.locator(BOX)).toBeVisible()
     await studentPage.evaluate(() => {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
@@ -228,7 +233,7 @@ test.describe('Exam screen access @a11y', () => {
       await boot(page, exam, testTenant)
       const noSideways = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)
 
-      const begin = page.getByRole('button', { name: 'Begin Examination' })
+      const begin = page.getByRole('button', { name: 'Begin writing' })
       await begin.scrollIntoViewIfNeeded()
       await expect(begin).toBeInViewport()
       expect(await noSideways()).toBe(true)
