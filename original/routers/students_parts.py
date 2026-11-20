@@ -10,11 +10,13 @@ carry it), and why not when they do not.
 ``PUT /students/{id}/samples/{index}/parts``: the teacher's choice for that
 paper (``exclude_ranges`` set aside, ``include_ranges`` measured, whatever the
 rules say). It is stored with the paper (``BaselineSample.part_overrides``,
-with the digest of the paper's text) and that paper's splitter measurement
-(``extra_vectors["matter"]``, and any other splitter measurement it carries)
-is measured again. The default ``vector`` is never touched.
+with the digest of the paper's text). For each splitter measurement the paper
+already carries, its measurement made with the choice is stored beside the
+rules' own (served only with both switches on). No measurement is created,
+and neither the default ``vector`` nor ``extra_vectors`` is ever changed.
 
-``DELETE`` (or a PUT with empty lists) goes back to the rules. Setting a
+``DELETE`` (or a PUT with empty lists) goes back to the rules, restoring
+exactly the state before the choice. Setting a
 choice needs ``MATTER_SPLITTER_ENABLED`` and ``PAPER_PROFILE_ENABLED`` both on
 (409 otherwise); going back to the rules is allowed whatever the switches
 say. With either switch off a stored choice has no effect anywhere.
@@ -26,7 +28,6 @@ import dataclasses
 import logging
 from typing import Any
 
-import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import measurement as _measurement
@@ -78,14 +79,22 @@ def _parts_body(state, index: int, sample) -> dict[str, Any]:
     with _ff.measuring(SPLITTER_MEASUREMENT):  # the measurement the parts belong to
         parts = paper_parts(_po.text_of(sample))
     doc = choice.to_doc() if choice is not None else {"exclude_ranges": [], "include_ranges": []}
-    return {
+    measured = bool(_splitter_keys(sample))
+    body = {
         "enabled": True,
         "index": index,
         "words": len((sample.text or "").split()),
         "parts": parts,
         **doc,
+        "paper_measured": measured,
         **_in_use(state),
     }
+    if not measured:
+        body["paper_note"] = (
+            "This paper is not measured with the splitter yet; a choice made here is kept "
+            "and applies once it is."
+        )
+    return body
 
 
 @router.get("/students/{student_id}/samples/{index}/parts")
@@ -98,13 +107,10 @@ def get_sample_parts(student_id: str, index: int, request: Request):
     return _parts_body(state, index, sample)
 
 
-def _splitter_keys(sample, setting: bool) -> list[str]:
-    """The splitter measurements to measure again: those the paper carries,
-    and ``matter`` itself when a choice is being set."""
-    keys = {k for k in (sample.extra_vectors or {}) if _ff.MEASUREMENTS.get(k, (1, False))[1]}
-    if setting:
-        keys.add(SPLITTER_MEASUREMENT)
-    return sorted(keys)
+def _splitter_keys(sample) -> list[str]:
+    """The splitter measurements this paper already carries. A choice never
+    creates one: that would change which measurement scores use."""
+    return sorted(k for k in (sample.extra_vectors or {}) if _po.is_splitter(k))
 
 
 def _store(student_id: str, index: int, choice) -> dict[str, Any]:
@@ -115,27 +121,24 @@ def _store(student_id: str, index: int, choice) -> dict[str, Any]:
         return _parts_body(state, index, sample)
     text = sample.text or ""
 
-    def measure(key: str, data: str) -> np.ndarray:
-        with _ff.measuring(key):
-            if sample.keystroke_data is None:
-                return np.asarray(feature_vector(data), dtype=np.float64)
-            return np.asarray(
-                feature_vector(data, keystroke_data=sample.keystroke_data), dtype=np.float64
-            )
+    def extract(data: str):
+        if sample.keystroke_data is None:
+            return feature_vector(data)
+        return feature_vector(data, keystroke_data=sample.keystroke_data)
 
-    keys = _splitter_keys(sample, choice is not None)
-    # The rules-only splitter measurement, kept beside the choice: it stands
-    # in whenever a switch is off (measurement.vector_for).
-    rules = {key: measure(key, text) for key in keys} if choice is not None else {}
-    updated = dataclasses.replace(sample, part_overrides=_po.to_stored(choice, text, rules))
-    extra = dict(sample.extra_vectors or {})
-    for key in keys:
-        extra[key] = (
-            measure(key, _po.text_of(updated)) if choice is not None else measure(key, text)
-        )
-    # The default vector is never measured again here: a choice changes only
-    # the splitter's measurement.
-    state.samples[index] = dataclasses.replace(updated, extra_vectors=extra or None)
+    # The choice is stored with the paper; for each splitter measurement the
+    # paper already carries, the measurement made with the choice is stored
+    # beside it (served only with both switches on). The rules' own
+    # measurements in extra_vectors and the default vector are never touched,
+    # so going back to the rules restores exactly the state before the choice.
+    stored = _po.to_stored(choice, text)
+    if stored is not None:
+        pending = dataclasses.replace(sample, part_overrides=stored)
+        vectors = {
+            k: _po.measure_stored_choice(pending, k, extract) for k in _splitter_keys(sample)
+        }
+        stored = _po.to_stored(choice, text, {k: v for k, v in vectors.items() if v is not None})
+    state.samples[index] = dataclasses.replace(sample, part_overrides=stored)
     _persist_or_503(state)
     try:
         _repo().log_audit(

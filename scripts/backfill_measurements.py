@@ -107,12 +107,16 @@ def _fingerprint(state) -> list[str]:
     return [hashlib.sha256((s.text or "").encode()).hexdigest() for s in state.samples]
 
 
-def _measure(text: str, measurement: str, extract: Callable) -> np.ndarray:
-    with ff.measuring(measurement):
-        vector = np.asarray(extract(text), dtype=np.float64)
+def _checked(vector) -> np.ndarray:
+    vector = np.asarray(vector, dtype=np.float64)
     if vector.shape != (FEATURE_DIM,):
         raise ValueError(f"vector has shape {vector.shape}, expected ({FEATURE_DIM},)")
     return vector
+
+
+def _measure(text: str, measurement: str, extract: Callable) -> np.ndarray:
+    with ff.measuring(measurement):
+        return _checked(extract(text))
 
 
 def backfill(
@@ -137,9 +141,20 @@ def backfill(
             continue
         report.students += 1
         new: dict[int, np.ndarray] = {}
+        chosen: dict[int, tuple[dict, np.ndarray]] = {}
         for i, sample in enumerate(state.samples):
             report.papers += 1
-            if (sample.extra_vectors or {}).get(measurement) is not None:
+            has_rules = (sample.extra_vectors or {}).get(measurement) is not None
+            # A paper with a teacher's stored choice of parts gets both: the
+            # rules' own measurement (extra_vectors) and the one made with the
+            # choice (original/features/part_overrides.py), whatever the
+            # switches say now. Which one a score reads is decided then.
+            needs_choice = (
+                part_overrides.of_sample(sample) is not None
+                and part_overrides.is_splitter(measurement)
+                and part_overrides.choice_vector(sample, measurement) is None
+            )
+            if has_rules and not needs_choice:
                 report.already += 1
                 continue
             if not sample.text:
@@ -149,14 +164,16 @@ def backfill(
             if not (apply or measure_in_dry_run):
                 continue
             try:
-                # A teacher's stored choice of parts for this paper, if any,
-                # rides on its text (original/features/part_overrides.py); it
-                # applies only to a splitter measurement with both switches on.
-                new[i] = _measure(part_overrides.text_of(sample), measurement, extract)
+                if not has_rules:
+                    new[i] = _measure(str(sample.text), measurement, extract)
+                if needs_choice:
+                    vector = part_overrides.measure_stored_choice(sample, measurement, extract)
+                    chosen[i] = (sample.part_overrides, _checked(vector))
             except Exception as exc:
                 log.warning("%s paper %d: measurement failed: %s", student_id, i, exc)
                 report.failed.append(f"{student_id}#{i}")
-        if not apply or not new:
+                new.pop(i, None)
+        if not apply or not (new or chosen):
             continue
         fresh = repo.get(student_id)
         if fresh is None or _fingerprint(fresh) != _fingerprint(state):
@@ -165,8 +182,14 @@ def backfill(
         for i, vector in new.items():
             sample = fresh.samples[i]
             sample.extra_vectors = {**(sample.extra_vectors or {}), measurement: vector}
+        for i, (doc, vector) in chosen.items():
+            sample = fresh.samples[i]
+            if sample.part_overrides != doc:  # the teacher changed the choice meanwhile
+                report.changed.append(f"{student_id}#{i}")
+                continue
+            sample.part_overrides = part_overrides.with_choice_vectors(doc, {measurement: vector})
         repo.put(fresh)
-        report.measured += len(new)
+        report.measured += len(set(new) | set(chosen))
         report.written_students += 1
     return report
 

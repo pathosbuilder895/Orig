@@ -79,20 +79,19 @@ class MeasurementPlan:
 def vector_for(sample: Any, measurement: str) -> np.ndarray | None:
     """A past paper's vector for ``measurement``, or None if it has none.
 
-    A splitter measurement made with a teacher's choice of parts
-    (``features/part_overrides.py``) is read only while both switches are on;
-    otherwise the rules-only measurement stored beside the choice stands in,
-    so a stored choice changes nothing with a switch off."""
+    A past paper with a teacher's stored choice of parts
+    (``features/part_overrides.py``) gives its splitter measurement made with
+    that choice only while both switches are on; otherwise, and always for a
+    paper the rules' own measurement is missing from, exactly what it gave
+    before the choice (``extra_vectors``)."""
     if measurement == DEFAULT:
         return sample.vector
     extra = getattr(sample, "extra_vectors", None) or {}
     vector = extra.get(measurement)
-    if vector is not None:
+    if vector is not None and getattr(sample, "part_overrides", None):
         from .features import part_overrides
 
-        rules = part_overrides.rules_vector(sample, measurement)
-        if rules is not None:
-            return rules
+        return part_overrides.served_vector(sample, measurement, vector)
     return vector
 
 

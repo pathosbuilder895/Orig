@@ -354,30 +354,84 @@ def test_the_choice_survives_the_repository(repo):
     assert repo.get("t:a").samples[0].part_overrides is None
 
 
-def test_a_backfill_measures_the_splitter_with_the_stored_choice_only(repo, monkeypatch):
+def _backfill_module():
     spec = importlib.util.spec_from_file_location(
         "backfill_measurements_po", ROOT / "scripts" / "backfill_measurements.py"
     )
     bf = importlib.util.module_from_spec(spec)
     sys.modules["backfill_measurements_po"] = bf
     spec.loader.exec_module(bf)
-    seen = []
+    return bf
+
+
+def _marking_extract(seen):
+    """A stand-in extractor: 0.25 by the rules, 0.75 with a choice applied."""
 
     def extract(text):
-        seen.append((ff.current_measurement(), po.for_text(text)))
-        return np.full(FEATURE_DIM, 0.25)
+        choice = po.for_text(text)
+        seen.append((ff.current_measurement(), choice))
+        return np.full(FEATURE_DIM, 0.75 if choice is not None else 0.25)
 
+    return extract
+
+
+@pytest.mark.parametrize("switched_on_while_running", [False, True])
+def test_a_backfill_stores_both_measurements_whatever_the_switches(
+    repo, monkeypatch, switched_on_while_running
+):
+    """Findings 2 and 3, both orders: a backfill run with the switches off or
+    on stores the rules' measurement in extra_vectors and the choice's beside
+    the choice, and a score reads the choice's only with both switches on."""
+    from original import measurement
+
+    bf = _backfill_module()
+    seen: list = []
+    if switched_on_while_running:
+        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+        monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
     repo.put(StudentState("t:a", samples=[_sample(choice=_cut_first()), _sample("Another.")]))
-    bf.backfill(repo, "matter", apply=True, extract=extract)
-    assert seen == [("matter", None), ("matter", None)]  # switches off: the rules alone
-    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
-    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+    for m in ("matter", "fs2+matter"):
+        seen.clear()
+        bf.backfill(repo, m, apply=True, extract=_marking_extract(seen))
+        assert seen == [(m, None), (m, _cut_first()), (m, None)]
     seen.clear()
-    bf.backfill(repo, "fs2+matter", apply=True, extract=extract)
-    assert seen == [("fs2+matter", _cut_first()), ("fs2+matter", None)]
-    seen.clear()
-    bf.backfill(repo, "fs2", apply=True, extract=extract)  # no splitter: no choice
+    bf.backfill(repo, "fs2", apply=True, extract=_marking_extract(seen))  # not the splitter
     assert seen == [("fs2", None), ("fs2", None)]
+    seen.clear()
+    report = bf.backfill(repo, "matter", apply=True, extract=_marking_extract(seen))
+    assert seen == [] and report.already == 2  # idempotent
+
+    paper = repo.get("t:a").samples[0]
+    for m in ("matter", "fs2+matter"):
+        assert np.allclose(paper.extra_vectors[m], 0.25)  # the rules' own, as ever
+        assert np.allclose(po.choice_vector(paper, m), 0.75)
+    for splitter, profile, served in (
+        ("1", "1", 0.75),
+        ("1", "0", 0.25),
+        ("0", "1", 0.25),
+        ("0", "0", 0.25),
+    ):
+        monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
+        monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)
+        for m in ("matter", "fs2+matter"):
+            assert np.allclose(measurement.vector_for(paper, m), served), (splitter, profile, m)
+        assert np.allclose(measurement.vector_for(paper, "fs2"), 0.25)
+
+
+def test_a_backfill_never_writes_a_choice_the_teacher_replaced_meanwhile(repo):
+    bf = _backfill_module()
+    repo.put(StudentState("t:a", samples=[_sample(choice=_cut_first())]))
+
+    def extract(text):
+        if po.for_text(text) is not None:  # the teacher goes back to the rules mid-run
+            fresh = repo.get("t:a")
+            fresh.samples[0].part_overrides = None
+            repo.put(fresh)
+        return np.full(FEATURE_DIM, 0.5)
+
+    report = bf.backfill(repo, "matter", apply=True, extract=extract)
+    assert report.changed == ["t:a#0"]
+    assert repo.get("t:a").samples[0].part_overrides is None
 
 
 # ── the routes ───────────────────────────────────────────────────────────────
@@ -506,97 +560,123 @@ def test_staff_choice_is_checked_and_moves_only_the_splitter_measurement(
     assert again["choice"]["include_ranges"] == abstract["ranges"]
 
 
+def _snapshot(sample) -> tuple:
+    return (
+        sample.vector.tolist(),
+        {k: np.asarray(v).tolist() for k, v in (sample.extra_vectors or {}).items()},
+        sample.part_overrides,
+    )
+
+
 def test_a_past_papers_choice_is_its_own(live_client, store_reset, switches):
     """Finding 3's witness: a submission whose words equal a past paper's does
-    not pick up that paper's stored choice, and a past paper's choice moves
-    only that paper's splitter measurement, never its v1 vector."""
+    not pick up that paper's stored choice. The paper's choice is measured
+    beside its rules' splitter measurement; neither its v1 vector nor its
+    extra_vectors change."""
     sid = "parts_school_ben"
-    papers = [MLA, *BASELINES[1:]]
-    _seed(sid, papers)
+    _seed(sid, [MLA, *BASELINES[1:]])
     score = lambda: live_client.post(  # noqa: E731
         f"/students/{sid}/score", json={"text": MLA, "submission_id": "same"}
     )
     before = score()
     assert before.status_code == 200
-    v1 = store.get(sid).samples[0].vector.copy()
-    matter = store.get(sid).samples[0].extra_vectors["matter"].copy()
+    untouched = _snapshot(store.get(sid).samples[0])[:2]
 
     r = live_client.put(
         f"/students/{sid}/samples/0/parts", json={"exclude_ranges": [[FIRST, SECOND]]}
     )
     assert r.status_code == 200, r.text[:300]
     sample = store.get(sid).samples[0]
-    assert np.array_equal(sample.vector, v1)  # the default measurement is never touched
-    assert not np.array_equal(sample.extra_vectors["matter"], matter)
+    assert _snapshot(sample)[:2] == untouched  # vector and extra_vectors as they were
     assert po.of_sample(sample) == _cut_first()
+    chosen_matter = po.choice_vector(sample, "matter")
+    assert chosen_matter is not None and not np.allclose(chosen_matter, 0.5)
     assert r.json()["exclude_ranges"] == [list(_cut_first().exclude[0])]
-    assert r.json()["measurement_in_use"] is True
+    assert r.json()["measurement_in_use"] is True and r.json()["paper_measured"] is True
 
     after = score()
     assert after.status_code == 200
     assert after.json()["feature_vector"] == before.json()["feature_vector"]
     past = after.json()["evidence"]["paper_profile"]["past_papers"][0]
     assert any(p["by"] == "teacher" for p in past["parts"])  # the past paper keeps its own
-    assert all(
-        p["by"] == "rules" for p in after.json()["evidence"]["paper_profile"]["this_paper"]["parts"]
-    )
+    this = after.json()["evidence"]["paper_profile"]["this_paper"]["parts"]
+    assert all(p["by"] == "rules" for p in this)
 
 
-def test_back_to_the_rules_whatever_the_switches_say(
+def test_back_to_the_rules_restores_exactly_the_state_before(
     live_client, store_reset, switches, monkeypatch
 ):
-    from original.features.pipeline import feature_vector
-
     sid = "parts_school_cy"
     _seed(sid, [MLA, *BASELINES[1:]])
     url = f"/students/{sid}/samples/0/parts"
+    before = _snapshot(store.get(sid).samples[0])
     assert live_client.put(url, json={"exclude_ranges": [[FIRST, SECOND]]}).status_code == 200
-    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")
+    assert _snapshot(store.get(sid).samples[0]) != before
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")  # whatever the switches say
     assert live_client.delete(url).status_code == 200
-    sample = store.get(sid).samples[0]
-    assert sample.part_overrides is None
-    with ff.measuring("matter"):
-        assert np.allclose(sample.extra_vectors["matter"], feature_vector(MLA))
+    assert _snapshot(store.get(sid).samples[0]) == before
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+    assert live_client.put(url, json={"exclude_ranges": [[FIRST, SECOND]]}).status_code == 200
+    assert live_client.put(url, json={}).status_code == 200  # empty lists: the same
+    assert _snapshot(store.get(sid).samples[0]) == before
     assert live_client.put(url, json={}).status_code == 200  # already the rules
     assert live_client.get(f"/students/{sid}/samples/9/parts").status_code == 404
 
 
-def test_the_get_says_when_the_splitter_measurement_is_not_in_use(
-    live_client, store_reset, switches
+def _score_action(client, sid):
+    body = client.post(
+        f"/students/{sid}/score", json={"text": BASELINES[1], "submission_id": "same"}
+    ).json()
+    return body["measurement"], body["authorship"], body["feature_vector"]
+
+
+def test_a_paper_not_measured_with_the_splitter_keeps_the_choice_and_changes_nothing(
+    live_client, store_reset, switches, monkeypatch
 ):
-    """Finding 7: one past paper without the splitter's measurement, so scores
-    use the default; the GET says so, and a PUT measures only that paper's
-    splitter measurement (creating it), never its default vector."""
+    """rv4 S3: one past paper uploaded without the splitter's measurement. A
+    PUT must not create it (that would move the student from v1 to the
+    splitter measurement with PAPER_PROFILE_ENABLED off); the choice is kept
+    and the GET says it applies once the paper is measured. DELETE leaves the
+    paper exactly as it was."""
     sid = "parts_school_di"
-    _seed(sid, [MLA, *BASELINES[1:]], matter=False)
+    _seed(sid, [MLA, *BASELINES[1:]])
+    state = store.get(sid)
+    state.samples[0].extra_vectors = None  # uploaded before UPLOAD_ALSO_MEASURE
+    store.put(state)
     url = f"/students/{sid}/samples/0/parts"
     got = live_client.get(url).json()
-    assert got["enabled"] is True and got["measurement_in_use"] is False
-    assert "3 of 3 past papers" in got["measurement_note"]
-    v1 = store.get(sid).samples[0].vector.copy()
+    assert got["measurement_in_use"] is False and "1 of 3 past papers" in got["measurement_note"]
+    assert got["paper_measured"] is False and "applies once it is" in got["paper_note"]
+    before = _snapshot(store.get(sid).samples[0])
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")
+    reading = _score_action(live_client, sid)
+    assert reading[0]["used"] == "v1"
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+
     put = live_client.put(url, json={"exclude_ranges": [[FIRST, SECOND]]}).json()
     sample = store.get(sid).samples[0]
-    assert np.array_equal(sample.vector, v1) and set(sample.extra_vectors) == {"matter"}
-    assert "2 of 3 past papers" in put["measurement_note"]
-    assert store.get(sid).samples[1].extra_vectors is None
+    assert sample.extra_vectors is None and sample.vector.tolist() == before[0]
+    assert po.of_sample(sample) == _cut_first() and "choice_vectors" not in sample.part_overrides
+    assert put["paper_measured"] is False and put["measurement_in_use"] is False
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "0")
+    assert _score_action(live_client, sid) == reading  # still v1, the same reading
+
+    assert live_client.delete(url).status_code == 200
+    assert _snapshot(store.get(sid).samples[0]) == before
+    assert _score_action(live_client, sid) == reading
 
 
 def test_with_a_switch_off_stored_choices_change_nothing(
     live_client, store_reset, switches, monkeypatch
 ):
-    """Finding 4 (W5): a student with stored choices scores byte-identically
-    to one without once a switch is off."""
+    """Finding 4 (W5): a student with a stored choice scores byte-identically
+    to a student that was never given one once a switch is off."""
     _seed("parts_school_x", [MLA, *BASELINES[1:]])
-    _seed("parts_school_y", [MLA, *BASELINES[1:]])
-    choice = {"exclude_ranges": [[FIRST, SECOND]]}
-    for sid in ("parts_school_x", "parts_school_y"):
-        r = live_client.put(f"/students/{sid}/samples/0/parts", json=choice)
-        assert r.status_code == 200
-    # y goes back to the rules: its splitter measurement is then the rules'
-    # own, the one x keeps beside its choice.
-    assert live_client.delete("/students/parts_school_y/samples/0/parts").status_code == 200
-    assert store.get("parts_school_x").samples[0].part_overrides is not None
-    assert store.get("parts_school_y").samples[0].part_overrides is None
+    _seed("parts_school_y", [MLA, *BASELINES[1:]])  # the control: never PUT
+    r = live_client.put(
+        "/students/parts_school_x/samples/0/parts", json={"exclude_ranges": [[FIRST, SECOND]]}
+    )
+    assert r.status_code == 200
     for splitter, profile in (("1", "1"), ("0", "0"), ("1", "0"), ("0", "1")):
         monkeypatch.setenv("MATTER_SPLITTER_ENABLED", splitter)
         monkeypatch.setenv("PAPER_PROFILE_ENABLED", profile)

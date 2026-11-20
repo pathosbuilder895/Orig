@@ -17,9 +17,12 @@ One rule
 A choice changes only the splitter's measurement (``matter``, ``fs2+matter``),
 never the default ``v1`` measurement, and does nothing at all unless both
 ``MATTER_SPLITTER_ENABLED`` and ``PAPER_PROFILE_ENABLED`` are on. With either
-switch off a choice, stored or sent, has no effect anywhere: a past paper's
-stored splitter measurement made with a choice is then replaced, in
-``measurement.vector_for``, by the rules-only one stored beside the choice.
+switch off a choice, stored or sent, has no effect anywhere. A past paper
+keeps the rules' own splitter measurements in ``extra_vectors`` as always;
+those made with its stored choice sit beside them in the choice's document
+(``choice_vectors``) and are served (``measurement.vector_for``) only while
+both switches are on. Both are stored whenever a splitter measurement is made
+for a paper with a choice, whatever the switches say then.
 
 How it travels
 --------------
@@ -47,7 +50,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -113,11 +118,26 @@ def chosen(text: str, choice: PartOverride | None) -> str:
     return ChosenText(text, choice) if choice is not None else text
 
 
+#: Set by ``measuring_stored_choice``: a stored choice is measured whatever the
+#: switches say (to store its measurement beside the rules' one), never served.
+_MEASURING_STORED: ContextVar[bool] = ContextVar("measuring_stored_choice", default=False)
+
+
+@contextmanager
+def measuring_stored_choice() -> Iterator[None]:
+    token = _MEASURING_STORED.set(True)
+    try:
+        yield
+    finally:
+        _MEASURING_STORED.reset(token)
+
+
 def for_text(text: str) -> PartOverride | None:
-    """The choice this paper carries, when it may apply: both switches on and
-    the splitter's measurement in force. None otherwise."""
+    """The choice this paper carries, when it may apply: both switches on (or
+    a stored choice being measured, ``measuring_stored_choice``) and the
+    splitter's measurement in force. None otherwise."""
     choice = getattr(text, "part_choice", None)
-    if choice is None or not switches_on():
+    if choice is None or not (switches_on() or _MEASURING_STORED.get()):
         return None
     from . import feature_flags as _ff  # feature_flags imports this module
 
@@ -214,27 +234,36 @@ def validate(text: str, exclude: Any, include: Any) -> PartOverride | None:
 
 
 def to_stored(
-    choice: PartOverride | None, text: str, rules_vectors: dict[str, Any] | None = None
+    choice: PartOverride | None, text: str, choice_vectors: dict[str, Any] | None = None
 ) -> dict | None:
     """The document stored with a past paper: the ranges, the digest of the
-    text they belong to, and that paper's splitter measurements made by the
-    rules alone (``rules_vectors``), which stand in whenever a switch is off."""
+    text they belong to, and the paper's splitter measurements made with the
+    choice (``choice_vectors``). The rules' own measurements stay where they
+    always are, in ``extra_vectors``; a choice's are served only with both
+    switches on (``choice_vector``)."""
     if choice is None:
         return None
     doc: dict[str, Any] = {**choice.to_doc(), "text_sha256": text_digest(text)}
-    if rules_vectors:
-        doc["rules_vectors"] = {k: [float(x) for x in v] for k, v in sorted(rules_vectors.items())}
+    if choice_vectors:
+        doc["choice_vectors"] = {
+            k: [float(x) for x in v] for k, v in sorted(choice_vectors.items())
+        }
     return doc
 
 
-def rules_vector(sample: Any, measurement: str):
-    """A past paper's ``measurement`` made by the rules alone, when it carries
-    a stored choice and a switch is off (the stored ``extra_vectors`` entry
-    then holds the choice's measurement); None otherwise."""
+def is_splitter(measurement: str) -> bool:
+    from . import feature_flags as _ff
+
+    return bool(_ff.MEASUREMENTS.get(measurement, (1, False))[1])
+
+
+def choice_vector(sample: Any, measurement: str):
+    """A past paper's ``measurement`` made with its stored choice, or None
+    (no choice, a choice that no longer fits its paper, or not measured yet)."""
     doc = getattr(sample, "part_overrides", None)
-    if not doc or switches_on():
+    if not doc or of_sample(sample) is None:
         return None
-    raw = (doc.get("rules_vectors") or {}).get(measurement)
+    raw = (doc.get("choice_vectors") or {}).get(measurement)
     if raw is None:
         return None
     import numpy as np
@@ -243,6 +272,36 @@ def rules_vector(sample: Any, measurement: str):
 
     vector = np.asarray(raw, dtype=np.float64)
     return vector if vector.shape == (FEATURE_DIM,) else None
+
+
+def served_vector(sample: Any, measurement: str, rules_vector):
+    """What a score reads for this paper: the choice's measurement only while
+    both switches are on and one is stored; the rules' own otherwise."""
+    if rules_vector is None or not is_splitter(measurement) or not switches_on():
+        return rules_vector
+    chosen_vector = choice_vector(sample, measurement)
+    return rules_vector if chosen_vector is None else chosen_vector
+
+
+def measure_stored_choice(sample: Any, measurement: str, extract: Callable[[str], Any]):
+    """``measurement`` of a past paper made with its stored choice, whatever
+    the switches say, or None (no valid choice, or not a splitter measurement)."""
+    choice = of_sample(sample)
+    if choice is None or not is_splitter(measurement):
+        return None
+    import numpy as np
+
+    from . import feature_flags as _ff
+
+    with _ff.measuring(measurement), measuring_stored_choice():
+        return np.asarray(extract(chosen(sample.text, choice)), dtype=np.float64)
+
+
+def with_choice_vectors(doc: dict, vectors: dict[str, Any]) -> dict:
+    """``doc`` (a stored choice) with these choice measurements added."""
+    merged = dict(doc.get("choice_vectors") or {})
+    merged.update({k: [float(x) for x in v] for k, v in vectors.items()})
+    return {**doc, "choice_vectors": dict(sorted(merged.items()))}
 
 
 def of_sample(sample: Any) -> PartOverride | None:
