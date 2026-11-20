@@ -133,3 +133,35 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
   html .me-menu a:not([hidden]) { display: flex; align-items: center; }
   html .tap-line { line-height: 44px; }
 }
+
+/* ── Look closer (W3, ADR-015) ─────────────────────────────────────────────
+   A page that opens on its essentials folds everything else under "Look
+   closer": one closed <details class="deep"> per section, opened with one
+   click on its heading.
+
+   .deep-head   the "Look closer" heading over the folds
+   details.deep one fold; .deep-body its content */
+.deep-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .55rem; margin: .4rem 0 -.6rem; }
+.deep-head b { font: 500 1.1rem var(--display, 'Playfair Display', Georgia, serif); color: var(--cream, #f5efe0); }
+.deep-head span { color: var(--dim-2, rgba(245,239,224,0.56)); font-size: .84rem; font-style: italic; }
+details.deep { border: 1px solid var(--line-soft, rgba(255,255,255,0.07)); border-radius: 16px; background: rgba(255,255,255,0.025); }
+/* The heading and its note stack in the first column; the + sits level with them on the right
+   and never wraps onto a line of its own, however narrow the fold. */
+details.deep > summary {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: .8rem; row-gap: .1rem; padding: .85rem 1.2rem;
+}
+details.deep > summary > * { grid-column: 1; }
+details.deep > summary::-webkit-details-marker { display: none; }
+details.deep > summary b { font: 500 1.08rem var(--display, 'Playfair Display', Georgia, serif); color: var(--cream, #f5efe0); }
+details.deep > summary span { color: var(--dim, rgba(245,239,224,0.68)); font-size: .84rem; }
+details.deep > summary::after { content: '+'; grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--gold, #c9a028); font-family: var(--mono, monospace); font-size: 1rem; }
+details.deep[open] > summary::after { content: '-'; }
+details.deep > summary:hover { background: rgba(255,255,255,0.03); border-radius: 16px; }
+details.deep > summary:focus-visible { outline: 2px solid var(--gold-2, #e0be55); outline-offset: -2px; border-radius: 16px; }
+.deep-body { padding: .2rem 1.2rem 1.2rem; }
+/* Phones: a 1rem gutter inside the fold. */
+@media (max-width: 600px) {
+  details.deep > summary { padding: .85rem 1rem; }
+  .deep-body { padding: .2rem 1rem 1rem; }
+}
