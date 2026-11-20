@@ -65,7 +65,7 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
 .live-empty {
   margin: auto 0;
   font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 
 .live-panel {
@@ -86,7 +86,7 @@ html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
 .live-panel p {
   margin-top: .7rem;
   font: italic 1rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 .live-panel a {
   display: inline-block; margin-top: 1.2rem;
