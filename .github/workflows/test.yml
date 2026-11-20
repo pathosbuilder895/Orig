@@ -262,7 +262,9 @@ jobs:
   pytest-rest:
     runs-on: ubuntu-latest
     needs: lint
-    timeout-minutes: 20
+    # 30, not 20: on main 90a868f (2026-11-20) this shard's pytest step took
+    # 17m54s and the job 19m40s, so the next few tests cancelled it at 97%.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
