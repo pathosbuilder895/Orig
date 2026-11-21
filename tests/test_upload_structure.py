@@ -378,10 +378,9 @@ def test_the_upload_routes_have_no_extractor_of_their_own():
         assert "PdfReader" not in src and "Document(" not in src, name
 
 
-def test_the_paper_box_route_returns_text_without_page_markers(live_client, store_reset):
-    """``/students/{id}/upload`` fills a box the teacher reads and edits, so
-    it returns no page markers: a .docx page break comes back as the blank
-    line it was before markers were kept."""
+def test_the_upload_route_keeps_a_docx_page_break(live_client, store_reset):
+    """A .docx in the paper box keeps its page marker: the parts list reads a
+    title page from the break after it (``e2e/paper-parts.spec.mjs``)."""
     from docx.enum.text import WD_BREAK
 
     def build(doc):
@@ -389,15 +388,12 @@ def test_the_paper_box_route_returns_text_without_page_markers(live_client, stor
         doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         doc.add_paragraph("Body.")
 
-    raw = _docx(build)
-    assert uu.extract_text_from_bytes(raw, "paper.docx") == "Title" + PAGE_BREAK + "Body."
     r = live_client.post(
         "/students/up-structure/upload",
-        files={"file": ("paper.docx", io.BytesIO(raw), "application/octet-stream")},
+        files={"file": ("paper.docx", io.BytesIO(_docx(build)), "application/octet-stream")},
     )
     assert r.status_code == 200
-    plain = without_page_breaks("Title" + PAGE_BREAK + "Body.")
-    assert r.json()["text"] == plain == "Title\n\nBody."
+    assert r.json()["text"] == "Title" + PAGE_BREAK + "Body."
     assert r.json()["word_count"] == 2
 
 
