@@ -204,9 +204,9 @@ def validate(text: str, exclude: Any, include: Any) -> PartOverride | None:
     for a, b in [*ex_raw, *inc]:
         if not text[a:b].split():
             raise OverrideError(f"range [{a}, {b}] holds no words")
+    # A range holding a word keeps it when snapped (the word sits before the
+    # PDF tag), so a range with only the tag was refused just above.
     ex = union_ranges(_snap(text, a, b) for a, b in ex_raw)
-    if ex_raw and not ex:  # only the PDF tag
-        raise OverrideError("exclude_ranges holds no words")
     if inc:
         found = _matter.find_parts(text)
         rule_ranges = {(r.start, r.end) for r in [*found.set_aside, *found.possible]}
