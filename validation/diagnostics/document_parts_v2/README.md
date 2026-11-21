@@ -702,6 +702,12 @@ Whether student papers pasted from Word look like this (paragraph-length lines,
 no blank lines) and whether any student text is split wrongly is not measured
 here.
 
+Nothing here authorises `PARAGRAPH_BREAKS_ENABLED=1`. How often the rule fires on
+real student pastes, and how often it splits a real student paste wrongly, is
+the number no corpus here can supply, and it is needed before `on`. In the
+summary, `commit` is the parent commit (the run predates the commit that added
+`para`); `code_hash` is the reliable pin.
+
 Rebuilt with (about 25 minutes on 4 cores; dev only, no hold-out mode):
 
 ```bash
