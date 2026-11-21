@@ -352,3 +352,14 @@ def test_api_word_paste_reads_as_the_blank_line_paste(live_client, store_reset, 
     assert on_word["authorship"] == on_blank["authorship"]
     # The blank-line paste's past papers carry blank lines, so para measures them as v1 did.
     assert on_blank["authorship"]["deviation_score"] == off_blank["authorship"]["deviation_score"]
+
+
+def test_a_blank_line_of_cr_or_nbsp_counts_as_blank():
+    """A body whose paragraphs are separated by a CRLF or non-breaking-space
+    blank line already has paragraphs, as tier1 reads them, so it is untouched."""
+    from original.features import paragraphs
+
+    line = "This is a long sentence that runs on for well over twenty-five words so that the rule would otherwise treat it as a paragraph line in a pasted essay."
+    for sep in ("\n\r\n", "\n \n"):
+        body = line + sep + line + "\n" + line
+        assert paragraphs._BLANK_LINE.search(body)

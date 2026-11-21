@@ -52,7 +52,9 @@ MIN_WORD_SHARE = 0.75
 #: At least this many paragraph-length lines (one line is one paragraph anyway).
 MIN_PARAGRAPH_LINES = 2
 
-_BLANK_LINE = re.compile(r"\n[ \t]*\n")
+# The same paragraph boundary tier1._split_paragraphs uses (\n\s*\n), so a blank
+# line made of a CR or a non-breaking space counts as blank here too.
+_BLANK_LINE = re.compile(r"\n\s*\n")
 # A sentence end (or a colon introducing a quotation, which pdf_reflow also
 # reads as one), then any dash, closing quote or bracket, then an optional
 # note number: "2", "(138)" or "[12]". Built with chr() to keep the source ASCII.
