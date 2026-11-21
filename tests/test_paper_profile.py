@@ -372,3 +372,21 @@ def test_parts_reach_staff_only(monkeypatch):
     assert profile["this_paper"]["parts"]
     student_view = voice.drop_staff_only({"evidence": {"paper_profile": profile}, "headline": "h"})
     assert student_view == {"evidence": {}, "headline": "h"}
+
+
+_APPENDIX_PROSE = "The river runs past the town and the people who live there know it well. " * 20
+_APPENDIX_ENTRIES = [
+    "Adams, John. A Book About Rivers. Penguin, 2001.",
+    "Baker, Sue. Another Book. Norton, 2010.",
+    "Clark, Tim. Water and Towns. Vintage, 2015.",
+]
+
+
+@pytest.mark.parametrize("heading", ["Appendix A: Survey", "8. Appendix A", "**Appendix**"])
+def test_an_appendix_after_the_list_is_listed_however_it_is_decorated(heading):
+    text = (
+        _APPENDIX_PROSE + "\n\nWorks Cited\n\n" + "\n\n".join(_APPENDIX_ENTRIES)
+        + "\n\n" + heading + "\n\nThe survey asked ten questions of each person in town."
+    )  # fmt: skip
+    (appendix,) = [p for p in pp.paper_parts(text) if p["kind"] == "appendix"]
+    assert appendix["status"] == "measured" and appendix["first_line"] == heading

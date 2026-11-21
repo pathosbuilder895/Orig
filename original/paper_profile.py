@@ -99,8 +99,6 @@ _ENTRY_START = re.compile(
     r"|[\"\u201c][A-Z]"  # "Title." (no author)
     r")"
 )
-#: An appendix after the list of sources (measured again by the rules).
-_APPENDIX = re.compile(r"^[\s#*_]*(?:appendix|appendices)\b", re.IGNORECASE)
 _YEAR = re.compile(r"\b(1[5-9]\d\d|20\d\d)\b")
 _APA_ENTRY = re.compile(
     r"^[^()]{1,200}?\(\s*(?:1[5-9]\d\d|20\d\d)[a-z]?(?:,\s*[A-Za-z]+(?:\s\d{1,2})?)?\s*\)\."
@@ -261,7 +259,9 @@ def paper_parts(text: str, parts: _matter.Parts | None = None) -> list[dict[str,
     # An appendix after the list of sources: measured again by the rules.
     for r in found.set_aside:
         if r.kind == "back_matter" and r.end < len(text) and text[r.end :].strip():
-            if _APPENDIX.match(_first_line(text, r.end, len(text))):
+            # The rules' own appendix check, so a decorated heading ("8.
+            # Appendix A") the rules measure again is listed as they read it.
+            if _matter._is_appendix_heading(_first_line(text, r.end, len(text))):
                 out.append(_part(text, "appendix", [(r.end, len(text))], "measured", False))
     choice = _overrides.for_text(text)
     if choice is not None:
