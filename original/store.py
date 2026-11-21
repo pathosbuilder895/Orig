@@ -884,18 +884,23 @@ def _extra_vectors_doc(sample) -> dict:
         return {}
     doc: dict = {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
     rules = getattr(sample, "extra_vector_rules", None)
-    if rules:  # the splitter's rules version per measurement (original/measurement.py)
-        doc["extra_vector_rules"] = {k: int(v) for k, v in sorted(rules.items())}
+    if rules:  # rules-version stamp per measurement (features/rules_stamp.py)
+        doc["extra_vector_rules"] = {
+            k: v if isinstance(v, str) else int(v) for k, v in sorted(rules.items())
+        }
     return doc
 
 
 def _extra_vector_rules_from_doc(s: dict) -> dict | None:
-    """Stored rules-version stamps of the splitter measurements, or None
-    (unstamped: see features/matter.py UNSTAMPED_RULES_VERSION)."""
+    """Stored rules-version stamps (features/rules_stamp.py), or None
+    (unstamped: see UNSTAMPED_RULES_VERSION in features/matter.py and
+    features/paragraphs.py). A value that is not a stamp is dropped."""
+    from .features import rules_stamp
+
     raw = s.get("extra_vector_rules")
     if not raw or not isinstance(raw, dict):
         return None
-    out = {k: v for k, v in raw.items() if isinstance(v, int) and not isinstance(v, bool)}
+    out = {k: v for k, v in raw.items() if rules_stamp.parse(v) is not None}
     return out or None
 
 

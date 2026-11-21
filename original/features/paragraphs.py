@@ -45,6 +45,24 @@ from __future__ import annotations
 
 import re
 
+#: The version of this rule a stored measurement with the paragraph bit was
+#: made under (``extra_vectors["para"]``, ``"fs2+para"``, ``"matter+para"``,
+#: ``"fs2+matter+para"`` and a teacher's ``choice_vectors`` of those;
+#: ``features/rules_stamp.py`` writes and checks the stamp).
+#:
+#: Bump policy: add 1 whenever a change to this module, or to the paragraph
+#: path in ``features.preprocess``, ``evidence.engine_view`` or
+#: ``quantum.length_match``, can change what is measured for some text (a
+#: rule, a threshold, a pattern). Refactors that measure every text exactly
+#: as before do not bump it. A stored measurement whose paragraph version is
+#: not this one is then served as if it were missing (scores fall back to the
+#: default measurement) until ``scripts/backfill_measurements.py`` measures it
+#: again. The default "v1" measurement never reads this.
+RULES_VERSION = 1
+#: The version an unstamped stored paragraph measurement is taken to have
+#: (those stored before this stamp existed). Never change it.
+UNSTAMPED_RULES_VERSION = 1
+
 #: A paragraph-length line has at least this many words ...
 MIN_LINE_WORDS = 25
 #: ... and the paragraph-length lines hold at least this share of the words.
