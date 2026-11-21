@@ -5,11 +5,12 @@ backfill_measurements.py — store a second measurement next to every past paper
 
 Each past paper (``BaselineSample``) keeps its ``vector`` (the default "v1"
 measurement, untouched by this script). This script measures each paper's
-stored text again the way ``--measurement`` names ("fs2", "matter" or
-"fs2+matter"; default "fs2+matter") and stores the result in the paper's
-``extra_vectors``. Scoring uses that measurement only once every past paper of
-a student has it, and only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask for
-it (both off by default).
+stored text again the way ``--measurement`` names ("fs2", "matter",
+"fs2+matter", or any of them with "+para", or "para"; default "fs2+matter")
+and stores the result in the paper's ``extra_vectors``. Scoring uses that
+measurement only once every past paper of a student has it, and only when
+FEATURE_SET / MATTER_SPLITTER_ENABLED / PARAGRAPH_BREAKS_ENABLED ask for it
+(all off by default).
 
 Safety
 ------

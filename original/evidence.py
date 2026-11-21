@@ -71,6 +71,7 @@ from .evidence_features import feature_info
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
 from .features import matter as _matter
+from .features import paragraphs as _para
 from .features import pdf_reflow as _reflow
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
@@ -405,6 +406,8 @@ def engine_view(text: str) -> EngineView | None:
     if _pp.reflows(text):  # a PDF measured with the splitter on: its paragraphs
         m = _apply_ops(m, _reflow.reflow_ops(m.text))
     m = _drop(m, _matter.LONE_PAGE_MARK)  # a stored page marker is not measured
+    if _ff.paragraph_breaks_enabled():  # a Word-style paste: line breaks as paragraphs
+        m = _apply_ops(m, _para.paragraph_ops(m.text))
     if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
         m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 

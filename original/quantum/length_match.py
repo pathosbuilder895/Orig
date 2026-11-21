@@ -134,8 +134,10 @@ def _body(text: str) -> str:
     the same parts aside. A teacher's choice of parts carried by ``text``
     (``features.part_overrides``) is honoured the same way, because
     ``preprocess`` applies it, and only where it applies there: both switches
-    on and the splitter's measurement in use."""
-    if _ff.matter_splitter_enabled():
+    on and the splitter's measurement in use. ``PARAGRAPH_BREAKS_ENABLED`` on
+    (or a ``para`` measurement): the same body as ``preprocess`` too, so a
+    Word-style paste is cut into pieces of paragraphs."""
+    if _ff.matter_splitter_enabled() or _ff.paragraph_breaks_enabled():
         return _pp._body(text)
     # An upload's page markers dropped, so the pieces are the base pieces.
     return without_page_breaks(_strip_backmatter(text))
