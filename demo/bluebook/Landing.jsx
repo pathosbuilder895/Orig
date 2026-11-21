@@ -72,7 +72,7 @@ export function LandingScreen({ onNavigate }) {
       <section className="bb-land-hero" style={{
         flex: 1, display: 'flex', flexDirection: 'column',
         justifyContent: 'flex-end', minHeight: '100vh',
-        padding: '120px 48px 48px', position: 'relative',
+        padding: '120px 48px 96px', position: 'relative',
       }}>
         <div className="bb-land-kicker" style={{ position: 'absolute', top: 80, left: 48, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold-2)' }} />
