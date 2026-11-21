@@ -719,3 +719,17 @@ or the rules is rescored, never served stale; each run also scores one case
 fresh and asserts it matches the main run (`determinism.main_run_matches_fresh`).
 `--segment-only` writes `rows_dev_segment_only.json` and
 `summary_dev_segment_only.json`, never the full run's files.
+
+## Holdout after the final rules (run once, 2026-11-21)
+
+`run.py --split holdout --after` was run once on the final rules (engine `code_hash` `c2a0f40b81442000`, the same as `summary_dev_after.json`), stamped `HOLDOUT_LOOKED_AT` 2026-11-21T00:01:48Z, with `determinism.main_run_matches_fresh` true. Files: `summary_holdout_after.json`, `rows_holdout_after.json`. Nothing was tuned on it.
+
+Corpus: 3 authors (chesterton, kempis, mill), published 19th-century prose with fabricated parts, not student writing. Independence is weakened (their prose was in the 2026-11-18 experiment the rules were developed against; templates and heading words are shared with dev), so recall here does not show the rules generalise. Every band count, mean and rate below is `uninformative` beyond these 3 authors.
+
+- **Prose set aside, splitter on:** 0 of 252 cases, every format and input type (as on dev). The four negative controls read exactly as their prose alone in all input types (holdout before: up to +0.070 as PDF).
+- **New, not seen on dev:** in 19 kempis PDF cases some true prose is listed to the teacher as a `possible` part (7.8% of prose characters in the prose-only PDFs, 14.5% in Turabian PDFs). It is measured, so it does not move the reading, but a teacher would see it.
+- **Recall, splitter on (prose set aside 0% beside each):** pasted and .docx every part 100% except MLA references 95% (kempis's unheaded list, 0%); PDF: APA title page 84% (kempis 28%), Turabian footnotes 50% (lowest 3%), against 100% and 94% on dev.
+- **Reading change against the prose alone:** chesterton and mill read exactly as their prose alone except `turabian_appendix` (-0.011 to +0.014, the appendix being measured) and mill's Turabian PDF (+0.0006). Kempis: +0.131 on `mla_unheaded_refs` (pasted, .docx, PDF; +0.083 single-newline paste), +0.095 on five APA PDF variants, +0.020 on Turabian PDF. No paper changed band. Dev's "within 0.0024" did not hold here.
+- **Switch off:** all 252 holdout rows score exactly as before.
+
+The holdout is now used: any rule change made because of the kempis findings is tuned on it, and it can no longer test those rules. Nothing here authorises `MATTER_SPLITTER_ENABLED=1`; how often these parts appear in real submissions, and how they are shaped, is what no corpus here can supply.
