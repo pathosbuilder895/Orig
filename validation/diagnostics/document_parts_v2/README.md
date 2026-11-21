@@ -443,7 +443,7 @@ included (before: +0.047 and +0.048 as PDFs).
 blank-line paste (0.000 on 5 of 6, -0.001 on one; before -0.040 to +0.051),
 because the reflowed PDF has the same paragraphs. The single-newline paste
 still reads +0.022 to +0.063 above the blank-line paste in both settings: that
-finding is not addressed here.
+finding is not addressed here (see "Paragraph breaks" below).
 
 <!-- tables:dev_after -->
 Each cell: share of that part's characters set aside, splitter **off / on**; last column: share of the true prose set aside (false set-aside), off / on. Non-whitespace characters, pooled over the n papers in the row.
@@ -655,6 +655,118 @@ Share of each part's characters, and of the true prose, inside a `possible` rang
 | prose only | docx | 36 |  |  |  |  |  |  |  |  |  | 0% |
 | prose only | pdf | 36 |  |  |  |  |  |  |  |  |  | 0% |
 <!-- /tables:dev_after -->
+
+## Paragraph breaks (dev)
+
+**Diagnostic, dev split only, published prose, not student writing; n = 6 papers
+per row.** The hold-out was not run or opened for this.
+
+**Root cause.** Every paragraph reader splits at blank lines
+(`features/tier1.py:_split_paragraphs`, which feeds `TextDoc.paragraphs`;
+`tension_arc.py:_split_paragraphs`; `preprocess.py`'s per-paragraph citation
+counts). A paste with one newline between paragraphs has no blank line, so the
+whole paper is one paragraph. Feature-vector diff of the dev `prose` papers,
+single-newline minus blank-line paste (`v1`): `avg_paragraph_length`
+(tier2.py:237, 6 of 6, +0.27 to +0.93), `paragraph_topic_position`
+(tier2.py:205, 6 of 6, -0.14 to -0.58), `transition_predictability`
+(tier7.py:175, 6 of 6, +0.05 to +0.44), `metric_flatness_score`
+(prosodic.py:224, 6 of 6, -0.34 to +0.16), `catastrophe_index`
+(tension_arc.py:269 via pipeline.py:79, 1 of 6, -0.83) and
+`error_topology_consistency` (prosodic.py:335, 1 of 6, +0.35). Nothing else
+moves.
+
+**The fix: a new measurement, `para`** (`PARAGRAPH_BREAKS_ENABLED`, off by
+default; ids `para`, `fs2+para`, `matter+para`, `fs2+matter+para`, ADR-014).
+`original/features/paragraphs.py`: a measured body with no blank line at all
+whose paragraph-length lines (25 or more words, ending a sentence or a colon,
+with closing quotes, dashes or a note number allowed after it) hold at least
+75% of its words has each line break read as a paragraph break; anything else
+is measured unchanged. The rule was tuned on this dev split (the colon and
+note-number endings were added after james's prose, whose quotations are
+introduced by ":" plus a dash, failed the first version at 69% of its words),
+so these are not out-of-sample numbers.
+
+**Result.** With `para` (or `matter+para`) the single-newline paste reads
+exactly as the blank-line paste: +0.000 for all 6 papers in `prose` and
+`prose_short` (before: +0.022 to +0.063 and +0.004 to +0.051), and no band
+change (before: 3 of 6 up, douglass and james to "monitor", edwards to
+"schedule a conversation"). Every other variant: +0.000 under `para`, and
+-0.001 to +0.000 under `matter+para` (the APA variants, where the splitter
+removing a heading leaves one more blank line in the blank-line paste than in
+the other). The blank-line paste, .docx and PDF read identically, to the last
+bit and the same action, under `para` as under `v1` and under `matter+para` as
+under `matter` (126 of 126 papers each). The `v1` and `matter` rows of this run
+equal `rows_dev_after.json` (made before this measurement existed) for all
+1008 rows. n = 6 throughout: the band counts are **uninformative** as rates.
+Whether student papers pasted from Word look like this (paragraph-length lines,
+no blank lines) and whether any student text is split wrongly is not measured
+here.
+
+Rebuilt with (about 25 minutes on 4 cores; dev only, no hold-out mode):
+
+```bash
+.venv/bin/python -I validation/diagnostics/document_parts_v2/run_paragraphs.py   # rows/summary/tables_dev_paragraphs
+```
+
+<!-- tables:dev_paragraphs -->
+Published prose, not student writing; diagnostic; dev split only; n = 6 papers per row, so band counts show direction, not rates (**uninformative** as proportions).
+
+#### Single-newline paste minus blank-line paste (same paper), per author
+
+| Variant | Measurement | augustine | boethius | douglass | edwards | james | newman | mean | band up / down |
+|---|---|---|---|---|---|---|---|---|---|
+| prose | v1 | +0.026 | +0.050 | +0.040 (+1 band) | +0.028 (+1 band) | +0.022 (+1 band) | +0.063 | +0.038 | 3 / 0 |
+| prose | matter | +0.026 | +0.050 | +0.040 (+1 band) | +0.028 (+1 band) | +0.022 (+1 band) | +0.063 | +0.038 | 3 / 0 |
+| prose | para | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | 0 / 0 |
+| prose | matter+para | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | 0 / 0 |
+| prose_short | v1 | +0.004 | +0.012 | +0.017 | +0.007 | +0.015 | +0.051 | +0.018 | 0 / 0 |
+| prose_short | matter | +0.004 | +0.012 | +0.017 | +0.007 | +0.015 | +0.051 | +0.018 | 0 / 0 |
+| prose_short | para | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | 0 / 0 |
+| prose_short | matter+para | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | +0.000 | 0 / 0 |
+
+#### Single-newline minus blank-line paste, every variant (mean; range; band up / down)
+
+| Variant | v1 | matter | para | matter+para |
+|---|---|---|---|---|
+| apa_bold_abstract | -0.013; -0.094 to +0.024; 0 / 2 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| apa_literature_cited | +0.000; -0.022 to +0.014; 0 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| apa_professional | -0.010; -0.091 to +0.028; 1 / 1 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| apa_reference_list | -0.000; -0.023 to +0.015; 0 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| apa_student | -0.013; -0.094 to +0.024; 0 / 2 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| markdown_apa | -0.001; -0.021 to +0.011; 0 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | -0.000; -0.001 to +0.000; 0 / 0 |
+| mla | +0.000; -0.019 to +0.022; 1 / 1 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| mla_short_long_refs | -0.004; -0.038 to +0.021; 0 / 0 | +0.018; +0.004 to +0.051; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| mla_unheaded_refs | -0.003; -0.024 to +0.009; 0 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| neg_abstract_word | -0.002; -0.024 to +0.022; 0 / 1 | +0.039; +0.021 to +0.065; 2 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| neg_letter | -0.002; -0.023 to +0.019; 1 / 0 | +0.002; -0.015 to +0.021; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| neg_references_sentence | -0.002; -0.022 to +0.021; 0 / 1 | +0.039; +0.020 to +0.063; 2 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| neg_sermon_prayer | -0.006; -0.030 to +0.017; 0 / 2 | -0.001; -0.023 to +0.019; 1 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose | +0.038; +0.022 to +0.063; 3 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose_abstract_word | +0.039; +0.021 to +0.065; 2 / 0 | +0.039; +0.021 to +0.065; 2 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose_letter | +0.002; -0.015 to +0.021; 0 / 0 | +0.002; -0.015 to +0.021; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose_references_sentence | +0.039; +0.020 to +0.063; 2 / 0 | +0.039; +0.020 to +0.063; 2 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose_sermon_prayer | -0.001; -0.023 to +0.019; 1 / 0 | -0.001; -0.023 to +0.019; 1 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| prose_short | +0.018; +0.004 to +0.051; 0 / 0 | +0.018; +0.004 to +0.051; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| turabian | -0.003; -0.025 to +0.018; 0 / 0 | +0.038; +0.022 to +0.063; 3 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+| turabian_appendix | -0.003; -0.025 to +0.018; 0 / 0 | +0.043; +0.023 to +0.072; 1 / 0 | +0.000; +0.000 to +0.000; 0 / 0 | +0.000; +0.000 to +0.000; 0 / 0 |
+
+#### The new measurement against the one it adds to, per input type
+
+Papers: every dev variant x author (21 x 6). Identical: same deviation to the last bit and same action.
+
+| Comparison | Input | papers | identical | moved | prose: mean change | prose: band up / down |
+|---|---|---|---|---|---|---|
+| para vs v1 | paste | 126 | 126 | 0 | +0.000 | 0 / 0 |
+| para vs v1 | paste_word | 126 | 0 | 126 | -0.038 | 0 / 3 |
+| para vs v1 | docx | 126 | 126 | 0 | +0.000 | 0 / 0 |
+| para vs v1 | pdf | 126 | 126 | 0 | +0.000 | 0 / 0 |
+| matter+para vs matter | paste | 126 | 126 | 0 | +0.000 | 0 / 0 |
+| matter+para vs matter | paste_word | 126 | 0 | 126 | -0.038 | 0 / 3 |
+| matter+para vs matter | docx | 126 | 126 | 0 | +0.000 | 0 / 0 |
+| matter+para vs matter | pdf | 126 | 126 | 0 | +0.000 | 0 / 0 |
+
+`v1` and `matter` rows against `rows_dev_after.json` (`run.py --after`): 1008 of 1008 identical.
+<!-- /tables:dev_paragraphs -->
 
 ## Caveats
 
