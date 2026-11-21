@@ -378,7 +378,10 @@ def test_the_upload_routes_have_no_extractor_of_their_own():
         assert "PdfReader" not in src and "Document(" not in src, name
 
 
-def test_the_upload_route_keeps_page_breaks(live_client, store_reset):
+def test_the_paper_box_route_returns_text_without_page_markers(live_client, store_reset):
+    """``/students/{id}/upload`` fills a box the teacher reads and edits, so
+    it returns no page markers: a .docx page break comes back as the blank
+    line it was before markers were kept."""
     from docx.enum.text import WD_BREAK
 
     def build(doc):
@@ -386,13 +389,34 @@ def test_the_upload_route_keeps_page_breaks(live_client, store_reset):
         doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         doc.add_paragraph("Body.")
 
+    raw = _docx(build)
+    assert uu.extract_text_from_bytes(raw, "paper.docx") == "Title" + PAGE_BREAK + "Body."
     r = live_client.post(
         "/students/up-structure/upload",
-        files={"file": ("paper.docx", io.BytesIO(_docx(build)), "application/octet-stream")},
+        files={"file": ("paper.docx", io.BytesIO(raw), "application/octet-stream")},
     )
     assert r.status_code == 200
-    assert r.json()["text"] == "Title" + PAGE_BREAK + "Body."
+    plain = without_page_breaks("Title" + PAGE_BREAK + "Body.")
+    assert r.json()["text"] == plain == "Title\n\nBody."
     assert r.json()["word_count"] == 2
+
+
+def test_the_paper_box_route_returns_a_pdf_without_its_tag(live_client, store_reset):
+    """A PDF's text ends with ``matter.PDF_TAG`` when stored; in the paper
+    box it would show and count as a word (a browser's ``\\s`` does not
+    match U+001F), so the route returns exactly the pre-marker text."""
+    raw = (SAMPLES / "mla.pdf").read_bytes()
+    stored = uu.extract_text_from_bytes(raw, "mla.pdf")
+    assert stored.endswith(PDF_TAG)
+    r = live_client.post(
+        "/students/up-structure/upload",
+        files={"file": ("mla.pdf", io.BytesIO(raw), "application/pdf")},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert matter.PAGE_MARK not in body["text"]
+    assert body["text"] == without_page_breaks(stored) == _old_pdf(raw)
+    assert body["word_count"] == len(_old_pdf(raw).split())
 
 
 def test_matter_reads_only_the_page_marker_as_a_page_break():
