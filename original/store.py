@@ -882,7 +882,21 @@ def _extra_vectors_doc(sample) -> dict:
     extra = getattr(sample, "extra_vectors", None)
     if not extra:
         return {}
-    return {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    doc: dict = {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    rules = getattr(sample, "extra_vector_rules", None)
+    if rules:  # the splitter's rules version per measurement (original/measurement.py)
+        doc["extra_vector_rules"] = {k: int(v) for k, v in sorted(rules.items())}
+    return doc
+
+
+def _extra_vector_rules_from_doc(s: dict) -> dict | None:
+    """Stored rules-version stamps of the splitter measurements, or None
+    (unstamped: see features/matter.py UNSTAMPED_RULES_VERSION)."""
+    raw = s.get("extra_vector_rules")
+    if not raw or not isinstance(raw, dict):
+        return None
+    out = {k: v for k, v in raw.items() if isinstance(v, int) and not isinstance(v, bool)}
+    return out or None
 
 
 def _part_overrides_doc(sample) -> dict:
@@ -1030,6 +1044,7 @@ def _deserialize(data: str) -> StudentState:
                 # field existed.
                 composition_summary=s.get("composition_summary"),
                 extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
+                extra_vector_rules=_extra_vector_rules_from_doc(s),
                 part_overrides=s.get("part_overrides") or None,
             )
         )

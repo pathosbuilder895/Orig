@@ -228,6 +228,7 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                     submitted_at=submission.get("submitted_at") or "",
                     word_count=len(text.split()),
                     extra_vectors=extra_vectors,
+                    extra_vector_rules=_measurement.rules_stamps(extra_vectors),
                 )
                 sample.text_hash = digest  # type: ignore[attr-defined]
                 if AUTH_WEIGHTS[provenance] > 0:
