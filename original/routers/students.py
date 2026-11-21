@@ -528,6 +528,12 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
     change — same fix already applied to the sibling upload routes,
     ``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is
     UploadFile's underlying sync SpooledTemporaryFile, same as those two.
+
+    The text goes into a box the teacher sees and edits, so it comes back
+    without page markers or a PDF's tag (``matter.without_page_breaks``):
+    exactly the text this route returned before markers were kept. A paper
+    analysed from that box is therefore measured like a paste, with no
+    page-based rules; the stored-paper upload routes keep the markers.
     """
     filename = file.filename or "unknown"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -546,5 +552,6 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
     except ValueError as exc:  # corrupt file: the caller's input
         raise HTTPException(status_code=422, detail="This file could not be read.") from exc
 
+    text = without_page_breaks(text)
     word_count = len(text.split())
     return {"text": text, "filename": filename, "word_count": word_count}
