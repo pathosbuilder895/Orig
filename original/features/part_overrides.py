@@ -20,9 +20,11 @@ never the default ``v1`` measurement, and does nothing at all unless both
 switch off a choice, stored or sent, has no effect anywhere. A past paper
 keeps the rules' own splitter measurements in ``extra_vectors`` as always;
 those made with its stored choice sit beside them in the choice's document
-(``choice_vectors``) and are served (``measurement.vector_for``) only while
-both switches are on. Both are stored whenever a splitter measurement is made
-for a paper with a choice, whatever the switches say then.
+(``choice_vectors``, each with the splitter's rules version in
+``choice_rules``; one made under other rules is served as missing) and are
+served (``measurement.vector_for``) only while both switches are on. Both are
+stored whenever a splitter measurement is made for a paper with a choice,
+whatever the switches say then.
 
 How it travels
 --------------
@@ -248,6 +250,7 @@ def to_stored(
         doc["choice_vectors"] = {
             k: [float(x) for x in v] for k, v in sorted(choice_vectors.items())
         }
+        doc["choice_rules"] = {k: _matter.RULES_VERSION for k in sorted(choice_vectors)}
     return doc
 
 
@@ -259,12 +262,17 @@ def is_splitter(measurement: str) -> bool:
 
 def choice_vector(sample: Any, measurement: str):
     """A past paper's ``measurement`` made with its stored choice, or None
-    (no choice, a choice that no longer fits its paper, or not measured yet)."""
+    (no choice, a choice that no longer fits its paper, not measured yet, or
+    measured under other splitter rules than today's: ``choice_rules`` holds
+    each one's ``matter.RULES_VERSION``, unstamped taken as
+    ``matter.UNSTAMPED_RULES_VERSION``)."""
     doc = getattr(sample, "part_overrides", None)
     if not doc or of_sample(sample) is None:
         return None
     raw = (doc.get("choice_vectors") or {}).get(measurement)
     if raw is None:
+        return None
+    if not _matter.rules_current((doc.get("choice_rules") or {}).get(measurement)):
         return None
     import numpy as np
 
@@ -298,10 +306,24 @@ def measure_stored_choice(sample: Any, measurement: str, extract: Callable[[str]
 
 
 def with_choice_vectors(doc: dict, vectors: dict[str, Any]) -> dict:
-    """``doc`` (a stored choice) with these choice measurements added."""
+    """``doc`` (a stored choice) with these choice measurements added, each
+    stamped with the current ``matter.RULES_VERSION``."""
     merged = dict(doc.get("choice_vectors") or {})
     merged.update({k: [float(x) for x in v] for k, v in vectors.items()})
-    return {**doc, "choice_vectors": dict(sorted(merged.items()))}
+    rules = dict(doc.get("choice_rules") or {})
+    rules.update({k: _matter.RULES_VERSION for k in vectors})
+    return {
+        **doc,
+        "choice_vectors": dict(sorted(merged.items())),
+        "choice_rules": dict(sorted(rules.items())),
+    }
+
+
+def with_choice_rules(doc: dict, measurement: str) -> dict:
+    """``doc`` with its ``measurement`` choice measurement stamped as made
+    under today's rules (one stored before stamps existed, still current)."""
+    rules = {**(doc.get("choice_rules") or {}), measurement: _matter.RULES_VERSION}
+    return {**doc, "choice_rules": dict(sorted(rules.items()))}
 
 
 def of_sample(sample: Any) -> PartOverride | None:

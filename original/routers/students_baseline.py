@@ -188,6 +188,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         keystroke_data=_strip_raw_keystroke_arrays(req.keystroke_data),
         composition_summary=req.composition_summary,
         extra_vectors=extra_vectors,
+        extra_vector_rules=_measurement.rules_stamps(extra_vectors),
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -590,6 +591,7 @@ def upload_baseline_batch(
             assignment=label,
             submitted_at=submitted_at,
             extra_vectors=extra_vectors,
+            extra_vector_rules=_measurement.rules_stamps(extra_vectors),
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.

@@ -75,6 +75,7 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vector_rules_from_doc,
     _extra_vectors_doc,
     _extra_vectors_from_doc,
     _part_overrides_doc,
@@ -259,6 +260,7 @@ class PostgresRepository:
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
                     extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
+                    extra_vector_rules=_extra_vector_rules_from_doc(s),
                     part_overrides=s.get("part_overrides") or None,
                 )
             )

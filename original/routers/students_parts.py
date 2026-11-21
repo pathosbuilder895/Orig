@@ -108,9 +108,14 @@ def get_sample_parts(student_id: str, index: int, request: Request):
 
 
 def _splitter_keys(sample) -> list[str]:
-    """The splitter measurements this paper already carries. A choice never
-    creates one: that would change which measurement scores use."""
-    return sorted(k for k in (sample.extra_vectors or {}) if _po.is_splitter(k))
+    """The splitter measurements this paper already carries, made under
+    today's rules (a stale one counts as missing, ``measurement.stored_vector``).
+    A choice never creates one: that would change which measurement scores use."""
+    return sorted(
+        k
+        for k in (sample.extra_vectors or {})
+        if _po.is_splitter(k) and _measurement.stored_vector(sample, k) is not None
+    )
 
 
 def _store(student_id: str, index: int, choice) -> dict[str, Any]:

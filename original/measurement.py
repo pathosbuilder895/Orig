@@ -20,6 +20,10 @@ What this module does
 * Scoring runs inside ``feature_flags.measuring(plan.used)``, so the new paper,
   the evidence pages' re-reading of the past papers, and any peer texts are
   all measured the same way as the stored vectors being compared.
+* A splitter measurement ("matter", "fs2+matter") is stored with the
+  splitter's rules version (``features/matter.py`` ``RULES_VERSION``,
+  ``BaselineSample.extra_vector_rules``); one made under other rules is
+  served as missing (``stored_vector``) until the backfill measures it again.
 * ``plan.stamp()`` is attached to the score response (``measurement``) and to
   the staff evidence (``evidence["measurement"]``) whenever anything other
   than the default was asked for. No stamp means "v1": with both switches off
@@ -44,6 +48,8 @@ from typing import Any
 import numpy as np
 
 from .features import feature_flags as ff
+from .features import matter as _matter
+from .features.part_overrides import is_splitter
 
 log = logging.getLogger(__name__)
 
@@ -76,18 +82,39 @@ class MeasurementPlan:
         return stamp
 
 
+def rules_stamps(extra: dict[str, Any] | None) -> dict[str, int] | None:
+    """The rules-version stamps to store with freshly made ``extra_vectors``:
+    the current ``matter.RULES_VERSION`` for each splitter measurement, None
+    when there is none (so a paper without one stores exactly as before)."""
+    stamps = {k: _matter.RULES_VERSION for k in (extra or {}) if is_splitter(k)}
+    return stamps or None
+
+
+def stored_vector(sample: Any, measurement: str) -> np.ndarray | None:
+    """The rules' own stored ``measurement`` of a past paper
+    (``extra_vectors``), or None when it has none or, for a splitter
+    measurement, when it was made under other splitter rules than today's
+    (``matter.rules_current``): a stale measurement is treated exactly as a
+    missing one, and ``scripts/backfill_measurements.py`` measures it again."""
+    vector = (getattr(sample, "extra_vectors", None) or {}).get(measurement)
+    if vector is None or not is_splitter(measurement):
+        return vector
+    stamps = getattr(sample, "extra_vector_rules", None) or {}
+    return vector if _matter.rules_current(stamps.get(measurement)) else None
+
+
 def vector_for(sample: Any, measurement: str) -> np.ndarray | None:
     """A past paper's vector for ``measurement``, or None if it has none.
 
     A past paper with a teacher's stored choice of parts
     (``features/part_overrides.py``) gives its splitter measurement made with
     that choice only while both switches are on; otherwise, and always for a
-    paper the rules' own measurement is missing from, exactly what it gave
-    before the choice (``extra_vectors``)."""
+    paper the rules' own measurement is missing from (or stale,
+    ``stored_vector``), exactly what it gave before the choice
+    (``extra_vectors``)."""
     if measurement == DEFAULT:
         return sample.vector
-    extra = getattr(sample, "extra_vectors", None) or {}
-    vector = extra.get(measurement)
+    vector = stored_vector(sample, measurement)
     if vector is not None and getattr(sample, "part_overrides", None):
         from .features import part_overrides
 

@@ -20,6 +20,12 @@ Safety
   measurement name, so a pasted command cannot write by accident.
 * Idempotent: a paper that already has the measurement is skipped; a second
   run writes nothing.
+* Splitter rules version (``original/features/matter.py`` ``RULES_VERSION``):
+  a splitter measurement ("matter", "fs2+matter", and a teacher's
+  ``choice_vectors``) made under other rules than today's counts as missing
+  and is measured again; one stored before stamps existed (taken as
+  ``UNSTAMPED_RULES_VERSION``) and still current is only stamped, never
+  measured again. Every splitter measurement it writes carries the stamp.
 * Never changes ``vector``, any score, any setting, or any paper's text.
 * Before each write the student is read again; if their past papers changed
   meanwhile (a paper added or removed) that student is skipped and reported,
@@ -57,9 +63,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 
+from original import measurement as _measurement  # noqa: E402
 from original.constants import FEATURE_DIM  # noqa: E402
 from original.features import feature_flags as ff  # noqa: E402
-from original.features import part_overrides  # noqa: E402
+from original.features import matter, part_overrides  # noqa: E402
 
 log = logging.getLogger("backfill_measurements")
 
@@ -77,6 +84,9 @@ class Report:
     measured: int = 0
     written_students: int = 0
     no_text: int = 0
+    stale: int = 0
+    to_stamp: int = 0
+    stamped: int = 0
     failed: list[str] = field(default_factory=list)
     changed: list[str] = field(default_factory=list)
 
@@ -92,14 +102,20 @@ class Report:
             f"  papers with no stored text (cannot be measured; that student "
             f"stays on v1): {self.no_text}",
         ]
+        if self.stale:
+            out.append(f"  made under older splitter rules (measured again): {self.stale}")
+        if self.to_stamp or self.stamped:
+            out.append(
+                f"  {'stamped' if self.apply else 'would stamp'} with splitter rules "
+                f"v{matter.RULES_VERSION} (no new measurement): "
+                f"{self.stamped if self.apply else self.to_stamp}"
+            )
         if self.apply:
             out.append(f"  students written: {self.written_students}")
         if self.failed:
             out.append(f"  failed: {len(self.failed)} ({', '.join(self.failed[:10])})")
         if self.changed:
-            out.append(
-                f"  skipped, papers changed during the run: {', '.join(self.changed[:10])}"
-            )
+            out.append(f"  skipped, papers changed during the run: {', '.join(self.changed[:10])}")
         return out
 
 
@@ -112,6 +128,22 @@ def _checked(vector) -> np.ndarray:
     if vector.shape != (FEATURE_DIM,):
         raise ValueError(f"vector has shape {vector.shape}, expected ({FEATURE_DIM},)")
     return vector
+
+
+def _same(sample, before, measurement: str) -> bool:
+    """``sample`` (read again before writing) still holds the ``measurement``
+    vector ``before`` (the first read) held."""
+    a = (sample.extra_vectors or {}).get(measurement)
+    b = (before.extra_vectors or {}).get(measurement)
+    return a is not None and b is not None and np.array_equal(a, b)
+
+
+def _stamp_rules(sample, measurement: str) -> None:
+    """Record that ``sample``'s ``measurement`` was made under today's rules."""
+    sample.extra_vector_rules = {
+        **(sample.extra_vector_rules or {}),
+        measurement: matter.RULES_VERSION,
+    }
 
 
 def _measure(text: str, measurement: str, extract: Callable) -> np.ndarray:
@@ -133,6 +165,7 @@ def backfill(
     if extract is None:
         from original.features.pipeline import feature_vector as extract
     report = Report(measurement, apply)
+    splitter = part_overrides.is_splitter(measurement)
     ids = list(students) if students else repo.list_ids()
     for student_id in ids:
         state = repo.get(student_id)
@@ -142,20 +175,35 @@ def backfill(
         report.students += 1
         new: dict[int, np.ndarray] = {}
         chosen: dict[int, tuple[dict, np.ndarray]] = {}
+        stamp: dict[int, tuple[bool, bool]] = {}  # (rules', choice's) stamp only
         for i, sample in enumerate(state.samples):
             report.papers += 1
-            has_rules = (sample.extra_vectors or {}).get(measurement) is not None
+            stored = (sample.extra_vectors or {}).get(measurement)
+            # A splitter measurement made under other rules than today's is
+            # stale (original/measurement.py stored_vector): measured again.
+            has_rules = _measurement.stored_vector(sample, measurement) is not None
+            if stored is not None and not has_rules:
+                report.stale += 1
             # A paper with a teacher's stored choice of parts gets both: the
             # rules' own measurement (extra_vectors) and the one made with the
             # choice (original/features/part_overrides.py), whatever the
             # switches say now. Which one a score reads is decided then.
-            needs_choice = (
-                part_overrides.of_sample(sample) is not None
-                and part_overrides.is_splitter(measurement)
-                and part_overrides.choice_vector(sample, measurement) is None
+            has_choice = part_overrides.of_sample(sample) is not None and splitter
+            choice_now = has_choice and (
+                part_overrides.choice_vector(sample, measurement) is not None
             )
+            needs_choice = has_choice and not choice_now
+            # Current but unstamped (stored before stamps existed): only the
+            # stamp is written, so a later RULES_VERSION bump can tell.
+            unstamped = (
+                splitter and has_rules and measurement not in (sample.extra_vector_rules or {}),
+                choice_now and measurement not in (sample.part_overrides.get("choice_rules") or {}),
+            )
+            if any(unstamped):
+                stamp[i] = unstamped
             if has_rules and not needs_choice:
                 report.already += 1
+                report.to_stamp += any(unstamped)
                 continue
             if not sample.text:
                 report.no_text += 1
@@ -173,7 +221,7 @@ def backfill(
                 log.warning("%s paper %d: measurement failed: %s", student_id, i, exc)
                 report.failed.append(f"{student_id}#{i}")
                 new.pop(i, None)
-        if not apply or not (new or chosen):
+        if not apply or not (new or chosen or stamp):
             continue
         fresh = repo.get(student_id)
         if fresh is None or _fingerprint(fresh) != _fingerprint(state):
@@ -182,12 +230,36 @@ def backfill(
         for i, vector in new.items():
             sample = fresh.samples[i]
             sample.extra_vectors = {**(sample.extra_vectors or {}), measurement: vector}
+            if splitter:
+                _stamp_rules(sample, measurement)
         for i, (doc, vector) in chosen.items():
             sample = fresh.samples[i]
             if sample.part_overrides != doc:  # the teacher changed the choice meanwhile
                 report.changed.append(f"{student_id}#{i}")
                 continue
             sample.part_overrides = part_overrides.with_choice_vectors(doc, {measurement: vector})
+        for i, (rules_only, choice_only) in stamp.items():
+            # Only a stamp: written only over exactly what was read (another
+            # writer's change meanwhile is reported and left alone).
+            sample, before = fresh.samples[i], state.samples[i]
+            done = moved = False
+            if rules_only and i not in new:
+                if _same(sample, before, measurement):
+                    _stamp_rules(sample, measurement)
+                    done = True
+                else:
+                    moved = True
+            if choice_only and i not in chosen:
+                if sample.part_overrides == before.part_overrides:
+                    sample.part_overrides = part_overrides.with_choice_rules(
+                        sample.part_overrides, measurement
+                    )
+                    done = True
+                else:
+                    moved = True
+            if moved:
+                report.changed.append(f"{student_id}#{i}")
+            report.stamped += done
         repo.put(fresh)
         report.measured += len(set(new) | set(chosen))
         report.written_students += 1
