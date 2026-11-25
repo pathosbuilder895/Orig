@@ -524,7 +524,7 @@ def test_the_submissions_page_no_longer_says_bluebook_has_no_address_for_an_exam
 
 def test_add_student_and_the_empty_roster_line_open_the_students_screen_and_courses_open_courses():
     students = (SUITE / "students.html").read_text(encoding="utf-8")
-    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in students
+    assert '<a class="add-btn btn-gold" id="add-btn" href="/bluebook/#students"' in students
     assert 'Add them in <a href="/bluebook/#students">Collections</a>.' in (SUITE / "writing-state.html").read_text(encoding="utf-8")
     assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in _bluebook_page()
 
@@ -675,7 +675,7 @@ def test_the_fade_is_drawn_for_each_edge_and_both_in_suite_css_and_the_teacher_n
             assert cls in css, cls
         assert "mask-image" in css
     jsx = (DEMO / "bluebook" / "TeacherWorkspace.jsx").read_text(encoding="utf-8")
-    assert "usePillFade(pills, [active, demo]);" in jsx and 'ref={pills} className={\'teacher-pills\'' in jsx
+    assert "usePillFade(pills, [active, demo]);" in jsx and 'pillsRef={pills}' in jsx and 'pillsClass="teacher-pills"' in jsx
 
 
 # ── Small things from the audit ───────────────────────────────────────────────

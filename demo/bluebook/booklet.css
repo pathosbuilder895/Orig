@@ -10,7 +10,7 @@
   --ink:#232b3e;--muted:#566075;--ok:#2f7550;--warn:#8a5f14;
   --display:var(--bb-font-display);--body:var(--bb-font-body);--mono:var(--bb-font-label);--hand:'Caveat',cursive;
   position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.6rem;
-  background:radial-gradient(120% 100% at 50% -10%,#3b4863 0%,#232c42 45%,#151b2c 100%);
+  background:radial-gradient(120% 100% at 50% -10%,var(--navy-2) 0%,var(--navy-1) 45%,var(--navy-0) 100%);
   font:1rem/var(--bb-line,1.55) var(--body);color:var(--ink);-webkit-font-smoothing:antialiased;
 }
 .bk-stage *,.bk-stage *::before,.bk-stage *::after{box-sizing:border-box}

@@ -33,23 +33,29 @@ globalThis.localStorage = {
 };
 const { nav, SHOW_STUDENT_ORIGINAL_PAGES, STUDENT_ORIGINAL_LINKS } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
-const labels = html => [...html.matchAll(/<(?:button|a)[^>]*>([^<]*)<\/(?:button|a)>/g)].map(m => m[1]);
+// The text of every button and link, tags (the icons) stripped.
+const labels = html => [...html.matchAll(/<(button|a)[^>]*>(.*?)<\/\1>/g)].map(m => m[2].replace(/<[^>]*>/g, ''));
 const links = html => [...html.matchAll(/<a href="([^"]*)"[^>]*>([^<]*)<\/a>/g)].map(m => [m[1], m[2]]);
+// The shared bar (AppBar.jsx): the page pill, then the account button holding its
+// menu (Account, Instructions, Text where the display script is loaded, Sign out),
+// and the guide's own Close. No app switch: a student is not offered Original.
+const STUDENT_BAR = ['My collections', 'S', 'Account', 'Instructions', 'Sign out', 'Close'];
 const products = list => store.set('original_products', JSON.stringify(list));
 
 test('a student whose workspace holds Original is not offered My voice or My work in the pilot', () => {
   assert.equal(SHOW_STUDENT_ORIGINAL_PAGES, false);
   products(['bluebook', 'original']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My collections', 'Instructions', 'Close', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), STUDENT_BAR);
   assert.deepEqual(links(html), []);
+  assert.doesNotMatch(html, /app-switch/);
   assert.doesNotMatch(html, /My voice|My work|original\//);
 });
 
 test('a Bluebook-only workspace keeps the shell it always had', () => {
   products(['bluebook']);
   const html = nav();
-  assert.deepEqual(labels(html), ['Collections', 'My collections', 'Instructions', 'Close', 'Account', 'Sign out']);
+  assert.deepEqual(labels(html), STUDENT_BAR);
   assert.deepEqual(links(html), []);
 });
 
