@@ -3,6 +3,11 @@
    Renders concentric, deformed oval rings (like a real thumbprint) as
    particles slowly drifting along their target curve. Mouse repels softly.
    Pulses subtly. Re-seeds when palette changes (via .reseed()).
+
+   It is decoration, so it costs nothing it does not have to: no frames are
+   scheduled while the tab is hidden (it picks up again on visibilitychange),
+   and under prefers-reduced-motion: reduce it draws one still frame and does
+   not loop (it follows the setting if it changes while the page is open).
    ────────────────────────────────────────────────────────────────────────── */
 (function (window) {
   function Fingerprint(canvas, opts = {}) {
@@ -24,6 +29,10 @@
     let mouse = { x: -9999, y: -9999, in: false };
     let t0 = performance.now();
     let running = true;
+    let rafId = 0;
+    const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const reduced = () => !!(motionQuery && motionQuery.matches);
+    const shouldLoop = () => running && !document.hidden && !reduced();
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -32,6 +41,7 @@
       canvas.height = h * dpr;
       ctx.scale(dpr, dpr);
       seed();
+      still();
     }
 
     // 2D noise: quick & cheap based on sin/cos
@@ -92,8 +102,8 @@
       }
     }
 
-    function step(now) {
-      if (!running) return;
+    // One frame. step() is the animation loop around it.
+    function frame(now) {
       const tt = (now - t0) / 1000;
 
       ctx.clearRect(0, 0, w, h);
@@ -158,8 +168,33 @@
       }
       ctx.stroke();
       ctx.restore();
+    }
 
-      requestAnimationFrame(step);
+    function step(now) {
+      rafId = 0;
+      if (!running) return;
+      frame(now);
+      if (shouldLoop()) rafId = requestAnimationFrame(step);
+    }
+
+    // Start the loop if it should run and is not already scheduled.
+    function kick() {
+      if (shouldLoop() && !rafId) rafId = requestAnimationFrame(step);
+    }
+
+    // Redraw once when nothing is looping (reduced motion), so a new seed or
+    // colour still shows.
+    function still() {
+      if (running && reduced()) frame(performance.now());
+    }
+
+    function onMotionChange() {
+      if (reduced()) {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+        still();
+      } else {
+        kick();
+      }
     }
 
     canvas.addEventListener('pointermove', (e) => {
@@ -171,19 +206,29 @@
     canvas.addEventListener('pointerleave', () => { mouse.in = false; });
 
     window.addEventListener('resize', resize);
+    document.addEventListener('visibilitychange', kick);
+    if (motionQuery) {
+      if (motionQuery.addEventListener) motionQuery.addEventListener('change', onMotionChange);
+      else if (motionQuery.addListener) motionQuery.addListener(onMotionChange);
+    }
     resize();
     // Synchronous first frame: guarantees the canvas is non-blank even if
-    // rAF is suspended (embedded preview iframes throttle background tabs).
-    step(performance.now());
-    // Schedule continuous animation if rAF is actually firing.
-    requestAnimationFrame(step);
+    // rAF is suspended (embedded preview iframes throttle background tabs),
+    // and is the one still frame under reduced motion.
+    frame(performance.now());
+    // Schedule continuous animation unless hidden or reduced motion.
+    kick();
 
     return {
-      reseed: seed,
+      reseed: () => { seed(); still(); },
       setColors: (line, gold) => {
         cfg.lineColor = line; cfg.goldColor = gold;
+        still();
       },
-      stop: () => { running = false; },
+      stop: () => {
+        running = false;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+      },
     };
   }
 

@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Conversation packet</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.4" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
     --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
     --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
     --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
-    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
-    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;
+    --dim:rgba(245,239,224,0.68);--dim-2:rgba(245,239,224,0.56);
+    --paper:#faf6ec;--ink:#26221a;--ink-2:#5c564a;--rule:#e4dcc8;--gold-ink:#7a5c10;
     --flag:#a8462f;--flag-bg:#f6e8e2;--ok:#3e7a58;--base:#2c4a8c;
     --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
   }
@@ -80,7 +80,7 @@
   .notice b{font-style:normal;color:var(--ink);font-weight:600;}
   .paper .live-testing{max-width:none;}
   section{margin-top:2rem;}
-  .sec-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);border-bottom:1px solid var(--rule);padding-bottom:.45rem;margin-bottom:1rem;display:flex;justify-content:space-between;gap:1rem;}
+  .sec-t{font-family:var(--mono);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-ink);border-bottom:1px solid var(--rule);padding-bottom:.45rem;margin-bottom:1rem;display:flex;justify-content:space-between;gap:1rem;}
   .sec-t span{color:var(--ink-2);letter-spacing:.06em;text-transform:none;font-style:italic;font-family:var(--body);font-size:.82rem;text-align:right;}
   .summary{font-size:1.08rem;line-height:1.7;}
   .summary b{font-weight:600;}
@@ -127,6 +127,7 @@
   .prov .n{font-family:var(--mono);font-size:.8rem;color:var(--ink-2);}
   .prov .len{white-space:nowrap;}
   .prov .how{display:inline-block;font-size:.76rem;padding:.14rem .55rem;border-radius:999px;background:#e8effa;color:var(--base);border:1px solid #cdd9ef;white-space:nowrap;}
+  .prov:focus-visible{outline:2px solid var(--base);outline-offset:2px;}
   .prov-note{font-size:.88rem;font-style:italic;color:var(--ink-2);margin-top:.7rem;line-height:1.55;}
   /* conversation guide */
   .guide{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
@@ -206,9 +207,6 @@
     .g-card li{font-size:.9rem;line-height:1.45;}
     .sign{margin-top:1.4rem;padding-top:1rem;}
   }
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
 </style>
 </head>
 <body>
@@ -294,10 +292,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-18.1"></script>
-<script src="js/feature-data.js?v=2026-11-18.1"></script>
-<script src="js/evidence-view.js?v=2026-11-18.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-20.4"></script>
+<script src="js/feature-data.js?v=2026-11-20.4"></script>
+<script src="js/evidence-view.js?v=2026-11-20.4"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.4"></script>
 <script>
 (function(){
   'use strict';
@@ -450,7 +448,9 @@
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
         '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
     }).join('');
-    return '<table class="prov"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // On a phone the table scrolls sideways (.prov is a scroll box there), so it takes focus
+    // and a name: a keyboard can reach and scroll it (axe: scrollable-region-focusable).
+    return '<table class="prov" tabindex="0" aria-label="Writing samples this comparison used"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
   // Word counts are not in the sample list: each comes from its own
   // GET /students/{id}/samples/{i}/text (word_count), four at a time.

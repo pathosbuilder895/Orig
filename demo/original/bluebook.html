@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Collections</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.4" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
     --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
     --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
     --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
-    --dim:rgba(245,239,224,0.58);--dim-2:rgba(245,239,224,0.4);
+    --dim:rgba(245,239,224,0.68);--dim-2:rgba(245,239,224,0.56);
     --flag:#e0725a;--warn:#d8b04a;--ok:#6bbf8a;--bb:#3a5ba0;
     --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
   }
@@ -93,6 +93,11 @@
   input[type=range]{flex:1;min-width:0;appearance:none;-webkit-appearance:none;height:5px;border-radius:3px;background:rgba(245,239,224,0.12);outline:none;}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
   input[type=range]::-moz-range-thumb{width:22px;height:22px;border:none;border-radius:50%;background:linear-gradient(160deg,var(--gold-2),var(--gold));cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);}
+  /* Phones and touch screens: a 44px tall slider (suite.css sets the floor for every
+     other control). The track stays a 5px band drawn in the middle of it. */
+  @media (max-width:760px),(pointer:coarse){
+    input[type=range]{height:44px;background:linear-gradient(rgba(245,239,224,0.12),rgba(245,239,224,0.12)) center/100% 5px no-repeat;border-radius:0;}
+  }
   .time-val{font-family:var(--mono);font-weight:700;font-size:1.25rem;color:var(--cream);width:96px;text-align:right;flex-shrink:0;}
   .quiet-note{display:flex;gap:.7rem;background:rgba(107,191,138,0.07);border:1px solid rgba(107,191,138,0.2);border-radius:12px;padding:.8rem 1rem;font-size:.88rem;color:var(--dim);line-height:1.5;margin-top:.2rem;}
   .quiet-note svg{width:17px;height:17px;stroke:var(--ok);fill:none;stroke-width:1.7;flex-shrink:0;margin-top:.1rem;}
@@ -154,9 +159,6 @@
     .s-main{flex:1 1 0;}
     .s-right{flex-basis:calc(100% - 30px - .9rem);min-width:0;margin-left:calc(30px + .9rem);text-align:left;}
   }
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
 </style>
 </head>
 <body>
@@ -247,7 +249,7 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-20.4"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);

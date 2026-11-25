@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your Writing Voice</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.4" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.4" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
     --navy-0:#070c1c;--navy:#0d1530;--navy-1:#101c40;--navy-2:#16244f;
     --line:rgba(201,160,40,0.16);--line-soft:rgba(255,255,255,0.07);
     --gold:#c9a028;--gold-2:#e0be55;--cream:#f5efe0;
-    --dim:rgba(245,239,224,0.6);--dim-2:rgba(245,239,224,0.4);
+    --dim:rgba(245,239,224,0.68);--dim-2:rgba(245,239,224,0.56);
     --ok:#6bbf8a;--base:#8ba8dd;--warm:#e0a06a;
     --gA:#e0be55;--gB:#8ba8dd;--gC:#c58fd0;
     --display:'Playfair Display',Georgia,serif;--body:'EB Garamond',Georgia,serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--hand:'Caveat',cursive;
@@ -26,8 +26,7 @@
   nav.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:1.2rem;padding:1rem 1.6rem;background:rgba(7,12,28,0.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft);}
   .brand{font-family:var(--display);font-weight:600;font-size:1.25rem;letter-spacing:.04em;display:flex;align-items:center;gap:.5rem;}
   .brand .mk{width:8px;height:8px;background:var(--gold);transform:rotate(45deg);}
-  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;scrollbar-width:none;}
-  .pills::-webkit-scrollbar{display:none;}
+  .pills{display:flex;gap:.25rem;margin-left:.8rem;overflow-x:auto;}
   .pill{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.94rem;text-decoration:none;white-space:nowrap;flex-shrink:0;transition:all .16s;}
   .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
   .pill:hover{color:var(--cream);}
@@ -158,9 +157,6 @@
     .sec-h{flex-direction:column;align-items:flex-start;}.sec-h .s{text-align:left;}
     .w-row{grid-template-columns:1fr auto;row-gap:.35rem;}.w-c{display:none;}
   }
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
 </style>
 </head>
 <body>
@@ -269,7 +265,7 @@
 </div>
 </main>
 
-<script src="live.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-20.4"></script>
 <script>
 (function(){
   'use strict';
@@ -395,23 +391,29 @@
         '<div class="hab-f"><span>lower</span><span>higher</span></div></div>';
     }).join('');
     grid.querySelectorAll('.hab').forEach(el=>{
-      el.onmouseenter=()=>{hi=+el.dataset.i;};
-      el.onmouseleave=()=>{hi=-1;};
+      el.onmouseenter=()=>{hi=+el.dataset.i;still();};
+      el.onmouseleave=()=>{hi=-1;still();};
     });
   }
 
   // ── voice portrait canvas ──
+  // Decoration: no frames are scheduled while the tab is hidden (it resumes on
+  // visibilitychange), and under prefers-reduced-motion it draws one still
+  // frame, redrawn only when something it shows changes (a hovered habit, a
+  // resize), and follows the setting if it changes while the page is open.
   const cv=$('vp'), ctx=cv.getContext('2d');
-  let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1),t0=performance.now(),started=false;
-  const reduce=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let W=0,H=0,DPR=Math.min(2,window.devicePixelRatio||1),t0=performance.now(),started=false,raf=0;
+  const motionQ=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
+  const reduced=()=>!!(motionQ&&motionQ.matches);
+  const looping=()=>started&&!document.hidden&&!reduced();
   function size(){
     const r=cv.getBoundingClientRect();
     W=Math.max(240,r.width);H=Math.max(240,r.height);
     cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
   }
   const famC={A:[224,190,85],B:[139,168,221],C:[197,143,208]};
-  function draw(now){
-    const t=(now-t0)/1000;
+  function frame(now){
+    const t=(now-t0)/1000, reduce=reduced();
     ctx.clearRect(0,0,W,H);
     const cx=W/2, cy=H/2, R=Math.min(W,H)/2-14;
     // faint concentric guides
@@ -454,13 +456,29 @@
     // inner ring
     ctx.strokeStyle='rgba(201,160,40,0.22)';ctx.lineWidth=1;
     ctx.beginPath();ctx.arc(cx,cy,R*0.28,0,Math.PI*2);ctx.stroke();
-    requestAnimationFrame(draw);
+  }
+  function draw(now){
+    raf=0;
+    frame(now);
+    if(looping()) raf=requestAnimationFrame(draw);
+  }
+  function kick(){ if(looping()&&!raf) raf=requestAnimationFrame(draw); }
+  function still(){ if(started&&reduced()) frame(performance.now()); }
+  function onMotionChange(){
+    if(reduced()){ if(raf){ cancelAnimationFrame(raf); raf=0; } still(); }
+    else kick();
   }
   function startPortrait(){
-    if(started) return;
+    if(started){ still(); return; }
     started=true;
-    size();window.addEventListener('resize',size);
-    requestAnimationFrame(draw);
+    size();window.addEventListener('resize',()=>{size();still();});
+    document.addEventListener('visibilitychange',kick);
+    if(motionQ){
+      if(motionQ.addEventListener) motionQ.addEventListener('change',onMotionChange);
+      else if(motionQ.addListener) motionQ.addListener(onMotionChange);
+    }
+    frame(performance.now());
+    kick();
   }
 
   // ── render the whole view ──
