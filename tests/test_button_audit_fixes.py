@@ -675,7 +675,7 @@ def test_the_fade_is_drawn_for_each_edge_and_both_in_suite_css_and_the_teacher_n
             assert cls in css, cls
         assert "mask-image" in css
     jsx = (DEMO / "bluebook" / "TeacherWorkspace.jsx").read_text(encoding="utf-8")
-    assert "usePillFade(pills, [active, demo]);" in jsx and 'ref={pills} className={\'teacher-pills\'' in jsx
+    assert "usePillFade(pills, [active, demo]);" in jsx and 'pillsRef={pills}' in jsx and 'pillsClass="teacher-pills"' in jsx
 
 
 # ── Small things from the audit ───────────────────────────────────────────────

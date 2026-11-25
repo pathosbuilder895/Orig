@@ -183,66 +183,21 @@ export function MetaLabel({ children, style: s = {}, htmlFor, className }) {
   );
 }
 
-// ─── Primary Button ──────────────────────────────────────────────────────────
+// ─── Primary and Ghost Buttons ───────────────────────────────────────────────
+// Colour, shape and type are the shared buttons (.btn-gold / .btn-ghost,
+// demo/assets/tokens.css); only layout is set here.
+const btnLayout = (full, s) => ({
+  width: full ? '100%' : 'auto',
+  display: full ? 'flex' : 'inline-flex',
+  ...s,
+});
+
 export function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: disabled ? BB.gold : hover ? BB.goldDark : BB.gold,
-        color: BB.deep,
-        border: 'none',
-        padding: '12px 40px',
-        fontSize: '1.0625rem',
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'background 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-gold" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
-// ─── Ghost Button ────────────────────────────────────────────────────────────
 export function BtnGhost({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: hover ? 'rgba(201,169,97,0.07)' : 'transparent',
-        color: BB.gold,
-        border: `1px solid rgba(201,169,97,${hover ? 0.6 : 0.32})`,
-        padding: '12px 40px',
-        fontSize: '1.0625rem',
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'all 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-ghost" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
 // ─── Status Badge ────────────────────────────────────────────────────────────

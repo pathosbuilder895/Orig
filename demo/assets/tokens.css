@@ -86,6 +86,9 @@
   padding:1rem 1.7rem .6rem;min-height:7.2rem;
   font-family:var(--body);
 }
+/* Inside a photo frame the bar gets a dark wash of its own, so the switch and the
+   pills stay readable over a bright photograph at any text size. */
+.shell:not(.shell-bar){background:linear-gradient(180deg,rgba(7,12,28,.82),rgba(7,12,28,.55));}
 /* The student pages put the bar over a full-width page instead of a frame. */
 .shell.shell-bar{
   position:sticky;top:0;z-index:40;padding:.75rem 1.6rem .55rem;min-height:6.6rem;
@@ -154,11 +157,26 @@
 .shell a:focus-visible,.shell button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 .shell .pill:focus-visible,.shell .app-switch a:focus-visible{outline-offset:-2px;}
 
+/* Collections draws its pages as buttons (they change screens inside one page);
+   Original's are links. Both read the same. */
+.shell button.pill{background:none;font-family:var(--body);cursor:pointer;}
+.shell .pill.on{background:rgba(255,255,255,0.05);}
+.shell .app-switch a:not([href]){cursor:default;}
+
+/* Tap targets on a phone or a touch screen: every control in the bar is at
+   least 44px tall, the account button 44px wide too (WCAG 2.5.5). */
+@media (max-width:760px),(pointer:coarse){
+  .shell .pill,.shell .app-switch a,.shell .me-menu a,.shell .me-menu button{min-height:44px;}
+  .shell .avatar{min-width:44px;min-height:44px;}
+}
+
 /* Phones: the brand keeps its mark and lets the switch name the app. */
 @media (max-width:560px){
   .shell,.shell.shell-bar{padding:.7rem 1rem .5rem;column-gap:.6rem;min-height:0;}
   .shell .brand .bn{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
   .shell .app-switch a{padding:.3rem .7rem;}
+  /* A bar with no switch (an app drawn alone) keeps its name. */
+  .shell.no-switch .brand .bn{position:static;width:auto;height:auto;overflow:visible;clip:auto;}
 }
 @media print{
   .shell{display:none !important;}

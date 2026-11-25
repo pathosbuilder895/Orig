@@ -1,6 +1,7 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { ErrorText, fromLocalInput } from './forms.jsx';
+import { TeacherBar } from './TeacherWorkspace.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
 import { MAX_QUESTIONS, SMALLS_GREATS_CUTOFF, applySizePreset, optionConditions, romanNumeral, settingDefaults } from './collection-options.jsx';
 
@@ -335,8 +336,7 @@ export function NewExamScreen({ onNavigate }) {
   }
 
   if (saved) return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
+    <div className="teacher-ui teacher-page bb-screen" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{ textAlign: 'center' }}>
@@ -353,38 +353,23 @@ export function NewExamScreen({ onNavigate }) {
   );
 
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.deep,
-      fontFamily: fontBody,
-    }}>
-      {/* Top bar */}
-      <div className="bb-ne-bar" style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: BB.oxford,
-        padding: '14px 48px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(201,169,97,0.25)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
-          <button onClick={() => onNavigate('sessions')} style={{
-            fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: BB.fade,
-            background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'color 0.25s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.color = BB.gold}
-            onMouseLeave={e => e.currentTarget.style.color = BB.fade}
-          >← Collections</button>
-          <GoldRule style={{ width: 1, height: 16, borderTop: 'none', borderLeft: '1px solid rgba(201,169,97,0.3)' }} />
-          <p style={{ fontFamily: fontBody, fontVariant: 'small-caps', fontSize: '1rem', color: BB.fade, letterSpacing: '0.1em', margin: 0 }}>
-            New Collection
-          </p>
-        </div>
-        <Logotype size={18} onClick={() => onNavigate('dashboard')} />
-      </div>
+    <div className="teacher-ui teacher-page bb-screen" style={{ fontFamily: fontBody }}>
+      {/* The shared top bar, over the full-width page: the same bar as every teacher screen. */}
+      <TeacherBar sticky active="new-exam" onNavigate={onNavigate} />
 
       {/* Form */}
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '48px 24px 80px' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '28px 24px 80px' }}>
+
+        <button onClick={() => onNavigate('sessions')} style={{
+          fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
+          textTransform: 'uppercase', color: BB.fade,
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0 0 20px', minHeight: 44,
+          transition: 'color 0.25s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.color = BB.gold}
+          onMouseLeave={e => e.currentTarget.style.color = BB.fade}
+        >← Collections</button>
 
         {/* Title */}
         <h1 style={{
@@ -602,7 +587,7 @@ export function NewExamScreen({ onNavigate }) {
             The conditions you switch on apply for the whole sitting, and students are told
             about them before they begin.
           </p>
-          <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: BB.oxford }}>
+          <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: 'var(--navy-1)' }}>
             <ToggleRow label="No AI assistants"          desc="Students are told AI tools are not permitted (a browser cannot block other apps)" value={blockAI}  onChange={setBlockAI} />
             <GoldRule faint />
             <ToggleRow label="Full-screen, tabs watched" desc="Runs full-screen; leaving it or switching tabs is recorded for you" value={blockWeb} onChange={setBlockWeb} />
