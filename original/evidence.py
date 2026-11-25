@@ -68,6 +68,7 @@ from .constants import (
     TRANSITION_PHRASES,
 )
 from .evidence_features import feature_info
+from .explainer import FEATURE_PLAIN_NAMES
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
 from .features import preprocess as _pp
@@ -308,8 +309,19 @@ def _descriptions() -> dict[str, tuple[str, str]]:
     }
 
 
+def plain_name(code: str) -> str:
+    """The habit's teacher-facing name: its plain name (``FEATURE_PLAIN_NAMES``)
+    with the first letter capitalised, which is exactly what feature-data.js
+    carries. The engine's own label (``FEATURE_NAMES``), then the code, only
+    for a code with no plain name."""
+    plain = FEATURE_PLAIN_NAMES.get(code)
+    if plain:
+        return plain[0].upper() + plain[1:]
+    return FEATURE_NAMES.get(code, code)
+
+
 def describe(code: str) -> tuple[str, str]:
-    name, desc = _descriptions().get(code, (FEATURE_NAMES.get(code, code), ""))
+    name, desc = _descriptions().get(code, (plain_name(code), ""))
     return name, desc
 
 

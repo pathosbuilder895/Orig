@@ -571,6 +571,48 @@ def test_feature_data_lists_the_97_active_features_in_constants_order():
     assert "base:" not in src and "sub:" not in src and "FLAGS" not in src
 
 
+def _feature_data_rows() -> list[tuple[str, str, str]]:
+    src = (SUITE / "js" / "feature-data.js").read_text(encoding="utf-8")
+    rows = re.findall(r"\['([a-z0-9_]+)','((?:[^'\\]|\\.)*)','((?:[^'\\]|\\.)*)'\]", src)
+    return [(c, n.replace("\\'", "'"), d.replace("\\'", "'")) for c, n, d in rows]
+
+
+def test_every_habit_is_named_by_its_plain_name():
+    """A teacher reads the plain name (original/explainer.py FEATURE_PLAIN_NAMES)
+    with its first letter capitalised, never the engine's label; the evidence
+    API (describe()) reads the same name, so the pages and the report agree."""
+    from original import evidence
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    rows = _feature_data_rows()
+    assert len(rows) == 97
+    for code, name, _desc in rows:
+        plain = FEATURE_PLAIN_NAMES[code]
+        assert name == plain[0].upper() + plain[1:], code
+        assert evidence.describe(code)[0] == name, code
+
+
+def test_plain_names_are_short_everyday_words():
+    from original.constants import ALL_FEATURE_CODES
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    assert set(FEATURE_PLAIN_NAMES) == set(ALL_FEATURE_CODES)
+    names = list(FEATURE_PLAIN_NAMES.values())
+    assert len(set(names)) == len(names), "two habits share a name"
+    jargon = re.compile(
+        r"ratio|entropy|variance|density|index|\bttr\b|z-score|lexical|semantic|"
+        r"syntactic|stylometr|prosod|clausul|polysyndeton|chiasmus|nominali|hapax|"
+        r"divergence|perplexity|burstiness|\bai\b|fingerprint|detect",
+        re.IGNORECASE,
+    )
+    for code, name in FEATURE_PLAIN_NAMES.items():
+        # Lower case first, so the page's sentence form (feature-data.js
+        # `phrase`) is the exact inverse of the capitalised name.
+        assert name[:1].islower(), f"{code}: {name!r} must start lower case"
+        assert not jargon.search(name), f"{code}: {name!r} is still engine jargon"
+        assert len(re.sub(r"\([^)]*\)", "", name).split()) <= 6, f"{code}: {name!r} is too long"
+
+
 def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exist():
     page = (SUITE / "settings.html").read_text(encoding="utf-8")
     # POST /auth/password {current_password, new_password}, through the shared client.

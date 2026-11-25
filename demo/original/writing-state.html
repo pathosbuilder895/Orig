@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.4" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.4" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.5" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.5" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -466,6 +466,13 @@
   .evi-side{flex-shrink:0;font-size:.86rem;font-style:italic;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.32rem .9rem;}
   .evi-side:hover{color:var(--gold);border-color:var(--gold);}
   .fd-row.inert{cursor:default;}
+  /* On a phone the 128px bar and 58px number left the habit's name a column a
+     word wide and pushed the number past the card's edge: the name and its
+     description take the full row, the bar and number sit under them. */
+  @media (max-width:560px){
+    .fd-row{grid-template-columns:minmax(0,1fr) 58px;row-gap:.45rem;}
+    .fd-row>:first-child{grid-column:1/-1;}
+  }
 </style>
 </head>
 <body>
@@ -687,12 +694,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.4"></script>
-<script src="js/feature-data.js?v=2026-11-20.4"></script>
-<script src="js/fingerprint.js?v=2026-11-20.4"></script>
-<script src="js/evidence-view.js?v=2026-11-20.4"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.4"></script>
-<script src="js/paper-profile.js?v=2026-11-20.4"></script>
+<script src="live.js?v=2026-11-20.5"></script>
+<script src="js/feature-data.js?v=2026-11-20.5"></script>
+<script src="js/fingerprint.js?v=2026-11-20.5"></script>
+<script src="js/evidence-view.js?v=2026-11-20.5"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.5"></script>
+<script src="js/paper-profile.js?v=2026-11-20.5"></script>
 <script>
 (function(){
   'use strict';
@@ -1564,7 +1571,8 @@
     const named=list.map(f=>{
       const cls=FAMILY_CLS[TIER_BY_KEY.get(f.tier).group]||FAMILY_CLS.Surface, b=baseOf(f), s=subOf(f);
       // Each habit opens its own numbers side by side (the Habit by habit section).
-      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.name)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
+      // Inside the sentence the plain name keeps its lower-case first letter (f.phrase).
+      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.phrase)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
     const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
     return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
