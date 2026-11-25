@@ -77,35 +77,45 @@ export function instructionsFor(who, hasOriginal, alpha = SHOW_ALPHA_GUIDE) {
   };
 }
 
-// The nav button and the guide it opens. A native modal <dialog>: Escape
-// closes it, focus stays inside while it is open, and a click on the dimmed
-// backdrop (the dialog element itself, outside .bb-howto-card) closes it too.
-export function InstructionsButton({ who = 'teacher', className }) {
-  const dialog = useRef(null);
+// The guide itself: a native modal <dialog>. Escape closes it, focus stays
+// inside while it is open, and a click on the dimmed backdrop (the dialog
+// element itself, outside .bb-howto-card) closes it too. `dialog` is the ref
+// the opener calls showModal() on. `returnFocusTo` (a ref) names where focus
+// goes when it closes, for an opener that is not on screen once it has been
+// used (the account menu's Instructions item).
+export function InstructionsGuide({ who = 'teacher', dialog, returnFocusTo }) {
   const titleId = useId();
   const guide = instructionsFor(who, BB_API.hasOriginal());
-  const open = () => {
-    const d = dialog.current;
-    if (d && !d.open) d.showModal();
-  };
   const close = () => { if (dialog.current) dialog.current.close(); };
-  return <>
-    <button type="button" className={className} aria-haspopup="dialog" onClick={open}>Instructions</button>
-    <dialog ref={dialog} className="bb-howto" aria-labelledby={titleId} onClick={e => { if (e.target === e.currentTarget) close(); }}>
-      <div className="bb-howto-card">
-        <div className="bb-howto-head">
-          <h2 id={titleId}>{guide.title}</h2>
-          <button type="button" className="bb-howto-close" onClick={close}>Close</button>
-        </div>
-        <ol className="bb-howto-steps">
-          {guide.steps.map(([step, text]) => <li key={step}><strong>{step}.</strong> {text}</li>)}
-        </ol>
-        <h3>Good to know</h3>
-        <ul className="bb-howto-notes">
-          {guide.notes.map(note => <li key={note}>{note}</li>)}
-        </ul>
-        <p className="bb-howto-foot">Reopen these any time from Instructions at the top of the page.</p>
+  const closed = () => { if (returnFocusTo && returnFocusTo.current) returnFocusTo.current.focus(); };
+  return <dialog ref={dialog} className="bb-howto" aria-labelledby={titleId} onClose={closed} onClick={e => { if (e.target === e.currentTarget) close(); }}>
+    <div className="bb-howto-card">
+      <div className="bb-howto-head">
+        <h2 id={titleId}>{guide.title}</h2>
+        <button type="button" className="bb-howto-close" onClick={close}>Close</button>
       </div>
-    </dialog>
+      <ol className="bb-howto-steps">
+        {guide.steps.map(([step, text]) => <li key={step}><strong>{step}.</strong> {text}</li>)}
+      </ol>
+      <h3>Good to know</h3>
+      <ul className="bb-howto-notes">
+        {guide.notes.map(note => <li key={note}>{note}</li>)}
+      </ul>
+      <p className="bb-howto-foot">Reopen these any time from Instructions at the top of the page.</p>
+    </div>
+  </dialog>;
+}
+
+export function openGuide(dialog) {
+  const d = dialog.current;
+  if (d && !d.open) d.showModal();
+}
+
+// The nav button and the guide it opens.
+export function InstructionsButton({ who = 'teacher', className }) {
+  const dialog = useRef(null);
+  return <>
+    <button type="button" className={className} aria-haspopup="dialog" onClick={() => openGuide(dialog)}>Instructions</button>
+    <InstructionsGuide who={who} dialog={dialog} />
   </>;
 }

@@ -13,6 +13,7 @@
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { confirmSeal } from './fixtures/seal.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 // Whole words or stems, matched case-insensitively against visible text.
 const UNKIND = [
@@ -196,7 +197,7 @@ test.describe('Student-facing wording', () => {
     await expect(page.getByText(ESSAY)).toBeVisible()
     expect(unkindIn(await visibleText(page))).toEqual([])
 
-    await page.getByRole('button', { name: 'Account' }).click()
+    await clickAccountMenuItem(page, 'Account')
     await expect(page.getByLabel('Current password')).toBeVisible()
     // A wrong current password says so, rather than "sign in again".
     await page.getByLabel('Current password').fill('not-my-password')

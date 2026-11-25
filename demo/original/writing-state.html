@@ -4,20 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.11" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.11" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.11" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
-    --flag:#e0725a; --ok:#6bbf8a; --t1:#4d90c8; --t2:#9a7ad0; --t3:#5aab7a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
+  /* This page's own colours, on top of ../assets/tokens.css. */
+  :root{--t1:#4d90c8;--t2:#9a7ad0;--t3:#5aab7a;}
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);
     background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
@@ -27,27 +23,15 @@
     border:1px solid var(--line);border-radius:26px;overflow:hidden;
     box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
     display:flex;flex-direction:column;}
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.4rem;margin-left:1rem;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .pill:hover{color:var(--cream);}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
   .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
   .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
 
-  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
-  nav{position:relative;z-index:1;}
+  /* The rail grows with the text size (24rem is 432px at the 18px default) and never takes more than a third of a wide screen. */
+  .grid{flex:1;display:grid;grid-template-columns:clamp(380px,24rem,34vw) minmax(0,1fr);min-height:0;position:relative;z-index:1;}
   .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.12) hue-rotate(184deg);opacity:1;}
   .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
-  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-width:0;}
   .right{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;}
-  .left::-webkit-scrollbar,.right-scroll::-webkit-scrollbar{width:7px;}
-  .left::-webkit-scrollbar-thumb,.right-scroll::-webkit-scrollbar-thumb{background:rgba(201,160,40,0.25);border-radius:4px;}
 
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
   .greet{font-family:var(--display);font-size:1.7rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
@@ -94,8 +78,9 @@
   .tgrp-h.on{background:rgba(255,255,255,0.07);box-shadow:inset 0 0 0 1px var(--gc);}
   .tgrp-h b{font-family:var(--display);font-weight:500;font-size:.98rem;color:var(--cream);}
   .tgrp-h span{font-size:.72rem;font-style:italic;color:var(--dim-2);}
-  .tgrp-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
-  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;}
+  /* Three chips a row, or fewer when 6rem each no longer fits (a phone at a large Text setting). */
+  .tgrp-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,max(6rem,30%)),1fr));gap:.4rem;}
+  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;min-width:0;}
   .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.3rem;}
   .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;display:inline-block;}
   .tchip .cw{font-size:.72rem;color:var(--cream);letter-spacing:.01em;}
@@ -145,8 +130,6 @@
   .evi-flag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;color:#e05252;border:1px solid rgba(224,82,82,.4);background:rgba(224,82,82,.1);border-radius:4px;padding:.12rem .4rem;}
   .evi-nums{margin-left:auto;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--dim);}
   .evi-nums b{font-family:var(--mono);font-size:.66rem;color:var(--evc,#c9a028);}
-  .evi-close{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;}
-  .evi-close:hover{color:var(--cream);border-color:var(--line);}
   .evi-desc{width:100%;font-size:.9rem;font-style:italic;color:var(--dim);margin-top:-.3rem;}
   .evi-tabs{display:flex;gap:.4rem;align-items:center;}
   .evi-tabs .tl{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-right:.3rem;}
@@ -252,7 +235,14 @@
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
   /* State vector heatmap */
-  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  /* --hm-col: one habit's column. 12px with a mouse; on a phone or touch screen each is 44px wide,
+     a comfortable tap, and the strip scrolls sideways inside the card (the hint says so). */
+  .hm-wrap{--hm-col:12px;overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-hint{display:none;margin:0 0 .6rem;font-size:.82rem;font-style:italic;color:var(--dim);}
+  @media (max-width:760px),(pointer:coarse){
+    .hm-wrap{--hm-col:44px;overscroll-behavior-x:contain;}
+    .hm-hint{display:block;position:sticky;left:0;}
+  }
   .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
   .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
   .hm-band{display:grid;gap:5px;margin-top:8px;}
@@ -313,29 +303,16 @@
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;overflow:visible;}
-    .grid{grid-template-columns:1fr;}
+    /* minmax(0,…): at the largest text sizes a long button label wraps instead of
+       widening the column past the screen. */
+    .grid{grid-template-columns:minmax(0,1fr);}
+    .tri-btn{white-space:normal;text-align:center;}
     /* One page that scrolls, not two hidden inner panes (the card drew over the form). */
     .left,.right,.right-scroll{overflow:visible;}
     .right{min-height:0;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
   }
   /* ── live suite additions (writing-state.html) ── */
   [hidden]{display:none !important;}
-  nav{z-index:2;}
-  .pills{min-width:0;overflow-x:auto;}
-  a.pill{text-decoration:none;}
-  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
-  .nav-right{flex-shrink:0;position:relative;}
-  .nav-right .avatar{cursor:pointer;}
-  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
   .grid.gated{display:grid;}
   /* Analyse a paper (card style of the left rail) */
   .an-card{padding:1.1rem 1.2rem 1.2rem;}
@@ -355,23 +332,24 @@
   .an-file:hover{color:var(--gold);}
   .an-file input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
   .an-file:focus-within{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:4px;}
+  /* Phones and touch screens: the file picker is a 44px target too, and "Change student" gets a
+     44px box centred on its words whose negative margins keep the heading row its own height. */
+  @media (max-width:760px),(pointer:coarse){
+    .an-file{display:inline-flex;align-items:center;min-height:44px;}
+    .an-change{display:inline-flex;align-items:center;margin-block:-13px;}
+  }
   .an-words{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--dim-2);}
-  .an-btn{border:none;border-radius:999px;padding:.5rem 1.15rem;font-family:var(--body);font-size:.9rem;font-weight:600;cursor:pointer;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;transition:filter .15s;}
-  .an-btn:hover{filter:brightness(1.07);}
-  .an-btn:disabled{opacity:.55;cursor:default;filter:none;}
-  .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
   .an-msg.err{color:#f0a690;}
   .an-from{margin:.1rem 0 .55rem;font-size:.82rem;font-style:italic;color:var(--gold-2);}
   .an-note{margin-top:.6rem;font-size:.86rem;font-style:italic;line-height:1.5;color:var(--dim);}
   .an-note b{color:var(--cream);font-style:normal;font-weight:500;}
   .an-note a,.plain-read a{color:var(--gold-2);}
-  .an-done{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
-  .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
+  .an-done{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem .7rem;margin-top:.6rem;}
+  .an-done .d{flex:1 1 11rem;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
   .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .an-done .d .an-restored{display:block;font-style:italic;font-size:.78rem;color:var(--dim);margin-top:.15rem;}
-  .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
-  .an-again:hover{color:var(--cream);border-color:var(--line);}
   /* Purity, inside a details block with its caveat */
   .fpq-readout details.rw{opacity:1;pointer-events:auto;}
   .fpq-readout summary{list-style:none;cursor:pointer;opacity:.78;}
@@ -403,12 +381,20 @@
   .evi-txt .none{font-style:italic;color:var(--dim);}
   /* ── the essentials and the folded sections (2026-10-30) ── */
   .ess{padding:1.4rem 1.5rem 1.2rem;}
+  /* Phones: a 1rem gutter and lighter card padding, so the reading keeps the width of the screen at a large Text setting. */
+  @media (max-width:600px){
+    .left{padding:.6rem 1rem 1rem;}
+    .right-scroll{padding:1rem 1rem 1.5rem;}
+    .ess{padding:1.1rem 1rem 1rem;}
+  }
   .ess-eyebrow{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;}
   .ess-answer{font-family:var(--display);font-weight:500;font-size:1.85rem;line-height:1.15;color:var(--cream);margin:0 0 .55rem;}
   .ess-answer.ok{color:#9fd8b4;}.ess-answer.warn{color:#f0c56a;}.ess-answer.talk{color:#f2a08a;}.ess-answer.far{color:#f28b8b;}.ess-answer.inc{color:#8ba8dd;}
   .ess-sub{font-size:.92rem;font-style:italic;color:var(--dim);margin:-.2rem 0 .6rem;}
   .ess .plain-read{margin-top:.7rem;font-size:1rem;}
-  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
+  /* A habit's name inside the sentence reads as a link in running text, so it keeps the line's
+     height on a phone (min-height:0 undoes suite.css's 44px floor; WCAG 2.5.8's inline exception). */
+  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;min-height:0;}
   .plain-read .hab:hover,.plain-read .hab:focus-visible{text-decoration-style:solid;outline:none;}
   .ess-sure{margin-top:.7rem;font-size:.9rem;color:var(--dim);}
   .ess-sure b{color:var(--cream);font-weight:600;}
@@ -416,19 +402,7 @@
   .ess-nums b{color:var(--cream);font-family:var(--mono);font-weight:600;}
   .ess-chip{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,160,40,.35);border-radius:4px;padding:.1rem .4rem;margin-left:.45rem;vertical-align:middle;}
   .ess .triage{margin-top:1rem;}
-  .deep-head{display:flex;align-items:baseline;gap:.55rem;margin:.4rem 0 -.6rem;}
-  .deep-head b{font-family:var(--display);font-weight:500;font-size:1.1rem;color:var(--cream);}
-  .deep-head span{color:var(--dim-2);font-size:.84rem;font-style:italic;}
-  details.deep{border:1px solid var(--line-soft);border-radius:16px;background:rgba(255,255,255,0.025);}
-  details.deep>summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:.55rem;padding:.85rem 1.2rem;}
-  details.deep>summary::-webkit-details-marker{display:none;}
-  details.deep>summary b{font-family:var(--display);font-weight:500;font-size:1.08rem;color:var(--cream);}
-  details.deep>summary span{color:var(--dim);font-size:.84rem;}
-  details.deep>summary::after{content:'+';margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:1rem;}
-  details.deep[open]>summary::after{content:'-';}
-  details.deep>summary:hover{background:rgba(255,255,255,0.03);border-radius:16px;}
-  details.deep>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;border-radius:16px;}
-  .deep-body{padding:.2rem 1.2rem 1.2rem;}
+  /* .deep-head, details.deep and .deep-body: suite.css (shared with every page that has a Look closer). */
   .deep-body.radar-card{padding-top:.2rem;}
   .fp-box{position:relative;height:380px;border-radius:14px;overflow:hidden;background:#0a1024;}
   .fp-box .hero{pointer-events:auto;}
@@ -460,32 +434,19 @@
   .evi-side{flex-shrink:0;font-size:.86rem;font-style:italic;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.32rem .9rem;}
   .evi-side:hover{color:var(--gold);border-color:var(--gold);}
   .fd-row.inert{cursor:default;}
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
+  /* On a phone the 128px bar and 58px number left the habit's name a column a
+     word wide and pushed the number past the card's edge: the name and its
+     description take the full row, the bar and number sit under them. */
+  @media (max-width:560px){
+    .fd-row{grid-template-columns:minmax(0,1fr) 58px;row-gap:.45rem;}
+    .fd-row>:first-child{grid-column:1/-1;}
+  }
 </style>
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-20.11"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -515,13 +476,13 @@
             <span class="an-words" id="an-words"></span>
           </div>
           <div class="an-row">
-            <button class="an-btn" id="an-go" type="submit">Analyse</button>
+            <button class="an-btn btn-gold" id="an-go" type="submit">Analyse</button>
             <span class="an-msg" id="an-msg" role="status"></span>
           </div>
         </form>
         <div class="an-done" id="an-done" hidden>
           <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span><span class="an-restored" id="an-restored" hidden>Showing your last analysis of this paper.</span></div>
-          <button class="an-again" id="an-again" type="button">Analyse another</button>
+          <button class="an-again btn-chip" id="an-again" type="button">Analyse another</button>
         </div>
       </div>
 
@@ -554,7 +515,7 @@
           <div class="evi-head">
             <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
             <span class="evi-nums" id="evi-nums"></span>
-            <button class="evi-close" id="evi-close" type="button">✕ Close</button>
+            <button class="evi-close btn-chip" id="evi-close" type="button">✕ Close</button>
           </div>
           <div class="evi-desc" id="evi-desc"></div>
           <div class="evi-one" id="evi-one" hidden></div>
@@ -596,6 +557,7 @@
           <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
           <div class="deep-body">
             <div class="card hm-wrap">
+              <p class="hm-hint">Swipe sideways along the strip for every habit; tap one to open it.</p>
               <div class="hm-grid" id="heatmap"></div>
               <div class="hm-band" id="heatmap-band"></div>
               <div class="hm-labels" id="heatmap-labels"></div>
@@ -684,12 +646,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-18.1"></script>
-<script src="js/feature-data.js?v=2026-11-18.1"></script>
-<script src="js/fingerprint.js?v=2026-11-18.1"></script>
-<script src="js/evidence-view.js?v=2026-11-18.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-18.1"></script>
-<script src="js/paper-profile.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-20.11"></script>
+<script src="js/feature-data.js?v=2026-11-20.11"></script>
+<script src="js/fingerprint.js?v=2026-11-20.11"></script>
+<script src="js/evidence-view.js?v=2026-11-20.11"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.11"></script>
+<script src="js/paper-profile.js?v=2026-11-20.11"></script>
 <script>
 (function(){
   'use strict';
@@ -800,26 +762,6 @@
     return has(S.sub,f.code)?num(S.sub[f.code]):null;
   }
 
-  // ── account menu ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-  function initials(name){
-    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
-  function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
-  }
-
   // ── shared cross-highlight state ──
   const CROSS={pinned:null};
   let HM, RADAR, CHIPS, DETAIL, EVI, FP;
@@ -911,9 +853,9 @@
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
-      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       labels.style.display='none'; band.style.display='';
-      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
       syncTab();
@@ -932,9 +874,9 @@
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
-      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
-      labels.style.gridTemplateColumns='repeat('+N+',12px)';
-      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      labels.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      band.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
       heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
@@ -1561,7 +1503,8 @@
     const named=list.map(f=>{
       const cls=FAMILY_CLS[TIER_BY_KEY.get(f.tier).group]||FAMILY_CLS.Surface, b=baseOf(f), s=subOf(f);
       // Each habit opens its own numbers side by side (the Habit by habit section).
-      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.name)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
+      // Inside the sentence the plain name keeps its lower-case first letter (f.phrase).
+      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.phrase)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
     const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
     return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
@@ -2178,7 +2121,6 @@
   }
 
   // ── go ──
-  Live.session().then(renderChrome);
   const main=document.querySelector('main');
   Live.gate(main).then(sess=>{
     if(!sess){ main.classList.add('gated'); return; }

@@ -8,6 +8,25 @@ import { clearCollectionsTab } from './deep-link.jsx';
 
 // Keydown handler for div-as-button rows: Enter/Space activates like a
 // click (WS-4). Shared across every screen that renders a click-only row.
+// The old Oxford palette. No live screen uses it since the navy design; only the
+// dead Sidebar and ExamsScreen in Dashboard.jsx and the unrendered Courses.jsx and
+// Students.jsx still import it. Kept until the owner decides whether to delete them.
+export const BB = {
+  oxford:      '#002147',
+  deep:        '#001020',
+  oxfordLight: '#0A2D5E',
+  gold:        '#C9A961',
+  goldDark:    '#B8860B',
+  parchment:   '#F4EFE6',
+  parchmentDk: '#EDE5D8',
+  ink:         '#1A1A1A',
+  inkMid:      '#2C2C2C',
+  indigo:      '#3B4A6B',
+  fade:        '#8B9BB4',
+  cream:       '#F0EDE4',
+  fadedCream:  '#B8B4AC',
+};
+
 export function rowKeyDown(fn) {
   return (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
@@ -28,21 +47,6 @@ export function MockupFonts({ hand = false }) {
   return <style>{MOCKUP_MONO_CSS + (hand ? MOCKUP_HAND_CSS : '')}</style>;
 }
 
-export const BB = {
-  oxford:      '#002147',
-  deep:        '#001020',
-  oxfordLight: '#0A2D5E',
-  gold:        '#C9A961',
-  goldDark:    '#B8860B',
-  parchment:   '#F4EFE6',
-  parchmentDk: '#EDE5D8',
-  ink:         '#1A1A1A',
-  inkMid:      '#2C2C2C',
-  indigo:      '#3B4A6B',
-  fade:        '#8B9BB4',
-  cream:       '#F0EDE4',
-  fadedCream:  '#B8B4AC',
-};
 
 // Every family follows the Text setting (assets/type.css, display-prefs.js).
 export const fontDisplay = "var(--bb-font-display, 'Cormorant Garamond', serif)";
@@ -76,7 +80,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
       style={{
         fontFamily: fontDisplay,
         fontSize: size,
-        color: BB.gold,
+        color: 'var(--gold-2)',
         fontWeight: 600,
         letterSpacing: '0.06em',
         cursor: onClick ? 'pointer' : 'default',
@@ -91,7 +95,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
         fontVariant: 'small-caps',
         letterSpacing: '0.15em',
         fontSize: size * 0.88,
-        color: light ? BB.fadedCream : BB.gold,
+        color: light ? 'var(--dim)' : 'var(--gold-2)',
       }}>ollections</span>
     </Tag>
   );
@@ -108,19 +112,19 @@ export function Seal({ size = 22, verified = true, glow = false }) {
     >
       {glow && (
         <circle cx="16" cy="16" r="14"
-          fill="rgba(201,169,97,0.12)" />
+          fill="rgba(201,160,40,0.12)" />
       )}
       <circle cx="16" cy="16" r="14"
-        fill="none" stroke={BB.gold} strokeWidth="1" opacity={a} />
+        fill="none" stroke="var(--gold-2)" strokeWidth="1" opacity={a} />
       <circle cx="16" cy="16" r="9.5"
-        fill="none" stroke={BB.gold} strokeWidth="0.5" opacity={a * 0.6} />
+        fill="none" stroke="var(--gold-2)" strokeWidth="0.5" opacity={a * 0.6} />
       {ticks.map(angle => {
         const rad = angle * Math.PI / 180;
         return (
           <line key={angle}
             x1={16 + 11 * Math.cos(rad)} y1={16 + 11 * Math.sin(rad)}
             x2={16 + 14 * Math.cos(rad)} y2={16 + 14 * Math.sin(rad)}
-            stroke={BB.gold} strokeWidth="0.75" opacity={a * 0.55}
+            stroke="var(--gold-2)" strokeWidth="0.75" opacity={a * 0.55}
           />
         );
       })}
@@ -128,7 +132,7 @@ export function Seal({ size = 22, verified = true, glow = false }) {
         textAnchor="middle"
         fontFamily={fontDisplay}
         fontSize="10"
-        fill={BB.gold}
+        fill="var(--gold-2)"
         fontStyle="italic"
         opacity={a}
       >C</text>
@@ -139,7 +143,7 @@ export function Seal({ size = 22, verified = true, glow = false }) {
 // ─── Gold Rule ───────────────────────────────────────────────────────────────
 export function GoldRule({ double = false, faint = false, style: s = {} }) {
   const alpha = faint ? 0.22 : 0.72;
-  const color = `rgba(201,169,97,${alpha})`;
+  const color = `rgba(201,160,40,${alpha})`;
   return (
     <div style={s}>
       <div style={{ borderTop: `1px solid ${color}` }} />
@@ -155,12 +159,12 @@ export function Ornament({ char = '❦', py = 20 }) {
       display: 'flex', alignItems: 'center', gap: 16,
       padding: `${py}px 0`,
     }}>
-      <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
+      <div style={{ flex: 1, borderTop: '1px solid rgba(201,160,40,0.22)' }} />
       <span style={{
-        color: BB.gold, fontSize: '1.125rem', opacity: 0.65, lineHeight: 1,
+        color: 'var(--gold-2)', fontSize: '1.125rem', opacity: 0.65, lineHeight: 1,
         userSelect: 'none',
       }}>{char}</span>
-      <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
+      <div style={{ flex: 1, borderTop: '1px solid rgba(201,160,40,0.22)' }} />
     </div>
   );
 }
@@ -177,88 +181,43 @@ export function MetaLabel({ children, style: s = {}, htmlFor, className }) {
       fontSize: '.7812rem',
       letterSpacing: '0.14em',
       textTransform: 'uppercase',
-      color: BB.fade,
+      color: 'var(--dim)',
       ...s,
     }}>{children}</Tag>
   );
 }
 
-// ─── Primary Button ──────────────────────────────────────────────────────────
+// ─── Primary and Ghost Buttons ───────────────────────────────────────────────
+// Colour, shape and type are the shared buttons (.btn-gold / .btn-ghost,
+// demo/assets/tokens.css); only layout is set here.
+const btnLayout = (full, s) => ({
+  width: full ? '100%' : 'auto',
+  display: full ? 'flex' : 'inline-flex',
+  ...s,
+});
+
 export function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: disabled ? BB.gold : hover ? BB.goldDark : BB.gold,
-        color: BB.deep,
-        border: 'none',
-        padding: '12px 40px',
-        fontSize: '1.0625rem',
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'background 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-gold" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
-// ─── Ghost Button ────────────────────────────────────────────────────────────
 export function BtnGhost({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: hover ? 'rgba(201,169,97,0.07)' : 'transparent',
-        color: BB.gold,
-        border: `1px solid rgba(201,169,97,${hover ? 0.6 : 0.32})`,
-        padding: '12px 40px',
-        fontSize: '1.0625rem',
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'all 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-ghost" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
 // ─── Status Badge ────────────────────────────────────────────────────────────
 const STATUS_MAP = {
   ACTIVE:      { color: '#5EB87C', border: 'rgba(94,184,124,0.28)' },
-  DRAFT:       { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  COMPLETED:   { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  SCHEDULED:   { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  DRAFT:       { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  COMPLETED:   { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  SCHEDULED:   { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
   FLAGGED:     { color: '#C47A6B', border: 'rgba(196,122,107,0.28)' },
   ARCHIVED:    { color: '#4A4A4A', border: 'rgba(74,74,74,0.28)' },
-  IN_PROGRESS: { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  IN_PROGRESS: { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
   OPEN:        { color: '#5EB87C', border: 'rgba(94,184,124,0.28)' },
-  CLOSED:      { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  SUBMITTED:   { color: BB.cream,  border: 'rgba(240,237,228,0.28)' },
-  INVITED:     { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
-  LINK:        { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
+  CLOSED:      { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  SUBMITTED:   { color: 'var(--cream)',  border: 'rgba(245,239,224,0.28)' },
+  INVITED:     { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
+  LINK:        { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
 };
 
 // ─── The "worth a look" mark and Original's testing-phase label ─────────────
