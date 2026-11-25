@@ -2,10 +2,11 @@
 """Single source of truth for the CI pytest shard membership (T-46).
 
 `.github/workflows/test.yml` splits the old single serial `pytest` job into
-three path-based shards — `core`, `api`, `rest` — plus a `coverage-combine`
-job that enforces the ≥98 floor on the *combined* number. Shard membership is
-defined ONCE, here, in `SHARDS`; the workflow and the Makefile both ask this
-script for a shard's pytest arguments rather than repeating path lists.
+four path-based shards (`core`, `api`, `rest2`, `rest`) plus a
+`coverage-combine` job that enforces the ≥98 floor on the *combined* number.
+Shard membership is defined ONCE, here, in `SHARDS`; the workflow and the
+Makefile both ask this script for a shard's pytest arguments rather than
+repeating path lists.
 
     $ python scripts/shard_paths.py core
     tests/context tests/fusion tests/quantum tests/validation validation/test_tier10_optional.py
@@ -15,18 +16,19 @@ reproducible. When `pytest-api` goes red you re-run exactly
 `python -m pytest $(python scripts/shard_paths.py api)` locally and get the
 same selection. A hash shard depends on worker count and collection order.
 
-Why `rest` is expressed as `tests/` MINUS the other two shards' paths (rather
+Why `rest` is expressed as `tests/` MINUS the other shards' paths (rather
 than an explicit list of what is left): a new file added to `tests/` root can
 then never be silently un-run. Under an explicit-list `rest`, forgetting to
 add the file means no shard collects it and CI stays green on a test nobody
-runs. `tests/test_shard_partition.py` pins that property — the three shard
+runs. `tests/test_shard_partition.py` pins that property: the shard
 selections must partition the full blocking collection exactly.
 
 Any `tests/` file containing `@pytest.mark.postgres` is routed into `api` —
 the only shard with a Postgres service — even if its directory/glob entry
-would otherwise place it in `core` or `rest` (see `postgres_marked_files()`).
-`core`/`rest` get an `--ignore` for each such file so it still runs exactly
-once; `tests/test_shard_partition.py::test_every_postgres_marked_file_is_in_the_api_shard`
+would otherwise place it in `core`, `rest2` or `rest` (see
+`postgres_marked_files()`). `core`/`rest2`/`rest` get an `--ignore` for each
+such file so it still runs exactly once;
+`tests/test_shard_partition.py::test_every_postgres_marked_file_is_in_the_api_shard`
 pins this by collection, not by reading the grep.
 
 Two ways to run a shard:
@@ -90,8 +92,19 @@ SHARDS: dict[str, list[str] | str] = {
         "tests/config",
         "tests/perf",
     ],
+    # Split out of `rest` on 2026-11-20, when `rest` had grown to 19-21 min
+    # of a 30-minute cap. These two directories were ~432 s of the ~842 s of
+    # test time `rest` spent on CI run 44670919664 (tests/alpha ~360 s, of
+    # which test_local_runbook_rehearsal_twenty_concurrent_students_full_delete
+    # alone is ~296 s; tests/adversarial ~73 s), against ~410 s for the
+    # tests/ root files that stay in `rest`. Whole directories, so a new file
+    # in either one lands here with no edit to this list.
+    "rest2": [
+        "tests/alpha",
+        "tests/adversarial",
+    ],
     # Everything else under tests/. Expressed as the root with --ignore for
-    # every path the other two shards own (see module docstring).
+    # every path the other shards own (see module docstring).
     "rest": "tests/",
 }
 
@@ -126,8 +139,8 @@ def finder_duplicates() -> list[str]:
     """Repo-relative paths of Finder-duplicate test files under tests/.
 
     Empty on CI. Every shard ignores the whole set (an ignore for a path
-    outside the shard's own tree is a harmless no-op) so that all four
-    selections — the three shards and the full blocking set — are filtered
+    outside the shard's own tree is a harmless no-op) so that every
+    selection (each shard and the full blocking set) is filtered
     identically.
     """
     tests_dir = REPO_ROOT / "tests"
@@ -218,7 +231,9 @@ def pytest_args(shard: str) -> list[str]:
     if shard == "api":
         return api_selections() + duplicate_ignores
 
-    if shard == "core":
+    if shard != "rest":
+        # core, rest2: explicit path lists, minus any postgres-marked file
+        # under them (those are api's).
         return expand(shard) + postgres_ignores + duplicate_ignores
 
     # rest
