@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.8" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.9" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;}
@@ -29,10 +29,18 @@
   .mm-n{margin-left:auto;font-family:var(--mono);font-size:.66rem;background:rgba(224,114,90,0.16);color:#f0a690;border:1px solid rgba(224,114,90,0.35);border-radius:999px;padding:.06rem .45rem;}
   .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
   .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  /* The rail grows with the text size (24rem is 432px at the 18px default) and never takes more than a third of a wide screen. */
-  .grid{flex:1;display:grid;grid-template-columns:clamp(380px,24rem,34vw) minmax(0,1fr);gap:0;min-height:0;}
-  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;min-height:0;min-width:0;overflow-y:auto;}
-  .right{position:relative;overflow:hidden;}
+  /* The essentials column: the greeting, then what needs the teacher now, on the frame's own
+     background. The photograph on the right carries the title and Look closer; it grows with
+     the text size (28rem is 504px at the 18px default) and never takes more than 42% of the
+     screen. On a phone the three stack in that order: greeting, card, folds. */
+  .grid{flex:1;display:grid;grid-template-columns:minmax(0,1fr) clamp(380px,28rem,42vw);grid-template-rows:auto minmax(0,1fr);gap:0;min-height:0;}
+  .greet-box{grid-column:1;grid-row:1;padding:0.6rem 1.6rem .9rem 1.7rem;min-width:0;}
+  .ess{grid-column:1;grid-row:2;padding:.2rem 1.6rem 1.4rem 1.7rem;min-height:0;min-width:0;overflow-y:auto;}
+  .ess .attn{max-width:52rem;}
+  .right{grid-column:2;grid-row:1 / span 2;position:relative;overflow:hidden;}
+  .look{display:flex;flex-direction:column;gap:1rem;margin-top:1rem;flex-shrink:0;}
+  .look .deep-head{text-shadow:0 1px 12px rgba(7,11,28,0.95),0 0 3px rgba(7,11,28,0.8);}
+  .look .deep-head span{color:var(--dim);}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;letter-spacing:.02em;}
   .greet{font-family:var(--display);font-size:2rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
   .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
@@ -73,8 +81,9 @@
   .bar.hot .stem{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
   .bar .tick{font-family:var(--mono);font-size:.58rem;color:var(--dim-2);}
   .bar .tag{position:absolute;top:-1.4rem;background:var(--gold);color:#0d1530;font-family:var(--mono);font-weight:700;font-size:.62rem;padding:.1rem .35rem;border-radius:4px;}
-  .back-term{display:none;}
+  .back-term{display:none;align-self:flex-start;}
   .back-term.show{display:inline-flex;}
+  .look-col .plain-read{margin:0;max-width:none;text-shadow:none;}
   #sum-term>div{flex:1 1 9rem;min-width:0;}
   #sum-stu .card-t{font-size:1.05rem;}
   #sum-stu p{font-size:.88rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:.35rem;}
@@ -92,7 +101,10 @@
   .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.96) 0%, rgba(10,16,36,0.4) 22%, transparent 46%),linear-gradient(0deg, rgba(7,11,28,0.96) 8%, transparent 42%),radial-gradient(80% 60% at 70% 30%, rgba(201,160,40,0.10), transparent 70%);}
   .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
-  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;}
+  /* The title sits low on the photograph (margin-top:auto, not justify-content:flex-end, so an
+     open fold scrolls from its top instead of being cut off above). */
+  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;overflow-y:auto;}
+  .hero-inner .hero-title{margin-top:auto;}
   .plain-read{margin-top:.5rem;max-width:60ch;font-size:.92rem;line-height:1.5;color:rgba(245,239,224,0.86);text-shadow:0 1px 12px rgba(7,11,28,0.9);}
   .hero-title{text-shadow:0 2px 18px rgba(7,11,28,0.85);}
   .plain-read b{color:#fff;font-weight:600;}
@@ -147,54 +159,44 @@
   @container (max-width:24rem){
     .ops thead th{white-space:normal;}
   }
+  /* The folds under Look closer: the term's numbers stack, the roster sits on the rail's own background. */
+  .look-col{display:flex;flex-direction:column;gap:1rem;}
+  .look-col .trend{flex:none;height:15rem;}
+  #deep-roster .ops{margin-top:0;border-top:0;padding-top:0;overflow:visible;}
+  #deep-roster .ops th,#deep-roster .ops td{text-shadow:none;}
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
-    .grid{grid-template-columns:minmax(0,1fr);}
-    .right{min-height:520px;}
+    .grid{grid-template-columns:minmax(0,1fr);grid-template-rows:none;}
+    .greet-box,.ess,.right{grid-column:1;grid-row:auto;}
+    .ess{overflow:visible;}
+    .hero-inner{height:auto;overflow:visible;padding:2.4rem 1.6rem 1.4rem;}
+    .right{min-height:340px;}
+  }
+  /* Phones: a 1rem side gutter, so the card keeps the width of the screen at a large Text setting. */
+  @media (max-width:600px){
+    .greet-box,.ess{padding-left:1rem;padding-right:1rem;}
+    .hero-inner{padding:2rem 1rem 1.2rem;}
   }
 </style>
 </head>
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="index" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.8"></script>
+  <script src="shell.js?v=2026-11-20.9"></script>
   <main class="grid" id="live-main">
-    <aside class="left">
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
-        <div>
-          <div class="greet-eyebrow" id="greet-name">Your workspace</div>
-          <div class="greet" id="greet">Hello.</div>
-        </div>
-        <button class="back-term btn-chip" id="back-term" type="button">← Back to term view</button>
-      </div>
-      <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
-        <div id="sum-term" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem;">
-          <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
-          <a class="btn-ghost tap-mid" href="students.html" style="font-size:.85rem;padding:.4rem .95rem;flex-shrink:0;">Open Students</a>
-        </div>
-        <div id="sum-stu" style="display:none;"></div>
-      </div>
-      <div class="stat-row">
-        <div class="card stat">
-          <div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>
-          <div class="led-num" id="stat1-n">-</div>
-          <div class="u" id="stat1-u">Loading</div>
-        </div>
-        <div class="card stat">
-          <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed booklets to review</div>
-          <div class="led-num" id="stat2-n">-</div>
-          <div class="u" id="stat2-u">Loading</div>
-        </div>
-      </div>
-      <div class="card trend">
-        <div class="trend-top">
-          <div><div class="card-t" id="trend-t">Sealed booklets per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
-          <div class="led-num" id="trend-num">-</div>
-        </div>
-        <div class="bars" id="bars"></div>
-      </div>
-    </aside>
+    <div class="greet-box">
+      <div class="greet-eyebrow" id="greet-name">Your workspace</div>
+      <div class="greet" id="greet">Hello.</div>
+    </div>
+    <div class="ess">
+      <!-- The essentials: what needs the teacher now, each with one action.
+           Everything else on this page is one click further down. -->
+      <section class="attn" id="attention" aria-labelledby="attention-h" aria-busy="true">
+        <div class="attn-eyebrow">Needs your attention</div>
+        <h2 class="attn-h" id="attention-h">Loading</h2>
+      </section>
+    </div>
     <section class="right">
       <div class="hero">
         <div class="hero-photo"></div>
@@ -204,22 +206,61 @@
       </div>
       <div class="hero-inner">
         <div class="hero-title">This Term<br><span>Your classes</span></div>
-        <div class="plain-read" id="plain-read"></div>
-        <div class="ops">
-          <div class="ops-h"><b>Students</b><span id="ops-count"></span></div>
-          <div id="ops-wrap">
-            <table>
-              <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed booklet</th><th class="r"></th></tr></thead>
-              <tbody id="ops-body"></tbody>
-            </table>
-          </div>
-        </div>
+        <aside class="look" aria-label="Look closer">
+          <div class="deep-head"><b>Look closer</b><span>the term in numbers and every student</span></div>
+          <details class="deep on-photo" id="deep-term">
+            <summary><b>This term in numbers</b><span>baselines, sealed booklets, the last six weeks</span></summary>
+            <div class="deep-body look-col">
+              <button class="back-term btn-chip" id="back-term" type="button">← Back to term view</button>
+              <p class="plain-read" id="plain-read"></p>
+              <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
+                <div id="sum-term" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem;">
+                  <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
+                  <a class="btn-ghost tap-mid" href="students.html" style="font-size:.85rem;padding:.4rem .95rem;flex-shrink:0;">Open Students</a>
+                </div>
+                <div id="sum-stu" style="display:none;"></div>
+              </div>
+              <div class="stat-row">
+                <div class="card stat">
+                  <div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>
+                  <div class="led-num" id="stat1-n">-</div>
+                  <div class="u" id="stat1-u">Loading</div>
+                </div>
+                <div class="card stat">
+                  <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed booklets to review</div>
+                  <div class="led-num" id="stat2-n">-</div>
+                  <div class="u" id="stat2-u">Loading</div>
+                </div>
+              </div>
+              <div class="card trend">
+                <div class="trend-top">
+                  <div><div class="card-t" id="trend-t">Sealed booklets per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
+                  <div class="led-num" id="trend-num">-</div>
+                </div>
+                <div class="bars" id="bars"></div>
+              </div>
+            </div>
+          </details>
+          <details class="deep on-photo" id="deep-roster">
+            <summary><b>Every student</b><span id="ops-count">counted samples and the last sealed booklet</span></summary>
+            <div class="deep-body">
+              <div class="ops">
+                <div id="ops-wrap">
+                  <table>
+                    <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed booklet</th><th class="r"></th></tr></thead>
+                    <tbody id="ops-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </details>
+        </aside>
       </div>
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-11-20.8"></script>
-<script src="js/fingerprint.js?v=2026-11-20.8"></script>
+<script src="live.js?v=2026-11-20.9"></script>
+<script src="js/fingerprint.js?v=2026-11-20.9"></script>
 <script>
   (function(){
     function init(){
@@ -296,6 +337,7 @@
   // Live.roster() does the loading (see live.js); this page only reshapes it.
   async function load(){
     const res=await Live.roster();
+    rosterRes=res;
     rosterOk=res.ok;
     bb=res.bluebook;
     subs=res.submissions;
@@ -312,6 +354,19 @@
       pending:s.pending,
       last:s.lastSealed||''
     }));
+  }
+
+  // ── the essentials: what needs the teacher now, each with one action ──
+  // Live.rosterCard builds it from the roster alone (the same card as Students).
+  let rosterRes=null;
+  function renderAttention(){
+    const card=Live.rosterCard(rosterOk?rosterRes:null,{
+      firstText:'Add a writer by name on Students, or add students to a course in Collections.',
+      firstAct:{label:'Open Students',href:'students.html',primary:true},
+      more:n=>({label:'See all '+n+' on Students',href:'students.html'})
+    });
+    card.on={reload:()=>location.reload()};
+    Live.attention($('attention'),card);
   }
 
   // ── term view (the left rail, the sentence, the table) ──
@@ -398,7 +453,7 @@
   }
 
   function renderTable(){
-    $('ops-count').textContent=rows.length?'/ '+rows.length+' on your roster':'';
+    $('ops-count').textContent=rows.length?plural(rows.length,'student')+' on your roster, their counted samples and last sealed booklet':'counted samples and the last sealed booklet';
     if(!rosterOk){ Live.empty($('ops-wrap'),'Your students could not be loaded just now. Try reloading the page.'); return; }
     if(!rows.length){ Live.empty($('ops-wrap'),'No students on your roster yet.'); return; }
     $('ops-body').innerHTML=rows.map(r=>{
@@ -452,6 +507,10 @@
       setNum($('trend-num'),'-'); Live.empty($('bars'),bbNote());
     }
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.toggle('on',b.dataset.id===id));
+    // The student's numbers are drawn in the term fold: open it and bring it into view.
+    const term=$('deep-term');
+    if(!term.open) term.open=true;
+    if(term.scrollIntoView) term.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});
   }
   $('back-term').addEventListener('click',()=>renderTerm(false));
 
@@ -463,8 +522,8 @@
   Live.gate(document.querySelector('main')).then(async sess=>{
     if(!sess) return;
     try { await load(); } catch(e){ failState(); }
-    try { renderTerm(true); renderTable(); }
-    catch(e){ failState(); try { renderTerm(false); renderTable(); } catch(e2){} }
+    try { renderTerm(true); renderTable(); renderAttention(); }
+    catch(e){ failState(); try { renderTerm(false); renderTable(); renderAttention(); } catch(e2){} }
   });
 })();
 </script>

@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.8" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.9" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -235,7 +235,14 @@
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
   /* State vector heatmap */
-  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  /* --hm-col: one habit's column. 12px with a mouse; on a phone or touch screen each is 44px wide,
+     a comfortable tap, and the strip scrolls sideways inside the card (the hint says so). */
+  .hm-wrap{--hm-col:12px;overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-hint{display:none;margin:0 0 .6rem;font-size:.82rem;font-style:italic;color:var(--dim);}
+  @media (max-width:760px),(pointer:coarse){
+    .hm-wrap{--hm-col:44px;overscroll-behavior-x:contain;}
+    .hm-hint{display:block;position:sticky;left:0;}
+  }
   .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
   .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
   .hm-band{display:grid;gap:5px;margin-top:8px;}
@@ -395,19 +402,7 @@
   .ess-nums b{color:var(--cream);font-family:var(--mono);font-weight:600;}
   .ess-chip{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,160,40,.35);border-radius:4px;padding:.1rem .4rem;margin-left:.45rem;vertical-align:middle;}
   .ess .triage{margin-top:1rem;}
-  .deep-head{display:flex;align-items:baseline;gap:.55rem;margin:.4rem 0 -.6rem;}
-  .deep-head b{font-family:var(--display);font-weight:500;font-size:1.1rem;color:var(--cream);}
-  .deep-head span{color:var(--dim-2);font-size:.84rem;font-style:italic;}
-  details.deep{border:1px solid var(--line-soft);border-radius:16px;background:rgba(255,255,255,0.025);}
-  details.deep>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .55rem;padding:.85rem 1.2rem;}
-  details.deep>summary::-webkit-details-marker{display:none;}
-  details.deep>summary b{font-family:var(--display);font-weight:500;font-size:1.08rem;color:var(--cream);}
-  details.deep>summary span{color:var(--dim);font-size:.84rem;}
-  details.deep>summary::after{content:'+';margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:1rem;}
-  details.deep[open]>summary::after{content:'-';}
-  details.deep>summary:hover{background:rgba(255,255,255,0.03);border-radius:16px;}
-  details.deep>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;border-radius:16px;}
-  .deep-body{padding:.2rem 1.2rem 1.2rem;}
+  /* .deep-head, details.deep and .deep-body: suite.css (shared with every page that has a Look closer). */
   .deep-body.radar-card{padding-top:.2rem;}
   .fp-box{position:relative;height:380px;border-radius:14px;overflow:hidden;background:#0a1024;}
   .fp-box .hero{pointer-events:auto;}
@@ -451,7 +446,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.8"></script>
+  <script src="shell.js?v=2026-11-20.9"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -562,6 +557,7 @@
           <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
           <div class="deep-body">
             <div class="card hm-wrap">
+              <p class="hm-hint">Swipe sideways along the strip for every habit; tap one to open it.</p>
               <div class="hm-grid" id="heatmap"></div>
               <div class="hm-band" id="heatmap-band"></div>
               <div class="hm-labels" id="heatmap-labels"></div>
@@ -650,12 +646,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.8"></script>
-<script src="js/feature-data.js?v=2026-11-20.8"></script>
-<script src="js/fingerprint.js?v=2026-11-20.8"></script>
-<script src="js/evidence-view.js?v=2026-11-20.8"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.8"></script>
-<script src="js/paper-profile.js?v=2026-11-20.8"></script>
+<script src="live.js?v=2026-11-20.9"></script>
+<script src="js/feature-data.js?v=2026-11-20.9"></script>
+<script src="js/fingerprint.js?v=2026-11-20.9"></script>
+<script src="js/evidence-view.js?v=2026-11-20.9"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.9"></script>
+<script src="js/paper-profile.js?v=2026-11-20.9"></script>
 <script>
 (function(){
   'use strict';
@@ -857,9 +853,9 @@
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
-      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       labels.style.display='none'; band.style.display='';
-      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
       syncTab();
@@ -878,9 +874,9 @@
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
-      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
-      labels.style.gridTemplateColumns='repeat('+N+',12px)';
-      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      labels.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      band.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
       heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});

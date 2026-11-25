@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.8" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.9" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;}
@@ -76,6 +76,10 @@
   .empty{display:none;padding:2.5rem;text-align:center;color:var(--dim);font-style:italic;}
   .reassure{margin-top:1rem;font-size:.86rem;color:var(--dim);font-style:italic;text-align:center;text-shadow:0 1px 10px rgba(7,11,28,0.9);}
   .reassure a{color:var(--gold-2);}
+  /* Essentials first: the attention card, then the folds (suite.css styles both). */
+  .attn{margin-bottom:1.2rem;}
+  .look{display:flex;flex-direction:column;gap:.9rem;}
+  .look .strip{margin-bottom:0;}
   @media (max-width:900px){
     body{padding:0;}.frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
     .strip{grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -88,7 +92,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="submissions" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.8"></script>
+  <script src="shell.js?v=2026-11-20.9"></script>
   <main class="body" id="live-main">
     <div class="head">
       <div>
@@ -97,28 +101,47 @@
       </div>
       <a class="add-btn btn-gold" href="writing-state.html" title="Opens the Writing State page, where you paste or upload a paper to analyse"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 3v5h5"/></svg>Analyse a paper</a>
     </div>
-    <div class="strip">
-      <div class="s"><div class="l">Awaiting review</div><div class="v" id="v-await">-</div></div>
-      <div class="s"><div class="l">Reads very differently</div><div class="v note">Appears once Original keeps analysis results</div></div>
-      <div class="s"><div class="l">Worth a look</div><div class="v note">Appears once Original keeps analysis results</div></div>
-      <div class="s"><div class="l">Reviewed this week</div><div class="v" id="v-week">-</div></div>
+    <!-- The essentials: what is waiting, each with one action. The counts
+         and the whole queue are one click further down. -->
+    <section class="attn" id="attention" aria-labelledby="attention-h" aria-busy="true">
+      <div class="attn-eyebrow">Needs your attention</div>
+      <h2 class="attn-h" id="attention-h">Loading</h2>
+    </section>
+    <div class="look">
+      <div class="deep-head"><b>Look closer</b><span>the counts and every sealed booklet</span></div>
+      <details class="deep on-photo" id="deep-counts">
+        <summary><b>Booklets in numbers</b><span>awaiting review, reviewed this week</span></summary>
+        <div class="deep-body">
+          <div class="strip">
+            <div class="s"><div class="l">Awaiting review</div><div class="v" id="v-await">-</div></div>
+            <div class="s"><div class="l">Reads very differently</div><div class="v note">Appears once Original keeps analysis results</div></div>
+            <div class="s"><div class="l">Worth a look</div><div class="v note">Appears once Original keeps analysis results</div></div>
+            <div class="s"><div class="l">Reviewed this week</div><div class="v" id="v-week">-</div></div>
+          </div>
+        </div>
+      </details>
+      <details class="deep on-photo" id="deep-queue">
+        <summary><b>Every sealed booklet</b><span id="queue-sum">filter by review; each opens in Collections</span></summary>
+        <div class="deep-body">
+          <div class="filters" role="group" aria-label="Filter sealed booklets by review">
+            <button type="button" class="chip btn-chip on" data-f="all" aria-pressed="true">All</button>
+            <button type="button" class="chip btn-chip" data-f="await" aria-pressed="false">Awaiting review</button>
+            <button type="button" class="chip btn-chip green" data-f="done" aria-pressed="false">Reviewed</button>
+          </div>
+          <div class="queue">
+            <div class="q-head">
+              <div>Sealed booklet</div><div>Course</div><div>Submitted</div><div>Deviation</div><div class="r">Status</div>
+            </div>
+            <div id="rows"></div>
+            <div class="empty" id="empty" style="display:block">Loading</div>
+          </div>
+          <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens its collection in Collections.</p>
+        </div>
+      </details>
     </div>
-    <div class="filters" role="group" aria-label="Filter sealed booklets by review">
-      <button type="button" class="chip btn-chip on" data-f="all" aria-pressed="true">All</button>
-      <button type="button" class="chip btn-chip" data-f="await" aria-pressed="false">Awaiting review</button>
-      <button type="button" class="chip btn-chip green" data-f="done" aria-pressed="false">Reviewed</button>
-    </div>
-    <div class="queue">
-      <div class="q-head">
-        <div>Sealed booklet</div><div>Course</div><div>Submitted</div><div>Deviation</div><div class="r">Status</div>
-      </div>
-      <div id="rows"></div>
-      <div class="empty" id="empty" style="display:block">Loading</div>
-    </div>
-    <p class="reassure" id="foot" style="display:none">Deviation appears here once Original keeps analysis results. Each row opens its collection in Collections.</p>
   </main>
 </div>
-<script src="live.js?v=2026-11-20.8"></script>
+<script src="live.js?v=2026-11-20.9"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -143,14 +166,16 @@
   let counted=null;
   let rows=[], curF='all', loaded=false, emptyText='No sealed booklets yet. They appear here when a student seals a booklet in Collections.';
 
+  // The exam the booklet was sealed in (Collections's #exam/<id> link); a booklet with no exam id opens the Collections list (#collections), so it stays in Collections rather than going home to Original.
+  function bbHref(r){ return r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/#collections'; }
+
   function rowHTML(r){
     const reviewed=!!r.graded_at;
     const badge=reviewed
       ? '<span class="badge clear"><span class="d"></span>Reviewed'+(r.mark?'<span class="mk2">'+esc(r.mark)+'</span>':'')+'</span>'
       : '<span class="badge watch"><span class="d"></span>Awaiting review</span>';
     const date=fmtDate(r.created_at);
-    // The exam the booklet was sealed in (Collections's #exam/<id> link); a row with no exam id opens the Collections list (#collections), so it stays in Collections rather than going home to Original.
-    const href=r.exam_id!=null&&r.exam_id!==''?'/bluebook/#exam/'+encodeURIComponent(r.exam_id):'/bluebook/#collections';
+    const href=bbHref(r);
     return '<div class="q-item"><a class="q-row" href="'+esc(href)+'" title="Opens its collection in Collections">'+
       '<div class="doc"><span class="ic">'+docIco+'</span><div><div class="asg">'+esc(r.title)+'</div><div class="stu">'+esc(r.who)+'</div></div></div>'+
       '<div class="course">'+esc(r.courseLabel||DASH)+'</div>'+
@@ -198,6 +223,55 @@
 
   function note(id,text){ const el=$(id); el.textContent=text; el.className='v note'; }
 
+  // ── the essentials: what is waiting, each with one action ──
+  // A booklet waiting for review is listed with its next step in Original: read
+  // against the student's baseline, or add their past writing first. Until the
+  // roster answers (and for a student no longer on it) the step is Collections.
+  const SHOW=6;
+  function nextStep(r){
+    const sid=r.student_id!=null?String(r.student_id):'';
+    const named=r.title+', '+r.who;
+    if(counted&&sid&&r.id!=null&&r.id!==''&&(r.named||counted.has(sid))){
+      if((counted.get(sid)||0)>0) return {label:'Analyse against baseline',aria:'Analyse against baseline: '+named,href:'writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id))};
+      return {label:'Add writing first',aria:'Add writing first: '+r.who,href:'baseline.html?student='+encodeURIComponent(sid)+'#add-writing'};
+    }
+    return {label:'Open in Collections',aria:'Open in Collections: '+named,href:bbHref(r)};
+  }
+  function openQueue(){
+    const d=$('deep-queue');
+    d.open=true;
+    if(d.scrollIntoView) d.scrollIntoView({block:'start',behavior:'smooth'});
+  }
+  function renderAttention(state){
+    const on={reload:()=>location.reload(),all:openQueue};
+    const analyse={label:'Open Writing State',href:'writing-state.html'};
+    let card;
+    if(state==='off'){
+      card={head:'Collections is off for this workspace.',lede:'Sealed booklets come from Collections, so none arrive here.',
+        items:[{title:'Analyse a paper you have',text:'Paste or upload it on Writing State to read it against a student’s past writing.',act:analyse}]};
+    } else if(state!=='ok'){
+      card={head:'Sealed booklets could not be loaded just now.',
+        items:[{title:'Nothing here could be read',text:'Your sealed booklets are still on file.',act:{label:'Reload the page',id:'reload'}}]};
+    } else if(!rows.length){
+      card={head:'No sealed booklets yet.',lede:'They appear here when a student seals a booklet in Collections.',
+        items:[{title:'Set a collection',text:'Students write and seal their booklets in Collections.',act:{label:'Open Collections',href:'/bluebook/#collections'}}]};
+    } else {
+      const waiting=rows.filter(r=>!r.graded_at);
+      if(waiting.length){
+        card={head:plural(waiting.length,'sealed booklet')+(waiting.length===1?' is':' are')+' waiting for your review.',
+          lede:'Mark each one in Collections. Original keeps no readings on this page yet: a reading appears on Writing State when you analyse a booklet.',
+          items:[{title:'Waiting for review',text:'Newest first, each with its next step in Original.',
+            rows:waiting.slice(0,SHOW).map(r=>({name:r.title,note:r.who+(fmtDate(r.created_at)?' · sealed '+fmtDate(r.created_at):'')+(r.late?' · late':''),act:nextStep(r)})),
+            more:waiting.length>SHOW?{label:'Show all '+waiting.length,id:'all'}:null}]};
+      } else {
+        card={head:'Every sealed booklet has been reviewed.',
+          items:[{title:'Analyse another paper',text:'Paste or upload a paper on Writing State to read it against a student’s past writing.',act:analyse}]};
+      }
+    }
+    card.on=on;
+    Live.attention($('attention'),card);
+  }
+
   // state: 'ok' | 'off' | 'error'
   function render(state,subs){
     loaded=state==='ok';
@@ -206,9 +280,11 @@
       const off=state==='off';
       note('v-await',off?'Collections is off':'Could not load sealed booklets');
       note('v-week',off?'Collections is off':'Could not load sealed booklets');
-      $('sub').textContent=off?'Collections is off for this workspace, so there are no sealed booklets here.':'Sealed booklets could not be loaded just now. Try reloading the page.';
+      // The attention card below says what happened and what to do.
+      $('sub').textContent='';
       emptyText=off?'Collections is off for this workspace.':'Your sealed booklets could not be loaded just now. Try reloading the page.';
       applyF();
+      renderAttention(state);
       return;
     }
     // Ungraded first, newest first within each group (ISO times sort as text).
@@ -223,10 +299,12 @@
     }).length;
     const aw=$('v-await'); aw.textContent=String(waiting); aw.className='v'+(waiting>0?' amber':'');
     const wk=$('v-week'); wk.textContent=String(thisWeek); wk.className='v'+(thisWeek>0?' green':'');
-    $('sub').innerHTML=waiting>0
-      ? '<b>'+esc(plural(waiting,'sealed booklet'))+'</b> '+(waiting===1?'is':'are')+' waiting for your review.'
-      : (rows.length?'Every sealed booklet has been reviewed.':'No sealed booklets yet.');
+    // What is waiting is the attention card's headline; the subtitle only counts.
+    $('sub').innerHTML=rows.length
+      ? '<b>'+esc(plural(rows.length,'sealed booklet'))+'</b> from Collections'
+      : 'Sealed booklets from Collections appear here.';
     applyF();
+    renderAttention('ok');
   }
 
   // Live.sealed() (live.js) loads the sealed exams, names the students and fills
@@ -255,6 +333,7 @@
     counted=new Map();
     ro.students.forEach(st=>counted.set(st.id,st.counted||0));
     applyF();
+    renderAttention('ok');
   }
 
   // ── go ──

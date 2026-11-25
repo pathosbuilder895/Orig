@@ -66,8 +66,11 @@ test('a teacher adds a writer, builds their baseline and analyses a paper', asyn
     await expect(page.locator('#add-msg')).toContainText(`Added as sample ${i}.`, { timeout: 30_000 })
   }
 
-  // The writer is on the roster under their name, like any student.
+  // The writer is on the roster under their name, like any student. The page
+  // opens on what needs attention; the whole roster is under Look closer.
   await page.goto('/original/students.html')
+  await page.locator('#deep-roster > summary').click()
+  await expect(page.locator('#deep-roster')).toHaveAttribute('open', '')
   const row = page.locator('.r-row').filter({ hasText: name })
   await expect(row).toHaveCount(1, { timeout: 20_000 })
   await expect(row.getByRole('link', { name })).toHaveAttribute('href', `baseline.html?student=${enc}`)

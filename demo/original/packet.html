@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.8" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.9" />
+<link rel="stylesheet" href="suite.css?v=2026-11-20.9" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -133,9 +133,18 @@
     .ex{grid-template-columns:1fr;}
     .ex-col+.ex-col{border-left:none;border-top:1px solid var(--rule);}
     .guide{grid-template-columns:1fr;}
-    /* The sample list scrolls sideways in its own box; its words stay whole instead of breaking letter by letter. */
-    .prov{display:block;overflow-x:auto;}
-    .prov td{overflow-wrap:break-word;}
+    /* The sample list reads down the screen: each sample is one block, its number beside it, the
+       name on the first line, then its date and length, then how it was written. Nothing is off to
+       the right. The column headings stay for a screen reader (clipped, not removed). */
+    .prov,.prov tbody{display:block;}
+    .prov thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+    .prov tr{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;align-items:baseline;gap:.25rem .6rem;padding:.7rem 0;border-bottom:1px solid #efe8d5;}
+    .prov td{display:block;padding:0;border:0;overflow-wrap:break-word;}
+    .prov td.n{grid-column:1;grid-row:1 / span 3;}
+    .prov td:nth-child(2){grid-column:2 / -1;grid-row:1;font-weight:500;}
+    .prov td:nth-child(3){grid-column:2;grid-row:2;color:var(--ink-2);}
+    .prov td.len{grid-column:3;grid-row:2;text-align:right;color:var(--ink-2);}
+    .prov td:nth-child(4){grid-column:2 / -1;grid-row:3;}
     .chrome{flex-wrap:wrap;}
     .p-head{flex-direction:column;gap:1rem;}
     .p-meta{text-align:left;}
@@ -183,7 +192,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="packet" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.8"></script>
+  <script src="shell.js?v=2026-11-20.9"></script>
   <main class="body" id="live-main">
     <div class="wrap">
       <div class="chrome">
@@ -246,10 +255,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-20.8"></script>
-<script src="js/feature-data.js?v=2026-11-20.8"></script>
-<script src="js/evidence-view.js?v=2026-11-20.8"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.8"></script>
+<script src="live.js?v=2026-11-20.9"></script>
+<script src="js/feature-data.js?v=2026-11-20.9"></script>
+<script src="js/evidence-view.js?v=2026-11-20.9"></script>
+<script src="js/evidence-cards.js?v=2026-11-20.9"></script>
 <script>
 (function(){
   'use strict';
@@ -383,9 +392,8 @@
       return '<tr><td class="n">'+(i+1)+'</td><td>'+esc(name)+'</td><td>'+esc(sampleDay(s.submitted_at))+'</td>'+
         '<td><span class="how">'+esc(how)+'</span></td><td class="len" data-idx="'+esc(idx)+'">'+DASH+'</td></tr>';
     }).join('');
-    // On a phone the table scrolls sideways (.prov is a scroll box there), so it takes focus
-    // and a name: a keyboard can reach and scroll it (axe: scrollable-region-focusable).
-    return '<table class="prov" tabindex="0" aria-label="Writing samples this comparison used"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    // On a phone each sample stacks into one block (see .prov in the 760px rule), so nothing scrolls.
+    return '<table class="prov" aria-label="Writing samples this comparison used"><thead><tr><th></th><th>Sample</th><th>Date</th><th>How it was written</th><th>Length</th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
   // Word counts are not in the sample list: each comes from its own
   // GET /students/{id}/samples/{i}/text (word_count), four at a time.
