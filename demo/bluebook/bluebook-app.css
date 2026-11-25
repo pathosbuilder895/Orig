@@ -198,7 +198,7 @@ select.bb-input option{color:#111}
 @media(max-width:600px){
   .bb-land-nav{padding:14px 16px!important}
   .bb-land-navlinks{gap:18px!important}
-  .bb-land-hero{padding:104px 16px 32px!important}
+  .bb-land-hero{padding:104px 16px 80px!important}
   .bb-land-kicker{left:16px!important;right:16px;top:76px!important}
   .bb-land-folio{display:none!important}
   .bb-land-ctas{flex-wrap:wrap;flex-shrink:1!important;width:100%}

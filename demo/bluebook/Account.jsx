@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
+import { BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
@@ -34,11 +34,11 @@ export function homeFor(data) {
   return data && data.role === 'student' ? 'student-home' : 'dashboard';
 }
 
-const legalLink = { color: BB.gold };
+const legalLink = { color: 'var(--gold-2)' };
 
 export function LegalLinks() {
   return (
-    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)' }}>
       <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>Terms</a>
       {' · '}
       <a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>Privacy</a>
@@ -96,7 +96,7 @@ export function SignupScreen({ onNavigate }) {
   return (
     <AuthShell title="Create a free workspace" onBack={() => onNavigate('landing')}
       footer={<>
-        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
           Already have an account? <LinkBtn onClick={() => onNavigate('login')}>Sign in</LinkBtn>
         </p>
         <LegalLinks />
@@ -231,7 +231,7 @@ export function InviteScreen({ onNavigate }) {
 
   const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
   const signInLine = (
-    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
       Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
     </p>
   );
@@ -262,7 +262,7 @@ export function InviteScreen({ onNavigate }) {
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
           : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
@@ -378,7 +378,7 @@ export function JoinScreen({ onNavigate }) {
     return (
       <AuthShell title="Join a course" footer={<LegalLinks />}>
         <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 12px', lineHeight: 1.55 }}>{courseLine}</p>
-        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
           You are signed in as {BB_API.identity().email || 'a student'}. Join this course with that account?
         </p>
         <ErrorText>{error}</ErrorText>
@@ -389,7 +389,7 @@ export function JoinScreen({ onNavigate }) {
 
   return (
     <AuthShell title="Join a course" footer={<>
-      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
         Already have an account? <LinkBtn onClick={toSignIn}>Sign in</LinkBtn>, then open this link again.
       </p>
       <LegalLinks />
@@ -401,7 +401,7 @@ export function JoinScreen({ onNavigate }) {
         </p>
       )}
       <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 8px', lineHeight: 1.55 }}>{courseLine}</p>
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         Create your Collections account to join this course. You will use your email and password to sign in from now on.
         Please read the student notice first: it says what Collections keeps and who sees your work.
       </p>

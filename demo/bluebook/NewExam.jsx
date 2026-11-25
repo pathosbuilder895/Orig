@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB_API, BtnGhost, BtnPrimary, GoldRule, MetaLabel, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { ErrorText, fromLocalInput } from './forms.jsx';
 import { TeacherBar } from './TeacherWorkspace.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
@@ -40,15 +40,11 @@ function FormField({ label, hint, children, id }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <MetaLabel htmlFor={id}>{label}</MetaLabel>
-        {/* BB.fade at its own resting strength, not a faded BB.fade. The extra
-            `opacity: 0.7` this used to carry composited to #617188 and read
-            3.85:1 at 13px, under WCAG AA's 4.5:1 — the same defect, and the
-            same fix, as the shared sidebar's `Original Analysis` control
-            (Dashboard.jsx, #105). Full BB.fade reads 6.80:1 and is still
-            plainly secondary to the field's own BB.cream value text. */}
+        {/* The hint sits at the shared dim strength, with no extra opacity on top: a
+            faded dim failed WCAG AA at this size. */}
         {hint && <span style={{
           fontFamily: fontBody, fontStyle: 'italic',
-          fontSize: '.8125rem', color: BB.fade,
+          fontSize: '.8125rem', color: 'var(--dim)',
         }}>{hint}</span>}
       </div>
       {children}
@@ -60,10 +56,10 @@ const fieldBase = {
   width: '100%', boxSizing: 'border-box',
   background: 'transparent',
   border: 'none',
-  borderBottom: '1px solid rgba(201,169,97,0.35)',
+  borderBottom: '1px solid rgba(201,160,40,0.35)',
   padding: '8px 2px',
   fontFamily: fontBody, fontSize: '1.0625rem',
-  color: BB.cream, outline: 'none',
+  color: 'var(--cream)', outline: 'none',
   letterSpacing: '0.02em',
   transition: 'border-color 0.3s',
 };
@@ -79,8 +75,8 @@ function TextInput({ value, onChange, placeholder, type = 'text', id }) {
       onBlur={() => setFocused(false)}
       style={{
         ...fieldBase,
-        borderBottomColor: focused ? 'rgba(201,169,97,0.75)' : 'rgba(201,169,97,0.35)',
-        color: BB.cream,
+        borderBottomColor: focused ? 'rgba(201,160,40,0.75)' : 'rgba(201,160,40,0.35)',
+        color: 'var(--cream)',
       }}
     />
   );
@@ -96,7 +92,7 @@ function SelectInput({ value, onChange, options, id }) {
       onBlur={() => setFocused(false)}
       style={{
         ...fieldBase,
-        borderBottomColor: focused ? 'rgba(201,169,97,0.75)' : 'rgba(201,169,97,0.35)',
+        borderBottomColor: focused ? 'rgba(201,160,40,0.75)' : 'rgba(201,160,40,0.35)',
         appearance: 'none',
         cursor: 'pointer',
         background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23C9A961' opacity='.5'/%3E%3C/svg%3E") right 4px center no-repeat`,
@@ -104,7 +100,7 @@ function SelectInput({ value, onChange, options, id }) {
     >
       {options.map(o => (
         <option key={o.value} value={o.value}
-          style={{ background: '#002147', color: '#F0EDE4' }}>
+          style={{ background: 'var(--navy)', color: 'var(--cream)' }}>
           {o.label}
         </option>
       ))}
@@ -124,7 +120,7 @@ function NumberInput({ value, onChange, placeholder, min = 0, id }) {
       onBlur={() => setFocused(false)}
       style={{
         ...fieldBase,
-        borderBottomColor: focused ? 'rgba(201,169,97,0.75)' : 'rgba(201,169,97,0.35)',
+        borderBottomColor: focused ? 'rgba(201,160,40,0.75)' : 'rgba(201,160,40,0.35)',
         width: '100%',
         MozAppearance: 'textfield',
       }}
@@ -139,10 +135,10 @@ function ToggleRow({ label, desc, value, onChange }) {
       padding: '13px 0',
     }}>
       <div>
-        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.cream, margin: '0 0 2px' }}>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--cream)', margin: '0 0 2px' }}>
           {label}
         </p>
-        {desc && <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.875rem', color: BB.fade, margin: 0 }}>
+        {desc && <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.875rem', color: 'var(--dim)', margin: 0 }}>
           {desc}
         </p>}
       </div>
@@ -153,7 +149,7 @@ function ToggleRow({ label, desc, value, onChange }) {
         aria-label={label}
         style={{
           width: 44, height: 24, borderRadius: 12, border: 'none',
-          background: value ? BB.gold : 'rgba(139,155,180,0.2)',
+          background: value ? 'var(--gold-2)' : 'rgba(245,239,224,0.2)',
           position: 'relative', cursor: 'pointer', flexShrink: 0,
           transition: 'background 0.3s',
         }}
@@ -162,7 +158,7 @@ function ToggleRow({ label, desc, value, onChange }) {
           position: 'absolute', top: 3,
           left: value ? 23 : 3,
           width: 18, height: 18, borderRadius: '50%',
-          background: value ? BB.deep : BB.fade,
+          background: value ? 'var(--navy-0)' : 'var(--dim)',
           transition: 'left 0.25s, background 0.3s',
         }} />
       </button>
@@ -342,10 +338,10 @@ export function NewExamScreen({ onNavigate }) {
       <div style={{ textAlign: 'center' }}>
         <Seal size={48} verified glow />
         <p style={{
-          fontFamily: fontDisplay, fontSize: '1.75rem', color: BB.cream,
+          fontFamily: fontDisplay, fontSize: '1.75rem', color: 'var(--cream)',
           margin: '20px 0 8px', fontWeight: 400,
         }}>Collection Created</p>
-        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: BB.fade }}>
+        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: 'var(--dim)' }}>
           Returning to Collections…
         </p>
       </div>
@@ -362,26 +358,26 @@ export function NewExamScreen({ onNavigate }) {
 
         <button onClick={() => onNavigate('sessions')} style={{
           fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: BB.fade,
+          textTransform: 'uppercase', color: 'var(--dim)',
           background: 'none', border: 'none', cursor: 'pointer',
           padding: '0 0 20px', minHeight: 44,
           transition: 'color 0.25s',
         }}
-          onMouseEnter={e => e.currentTarget.style.color = BB.gold}
-          onMouseLeave={e => e.currentTarget.style.color = BB.fade}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--gold-2)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--dim)'}
         >← Collections</button>
 
         {/* Title */}
         <h1 style={{
           fontFamily: fontDisplay, fontSize: '2rem', fontWeight: 400,
-          color: BB.cream, letterSpacing: '0.01em',
+          color: 'var(--cream)', letterSpacing: '0.01em',
           margin: '0 0 4px',
         }}>New Collection</h1>
-        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: BB.fade, margin: '0 0 36px' }}>
+        <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '1.0625rem', color: 'var(--dim)', margin: '0 0 36px' }}>
           Every assignment is a collection. Fill in the basics; open More options for timing windows, lockdown and other settings. Students see a published collection in their course.
         </p>
         {restoredDraft && (
-          <p role="status" data-testid="draft-restored" style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: BB.fade, margin: '0 0 16px' }}>
+          <p role="status" data-testid="draft-restored" style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: 'var(--dim)', margin: '0 0 16px' }}>
             Your unsaved form was kept on this computer and has been restored.
           </p>
         )}
@@ -410,7 +406,7 @@ export function NewExamScreen({ onNavigate }) {
               {loadingCourses ? (
                 <p role="status" style={{
                   fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem',
-                  color: BB.fade, margin: '8px 0 0',
+                  color: 'var(--dim)', margin: '8px 0 0',
                 }}>Loading your courses…</p>
               ) : courses.length ? (
                 <SelectInput
@@ -427,14 +423,14 @@ export function NewExamScreen({ onNavigate }) {
                   />
                   <p role="status" style={{
                     fontFamily: fontBody, fontSize: '.9375rem',
-                    color: BB.fade, margin: '2px 0 0',
+                    color: 'var(--dim)', margin: '2px 0 0',
                   }}>
                     {coursesFailed
                       ? 'Your courses could not be loaded just now. Type the course code to carry on — the collection will still be saved.'
                       : 'No courses yet. Type a code to carry on, or '}
                     {!coursesFailed && (
                       <button onClick={() => onNavigate('courses')} style={{
-                        fontFamily: fontBody, fontSize: '.9375rem', color: BB.gold,
+                        fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--gold-2)',
                         background: 'none', border: 'none', padding: 0,
                         cursor: 'pointer', textDecoration: 'underline',
                       }}>add one on the Courses screen →</button>
@@ -455,7 +451,7 @@ export function NewExamScreen({ onNavigate }) {
             <FormField label="Duration" hint={timed ? 'minutes' : 'untimed'} id="neDuration">
               {timed
                 ? <NumberInput id="neDuration" value={duration} onChange={setDuration} placeholder="90" min={10} />
-                : <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '8px 0 0' }}>No time limit</p>}
+                : <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', margin: '8px 0 0' }}>No time limit</p>}
             </FormField>
             <FormField label="Minimum Words" hint="optional" id="neMinWords">
               <NumberInput id="neMinWords" value={minWords} onChange={setMinWords} placeholder="None" />
@@ -494,7 +490,7 @@ export function NewExamScreen({ onNavigate }) {
                   style={{
                     ...fieldBase,
                     borderBottom: 'none',
-                    border: '1px solid rgba(201,169,97,0.28)',
+                    border: '1px solid rgba(201,160,40,0.28)',
                     padding: '14px 16px',
                     resize: 'vertical',
                     lineHeight: 1.65,
@@ -506,7 +502,7 @@ export function NewExamScreen({ onNavigate }) {
             {prompts.length < MAX_QUESTIONS && (
               <button onClick={addPrompt} style={{
                 fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem',
-                color: BB.gold, background: 'none', border: 'none',
+                color: 'var(--gold-2)', background: 'none', border: 'none',
                 cursor: 'pointer', textAlign: 'left', padding: '4px 0',
                 letterSpacing: '0.02em',
                 opacity: 0.75, transition: 'opacity 0.25s',
@@ -526,7 +522,7 @@ export function NewExamScreen({ onNavigate }) {
         <details id="neMore" className="bb-ne-more" style={{ marginBottom: 40 }}>
           <summary style={{
             fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
-            textTransform: 'uppercase', color: BB.gold, cursor: 'pointer',
+            textTransform: 'uppercase', color: 'var(--gold-2)', cursor: 'pointer',
             marginBottom: 24,
           }}>More options</summary>
 
@@ -552,7 +548,7 @@ export function NewExamScreen({ onNavigate }) {
             <ToggleRow label="Timed" desc="Off: no time limit; the sitting stays open until the collection closes" value={timed} onChange={setTimed} />
           </div>
           {setting === 'take_home' && (
-            <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '8px 0 0' }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', margin: '8px 0 0' }}>
               Take-home work is not supervised. It never counts as an in-class sample; you can approve a paper one at a
               time to extend a student's existing reference writing, and only if it is close to what is already there.
             </p>
@@ -572,7 +568,7 @@ export function NewExamScreen({ onNavigate }) {
               <TextInput id="neCloses" type="datetime-local" value={closesAt} onChange={setClosesAt} />
             </FormField>
           </div>
-          <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '12px 0 0' }}>
+          <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', margin: '12px 0 0' }}>
             Students can start only while the collection is open. A sitting that starts
             near the closing time is shortened so it ends when the collection closes.
           </p>
@@ -583,11 +579,11 @@ export function NewExamScreen({ onNavigate }) {
         {/* ── Section IV: Lockdown ── */}
         <div style={{ marginBottom: 40 }}>
           <MetaLabel style={{ display: 'block', marginBottom: 8 }}>Secure Lockdown</MetaLabel>
-          <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: BB.fade, margin: '0 0 16px' }}>
+          <p style={{ fontFamily: fontBody, fontStyle: 'italic', fontSize: '.9375rem', color: 'var(--dim)', margin: '0 0 16px' }}>
             The conditions you switch on apply for the whole sitting, and students are told
             about them before they begin.
           </p>
-          <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '4px 20px', background: 'var(--navy-1)' }}>
+          <div style={{ border: '1px solid rgba(201,160,40,0.28)', padding: '4px 20px', background: 'var(--navy-1)' }}>
             <ToggleRow label="No AI assistants"          desc="Students are told AI tools are not permitted (a browser cannot block other apps)" value={blockAI}  onChange={setBlockAI} />
             <GoldRule faint />
             <ToggleRow label="Full-screen, tabs watched" desc="Runs full-screen; leaving it or switching tabs is recorded for you" value={blockWeb} onChange={setBlockWeb} />
@@ -632,10 +628,9 @@ export function NewExamScreen({ onNavigate }) {
           </BtnPrimary>
         </div>
         {/* The one thing on this screen that says why both buttons are dead,
-            and it was the least legible thing on it: `rgba(139,155,180,0.4)`
-            is BB.fade at 40%, which composites to #38485b and reads 2.05:1 at
-            10px — under half of WCAG AA's 4.5:1. Full BB.fade reads 6.80:1
-            (the sidebar's resting tier, #105), and the size goes to 12.5px,
+            and it was the least legible thing on it: a 40% tint
+            composited to about 2:1 at 10px, under half of WCAG AA's 4.5:1. The
+            shared dim colour clears it, and the size goes to 12.5px,
             which is the product-wide readability floor MetaLabel already
             documents and sets (components.jsx). Nothing else moves: same
             copy, same right-aligned position, same mono/uppercase treatment
@@ -644,7 +639,7 @@ export function NewExamScreen({ onNavigate }) {
           <p style={{
             textAlign: 'right', marginTop: 10,
             fontFamily: fontMono, fontSize: '.7812rem', letterSpacing: '0.14em',
-            color: BB.fade, textTransform: 'uppercase',
+            color: 'var(--dim)', textTransform: 'uppercase',
           }}>Title and at least one prompt are required</p>
         )}
       </div>
