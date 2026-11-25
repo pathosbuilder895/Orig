@@ -1,17 +1,17 @@
 # Makefile — task runner that hard-codes .venv/bin/python so the system-python
 # / 3.9-vs-3.11 trap (CLAUDE.md, WS-2 task 2.7) stops mattering.
 
-.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red openapi-snapshot test-fast test-shard-core test-shard-api test-shard-rest
+.PHONY: test test-quantum test-postgres db-up db-down run bundle e2e lint preflight backup setup test-security test-cert test-known-red openapi-snapshot test-fast test-shard-core test-shard-api test-shard-rest test-shard-rest2
 
 test:
 	.venv/bin/python -m pytest tests/ validation/test_tier10_optional.py -m "not blocker and not certification" -q
 
 # ---------------------------------------------------------------------------
 # CI shards (T-46). scripts/shard_paths.py is the single source of truth for
-# which paths belong to which shard — the three shard jobs in
+# which paths belong to which shard; the four shard jobs in
 # .github/workflows/test.yml call it with the same argument, so these targets
 # reproduce a red CI shard exactly. tests/test_shard_partition.py proves the
-# three selections partition the full blocking collection (no test un-run, no
+# shard selections partition the full blocking collection (no test un-run, no
 # test run twice).
 #
 # `--run` has shard_paths.py exec `python -m pytest <shard args> <extra>`
@@ -21,9 +21,11 @@ test:
 # shard_paths.postgres_marked_files()).
 # ---------------------------------------------------------------------------
 
-# The inner-loop target: the `rest` shard minus `slow`, no Postgres needed.
+# The inner-loop target: the `rest` and `rest2` shards (which were one `rest`
+# shard until 2026-11-20) minus `slow`, no Postgres needed.
 test-fast:
 	.venv/bin/python scripts/shard_paths.py --run rest -m "not blocker and not certification and not slow" -q
+	.venv/bin/python scripts/shard_paths.py --run rest2 -m "not blocker and not certification and not slow" -q
 
 test-shard-core:
 	.venv/bin/python scripts/shard_paths.py --run core -m "not blocker and not certification" -q --durations=25
@@ -36,6 +38,9 @@ test-shard-api:
 
 test-shard-rest:
 	.venv/bin/python scripts/shard_paths.py --run rest -m "not blocker and not certification" -q --durations=25
+
+test-shard-rest2:
+	.venv/bin/python scripts/shard_paths.py --run rest2 -m "not blocker and not certification" -q --durations=25
 
 test-security:
 	.venv/bin/python -m pytest tests/ -m security -q
