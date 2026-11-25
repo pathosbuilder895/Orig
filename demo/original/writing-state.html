@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.11" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.11" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.11" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -230,6 +230,23 @@
   .pp-note{font-size:.86rem;font-style:italic;color:var(--dim);line-height:1.55;margin-top:.7rem;}
   /* On a phone the card scrolls sideways instead of squeezing each paper's column to one letter. */
   @media (max-width:760px){.pp-table{min-width:36rem;}}
+  .pp-table .pp-pl+.pp-pl{margin-top:.35rem;}
+  /* Parts of this paper (paper_profile.parts): what was set aside and what was measured, with the teacher's control. */
+  .ppp-card{padding:1rem 1.2rem;margin-top:.5rem;}
+  .ppp-lede{font-size:.92rem;color:var(--dim);line-height:1.55;margin-bottom:.6rem;}
+  .pp-parts{list-style:none;margin:0;padding:0;}
+  .pp-part{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem;row-gap:.15rem;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--line-soft);}
+  .pp-part:last-child{border-bottom:none;}
+  .pp-part-what{font-size:.95rem;color:var(--cream);font-weight:500;}
+  .pp-part.aside .pp-part-what{color:var(--dim);}
+  .pp-part.maybe .pp-part-what{color:var(--gold-2);}
+  .pp-part-line{grid-column:1;font-size:.84rem;font-style:italic;color:var(--dim);overflow-wrap:anywhere;}
+  .pp-part-btn{grid-column:2;grid-row:1 / span 2;border-radius:999px;padding:.42rem .95rem;font-family:var(--body);font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--line);background:rgba(10,16,36,0.55);color:var(--cream);white-space:nowrap;transition:all .18s;}
+  .pp-part-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold-2);}
+  .pp-part-btn:disabled{opacity:.5;cursor:default;}
+  .ppp-msg{font-size:.88rem;color:var(--dim);margin-top:.6rem;min-height:1.2em;}
+  .ppp-msg.err{color:var(--flag);}
+  @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.35rem;}}
   @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
@@ -446,7 +463,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.11"></script>
+  <script src="shell.js?v=2026-11-25.1"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -541,6 +558,16 @@
           <div class="card tbt-card">
             <p class="tbt-lede" id="tbt-lede"></p>
             <div id="tbt-body"></div>
+          </div>
+        </div>
+
+        <!-- Parts of this paper: what was set aside and what was measured (paper_profile.parts), with the teacher's control; only when the server sent them -->
+        <div id="ppp" hidden>
+          <div class="sec-h"><b>Parts of this paper</b><span>what Original measured and what it set aside</span></div>
+          <div class="card ppp-card">
+            <p class="ppp-lede" id="ppp-lede">Original measures the writer&rsquo;s own prose and sets aside the parts that are not, such as a title page, an abstract and a list of sources. When its rules are unsure, it measures the part and lists it here as possible. You can set a part aside or measure it yourself; the paper is then analysed again.</p>
+            <div id="ppp-list"></div>
+            <p class="ppp-msg" id="ppp-msg" role="status" aria-live="polite"></p>
           </div>
         </div>
 
@@ -646,12 +673,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.11"></script>
-<script src="js/feature-data.js?v=2026-11-20.11"></script>
-<script src="js/fingerprint.js?v=2026-11-20.11"></script>
-<script src="js/evidence-view.js?v=2026-11-20.11"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.11"></script>
-<script src="js/paper-profile.js?v=2026-11-20.11"></script>
+<script src="live.js?v=2026-11-25.1"></script>
+<script src="js/feature-data.js?v=2026-11-25.1"></script>
+<script src="js/fingerprint.js?v=2026-11-25.1"></script>
+<script src="js/evidence-view.js?v=2026-11-25.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-25.1"></script>
+<script src="js/paper-profile.js?v=2026-11-25.1"></script>
 <script>
 (function(){
   'use strict';
@@ -1639,10 +1666,53 @@
     if(!box) return;
     const PP=window.PaperProfile;
     const ev=S.result&&S.result.evidence;
+    renderParts();
     if(!PP||!PP.has(ev)){ box.hidden=true; $('pp-body').innerHTML=''; return; }
     $('pp-body').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'pp-note'});
     box.hidden=false;
   }
+  // Parts of this paper (teacher only, paper_profile.parts): only when the server
+  // listed them (MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED). Each part's
+  // button analyses the same text again with the teacher's choice
+  // (exclude_ranges / include_ranges on POST /students/{id}/score).
+  function thisParts(){
+    const PP=window.PaperProfile, ev=S.result&&S.result.evidence;
+    return PP&&PP.hasParts(ev)?ev.paper_profile.this_paper.parts.filter(p=>p&&typeof p==='object'&&!Array.isArray(p)):null;
+  }
+  function renderParts(){
+    const box=$('ppp'); if(!box) return;
+    const parts=thisParts();
+    // Only for the text this page sent: a kept record from another tab has no text to send again.
+    if(!parts||!parts.length||!S.sentText){ box.hidden=true; $('ppp-list').innerHTML=''; return; }
+    $('ppp-list').innerHTML=window.PaperProfile.partsList(parts,{listClass:'pp-parts'});
+    box.hidden=false;
+  }
+  async function choosePart(i,act){
+    const parts=thisParts(), part=parts&&parts[i];
+    if(!part||!S.sentText||S.choosing) return;
+    const PP=window.PaperProfile;
+    const choice=PP.nextChoice(PP.choiceOf(S.result.evidence.paper_profile.this_paper),part,act);
+    const label=typeof part.label==='string'&&part.label?part.label:'part';
+    const name='the '+(part.possible===true?'possible ':'')+label.charAt(0).toLowerCase()+label.slice(1);
+    S.choosing=true;
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=true; });
+    const m=$('ppp-msg'); m.classList.remove('err'); m.textContent='Analysing the paper again.';
+    const res=await postScore({text:S.sentText,assignment:S.assignment||'',submission_id:newSubmissionId(),exclude_ranges:choice.exclude_ranges,include_ranges:choice.include_ranges});
+    S.choosing=false;
+    const d=res.data;
+    if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
+      showAnalysis(d,S.sentText,S.assignment||'',true);
+      $('ppp-msg').textContent='Analysed again with '+name+(act==='set_aside'?' set aside.':' measured.');
+      return;
+    }
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=false; });
+    m.classList.add('err');
+    if(res.status===422&&/60%/.test(JSON.stringify(d||''))) m.textContent='That would set aside more than 60% of the paper, so it was not analysed again. Measure another part first.';
+    else if(res.status===401) m.textContent='Your sign-in has ended. Sign in again, then try again.';
+    else if(res.status===403) m.textContent='You do not have access to this student\u2019s writing.';
+    else m.textContent='The paper could not be analysed again just now. Try again.';
+  }
+
   // Text by text: after an analysis, Original's own top list as the cards the
   // side-by-side page and the packet show (js/evidence-cards.js), with no click
   // needed. Only when the server sent passages; any other habit opens the same
@@ -1853,6 +1923,8 @@
     a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
   }
 
+  // The one place a paper is sent to be analysed: the Analyse button, and a part set aside or measured again.
+  function postScore(body){ return Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:body}); }
   async function analyse(e){
     e.preventDefault();
     if(!S.id||!hasBaseline()) return;
@@ -1864,29 +1936,12 @@
     go.disabled=true; go.textContent='Analysing'; msg('This takes a few seconds.');
     // A fresh id per analysis, so two papers never share the server's
     // default <student>_submission_<n> name.
-    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment,submission_id:newSubmissionId()}});
+    const res=await postScore({text:text,assignment:assignment,submission_id:newSubmissionId()});
     go.disabled=false; go.textContent='Analyse';
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
-      setResult(d,assignment,countWords(text));
-      // Analysed exactly as loaded from Collections: kept with the result, so
-      // Back to this page's sealed-exam link shows this analysis again.
-      S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
-      S.entryId=appendAnalysis(d,text,assignment);
-      setView('submission',true);
-      renderAll();
-      $('an-done-t').textContent=assignment||'Untitled paper';
-      $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
-      $('an-restored').hidden=true;
-      note(thinNote()); setCard('done');
-      $('tri-done').textContent=''; $('tri-done').classList.remove('err');
-      document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
-      // Kept for this tab as soon as it exists, so the packet, the Voice
-      // baseline link and the browser's Back button all find it again.
-      storeForPacket();
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
-      // On a phone the analyse card sits above the result: bring the answer up.
-      if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
+      $('ppp-msg').textContent=''; $('ppp-msg').classList.remove('err');
+      showAnalysis(d,text,assignment);
       return;
     }
     const detail=d&&typeof d.detail==='string'?d.detail:'';
@@ -1896,6 +1951,31 @@
     else if(res.status===413) msg('This paper is too large to send. Try pasting only the essay text.',true);
     else if(res.status===422) msg('This text could not be analysed. Check that it is the paper itself and try again.',true);
     else msg('The analysis could not be completed just now, so the paper was not analysed. Try again.',true);
+  }
+  // One analysis on screen: from the Analyse button, or a part set aside or measured again.
+  // keepPlace: a part set aside or measured again, so the page stays where the teacher clicked.
+  function showAnalysis(d,text,assignment,keepPlace){
+    S.sentText=text;
+    setResult(d,assignment,countWords(text));
+    // Analysed exactly as loaded from Collections: kept with the result, so
+    // Back to this page's sealed-exam link shows this analysis again.
+    S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
+    S.entryId=appendAnalysis(d,text,assignment);
+    setView('submission',true);
+    renderAll();
+    $('an-done-t').textContent=assignment||'Untitled paper';
+    $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    $('an-restored').hidden=true;
+    note(thinNote()); setCard('done');
+    $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+    document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+    // Kept for this tab as soon as it exists, so the packet, the Voice
+    // baseline link and the browser's Back button all find it again.
+    storeForPacket();
+    if(keepPlace) return;
+    const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+    // On a phone the analyse card sits above the result: bring the answer up.
+    if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
   }
 
   function newSubmissionId(){
@@ -2027,6 +2107,8 @@
     S.entryId=entry?entry.id:'';
     $('an-assign').value=assignment;
     $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
+    // The exact text that was analysed: a part set aside or measured sends it again.
+    S.sentText=entry&&typeof entry.text==='string'?entry.text:'';
     updateWords();
     setView('submission',true);
     renderAll();
@@ -2081,6 +2163,7 @@
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
+    $('ppp-list').addEventListener('click',e=>{ const b=e.target.closest('.pp-part-btn'); if(b&&!b.disabled) choosePart(parseInt(b.dataset.part,10),b.dataset.act); });
     $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
     $('an-again').addEventListener('click',()=>{
       // A new paper: the last one's title and text would otherwise label it.

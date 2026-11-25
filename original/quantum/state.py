@@ -85,6 +85,19 @@ class BaselineSample:
     # MEASUREMENTS). Written by scripts/backfill_measurements.py or, when
     # UPLOAD_ALSO_MEASURE is set, at upload. Read only by original/measurement.py.
     extra_vectors: dict[str, np.ndarray] | None = None
+    # The splitter's rules version (features/matter.py RULES_VERSION) each
+    # splitter measurement in ``extra_vectors`` was made under, keyed the
+    # same way. None, or a key missing, means unstamped (stored before stamps
+    # existed; taken as matter.UNSTAMPED_RULES_VERSION). Read only by
+    # original/measurement.py.
+    extra_vector_rules: dict[str, int] | None = None
+
+    # ── A teacher's own choice of parts (additive: None for every sample
+    # with no choice made). ``{"exclude_ranges": [[start, end], ...],
+    # "include_ranges": [...]}`` in this sample's ``text``; applied whenever
+    # the paper is measured (features/part_overrides.py). Set only by
+    # PUT /students/{id}/samples/{index}/parts.
+    part_overrides: dict | None = None
 
 
 @dataclass

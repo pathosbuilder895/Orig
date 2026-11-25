@@ -41,6 +41,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TypeVar
 
+from . import part_overrides as _part_overrides
+
 T = TypeVar("T")
 
 _ON_VALUES = frozenset({"1", "on", "true", "yes"})
@@ -128,18 +130,21 @@ def upload_also_measure() -> str | None:
 
 def text_cache(maxsize: int) -> Callable[[Callable[[str], T]], Callable[[str], T]]:
     """``functools.lru_cache`` for a function of one paper's text, keyed on the
-    text *and* the switch state, so a value computed under one setting is never
+    text *and* the switch state (and the teacher's choice of parts that text
+    carries, when it applies), so a value computed under one setting is never
     served under another. Keeps ``cache_clear``/``cache_info``/``__wrapped__``.
     With both switches off it caches exactly as ``lru_cache(maxsize)`` did."""
 
     def deco(fn: Callable[[str], T]) -> Callable[[str], T]:
         @functools.lru_cache(maxsize=maxsize)
-        def keyed(text: str, _key: tuple[int, bool]) -> T:
+        def keyed(text: str, _key: tuple[int, bool], _choice: object) -> T:
             return fn(text)
 
         @functools.wraps(fn)
         def wrapper(text: str) -> T:
-            return keyed(text, cache_key())
+            # The teacher's choice this paper's text carries, when it applies
+            # (features.part_overrides), is part of the key; None otherwise.
+            return keyed(text, cache_key(), _part_overrides.for_text(text))
 
         wrapper.cache_clear = keyed.cache_clear  # type: ignore[attr-defined]
         wrapper.cache_info = keyed.cache_info  # type: ignore[attr-defined]

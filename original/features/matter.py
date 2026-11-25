@@ -112,6 +112,34 @@ from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
+#: The version of the splitter's rules a stored splitter measurement was made
+#: under (``extra_vectors["matter"]``, ``extra_vectors["fs2+matter"]`` and a
+#: teacher's ``choice_vectors``; ``original/measurement.py`` stamps it).
+#:
+#: Bump policy: add 1 whenever a change to this module, to
+#: ``features.pdf_reflow``, or to the splitter's path in
+#: ``features.preprocess`` can change what is measured for some text (a rule,
+#: a threshold, a pattern). Refactors that measure every text exactly as
+#: before do not bump it. A stored splitter measurement whose stamp is not
+#: this version is then served as if it were missing (the student's scores
+#: fall back to the default measurement, exactly as for a paper never
+#: measured that way) until ``scripts/backfill_measurements.py`` measures it
+#: again. The default "v1" measurement never reads this.
+RULES_VERSION = 1
+#: The version an unstamped stored splitter measurement is taken to have:
+#: those stored before stamps existed were measured under version 1, so on
+#: the deploy that adds stamps nothing changes; the backfill stamps them, and
+#: only a later bump of ``RULES_VERSION`` marks them stale. Never change it.
+UNSTAMPED_RULES_VERSION = 1
+
+
+def rules_current(stamp: int | None) -> bool:
+    """A stored splitter measurement with this stamp (None: unstamped) was
+    made under the rules in force now. A stamp from any other version, older
+    or newer (a rolled-back deploy), is not."""
+    return (UNSTAMPED_RULES_VERSION if stamp is None else stamp) == RULES_VERSION
+
+
 #: The page marker ``upload_utils`` stores where an uploaded file breaks a
 #: page: U+001F (UNIT SEPARATOR), a control character no paste or .txt file
 #: carries, alone on a line where a blank line ``"\n\n"`` stood before. It is

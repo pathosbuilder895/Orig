@@ -2,18 +2,27 @@
 
 What this is
 ------------
-A paper has parts that are not the writer's running prose: a heading block
-(name, teacher, course, date, title), section headings, in-text citations,
-footnote markers, quotations and a list of sources. This module *describes*
-those parts in plain numbers for the teacher (how many sources, a best guess
-at the citation style, how many in-text citations, how many headings, ...).
+A paper has parts that are not the writer's running prose: a title page or a
+heading block (name, teacher, course, date, title), an abstract, section
+headings, in-text citations, footnote markers, quotations, notes and a list
+of sources. This module *describes* those parts in plain numbers for the
+teacher (how many sources, a best guess at the citation style, how many
+in-text citations, how many headings, ...).
+
+Where each part is comes from ``features.matter.find_parts``, the same rules
+that decide what is measured with the splitter on, so the description and the
+measurement can never disagree about where the list of sources starts. With
+the splitter on (``MATTER_SPLITTER_ENABLED``), ``parts`` also lists every part
+with what happened to it: set aside or measured, by the rules or by the
+teacher's own choice (``features.part_overrides``), its word count, its first
+line (short) and its character range. A part the rules were unsure of is
+``possible``: measured as prose and shown, so the teacher can decide.
 
 What this is not
 ----------------
 * It measures nothing the engine uses. ``features.preprocess``, the feature
   vector, every score and every stored value are unchanged: this module only
-  reads the stored text and the preprocess module's existing patterns, and
-  nothing in the scoring path imports it.
+  reads the stored text, and nothing in the scoring path imports it.
 * It is never shown to students. ``voice.STAFF_ONLY_KEYS`` names it, and the
   student projections drop it (``voice.drop_staff_only``).
 * It is a description, not a check. The citation style is a best guess from
@@ -32,6 +41,9 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
+from .features import feature_flags as _ff
+from .features import matter as _matter
+from .features import part_overrides as _overrides
 from .features import preprocess as _pp
 from .features.matter import without_page_breaks
 
@@ -53,23 +65,30 @@ PROFILE_NOTE = (
 STYLE_CAVEAT = "A best guess from the formatting, not a check of the citations."
 
 # ── Line patterns ────────────────────────────────────────────────────────────
+# Where each part of the paper is comes from ``features.matter.find_parts``,
+# the same rules that decide what is measured; the patterns below only name
+# and describe what those rules found.
 
-#: A line that names a list of sources, read tolerantly (centred with spaces,
-#: a trailing colon, "Works Cited Page"). Only trusted when what follows it
-#: looks like a list of sources (see ``_source_list``).
-_LIST_HEADING = re.compile(
-    r"^[ \t]*(?:bibliography|references?|works?\s+cited(?:\s+page)?|works?\s+consulted"
-    r"|sources?\s+(?:cited|consulted)|selected\s+bibliography|annotated\s+bibliography"
-    r"|(?:end)?notes)[ \t]*:?[ \t]*$",
-    re.IGNORECASE,
-)
+#: Names of a list of sources, for its label ("References", "Works Cited").
 _LIST_NAMES = {
     "bibliography": "Bibliography",
+    "selected bibliography": "Bibliography",
+    "annotated bibliography": "Annotated Bibliography",
     "reference": "References",
     "references": "References",
+    "reference list": "Reference List",
+    "works cited": "Works Cited",
+    "work cited": "Works Cited",
+    "works cited page": "Works Cited",
+    "works consulted": "Works Consulted",
+    "sources cited": "Sources Cited",
+    "sources consulted": "Sources Consulted",
+    "literature cited": "Literature Cited",
     "notes": "Notes",
     "endnotes": "Endnotes",
 }
+#: Decoration around a heading: "## ", "**", "7. ", a trailing colon.
+_HEADING_DECOR = re.compile(r"^[\s#*_]*(?:\d{1,2}\.?\s+)?|[\s*_:]*$")
 #: The start of one entry in a list of sources.
 _ENTRY_START = re.compile(
     r"^[ \t]*(?:"
@@ -96,47 +115,6 @@ _BOOK = re.compile(
     r"\bpress\b|\bpublish|\bbooks\b|\btranslated by\b|\btrans\.|\bedited by\b|\beds?\.|\beditor\b",
     re.IGNORECASE,
 )
-
-#: A heading-block line: a date, a course code or a teacher's title.
-_DATE = re.compile(
-    r"\b(?:\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}"
-    r"|(?:january|february|march|april|may|june|july|august|september|october|november|december)"
-    r"\s+\d{1,2},?\s+\d{4})\b",
-    re.IGNORECASE,
-)
-_HEADER_SIGNAL = re.compile(
-    r"^\s*(?:prof(?:essor)?\.?\s|dr\.\s|mr\.\s|mrs\.\s|ms\.\s|rev\.\s|instructor\b"
-    r"|[A-Z]{2,5}\s?-?\d{3,4}[A-Z]?\b)",
-)
-_PAGE_LINE = re.compile(r"^\s*(?:[A-Z][a-z]+\s+)?(?:page\s+)?\d{1,3}\s*$", re.IGNORECASE)
-_SECTION_NAMES = frozenset(
-    {
-        "abstract", "introduction", "method", "methods", "methodology", "participants",
-        "results", "discussion", "conclusion", "conclusions", "background",
-        "literature review", "analysis", "summary",
-    }
-)  # fmt: skip
-_SMALL_WORDS = frozenset(
-    {
-        "a",
-        "an",
-        "the",
-        "of",
-        "in",
-        "on",
-        "and",
-        "or",
-        "for",
-        "to",
-        "with",
-        "at",
-        "by",
-        "from",
-        "as",
-        "vs",
-    }
-)
-_SENTENCE_END = (".", "?", "!", '"', "\u201d", ")", "'", "\u2019")
 
 # ── In-text citation patterns ────────────────────────────────────────────────
 
@@ -165,102 +143,131 @@ def _words(s: str) -> int:
     return len(s.split())
 
 
-def _title_like(line: str) -> bool:
-    words = re.findall(r"[A-Za-z][\w'\u2019\-]*", line)
-    return bool(words) and all(w[0].isupper() or w.lower() in _SMALL_WORDS for w in words)
+# ── Parts of the paper (features.matter.find_parts) ──────────────────────────
+
+#: Plain names of the parts ``find_parts`` reports.
+PART_LABELS = {
+    "title_page": "Title page",
+    "abstract": "Abstract",
+    "back_matter": "List of sources",
+    "notes": "Notes",
+    "appendix": "Appendix",
+    "front_matter": "Heading block",
+    "heading": "Section headings",
+    "page_header": "Running heads and page numbers",
+    "footnote": "Footnotes",
+    "chosen": "A part you chose",
+}
+#: Low-confidence kinds, each listed once with all its lines together.
+_GROUPED = ("front_matter", "heading", "page_header", "footnote")
+#: Longest first line shown for a part.
+FIRST_LINE_CHARS = 60
 
 
-def _heading_like(line: str) -> bool:
-    s = line.strip()
-    if not s or _words(s) > 10 or s.endswith((*_SENTENCE_END, ";", ",", ":")):
-        return False
-    return s.lower() in _SECTION_NAMES or _title_like(s)
+def _first_line(text: str, start: int, end: int) -> str:
+    for line in text[start:end].split("\n"):
+        s = " ".join(line.split())  # a page marker is whitespace, so it goes too
+        if len(s) > FIRST_LINE_CHARS:
+            return s[: FIRST_LINE_CHARS - 1].rstrip() + "\u2026"
+        if s:
+            return s
+    return ""
 
 
-# ── Parts of the paper ───────────────────────────────────────────────────────
+def _list_name(text: str, start: int, end: int) -> str | None:
+    """The heading of a list of sources ("Works Cited"), or None when the list
+    starts straight with an entry (an unheaded list)."""
+    first = _first_line(text, start, end)
+    if not first or _ENTRY_START.match(first) or _words(first) > 5:
+        return None
+    name = " ".join(_HEADING_DECOR.sub("", first).split())
+    return _LIST_NAMES.get(name.lower(), name.title()) if name else None
 
 
-def _source_list(lines: list[str]) -> tuple[int | None, str | None]:
-    """(index of the heading line, its name) of a list of sources, or (None, None).
+def _span(ranges: Sequence[tuple[int, int]], within: Sequence[tuple[int, int]]) -> int:
+    """Characters of ``ranges`` inside ``within`` (both sorted and merged)."""
+    return sum(max(0, min(b, d) - max(a, c)) for a, b in ranges for c, d in within)
 
-    Trusted only when the heading sits after the first 40% of the paper's lines
-    and most lines after it start like an entry, so a sentence that begins
-    "References to God..." or a one-word paragraph "Notes" mid-paper is not a
-    list. The last such heading wins (a notes list followed by a bibliography
-    is still one apparatus, counted from the first trusted heading)."""
-    filled = [i for i, line in enumerate(lines) if line.strip()]
-    for k, i in enumerate(filled):
-        if not _LIST_HEADING.match(lines[i]) or k < 0.4 * len(filled):
+
+def _part(text: str, kind: str, ranges: list[tuple[int, int]], status: str, possible: bool):
+    label = PART_LABELS.get(kind, kind.replace("_", " ").capitalize())
+    if kind == "back_matter":
+        named = _list_name(text, *ranges[0])
+        label = named if named and named not in ("Notes", "Endnotes") else label
+    return {
+        "kind": kind,
+        "label": label,
+        "possible": possible,
+        "rules_status": status,
+        "status": status,
+        "by": "rules",
+        "words": sum(_words(text[a:b]) for a, b in ranges),
+        "lines": sum(1 for a, b in ranges for ln in text[a:b].split("\n") if ln.strip()),
+        "first_line": _first_line(text, *ranges[0]),
+        "start": ranges[0][0],
+        "end": ranges[-1][1],
+        "ranges": [[a, b] for a, b in ranges],
+    }
+
+
+def _apply_choice(text: str, out: list[dict[str, Any]], found, choice) -> None:
+    """Mark each part with what happens to it under the teacher's ``choice``:
+    ``status`` is what happens to most of its text once the choice is applied,
+    and ``by`` is "teacher" when the choice changed any of it. A range set
+    aside that none of the parts covers is listed as a part of its own."""
+    rules_aside = _overrides.union_ranges((r.start, r.end) for r in found.set_aside)
+    aside = _overrides.minus_ranges(
+        _overrides.union_ranges([*rules_aside, *choice.exclude]), choice.include
+    )
+    rules_kept = _overrides.minus_ranges([(0, len(text))], rules_aside)
+    for part in out:
+        ranges = [(a, b) for a, b in part["ranges"]]
+        size = sum(b - a for a, b in ranges)
+        part["status"] = "set_aside" if 2 * _span(ranges, aside) >= size else "measured"
+        changed = _span(ranges, _overrides.minus_ranges(choice.exclude, rules_aside)) or _span(
+            ranges, _overrides.minus_ranges(choice.include, rules_kept)
+        )
+        part["by"] = "teacher" if changed else "rules"
+    for a, b in choice.exclude:
+        if not text[a:b].split():  # only whitespace or page markers: nothing to show
             continue
-        rest = [lines[j] for j in filled[k + 1 :] if not _LIST_HEADING.match(lines[j])]
-        if not rest:
-            continue
-        starts = sum(1 for r in rest if _ENTRY_START.match(r) and _YEAR.search(r))
-        if starts and starts / len(rest) >= 0.5:
-            name = re.sub(r"\s+", " ", lines[i].strip().rstrip(":").strip())
-            return i, _LIST_NAMES.get(name.lower(), name.title())
-    return None, None
+        if not any(_span([(a, b)], p["ranges"]) for p in out):
+            extra = _part(text, "chosen", [(a, b)], "measured", False)
+            extra["status"], extra["by"] = "set_aside", "teacher"
+            out.append(extra)
 
 
-def _entries(lines: list[str]) -> list[str]:
-    """Entries of a list of sources: an entry starts on a line that begins like
-    one; any other line continues the entry before it (a wrapped PDF line)."""
-    out: list[str] = []
-    for line in lines:
-        s = line.strip()
-        if not s or _LIST_HEADING.match(s):
-            continue
-        if _ENTRY_START.match(s) or not out:
-            out.append(s)
+def paper_parts(text: str, parts: _matter.Parts | None = None) -> list[dict[str, Any]]:
+    """Each part of the paper the rules found, in order, with what happens to it:
+    ``status`` "set_aside" or "measured", ``by`` "rules" or "teacher" (a
+    teacher's choice in force for this text, ``features.part_overrides``),
+    ``possible`` for a shape the rules were unsure of (measured, so the teacher
+    can decide). Word counts, the part's first line and its character ranges."""
+    text = text or ""
+    found = parts if parts is not None else _matter.find_parts(text)
+    out: list[dict[str, Any]] = []
+    grouped: dict[str, list[tuple[int, int]]] = {}
+    for r in found.set_aside:
+        if r.kind in _GROUPED:
+            grouped.setdefault(r.kind, []).append((r.start, r.end))
         else:
-            out[-1] += " " + s
+            out.append(_part(text, r.kind, [(r.start, r.end)], "set_aside", False))
+    for kind, ranges in grouped.items():
+        out.append(_part(text, kind, ranges, "set_aside", False))
+    for r in found.possible:
+        out.append(_part(text, r.kind, [(r.start, r.end)], "measured", True))
+    # An appendix after the list of sources: measured again by the rules.
+    for r in found.set_aside:
+        if r.kind == "back_matter" and r.end < len(text) and text[r.end :].strip():
+            # The rules' own appendix check, so a decorated heading ("8.
+            # Appendix A") the rules measure again is listed as they read it.
+            if _matter._is_appendix_heading(_first_line(text, r.end, len(text))):
+                out.append(_part(text, "appendix", [(r.end, len(text))], "measured", False))
+    choice = _overrides.for_text(text)
+    if choice is not None:
+        _apply_choice(text, out, found, choice)
+    out.sort(key=lambda p: (p["start"], p["end"]))
     return out
-
-
-def _front_matter(lines: list[str], stop: int) -> list[int]:
-    """Indices of the heading block at the top: short lines with no sentence
-    ending (name, teacher, course, date, title) before the first line of prose.
-
-    Counted only when the block carries a date, a course code or a teacher's
-    title; otherwise only a lone title-like first line counts. A short line
-    whose next line starts in lower case is the first line of a wrapped
-    paragraph, so the block stops there."""
-    run: list[int] = []
-    filled = [i for i in range(stop) if lines[i].strip()]
-    for pos, i in enumerate(filled):
-        s = lines[i].strip()
-        signal = bool(_DATE.search(s) or _HEADER_SIGNAL.match(s))
-        nxt = lines[filled[pos + 1]].strip() if pos + 1 < len(filled) else ""
-        if _words(s) > 14 or (s.endswith((*_SENTENCE_END, ";", ",", ":")) and not signal):
-            break
-        if not signal and not _title_like(s):
-            break  # a line of ordinary prose (lower-case words), e.g. a wrapped first line
-        if nxt[:1].islower():
-            break
-        run.append(i)
-    if any(_DATE.search(lines[i]) or _HEADER_SIGNAL.match(lines[i].strip()) for i in run):
-        return run
-    return run[:1] if run and _heading_like(lines[run[0]]) else []
-
-
-def _headings(lines: list[str], start: int, stop: int) -> int:
-    """Section headings in the body: a short title-like line that stands on its
-    own (blank lines around it, or, in hard-wrapped text, after a finished
-    sentence and before a capital)."""
-    count = 0
-    for i in range(start, stop):
-        s = lines[i]
-        if not s.strip() or s.startswith(("    ", "\t")) or _PAGE_LINE.match(s):
-            continue
-        if not _heading_like(s):
-            continue
-        prev = lines[i - 1].strip() if i > 0 else ""
-        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
-        if (not prev and not nxt) or (
-            (not prev or prev.endswith(_SENTENCE_END)) and nxt[:1].isupper()
-        ):
-            count += 1
-    return count
 
 
 def _in_text(body: str) -> dict[str, int]:
@@ -315,7 +322,7 @@ def _style(
 
     if list_name == "Works Cited":
         add("MLA", 2, "the list of sources is headed \u201cWorks Cited\u201d")
-    elif list_name == "References":
+    elif list_name in ("References", "Reference List"):
         add("APA", 1.5, "the list of sources is headed \u201cReferences\u201d")
     elif list_name == "Bibliography":
         add("Chicago notes", 1, "the list of sources is headed \u201cBibliography\u201d")
@@ -366,30 +373,52 @@ def _style(
     }
 
 
-_NOTE_LINE = re.compile(r"^[ \t]*\d{1,3}\.?\s+[A-Z][^\n]*?(?:\(\s*[^()]*:\s*[^()]*\d{4}\)|Ibid)")
+def _outside(text: str, cut: Sequence[tuple[int, int]]) -> str:
+    """``text`` without the ``cut`` ranges (sorted, as find_parts gives them)."""
+    out, pos = [], 0
+    for a, b in sorted(cut):
+        if a > pos:
+            out.append(text[pos:a])
+        pos = max(pos, b)
+    out.append(text[pos:])
+    return without_page_breaks("".join(out))
 
 
 def paper_profile(text: str) -> dict[str, Any]:
     """Plain descriptive facts about one paper's headings, citations, quotations
-    and list of sources. Deterministic; reads ``text`` only."""
-    text = without_page_breaks(text or "")  # an upload's page breaks, as before
-    lines = text.split("\n")
-    list_at, list_name = _source_list(lines)
-    body_stop = list_at if list_at is not None else len(lines)
-    body_lines = lines[:body_stop]
-    body = "\n".join(body_lines)
-    entries = _entries(lines[list_at + 1 :]) if list_at is not None else []
-
-    front = _front_matter(lines, body_stop)
-    first_body = (front[-1] + 1) if front else 0
-    headings = _headings(lines, first_body, body_stop)
-    note_lines = sum(1 for line in body_lines if _NOTE_LINE.match(line))
-    # The running text: no heading block and no footnote text, so a note's
-    # "(Oxford: Oxford University Press, 1991)" is not an in-text citation.
-    skip = set(front)
-    running = "\n".join(
-        line for i, line in enumerate(body_lines) if i not in skip and not _NOTE_LINE.match(line)
+    and list of sources, read from where ``features.matter`` finds each part.
+    Deterministic; reads ``text`` only. With the splitter on
+    (MATTER_SPLITTER_ENABLED) it also lists the parts (``parts``): what was set
+    aside and what was measured, so a teacher can check it."""
+    raw = text or ""
+    found = _matter.find_parts(raw)
+    by_kind: dict[str, list[tuple[int, int]]] = {}
+    for r in found.set_aside:
+        by_kind.setdefault(r.kind, []).append((r.start, r.end))
+    sources = by_kind.get("back_matter", [])
+    list_name = _list_name(raw, *sources[0]) if sources else None
+    entries: list[str] = []
+    for a, b in sources:
+        lines = [ln.strip() for ln in raw[a:b].split("\n") if ln.strip()]
+        if lines and list_name is not None:
+            lines = lines[1:]  # the heading
+        for s in lines:
+            if _ENTRY_START.match(s) or not entries:
+                entries.append(s)
+            else:
+                entries[-1] += " " + s  # a wrapped line of the entry before
+    notes = by_kind.get("footnote", []) + by_kind.get("notes", [])
+    note_lines = sum(
+        1 for a, b in notes for ln in raw[a:b].split("\n") if re.match(r"^\s*\d{1,3}\.?\s", ln)
     )
+    front = by_kind.get("title_page", []) + by_kind.get("front_matter", [])
+
+    # The body: everything but the list of sources and the notes. The running
+    # text: the body without anything else set aside either (the heading block,
+    # headings, page lines), so a note's "(Oxford: ..., 1991)" is not an
+    # in-text citation.
+    body = _outside(raw, sources + by_kind.get("notes", []))
+    running = _outside(raw, [(r.start, r.end) for r in found.set_aside])
 
     data = _pp._extract_citation_data(body)
     cites = _in_text(running)
@@ -403,10 +432,10 @@ def paper_profile(text: str) -> dict[str, Any]:
         k = _kind(e)
         kinds[k] = kinds.get(k, 0) + 1
 
-    return {
-        "words": _words(text),
-        "front_matter_words": sum(_words(lines[i]) for i in front),
-        "headings": headings,
+    profile = {
+        "words": _words(raw),
+        "front_matter_words": sum(_words(raw[a:b]) for a, b in front),
+        "headings": len(by_kind.get("heading", [])),
         "sources": {
             "count": len(entries),
             "list_heading": list_name,
@@ -425,6 +454,15 @@ def paper_profile(text: str) -> dict[str, Any]:
         },
         "citation_style": _style(list_name, entries, cites, footnotes, note_lines),
     }
+    if _ff.matter_splitter_enabled():
+        profile["parts"] = paper_parts(raw, found)
+        # The teacher's choice in force for this paper, as the next request
+        # would send it (the parts' buttons change it one part at a time).
+        choice = _overrides.for_text(raw)
+        profile["choice"] = (
+            choice.to_doc() if choice is not None else {"exclude_ranges": [], "include_ranges": []}
+        )
+    return profile
 
 
 def build_paper_profiles(text: str, baselines: Sequence[tuple[str, str]]) -> dict[str, Any]:

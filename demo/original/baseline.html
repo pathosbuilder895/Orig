@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.11" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.11" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.11" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -135,6 +135,25 @@
   .ti-prev .pt{font-size:.92rem;color:var(--cream);}
   .ti-prev .pm{font-size:.76rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
   .ti-prev .pb{margin-top:.6rem;max-height:280px;overflow-y:auto;white-space:pre-wrap;font-size:.95rem;line-height:1.6;color:rgba(245,239,224,0.86);background:rgba(0,0,0,0.18);border:1px solid var(--line-soft);border-radius:10px;padding:.8rem 1rem;overflow-wrap:anywhere;}
+  /* Parts of a past paper (GET/PUT /students/{id}/samples/{index}/parts, js/paper-profile.js): only when the server lists them. */
+  .ti-parts{margin-top:.8rem;padding:.8rem 1rem;background:rgba(0,0,0,0.14);border:1px solid var(--line-soft);border-radius:10px;}
+  .ti-parts .pph{font-size:.92rem;color:var(--cream);font-weight:500;}
+  .ti-parts .ppl{font-size:.82rem;color:var(--dim);line-height:1.5;margin:.25rem 0 .4rem;}
+  .pp-parts{list-style:none;margin:0;padding:0;}
+  .pp-part{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem;row-gap:.1rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line-soft);}
+  .pp-part:last-child{border-bottom:none;}
+  .pp-part-what{font-size:.9rem;color:var(--cream);}
+  .pp-part.aside .pp-part-what{color:var(--dim);}
+  .pp-part.maybe .pp-part-what{color:var(--gold-2);}
+  .pp-part-line{grid-column:1;font-size:.8rem;font-style:italic;color:var(--dim-2);overflow-wrap:anywhere;}
+  .pp-part-btn{grid-column:2;grid-row:1 / span 2;font-family:var(--body);font-size:.8rem;font-weight:600;color:var(--gold-2);background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.28);border-radius:999px;padding:.35rem .85rem;cursor:pointer;white-space:nowrap;}
+  .pp-part-btn:hover:not(:disabled){background:rgba(201,160,40,0.14);}
+  .pp-part-btn:disabled{opacity:.5;cursor:default;}
+  .pp-part-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .ti-parts .ppm{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
+  .ti-parts .ppn{color:var(--gold-2);}
+  .ti-parts .ppm.err{color:var(--bad,#e0725a);}
+  @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.3rem;}}
   .wt-note{margin-top:.9rem;font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;}
   .traj{display:flex;gap:.8rem;align-items:flex-start;margin-top:1.1rem;padding:1rem 1.1rem;background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.2);border-radius:12px;color:var(--gold);}
   .traj svg{stroke:var(--gold);fill:none;flex-shrink:0;margin-top:.1rem;}
@@ -242,7 +261,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="baseline" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.11"></script>
+  <script src="shell.js?v=2026-11-25.1"></script>
   <main class="grid" id="live-main">
     <aside class="left">
       <div>
@@ -428,9 +447,10 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-11-20.11"></script>
-<script src="js/feature-data.js?v=2026-11-20.11"></script>
-<script src="live.js?v=2026-11-20.11"></script>
+<script src="js/fingerprint.js?v=2026-11-25.1"></script>
+<script src="js/feature-data.js?v=2026-11-25.1"></script>
+<script src="live.js?v=2026-11-25.1"></script>
+<script src="js/paper-profile.js?v=2026-11-25.1"></script>
 <script>
 (function(){
   'use strict';
@@ -456,7 +476,9 @@
     exams:[],
     preview:new Map(),   // sample index -> {state:'loading'|'ok', data}
     open:null,           // the sample whose paper is showing
-    saving:'',           // the one write in flight: '' | 'paste' | 'files' | 'approve' | 'undo'
+    saving:'',           // the one write in flight: '' | 'paste' | 'files' | 'approve' | 'undo' | 'parts'
+    parts:new Map(),     // sample index -> GET .../parts answer, for the paper showing
+    partsMsg:null,       // {i, text, err}: the last parts change, said under that paper
     savingId:'',         // the exam it is about, for approve and undo
     heldPaste:new Set()  // pasted texts the server has held back on this visit
   };
@@ -827,6 +849,58 @@
     const meta=[p.word, fmtDate(d.submitted_at), (num(d.word_count)!==null?plural(d.word_count,'word'):'')].filter(Boolean).join(' · ');
     cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost btn-ghost" data-close="1">Close</button></div><div class="pb"></div>';
     cur.querySelector('.pb').textContent=typeof d.text==='string'&&d.text?d.text:'(empty)';
+    showParts(i);
+  }
+  // Parts of this past paper (teacher only, js/paper-profile.js): the title page, abstract,
+  // list of sources and the possible parts the rules were unsure of, each with a button that
+  // stores the teacher's choice with the paper and measures that one paper again. Only when
+  // the server lists them (MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED); otherwise nothing.
+  async function showParts(i){
+    const PP=window.PaperProfile; if(!PP) return;
+    let got=S.parts.get(i);
+    if(!got){
+      const res=await Live.api('/students/'+enc(ID)+'/samples/'+enc(String(i))+'/parts');
+      if(!res.ok||!res.data||typeof res.data!=='object'||res.data.enabled!==true||!Array.isArray(res.data.parts)) return;
+      got=res.data; S.parts.set(i,got);
+    }
+    renderParts(i);
+  }
+  function renderParts(i){
+    const PP=window.PaperProfile, got=S.parts.get(i);
+    const cur=document.querySelector('.ti[data-i="'+i+'"] .ti-prev');
+    if(!PP||!got||!cur||cur.hidden||S.open!==i) return;
+    let box=cur.querySelector('.ti-parts');
+    if(!box){ box=document.createElement('div'); box.className='ti-parts'; cur.appendChild(box); }
+    const parts=got.parts.filter(p=>p&&typeof p==='object');
+    const m=S.partsMsg&&S.partsMsg.i===i?S.partsMsg:null;
+    box.innerHTML='<div class="pph">Parts of this paper</div>'+
+      '<p class="ppl">'+(parts.length?'Original measures the writer\u2019s own prose and sets aside the parts that are not. When its rules are unsure, it measures the part and lists it as possible. A change here is kept with this paper and measures it again, so the baseline changes only when you choose.':'Original found no title page, abstract or list of sources to set aside in this paper; all of it is measured.')+'</p>'+
+      (got.measurement_in_use===false&&typeof got.measurement_note==='string'?'<p class="ppl ppn">'+esc(got.measurement_note)+'</p>':'')+
+      PP.partsList(parts,{listClass:'pp-parts'})+
+      '<p class="ppm'+(m&&m.err?' err':'')+'" role="status" aria-live="polite">'+(m?esc(m.text):'')+'</p>';
+    box.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=!!S.saving; });
+  }
+  async function choosePart(i,k,act){
+    const PP=window.PaperProfile, got=S.parts.get(i);
+    const parts=got?got.parts.filter(p=>p&&typeof p==='object'):[];
+    const part=parts[k];
+    if(!PP||!part||!startSave('parts',String(i))) return;
+    const choice=PP.nextChoice(PP.choiceOf(got),part,act);
+    const label=typeof part.label==='string'&&part.label?part.label:'part';
+    const name='the '+(part.possible===true?'possible ':'')+label.charAt(0).toLowerCase()+label.slice(1);
+    S.partsMsg={i:i,text:'Measuring this paper again.'}; renderParts(i);
+    const res=await Live.api('/students/'+enc(ID)+'/samples/'+enc(String(i))+'/parts',{method:'PUT',body:choice});
+    endSave();
+    if(res.ok&&res.data&&typeof res.data==='object'&&res.data.enabled===true){
+      S.partsMsg={i:i,text:'Measured again with '+name+(act==='set_aside'?' set aside':' measured')+'. The baseline now uses this paper this way.'};
+      await refreshAfterWrite();
+      S.parts.set(i,res.data);
+      S.open=null; showPreview(i,true);
+      return;
+    }
+    const detail=res.data&&typeof res.data.detail==='string'?res.data.detail:'';
+    S.partsMsg={i:i,err:true,text:res.status===422&&/60%/.test(detail)?'That would set aside more than 60% of this paper, so nothing was changed. Measure another part first.':(res.status===409?'Choosing the parts of a paper is turned off here.':'This paper could not be measured again just now, so nothing was changed. Try again.')};
+    renderParts(i);
   }
   function closePreview(){
     S.open=null;
@@ -837,6 +911,9 @@
     const t=e.target.closest('button'); if(!t) return;
     if(t.hasAttribute('data-read')) showPreview(parseInt(t.getAttribute('data-read'),10),false);
     else if(t.hasAttribute('data-close')) closePreview();
+    else if(t.classList.contains('pp-part-btn')&&!t.disabled){
+      const item=t.closest('.ti'); if(item) choosePart(parseInt(item.dataset.i,10),parseInt(t.dataset.part,10),t.dataset.act);
+    }
   });
 
   // ── one write at a time ──
@@ -860,6 +937,7 @@
     fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Import';
     $('file-in').disabled=on;
     ['save-note-add','save-note-sealed'].forEach(id=>{ $(id).hidden=!on; });
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=on; });
     renderQueue();
     renderSealed();
   }
@@ -1165,7 +1243,7 @@
     const st=rs[0], rd=rs[1];
     S.student=null; S.ready=null;
     // Samples can come and go (an exam approved or taken out), so a cached paper may no longer sit at its index.
-    S.preview.clear(); S.open=null;
+    S.preview.clear(); S.parts.clear(); S.open=null;
     if(st.ok&&st.data&&typeof st.data==='object'){ S.student=st.data; S.status='ok'; }
     else if(st.status===404) S.status='none';
     else if(st.status===403) S.status='forbidden';

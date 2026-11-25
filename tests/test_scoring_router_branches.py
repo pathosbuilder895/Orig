@@ -692,3 +692,49 @@ def test_report_assembly_exception_is_swallowed_in_score_submission(
     r = _score(live_client, sid, force=True)
 
     assert r.status_code == 200, r.text
+
+
+# ── _require_student_exam_scoring: a student's own exam sitting ──────────────
+
+
+class _ExamRepo:
+    def __init__(self, exams, sessions):
+        self.exams, self.sessions = exams, sessions
+
+    def list_bluebook_exams(self, tenant_id):
+        return self.exams
+
+    def get_bluebook_session(self, exam_id, student_id):
+        return self.sessions.get((exam_id, student_id))
+
+
+def _student_request(user_id="t:s1"):
+    from types import SimpleNamespace
+
+    principal = SimpleNamespace(role="student", user_id=user_id, tenant_id="t")
+    return SimpleNamespace(state=SimpleNamespace(principal=principal))
+
+
+def test_a_student_may_score_only_inside_a_sitting_with_consistency_on(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+
+    from original.routers import students_scoring as ss
+
+    off = {"id": "e-off", "conditions": {"aiDetect": False}}
+    on = {"id": "e-on", "conditions": {"aiDetect": True}}
+    sat = {("e-on", "t:s1"): {"id": "sitting"}}
+    request = _student_request()
+
+    monkeypatch.setattr(ss, "_repo", lambda: _ExamRepo([off, on], sat))
+    assert ss._require_student_exam_scoring(request, "t:s1") is None  # an enabled sitting
+    monkeypatch.setattr(ss, "_repo", lambda: _ExamRepo([], {}))
+    assert ss._require_student_exam_scoring(request, "t:s1") is None  # no exams: standalone
+    for exams, sessions in (([off, on], {}), ([off], {("e-off", "t:s1"): {"id": "x"}})):
+        monkeypatch.setattr(ss, "_repo", lambda e=exams, s=sessions: _ExamRepo(e, s))
+        with pytest.raises(HTTPException) as err:
+            ss._require_student_exam_scoring(request, "t:s1")
+        assert err.value.status_code == 403 and "unavailable for this exam" in err.value.detail
+    with pytest.raises(HTTPException) as err:
+        ss._require_student_exam_scoring(request, "t:someone_else")
+    assert "only their own work" in err.value.detail
