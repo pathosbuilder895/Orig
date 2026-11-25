@@ -3553,7 +3553,7 @@ def test_packet_card_describes_a_listed_habit_in_the_neutral_words_of_writing_st
     habits = out["habits"]
     assert "This is one of the habits furthest from Ada\u2019s usual range in this paper, by Original\u2019s measure." in habits
     assert "outside" not in habits
-    assert "<b>What this habit measures:</b> How often dashes (like this) interrupt or extend a sentence." in habits
+    assert "<b>What this habit measures:</b> How often a dash (an em dash, an en dash or a double hyphen) appears, per 100 words, including dashes in number ranges." in habits
     # 0.1 against 0.5: lower by 0.40, on the scale the page names.
     assert "Here the paper is lower than Ada\u2019s usual by 0.40, on a scale from 0 to 1." in habits
     assert "5 counted samples" in habits
