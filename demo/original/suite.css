@@ -6,15 +6,22 @@
    .live-empty     an honest empty state inside a card (Live.empty)
    .live-panel     the sign-in and "Original is off" panels (Live.gate)
 
-   The colour variables come from each page's own :root and fall back to
-   the navy suite palette. */
+   The colour variables come from ../assets/tokens.css (and a page's own
+   :root on top) and fall back to the navy suite palette. */
+
+/* Text size comes from ../assets/type.css alone: an 18px base (112.5% of the
+   browser's 16px, so a reader's own browser text size still counts) times the
+   reader's Text setting (display-prefs.js), the same base as Collections.
+   Owner decision 2026-11-20: both apps read at 18px. A page that crowds at
+   18px is fixed by its layout (columns that shrink, headings and strips that
+   wrap), not by a smaller root. */
 
 .live-testing {
   display: block; margin-top: .8rem; max-width: 62ch;
   padding: .6rem .85rem;
-  border: 1px solid rgba(201,160,40,0.38); border-radius: 10px;
+  border: 1px solid rgba(201,160,40,0.3); border-radius: 10px;
   background: rgba(201,160,40,0.08);
-  font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
+  font: italic .86rem/1.45 var(--body, 'Source Serif 4', Georgia, serif);
   color: rgba(245,239,224,0.84);
   pointer-events: auto;
 }
@@ -22,7 +29,7 @@
    the notice must read the same everywhere. */
 .live-testing.live-testing b {
   display: inline; margin: 0;
-  font-family: 'EB Garamond', Georgia, serif; font-size: 1em; font-style: normal; font-weight: 600;
+  font-family: var(--body, 'Source Serif 4', Georgia, serif); font-size: 1em; font-style: normal; font-weight: 600;
   color: #e0be55;
 }
 
@@ -47,18 +54,33 @@
   mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
 }
 
+/* Scrollbars: every scrolling pane shows one, thin and quiet, in the suite's
+   gold on a clear track. The standard properties are what current Chrome,
+   Edge and Firefox use (scrollbar-color is inherited; scrollbar-width is not,
+   hence *); the ::-webkit-scrollbar rules are for Safari, which has no
+   scrollbar-color. */
+html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
+* { scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(201,160,40,0.3) padding-box;
+  border: 2px solid transparent; border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(201,160,40,0.55); }
+
 .live-empty {
   margin: auto 0;
-  font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  font: italic .88rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 
 .live-panel {
   grid-column: 1 / -1;
   align-self: center; justify-self: center;
-  width: min(520px, calc(100% - 3rem));
+  width: min(520px, 100%);
   margin: 2rem 0;
-  padding: 2rem 2rem 1.9rem;
+  padding: 2rem min(2rem, 6vw) 1.9rem;
   text-align: center;
   background: rgba(255,255,255,0.035);
   border: 1px solid var(--line-soft, rgba(255,255,255,0.07));
@@ -70,15 +92,44 @@
 }
 .live-panel p {
   margin-top: .7rem;
-  font: italic 1rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  font: italic 1rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 .live-panel a {
-  display: inline-block; margin-top: 1.2rem;
+  display: inline-block; max-width: 100%; margin-top: 1.2rem;
   padding: .5rem 1.15rem;
   border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 999px;
-  font: 1rem var(--body, 'EB Garamond', Georgia, serif);
+  font: 1rem var(--body, 'Source Serif 4', Georgia, serif);
   color: var(--gold-2, #e0be55); text-decoration: none;
   transition: all .15s;
 }
 .live-panel a:hover { border-color: rgba(201,160,40,0.5); background: rgba(201,160,40,0.08); }
+
+/* Tap targets on a phone or a touch screen: every control is at least 44px
+   tall, and an icon-only one (the account button) 44px wide as well (WCAG
+   2.5.5). Desktop sizes with a mouse are unchanged.
+
+   This file loads before each page's own <style>, so the floor is set with
+   min-height and min-width, which hold against a page's height and width
+   whatever the order. The min-height floor has no specificity (:where), so
+   a page that sets its own, larger min-height (a writing box) keeps it. A
+   link inside a sentence is display:inline, where min-height does nothing,
+   so paragraphs keep their line spacing. A link stretched over its row with
+   an ::after (.tap-row) is tapped on the whole row and keeps its own size.
+
+   A control whose label would sit at the top of the taller box is centred
+   with .tap-mid (inline-flex) or .tap-line (one line of text, line-height,
+   keeps an ellipsis working). */
+@media (max-width: 760px), (pointer: coarse) {
+  :where(a, button, [role=button], summary, select,
+    input:not([type=checkbox], [type=radio], [type=range], [type=hidden])):not(.tap-row) {
+    min-height: 44px;
+  }
+  html :is(.avatar, .icirc, .evi-close) { min-width: 44px; }
+  html :is(a, button, [role=button]):is(.pill, .chip, .stats-btn, .fpq-btn, .evi-tab, .evi-close,
+    .tri-btn, .ctab, .fam, .side-link, .back, .r-ws, .tap-mid):not([hidden]) {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  html .me-menu a:not([hidden]) { display: flex; align-items: center; }
+  html .tap-line { line-height: 44px; }
+}

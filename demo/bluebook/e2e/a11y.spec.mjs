@@ -36,6 +36,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { test as tenancyTest, isolatedTest } from './fixtures/tenancy.mjs'
 import { COLLECTIONS_HOME, createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
 import { confirmSeal } from './fixtures/seal.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 /**
  * Wait until the screen has stopped moving, so axe measures the UI a person
@@ -278,7 +279,8 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
       await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       if (navLabel !== 'Dashboard') {
-        await staffPage.getByRole('button', { name: navLabel, exact: true }).click()
+        if (navLabel === 'Account') await clickAccountMenuItem(staffPage, 'Account')
+        else await staffPage.getByRole('button', { name: navLabel, exact: true }).click()
       }
       await expect(staffPage.getByRole('heading', { name: heading })).toBeVisible({ timeout: 10_000 })
       const results = await runAxe(staffPage)
@@ -469,7 +471,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(page), 'Student home' + tag)
-      await page.getByRole('button', { name: 'Account' }).click()
+      await clickAccountMenuItem(page, 'Account')
       await expect(page.getByLabel('Current password')).toBeVisible()
       checkA11y(await runAxe(page), 'Student account' + tag)
       await context.close()
@@ -477,16 +479,17 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
 
     // The Instructions guide (instructions.jsx), scanned open: a modal dialog
     // over the teacher frame, then over the student shell. Escape closes it
-    // and hands focus back to the button that opened it.
+    // and hands focus back to the account button that holds its menu item.
     tenancyTest(`Instructions guide${tag}`, async ({ staffPage, browser, baseURL, workerTenant }) => {
       await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
-      await staffPage.getByRole('button', { name: 'Instructions' }).click()
+      await clickAccountMenuItem(staffPage, 'Instructions')
       await expect(staffPage.getByRole('dialog', { name: 'Using Collections' })).toBeVisible()
       checkA11y(await runAxe(staffPage), 'Instructions (teacher)' + tag)
       await staffPage.keyboard.press('Escape')
       await expect(staffPage.getByRole('dialog')).toBeHidden()
-      await expect(staffPage.getByRole('button', { name: 'Instructions' })).toBeFocused()
+      // The item is in the closed account menu, so focus comes back to the account button.
+      await expect(staffPage.locator('#me-btn')).toBeFocused()
 
       const context = await browser.newContext({
         storageState: studentAccountState(baseURL, workerTenant.student),
@@ -496,7 +499,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.goto('/bluebook/')
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible({ timeout: 10_000 })
-      await page.getByRole('button', { name: 'Instructions' }).click()
+      await clickAccountMenuItem(page, 'Instructions')
       await expect(page.getByRole('dialog', { name: 'Alpha test: what to do' })).toBeVisible()
       checkA11y(await runAxe(page), 'Instructions (student)' + tag)
       await page.getByRole('button', { name: 'Close' }).click()

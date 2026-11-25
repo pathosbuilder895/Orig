@@ -234,9 +234,10 @@ export function LoginScreen({ onNavigate }) {
 
   const inputStyle = {
     width: '100%', boxSizing: 'border-box',
-    background: 'rgba(0,0,0,0.25)',
-    border: '1px solid rgba(201,169,97,0.18)',
-    borderBottom: '1px solid rgba(201,169,97,0.5)',
+    background: 'var(--navy-0)',
+    border: '1px solid var(--line-soft)',
+    borderBottom: '1px solid rgba(201,160,40,0.5)',
+    borderRadius: 'var(--r-sm)',
     padding: '10px 14px',
     fontFamily: fontBody, fontSize: '1.0625rem',
     color: BB.cream, outline: 'none',
@@ -245,8 +246,7 @@ export function LoginScreen({ onNavigate }) {
   };
 
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
+    <div className="teacher-ui teacher-page bb-screen" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24,
     }}>
@@ -267,7 +267,7 @@ export function LoginScreen({ onNavigate }) {
           }}>Sign in</p>
         </div>
 
-        <div style={{ border: '1px solid rgba(201,169,97,0.28)', padding: '32px 36px' }}>
+        <div className="bb-auth-card" style={{ padding: '32px 36px' }}>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 22 }}>
               <MetaLabel htmlFor="bbLoginEmail" style={{ display: 'block', marginBottom: 8 }}>

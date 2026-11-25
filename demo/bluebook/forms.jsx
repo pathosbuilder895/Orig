@@ -50,7 +50,7 @@ export function Notice({ children }) {
 }
 
 export function Btn({ children, primary = false, danger = false, className = '', ...rest }) {
-  const cls = ['bb-btn', primary && 'primary', danger && 'danger', className].filter(Boolean).join(' ');
+  const cls = ['bb-btn', primary ? 'btn-gold' : 'btn-ghost', danger && 'danger', className].filter(Boolean).join(' ');
   return <button type="button" className={cls} {...rest}>{children}</button>;
 }
 
@@ -146,8 +146,7 @@ export function Stat({ value, label, note }) {
 // Centered card for the public auth screens (sign in style).
 export function AuthShell({ title, onBack, children, footer }) {
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
+    <div className="teacher-ui teacher-page bb-screen" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }}>
@@ -168,7 +167,7 @@ export function AuthShell({ title, onBack, children, footer }) {
             fontSize: '1.3125rem', color: BB.fade, letterSpacing: '0.04em', margin: 0,
           }}>{title}</h1>
         </div>
-        <div className="bb-page" style={{ border: '1px solid rgba(201,169,97,0.28)', padding: 'clamp(20px, 5vw, 32px)' }}>
+        <div className="bb-page bb-auth-card" style={{ padding: 'clamp(20px, 5vw, 32px)' }}>
           {children}
         </div>
         {footer}

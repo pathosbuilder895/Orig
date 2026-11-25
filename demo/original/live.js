@@ -24,14 +24,14 @@
    Live.VERDICT_WORDS  the server's baseline verdict in the one set of words every page
                      uses: ready Ready, developing Building, insufficient Needs more
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
-   Live.sealed()     the teacher's sealed exams, copied through one allowlist
+   Live.sealed()     the teacher's sealed booklets, copied through one allowlist
    Live.sampleKind(s)  how one baseline sample got in, from GET /students/{id}: its server
                      `source`, else (an old server sends none) its provenance. One of
                      proctored, verified, canvas, take_home, shared_paper, unverified (a
                      student upload) or other
    Live.approvals(samples)  counts of the baseline samples by who approved them:
                      {counted, byYou, supervised, takeHome, shared, uploads, unknown}.
-                     byYou = supervised + takeHome + shared; take-home exams and shared
+                     byYou = supervised + takeHome + shared; take-home collections and shared
                      papers count at a lower weight
    Live.approvalWords(a, o)  those counts in plain words ("all approved by you (...)",
                      "1 approved by you, 2 student uploads"); '' when nothing is known.
@@ -159,13 +159,14 @@
 
   // A signed-in staff workspace without Collections: every link into it would
   // land on screens the server refuses (403), so the account menu's "Open
-  // Collections" and the page's own head link are hidden. Best-effort DOM work.
+  // Collections", the top bar's switch to Collections (shell.js) and the page's
+  // own head link are hidden. Best-effort DOM work.
   function hideCollectionsLinks(products) {
     if (products.indexOf('bluebook') >= 0) return;
     var run = function () {
       try {
         if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"]');
+        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]');
         for (var i = 0; i < links.length; i++) { links[i].hidden = true; links[i].style.display = 'none'; }
       } catch (e) { /* a page without these links */ }
     };
@@ -289,7 +290,7 @@
       }
       if (s.products.indexOf('original') < 0) {
         panel(el, 'Original is off for this workspace',
-          'Your workspace uses Collections only. Your classes and sealed exams are in Collections.',
+          'Your workspace uses Collections only. Your classes and sealed booklets are in Collections.',
           '/bluebook/#dashboard', 'Open Collections');
         return null;
       }
@@ -702,7 +703,7 @@
     var strips = document.querySelectorAll('.pills');
     for (var i = 0; i < strips.length; i++) {
       (function (strip) {
-        var here = strip.querySelector('[aria-current="page"]');
+        var here = strip.querySelector('[aria-current]');
         if (here && strip.scrollWidth > strip.clientWidth) {
           var room = strip.clientWidth - here.offsetWidth;
           strip.scrollLeft = Math.max(0, here.offsetLeft - strip.offsetLeft - room / 2);
@@ -724,7 +725,7 @@
   // are approved by you, unverified is a student upload).
   var SUPERVISED = ['proctored', 'verified', 'canvas'];
   var HOW = { proctored: 'Supervised sitting', verified: 'Verified by teacher', canvas: 'Imported',
-              take_home: 'Take-home exam approved by you', shared_paper: 'Shared paper approved by you',
+              take_home: 'Take-home collection approved by you', shared_paper: 'Shared paper approved by you',
               unverified: 'Student upload', other: 'Other source' };
 
   function sampleKind(s) {
@@ -763,7 +764,7 @@
     if (a.byYou === a.counted) parts.push('all approved by you');
     else parts.push((a.byYou ? a.byYou : 'none') + ' approved by you');
     var low = [];
-    if (a.takeHome) low.push(plur(a.takeHome, 'take-home exam'));
+    if (a.takeHome) low.push(plur(a.takeHome, 'take-home collection'));
     if (a.shared) low.push(plur(a.shared, 'shared paper'));
     if (low.length && !(o && o.note === false)) {
       parts[0] += ' (' + low.join(' and ') + (a.takeHome + a.shared === 1 ? ' counts' : ' count') + ' at a lower weight)';

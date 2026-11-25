@@ -1,0 +1,183 @@
+/* tokens.css: the shared look of Original and Collections (W3, ADR-015 section 4).
+   Load it after type.css, which owns the fonts and the reader's Text setting:
+   every size here is in rem, so the chosen text size scales it, and every
+   font is a --bb-font-* variable, so the chosen font applies.
+
+   What lives here, and nothing else:
+     palette      the navy suite colours (--navy-*, --gold*, --cream, --dim*,
+                  --line*, --flag, --warn, --ok)
+     type         --display, --body, --mono and a six-step size scale (--fs-*)
+     shape        radii (--r-*) and spacing (--sp-*)
+     buttons      .btn-gold (primary), .btn-ghost (outline) and .btn-chip
+     top bar      .shell: brand, app switch, page pills and the account menu,
+                  drawn by demo/original/shell.js
+
+   A page keeps its own extra tokens on top (the evidence and packet paper
+   palette, the voice family colours). Display only: nothing here touches
+   what a student writes or anything measured. No third-party fonts or
+   files (NORTH_STAR rule 7). */
+
+:root{
+  /* Palette */
+  --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
+  --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
+  /* Body text below the cream: 0.68 and 0.56 keep AA contrast on the navy. */
+  --dim:rgba(245,239,224,0.68); --dim-2:rgba(245,239,224,0.56);
+  --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
+  --flag:#e0725a; --warn:#d8b04a; --ok:#6bbf8a;
+  --focus:var(--gold-2);
+
+  /* Type: the reader's font choice comes through type.css. */
+  --display:var(--bb-font-display,'Playfair Display',Georgia,serif);
+  --body:var(--bb-font-body,'Source Serif 4',Georgia,serif);
+  --mono:var(--bb-font-label,'IBM Plex Mono',ui-monospace,monospace);
+  --fs-xs:.72rem;   /* captions, small mono labels */
+  --fs-sm:.84rem;   /* notes, secondary lines */
+  --fs-ui:.94rem;   /* controls, navigation */
+  --fs-md:1rem;     /* body */
+  --fs-lg:1.3rem;   /* section headings */
+  --fs-xl:1.9rem;   /* page titles */
+
+  /* Shape */
+  --r-sm:8px; --r-md:12px; --r-lg:18px; --r-pill:999px;
+  --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────
+   One geometry, three weights. A page may add layout (margin, width,
+   align-self) under its own class name; colour, type and shape come from here. */
+.btn-gold,.btn-ghost,.btn-chip{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
+  border-radius:var(--r-pill);border:1px solid transparent;
+  font-family:var(--body);font-size:var(--fs-ui);line-height:1.2;
+  padding:.58rem 1.2rem;cursor:pointer;text-decoration:none;text-align:center;max-width:100%;
+  transition:background .15s,border-color .15s,color .15s,filter .15s;
+}
+.btn-gold svg,.btn-ghost svg,.btn-chip svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;}
+.btn-gold{
+  background:linear-gradient(160deg,var(--gold-2),var(--gold));color:var(--navy);
+  font-weight:600;box-shadow:0 6px 18px rgba(201,160,40,0.22);
+}
+.btn-gold:hover{filter:brightness(1.07);}
+.btn-ghost{background:rgba(255,255,255,0.04);border-color:rgba(201,160,40,0.32);color:var(--gold-2);}
+.btn-ghost:hover{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);color:var(--cream);}
+.btn-chip{
+  padding:.4rem .9rem;font-size:var(--fs-sm);
+  background:rgba(255,255,255,0.03);border-color:var(--line-soft);color:var(--dim);
+}
+.btn-chip:hover{color:var(--cream);border-color:var(--line);}
+.btn-chip.on,.btn-chip[aria-pressed="true"],.btn-chip[aria-selected="true"]{
+  background:rgba(201,160,40,0.12);border-color:rgba(201,160,40,0.5);color:var(--gold-2);
+}
+.btn-gold:disabled,.btn-ghost:disabled,.btn-chip:disabled{opacity:.55;cursor:not-allowed;filter:none;box-shadow:none;}
+.btn-gold[hidden],.btn-ghost[hidden],.btn-chip[hidden]{display:none !important;}
+.btn-gold:focus-visible,.btn-ghost:focus-visible,.btn-chip:focus-visible{outline:2px solid var(--focus);outline-offset:3px;}
+
+/* ── The top bar (.shell) ───────────────────────────────────────────────────
+   Row one: the brand with the current app's name, the app switch
+   (Collections | Original) and the account button. Row two: the current
+   app's own pages. The switch always names the app, so the same word never
+   means two places. */
+.shell{
+  position:relative;z-index:30;flex-shrink:0;
+  /* Flex, wrapping: at the largest text sizes on a phone the account button
+     drops under the switch instead of pushing the page wider than the screen. */
+  display:flex;flex-wrap:wrap;align-items:center;column-gap:1.1rem;row-gap:.45rem;
+  padding:1rem 1.7rem .6rem;min-height:7.2rem;
+  font-family:var(--body);
+}
+/* Inside a photo frame the bar gets a dark wash of its own, so the switch and the
+   pills stay readable over a bright photograph at any text size. */
+.shell:not(.shell-bar){background:linear-gradient(180deg,rgba(7,12,28,.82),rgba(7,12,28,.55));}
+/* The student pages put the bar over a full-width page instead of a frame. */
+.shell.shell-bar{
+  position:sticky;top:0;z-index:40;padding:.75rem 1.6rem .55rem;min-height:6.6rem;
+  background:rgba(7,12,28,0.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.shell .brand{
+  display:flex;align-items:center;gap:.5rem;
+  font-family:var(--display);font-weight:600;font-size:1.3rem;letter-spacing:.04em;color:var(--cream);white-space:nowrap;
+}
+.shell .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;flex-shrink:0;}
+
+.shell .app-switch{
+  display:inline-flex;flex-wrap:wrap;max-width:100%;align-items:center;gap:2px;padding:3px;
+  border:1px solid var(--line);border-radius:var(--r-pill);background:rgba(255,255,255,0.025);
+}
+.shell .app-switch a{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:.3rem .85rem;border-radius:var(--r-pill);
+  font-size:var(--fs-sm);letter-spacing:.02em;color:var(--dim);text-decoration:none;white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.shell .app-switch a:hover{color:var(--cream);}
+.shell .app-switch a[aria-current]{background:rgba(201,160,40,0.16);color:var(--gold-2);}
+.shell .app-switch a[hidden]{display:none !important;}
+
+.shell .pills{order:3;flex:1 0 100%;display:flex;gap:.3rem;min-width:0;overflow-x:auto;margin:0 -.2rem;padding:0 .2rem;}
+.shell .pill{
+  display:inline-flex;align-items:center;gap:.5rem;flex-shrink:0;white-space:nowrap;
+  padding:.45rem .9rem;border-radius:var(--r-pill);border:1px solid transparent;
+  color:var(--dim);font-family:var(--body);font-size:var(--fs-ui);text-decoration:none;
+  transition:color .15s,background .15s,border-color .15s;
+}
+.shell .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;flex-shrink:0;}
+.shell .pill:hover{color:var(--cream);}
+.shell .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
+
+.shell .nav-right{margin-left:auto;display:flex;align-items:center;position:relative;}
+.shell .avatar{
+  width:40px;height:40px;border-radius:50%;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:.95rem;color:var(--gold);
+}
+.shell .me-menu{
+  display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:230px;z-index:60;
+  background:rgba(12,20,46,0.98);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;
+}
+.shell .me-menu.open{display:block;}
+.shell .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
+.shell .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);overflow-wrap:anywhere;}
+.shell .mm-head span{font-size:var(--fs-xs);color:var(--dim-2);font-style:italic;}
+.shell .me-menu a,.shell .me-menu button{
+  display:flex;align-items:center;gap:.6rem;width:100%;
+  padding:.55rem .8rem;border-radius:9px;border:0;background:none;cursor:pointer;
+  color:var(--dim);font-family:var(--body);font-size:var(--fs-ui);text-align:left;text-decoration:none;
+  transition:background .13s,color .13s;
+}
+.shell .me-menu a:hover,.shell .me-menu button:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
+.shell .me-menu a[aria-current]{color:var(--cream);}
+.shell .me-menu svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+.shell .me-menu .mm-aa{min-width:15px;flex-shrink:0;white-space:nowrap;font:600 .78rem/1 var(--body);letter-spacing:-.02em;}
+.shell .mm-sep{height:1px;background:var(--line-soft);margin:.35rem .3rem;}
+
+.shell a:focus-visible,.shell button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.shell .pill:focus-visible,.shell .app-switch a:focus-visible{outline-offset:-2px;}
+
+/* Collections draws its pages as buttons (they change screens inside one page);
+   Original's are links. Both read the same. */
+.shell button.pill{background:none;font-family:var(--body);cursor:pointer;}
+.shell .pill.on{background:rgba(255,255,255,0.05);}
+.shell .app-switch a:not([href]){cursor:default;}
+
+/* Tap targets on a phone or a touch screen: every control in the bar is at
+   least 44px tall, the account button 44px wide too (WCAG 2.5.5). */
+@media (max-width:760px),(pointer:coarse){
+  .shell .pill,.shell .app-switch a,.shell .me-menu a,.shell .me-menu button{min-height:44px;}
+  .shell .avatar{min-width:44px;min-height:44px;}
+}
+
+/* Phones: the brand keeps its mark and lets the switch name the app. */
+@media (max-width:560px){
+  .shell,.shell.shell-bar{padding:.7rem 1rem .5rem;column-gap:.6rem;min-height:0;}
+  .shell .brand .bn{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  .shell .app-switch a{padding:.3rem .7rem;}
+  /* A bar with no switch (an app drawn alone) keeps its name. */
+  .shell.no-switch .brand .bn{position:static;width:auto;height:auto;overflow:visible;clip:auto;}
+}
+@media print{
+  .shell{display:none !important;}
+}
