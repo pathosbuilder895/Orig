@@ -5,11 +5,12 @@ backfill_measurements.py — store a second measurement next to every past paper
 
 Each past paper (``BaselineSample``) keeps its ``vector`` (the default "v1"
 measurement, untouched by this script). This script measures each paper's
-stored text again the way ``--measurement`` names ("fs2", "matter" or
-"fs2+matter"; default "fs2+matter") and stores the result in the paper's
-``extra_vectors``. Scoring uses that measurement only once every past paper of
-a student has it, and only when FEATURE_SET / MATTER_SPLITTER_ENABLED ask for
-it (both off by default).
+stored text again the way ``--measurement`` names ("fs2", "matter",
+"fs2+matter", or any of them with "+para", or "para"; default "fs2+matter")
+and stores the result in the paper's ``extra_vectors``. Scoring uses that
+measurement only once every past paper of a student has it, and only when
+FEATURE_SET / MATTER_SPLITTER_ENABLED / PARAGRAPH_BREAKS_ENABLED ask for it
+(all off by default).
 
 Safety
 ------
@@ -20,12 +21,14 @@ Safety
   measurement name, so a pasted command cannot write by accident.
 * Idempotent: a paper that already has the measurement is skipped; a second
   run writes nothing.
-* Splitter rules version (``original/features/matter.py`` ``RULES_VERSION``):
-  a splitter measurement ("matter", "fs2+matter", and a teacher's
-  ``choice_vectors``) made under other rules than today's counts as missing
-  and is measured again; one stored before stamps existed (taken as
-  ``UNSTAMPED_RULES_VERSION``) and still current is only stamped, never
-  measured again. Every splitter measurement it writes carries the stamp.
+* Rules versions (``original/features/rules_stamp.py``: the splitter's
+  ``matter.RULES_VERSION`` and the paragraph rule's
+  ``paragraphs.RULES_VERSION``): a measurement that uses either (every id
+  but "fs2", and a teacher's ``choice_vectors``) made under other rules than
+  today's counts as missing and is measured again; one stored before stamps
+  existed (taken as ``UNSTAMPED_RULES_VERSION``) and still current is only
+  stamped, never measured again. Every such measurement it writes carries
+  the stamp.
 * Never changes ``vector``, any score, any setting, or any paper's text.
 * Before each write the student is read again; if their past papers changed
   meanwhile (a paper added or removed) that student is skipped and reported,
@@ -66,7 +69,7 @@ import numpy as np  # noqa: E402
 from original import measurement as _measurement  # noqa: E402
 from original.constants import FEATURE_DIM  # noqa: E402
 from original.features import feature_flags as ff  # noqa: E402
-from original.features import matter, part_overrides  # noqa: E402
+from original.features import part_overrides, rules_stamp  # noqa: E402
 
 log = logging.getLogger("backfill_measurements")
 
@@ -103,11 +106,14 @@ class Report:
             f"stays on v1): {self.no_text}",
         ]
         if self.stale:
-            out.append(f"  made under older splitter rules (measured again): {self.stale}")
+            out.append(
+                f"  made under older {_rules_label(self.measurement, False)} "
+                f"(measured again): {self.stale}"
+            )
         if self.to_stamp or self.stamped:
             out.append(
-                f"  {'stamped' if self.apply else 'would stamp'} with splitter rules "
-                f"v{matter.RULES_VERSION} (no new measurement): "
+                f"  {'stamped' if self.apply else 'would stamp'} with "
+                f"{_rules_label(self.measurement, True)} (no new measurement): "
                 f"{self.stamped if self.apply else self.to_stamp}"
             )
         if self.apply:
@@ -117,6 +123,15 @@ class Report:
         if self.changed:
             out.append(f"  skipped, papers changed during the run: {', '.join(self.changed[:10])}")
         return out
+
+
+def _rules_label(measurement: str, versions: bool) -> str:
+    """ "splitter rules", "paragraph rules" or both, with today's versions."""
+    names = {"m": "splitter rules", "p": "paragraph rules"}
+    parts = rules_stamp.parse(rules_stamp.stamp(measurement)) or {}
+    return " and ".join(
+        f"{names[k]} v{v}" if versions else names[k] for k, v in sorted(parts.items())
+    )
 
 
 def _fingerprint(state) -> list[str]:
@@ -142,7 +157,7 @@ def _stamp_rules(sample, measurement: str) -> None:
     """Record that ``sample``'s ``measurement`` was made under today's rules."""
     sample.extra_vector_rules = {
         **(sample.extra_vector_rules or {}),
-        measurement: matter.RULES_VERSION,
+        measurement: rules_stamp.stamp(measurement),
     }
 
 
@@ -166,6 +181,7 @@ def backfill(
         from original.features.pipeline import feature_vector as extract
     report = Report(measurement, apply)
     splitter = part_overrides.is_splitter(measurement)
+    versioned = rules_stamp.uses_rules(measurement)
     ids = list(students) if students else repo.list_ids()
     for student_id in ids:
         state = repo.get(student_id)
@@ -179,8 +195,8 @@ def backfill(
         for i, sample in enumerate(state.samples):
             report.papers += 1
             stored = (sample.extra_vectors or {}).get(measurement)
-            # A splitter measurement made under other rules than today's is
-            # stale (original/measurement.py stored_vector): measured again.
+            # A measurement made under other splitter or paragraph rules than
+            # today's is stale (original/measurement.py stored_vector): measured again.
             has_rules = _measurement.stored_vector(sample, measurement) is not None
             if stored is not None and not has_rules:
                 report.stale += 1
@@ -196,7 +212,7 @@ def backfill(
             # Current but unstamped (stored before stamps existed): only the
             # stamp is written, so a later RULES_VERSION bump can tell.
             unstamped = (
-                splitter and has_rules and measurement not in (sample.extra_vector_rules or {}),
+                versioned and has_rules and measurement not in (sample.extra_vector_rules or {}),
                 choice_now and measurement not in (sample.part_overrides.get("choice_rules") or {}),
             )
             if any(unstamped):
@@ -230,7 +246,7 @@ def backfill(
         for i, vector in new.items():
             sample = fresh.samples[i]
             sample.extra_vectors = {**(sample.extra_vectors or {}), measurement: vector}
-            if splitter:
+            if versioned:
                 _stamp_rules(sample, measurement)
         for i, (doc, vector) in chosen.items():
             sample = fresh.samples[i]

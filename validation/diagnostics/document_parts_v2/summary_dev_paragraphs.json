@@ -1,0 +1,2301 @@
+{
+ "authors": [
+  "augustine",
+  "boethius",
+  "douglass",
+  "edwards",
+  "james",
+  "newman"
+ ],
+ "byte_identity_vs_after": {
+  "compared": 1008,
+  "differ": 0,
+  "examples": [],
+  "identical": 1008
+ },
+ "code_hash": "ad0d13a8e537c1c90b081ecc7021e1595858e0536b86b00c36a86477ea3a939d",
+ "commit": "68e91dc18933f2fe09279be8512f27d6912e84d7",
+ "flags": {
+  "ADAPTIVE_WEIGHTS_ENABLED": "0",
+  "CONTEXT_MANIFEST_ENABLED": "0",
+  "DRIFT_GATE": "advisory",
+  "EVIDENCE_PASSAGES_ENABLED": "0",
+  "FEATURE_SET": "1",
+  "MATTER_SPLITTER_ENABLED": "0",
+  "MKL_NUM_THREADS": "1",
+  "NULL_MODEL": "none",
+  "OMP_NUM_THREADS": "1",
+  "OPENBLAS_NUM_THREADS": "1",
+  "PARAGRAPH_BREAKS_ENABLED": "0",
+  "RULE_D_OBSERVATION": "off",
+  "UPLOAD_ALSO_MEASURE": "matter"
+ },
+ "label": "Published prose, not student writing. Diagnostic, not validation; n = 6.",
+ "n_rows": 2016,
+ "new_vs_old": {
+  "matter+para vs matter": {
+   "docx": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   },
+   "paste": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   },
+   "paste_word": {
+    "identical": 0,
+    "moved": 126,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": -1,
+      "edwards": -1,
+      "james": -1,
+      "newman": 0
+     },
+     "band_down": 3,
+     "band_up": 0,
+     "changes": {
+      "augustine": -0.0258,
+      "boethius": -0.0501,
+      "douglass": -0.0399,
+      "edwards": -0.0277,
+      "james": -0.0221,
+      "newman": -0.0629
+     },
+     "max": -0.0221,
+     "mean": -0.0381,
+     "min": -0.0629,
+     "n": 6
+    }
+   },
+   "pdf": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   }
+  },
+  "para vs v1": {
+   "docx": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   },
+   "paste": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   },
+   "paste_word": {
+    "identical": 0,
+    "moved": 126,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": -1,
+      "edwards": -1,
+      "james": -1,
+      "newman": 0
+     },
+     "band_down": 3,
+     "band_up": 0,
+     "changes": {
+      "augustine": -0.0258,
+      "boethius": -0.0501,
+      "douglass": -0.0399,
+      "edwards": -0.0277,
+      "james": -0.0221,
+      "newman": -0.0629
+     },
+     "max": -0.0221,
+     "mean": -0.0381,
+     "min": -0.0629,
+     "n": 6
+    }
+   },
+   "pdf": {
+    "identical": 126,
+    "moved": 0,
+    "papers": 126,
+    "prose": {
+     "band": {
+      "augustine": 0,
+      "boethius": 0,
+      "douglass": 0,
+      "edwards": 0,
+      "james": 0,
+      "newman": 0
+     },
+     "band_down": 0,
+     "band_up": 0,
+     "changes": {
+      "augustine": 0.0,
+      "boethius": 0.0,
+      "douglass": 0.0,
+      "edwards": 0.0,
+      "james": 0.0,
+      "newman": 0.0
+     },
+     "max": 0.0,
+     "mean": 0.0,
+     "min": 0.0,
+     "n": 6
+    }
+   }
+  }
+ },
+ "runtime_seconds": 1442,
+ "split": "dev",
+ "word_vs_blank": {
+  "matter": {
+   "apa_bold_abstract": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0224,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0224,
+    "n": 6
+   },
+   "apa_literature_cited": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0224,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0224,
+    "n": 6
+   },
+   "apa_professional": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0224,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0224,
+    "n": 6
+   },
+   "apa_reference_list": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0224,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0224,
+    "n": 6
+   },
+   "apa_student": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0224,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0224,
+    "n": 6
+   },
+   "markdown_apa": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0225,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0225,
+    "n": 6
+   },
+   "mla": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0221,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0221,
+    "n": 6
+   },
+   "mla_short_long_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0037,
+     "boethius": 0.0116,
+     "douglass": 0.017,
+     "edwards": 0.0075,
+     "james": 0.0152,
+     "newman": 0.0506
+    },
+    "max": 0.0506,
+    "mean": 0.0176,
+    "min": 0.0037,
+    "n": 6
+   },
+   "mla_unheaded_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0221,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0221,
+    "n": 6
+   },
+   "neg_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0272,
+     "boethius": 0.0516,
+     "douglass": 0.0485,
+     "edwards": 0.0206,
+     "james": 0.0233,
+     "newman": 0.0653
+    },
+    "max": 0.0653,
+    "mean": 0.0394,
+    "min": 0.0206,
+    "n": 6
+   },
+   "neg_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0152,
+     "boethius": -0.0025,
+     "douglass": 0.0096,
+     "edwards": -0.0074,
+     "james": 0.0034,
+     "newman": 0.0214
+    },
+    "max": 0.0214,
+    "mean": 0.0015,
+    "min": -0.0152,
+    "n": 6
+   },
+   "neg_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0511,
+     "douglass": 0.0478,
+     "edwards": 0.0196,
+     "james": 0.0237,
+     "newman": 0.0634
+    },
+    "max": 0.0634,
+    "mean": 0.0386,
+    "min": 0.0196,
+    "n": 6
+   },
+   "neg_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.0227,
+     "boethius": -0.0032,
+     "douglass": 0.0049,
+     "edwards": -0.0154,
+     "james": 0.0126,
+     "newman": 0.0186
+    },
+    "max": 0.0186,
+    "mean": -0.0009,
+    "min": -0.0227,
+    "n": 6
+   },
+   "prose": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0221,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0221,
+    "n": 6
+   },
+   "prose_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0272,
+     "boethius": 0.0516,
+     "douglass": 0.0485,
+     "edwards": 0.0206,
+     "james": 0.0233,
+     "newman": 0.0653
+    },
+    "max": 0.0653,
+    "mean": 0.0394,
+    "min": 0.0206,
+    "n": 6
+   },
+   "prose_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0152,
+     "boethius": -0.0025,
+     "douglass": 0.0096,
+     "edwards": -0.0074,
+     "james": 0.0034,
+     "newman": 0.0214
+    },
+    "max": 0.0214,
+    "mean": 0.0015,
+    "min": -0.0152,
+    "n": 6
+   },
+   "prose_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0511,
+     "douglass": 0.0478,
+     "edwards": 0.0196,
+     "james": 0.0237,
+     "newman": 0.0634
+    },
+    "max": 0.0634,
+    "mean": 0.0386,
+    "min": 0.0196,
+    "n": 6
+   },
+   "prose_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.0227,
+     "boethius": -0.0032,
+     "douglass": 0.0049,
+     "edwards": -0.0154,
+     "james": 0.0126,
+     "newman": 0.0186
+    },
+    "max": 0.0186,
+    "mean": -0.0009,
+    "min": -0.0227,
+    "n": 6
+   },
+   "prose_short": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0037,
+     "boethius": 0.0116,
+     "douglass": 0.017,
+     "edwards": 0.0075,
+     "james": 0.0152,
+     "newman": 0.0506
+    },
+    "max": 0.0506,
+    "mean": 0.0176,
+    "min": 0.0037,
+    "n": 6
+   },
+   "turabian": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0221,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0221,
+    "n": 6
+   },
+   "turabian_appendix": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 1,
+    "changes": {
+     "augustine": 0.0248,
+     "boethius": 0.0514,
+     "douglass": 0.0717,
+     "edwards": 0.0227,
+     "james": 0.0238,
+     "newman": 0.0651
+    },
+    "max": 0.0717,
+    "mean": 0.0433,
+    "min": 0.0227,
+    "n": 6
+   }
+  },
+  "matter+para": {
+   "apa_bold_abstract": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0009,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0009,
+    "n": 6
+   },
+   "apa_literature_cited": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0009,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0009,
+    "n": 6
+   },
+   "apa_professional": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0009,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0009,
+    "n": 6
+   },
+   "apa_reference_list": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0009,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0009,
+    "n": 6
+   },
+   "apa_student": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0009,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0009,
+    "n": 6
+   },
+   "markdown_apa": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": -0.0008,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": -0.0001,
+    "min": -0.0008,
+    "n": 6
+   },
+   "mla": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "mla_short_long_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "mla_unheaded_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_short": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "turabian": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "turabian_appendix": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   }
+  },
+  "para": {
+   "apa_bold_abstract": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "apa_literature_cited": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "apa_professional": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "apa_reference_list": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "apa_student": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "markdown_apa": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "mla": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "mla_short_long_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "mla_unheaded_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "neg_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "prose_short": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "turabian": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   },
+   "turabian_appendix": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0,
+     "boethius": 0.0,
+     "douglass": 0.0,
+     "edwards": 0.0,
+     "james": 0.0,
+     "newman": 0.0
+    },
+    "max": 0.0,
+    "mean": 0.0,
+    "min": 0.0,
+    "n": 6
+   }
+  },
+  "v1": {
+   "apa_bold_abstract": {
+    "band": {
+     "augustine": -1,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 2,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0943,
+     "boethius": -0.0018,
+     "douglass": -0.0014,
+     "edwards": -0.0146,
+     "james": 0.0083,
+     "newman": 0.0236
+    },
+    "max": 0.0236,
+    "mean": -0.0134,
+    "min": -0.0943,
+    "n": 6
+   },
+   "apa_literature_cited": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0216,
+     "boethius": -0.0008,
+     "douglass": 0.0034,
+     "edwards": -0.0038,
+     "james": 0.0138,
+     "newman": 0.0109
+    },
+    "max": 0.0138,
+    "mean": 0.0003,
+    "min": -0.0216,
+    "n": 6
+   },
+   "apa_professional": {
+    "band": {
+     "augustine": -1,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 1,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.0913,
+     "boethius": -0.0012,
+     "douglass": 0.0027,
+     "edwards": -0.0122,
+     "james": 0.0134,
+     "newman": 0.028
+    },
+    "max": 0.028,
+    "mean": -0.0101,
+    "min": -0.0913,
+    "n": 6
+   },
+   "apa_reference_list": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0227,
+     "boethius": -0.0011,
+     "douglass": 0.0008,
+     "edwards": -0.0049,
+     "james": 0.0146,
+     "newman": 0.0122
+    },
+    "max": 0.0146,
+    "mean": -0.0002,
+    "min": -0.0227,
+    "n": 6
+   },
+   "apa_student": {
+    "band": {
+     "augustine": -1,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 2,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0943,
+     "boethius": -0.0018,
+     "douglass": -0.0014,
+     "edwards": -0.0146,
+     "james": 0.0083,
+     "newman": 0.0236
+    },
+    "max": 0.0236,
+    "mean": -0.0134,
+    "min": -0.0943,
+    "n": 6
+   },
+   "markdown_apa": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0215,
+     "boethius": -0.0018,
+     "douglass": 0.0029,
+     "edwards": -0.0056,
+     "james": 0.0094,
+     "newman": 0.0115
+    },
+    "max": 0.0115,
+    "mean": -0.0008,
+    "min": -0.0215,
+    "n": 6
+   },
+   "mla": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 1,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.0195,
+     "boethius": -0.0023,
+     "douglass": 0.0083,
+     "edwards": -0.0088,
+     "james": 0.0013,
+     "newman": 0.0217
+    },
+    "max": 0.0217,
+    "mean": 0.0001,
+    "min": -0.0195,
+    "n": 6
+   },
+   "mla_short_long_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0378,
+     "boethius": -0.001,
+     "douglass": -0.0032,
+     "edwards": -0.0147,
+     "james": 0.0113,
+     "newman": 0.0213
+    },
+    "max": 0.0213,
+    "mean": -0.004,
+    "min": -0.0378,
+    "n": 6
+   },
+   "mla_unheaded_refs": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0239,
+     "boethius": -0.0026,
+     "douglass": -0.0034,
+     "edwards": -0.002,
+     "james": 0.0063,
+     "newman": 0.0091
+    },
+    "max": 0.0091,
+    "mean": -0.0027,
+    "min": -0.0239,
+    "n": 6
+   },
+   "neg_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 1,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0242,
+     "boethius": -0.0026,
+     "douglass": 0.0062,
+     "edwards": -0.016,
+     "james": 0.002,
+     "newman": 0.0218
+    },
+    "max": 0.0218,
+    "mean": -0.0021,
+    "min": -0.0242,
+    "n": 6
+   },
+   "neg_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.023,
+     "boethius": -0.0033,
+     "douglass": 0.0046,
+     "edwards": -0.0101,
+     "james": 0.0,
+     "newman": 0.0187
+    },
+    "max": 0.0187,
+    "mean": -0.0022,
+    "min": -0.023,
+    "n": 6
+   },
+   "neg_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 1,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0223,
+     "boethius": -0.0029,
+     "douglass": 0.006,
+     "edwards": -0.016,
+     "james": 0.0013,
+     "newman": 0.0208
+    },
+    "max": 0.0208,
+    "mean": -0.0022,
+    "min": -0.0223,
+    "n": 6
+   },
+   "neg_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": -1,
+     "edwards": -1,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 2,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0298,
+     "boethius": -0.0035,
+     "douglass": -0.0025,
+     "edwards": -0.0168,
+     "james": -0.0005,
+     "newman": 0.0167
+    },
+    "max": 0.0167,
+    "mean": -0.0061,
+    "min": -0.0298,
+    "n": 6
+   },
+   "prose": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 1,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 3,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0501,
+     "douglass": 0.0399,
+     "edwards": 0.0277,
+     "james": 0.0221,
+     "newman": 0.0629
+    },
+    "max": 0.0629,
+    "mean": 0.0381,
+    "min": 0.0221,
+    "n": 6
+   },
+   "prose_abstract_word": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0272,
+     "boethius": 0.0516,
+     "douglass": 0.0485,
+     "edwards": 0.0206,
+     "james": 0.0233,
+     "newman": 0.0653
+    },
+    "max": 0.0653,
+    "mean": 0.0394,
+    "min": 0.0206,
+    "n": 6
+   },
+   "prose_letter": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0152,
+     "boethius": -0.0025,
+     "douglass": 0.0096,
+     "edwards": -0.0074,
+     "james": 0.0034,
+     "newman": 0.0214
+    },
+    "max": 0.0214,
+    "mean": 0.0015,
+    "min": -0.0152,
+    "n": 6
+   },
+   "prose_references_sentence": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 1,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 2,
+    "changes": {
+     "augustine": 0.0258,
+     "boethius": 0.0511,
+     "douglass": 0.0478,
+     "edwards": 0.0196,
+     "james": 0.0237,
+     "newman": 0.0634
+    },
+    "max": 0.0634,
+    "mean": 0.0386,
+    "min": 0.0196,
+    "n": 6
+   },
+   "prose_sermon_prayer": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 1,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 1,
+    "changes": {
+     "augustine": -0.0227,
+     "boethius": -0.0032,
+     "douglass": 0.0049,
+     "edwards": -0.0154,
+     "james": 0.0126,
+     "newman": 0.0186
+    },
+    "max": 0.0186,
+    "mean": -0.0009,
+    "min": -0.0227,
+    "n": 6
+   },
+   "prose_short": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": 0.0037,
+     "boethius": 0.0116,
+     "douglass": 0.017,
+     "edwards": 0.0075,
+     "james": 0.0152,
+     "newman": 0.0506
+    },
+    "max": 0.0506,
+    "mean": 0.0176,
+    "min": 0.0037,
+    "n": 6
+   },
+   "turabian": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0246,
+     "boethius": -0.0033,
+     "douglass": 0.0021,
+     "edwards": -0.0105,
+     "james": -0.0019,
+     "newman": 0.0184
+    },
+    "max": 0.0184,
+    "mean": -0.0033,
+    "min": -0.0246,
+    "n": 6
+   },
+   "turabian_appendix": {
+    "band": {
+     "augustine": 0,
+     "boethius": 0,
+     "douglass": 0,
+     "edwards": 0,
+     "james": 0,
+     "newman": 0
+    },
+    "band_down": 0,
+    "band_up": 0,
+    "changes": {
+     "augustine": -0.0246,
+     "boethius": -0.0033,
+     "douglass": 0.0021,
+     "edwards": -0.0105,
+     "james": -0.0019,
+     "newman": 0.0184
+    },
+    "max": 0.0184,
+    "mean": -0.0033,
+    "min": -0.0246,
+    "n": 6
+   }
+  }
+ }
+}

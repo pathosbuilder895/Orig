@@ -280,6 +280,7 @@ FLAG_OFF_VALUES: dict[str, str] = {
     # Measurement versions (features/feature_flags.py): off = the old measurement.
     "FEATURE_SET": "1",
     "MATTER_SPLITTER_ENABLED": "0",
+    "PARAGRAPH_BREAKS_ENABLED": "0",
     # ADR-014: a second stored measurement on new uploads; never moves a score.
     "UPLOAD_ALSO_MEASURE": "",
 }
@@ -1303,6 +1304,12 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         _MEASUREMENT_STAMP_PATHS,
         "",
     ),
+    "PARAGRAPH_BREAKS_ENABLED=1": (
+        {},
+        {"PARAGRAPH_BREAKS_ENABLED": "1"},
+        _MEASUREMENT_STAMP_PATHS,
+        "",
+    ),
     "UPLOAD_ALSO_MEASURE=fs2+matter": (
         {},
         {"UPLOAD_ALSO_MEASURE": "fs2+matter"},
@@ -1325,7 +1332,12 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
 # Arms whose changed set is asserted as an equality rather than a subset,
 # because the flag's documented blast radius is exactly known.
 _EXACT_API_ON_ARMS = frozenset(
-    {"NULL_MODEL=impostor", "FEATURE_SET=2", "MATTER_SPLITTER_ENABLED=1"}
+    {
+        "NULL_MODEL=impostor",
+        "FEATURE_SET=2",
+        "MATTER_SPLITTER_ENABLED=1",
+        "PARAGRAPH_BREAKS_ENABLED=1",
+    }
 )
 
 

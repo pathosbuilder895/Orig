@@ -34,6 +34,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 from . import feature_flags as _ff
+from . import paragraphs as _para
 from . import part_overrides as _po
 from . import pdf_reflow as _reflow
 from .matter import is_pdf_text, without_page_breaks
@@ -98,11 +99,16 @@ def _body(text: str) -> str:
     an uploaded paper measures exactly as it did before markers were kept; any
     other character, a pasted form feed included, is measured as before. With
     the splitter on, a PDF upload's body is first reflowed into paragraphs.
+    With PARAGRAPH_BREAKS_ENABLED on, a Word-style paste's line breaks are
+    then read as paragraph breaks (``features.paragraphs``).
     ``evidence.engine_view`` makes the same edits."""
     body = "".join(text[a:b] for a, b in body_segments(text))
     if reflows(text):
         body = _reflow.apply_ops(body, _reflow.reflow_ops(body))
-    return without_page_breaks(body)
+    body = without_page_breaks(body)
+    if _ff.paragraph_breaks_enabled():
+        body = _reflow.apply_ops(body, _para.paragraph_ops(body))
+    return body
 
 
 # ══════════════════════════════════════════════════════════════════════════════
