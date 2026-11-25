@@ -593,3 +593,33 @@ def test_the_real_cut_points_pass_the_band_guard():
         "schedule_conversation": (0.622, 0.703),
         "escalate": (0.703, 1.0),
     }
+
+
+# ── Step 6 of the document-parts plan: the same cut as the reading ──────────
+
+_TITLE = "Jordan Reyes\nProfessor Hartley\nPHIL 210\n14 March 2026\n\n"
+_ABSTRACT = "Abstract\n\n" + "This paper argues one thing about a sermon and its rulers. " * 8
+_WORKS = "\n".join(f"Author{chr(65 + i)}, A. Title of work {i}. Press, 19{i:02d}." for i in range(26))
+
+
+def test_with_the_splitter_on_the_length_match_cuts_what_the_reading_cuts(monkeypatch):
+    from original.features import preprocess as pp
+    from original.quantum.length_match import body_word_count
+
+    body = _text(900)
+    paper = f"{_TITLE}{_ABSTRACT}\n\nKeywords: sermon, rulers\n\n{body}\n\nWorks Cited\n{_WORKS}\n"
+    monkeypatch.setenv("MATTER_SPLITTER_ENABLED", "1")
+    assert body_word_count(paper) == len(pp._body(paper).split()) == 900
+    pieces = paper_pieces(paper, 300)
+    assert " ".join(pieces) == body  # no heading block, abstract or list in a piece
+
+
+def test_with_the_splitter_off_the_length_match_is_unchanged(monkeypatch):
+    from original.features.preprocess import _strip_backmatter
+    from original.quantum.length_match import body_word_count
+
+    body = _text(900)
+    paper = f"{_TITLE}{_ABSTRACT}\n\n{body}\n\nWorks Cited\n{_WORKS}\n"
+    monkeypatch.delenv("MATTER_SPLITTER_ENABLED", raising=False)
+    assert body_word_count(paper) == len(_strip_backmatter(paper).split())
+    assert paper_pieces(paper, 300) == split_into_pieces(_strip_backmatter(paper), 300)

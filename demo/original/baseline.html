@@ -477,7 +477,7 @@
     const d=new Date(), p=n=>String(n).padStart(2,'0');
     return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
   }
-  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function countWords(t){ return String(t||'').replace(/\u001f/g,' ').trim().split(/\s+/).filter(Boolean).length; }  // U+001F: an upload's page marker, not a word (JS \s does not match it)
   function detailText(d){ return d&&typeof d.detail==='string'?d.detail:''; }
 
   // Provenance in plain words. The API's words are proctored, verified, canvas, unverified.

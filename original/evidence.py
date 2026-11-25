@@ -71,6 +71,8 @@ from .evidence_features import feature_info
 from .explainer import FEATURE_PLAIN_NAMES
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
+from .features import matter as _matter
+from .features import pdf_reflow as _reflow
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
 from .features.baseline_scope import NOT_COMPARED_WORDS
@@ -376,6 +378,23 @@ def _drop(m: Mapped, pattern: re.Pattern) -> Mapped:
     return _msub(m, pattern, lambda mt: ("", ()))
 
 
+def _apply_ops(m: Mapped, ops: list[tuple[int, int, str]]) -> Mapped:
+    """``pdf_reflow.apply_ops`` on a mapped string: each replacement character
+    maps to the first character it replaces (the line break it stands for)."""
+    out: list[str] = []
+    origin: list[int] = []
+    last = 0
+    for start, end, repl in ops:
+        out.append(m.text[last:start])
+        origin.extend(m.origin[last:start])
+        out.append(repl)
+        origin.extend([m.origin[start] if start < end else -1] * len(repl))
+        last = end
+    out.append(m.text[last:])
+    origin.extend(m.origin[last:])
+    return Mapped("".join(out), tuple(origin))
+
+
 @dataclass(frozen=True)
 class EngineView:
     """The two strings the engine measures, mapped back to the stored text."""
@@ -395,6 +414,9 @@ def engine_view(text: str) -> EngineView | None:
         "".join(text[a:b] for a, b in segments),
         tuple(i for a, b in segments for i in range(a, b)),
     )
+    if _pp.reflows(text):  # a PDF measured with the splitter on: its paragraphs
+        m = _apply_ops(m, _reflow.reflow_ops(m.text))
+    m = _drop(m, _matter.LONE_PAGE_MARK)  # a stored page marker is not measured
     if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
         m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 
@@ -964,7 +986,7 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
                 "end": b,
                 "words": len(text[a:b].split()),
                 "preview_end": min(b, a + preview_chars),
-                "preview": text[a : min(b, a + preview_chars)],
+                "preview": _shown(text[a : min(b, a + preview_chars)]),
             }
             for a, b in ranges[:max_ranges]
         ],
@@ -972,6 +994,12 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
 
 
 # ── Evidence objects ─────────────────────────────────────────────────────────
+
+
+def _shown(s: str) -> str:
+    """A slice of the stored text as a teacher sees it: an upload's page
+    marker shown as a space (same length, so every offset still holds)."""
+    return s.replace(_matter.PAGE_MARK, " ") if _matter.PAGE_MARK in s else s
 
 
 def _quote(text: str, place: Place, paper: str) -> dict[str, Any]:
@@ -986,10 +1014,10 @@ def _quote(text: str, place: Place, paper: str) -> dict[str, Any]:
         "end": place.end,
         "match_start": m0,
         "match_end": m1,
-        "match": text[m0:m1],
+        "match": _shown(text[m0:m1]),
         "passage_start": place.sentence_start,
         "passage_end": place.sentence_end,
-        "passage": text[place.sentence_start : place.sentence_end],
+        "passage": _shown(text[place.sentence_start : place.sentence_end]),
         "clipped_start": place.clipped_start,
         "clipped_end": place.clipped_end,
         "crosses_set_aside": place.crosses_set_aside,
@@ -1054,7 +1082,7 @@ def _unmarked(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
                 "paper": paper,
                 "passage_start": p0,
                 "passage_end": p1,
-                "passage": text[p0:p1],
+                "passage": _shown(text[p0:p1]),
                 "clipped_start": c0,
                 "clipped_end": c1,
                 "words": words,

@@ -1696,7 +1696,7 @@
     if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
     return '';
   }
-  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function countWords(t){ return String(t||'').replace(/\u001f/g,' ').trim().split(/\s+/).filter(Boolean).length; }  // U+001F: an upload's page marker, not a word (JS \s does not match it)
   function updateWords(){
     const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):'';
     // "Loaded from Collections" stays only while the box holds that exam's text.

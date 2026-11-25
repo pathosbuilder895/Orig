@@ -20,6 +20,13 @@ flag-on row checks the response's ``measurement.used`` is ``matter``.
 
     .venv/bin/python validation/diagnostics/document_parts_v2/run.py            # dev split
     .venv/bin/python validation/diagnostics/document_parts_v2/run.py --split holdout   # once
+    .venv/bin/python validation/diagnostics/document_parts_v2/run.py --after   # today's extractor
+
+``--after`` reads ``cases_after.jsonl.xz`` (``make_cases.py --reextract``,
+today's extractor: the old text plus page markers), and the segmentation
+rows also count each part's characters listed as ``possible`` by
+``matter.find_parts`` and the page markers in the text. Output goes to
+``*_after`` files, so the "before" results stay as they were.
 
 The hold-out run refuses to run again once ``summary_holdout.json`` exists.
 """
@@ -102,8 +109,8 @@ PILOT_ENV = {
 CACHE = HERE / "build" / "score_cache"
 
 
-def load(split: str) -> tuple[dict, list[dict]]:
-    with lzma.open(HERE / "cases.jsonl.xz", "rt", encoding="utf-8") as fh:
+def load(split: str, cases: str = "cases.jsonl.xz") -> tuple[dict, list[dict]]:
+    with lzma.open(HERE / cases, "rt", encoding="utf-8") as fh:
         lines = [json.loads(line) for line in fh]
     meta = lines[0]["_meta"]
     return meta, [r for r in lines[1:] if r["split"] == split]
@@ -129,31 +136,52 @@ def _runs(text: str, mask: list[bool], labels: list[str], want) -> list[str]:
     return out
 
 
+def text_for(rec: dict, flag: str) -> tuple[str, list[list]]:
+    """The text Original stores for this record. (An earlier draft of the
+    extractor stored a PDF differently with the switch on, as ``text_on``;
+    today's stores one text, and reflows a PDF only when measuring it.)"""
+    if flag == "on" and "text_on" in rec:
+        return rec["text_on"], rec["labels_on"]
+    return rec["text"], rec["labels"]
+
+
 def segment(rec: dict, flag: str) -> dict:
     from original.features import feature_flags as ff
     from original.features import matter
     from original.features.preprocess import body_segments
 
-    text, labels = rec["text"], L.unrle(rec["labels"])
+    text, runs = text_for(rec, flag)
+    labels = L.unrle(runs)
     with ff.measuring(MEASUREMENT[flag]):
         kept = body_segments(text)
     aside = [True] * len(text)
     for a, b in kept:
         aside[a:b] = [False] * (b - a)
     product = ["kept" if not x else "cut_to_end" for x in aside]
+    maybe = [False] * len(text)
     if flag == "on":
-        for r in matter.find_matter(text):
+        parts = (
+            matter.find_parts(text)
+            if hasattr(matter, "find_parts")
+            else matter.Parts(matter.find_matter(text), [])  # before step 3
+        )
+        for r in parts.set_aside:
             for i in range(r.start, min(r.end, len(text))):
                 product[i] = r.kind
+        for r in parts.possible:
+            maybe[r.start : r.end] = [True] * (min(r.end, len(text)) - r.start)
     total: dict[str, int] = {}
     out: dict[str, int] = {}
+    possible: dict[str, int] = {}
     confusion: dict[str, dict[str, int]] = {}
-    for ch, k, x, pk in zip(text, labels, aside, product, strict=True):
+    for ch, k, x, pk, mb in zip(text, labels, aside, product, maybe, strict=True):
         if ch.isspace():
             continue
         total[k] = total.get(k, 0) + 1
         if x:
             out[k] = out.get(k, 0) + 1
+        elif mb:
+            possible[k] = possible.get(k, 0) + 1
         confusion.setdefault(k, {})
         confusion[k][pk] = confusion[k].get(pk, 0) + 1
     return {
@@ -165,6 +193,8 @@ def segment(rec: dict, flag: str) -> dict:
         "flag": flag,
         "chars": total,
         "set_aside": out,
+        "possible": possible,
+        "page_breaks": len(re.findall(r"(?m)^\x1f{1,2}$", text)),
         "product_kind": confusion,
         "prose_set_aside_examples": _runs(
             text, aside, labels, lambda i: aside[i] and labels[i] == "prose"
@@ -233,9 +263,30 @@ def _repo_delete(sid: str) -> None:
     _repo().delete_student(sid)
 
 
+_CODE_HASH: list[str] = []
+
+
+def code_hash() -> str:
+    """A hash of every file under ``original/`` (path and bytes), so a cached
+    score is never served after the engine or the splitter's rules changed."""
+    if not _CODE_HASH:
+        h = hashlib.sha256()
+        src = ROOT / "original"
+        for path in sorted(src.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                continue
+            h.update(str(path.relative_to(src)).encode())
+            h.update(b"\x00")
+            h.update(path.read_bytes())
+            h.update(b"\x00")
+        _CODE_HASH.append(h.hexdigest())
+    return _CODE_HASH[0]
+
+
 def _task_key(task: tuple[str, list[str], list[dict]]) -> str:
     author, baselines, recs = task
-    h = hashlib.sha256(json.dumps([PILOT_ENV, baselines, [r["sha256"] for r in recs]]).encode())
+    shas = [[r["sha256"], r.get("sha256_on")] for r in recs]
+    h = hashlib.sha256(json.dumps([code_hash(), PILOT_ENV, baselines, shas]).encode())
     return f"{author}_{recs[0]['input']}_{h.hexdigest()[:16]}"
 
 
@@ -262,9 +313,8 @@ def _score_task(task: tuple[str, list[str], list[dict]]) -> list[dict]:
         for flag in FLAGS:
             os.environ["MATTER_SPLITTER_ENABLED"] = "1" if flag == "on" else "0"
             sid = _clone(base)
-            r = c.post(
-                f"/students/{sid}/score", json={"text": rec["text"], "submission_id": f"{sid}_s"}
-            )
+            text = text_for(rec, flag)[0]
+            r = c.post(f"/students/{sid}/score", json={"text": text, "submission_id": f"{sid}_s"})
             assert r.status_code == 200, (rec["case_id"], r.status_code, r.text[:300])
             d = r.json()
             _repo_delete(sid)
@@ -283,7 +333,7 @@ def _score_task(task: tuple[str, list[str], list[dict]]) -> list[dict]:
                     "deviation": d["authorship"]["deviation_score"],
                     "action": d["recommendation"]["action"],
                     "measurement": used,
-                    "words": len(rec["text"].split()),
+                    "words": len(text.split()),
                 }
             )
     os.environ["MATTER_SPLITTER_ENABLED"] = "0"
@@ -322,7 +372,13 @@ def seg_summary(seg_rows: list[dict], key) -> dict:
                 {
                     "n_cases": 0,
                     "parts": {},
-                    "prose": {"chars": 0, "set_aside": 0, "cases_any": 0, "per_case": []},
+                    "prose": {
+                        "chars": 0,
+                        "set_aside": 0,
+                        "possible": 0,
+                        "cases_any": 0,
+                        "per_case": [],
+                    },
                 },
             )
         )
@@ -331,14 +387,18 @@ def seg_summary(seg_rows: list[dict], key) -> dict:
         pa = r["set_aside"].get("prose", 0)
         g["prose"]["chars"] += pc
         g["prose"]["set_aside"] += pa
+        g["prose"]["possible"] += r.get("possible", {}).get("prose", 0)
         g["prose"]["cases_any"] += int(pa > 0)
         g["prose"]["per_case"].append(_ratio(pa, pc))
         for k in PART_KINDS:
             n = r["chars"].get(k, 0)
             if not n:
                 continue
-            p = g["parts"].setdefault(k, {"n_cases": 0, "chars": 0, "set_aside": 0, "per_case": []})
+            p = g["parts"].setdefault(
+                k, {"n_cases": 0, "chars": 0, "set_aside": 0, "possible": 0, "per_case": []}
+            )
             p["n_cases"] += 1
+            p["possible"] += r.get("possible", {}).get(k, 0)
             p["chars"] += n
             p["set_aside"] += r["set_aside"].get(k, 0)
             p["per_case"].append(_ratio(r["set_aside"].get(k, 0), n))
@@ -387,6 +447,17 @@ def reading_summary(score_rows: list[dict]) -> dict:
 
 def extraction_summary(recs: list[dict], score_rows: list[dict]) -> dict:
     out: dict = {}
+    on: dict = {}
+    for r in recs:
+        if "lost_on" in r:
+            g = on.setdefault(r["input"], {"records": 0, "source": {}, "lost": {}})
+            g["records"] += 1
+            for k, n in r["source"].items():
+                g["source"][k] = g["source"].get(k, 0) + n
+            for k, n in r["lost_on"].items():
+                g["lost"][k] = g["lost"].get(k, 0) + n
+    for g in on.values():
+        g["lost_share"] = {k: _ratio(g["lost"].get(k, 0), n) for k, n in g["source"].items()}
     for r in recs:
         g = out.setdefault(r["input"], {"records": 0, "source": {}, "lost": {}, "unattributed": 0})
         g["records"] += 1
@@ -405,7 +476,19 @@ def extraction_summary(recs: list[dict], score_rows: list[dict]) -> dict:
             continue
         d = r["deviation"] - by[(a, v, "paste", flag)]["deviation"]
         effect.setdefault(flag, {}).setdefault(inp, {})[a] = round(d, 4)
-    return {"per_input": out, "prose_only_vs_paste": effect}
+    breaks = {}
+    for r in recs:
+        if "page_breaks" in r:
+            b = breaks.setdefault(r["input"], {"records": 0, "with_breaks": 0, "breaks": 0})
+            b["records"] += 1
+            b["with_breaks"] += int(r["page_breaks"] > 0)
+            b["breaks"] += r["page_breaks"]
+    return {
+        "per_input": out,
+        "per_input_switch_on": on,
+        "page_breaks": breaks,
+        "prose_only_vs_paste": effect,
+    }
 
 
 # ── Report tables ────────────────────────────────────────────────────────────
@@ -485,6 +568,26 @@ def extraction_table(ex: dict) -> str:
     return "\n".join(lines)
 
 
+def possible_table(seg: dict, keys: list[str]) -> str:
+    lines = [
+        "| Format | Input | n | " + " | ".join(c for c, _ in COLS) + " | prose |",
+        "|" + "---|" * (len(COLS) + 4),
+    ]
+    for key in keys:
+        for inp in INPUTS:
+            g = seg["on"][inp].get(key)
+            if not g:
+                continue
+            cells = []
+            for _, kinds in COLS:
+                chars = sum(g["parts"].get(k, {}).get("chars", 0) for k in kinds)
+                maybe = sum(g["parts"].get(k, {}).get("possible", 0) for k in kinds)
+                cells.append(_pct(_ratio(maybe, chars)))
+            cells.append(_pct(_ratio(g["prose"]["possible"], g["prose"]["chars"])))
+            lines.append(f"| {key} | {inp} | {g['n_cases']} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
 def render_tables(summary: dict, variants: list[str]) -> str:
     seg_v, seg_f = summary["segmentation_by_variant"], summary["segmentation_by_format"]
     parts = [
@@ -510,6 +613,19 @@ def render_tables(summary: dict, variants: list[str]) -> str:
         "",
         extraction_table(summary["extraction"]),
     ]
+    if any(
+        p.get("possible") for inp in seg_f["on"].values() for g in inp.values()
+        for p in [*g["parts"].values(), g["prose"]]
+    ):
+        parts += [
+            "",
+            "#### Listed as possible, splitter on (measured as prose, shown to the teacher)",
+            "",
+            "Share of each part's characters, and of the true prose, inside a `possible` "
+            "range and not set aside.",
+            "",
+            possible_table(seg_f, ["MLA", "APA", "Turabian", "prose only"]),
+        ]
     return "\n".join(parts)
 
 
@@ -520,15 +636,21 @@ def main() -> None:
     ap.add_argument(
         "--segment-only", action="store_true", help="skip scoring (seconds, not minutes)"
     )
+    ap.add_argument(
+        "--after",
+        action="store_true",
+        help="read cases_after.jsonl.xz (today's extractor) and write *_after files",
+    )
     args = ap.parse_args()
-    if args.split == "holdout" and (HERE / "summary_holdout.json").exists():
+    held = HERE / f"summary_holdout{'_after' if args.after else ''}.json"
+    if args.split == "holdout" and held.exists():
         sys.exit(
-            "summary_holdout.json exists: the hold-out has been looked at once already. "
+            f"{held.name} exists: the hold-out has been looked at once already. "
             "Do not re-run it to tune against it; see README."
         )
 
     t0 = time.time()
-    meta, recs = load(args.split)
+    meta, recs = load(args.split, "cases_after.jsonl.xz" if args.after else "cases.jsonl.xz")
     CONTROLS, VARIANTS = MC.CONTROLS, MC.VARIANTS
 
     seg_rows = [segment(r, f) for r in recs for f in FLAGS]
@@ -555,6 +677,12 @@ def main() -> None:
         with ctx.Pool(1) as pool:
             determinism = pool.apply(_determinism_check, (meta["baselines"], recs))
         score_rows.sort(key=lambda r: (r["case_id"], r["flag"]))
+        # The main run's rows may come from build/score_cache; the check above
+        # always scores fresh, so the two must agree (stale cache guard).
+        main_run = [r["deviation"] for r in score_rows if r["case_id"] == determinism["case_id"]]
+        determinism["main_run_deviations"] = main_run
+        determinism["main_run_matches_fresh"] = main_run == determinism["deviations"][:2]
+        assert determinism["main_run_matches_fresh"], determinism
 
     variants = [v for v in VARIANTS if any(r["variant"] == v for r in recs)]
     commit = subprocess.run(
@@ -564,6 +692,7 @@ def main() -> None:
         "split": args.split,
         "authors": sorted({r["author"] for r in recs}),
         "commit": commit,
+        "code_hash": code_hash(),
         "flags": {k: v for k, v in PILOT_ENV.items() if k != "ORIGINAL_DB"},
         "libreoffice": meta["libreoffice"],
         "n_records": len(recs),
@@ -583,26 +712,31 @@ def main() -> None:
             "note": "Computed once and not reported. Any rule tuned after this date has "
             "seen these numbers only if someone opened this file; say so if you did.",
         }
-    (HERE / f"rows_{args.split}.json").write_text(
+    # A segmentation-only run has no reading or extraction sections, so it
+    # never overwrites a full run's files.
+    stem = args.split + ("_after" if args.after else "")
+    stem += "_segment_only" if args.segment_only else ""
+    (HERE / f"rows_{stem}.json").write_text(
         json.dumps({"segmentation": seg_rows, "scores": score_rows}, indent=0) + "\n"
     )
-    (HERE / f"summary_{args.split}.json").write_text(
+    (HERE / f"summary_{stem}.json").write_text(
         json.dumps(summary, indent=1, sort_keys=True) + "\n"
     )
     if args.split == "dev" and score_rows:
         tables = render_tables(summary, variants)
-        (HERE / "tables_dev.md").write_text(tables + "\n")
+        tag = "dev_after" if args.after else "dev"
+        (HERE / f"tables_{tag}.md").write_text(tables + "\n")
         readme = HERE / "README.md"
         if readme.exists():
             txt = readme.read_text()
             new = re.sub(
-                r"(<!-- tables:dev -->\n).*?(<!-- /tables:dev -->)",
+                rf"(<!-- tables:{tag} -->\n).*?(<!-- /tables:{tag} -->)",
                 lambda m: m.group(1) + tables + "\n" + m.group(2),
                 txt,
                 flags=re.S,
             )
             readme.write_text(new)
-    print(f"done in {time.time() - t0:.0f}s: summary_{args.split}.json", flush=True)
+    print(f"done in {time.time() - t0:.0f}s: summary_{stem}.json", flush=True)
 
 
 if __name__ == "__main__":

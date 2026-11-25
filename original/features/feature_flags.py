@@ -12,10 +12,13 @@ score is byte-for-byte what it was before they existed
     "then", "first", "that is"). Any other value means ``1``.
 
 ``MATTER_SPLITTER_ENABLED`` (default off)
-    On: ``features/matter.py`` sets aside the heading block, section headings,
-    running heads and page numbers, footnote text and a verified list of
-    sources before anything is measured, in place of the older back-matter
-    rule. Cover letters and notes without years are not detected.
+    On: ``features/matter.py`` sets aside the title page, the heading block,
+    an abstract, section headings, running heads and page numbers, verified
+    notes and footnotes and a verified list of sources (up to an appendix)
+    before anything is measured, in place of the older back-matter rule; a
+    PDF upload's measured body is also reflowed into paragraphs
+    (``features/pdf_reflow.py``; stored text never changes). Cover letters and
+    notes without years outside a verified notes block are not detected.
 
 ``UPLOAD_ALSO_MEASURE`` (default empty)
     A measurement id (e.g. ``fs2+matter``): each newly added past paper also

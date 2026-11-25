@@ -914,5 +914,78 @@ def main() -> None:
     )
 
 
+def reextract(out_name: str = "cases_after.jsonl.xz") -> None:
+    """The same set read by today's extractor (step 2 of the parts plan).
+
+    Rebuilds the .docx/.pdf files exactly as ``main`` does (same documents,
+    same LibreOffice), reads each one with ``extract_text_from_bytes``, and
+    writes ``out_name``: pasted records copied from ``cases.jsonl.xz``
+    unchanged; each .docx/.pdf record's ``text`` is today's extraction (the
+    old text plus page markers; it does not depend on the switch: a PDF is
+    reflowed only when measured with the splitter on). Every record states
+    whether its text, page markers dropped, is byte for byte the text
+    ``cases.jsonl.xz`` holds (``off_text_matches_before``).
+    ``cases.jsonl.xz`` itself is not touched."""
+    from pypdf import PdfReader
+
+    from original.features.matter import LONE_PAGE_MARK, without_page_breaks
+    from original.upload_utils import extract_text_from_bytes
+
+    with lzma.open(HERE / "cases.jsonl.xz", "rt", encoding="utf-8") as fh:
+        lines = [json.loads(line) for line in fh]
+    meta, before = lines[0], {r["case_id"]: r for r in lines[1:]}
+    files = HERE / "build" / "files"
+    files.mkdir(parents=True, exist_ok=True)
+    docs: dict[tuple[str, str], Doc] = {}
+    todo = []
+    for a in C.AUTHORS:
+        for v in VARIANTS:
+            docs[(a, v)] = build(a, v, "docx")
+            path = files / f"{a}__{v}.docx"
+            path.write_bytes(render_docx(docs[(a, v)]))
+            if not (files / f"{a}__{v}.pdf").exists():
+                todo.append(path)
+    print(f"{len(docs)} .docx written; converting {len(todo)} to PDF", flush=True)
+    if todo:
+        soffice_pdfs(todo, files)
+
+    records = []
+    for case_id, old in before.items():
+        rec = dict(old)
+        a, v, inp = old["author"], old["variant"], old["input"]
+        if inp in ("docx", "pdf"):
+            path = files / f"{a}__{v}.{inp}"
+            raw = path.read_bytes()
+            doc = docs[(a, v)]
+            pages = old.get("pages") or len(PdfReader(str(files / f"{a}__{v}.pdf")).pages)
+            text = extract_text_from_bytes(raw, path.name)
+            res = L.align(text, flow_units(doc), floating_units(doc, pages))
+            rec.update(
+                text=text,
+                labels=L.rle(res["labels"]),
+                source=res["source"],
+                lost=res["lost"],
+                unattributed=res["unattributed"],
+                page_breaks=len(LONE_PAGE_MARK.findall(text)),
+            )
+        rec["off_text_matches_before"] = without_page_breaks(rec["text"]) == old["text"]
+        rec["sha256"] = hashlib.sha256(rec["text"].encode("utf-8")).hexdigest()
+        records.append(rec)
+    with lzma.open(HERE / out_name, "wt", encoding="utf-8", preset=9) as fh:
+        fh.write(json.dumps({"_meta": {**meta["_meta"], "extraction": "after"}}) + "\n")
+        for r in records:
+            fh.write(json.dumps(r) + "\n")
+    same = sum(r["off_text_matches_before"] for r in records)
+    print(
+        f"{len(records)} records; switch-off text identical to before (page breaks "
+        f"dropped): {same}/{len(records)}; unattributed chars off "
+        f"{sum(r['unattributed'] for r in records)}, on "
+        f"{sum(r.get('unattributed_on', 0) for r in records)}"
+    )
+
+
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--reextract"]:
+        reextract()
+    else:
+        main()
