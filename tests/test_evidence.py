@@ -438,7 +438,7 @@ def test_descriptions_come_from_the_suite_feature_data(monkeypatch):
     assert ev.describe("sentence_length_variance")[1] == "How much the writer's sentence lengths bounce around compared with staying even."
     ev._descriptions.cache_clear()
     monkeypatch.setattr(ev, "_FEATURE_DATA", Path("/nonexistent/feature-data.js"))
-    assert ev.describe("comma_rate") == ("Comma Rate", "")
+    assert ev.describe("comma_rate") == ("Comma usage", "")
     ev._descriptions.cache_clear()
 
 

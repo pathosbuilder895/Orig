@@ -1,11 +1,11 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
+import { BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
-import { InstructionsButton } from './instructions.jsx';
+import { AppBar, MenuIcon, ORIGINAL_NAV_LABEL, avatarInitials } from './AppBar.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -34,11 +34,11 @@ export function homeFor(data) {
   return data && data.role === 'student' ? 'student-home' : 'dashboard';
 }
 
-const legalLink = { color: BB.gold };
+const legalLink = { color: 'var(--gold-2)' };
 
 export function LegalLinks() {
   return (
-    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)' }}>
       <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>Terms</a>
       {' · '}
       <a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>Privacy</a>
@@ -96,7 +96,7 @@ export function SignupScreen({ onNavigate }) {
   return (
     <AuthShell title="Create a free workspace" onBack={() => onNavigate('landing')}
       footer={<>
-        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
           Already have an account? <LinkBtn onClick={() => onNavigate('login')}>Sign in</LinkBtn>
         </p>
         <LegalLinks />
@@ -231,7 +231,7 @@ export function InviteScreen({ onNavigate }) {
 
   const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
   const signInLine = (
-    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
       Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
     </p>
   );
@@ -262,7 +262,7 @@ export function InviteScreen({ onNavigate }) {
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
           : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
@@ -378,7 +378,7 @@ export function JoinScreen({ onNavigate }) {
     return (
       <AuthShell title="Join a course" footer={<LegalLinks />}>
         <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 12px', lineHeight: 1.55 }}>{courseLine}</p>
-        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
           You are signed in as {BB_API.identity().email || 'a student'}. Join this course with that account?
         </p>
         <ErrorText>{error}</ErrorText>
@@ -389,7 +389,7 @@ export function JoinScreen({ onNavigate }) {
 
   return (
     <AuthShell title="Join a course" footer={<>
-      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
         Already have an account? <LinkBtn onClick={toSignIn}>Sign in</LinkBtn>, then open this link again.
       </p>
       <LegalLinks />
@@ -401,7 +401,7 @@ export function JoinScreen({ onNavigate }) {
         </p>
       )}
       <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 8px', lineHeight: 1.55 }}>{courseLine}</p>
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         Create your Collections account to join this course. You will use your email and password to sign in from now on.
         Please read the student notice first: it says what Collections keeps and who sees your work.
       </p>
@@ -537,22 +537,25 @@ export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
   const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
-  const tab = (key, label) => (
-    <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
-  );
+  // The shared bar (AppBar.jsx): a student is offered the Original side of the
+  // switch only where the shell used to offer Original's pages (none in the pilot).
+  const original = studentOriginalLinks.length
+    ? { href: studentOriginalLinks[0][0], label: ORIGINAL_NAV_LABEL, title: 'Original is in its testing phase and is not yet validated on real student writing.' }
+    : null;
   return (
     <div className="bb-student">
-      <nav className="bb-student-nav" aria-label="Student navigation">
-        <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
-        <div className="tabs">
-          {tab('student-home', 'My collections')}
-          {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
-          <InstructionsButton who="student" />
-          <TextSettingsButton className="bb-text-btn" />
-          {tab('student-account', 'Account')}
-          <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
-        </div>
-      </nav>
+      <AppBar
+        sticky
+        navLabel="Student navigation"
+        pills={[{ key: 'student-home', label: 'My collections', current: active === 'student-home', icon: <MenuIcon name="book" />, onClick: () => onNavigate('student-home') }]}
+        original={original}
+        account={{ current: active === 'student-account', onClick: () => onNavigate('student-account') }}
+        guideFor="student"
+        onSignOut={() => { BB_API.logout(); onNavigate('landing'); }}
+        name={id.name}
+        sub="Student"
+        initials={avatarInitials(id.name, 'S')}
+      />
       <main className="bb-student-body">
         {id.name && <p className="sr-only" style={{ position: 'absolute', left: -9999 }}>Signed in as {id.name}</p>}
         {children}
