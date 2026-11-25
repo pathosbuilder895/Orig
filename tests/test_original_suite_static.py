@@ -285,6 +285,7 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # ?v= query; change the version (on every page at once) when any of them changes.
 VERSIONED = (
     "live.js",
+    "shell.js",
     "js/feature-data.js",
     "js/fingerprint.js",
     "js/evidence-view.js",
@@ -319,9 +320,9 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     assert len(queries) == 1, f"{path.name}: {sorted(queries)}"
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
-    # Every page carries the suite's stylesheet, font file and shared script; the
+    # Every page carries the suite's stylesheet, font file, shared script and top bar; the
     # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
-    assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
+    assert {"live.js", "shell.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
 
@@ -430,17 +431,17 @@ def test_students_page_adds_a_writer_by_name_inline():
     page = (SUITE / "students.html").read_text(encoding="utf-8")
     # The button opens a labelled inline form; the Collections link keeps its href.
     assert (
-        '<button type="button" class="add-btn ghost" id="writer-btn" aria-expanded="false" '
+        '<button type="button" class="add-btn ghost btn-ghost" id="writer-btn" aria-expanded="false" '
         'aria-controls="writer-form">'
     ) in page
     assert ">Add a writer</button>" in page
     assert '<form class="writer" id="writer-form" hidden' in page
     assert '<label for="writer-name">Their name</label>' in page
     assert '<input id="writer-name" type="text" maxlength="120"' in page
-    assert '<button type="submit" class="add-btn" id="writer-go">Add</button>' in page
+    assert '<button type="submit" class="add-btn btn-gold" id="writer-go">Add</button>' in page
     assert '<button type="button" class="w-cancel" id="writer-cancel">Cancel</button>' in page
     assert '<div class="w-msg" id="writer-msg" role="alert"></div>' in page
-    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in page
+    assert '<a class="add-btn btn-gold" id="add-btn" href="/bluebook/#students"' in page
     assert ">Add to a Collections course</a>" in page
     script = page[page.index("// ── add a writer ──") : page.index("// ── go ──")]
     assert "Live.api('/students',{method:'POST',body:{name:n}})" in script
@@ -893,12 +894,83 @@ class _AccountMenu(HTMLParser):
             self._link[1] += data
 
 
+# The top bar (brand, app switch, page pills, account menu) is drawn by shell.js
+# from one definition. A page carries only a placeholder with its audience and
+# its own name, and the script straight after it; the tests below run shell.js's
+# Shell.markup under node for that placeholder and read what a browser would get.
+_SHELL_PLACEHOLDER = re.compile(
+    r'<nav class="shell(?: shell-bar)?" data-audience="(teacher|student)" data-current="([a-z-]+)" '
+    r'aria-label="Original"></nav>\s*<script src="shell\.js\?v=[^"]+"></script>'
+)
+
+SHELL_RUN = r"""
+const fs = require('fs');
+const window = {};
+const document = { querySelectorAll() { return []; }, readyState: 'complete', addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(process.argv[1], 'utf8'))(window, document);
+const out = {};
+for (const pair of JSON.parse(process.argv[2])) out[pair.join('/')] = window.Shell.markup(pair[0], pair[1]);
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _placeholder(path: Path) -> tuple[str, str]:
+    found = _SHELL_PLACEHOLDER.findall(path.read_text(encoding="utf-8"))
+    assert len(found) == 1, f"{path.name} has no top bar placeholder followed by shell.js"
+    return found[0]
+
+
+_SHELL_CACHE: dict[str, str] = {}
+
+
+def _shell_nav(path: Path) -> str:
+    """The top bar's markup on this page, as shell.js draws it."""
+    if not _SHELL_CACHE:
+        pairs = sorted({_placeholder(p) for p in PAGES})
+        run = subprocess.run(
+            [shutil.which("node"), "-e", SHELL_RUN, str(SUITE / "shell.js"), json.dumps(pairs)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert run.returncode == 0, run.stderr
+        _SHELL_CACHE.update(json.loads(run.stdout))
+    return _SHELL_CACHE["/".join(_placeholder(path))]
+
+
 def _account_menu(path: Path) -> list[tuple[str, str]]:
     parser = _AccountMenu()
-    parser.feed(path.read_text(encoding="utf-8"))
+    parser.feed(_shell_nav(path))
     return parser.links
 
 
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_every_page_draws_the_one_top_bar_and_keeps_no_copy_of_its_own(path):
+    audience, current = _placeholder(path)
+    assert audience == ("student" if path.name in STUDENT_PAGES else "teacher"), path.name
+    assert current == path.stem, path.name
+    page = path.read_text(encoding="utf-8")
+    # The bar's markup, its menu script and its styles live in shell.js and tokens.css only.
+    for copy in ('id="me-menu"', 'class="pills"', "$('me-btn')", "  .me-menu{", "  .pill{", "  .brand{"):
+        assert copy not in page, f"{path.name} keeps its own {copy}"
+    assert '<link rel="stylesheet" href="../assets/tokens.css?v=' in page
+    assert '<link rel="stylesheet" href="../assets/type.css" />' in page
+    # The Text setting is in the account menu, so no floating button covers the page.
+    assert '<script src="../assets/display-prefs.js"></script>' in page
+    assert "data-float" not in page
+
+
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_account_menu_holds_the_text_setting(path):
+    nav = _shell_nav(path)
+    assert 'id="mm-text" data-testid="text-settings-button"' in nav
+    assert '<span class="mm-aa" aria-hidden="true">Aa</span>Text</button>' in nav
+    menu = nav[nav.index('id="me-menu"') :]
+    assert menu.index('id="mm-text"') < menu.index('id="sign-out"')
+
+
+@needs_node
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
@@ -911,6 +983,7 @@ def test_account_menu_is_settings_then_sign_out_with_no_classic_link(path):
     assert texts.index("Settings") < texts.index("Sign out"), f"{path.name}: {texts}"
 
 
+@needs_node
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
@@ -927,14 +1000,16 @@ def test_account_menu_opens_the_collections_dashboard_first(path):
 def test_collections_page_head_links_to_the_collections_dashboard():
     page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
     head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
-    assert '<a class="head-link" href="/bluebook/#dashboard">' in head
+    assert '<a class="head-link btn-ghost" href="/bluebook/#dashboard">' in head
     assert "Open Collections</a>" in head
 
 
+@needs_node
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
 def test_student_account_menu_is_sign_out_only(name):
     # A student has no Settings page and no classic analysis page; both are
-    # teacher tools, so the menu holds Sign out and nothing else.
+    # teacher tools, so the menu holds Sign out and nothing else (and the Text
+    # setting, a button rather than a link).
     links = _account_menu(SUITE / name)
     assert [text for _, text in links] == ["Sign out"], f"{name}: {links}"
 
@@ -3841,29 +3916,67 @@ def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_ca
 
 
 # ── Bluebook Sessions (bluebook.html) ─────────────────────────────────────────
-# Owner decision 2026-10-11: the Bluebook pill on a teacher page opens this suite
+# Owner decision 2026-10-11: the sessions pill on a teacher page opens this suite
 # page; /bluebook/ itself is the public sign-up and learn site, and the Bluebook
 # app opens one exam from a link (#exam/<id>, #live/<id>; demo/bluebook/deep-link.jsx).
+# Owner decision 2026-11-20 (W3): one top bar for both apps. Its switch is the only
+# place the bare word "Collections" names a place (the Collections app), so this
+# suite page's pill is "Your collections" (#361: a student sits a collection) and
+# the same word never means two places.
 
 _PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?([^<]*)</a>', re.S)
+_SWITCH = re.compile(r'<div class="app-switch"[^>]*>(.*?)</div>', re.S)
 
 
-def _bluebook_pills(path: Path) -> list[str]:
-    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Collections"]
+def _pills(path: Path) -> list[tuple[str, str]]:
+    return [(href, label.strip()) for href, label in _PILL.findall(_shell_nav(path))]
 
 
+@needs_node
 @pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
-def test_the_bluebook_pill_opens_the_suite_page_for_teachers_and_the_app_for_students(path):
-    want = "/bluebook/" if path.name in STUDENT_PAGES else "bluebook.html"
-    assert _bluebook_pills(path) == [want], path.name
+def test_the_collections_pill_opens_the_suite_page_for_teachers_and_students_have_none(path):
+    pills = _pills(path)
+    sessions = [href for href, label in pills if label == "Your collections"]
+    assert sessions == ([] if path.name in STUDENT_PAGES else ["bluebook.html"]), path.name
+    # No page pill says Collections any more: the switch names the app.
+    assert "Collections" not in [label for _, label in pills], path.name
+    want = ["My voice", "My work"] if path.name in STUDENT_PAGES else ["Overview", "Students", "Submissions", "Your collections", "Reports"]
+    assert [label for _, label in pills] == want, path.name
 
 
-def test_the_bluebook_pill_is_marked_current_only_on_the_bluebook_page():
-    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
-    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in page
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_app_switch_names_both_apps_and_marks_original_current(path):
+    (switch,) = _SWITCH.findall(_shell_nav(path))
+    collections = "/bluebook/" if path.name in STUDENT_PAGES else "/bluebook/#dashboard"
+    home = "voice.html" if path.name in STUDENT_PAGES else "index.html"
+    assert switch == f'<a href="{collections}">Collections</a><a href="{home}" aria-current="true">Original</a>', path.name
+
+
+@needs_node
+def test_the_collections_pill_is_marked_current_only_on_the_bluebook_page():
+    nav = _shell_nav(SUITE / "bluebook.html")
+    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in nav
     for path in PAGES:
         if path.name != "bluebook.html":
+            assert 'href="bluebook.html" aria-current' not in _shell_nav(path), path.name
             assert 'href="bluebook.html" aria-current' not in path.read_text(encoding="utf-8"), path.name
+
+
+@needs_node
+def test_a_students_own_pages_mark_students_as_their_section_not_their_page():
+    for name in ("baseline.html", "writing-state.html", "evidence.html", "packet.html"):
+        nav = _shell_nav(SUITE / name)
+        assert '<a class="pill on" href="students.html" aria-current="true">' in nav, name
+        assert 'aria-current="page"' not in nav, name
+    assert '<a class="pill on" href="students.html" aria-current="page">' in _shell_nav(SUITE / "students.html")
+    # Settings marks no pill, only its own menu item.
+    settings = _shell_nav(SUITE / "settings.html")
+    assert "pill on" not in settings and '<a href="settings.html" aria-current="page">' in settings
+
+
+def test_live_js_hides_the_switch_to_collections_with_the_other_collections_links(live_js):
+    assert """'#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]'""" in live_js
 
 
 def _bluebook_page() -> str:
