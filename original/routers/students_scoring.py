@@ -213,6 +213,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
     # readiness report, the preliminary chip and the evidence all use it.
     sources = gate_sources(student_id, state.samples)
     approved = _require_min_baseline(state, sources)
+    gate_state = state  # the stored state ``sources`` describe, one entry per sample
 
     # ── Versioned measurements (original/measurement.py) ──────────────────────
     # Default (both measurement switches off): plan.used == "v1", the state is
@@ -865,7 +866,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             logging.getLogger(__name__).exception("rule_d observation failed; omitted")
             _rule_d_obs = None
 
-    response = _to_response(result, arc, report=report, sources=sources)
+    response = _to_response(result, arc, report=report, sources=sources, state=gate_state)
     stamp = plan.stamp()
     if stamp is not None:
         response.measurement = MeasurementOut(**stamp)

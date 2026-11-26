@@ -415,12 +415,15 @@ class TestWiringIntoScoreResponse:
         self, live_client, store_reset, monkeypatch
     ):
         """A raise from the repository re-fetch itself (not the build call)
-        is the other half of the call-site's defensiveness. score_submission
-        itself does one `_repo().get(student_id)` before scoring even
-        starts (original/routers/students_scoring.py:38); only the SECOND
-        lookup -- the defensive re-fetch inside _to_response -- should be
-        made to fail here, so the first pass-through call count matters."""
+        is the other half of the call-site's defensiveness. The score route
+        no longer re-fetches: it hands _to_response the state its gate read
+        (so the approved-paper labels always describe the samples they were
+        made for), so a repository that fails after that first read leaves
+        the score AND baseline_integrity intact. _to_response's own re-fetch
+        (callers that pass no state) is still defensive: a failing get there
+        gives baseline_integrity None and the rest of the response."""
         from original.repository import get_repository
+        from original.routers import _shared, students_scoring
 
         sid = f"baseline-integrity-{uuid.uuid4().hex[:8]}"
         _seed_student(live_client, sid, n_baselines=3)
@@ -436,10 +439,25 @@ class TestWiringIntoScoreResponse:
                     raise RuntimeError("simulated repo failure")
             return real_get(student_id)
 
+        captured = {}
+        real_score = students_scoring.quantum_score
+
+        def _spy(**kwargs):
+            captured["r"] = real_score(**kwargs)
+            return captured["r"]
+
+        monkeypatch.setattr(students_scoring, "quantum_score", _spy)
         monkeypatch.setattr(repo, "get", _flaky)
         body = _score(live_client, sid)
-        assert body["baseline_integrity"] is None
         assert "authorship" in body and "deviation_score" in body["authorship"]
+        assert body["baseline_integrity"] is not None
+        assert body["baseline_integrity"]["n_baselines"] == 3
+
+        # The re-fetch path, for a caller that passes no state.
+        calls["n"] = 1  # every further get for this student raises
+        out = _shared._to_response(captured["r"])
+        assert out.baseline_integrity is None
+        assert out.authorship.deviation_score == body["authorship"]["deviation_score"]
         assert calls["n"] >= 2, "the defensive re-fetch inside _to_response must have run"
 
 

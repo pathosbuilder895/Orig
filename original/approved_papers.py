@@ -88,28 +88,44 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
     taken out, ``shared_paper`` when it is the text of one of their approved
     past papers, else ``student_upload``; ``unknown`` for any other
     provenance. Read-only; nothing here reaches scoring.
+
+    Each approval stands behind one sample only: the first (oldest) sample
+    whose text matches it. A further copy of the same text is labelled
+    ``student_upload``, so a student who posts the text of an approved paper
+    or of their own approved take-home answer again cannot raise the count.
     """
     from .routers.bluebook_baselines import _fingerprints
     from .routers.past_papers import _sha
     from .routers.students_baseline import _hashes_from_samples
 
     unverified = [s.provenance == "unverified" for s in samples]
-    take_home: set[str] = set()
-    shared: set[str] = set()
+    # Text hash -> the approval it belongs to (a take-home submission id, or a
+    # shared past paper's id), so each approval can be spent once.
+    take_home: dict[str, str] = {}
+    shared: dict[str, str] = {}
     if any(unverified):
         repo = _repo()
         approved = approved_submission_ids(repo, student_id)
         if approved:
             for rec in repo.list_bluebook_submission_texts_for_student(student_id):
                 if rec.get("id") in approved:
-                    take_home |= _fingerprints(rec)
+                    for h in _fingerprints(rec):
+                        take_home.setdefault(h, f"take_home:{rec['id']}")
         tenant = principal_mod.tenant_of(student_id)
         if tenant:
-            shared = {
-                _sha(p["text"])
-                for p in repo.list_past_papers(tenant, student_id)
-                if p.get("status") == "approved" and p.get("text")
-            }
+            for p in repo.list_past_papers(tenant, student_id):
+                if p.get("status") == "approved" and p.get("text"):
+                    shared.setdefault(_sha(p["text"]), f"shared:{p.get('paper_id')}")
+    used: set[str] = set()
+
+    def _claim(hashes: set[str], approvals: dict[str, str]) -> bool:
+        for h in sorted(hashes):
+            key = approvals.get(h)
+            if key is not None and key not in used:
+                used.add(key)
+                return True
+        return False
+
     out = []
     for s, is_unverified in zip(samples, unverified, strict=True):
         if s.provenance in TRUSTED_PROVENANCE:
@@ -118,9 +134,9 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
             out.append("unknown")
         else:
             hashes = _hashes_from_samples([s])
-            if hashes & take_home:
+            if _claim(hashes, take_home):
                 out.append("take_home")
-            elif hashes & shared:
+            elif _claim(hashes, shared):
                 out.append("shared_paper")
             else:
                 out.append("student_upload")

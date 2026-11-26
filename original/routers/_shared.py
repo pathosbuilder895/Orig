@@ -495,12 +495,15 @@ def _authorize_provenance(
 # ── Serialisation helper ──────────────────────────────────────────────────────
 
 
-def _to_response(r, arc=None, report=None, sources=None) -> Layer7OutputResponse:
+def _to_response(r, arc=None, report=None, sources=None, state=None) -> Layer7OutputResponse:
     """Convert internal dataclasses → Pydantic response model.
 
     ``sources`` is the score route's one lookup of how each past paper got in
     (``approved_papers.gate_sources``), so ``baseline_integrity`` counts
-    approved papers under rule B without reading the records again. Other
+    approved papers under rule B without reading the records again. It is
+    paired with ``state``, the stored state those sources were read from, so
+    the labels always describe the samples they were made for; ``sources``
+    without ``state`` is ignored. Other
     callers (the admin playground) pass none: no ``unverified`` sample counts."""
     from ..explainer import explain
 
@@ -526,13 +529,15 @@ def _to_response(r, arc=None, report=None, sources=None) -> Layer7OutputResponse
     try:
         from ..baseline_integrity import build_baseline_integrity
 
-        _bi_state = _repo().get(r.student_id)
+        # The state the route's sources were read from, when it passes one;
+        # otherwise re-read (and count without sources). Never positional reuse
+        # of sources against a different read: a remove plus an add between
+        # the two would shift every label by one.
+        _bi_state = state if state is not None else _repo().get(r.student_id)
         if _bi_state is not None:
             _bi = build_baseline_integrity(
                 _bi_state,
-                sources=sources
-                if sources is not None and len(sources) == len(_bi_state.samples)
-                else None,
+                sources=sources if state is not None and sources is not None else None,
             )
             if _bi is not None:
                 baseline_integrity_out = BaselineIntegrityOut(**_bi.__dict__)

@@ -476,3 +476,117 @@ def test_a_legacy_provenance_written_by_the_server_counts(live_client):
     assert (body["verdict"], body["approved_count"]) == ("ready", 3)
     scored = _ok(live_client.post(f"/students/{sid}/score", json={"text": SUBMISSION}))
     assert scored["baseline_integrity"]["readiness"] == "ready"
+
+
+# ── an approval stands behind one sample only ────────────────────────────────
+
+
+def _post_own(client, sid, S, text):
+    """The student posts text as their own upload, with no submission_uuid
+    (so the route does not dedupe it)."""
+    r = client.post(
+        f"/students/{sid}/baseline",
+        json={"text": text, "provenance": "unverified", "assignment": "again"},
+        headers=S,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["provenance"] == "unverified"
+
+
+def _sources_for(client, sid, T):
+    return [s["source"] for s in _ok(client.get(f"/students/{sid}", headers=T))["samples"]]
+
+
+@pytest.mark.slow
+def test_a_reposted_approved_shared_paper_counts_once(live_client):
+    """Review finding: a student re-posting the exact text of their one
+    approved shared paper used to count as two more approved papers (1 -> 3),
+    passing the floor, readiness, the seal, the chip and Voice Affirmed."""
+    T, [(sid, S), _] = _workspace(live_client, "apc8@example.test")
+    _share_and_approve(live_client, T, S, [0])
+    for _ in range(2):
+        _post_own(live_client, sid, S, _paper(0, TOPICS[0]))
+    assert get_repository().get(sid).sample_count == 3
+    assert _sources_for(live_client, sid, T) == ["shared_paper", "student_upload", "student_upload"]
+    ready = _readiness(live_client, sid, T)
+    assert (ready["verdict"], ready["approved_count"]) == ("developing", 1)
+    refused = _score(live_client, sid, T)
+    assert refused.status_code == 422 and refused.json()["detail"]["have"] == 1
+    _open_sitting(sid)
+    assert _seal_status(_score(live_client, sid, S, sub="s2")) == "INCONCLUSIVE"
+
+
+@pytest.mark.slow
+def test_a_reposted_approved_take_home_counts_once(live_client):
+    """The same for a take-home: the student knows their own answer text."""
+    T, [(sid, S), _] = _workspace(live_client, "apc9@example.test")
+    _share_and_approve(live_client, T, S, range(3))
+    repo = get_repository()
+    tenant = principal.tenant_of(sid)
+    text = _paper(0, TOPICS[3])
+    repo.put_bluebook_exam(
+        {
+            "id": "exam-th-apc9",
+            "tenant_id": tenant,
+            "title": "Take-home",
+            "conditions": {"setting": "take_home"},
+        }
+    )
+    repo.put_bluebook_submission(
+        {
+            "id": "bbsub-apc9",
+            "tenant_id": tenant,
+            "exam_id": "exam-th-apc9",
+            "student_id": sid,
+            "candidate": "S0",
+            "answers": [text],
+            "text": text,
+        }
+    )
+    out = _ok(live_client.post("/bluebook/submissions/bbsub-apc9/baseline", headers=T))
+    assert out["status"] == "added", out
+    for _ in range(2):
+        _post_own(live_client, sid, S, text)
+    assert sorted(_sources_for(live_client, sid, T)) == sorted(
+        ["shared_paper"] * 3 + ["take_home", "student_upload", "student_upload"]
+    )
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    staff = _ok(_score(live_client, sid, T))
+    assert staff["baseline_integrity"]["n_baselines"] == 4
+
+
+def test_each_approval_is_spent_once_and_the_oldest_copy_keeps_it(monkeypatch):
+    """Unit view of the same rule: two copies of one approved shared paper and
+    two of one approved take-home give one approved sample each, the first."""
+    from original import approved_papers
+    from original.upload_utils import text_digest
+
+    shared_text, home_text = "a shared paper text", "a take home answer"
+
+    class _Repo:
+        def list_audit_actions_for_student(self, sid, actions):
+            return [
+                {
+                    "action": "baseline_approve",
+                    "result": "added",
+                    "details": {"submission_id": "sub-1"},
+                }
+            ]
+
+        def list_bluebook_submission_texts_for_student(self, sid):
+            return [{"id": "sub-1", "text": home_text, "answers": [home_text]}]
+
+        def list_past_papers(self, tenant, sid):
+            return [{"paper_id": "pp-1", "status": "approved", "text": shared_text}]
+
+    monkeypatch.setattr(approved_papers, "_repo", lambda: _Repo())
+    monkeypatch.setattr(
+        "original.routers.bluebook_baselines._fingerprints", lambda rec: {text_digest(rec["text"])}
+    )
+    samples = [
+        SimpleNamespace(provenance="unverified", text=t, auth_weight=0.5)
+        for t in (shared_text, home_text, shared_text, home_text)
+    ]
+    got = approved_papers.sample_sources("t1:s", samples)
+    assert got == ["shared_paper", "take_home", "student_upload", "student_upload"]
+    assert baseline_integrity.count_approved(samples, got) == 2
