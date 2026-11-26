@@ -1,11 +1,11 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
+import { BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
-import { InstructionsButton } from './instructions.jsx';
+import { AppBar, MenuIcon, ORIGINAL_NAV_LABEL, avatarInitials } from './AppBar.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -34,11 +34,11 @@ export function homeFor(data) {
   return data && data.role === 'student' ? 'student-home' : 'dashboard';
 }
 
-const legalLink = { color: BB.gold };
+const legalLink = { color: 'var(--gold-2)' };
 
 export function LegalLinks() {
   return (
-    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)' }}>
       <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>Terms</a>
       {' · '}
       <a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>Privacy</a>
@@ -96,7 +96,7 @@ export function SignupScreen({ onNavigate }) {
   return (
     <AuthShell title="Create a free workspace" onBack={() => onNavigate('landing')}
       footer={<>
-        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
           Already have an account? <LinkBtn onClick={() => onNavigate('login')}>Sign in</LinkBtn>
         </p>
         <LegalLinks />
@@ -149,10 +149,12 @@ export function inviteKind(search) {
 // expired, voided or already used), so the route cannot be used to probe
 // tokens (original/routers/auth.py). The screen says what to do next instead.
 const LINK_REFUSED = /invalid, expired, or already used/i;
-export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+// No lifetime is quoted: an invite lasts 14 days (or until replaced, with
+// INVITE_NO_EXPIRY), a password reset link a day (original/invites.py).
+export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, ask your teacher for a new link.';
 // A teacher's own invitation or reset link was not sent by a teacher.
-export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, use “Forgot your password?” on the sign-in page, '
   + 'or ask the person who invited you for a new link.';
 export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be used. Please open the whole link from your invitation, '
@@ -229,7 +231,7 @@ export function InviteScreen({ onNavigate }) {
 
   const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
   const signInLine = (
-    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
       Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
     </p>
   );
@@ -260,7 +262,7 @@ export function InviteScreen({ onNavigate }) {
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
           : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
@@ -376,7 +378,7 @@ export function JoinScreen({ onNavigate }) {
     return (
       <AuthShell title="Join a course" footer={<LegalLinks />}>
         <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 12px', lineHeight: 1.55 }}>{courseLine}</p>
-        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
           You are signed in as {BB_API.identity().email || 'a student'}. Join this course with that account?
         </p>
         <ErrorText>{error}</ErrorText>
@@ -387,7 +389,7 @@ export function JoinScreen({ onNavigate }) {
 
   return (
     <AuthShell title="Join a course" footer={<>
-      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: BB.fade }}>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
         Already have an account? <LinkBtn onClick={toSignIn}>Sign in</LinkBtn>, then open this link again.
       </p>
       <LegalLinks />
@@ -399,7 +401,7 @@ export function JoinScreen({ onNavigate }) {
         </p>
       )}
       <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 8px', lineHeight: 1.55 }}>{courseLine}</p>
-      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         Create your Collections account to join this course. You will use your email and password to sign in from now on.
         Please read the student notice first: it says what Collections keeps and who sees your work.
       </p>
@@ -535,22 +537,25 @@ export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
   const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
-  const tab = (key, label) => (
-    <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
-  );
+  // The shared bar (AppBar.jsx): a student is offered the Original side of the
+  // switch only where the shell used to offer Original's pages (none in the pilot).
+  const original = studentOriginalLinks.length
+    ? { href: studentOriginalLinks[0][0], label: ORIGINAL_NAV_LABEL, title: 'Original is in its testing phase and is not yet validated on real student writing.' }
+    : null;
   return (
     <div className="bb-student">
-      <nav className="bb-student-nav" aria-label="Student navigation">
-        <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
-        <div className="tabs">
-          {tab('student-home', 'My exams')}
-          {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
-          <InstructionsButton who="student" />
-          <TextSettingsButton className="bb-text-btn" />
-          {tab('student-account', 'Account')}
-          <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
-        </div>
-      </nav>
+      <AppBar
+        sticky
+        navLabel="Student navigation"
+        pills={[{ key: 'student-home', label: 'My collections', current: active === 'student-home', icon: <MenuIcon name="book" />, onClick: () => onNavigate('student-home') }]}
+        original={original}
+        account={{ current: active === 'student-account', onClick: () => onNavigate('student-account') }}
+        guideFor="student"
+        onSignOut={() => { BB_API.logout(); onNavigate('landing'); }}
+        name={id.name}
+        sub="Student"
+        initials={avatarInitials(id.name, 'S')}
+      />
       <main className="bb-student-body">
         {id.name && <p className="sr-only" style={{ position: 'absolute', left: -9999 }}>Signed in as {id.name}</p>}
         {children}
@@ -726,7 +731,7 @@ export function StudentHomeScreen({ onNavigate }) {
         if (err.status === 401 || /sign in|not authenticated/i.test(err.message || '')) {
           BB_API.logout(); onNavigate('login'); return;
         }
-        setError(bbStudentError(err, 'We could not load your exams just now. Please refresh the page to try again.'));
+        setError(bbStudentError(err, 'We could not load your collections just now. Please refresh the page to try again.'));
         setExams([]);
       });
     return () => { live = false; };
@@ -735,7 +740,7 @@ export function StudentHomeScreen({ onNavigate }) {
   async function open(e) {
     setOpening(e.exam_id); setError('');
     try { await openStudentExam(e.exam_id, onNavigate); }
-    catch (err) { setError(bbStudentError(err, 'We could not open that exam just now. Please try again.')); setOpening(''); }
+    catch (err) { setError(bbStudentError(err, 'We could not open that collection just now. Please try again.')); setOpening(''); }
   }
 
   const courses = (me && me.courses) || [];
@@ -743,7 +748,7 @@ export function StudentHomeScreen({ onNavigate }) {
   const sorted = sortStudentExams(exams);
 
   const examColumns = [
-    { key: 'title', label: 'Examination', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.timed === false ? 'no time limit' : (e.duration ? `${e.duration} min` : null), e.setting === 'take_home' ? 'take-home' : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
+    { key: 'title', label: 'Collection', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.timed === false ? 'no time limit' : (e.duration ? `${e.duration} min` : null), e.setting === 'take_home' ? 'take-home' : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
     { key: 'state', label: 'Status', render: e => <Badge>{e.submitted ? 'submitted' : e.state}</Badge> },
     { key: 'when', label: 'When', render: e => examWindowText(e) || '—' },
     { key: 'go', label: 'Action', actions: true, render: e => {
@@ -752,7 +757,7 @@ export function StudentHomeScreen({ onNavigate }) {
     } },
   ];
   const subColumns = [
-    { key: 'exam', label: 'Examination', lead: true, render: s => s.exam || 'Examination' },
+    { key: 'exam', label: 'Collection', lead: true, render: s => s.exam || 'Collection' },
     { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'mark', label: 'Mark', render: s => s.results_released ? (s.mark || 'Released') : 'Not yet released' },
@@ -762,12 +767,12 @@ export function StudentHomeScreen({ onNavigate }) {
   return (
     <StudentShell onNavigate={onNavigate} active="student-home">
       <Page eyebrow="Collections"
-        title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My exams'}
+        title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My collections'}
         meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'You are not in a course yet. Your teacher will add you.')}>
         <ErrorText>{error}</ErrorText>
-        <Section title="Examinations">
-          <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your examinations"
-            empty={loading ? 'Loading…' : 'No examinations yet. Your teacher will add them to your course.'} />
+        <Section title="Collections">
+          <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your collections"
+            empty={loading ? 'Loading…' : 'No collections yet. Your teacher will add them to your course.'} />
         </Section>
         <Section title="My submissions">
           <Table columns={subColumns} rows={subs} rowKey={s => s.id} caption="Your submissions" empty="Nothing submitted yet." />
@@ -792,7 +797,7 @@ export function StudentSubmissionScreen({ onNavigate }) {
       <Page eyebrow="Your submission"
         title={sub ? (sub.exam || 'Submission') : 'Submission'}
         meta={sub ? `${when(sub.created_at)} · ${sub.words} words${sub.late ? ' · after the deadline' : ''}` : ''}
-        actions={<Btn onClick={() => onNavigate('student-home')}>← My exams</Btn>}>
+        actions={<Btn onClick={() => onNavigate('student-home')}>← My collections</Btn>}>
         <ErrorText>{error}</ErrorText>
         {sub && (
           <>
@@ -805,7 +810,7 @@ export function StudentSubmissionScreen({ onNavigate }) {
                     ? <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{sub.feedback}</p>
                     : <p className="bb-meta">No written feedback.</p>}
                 </>
-              ) : <p className="bb-meta">Your teacher has not released results for this exam yet.</p>}
+              ) : <p className="bb-meta">Your teacher has not released results for this collection yet.</p>}
             </Panel>
             <div className="bb-paper">
               {answers ? answers.map((a, i) => (

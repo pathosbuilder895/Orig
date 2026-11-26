@@ -24,11 +24,12 @@
 
 import { test, expect } from '@playwright/test'
 import { createCourse, provisionStaff, provisionTenantWithStaff } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
 const COMPARED_LINE = 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.'
-const CONTEXT_LINE = 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.'
+const CONTEXT_LINE = 'Your teacher also sees a few facts about how you wrote, such as how long you took and your word count, as context.'
 
 // A workspace (the fixture creates it with both products), its operator, and
 // an open exam with one invited student.
@@ -95,16 +96,16 @@ async function redeemInvite(student, invitePath, examTitle) {
 const storedProductsOf = page => page.evaluate(() => JSON.parse(localStorage.getItem('original_products')))
 
 async function sealAnswer(student, answer) {
-  const box = student.getByLabel('Your examination answer')
+  const box = student.getByLabel('Your answer', { exact: true })
   await box.focus()
   await student.keyboard.type(answer, { delay: 1 })
-  student.once('dialog', d => d.accept())
+  await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
   const [sealRes] = await Promise.all([
     student.waitForResponse(
       r => r.url().endsWith('/bluebook/submissions') && r.request().method() === 'POST',
       { timeout: 30_000 },
     ),
-    student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click(),
+    confirmSeal(student),
   ])
   return sealRes
 }
@@ -132,8 +133,8 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
   expect((await storedProducts()).sort()).toEqual(['bluebook', 'original'])
   await student.getByRole('button', { name: 'Open' }).click()
   await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
-  const box = student.getByLabel('Your examination answer')
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
+  const box = student.getByLabel('Your answer', { exact: true })
   await expect(box).toBeVisible({ timeout: 10_000 })
 
   // ── Operator: switch the workspace to Bluebook only ─────────────────────
@@ -146,7 +147,7 @@ test('a seal still lands when Original is switched off mid-exam', async ({ brows
   expect(sealBody.stylometric).toBeNull()
   expect(sealBody.ai_score).toBeNull()
   expect(sealBody.status).toBe('SUBMITTED')
-  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
   await expect(student.getByText('✓ Delivered to your teacher')).toBeVisible()
   // The seal did try Original (the page believed it was on) and was refused.
   expect(originalCalls.some(c => c.path.endsWith('/score') && c.status === 403)).toBe(true)
@@ -189,11 +190,11 @@ test('a sitting begun without Original is not compared when Original is switched
   expect(await storedProductsOf(student)).toEqual(['bluebook'])
   await student.getByRole('button', { name: 'Open' }).click()
   await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
-  await expect(student.getByText('How this exam works')).toBeVisible()
+  await expect(student.getByText('How this collection works')).toBeVisible()
   await expect(student.getByText(COMPARED_LINE)).toHaveCount(0)
   await expect(student.getByText(CONTEXT_LINE)).toHaveCount(0)
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
-  await expect(student.getByLabel('Your examination answer')).toBeVisible({ timeout: 10_000 })
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
+  await expect(student.getByLabel('Your answer', { exact: true })).toBeVisible({ timeout: 10_000 })
   // The sitting's decision is on this device before anything is written.
   const decisions = () => student.evaluate(() => Object.keys(localStorage)
     .filter(k => k.startsWith('bb_draft_'))
@@ -219,7 +220,7 @@ test('a sitting begun without Original is not compared when Original is switched
   expect(sealBody.stylometric).toBeNull()
   expect(sealBody.ai_score).toBeNull()
   expect(sealBody.status).toBe('SUBMITTED')
-  await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
   await expect(student.getByText(/compared with your own past work/)).toHaveCount(0)
   // Nothing from the exam page reached Original after the switch.
   expect(callsAfterSwitch).toEqual([])
@@ -249,14 +250,14 @@ test('the decision is locked when the student clicks Begin, before the exam scre
   await redeemInvite(student, ws.invitePath, examTitle)
   expect(await storedProductsOf(student)).toEqual(['bluebook'])
   await student.getByRole('button', { name: 'Open' }).click()
-  await expect(student.getByText('How this exam works')).toBeVisible({ timeout: 10_000 })
+  await expect(student.getByText('How this collection works')).toBeVisible({ timeout: 10_000 })
   await expect(student.getByText(COMPARED_LINE)).toHaveCount(0)
 
   // Another tab refreshes the stored products after the briefing has shown
   // "not compared" but before the student clicks Begin.
   await student.evaluate(() => localStorage.setItem('original_products', JSON.stringify(['bluebook', 'original'])))
-  await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
-  await expect(student.getByLabel('Your examination answer')).toBeVisible({ timeout: 10_000 })
+  await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
+  await expect(student.getByLabel('Your answer', { exact: true })).toBeVisible({ timeout: 10_000 })
 
   // The sitting keeps what the briefing displayed, not the products now stored.
   const decisions = () => student.evaluate(() => Object.keys(localStorage)

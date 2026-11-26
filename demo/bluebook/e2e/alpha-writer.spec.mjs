@@ -27,7 +27,7 @@ const TAKE_HOME_ANSWER =
   'Augustine argues that the restless heart finds rest only in God, and he builds the argument ' +
   'slowly, from memory and desire, through the long middle books of the work, until the reader ' +
   'sees that the search was the subject all along. I find the account of desire persuasive.'
-const LOW_WEIGHT = '(1 take-home exam counts at a lower weight)'
+const LOW_WEIGHT = '(1 take-home collection counts at a lower weight)'
 
 // The first ~120 words of the Chesterton passage as one paragraph, in a .docx
 // built by hand (a stored ZIP), so no dependency is added.
@@ -124,7 +124,7 @@ test('a take-home approved as reference writing reads as approved by you, a stud
   await expect(page.locator('#meta')).toContainText('5 samples: 4 approved by you ' + LOW_WEIGHT + ', 1 student upload', { timeout: 20_000 })
   const wording = await page.locator('body').innerText()
   expect(wording).not.toMatch(/0 teacher-approved/)
-  expect(wording).toContain('Take-home exam approved by you')
+  expect(wording).toContain('Take-home collection approved by you')
   expect(wording).toContain('Student upload')
 
   await page.goto(`/original/writing-state.html?student=${enc}`)
@@ -132,7 +132,7 @@ test('a take-home approved as reference writing reads as approved by you, a stud
   await expect(page.locator('body')).toContainText('5 counted samples', { timeout: 20_000 })
   const state = await page.locator('body').innerText()
   expect(state).toContain('5 counted samples (4 approved by you, 1 student upload)')
-  expect(state).toContain('Take-home exams and shared papers you approved count at a lower weight.')
+  expect(state).toContain('Take-home collections and shared papers you approved count at a lower weight.')
   expect(state).not.toMatch(/0 teacher-approved/)
   await context.close()
 })
@@ -226,10 +226,10 @@ test('a take-home and a student upload in the side-by-side table, and a writer a
   await expect(page).toHaveURL(/\/original\/evidence\.html/)
   const table = page.locator('#p-past table.prov')
   await expect(table).toBeVisible({ timeout: 15_000 })
-  await expect(table.locator('.how', { hasText: 'Take-home exam approved by you' })).toHaveCount(1)
+  await expect(table.locator('.how', { hasText: 'Take-home collection approved by you' })).toHaveCount(1)
   await expect(table.locator('.how', { hasText: 'Student upload' })).toHaveCount(1)
   await expect(table.locator('.how', { hasText: 'Verified by teacher' })).toHaveCount(3)
-  await expect(page.locator('#p-past')).toContainText('Take-home exams and shared papers you approved count in the baseline at a lower weight.')
+  await expect(page.locator('#p-past')).toContainText('Take-home collections and shared papers you approved count in the baseline at a lower weight.')
   await expect(page.locator('#p-past')).not.toContainText('0 teacher-approved')
   await context.close()
 

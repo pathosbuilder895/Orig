@@ -230,7 +230,7 @@ actually does, with a DRAFT banner and bracketed blanks.
   rest. **Add all** sets aside late sittings and sittings with any lockdown
   warning and lists them; add those one at a time from the reader after
   looking. An exam that differs strongly from the student's existing samples is
-  not added ("Not added: this exam differs strongly from the student's existing
+  not added ("Not added: this booklet differs strongly from the student's existing
   samples"); approval never overrides that check, and there is no review queue
   to clear it later.
 - **Deploys** are manual (`autoDeploy: false`): Render → `original-pilot` →

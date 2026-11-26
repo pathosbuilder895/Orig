@@ -15,6 +15,7 @@
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 function staffAuth(testTenant) {
   return { Authorization: `Bearer ${testTenant.staff.token}` }
@@ -125,9 +126,9 @@ test.describe('Exam-day robustness @robustness', () => {
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
-    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
-    await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 60_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByText('Collection Sealed')).toBeVisible({ timeout: 60_000 })
     expect(failedOnce).toBe(true) // the abort really happened; success came from the retry
   })
 
@@ -145,8 +146,8 @@ test.describe('Exam-day robustness @robustness', () => {
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
-    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+    await confirmSeal(studentPage)
 
     // 3 attempts with 2s/5s backoff between them → well under this timeout.
     await studentPage.waitForFunction(

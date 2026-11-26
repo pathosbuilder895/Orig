@@ -41,12 +41,21 @@ def set_request_context(request_id: str, user_id: str = "", institution: str = "
 # ── JSON formatter ────────────────────────────────────────────────────────────
 
 
+def _utc_timestamp(record: logging.LogRecord) -> str:
+    """``2026-11-21T01:47:09.123Z``: the record's time in UTC with real
+    milliseconds. ``Formatter.formatTime`` goes through ``time.strftime``,
+    which has no ``%f``, so a ``%f`` datefmt came out as a literal ``%f``;
+    it also used local time while the suffix claims UTC."""
+    seconds = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(record.created))
+    return f"{seconds}.{int(record.msecs):03d}Z"
+
+
 class JSONFormatter(logging.Formatter):
     """Emit each log record as a single-line JSON object."""
 
     def format(self, record: logging.LogRecord) -> str:  # noqa: A003
         base: dict[str, Any] = {
-            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S.%fZ"),
+            "timestamp": _utc_timestamp(record),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

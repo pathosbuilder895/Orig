@@ -181,9 +181,9 @@ def _with_names(recs: list[dict]) -> list[dict]:
 
 
 _LAUNCH_INVALID = (
-    "This exam link has expired or is not valid. Please ask your teacher for a new one."
+    "This collection link has expired or is not valid. Please ask your teacher for a new one."
 )
-_LAUNCH_INCOMPLETE = "This exam link is incomplete. Please ask your teacher for a new one."
+_LAUNCH_INCOMPLETE = "This collection link is incomplete. Please ask your teacher for a new one."
 
 
 def _refuse_launch(request: Request, message: str):
@@ -274,7 +274,7 @@ def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
     if _self_serve(tenant) and len(_repo().list_bluebook_exams(tenant)) >= rules.MAX_EXAMS:
         raise HTTPException(
             status_code=403,
-            detail=f"Free workspaces can hold {rules.MAX_EXAMS} exams. Delete one to add another.",
+            detail=f"Free workspaces can hold {rules.MAX_EXAMS} collections. Delete one to add another.",
         )
     conditions, min_words, max_words = _options(
         body.conditions, _int_or(body.minWords, 0), _int_or(body.maxWords, 0)
@@ -345,7 +345,7 @@ def _student_key(body) -> str:
 # the same words (routers/bluebook_accounts.py my_exam_start). Only a
 # signed-in student and only a stored exam: staff recording a submission (a
 # teacher previewing their own exam) and sample ids behave as before.
-_ALREADY_SUBMITTED = "You have already submitted this exam."
+_ALREADY_SUBMITTED = "You have already submitted this collection."
 # The check and the write happen together, or two seals arriving at the same
 # moment could both pass the check. One lock is enough because the app runs
 # as a single worker process (render.yaml, T-18).
@@ -360,8 +360,8 @@ def _student_already_submitted(exam_id: str, student_id: str) -> bool:
 
 
 _NOT_OPEN = {
-    rules.UPCOMING: "This exam has not opened yet.",
-    rules.CLOSED: "This exam is closed.",
+    rules.UPCOMING: "This collection has not opened yet.",
+    rules.CLOSED: "This collection is closed.",
 }
 
 
@@ -897,7 +897,7 @@ def bluebook_delete_exam(exam_id: str, request: Request):
     if _repo().list_bluebook_submissions_for_exam(exam_id):
         raise HTTPException(
             status_code=409,
-            detail="This exam has submissions. Set its status to CLOSED instead.",
+            detail="This collection has submissions. Set its status to Closed instead.",
         )
     _repo().delete_bluebook_exam(exam_id)
     _repo().log_audit(
@@ -980,7 +980,7 @@ def bluebook_delete_course(course_id: str, request: Request):
     ):
         raise HTTPException(
             status_code=409,
-            detail="Exams still belong to this course. Move or delete them first.",
+            detail="Collections still belong to this course. Move or delete them first.",
         )
     _repo().delete_bluebook_course(course_id)
     _repo().log_audit(

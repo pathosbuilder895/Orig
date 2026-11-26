@@ -272,9 +272,9 @@
     "severity": "watch",
     "summary": "This submission shows minor stylistic variations from the baseline (deviation score: 56%), which may reflect topic differences or natural writing variation. No immediate action required, but continued monitoring is recommended.",
     "top_reasons": [
-      "integration of sources is dramatically higher than usual",
+      "commenting on sources is dramatically higher than usual",
       "use of passive voice is dramatically higher than usual",
-      "pattern of hesitation markers is dramatically higher than usual"
+      "bunching of hedge words is dramatically higher than usual"
     ],
     "verdict": "This submission shows minor variation from the student's baseline."
   },

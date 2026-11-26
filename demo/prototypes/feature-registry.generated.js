@@ -13,7 +13,7 @@ const FEATURE_ROWS = Object.freeze([
   [
     "hapax_legomena_rate",
     "Hapax Legomena Rate",
-    "unique word usage",
+    "words used only once",
     1,
     "token"
   ],
@@ -34,7 +34,7 @@ const FEATURE_ROWS = Object.freeze([
   [
     "function_word_ratio",
     "Function Word Ratio",
-    "function word frequency",
+    "small everyday words (the, of)",
     1,
     "token"
   ],
@@ -48,84 +48,84 @@ const FEATURE_ROWS = Object.freeze([
   [
     "modal_verb_ratio",
     "Modal Verb Ratio",
-    "use of modal verbs",
+    "use of might, could, must",
     1,
     "token"
   ],
   [
     "stop_word_ratio",
     "Stop Word Ratio",
-    "stop word frequency",
+    "very common words (a, is, at)",
     1,
     "token"
   ],
   [
     "avg_word_length",
     "Avg Word Length",
-    "word complexity",
+    "average word length",
     1,
     "document"
   ],
   [
     "discourse_marker_density",
     "Discourse Marker Density",
-    "use of transition words",
+    "linking words (therefore, also)",
     2,
     "token"
   ],
   [
     "additive_ratio",
     "Additive Ratio",
-    "additive connectors (and, also)",
+    "add-on words (also, moreover)",
     2,
     "token"
   ],
   [
     "adversative_ratio",
     "Adversative Ratio",
-    "adversative connectors (but, however)",
+    "contrast words (but, however)",
     2,
     "token"
   ],
   [
     "causal_ratio",
     "Causal Ratio",
-    "causal connectors (because, so)",
+    "cause-and-effect words (because, so)",
     2,
     "token"
   ],
   [
     "temporal_ratio",
     "Temporal Ratio",
-    "temporal connectors (then, when)",
+    "sequence words (first, then)",
     2,
     "token"
   ],
   [
     "thematic_progression_score",
     "Thematic Progression",
-    "topic progression patterns",
+    "building on the previous sentence",
     2,
     "paragraph"
   ],
   [
     "pronoun_reference_density",
     "Pronoun Ref. Density",
-    "pronoun usage patterns",
+    "pronouns like it and this",
     2,
     "token"
   ],
   [
     "lexical_chain_density",
     "Lexical Chain Density",
-    "lexical chains and cohesion",
+    "word overlap between sentences",
     2,
     "token"
   ],
   [
     "paragraph_topic_position",
     "Paragraph Topic Pos.",
-    "topic position in paragraphs",
+    "content-heavy paragraph openings",
     2,
     "paragraph"
   ],
@@ -146,21 +146,21 @@ const FEATURE_ROWS = Object.freeze([
   [
     "cohesion_device_ratio",
     "Cohesion Device Ratio",
-    "cohesive devices",
+    "words tying the text together",
     2,
     "token"
   ],
   [
     "transition_density",
     "Transition Density",
-    "transition word frequency",
+    "transition phrases (for example, in fact)",
     2,
     "token"
   ],
   [
     "epistemic_certainty_ratio",
     "Epistemic Certainty",
-    "confident assertion style",
+    "certainty versus hedging",
     3,
     "token"
   ],
@@ -174,49 +174,49 @@ const FEATURE_ROWS = Object.freeze([
   [
     "assertion_density",
     "Assertion Density",
-    "frequency of assertions",
+    "certainty words (clearly, obviously)",
     3,
     "sentence"
   ],
   [
     "source_integration_style",
     "Source Integration Style",
-    "integration of sources",
+    "commenting on sources",
     3,
     "sentence"
   ],
   [
     "counter_argument_ratio",
     "Counter-Argument Ratio",
-    "counter-argument engagement",
+    "sentences that concede or contrast",
     3,
     "sentence"
   ],
   [
     "claim_density",
     "Claim Density",
-    "density of claims",
+    "claim words (therefore, this shows)",
     3,
     "sentence"
   ],
   [
     "question_ratio",
     "Question Ratio",
-    "use of rhetorical questions",
+    "use of questions",
     3,
     "sentence"
   ],
   [
     "imperative_density",
     "Imperative Density",
-    "imperative mood usage",
+    "direct commands (consider, note)",
     3,
     "sentence"
   ],
   [
     "first_person_ratio",
     "First-Person Ratio",
-    "first-person usage",
+    "share of I and we",
     3,
     "token"
   ],
@@ -230,21 +230,21 @@ const FEATURE_ROWS = Object.freeze([
   [
     "conclusion_strategy_score",
     "Conclusion Strategy",
-    "conclusion strategy",
+    "how the conclusion is built",
     3,
     "paragraph"
   ],
   [
     "theological_register_score",
     "Theological Register",
-    "theological register",
+    "theological vocabulary",
     3,
     "token"
   ],
   [
     "char_trigram_entropy",
     "Char Trigram Entropy",
-    "character-level writing patterns",
+    "variety of letter combinations",
     4,
     "character"
   ],
@@ -272,35 +272,35 @@ const FEATURE_ROWS = Object.freeze([
   [
     "parenthetical_rate",
     "Parenthetical Rate",
-    "parenthetical usage",
+    "use of parentheses",
     4,
     "character"
   ],
   [
     "dash_rate",
     "Dash Rate",
-    "dash usage",
+    "use of dashes",
     4,
     "character"
   ],
   [
     "quote_rate",
     "Quotation Rate",
-    "quotation frequency",
+    "use of quotation marks",
     4,
     "character"
   ],
   [
     "pos_bigram_entropy",
     "POS Bigram Entropy",
-    "part-of-speech patterns",
+    "variety of grammar patterns",
     5,
     "sentence"
   ],
   [
     "pos_trigram_entropy",
     "POS Trigram Entropy",
-    "three-word grammatical patterns",
+    "variety of longer grammar patterns",
     5,
     "sentence"
   ],
@@ -328,28 +328,28 @@ const FEATURE_ROWS = Object.freeze([
   [
     "subordination_ratio",
     "Subordination Ratio",
-    "subordination patterns",
+    "subordinate clauses per sentence",
     5,
     "sentence"
   ],
   [
     "clause_depth_mean",
     "Mean Clause Depth",
-    "clause depth complexity",
+    "depth of sentence structure",
     5,
     "sentence"
   ],
   [
     "contraction_rate",
     "Contraction Rate",
-    "use of contractions (don't, can't, it's)",
+    "use of contractions (don't, it's)",
     6,
     "token"
   ],
   [
     "sentence_initial_conjunction_rate",
     "Sent-Initial Conj Rate",
-    "sentence-initial conjunctions",
+    "sentences opening with and/but",
     6,
     "sentence"
   ],
@@ -363,14 +363,14 @@ const FEATURE_ROWS = Object.freeze([
   [
     "citation_style_consistency",
     "Citation Consistency",
-    "consistency of citations",
+    "mix of citation formats",
     6,
     "document"
   ],
   [
     "list_marker_preference",
     "List Marker Pref.",
-    "list marker preferences",
+    "list style (numbers, bullets)",
     6,
     "token"
   ],
@@ -384,189 +384,189 @@ const FEATURE_ROWS = Object.freeze([
   [
     "burstiness",
     "Burstiness",
-    "vocabulary bursts",
+    "mix of short and long sentences",
     7,
     "document"
   ],
   [
     "perplexity_proxy",
     "Perplexity Proxy",
-    "text predictability",
+    "rarity of word choices",
     7,
     "document"
   ],
   [
     "repetition_gap_entropy",
     "Repetition Gap Entropy",
-    "repetition patterns",
+    "spacing of repeated words",
     7,
     "document"
   ],
   [
     "transition_predictability",
     "Transition Predictability",
-    "transition predictability",
+    "word overlap between paragraphs",
     7,
     "paragraph"
   ],
   [
     "vocabulary_introduction_rate",
     "Vocab Introduction Rate",
-    "new vocabulary introduction",
+    "how early new words appear",
     7,
     "paragraph"
   ],
   [
     "filler_hedge_cluster_rate",
     "Hedge Clustering",
-    "pattern of hesitation markers",
+    "bunching of hedge words",
     7,
     "token"
   ],
   [
     "stress_entropy_unigram",
     "Stress Entropy (Unigram)",
-    "syllabic stress patterns",
+    "balance of stressed syllables",
     8,
     "sentence"
   ],
   [
     "stress_entropy_bigram",
     "Stress Entropy (Bigram)",
-    "consecutive stress patterns",
+    "variety in syllable rhythm",
     8,
     "sentence"
   ],
   [
     "clausulae_consistency",
     "Clausulae Consistency",
-    "sentence-ending rhythm patterns",
+    "steady final-syllable stress",
     8,
     "sentence"
   ],
   [
     "breath_group_variance",
     "Breath-Group Variance",
-    "breath group patterns",
+    "variation in syllables per sentence",
     8,
     "sentence"
   ],
   [
     "structural_centrist_penalty",
     "Structural Centrist Penalty",
-    "argument structure diversity",
+    "repetitive argument steps",
     9,
     "paragraph"
   ],
   [
     "argument_sequence_likelihood",
     "Argument Sequence Likelihood",
-    "argument sequence patterns",
+    "usual order of argument steps",
     9,
     "paragraph"
   ],
   [
     "semantic_field_dispersion",
     "Semantic Field Dispersion",
-    "semantic field diversity",
+    "spread of ideas across sentences",
     10,
     "document"
   ],
   [
     "semantic_centroid_proximity",
     "Semantic Centroid Proximity",
-    "semantic consistency",
+    "closeness to usual topics",
     10,
     "document"
   ],
   [
     "error_kl_divergence",
     "Error Profile KL-Divergence",
-    "error fingerprint (spelling/grammar mistakes)",
+    "mix of mistake types",
     11,
     "document"
   ],
   [
     "stumble_rate_consistency",
     "Stumble-Rate Consistency",
-    "pattern of errors and stumbles",
+    "overall mistake rate",
     11,
     "document"
   ],
   [
     "punctuation_error_ratio",
     "Punctuation-Error Ratio",
-    "punctuation error patterns",
+    "doubled punctuation marks",
     11,
     "character"
   ],
   [
     "catastrophe_index",
     "Catastrophe Index (κ)",
-    "narrative tension arc structure",
+    "loose ends across paragraphs",
     12,
     "paragraph"
   ],
   [
     "clausula_type_consistency",
     "Clausula Type Consistency",
-    "sentence-ending patterns",
+    "same rhythm at sentence ends",
     13,
     "sentence"
   ],
   [
     "breath_group_regularity",
     "Breath-Group Regularity",
-    "breathing patterns",
+    "even spacing between pauses",
     13,
     "sentence"
   ],
   [
     "vowel_sonority_ratio",
     "Vowel Sonority Ratio",
-    "vowel sonority patterns",
+    "share of long vowel sounds",
     13,
     "sentence"
   ],
   [
     "arc_resolution_score",
     "Arc Resolution Score",
-    "sentence-arc resolution",
+    "shorter sentences toward the end",
     13,
     "paragraph"
   ],
   [
     "metric_flatness_score",
     "Metric Flatness (AI Signal)",
-    "rhythmic flatness (AI marker)",
+    "rhythm evenness across paragraphs",
     13,
     "paragraph"
   ],
   [
     "clausula_shape_preference",
     "Clausula Shape Preference",
-    "sentence-ending shape preference",
+    "light or heavy sentence endings",
     13,
     "sentence"
   ],
   [
     "error_topology_consistency",
     "Error Topology Consistency",
-    "error placement patterns",
+    "where comma splices fall",
     14,
     "sentence"
   ],
   [
     "article_omission_rate",
     "Article Omission Rate",
-    "article omission patterns",
+    "likely missing a, an, the",
     14,
     "sentence"
   ],
   [
     "pronoun_ambiguity_rate",
     "Pronoun Ambiguity Rate",
-    "pronoun ambiguity",
+    "possibly unclear pronouns",
     14,
     "sentence"
   ],
@@ -580,98 +580,98 @@ const FEATURE_ROWS = Object.freeze([
   [
     "semantic_field_concentration",
     "Semantic Field Concentration",
-    "semantic field concentration",
+    "how related the main nouns are",
     15,
     "document"
   ],
   [
     "polysyndeton_ratio",
     "Polysyndeton Ratio",
-    "polysyndeton usage",
+    "and-chains vs. comma lists",
     15,
     "token"
   ],
   [
     "chiasmus_rate",
     "Chiasmus/Antithesis Rate",
-    "chiasmus (A-B-B-A) patterns",
+    "mirrored sentence patterns (A-B-B-A)",
     15,
     "sentence"
   ],
   [
     "latinate_ratio",
     "Latinate Vocabulary Ratio",
-    "Latinate vocabulary usage",
+    "words with Latin endings (-ous, -ive)",
     15,
     "token"
   ],
   [
     "nominalization_density",
     "Nominalization Density",
-    "nominalization density",
+    "abstract nouns (-tion, -ness)",
     15,
     "token"
   ],
   [
     "signal_verb_entropy",
     "Signal Verb Entropy",
-    "signal verb variety",
+    "variety of citing verbs",
     16,
     "token"
   ],
   [
     "signal_verb_assertiveness",
     "Signal Verb Assertiveness",
-    "signal verb tone",
+    "strength of citing verbs",
     16,
     "token"
   ],
   [
     "source_loyalty_index",
     "Source Loyalty Index",
-    "source loyalty patterns",
+    "returning to the same authors",
     16,
     "document"
   ],
   [
     "block_quote_rate",
     "Block-Quote Rate",
-    "block quotation usage",
+    "use of block quotes",
     16,
     "paragraph"
   ],
   [
     "citation_density_cv",
     "Citation Density CV",
-    "citation clustering",
+    "bunching of citations",
     16,
     "paragraph"
   ],
   [
     "ibid_usage_rate",
     "Ibid. Usage Rate",
-    "ibid. usage patterns",
+    "use of ibid. and op. cit.",
     16,
     "token"
   ],
   [
     "citation_position_pref",
     "Citation Position Preference",
-    "citation positioning",
+    "where citations sit in sentences",
     16,
     "sentence"
   ],
   [
     "paraphrase_density",
     "Paraphrase Density",
-    "paraphrase attribution",
+    "paraphrases credited to sources",
     16,
     "sentence"
   ],
   [
     "typing_speed_cv",
     "Typing Rhythm CV",
-    "typing rhythm consistency",
+    "variation in typing speed",
     17,
     "behavioral"
   ],
@@ -692,14 +692,14 @@ const FEATURE_ROWS = Object.freeze([
   [
     "pause_density",
     "Pause Density",
-    "pause and thinking patterns",
+    "pauses while typing",
     17,
     "behavioral"
   ],
   [
     "paste_event_rate",
     "Paste Event Rate",
-    "paste/paste-over events",
+    "pasting in text",
     17,
     "behavioral"
   ],
@@ -755,14 +755,14 @@ const FEATURE_ROWS = Object.freeze([
   [
     "char_trigram_profile_divergence",
     "Char Trigram Divergence",
-    "character-level divergence",
+    "drift in letter patterns",
     0,
     "document"
   ],
   [
     "function_word_profile_divergence",
     "Func Word Divergence",
-    "function word divergence",
+    "drift in small everyday words",
     0,
     "document"
   ]

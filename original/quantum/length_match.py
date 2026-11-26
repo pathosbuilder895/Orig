@@ -31,7 +31,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..constants import FEATURE_DIM, RECENCY_DECAY
+from ..features import feature_flags as _ff
+from ..features import part_overrides as _part_overrides
+from ..features import preprocess as _pp
 from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
+from ..features.matter import without_page_breaks
 from ..features.preprocess import _strip_backmatter
 from .state import StudentState
 
@@ -120,13 +124,32 @@ def split_into_pieces(text: str, n_words: int) -> list[str]:
 LENGTH_MATCHED_ACTION_THRESHOLDS = {"no_action": 0.517, "monitor": 0.622, "escalate": 0.703}
 
 
+def _body(text: str) -> str:
+    """The part of a paper that is measured, cut the way the measurement cuts
+    it. Switch off: everything before the first back-matter heading, as
+    always. ``MATTER_SPLITTER_ENABLED`` on (or a ``matter`` measurement in
+    force): the text outside ``features.matter``'s set-aside parts (title
+    page, abstract, notes, list of sources), the same ranges
+    ``features.preprocess`` measures, so the length match and the reading set
+    the same parts aside. A teacher's choice of parts carried by ``text``
+    (``features.part_overrides``) is honoured the same way, because
+    ``preprocess`` applies it, and only where it applies there: both switches
+    on and the splitter's measurement in use. ``PARAGRAPH_BREAKS_ENABLED`` on
+    (or a ``para`` measurement): the same body as ``preprocess`` too, so a
+    Word-style paste is cut into pieces of paragraphs."""
+    if _ff.matter_splitter_enabled() or _ff.paragraph_breaks_enabled():
+        return _pp._body(text)
+    # An upload's page markers dropped, so the pieces are the base pieces.
+    return without_page_breaks(_strip_backmatter(text))
+
+
 def body_word_count(text: str) -> int:
     """The new paper's length measured the way past papers are cut: the body
     only, with the bibliography and other back matter removed first. Counting
     the raw text would let a bibliography inflate a short paper's length, so
     the match would abstain (no past paper twice as long) or cut past papers
     into pieces longer than the body they are compared with."""
-    return len(_strip_backmatter(text).split())
+    return len(_body(text).split())
 
 
 def paper_pieces(text: str, n_words: int) -> list[str]:
@@ -134,7 +157,7 @@ def paper_pieces(text: str, n_words: int) -> list[str]:
     back matter are removed first, as they are when the paper is measured
     whole: a piece cannot carry the heading the extractor recognises them
     by, so a piece of reference entries would be measured as prose."""
-    return split_into_pieces(_strip_backmatter(text), n_words)
+    return split_into_pieces(_body(text), n_words)
 
 
 def build_length_matched_state(
@@ -161,7 +184,8 @@ def build_length_matched_state(
         return None
     if any(not (s.text or "").strip() for s in contributing):
         return None
-    plans = [paper_pieces(s.text, n_words) for s in contributing]
+    # Each past paper is cut with its own stored choice of parts, if any.
+    plans = [paper_pieces(_part_overrides.text_of(s), n_words) for s in contributing]
     cut = [len(p) > 1 for p in plans]
     if not any(cut) or sum(cut) > max_pieces:
         return None

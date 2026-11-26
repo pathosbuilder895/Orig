@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BtnPrimary, GoldRule, Logotype, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BtnPrimary, GoldRule, Logotype, fontBody, fontDisplay, fontMono } from './components.jsx';
 import './bluebook-app.css';
 
 // ════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ export function Notice({ children }) {
 }
 
 export function Btn({ children, primary = false, danger = false, className = '', ...rest }) {
-  const cls = ['bb-btn', primary && 'primary', danger && 'danger', className].filter(Boolean).join(' ');
+  const cls = ['bb-btn', primary ? 'btn-gold' : 'btn-ghost', danger && 'danger', className].filter(Boolean).join(' ');
   return <button type="button" className={cls} {...rest}>{children}</button>;
 }
 
@@ -146,8 +146,7 @@ export function Stat({ value, label, note }) {
 // Centered card for the public auth screens (sign in style).
 export function AuthShell({ title, onBack, children, footer }) {
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
+    <div className="teacher-ui teacher-page bb-screen" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }}>
@@ -155,7 +154,7 @@ export function AuthShell({ title, onBack, children, footer }) {
         <button onClick={onBack} style={{
           position: 'fixed', top: 20, left: 20,
           fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: BB.fade,
+          textTransform: 'uppercase', color: 'var(--dim)',
           background: 'none', border: 'none', cursor: 'pointer', padding: 10,
         }}>← Back</button>
       )}
@@ -165,10 +164,10 @@ export function AuthShell({ title, onBack, children, footer }) {
           <GoldRule double style={{ margin: '18px 0 14px' }} />
           <h1 style={{
             fontFamily: fontDisplay, fontStyle: 'italic', fontWeight: 400,
-            fontSize: '1.3125rem', color: BB.fade, letterSpacing: '0.04em', margin: 0,
+            fontSize: '1.3125rem', color: 'var(--dim)', letterSpacing: '0.04em', margin: 0,
           }}>{title}</h1>
         </div>
-        <div className="bb-page" style={{ border: '1px solid rgba(201,169,97,0.28)', padding: 'clamp(20px, 5vw, 32px)' }}>
+        <div className="bb-page bb-auth-card" style={{ padding: 'clamp(20px, 5vw, 32px)' }}>
           {children}
         </div>
         {footer}
@@ -187,7 +186,7 @@ export function SubmitButton({ busy, children, busyLabel = 'Working…' }) {
 
 // Plain text for small print inside dark pages.
 export function Small({ children }) {
-  return <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, lineHeight: 1.55 }}>{children}</p>;
+  return <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', lineHeight: 1.55 }}>{children}</p>;
 }
 
 // Local, human date-time for an ISO string (or an em dash).

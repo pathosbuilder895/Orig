@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from '@playwright/test'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
@@ -112,7 +113,7 @@ test.describe('Public self-serve journey', () => {
     await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     // Honest conditions: nothing claims AI tools are blocked.
     await expect(student.getByText(/AI .*blocked/i)).toHaveCount(0)
-    await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+    await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
 
     // One question at a time, one answer box each.
     await expect(student.getByText(q1, { exact: false })).toBeVisible({ timeout: 10_000 })
@@ -144,22 +145,22 @@ test.describe('Public self-serve journey', () => {
         return ok
       }
     })
-    student.once('dialog', d => d.accept())
+    await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
     const [sealRes] = await Promise.all([
       student.waitForResponse(r => r.url().endsWith('/bluebook/submissions') && r.request().method() === 'POST'),
-      student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click(),
+      confirmSeal(student),
     ])
     const sealBody = sealRes.request().postDataJSON()
     expect(sealBody.answers).toEqual([answer, answer2])
     // Exactly the one warning this test caused on purpose: the seal
     // confirmation itself records nothing.
     expect(sealBody.warnings.map(w => w.type)).toEqual(['focus_lost'])
-    await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+    await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
     await expect(student.getByText('✓ Delivered to your teacher')).toBeVisible()
     // A Bluebook-only workspace never reaches Original.
     expect(originalCalls).toEqual([])
 
-    await student.getByRole('button', { name: 'Back to my exams' }).click()
+    await student.getByRole('button', { name: 'Back to my collections' }).click()
     await expect(student.getByText('Not yet released')).toBeVisible({ timeout: 10_000 })
 
     // ── Teacher: read each answer and the warning, mark, release ────────

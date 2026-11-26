@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BB_API, MetaLabel, fontBody, fontMono, rowKeyDown } from './components.jsx';
+import { BB_API, MetaLabel, fontBody, fontMono, rowKeyDown } from './components.jsx';
 import { Btn } from './forms.jsx';
 import { QrCode } from './qr-code.jsx';
 
@@ -34,7 +34,7 @@ const STATE_VIEW = {
 
 const TONE = {
   calm: { color: '#5EB87C', border: 'rgba(94,184,124,0.32)', wash: 'rgba(94,184,124,0.05)' },
-  attn: { color: '#C9A961', border: 'rgba(201,169,97,0.40)', wash: 'rgba(201,169,97,0.06)' },
+  attn: { color: 'var(--gold-2)', border: 'rgba(201,160,40,0.40)', wash: 'rgba(201,160,40,0.06)' },
 };
 
 function viewFor(state) {
@@ -81,7 +81,7 @@ function Tile({ tile, expanded, onToggle }) {
       >
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
           <p style={{
-            fontFamily: fontBody, fontSize: '1.0625rem', color: BB.cream,
+            fontFamily: fontBody, fontSize: '1.0625rem', color: 'var(--cream)',
             margin: 0, letterSpacing: '0.01em',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{tile.student_hint}</p>
@@ -104,7 +104,7 @@ function Tile({ tile, expanded, onToggle }) {
         <div style={{ borderTop: `1px solid ${tone.border}`, padding: '12px 16px 14px' }}>
           <MetaLabel style={{ display: 'block', marginBottom: 10 }}>Timeline</MetaLabel>
           {transitions.length === 0 ? (
-            <p style={{ fontFamily: fontBody, fontSize: '.875rem', color: BB.fade, margin: 0 }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.875rem', color: 'var(--dim)', margin: 0 }}>
               No changes recorded yet.
             </p>
           ) : (
@@ -124,7 +124,7 @@ function Tile({ tile, expanded, onToggle }) {
                       textTransform: 'uppercase', color: TONE[tv.tone].color,
                       minWidth: 74, flexShrink: 0,
                     }}>{tv.label}</span>
-                    <span style={{ fontFamily: fontMono, fontSize: '.75rem', color: BB.fade }}>
+                    <span style={{ fontFamily: fontMono, fontSize: '.75rem', color: 'var(--dim)' }}>
                       {clockTime(t.at)}
                     </span>
                   </li>
@@ -133,7 +133,7 @@ function Tile({ tile, expanded, onToggle }) {
             </ol>
           )}
           {view.note && (
-            <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
+            <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: 'var(--dim)', margin: '10px 0 0', lineHeight: 1.5 }}>
               {view.note}
             </p>
           )}
@@ -183,7 +183,7 @@ export function ProctorTiles({ examSessionId }) {
     <section aria-label="Parked phones">
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <h3 style={{
-          fontFamily: "var(--bb-font-display)", fontSize: '1.25rem', color: BB.cream,
+          fontFamily: "var(--bb-font-display)", fontSize: '1.25rem', color: 'var(--cream)',
           fontWeight: 500, margin: 0,
         }}>Parked Phones</h3>
         <MetaLabel>
@@ -196,14 +196,14 @@ export function ProctorTiles({ examSessionId }) {
 
       {(idle || (tiles !== null && list.length === 0)) && (
         <div style={{
-          border: '1px dashed rgba(201,169,97,0.28)', borderRadius: 14,
+          border: '1px dashed rgba(201,160,40,0.28)', borderRadius: 14,
           padding: '26px 20px', textAlign: 'center',
         }}>
-          <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.fade, margin: 0 }}>
+          <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: 0 }}>
             {idle
               ? 'Start a phone park above to see tiles here.'
               : missing
-                ? 'No phone park is open for this examination yet.'
+                ? 'No phone park is open for this collection yet.'
                 : 'No phones parked yet — students scan the code to appear here.'}
           </p>
         </div>
@@ -227,7 +227,7 @@ export function ProctorTiles({ examSessionId }) {
       )}
 
       <p style={{
-        fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade,
+        fontFamily: fontBody, fontSize: '.8438rem', color: 'var(--dim)',
         margin: '16px 0 0', lineHeight: 1.55,
       }}>
         A tile shows what a phone reported, nothing more. A phone can go quiet for
@@ -281,7 +281,7 @@ export function ProctorScreen() {
     <div>
       <div>
         <h1 style={{
-          fontFamily: "var(--bb-font-display)", fontSize: '1.75rem', color: BB.cream,
+          fontFamily: "var(--bb-font-display)", fontSize: '1.75rem', color: 'var(--cream)',
           fontWeight: 500, margin: '0 0 6px',
         }}>Phone Park</h1>
         <MetaLabel>Deterrence and signal — never proof</MetaLabel>
@@ -289,7 +289,7 @@ export function ProctorScreen() {
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '20px 0 28px' }} />
 
       <p style={{
-        fontFamily: fontBody, fontSize: '1rem', color: BB.fade,
+        fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)',
         maxWidth: 620, margin: '0 0 28px', lineHeight: 1.6,
       }}>
         Project the code at the start of the sitting and ask the room to scan it
@@ -303,7 +303,7 @@ export function ProctorScreen() {
         border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.035)', borderRadius: 18,
         padding: '20px 24px', maxWidth: 620, marginBottom: 28,
       }}>
-        <MetaLabel htmlFor="park-session">Examination session</MetaLabel>
+        <MetaLabel htmlFor="park-session">Park name</MetaLabel>
         <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
           <input
             id="park-session"
@@ -315,7 +315,7 @@ export function ProctorScreen() {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); start(); } }}
             style={{
               flex: '1 1 240px', minWidth: 0, padding: '11px 13px',
-              fontFamily: fontBody, fontSize: '1rem', color: BB.cream,
+              fontFamily: fontBody, fontSize: '1rem', color: 'var(--cream)',
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
             }}
           />
@@ -329,7 +329,7 @@ export function ProctorScreen() {
             </Btn>
           )}
         </div>
-        <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '10px 0 0', lineHeight: 1.5 }}>
+        <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: 'var(--dim)', margin: '10px 0 0', lineHeight: 1.5 }}>
           Any label you will recognise later. Reopening the same one during a
           sitting shows the same code, so a reload will not strand parked phones.
         </p>
@@ -339,7 +339,7 @@ export function ProctorScreen() {
           </p>
         )}
         {closed && !open && (
-          <p role="status" style={{ fontFamily: fontBody, fontSize: '.9375rem', color: BB.fade, margin: '10px 0 0' }}>
+          <p role="status" style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', margin: '10px 0 0' }}>
             Phone park closed. The code no longer works and the beats are deleted.
           </p>
         )}
@@ -356,10 +356,10 @@ export function ProctorScreen() {
             <QrCode value={open.qr_url} px={300} />
           </div>
           <p style={{
-            fontFamily: fontMono, fontSize: '.8125rem', color: BB.cream,
+            fontFamily: fontMono, fontSize: '.8125rem', color: 'var(--cream)',
             margin: '18px 0 0', wordBreak: 'break-all', lineHeight: 1.5,
           }}>{open.qr_url}</p>
-          <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: BB.fade, margin: '8px 0 0' }}>
+          <p style={{ fontFamily: fontBody, fontSize: '.8438rem', color: 'var(--dim)', margin: '8px 0 0' }}>
             A phone that cannot scan can type this in instead.
           </p>
         </div>
