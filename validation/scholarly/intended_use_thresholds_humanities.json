@@ -1,0 +1,11 @@
+{
+ "collection": "humanities",
+ "chosen_on": "calibration",
+ "date": "2026-11-12",
+ "rule": "95th percentile of calibration honest deviation_score (seeds [7, 11, 23] pooled); flag = score strictly above threshold; target honest flag rate 5%",
+ "thresholds": {
+  "matched_300_300": 0.631955,
+  "matched_1200_1200": 0.604764,
+  "long_past_1200_short_new_300": 0.722117
+ }
+}

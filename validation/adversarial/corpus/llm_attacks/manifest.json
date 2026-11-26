@@ -1,0 +1,638 @@
+{
+  "entries": [
+    {
+      "attack": "imitation",
+      "doc_sha": "d71f9cfcbbe7013390323103c237c595e97ca614d84034a80cb7d08430f6d865",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "61060aee2dc550e9812773a78f1bde02fe52ed2adc09d08cf0cb9426d38c7eef",
+      "route": "claude-code-subagent",
+      "victim_id": "augustine"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "19076fe5f30cd657a466a078ba10687eb5273f6137028aa727f6f8012184b8fc",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "815e60e82cb63b7338173dc1c3fa702f747a0d23f746aee2e8778afc84c87eba",
+      "route": "claude-code-subagent",
+      "victim_id": "boethius"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "94489fe143b18663aeef26fd854710e5598f4aadd48668ea57077f4641c544e9",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "9c389d2be926a59d917317f429ac0d0413426dc0d4189bf3a8b92641351a4bc6",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "f088ebfbbefc4a0937a1c9ced0deebdfbe74be9e2cd9893d5bf9e51a8908bd65",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "b2be897ed0f68ad7499498c53dcee06b23a0d533f2d31974ff2580430a5c90ba",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "bbba61e5db62359e06d5b96d688e603d3da1592baf3daea817f0882f76bc6daa",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "108c23bed79e23485eff5559cb86dc821f2da8356df4b01577613fab4c86f07e",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "2f45e42af02b150d38d28633532212871722f0e396c844792eb3e380a4d999a7",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "bbf00b2a4f5b02ff7243a63c69077dbb38da715ad8da7b7a623d4052523b250a",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "0b3727fe623b975495412b8e1029f5a6dae1ad96af46c3f8459743e035d7c0b3",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "f944358e56e0de651658217368503a1f9afc9688fb95e29d671e67058c3035cc",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "fc6d8d0375ee6aeb6fe850ea173cb5facc222f0e414aff51952c0d6da7f0cd0e",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "253fd91ab54c966afa2e0227d4ae7e493cfcb291f45b4a8e1238e4a475df29ad",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "71fb4007cf30bc7d39d311382a665ab55700cbb899b99ca6feb32879ba4e36ca",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "e562151670226a1d2774e80f541f19e96ba6ded58dc671b8e21c719599eb3124",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "c5405029c2ed4deedd04a6cc3956563320aa522b73969508a56858592c0ba124",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "d032d1ac1624812bd23c90edbaa53fe770ff874a3d1e23a633ae6457814af086",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "895529454b7eb49be96b7ad48614c5ede56582745d2752c51ba734cbdc28942a",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "5ac694c1dcbd55619d049fcb084f486483be0f9015bc96ed207b4a216701bb71",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "42cf555933e4ba1a36477ee59e78ca725ff50b66785094e5642a9643536ac719",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "70d5aae05b87e2fb1eee06eb61b5927d132753d3ff6dba1203330c3adbf594c6",
+      "route": "claude-code-subagent",
+      "victim_id": "douglass"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "ec8d73b202f4f19b627109f35e6bebb4d031d3b7973acbfc728585e92c3f3917",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "6658950714bc35ccd5d10fd4c97e63b2eae360769ccf9b7fa39391a5a93ec7b5",
+      "route": "claude-code-subagent",
+      "victim_id": "edwards"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "56c1af2102428f5dbf43d8f7fc7e88caf7d537d928a46ee228a70b2f76dc0e74",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "a2d22f7223d4cdf269e0bd729e06a0a92780140ee547f891b3f9a8ec70640a5d",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "1aebdd818d22070a6a9e086781158e8f37a6397c6eb315955e2b0b08319a0960",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "7a2637aa965e7fdf97eda6d9b8575073196fae953d8e133735a1f868c679933d",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "e815097ab5055b4f73044cc23e9cd9cd0972c1043a188807708b44cee45616ec",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "676af39822bac39b33aaaa2fab00811743723cbe3061fe91bc8a87d0d8dfb5d2",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "2fe3a8dafa799f5fe8bd72c2ca6edc6f1787397713c63366bec5850c023ca119",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "b46596009810aaff6b154462f4f095704e303e5d168751efcb2be07ce20ca768",
+      "route": "claude-code-subagent",
+      "victim_id": "james"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "81469ab3546dfb546fb2b13e55300b96b17407be7cd503ff3262440f588832e5",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "e75f1cc07abffdfcc959414d3705c5b2fbfcffb7d3cedff80ba8ed5016fb2730",
+      "route": "claude-code-subagent",
+      "victim_id": "kempis"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "4f9269d6830c6885535107b31b7c4fd03419f78cc1e753dfd8b51c2875cec645",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "73986cfb4cf4944caa23328af075c4b0792cafe05a0fda3f7bc708be8d4b6641",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "de731f2736c37d7c5c734fcbac0234222c29b284bdc89ff443439c45cd5c9b5d",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "bab79c050b26afc6f875ea04a7fa2bcc68f04feec57a7f4b4587b9b11d24f6e2",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "27609905af42f858f573bf56eb1c5e7d8aef467d0551c5c8afa374672c3cda82",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "320cb630cc5c3b786d30dd8ac341a18bc4f7cc9e02bf2d67e3cd7a67533356ad",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "62253743e29854786788b74149a667af25647bd3946f38288e5fb7f1a486a17c",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "c1d99dbabb0a0b6ef003d932538ee8f1d35945e0358979fcae6c7f1f2aba119a",
+      "route": "claude-code-subagent",
+      "victim_id": "newman"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "af7cb3a5f5ea212505786714e2b4a91343fbc955a182f77e9530eb327615a43d",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "eaec7c0528bc8a7ec25eac6a2bdcbeaf9848c46c0a471d9645eb7764e3173224",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "f80d8098dfc24a4cc1d8ba20f2f7771dfd8d7ab8d89b09fd4e0f76d8971095be",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 5,
+      "prompt_sha": "0fc93dccfedb060a6035c1f061176658b24cdea3adf78d2a7fb08cfd4a57d9f6",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "imitation",
+      "doc_sha": "edc917d1c70823001224ef96e9f366a5f80ad254a3025a761e168c33395f1a5a",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 10,
+      "prompt_sha": "caaac4228f4f7c64b959fa630fa27efcd5b30954ff3dd005343c33467a66cc57",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "c9e5e009f370c8df6de29746d6293cba9c7e2cfb07741055f363832d2ee237f2",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "c34591c5f6d970b88a58aa29c581684df186a6749d91b0673a07f1a4fc7ea92f",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "e945b83a6d571e1e2c8960b8651ebf32942334a3c4d2c8414e520d137cef7299",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "9a8da8048f64bb9a918b2194127d940e158510f0f7b91c44c14697230bd8bd02",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "05921a4e6d0d6b1023cb57abffad0f62e34e4fbe475582662ef2cdc6d4148f27",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "6de200c48f3c6263b18d13b0cafa9a029535f43d6780d3b7fd5c2f3b70ff1f23",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "7c0c857bbc2ddad5d1404613bb65d8fb29be12f1e6640fb4d9501b4718db5c0b",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "e874dc96701ea94f52041b78808b98d5ec265defb11f4e77f4fd8a4cc4bb9b7c",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "41515f0cd756b01b64445c75d1d3c7a4b25333d47665e7b83bdb1131dad7466f",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "1c2f97f1588f30e9c86d807ee17f698193bb490c6c4c1fcd40f42b33fba96728",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "69be68963a68662247ffbbb47c7d78662414d2581937a3aad741cecb958966d6",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "b690e8314f890058bf5990e02fd406f9258790f5f92405d2368db1184f06716c",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "a7690dee9da8ed47c900abb449085a832b7d2cf134d7fdc0604d22966986269b",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "ed8253a70028f86dbb700e552b1a6d932d91a3dfb20212eff96ef28ae838f2ae",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "f6beea8428cab3e7882a84599b5cf030f65b54c597fbf1428a77eb20ab259a62",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "820856b2aa901e58d81098698c2170533272d031868bebf6160f730238bf751d",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "4485a1153e75201d25b1630799a5c85fa269d508e12d12e7661db3538354595a",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "dc970e640665649d85272eb900d52a5b3ee8b1fdbf5ba38032efd4b4f82b8d31",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "c41c5ecd39ae409bb9b88ddc01abd3f923302e588c7ea8dceb5d9be54ea7fda3",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "47458fff5ca9ff95794e12206b7e36f0e82cda465156ab5ddafd01a0e8518953",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "86c532efadfabe0f4d17e263c41fe53d6b098ebdd2b5af86c167f1a6c109740d",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "1dfa3fa8452f2f42c23dac8385e0b689f3360ebb4901dd42926b30c926116872",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "paraphrase",
+      "doc_sha": "f9d741fd756dbdeb27c3ecd7e74dc75babd49168eda3f541b19094ebcfa02bf1",
+      "generated_on": "2026-11-19",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "e74c926d10256102c6e532a3387fc0edc1aa644fe1e8abb0b01ea20ee676e123",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "714a023cf85aad350063dcacbfab6844b622a442762a6dd57432d4a6ea82af1a",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "1f7fb839422f74c9e776247fe05e92a7e7b0140c57e302c02937508b79a5968f",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "e82db0c23161e5854c1d2aff44ba7f5d4d0500b919c9818e3988f6757c19ca11",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "9a3832a288d1d9aed86e601d1bc7b80bd96b5423d269aca6c3969ff45b82899e",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "ae72cd38dd4e6e5c1ebb99131258a28a3960891fbc1019d8aef1ef24ed244aff",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "1c3de6cdd79f0807be14c697a5e4efd33f09a5d505ca8d70fdaa57b1871c15d5",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "cac73e3002b58efb655a17566242da783ccf5eca2441bde80e80bb0abf163367",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "8ee784a7adc1c25d35a782e1417d527a732d12c17e0ab6cb9a4224080c2043b5",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "27f6680ac0189c858c8fd013e5954712fd09aca9a2ee873336ebb1c41f47aa23",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "f76d7308e02525bdbdd83dff659d1c8ca75c405929cfd1117ecd6e0732c9db0b",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "30efcc6c0eab059a2be8748d84cf3b958f566bf59da86cb7c034fc3dfa38ab11",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "3f07de6f8751290f53130f6d614e2b300b9a561a5e8ea0aadf84a7bcbb72ce8f",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "6f1cf5be456346b11417a1f88f0173014de754b1c5d5c57f1da6ab4409d81e54",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "e6a0757c90b91d9b87f0924531569be358d41ce75ab4cae613bb5a960f965623",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "aee825e5457a03ba87ac847a093b8efcba15c7e4333360441ad624fdf8086ec8",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "fbecfec6c9bbfc02429085b9619eaf14376d3caf965f4609cc96c68fbf3e2cd7",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "0a1a67ab92659fb4e1ee05a248f0d07546c0c5f0fcb5c9c062781d328e582114",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "c219cd3ceb52ee38415ffb8de6daabe988ff56b7d7b49cb941a4c02fbe116793",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "4669633d54afecd4b57b7d98bf20ec55c75f5e6c4c1c899e5c66a763204aea16",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "665f306d45b20fd5b7badabffea0d0743a21a63f62e9363aa0a89b52a217927d",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "6ea85d7fa5ab8293fdddf6f5a23cde5bff2f72ba67382166bd73eea92c5c33b6",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "58fd0b76139db93c7817065ca09796df23783c6aff716bb94cb945b862e842db",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "08375f8c57517f640fc8fafd08df40c2d302f607ea0ae65cdbabeffefebd30c3",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "198aec5b2d9ef527df0799384d9961eec40f8d054ae8449e3c75aba040264d59",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "17fdcc454239b18dc080229e19fe3c6c4e225dc5411f85d707416d488e4af4b3",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "e47a87a3b7de0bbe7be283beed09657f3008a4756d2e20a4bbb9de9439be9bd6",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "23bcf4c2bbae957aad23503e46737e5327cb80bc5cbd0ac4f0772bea89ac3381",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "27ee2f4c32c319133bef30f0156a26482b74aed17db0f1a9de2174ad4fa8b041",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "69fb32702065c70f1dcd6f743a00a864d01394e1854fe8e4839b4de5824f1229",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "4c05cefce0ea0647aae10b9e726afb887904fd72beae8da53b6356cf151ee6f4",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "0b98afa5126ddfa09cb84e9afbb4ae7f2c5de90b0705f315a1f98149f8e1c264",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "cdd3333b7730195cdacbdc677d0d804e0a4849ee977685c2a607d93b66ffce89",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "232ba2f874f7b73cc6186d32aeb163e33bed66ce39b1fc0cd55bbb27ccd16804",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "roundtrip_de",
+      "doc_sha": "b9eab7ea3b65983b805c6f7547917763f11fbfec8a993786989ecdf788befc90",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "9179e5b0e9dc2dc0e4cc570127a1fde65eaa909ffd39d619b4d3bd5d5fe3eb1f",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "8b0f6208479f722b2b596a8e343c7e23ded74b7b90d9948defa76fb9b5303fc6",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "4cc6cef6bd2ac70e9b43c6776f0a58b1ebbcbd9976667e210afa2fe4c3c597af",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "a7365be23c343700d17323fb290db22c334d94ab3cb8eb8de278952c5dce1656",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "a6c4c531211027e0bafd467ccb18c11b4e63eed6d2bed45c797d9aca95a5b38d",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "6815210a7d0703ec57233f26f83904ff3055d9671e9cd7f77c638d1df4eccc64",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "5b0427a3eeb8d0a8c5050f65fe6996f2429abf39986851c428db51014b4f1c26",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "369ed83618cbba764a943d183d2f6ac9831b6948813a5484c02823d5e038040c",
+      "route": "claude-code-subagent",
+      "victim_id": "chesterton"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "5eb1bfb388b14520c80ccd67bacf533f7f10ac9662b7e922f3b95991d0e90587",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "b6e913a7bffba8d20e0d01b8d76ac939bf4fbf525daf0215b6b231e42cd4dbf3",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "0d5f0f71cd9fb61af842680b5e8750648ce6e07672960987f4364dfaa9609f8e",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "d0d6a48989c70fb37e17e1a188827b2efa5886df1ed5fadaad0bbe666c532e28",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "a0225f831de4dec94ee231b6b00022d42b5db2b9b423cc7be64c652a6bb753e8",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "4cdbf164a42f3033bdb5015a9a13835a3ff8d95d9959b89352f3c9cba5f13740",
+      "route": "claude-code-subagent",
+      "victim_id": "christie"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "0a7f5ab503a0977c55dde6a0a346a58318110ddf215ee991632474f4752fb2c3",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "06c6fea4e1e90bcc11425654f33ad46623d968139aa07a3e26802e0823bd5e0c",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "0a20dc96f31ad660375d6466ff1b935c529f3137e56ed25cf4f9250386b8a0f1",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "c568db940f904555a61666b835efa254d4d83621d048e3cdab8d7d88f5b5f23b",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "18ead133f872fa4e323fa31338c9d2f3ed5de1945e3128676a0156ac8538f6b7",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "929109ad76e0246a418ec7c6d18572be2de00cc81bba46636c8ba1eeb8a7a23f",
+      "route": "claude-code-subagent",
+      "victim_id": "dickens"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "5b36f47176494a87ae93fbec0bc1d09e05e5775ea7f946be08e934ab727acdeb",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "d962d17d91a73162c0540f3f5a098c421193e5648348bdc5c593c6bcf72e40d9",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "839686ce5c8ffbce5b65acf2fa2ad8fa5edd8e8d8526a3325c5b57c511faf72c",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "96ddb22797ee34d9703397b9fcc0590520ce054a384f1a7dfd4bf9550a5f1090",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "790c8b20260cae72773febdd1bc2ee77f9c10177181f5e5d3f88811cd82b49ed",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "2b8e2378a81d20ecfc218ba4bb56d4a17c4776eac4199848fb5638aa9bef4347",
+      "route": "claude-code-subagent",
+      "victim_id": "emerson"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "06018fc4bb4cdf2b72482bdb9c2a6529df8f9700ad98962909e5d6db52a0cbe5",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "cf7b9e914deb1f40790cee0f5d266ed0793ad681cd4e81f3662be28056e1421b",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "8fe19ab0571f8d9c02e93b3bb3669c1d233464ee29a056220c841892d4209bd5",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "1692aab07261cfda5c1b961f2febc459397b1549e2e6d9c9a221fdf3c64a2f7d",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "a788731417bb439d568927777edd207c6ce7aaf2d9ac544f46ee2dc37dab3acc",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "f05b67489dff2e48f25e3ab155f4ed5eaeae0add8af0c7b7e6764177b3143fee",
+      "route": "claude-code-subagent",
+      "victim_id": "mill"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "93731cb09b3d12bffc2926d92b2cd40fbe93e52919b868e859090b427cfde980",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "51df486ba3ce31855831e7e18c20611cb85853d1238a3f60c2ebe25176438c84",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "25daa0dd7d60475dd01748778aebcb93c438e3c3ccbfafa9f171b7176eb943d7",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    },
+    {
+      "attack": "roundtrip_ja",
+      "doc_sha": "eb2a5167561aad4a53bdbc49370052f7a721269639c07a9a4014beb54e4a6294",
+      "generated_on": "2026-11-19",
+      "intermediate_sha": "1162734b51e666f7d76e4831b5cfeed75f82be706b6eb16b2915b7a7901904ab",
+      "model_id": "claude-opus-5-5",
+      "n_baselines": 3,
+      "prompt_sha": "ed782ed105453c128ef6abbede9eaa8bee5eea7795fe5068b0a88df80c9a777b",
+      "route": "claude-code-subagent",
+      "victim_id": "thoreau"
+    }
+  ]
+}

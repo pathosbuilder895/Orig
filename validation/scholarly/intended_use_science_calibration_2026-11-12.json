@@ -1,0 +1,343 @@
+{
+ "collection": "science",
+ "partition": "calibration",
+ "step": "calibrate",
+ "date": "2026-11-12",
+ "scorer": "ScoringConfig() defaults; every research flag in CLAUDE.md unset",
+ "flags_removed_from_environment": [],
+ "seeds": [
+  7,
+  11,
+  23
+ ],
+ "n_past": 4,
+ "n_new": 2,
+ "n_probes": 5,
+ "configs": {
+  "matched_300_300": {
+   "per_seed": {
+    "7": {
+     "honest_flag_rate": 0.0556,
+     "other_writer_catch_rate": 0.3278,
+     "auc": 0.7208,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0139,
+       0.1111
+      ],
+      "other_writer_catch_rate": [
+       0.25,
+       0.4111
+      ],
+      "auc": [
+       0.6527,
+       0.7937
+      ]
+     }
+    },
+    "11": {
+     "honest_flag_rate": 0.0139,
+     "other_writer_catch_rate": 0.2222,
+     "auc": 0.7557,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0,
+       0.0417
+      ],
+      "other_writer_catch_rate": [
+       0.1554,
+       0.3057
+      ],
+      "auc": [
+       0.689,
+       0.8235
+      ]
+     }
+    },
+    "23": {
+     "honest_flag_rate": 0.0556,
+     "other_writer_catch_rate": 0.3944,
+     "auc": 0.7951,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0139,
+       0.1111
+      ],
+      "other_writer_catch_rate": [
+       0.3,
+       0.489
+      ],
+      "auc": [
+       0.7315,
+       0.8529
+      ]
+     }
+    }
+   },
+   "pooled": {
+    "honest_flag_rate": 0.0417,
+    "other_writer_catch_rate": 0.3148,
+    "auc": 0.7564,
+    "n_honest": 216,
+    "n_probe": 540,
+    "n_authors": 36,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.0185,
+      0.0648
+     ],
+     "other_writer_catch_rate": [
+      0.2537,
+      0.3796
+     ],
+     "auc": [
+      0.7132,
+      0.8025
+     ]
+    }
+   },
+   "threshold_deviation_score": 0.598387,
+   "at_threshold_in_sample": {
+    "honest_flag_rate": 0.0463,
+    "other_writer_catch_rate": 0.3241,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.0231,
+      0.0787
+     ],
+     "other_writer_catch_rate": [
+      0.2611,
+      0.3907
+     ]
+    }
+   },
+   "seconds": 265
+  },
+  "matched_1200_1200": {
+   "per_seed": {
+    "7": {
+     "honest_flag_rate": 0.0278,
+     "other_writer_catch_rate": 0.3889,
+     "auc": 0.8664,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0,
+       0.0694
+      ],
+      "other_writer_catch_rate": [
+       0.3056,
+       0.4722
+      ],
+      "auc": [
+       0.8071,
+       0.9204
+      ]
+     }
+    },
+    "11": {
+     "honest_flag_rate": 0.0278,
+     "other_writer_catch_rate": 0.4111,
+     "auc": 0.8698,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0,
+       0.0694
+      ],
+      "other_writer_catch_rate": [
+       0.3278,
+       0.5
+      ],
+      "auc": [
+       0.8231,
+       0.9204
+      ]
+     }
+    },
+    "23": {
+     "honest_flag_rate": 0.0,
+     "other_writer_catch_rate": 0.3556,
+     "auc": 0.8988,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.0,
+       0.0
+      ],
+      "other_writer_catch_rate": [
+       0.2722,
+       0.4557
+      ],
+      "auc": [
+       0.8599,
+       0.9344
+      ]
+     }
+    }
+   },
+   "pooled": {
+    "honest_flag_rate": 0.0185,
+    "other_writer_catch_rate": 0.3852,
+    "auc": 0.8766,
+    "n_honest": 216,
+    "n_probe": 540,
+    "n_authors": 36,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.0046,
+      0.037
+     ],
+     "other_writer_catch_rate": [
+      0.313,
+      0.4648
+     ],
+     "auc": [
+      0.8406,
+      0.9126
+     ]
+    }
+   },
+   "threshold_deviation_score": 0.580644,
+   "at_threshold_in_sample": {
+    "honest_flag_rate": 0.0463,
+    "other_writer_catch_rate": 0.4852,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.0185,
+      0.0741
+     ],
+     "other_writer_catch_rate": [
+      0.4074,
+      0.5612
+     ]
+    }
+   },
+   "seconds": 892
+  },
+  "long_past_1200_short_new_300": {
+   "per_seed": {
+    "7": {
+     "honest_flag_rate": 0.6944,
+     "other_writer_catch_rate": 0.8889,
+     "auc": 0.7443,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.5833,
+       0.8056
+      ],
+      "other_writer_catch_rate": [
+       0.8278,
+       0.9444
+      ],
+      "auc": [
+       0.6798,
+       0.8047
+      ]
+     }
+    },
+    "11": {
+     "honest_flag_rate": 0.7083,
+     "other_writer_catch_rate": 0.9,
+     "auc": 0.7653,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.5694,
+       0.8333
+      ],
+      "other_writer_catch_rate": [
+       0.8222,
+       0.9556
+      ],
+      "auc": [
+       0.7008,
+       0.8288
+      ]
+     }
+    },
+    "23": {
+     "honest_flag_rate": 0.625,
+     "other_writer_catch_rate": 0.8833,
+     "auc": 0.757,
+     "n_honest": 72,
+     "n_probe": 180,
+     "n_authors": 36,
+     "ci95_author_bootstrap": {
+      "honest_flag_rate": [
+       0.5,
+       0.75
+      ],
+      "other_writer_catch_rate": [
+       0.8333,
+       0.9333
+      ],
+      "auc": [
+       0.6954,
+       0.8159
+      ]
+     }
+    }
+   },
+   "pooled": {
+    "honest_flag_rate": 0.6759,
+    "other_writer_catch_rate": 0.8907,
+    "auc": 0.7544,
+    "n_honest": 216,
+    "n_probe": 540,
+    "n_authors": 36,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.5925,
+      0.7546
+     ],
+     "other_writer_catch_rate": [
+      0.85,
+      0.9278
+     ],
+     "auc": [
+      0.7098,
+      0.8017
+     ]
+    }
+   },
+   "threshold_deviation_score": 0.692789,
+   "at_threshold_in_sample": {
+    "honest_flag_rate": 0.0463,
+    "other_writer_catch_rate": 0.3537,
+    "ci95_author_bootstrap": {
+     "honest_flag_rate": [
+      0.0185,
+      0.0787
+     ],
+     "other_writer_catch_rate": [
+      0.2814,
+      0.4389
+     ]
+    }
+   },
+   "seconds": 586
+  }
+ },
+ "skipped": {}
+}

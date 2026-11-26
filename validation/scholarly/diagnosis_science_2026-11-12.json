@@ -1,0 +1,3315 @@
+{
+ "collection": "science",
+ "partition": "development",
+ "config": "long_past_1200_short_new_300",
+ "seeds": [
+  7,
+  11,
+  23
+ ],
+ "date": "2026-11-12",
+ "selection": {
+  "highest_false_flag": {
+   "A5008996453": 1.0,
+   "A5013835799": 1.0,
+   "A5030707609": 1.0,
+   "A5031418059": 1.0
+  },
+  "typical": {
+   "A5082978886": 0.667,
+   "A5080081423": 0.667,
+   "A5049265520": 0.667,
+   "A5004803532": 0.667
+  },
+  "median_rate": 0.667,
+  "n_authors": 61
+ },
+ "label_rule": "label of the highest percentile-ranked index if >= 0.8, else genuine",
+ "label_counts_in_top5": {
+  "length": 135,
+  "genuine": 39,
+  "topic": 10,
+  "house": 10,
+  "section": 6
+ },
+ "n_flagged_docs_chosen": 40,
+ "venue_index_authors": 27,
+ "section_pairs": 487,
+ "most_sensitive": {
+  "length": [
+   "hapax_legomena_rate",
+   "structural_centrist_penalty",
+   "char_trigram_entropy",
+   "pos_trigram_entropy",
+   "cohesion_device_ratio"
+  ],
+  "topic": [
+   "nominalization_density",
+   "stress_entropy_bigram",
+   "avg_word_length",
+   "char_trigram_entropy",
+   "pos_bigram_entropy",
+   "adjective_rate",
+   "latinate_ratio"
+  ],
+  "section": [
+   "adjective_rate",
+   "avg_word_length",
+   "stop_word_ratio",
+   "function_word_ratio",
+   "perplexity_proxy",
+   "parenthetical_rate",
+   "clause_depth_mean"
+  ],
+  "house": [
+   "subordination_ratio",
+   "citation_position_pref",
+   "nominalization_density",
+   "stress_entropy_bigram",
+   "quote_rate",
+   "mean_sentence_length"
+  ]
+ },
+ "flagged_docs": [
+  {
+   "author": "A5004803532",
+   "seed": 7,
+   "paper": "W1662022457",
+   "deviation_score": 0.6165,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1802,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 5.099,
+     "z": -4.64,
+     "z_length_matched": -0.68,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 5.061,
+     "z": 5.06,
+     "z_length_matched": 0.99,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 4.766,
+     "z": -3.4,
+     "z_length_matched": -2.29,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 3.748,
+     "z": 2.88,
+     "z_length_matched": 2.05,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 3.519,
+     "z": -2.71,
+     "z_length_matched": -1.62,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 7,
+   "paper": "W2201973274",
+   "deviation_score": 0.6384,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2005,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.43,
+     "z": -6.75,
+     "z_length_matched": -2.9,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 6.106,
+     "z": 6.11,
+     "z_length_matched": 3.22,
+     "label": "genuine",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "avg_paragraph_length",
+     "name": "Avg Paragraph Length",
+     "weighted_abs_z": 5.615,
+     "z": -9.36,
+     "z_length_matched": -0.31,
+     "label": "length",
+     "ranks": {
+      "length": 0.0,
+      "topic": 0.0,
+      "section": 0.0,
+      "house": 0.0
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 4.308,
+     "z": -3.59,
+     "z_length_matched": -1.2,
+     "label": "length",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "additive_ratio",
+     "name": "Additive Ratio",
+     "weighted_abs_z": 4.094,
+     "z": 6.82,
+     "z_length_matched": 2.54,
+     "label": "length",
+     "ranks": {
+      "length": 0.02,
+      "topic": 0.62,
+      "section": 0.46,
+      "house": 0.37
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 7,
+   "paper": "W1027093940",
+   "deviation_score": 0.6123,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1949,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.43,
+     "z": -6.75,
+     "z_length_matched": -2.9,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 5.238,
+     "z": -5.82,
+     "z_length_matched": -1.39,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "first_person_ratio",
+     "name": "First-Person Ratio",
+     "weighted_abs_z": 5.136,
+     "z": -6.42,
+     "z_length_matched": -4.58,
+     "label": "topic",
+     "ranks": {
+      "length": 0.51,
+      "topic": 0.83,
+      "section": 0.75,
+      "house": 0.75
+     }
+    },
+    {
+     "code": "error_topology_consistency",
+     "name": "Error Topology Consistency",
+     "weighted_abs_z": 5.059,
+     "z": 3.89,
+     "z_length_matched": 1.86,
+     "label": "length",
+     "ranks": {
+      "length": 0.68,
+      "topic": 0.32,
+      "section": 0.06,
+      "house": 0.66
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.468,
+     "z": 4.47,
+     "z_length_matched": 1.35,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 7,
+   "paper": "W3030658828",
+   "deviation_score": 0.6318,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1935,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 4.593,
+     "z": 3.28,
+     "z_length_matched": 1.39,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 3.957,
+     "z": -3.04,
+     "z_length_matched": -0.86,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 3.939,
+     "z": 3.94,
+     "z_length_matched": 0.43,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "source_integration_style",
+     "name": "Source Integration Style",
+     "weighted_abs_z": 3.115,
+     "z": -3.89,
+     "z_length_matched": -0.73,
+     "label": "length",
+     "ranks": {
+      "length": 0.8,
+      "topic": 0.49,
+      "section": 0.25,
+      "house": 0.65
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 3.09,
+     "z": -3.43,
+     "z_length_matched": -0.15,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 7,
+   "paper": "W2036514210",
+   "deviation_score": 0.6276,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1945,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 6.805,
+     "z": -6.19,
+     "z_length_matched": -1.7,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "comma_rate",
+     "name": "Comma Rate",
+     "weighted_abs_z": 4.857,
+     "z": -3.74,
+     "z_length_matched": -2.44,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.05,
+      "topic": 0.51,
+      "section": 0.38,
+      "house": 0.68
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 4.593,
+     "z": 3.28,
+     "z_length_matched": 1.39,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 4.12,
+     "z": 3.17,
+     "z_length_matched": 0.73,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 3.957,
+     "z": -3.04,
+     "z_length_matched": -0.86,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 7,
+   "paper": "W2126738973",
+   "deviation_score": 0.6762,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1766,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "semicolon_colon_rate",
+     "name": "Semicolon+Colon Rate",
+     "weighted_abs_z": 7.8,
+     "z": 6.0,
+     "z_length_matched": 3.7,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.08,
+      "topic": 0.52,
+      "section": 0.32,
+      "house": 0.71
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 7.699,
+     "z": -8.55,
+     "z_length_matched": -3.26,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.698,
+     "z": -7.0,
+     "z_length_matched": -0.44,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 5.872,
+     "z": -4.19,
+     "z_length_matched": -1.47,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 4.978,
+     "z": 6.22,
+     "z_length_matched": 1.97,
+     "label": "length",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 7,
+   "paper": "W2200079215",
+   "deviation_score": 0.8059,
+   "action": "escalate",
+   "topic_distance": 0.2571,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "quote_rate",
+     "name": "Quotation Rate",
+     "weighted_abs_z": 17.248,
+     "z": 13.27,
+     "z_length_matched": 26.57,
+     "label": "house",
+     "ranks": {
+      "length": 0.17,
+      "topic": 0.03,
+      "section": 0.29,
+      "house": 0.94
+     }
+    },
+    {
+     "code": "clausulae_consistency",
+     "name": "Clausulae Consistency",
+     "weighted_abs_z": 14.5,
+     "z": 13.18,
+     "z_length_matched": 11.32,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.74,
+      "topic": 0.74,
+      "section": 0.62,
+      "house": 0.14
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 10.366,
+     "z": -11.52,
+     "z_length_matched": -4.79,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "noun_verb_ratio",
+     "name": "Noun-Verb Ratio",
+     "weighted_abs_z": 8.291,
+     "z": 6.91,
+     "z_length_matched": 5.06,
+     "label": "topic",
+     "ranks": {
+      "length": 0.52,
+      "topic": 0.88,
+      "section": 0.85,
+      "house": 0.6
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.698,
+     "z": -7.0,
+     "z_length_matched": -0.44,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 7,
+   "paper": "W2783481995",
+   "deviation_score": 0.6523,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1892,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "comma_rate",
+     "name": "Comma Rate",
+     "weighted_abs_z": 9.817,
+     "z": 7.55,
+     "z_length_matched": 5.14,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.05,
+      "topic": 0.51,
+      "section": 0.38,
+      "house": 0.68
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 6.282,
+     "z": -4.83,
+     "z_length_matched": -1.15,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 6.183,
+     "z": -5.62,
+     "z_length_matched": -0.26,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "clause_depth_mean",
+     "name": "Mean Clause Depth",
+     "weighted_abs_z": 3.402,
+     "z": -2.84,
+     "z_length_matched": -1.67,
+     "label": "section",
+     "ranks": {
+      "length": 0.34,
+      "topic": 0.78,
+      "section": 0.91,
+      "house": 0.17
+     }
+    },
+    {
+     "code": "transition_density",
+     "name": "Transition Density",
+     "weighted_abs_z": 3.255,
+     "z": 5.42,
+     "z_length_matched": 3.32,
+     "label": "house",
+     "ranks": {
+      "length": 0.42,
+      "topic": 0.31,
+      "section": 0.86,
+      "house": 0.89
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 7,
+   "paper": "W2512763011",
+   "deviation_score": 0.6748,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1993,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 6.183,
+     "z": -5.62,
+     "z_length_matched": -0.26,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 5.005,
+     "z": -5.56,
+     "z_length_matched": -1.73,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "mean_sentence_length",
+     "name": "Mean Sentence Length",
+     "weighted_abs_z": 4.771,
+     "z": 4.77,
+     "z_length_matched": 2.68,
+     "label": "house",
+     "ranks": {
+      "length": 0.45,
+      "topic": 0.86,
+      "section": 0.37,
+      "house": 0.92
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 4.703,
+     "z": 3.36,
+     "z_length_matched": 2.01,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 4.133,
+     "z": -3.44,
+     "z_length_matched": -1.36,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5049265520",
+   "seed": 7,
+   "paper": "W1954047593",
+   "deviation_score": 0.6393,
+   "action": "schedule_conversation",
+   "topic_distance": 0.216,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "thematic_progression_score",
+     "name": "Thematic Progression",
+     "weighted_abs_z": 7.547,
+     "z": -12.58,
+     "z_length_matched": -2.71,
+     "label": "length",
+     "ranks": {
+      "length": 0.71,
+      "topic": 0.17,
+      "section": 0.58,
+      "house": 0.74
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 6.718,
+     "z": 4.8,
+     "z_length_matched": 1.38,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 6.535,
+     "z": -5.03,
+     "z_length_matched": -2.3,
+     "label": "length",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 5.645,
+     "z": 4.7,
+     "z_length_matched": 2.65,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 5.238,
+     "z": 5.24,
+     "z_length_matched": 1.7,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5080081423",
+   "seed": 7,
+   "paper": "W4307058378",
+   "deviation_score": 0.6136,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2035,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "thematic_progression_score",
+     "name": "Thematic Progression",
+     "weighted_abs_z": 5.629,
+     "z": -9.38,
+     "z_length_matched": -2.19,
+     "label": "length",
+     "ranks": {
+      "length": 0.71,
+      "topic": 0.17,
+      "section": 0.58,
+      "house": 0.74
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 5.212,
+     "z": -4.34,
+     "z_length_matched": -1.88,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 4.496,
+     "z": -3.21,
+     "z_length_matched": -1.77,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 3.512,
+     "z": 2.51,
+     "z_length_matched": 1.32,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 3.466,
+     "z": -2.67,
+     "z_length_matched": -2.6,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5080081423",
+   "seed": 7,
+   "paper": "W1659509376",
+   "deviation_score": 0.6388,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2163,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "burstiness",
+     "name": "Burstiness",
+     "weighted_abs_z": 9.354,
+     "z": 8.5,
+     "z_length_matched": 2.38,
+     "label": "length",
+     "ranks": {
+      "length": 0.65,
+      "topic": 0.69,
+      "section": 0.77,
+      "house": 0.52
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 7.994,
+     "z": 6.15,
+     "z_length_matched": 2.16,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 6.105,
+     "z": 4.7,
+     "z_length_matched": 2.13,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 4.909,
+     "z": 3.51,
+     "z_length_matched": 2.28,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 3.335,
+     "z": -3.71,
+     "z_length_matched": -0.6,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5082978886",
+   "seed": 7,
+   "paper": "W1975222685",
+   "deviation_score": 0.6599,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2462,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "error_topology_consistency",
+     "name": "Error Topology Consistency",
+     "weighted_abs_z": 9.364,
+     "z": 7.2,
+     "z_length_matched": 13.9,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.68,
+      "topic": 0.32,
+      "section": 0.06,
+      "house": 0.66
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.753,
+     "z": -7.05,
+     "z_length_matched": -0.62,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "nominalization_density",
+     "name": "Nominalization Density",
+     "weighted_abs_z": 7.654,
+     "z": -6.38,
+     "z_length_matched": -3.92,
+     "label": "topic",
+     "ranks": {
+      "length": 0.25,
+      "topic": 1.0,
+      "section": 0.09,
+      "house": 0.97
+     }
+    },
+    {
+     "code": "comma_rate",
+     "name": "Comma Rate",
+     "weighted_abs_z": 3.665,
+     "z": -2.82,
+     "z_length_matched": -1.75,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.05,
+      "topic": 0.51,
+      "section": 0.38,
+      "house": 0.68
+     }
+    },
+    {
+     "code": "char_trigram_entropy",
+     "name": "Char Trigram Entropy",
+     "weighted_abs_z": 3.366,
+     "z": -2.59,
+     "z_length_matched": -2.26,
+     "label": "topic",
+     "ranks": {
+      "length": 0.97,
+      "topic": 0.95,
+      "section": 0.72,
+      "house": 0.25
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5082978886",
+   "seed": 7,
+   "paper": "W1861158014",
+   "deviation_score": 0.6368,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2126,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 15.032,
+     "z": -11.56,
+     "z_length_matched": -4.35,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.753,
+     "z": -7.05,
+     "z_length_matched": -0.62,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 5.076,
+     "z": -3.63,
+     "z_length_matched": -1.91,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 4.492,
+     "z": 5.62,
+     "z_length_matched": 5.2,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    },
+    {
+     "code": "modal_verb_ratio",
+     "name": "Modal Verb Ratio",
+     "weighted_abs_z": 3.627,
+     "z": 3.63,
+     "z_length_matched": 3.03,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.28,
+      "topic": 0.37,
+      "section": 0.69,
+      "house": 0.77
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5004803532",
+   "seed": 11,
+   "paper": "W3183418456",
+   "deviation_score": 0.6009,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1875,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 5.48,
+     "z": -4.98,
+     "z_length_matched": -0.71,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.789,
+     "z": 4.79,
+     "z_length_matched": 1.04,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 3.946,
+     "z": 4.93,
+     "z_length_matched": 0.93,
+     "label": "length",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 3.873,
+     "z": 2.77,
+     "z_length_matched": 0.79,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "source_integration_style",
+     "name": "Source Integration Style",
+     "weighted_abs_z": 3.7,
+     "z": -4.63,
+     "z_length_matched": -1.58,
+     "label": "length",
+     "ranks": {
+      "length": 0.8,
+      "topic": 0.49,
+      "section": 0.25,
+      "house": 0.65
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5004803532",
+   "seed": 11,
+   "paper": "W4401028777",
+   "deviation_score": 0.6551,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2174,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "dash_rate",
+     "name": "Dash Rate",
+     "weighted_abs_z": 7.831,
+     "z": 6.02,
+     "z_length_matched": 4.32,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.0,
+      "topic": 0.0,
+      "section": 0.0,
+      "house": 0.0
+     }
+    },
+    {
+     "code": "clausulae_consistency",
+     "name": "Clausulae Consistency",
+     "weighted_abs_z": 6.804,
+     "z": 6.19,
+     "z_length_matched": 3.45,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.74,
+      "topic": 0.74,
+      "section": 0.62,
+      "house": 0.14
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 5.48,
+     "z": -4.98,
+     "z_length_matched": -0.71,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 4.314,
+     "z": -3.08,
+     "z_length_matched": -1.54,
+     "label": "length",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 3.873,
+     "z": 2.77,
+     "z_length_matched": 0.79,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 11,
+   "paper": "W3169036774",
+   "deviation_score": 0.7249,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1871,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 9.858,
+     "z": 7.04,
+     "z_length_matched": 6.31,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "quote_rate",
+     "name": "Quotation Rate",
+     "weighted_abs_z": 9.724,
+     "z": 7.48,
+     "z_length_matched": 10.73,
+     "label": "house",
+     "ranks": {
+      "length": 0.17,
+      "topic": 0.03,
+      "section": 0.29,
+      "house": 0.94
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 8.249,
+     "z": 5.89,
+     "z_length_matched": 1.23,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 7.303,
+     "z": 5.62,
+     "z_length_matched": 2.05,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "polysyndeton_ratio",
+     "name": "Polysyndeton Ratio",
+     "weighted_abs_z": 6.394,
+     "z": 5.33,
+     "z_length_matched": 0.92,
+     "label": "length",
+     "ranks": {
+      "length": 0.69,
+      "topic": 0.45,
+      "section": 0.28,
+      "house": 0.88
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 11,
+   "paper": "W1027093940",
+   "deviation_score": 0.6384,
+   "action": "schedule_conversation",
+   "topic_distance": 0.177,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 7.083,
+     "z": -5.06,
+     "z_length_matched": -1.34,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 4.993,
+     "z": 4.16,
+     "z_length_matched": 1.92,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.231,
+     "z": 4.23,
+     "z_length_matched": 0.64,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 4.04,
+     "z": -3.11,
+     "z_length_matched": -1.37,
+     "label": "length",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "hedging_density",
+     "name": "Hedging Density",
+     "weighted_abs_z": 3.592,
+     "z": 4.49,
+     "z_length_matched": 2.3,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.23,
+      "topic": 0.23,
+      "section": 0.23,
+      "house": 0.55
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 11,
+   "paper": "W2169323794",
+   "deviation_score": 0.6626,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2005,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "dash_rate",
+     "name": "Dash Rate",
+     "weighted_abs_z": 13.088,
+     "z": 10.07,
+     "z_length_matched": 4.78,
+     "label": "length",
+     "ranks": {
+      "length": 0.0,
+      "topic": 0.0,
+      "section": 0.0,
+      "house": 0.0
+     }
+    },
+    {
+     "code": "hedging_density",
+     "name": "Hedging Density",
+     "weighted_abs_z": 4.966,
+     "z": 6.21,
+     "z_length_matched": 3.04,
+     "label": "length",
+     "ranks": {
+      "length": 0.23,
+      "topic": 0.23,
+      "section": 0.23,
+      "house": 0.55
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 4.154,
+     "z": 3.46,
+     "z_length_matched": 1.76,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 3.968,
+     "z": 3.05,
+     "z_length_matched": 1.26,
+     "label": "length",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 3.735,
+     "z": 3.73,
+     "z_length_matched": -0.09,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 11,
+   "paper": "W2048147493",
+   "deviation_score": 0.6366,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1918,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 4.368,
+     "z": -3.36,
+     "z_length_matched": -1.76,
+     "label": "section",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.338,
+     "z": 4.34,
+     "z_length_matched": 0.5,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 3.409,
+     "z": -2.43,
+     "z_length_matched": -0.54,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 3.16,
+     "z": -3.51,
+     "z_length_matched": -0.11,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "punctuation_diversity",
+     "name": "Punctuation Diversity",
+     "weighted_abs_z": 2.885,
+     "z": -2.22,
+     "z_length_matched": -2.31,
+     "label": "house",
+     "ranks": {
+      "length": 0.77,
+      "topic": 0.85,
+      "section": 0.34,
+      "house": 0.91
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 11,
+   "paper": "W4221165607",
+   "deviation_score": 0.6269,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1617,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "source_integration_style",
+     "name": "Source Integration Style",
+     "weighted_abs_z": 7.034,
+     "z": -8.79,
+     "z_length_matched": -1.35,
+     "label": "length",
+     "ranks": {
+      "length": 0.8,
+      "topic": 0.49,
+      "section": 0.25,
+      "house": 0.65
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 5.067,
+     "z": 3.9,
+     "z_length_matched": 2.9,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 4.878,
+     "z": 6.1,
+     "z_length_matched": 1.68,
+     "label": "length",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 4.753,
+     "z": 3.39,
+     "z_length_matched": 1.18,
+     "label": "length",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.634,
+     "z": 4.63,
+     "z_length_matched": 0.89,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 11,
+   "paper": "W2044314560",
+   "deviation_score": 0.6145,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2093,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 7.712,
+     "z": -5.51,
+     "z_length_matched": -0.85,
+     "label": "length",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 4.878,
+     "z": 6.1,
+     "z_length_matched": 1.68,
+     "label": "length",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    },
+    {
+     "code": "first_person_ratio",
+     "name": "First-Person Ratio",
+     "weighted_abs_z": 4.527,
+     "z": 5.66,
+     "z_length_matched": 1.41,
+     "label": "length",
+     "ranks": {
+      "length": 0.51,
+      "topic": 0.83,
+      "section": 0.75,
+      "house": 0.75
+     }
+    },
+    {
+     "code": "adversative_ratio",
+     "name": "Adversative Ratio",
+     "weighted_abs_z": 4.489,
+     "z": 7.48,
+     "z_length_matched": 4.08,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.35,
+      "topic": 0.18,
+      "section": 0.42,
+      "house": 0.48
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 4.262,
+     "z": -3.28,
+     "z_length_matched": -0.89,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 11,
+   "paper": "W2512763011",
+   "deviation_score": 0.6629,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1995,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 6.481,
+     "z": 4.63,
+     "z_length_matched": 3.0,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 4.663,
+     "z": -4.24,
+     "z_length_matched": -0.7,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "comma_rate",
+     "name": "Comma Rate",
+     "weighted_abs_z": 4.48,
+     "z": 3.45,
+     "z_length_matched": 2.31,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.05,
+      "topic": 0.51,
+      "section": 0.38,
+      "house": 0.68
+     }
+    },
+    {
+     "code": "semicolon_colon_rate",
+     "name": "Semicolon+Colon Rate",
+     "weighted_abs_z": 4.351,
+     "z": 3.35,
+     "z_length_matched": 2.48,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.08,
+      "topic": 0.52,
+      "section": 0.32,
+      "house": 0.71
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.054,
+     "z": 4.05,
+     "z_length_matched": 0.61,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 11,
+   "paper": "W2793924146",
+   "deviation_score": 0.648,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1738,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "subordination_ratio",
+     "name": "Subordination Ratio",
+     "weighted_abs_z": 7.549,
+     "z": 6.29,
+     "z_length_matched": 5.06,
+     "label": "house",
+     "ranks": {
+      "length": 0.43,
+      "topic": 0.48,
+      "section": 0.66,
+      "house": 1.0
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 7.534,
+     "z": -5.8,
+     "z_length_matched": -2.15,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 4.663,
+     "z": -4.24,
+     "z_length_matched": -0.7,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "first_person_ratio",
+     "name": "First-Person Ratio",
+     "weighted_abs_z": 4.592,
+     "z": -5.74,
+     "z_length_matched": -1.61,
+     "label": "length",
+     "ranks": {
+      "length": 0.51,
+      "topic": 0.83,
+      "section": 0.75,
+      "house": 0.75
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 4.063,
+     "z": 3.13,
+     "z_length_matched": 2.28,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5049265520",
+   "seed": 11,
+   "paper": "W2096844434",
+   "deviation_score": 0.6261,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2068,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 6.888,
+     "z": -6.26,
+     "z_length_matched": -0.61,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 5.474,
+     "z": -4.56,
+     "z_length_matched": -1.83,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 4.72,
+     "z": -5.24,
+     "z_length_matched": -1.15,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "clausulae_consistency",
+     "name": "Clausulae Consistency",
+     "weighted_abs_z": 4.648,
+     "z": 4.23,
+     "z_length_matched": 1.1,
+     "label": "length",
+     "ranks": {
+      "length": 0.74,
+      "topic": 0.74,
+      "section": 0.62,
+      "house": 0.14
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.262,
+     "z": 4.26,
+     "z_length_matched": 1.04,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5049265520",
+   "seed": 11,
+   "paper": "W1954047593",
+   "deviation_score": 0.6423,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1993,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 6.219,
+     "z": 4.78,
+     "z_length_matched": 1.78,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "that_which_ratio",
+     "name": "That/Which Ratio",
+     "weighted_abs_z": 6.087,
+     "z": 4.35,
+     "z_length_matched": 1.42,
+     "label": "length",
+     "ranks": {
+      "length": 0.54,
+      "topic": 0.57,
+      "section": 0.55,
+      "house": 0.29
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 5.662,
+     "z": 5.66,
+     "z_length_matched": 2.42,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "temporal_ratio",
+     "name": "Temporal Ratio",
+     "weighted_abs_z": 4.9,
+     "z": 8.17,
+     "z_length_matched": 5.37,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.46,
+      "topic": 0.66,
+      "section": 0.43,
+      "house": 0.11
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 4.617,
+     "z": -4.2,
+     "z_length_matched": 0.32,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5080081423",
+   "seed": 11,
+   "paper": "W1659509376",
+   "deviation_score": 0.6738,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2238,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 11.355,
+     "z": 8.73,
+     "z_length_matched": 3.76,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 5.368,
+     "z": 3.83,
+     "z_length_matched": 1.87,
+     "label": "length",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "mean_sentence_length",
+     "name": "Mean Sentence Length",
+     "weighted_abs_z": 4.556,
+     "z": 4.56,
+     "z_length_matched": 5.46,
+     "label": "house",
+     "ranks": {
+      "length": 0.45,
+      "topic": 0.86,
+      "section": 0.37,
+      "house": 0.92
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 4.42,
+     "z": -4.91,
+     "z_length_matched": -0.8,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "subordination_ratio",
+     "name": "Subordination Ratio",
+     "weighted_abs_z": 3.987,
+     "z": 3.32,
+     "z_length_matched": 2.52,
+     "label": "house",
+     "ranks": {
+      "length": 0.43,
+      "topic": 0.48,
+      "section": 0.66,
+      "house": 1.0
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5080081423",
+   "seed": 11,
+   "paper": "W2003275670",
+   "deviation_score": 0.6276,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1802,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 5.617,
+     "z": 4.32,
+     "z_length_matched": 1.18,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    },
+    {
+     "code": "burstiness",
+     "name": "Burstiness",
+     "weighted_abs_z": 5.512,
+     "z": 5.01,
+     "z_length_matched": 1.61,
+     "label": "length",
+     "ranks": {
+      "length": 0.65,
+      "topic": 0.69,
+      "section": 0.77,
+      "house": 0.52
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 3.869,
+     "z": -3.22,
+     "z_length_matched": -1.61,
+     "label": "length",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 3.563,
+     "z": -3.96,
+     "z_length_matched": -0.24,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 3.351,
+     "z": 2.58,
+     "z_length_matched": 0.84,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5082978886",
+   "seed": 11,
+   "paper": "W1624123235",
+   "deviation_score": 0.6747,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2127,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "noun_verb_ratio",
+     "name": "Noun-Verb Ratio",
+     "weighted_abs_z": 8.31,
+     "z": 6.92,
+     "z_length_matched": 3.6,
+     "label": "topic",
+     "ranks": {
+      "length": 0.52,
+      "topic": 0.88,
+      "section": 0.85,
+      "house": 0.6
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 7.198,
+     "z": -6.54,
+     "z_length_matched": -1.07,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "clause_depth_mean",
+     "name": "Mean Clause Depth",
+     "weighted_abs_z": 6.689,
+     "z": -5.57,
+     "z_length_matched": -3.2,
+     "label": "section",
+     "ranks": {
+      "length": 0.34,
+      "topic": 0.78,
+      "section": 0.91,
+      "house": 0.17
+     }
+    },
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 4.537,
+     "z": 3.49,
+     "z_length_matched": -0.18,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    },
+    {
+     "code": "mean_sentence_length",
+     "name": "Mean Sentence Length",
+     "weighted_abs_z": 4.388,
+     "z": -4.39,
+     "z_length_matched": -3.37,
+     "label": "house",
+     "ranks": {
+      "length": 0.45,
+      "topic": 0.86,
+      "section": 0.37,
+      "house": 0.92
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5004803532",
+   "seed": 23,
+   "paper": "W4311398986",
+   "deviation_score": 0.6202,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2157,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "nominalization_density",
+     "name": "Nominalization Density",
+     "weighted_abs_z": 5.934,
+     "z": 4.95,
+     "z_length_matched": 2.84,
+     "label": "topic",
+     "ranks": {
+      "length": 0.25,
+      "topic": 1.0,
+      "section": 0.09,
+      "house": 0.97
+     }
+    },
+    {
+     "code": "epistemic_certainty_ratio",
+     "name": "Epistemic Certainty",
+     "weighted_abs_z": 4.712,
+     "z": 5.89,
+     "z_length_matched": 3.68,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.62,
+      "topic": 0.28,
+      "section": 0.6,
+      "house": 0.32
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.202,
+     "z": 4.2,
+     "z_length_matched": 0.83,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 3.64,
+     "z": -3.03,
+     "z_length_matched": -1.82,
+     "label": "section",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 3.272,
+     "z": 2.52,
+     "z_length_matched": 1.13,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 23,
+   "paper": "W4409818925",
+   "deviation_score": 0.7148,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1698,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 8.249,
+     "z": -6.35,
+     "z_length_matched": -1.33,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "polysyndeton_ratio",
+     "name": "Polysyndeton Ratio",
+     "weighted_abs_z": 7.615,
+     "z": 6.35,
+     "z_length_matched": 1.06,
+     "label": "length",
+     "ranks": {
+      "length": 0.69,
+      "topic": 0.45,
+      "section": 0.28,
+      "house": 0.88
+     }
+    },
+    {
+     "code": "mean_sentence_length",
+     "name": "Mean Sentence Length",
+     "weighted_abs_z": 5.536,
+     "z": -5.54,
+     "z_length_matched": -2.04,
+     "label": "length",
+     "ranks": {
+      "length": 0.45,
+      "topic": 0.86,
+      "section": 0.37,
+      "house": 0.92
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 4.469,
+     "z": -4.97,
+     "z_length_matched": -0.59,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "noun_verb_ratio",
+     "name": "Noun-Verb Ratio",
+     "weighted_abs_z": 4.456,
+     "z": -3.71,
+     "z_length_matched": -2.5,
+     "label": "topic",
+     "ranks": {
+      "length": 0.52,
+      "topic": 0.88,
+      "section": 0.85,
+      "house": 0.6
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5008996453",
+   "seed": 23,
+   "paper": "W2740671486",
+   "deviation_score": 0.6878,
+   "action": "schedule_conversation",
+   "topic_distance": 0.155,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "burstiness",
+     "name": "Burstiness",
+     "weighted_abs_z": 11.267,
+     "z": -10.24,
+     "z_length_matched": -1.13,
+     "label": "length",
+     "ranks": {
+      "length": 0.65,
+      "topic": 0.69,
+      "section": 0.77,
+      "house": 0.52
+     }
+    },
+    {
+     "code": "passive_voice_ratio",
+     "name": "Passive Voice Ratio",
+     "weighted_abs_z": 9.707,
+     "z": -9.71,
+     "z_length_matched": -2.44,
+     "label": "length",
+     "ranks": {
+      "length": 0.03,
+      "topic": 0.63,
+      "section": 0.4,
+      "house": 0.8
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 9.686,
+     "z": -6.92,
+     "z_length_matched": -2.09,
+     "label": "length",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "polysyndeton_ratio",
+     "name": "Polysyndeton Ratio",
+     "weighted_abs_z": 7.615,
+     "z": 6.35,
+     "z_length_matched": 1.06,
+     "label": "length",
+     "ranks": {
+      "length": 0.69,
+      "topic": 0.45,
+      "section": 0.28,
+      "house": 0.88
+     }
+    },
+    {
+     "code": "comma_rate",
+     "name": "Comma Rate",
+     "weighted_abs_z": 5.579,
+     "z": -4.29,
+     "z_length_matched": -3.59,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.05,
+      "topic": 0.51,
+      "section": 0.38,
+      "house": 0.68
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 23,
+   "paper": "W2048147493",
+   "deviation_score": 0.6122,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1633,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "sentence_length_variance",
+     "name": "Sentence Length Variance",
+     "weighted_abs_z": 5.851,
+     "z": -5.85,
+     "z_length_matched": -1.94,
+     "label": "length",
+     "ranks": {
+      "length": 0.0,
+      "topic": 0.0,
+      "section": 0.0,
+      "house": 0.0
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 5.327,
+     "z": -4.44,
+     "z_length_matched": -1.81,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 4.375,
+     "z": 3.65,
+     "z_length_matched": 2.03,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 4.079,
+     "z": 3.14,
+     "z_length_matched": 1.09,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 2.951,
+     "z": -2.27,
+     "z_length_matched": -0.27,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5013835799",
+   "seed": 23,
+   "paper": "W2169323794",
+   "deviation_score": 0.6822,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2117,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 7.284,
+     "z": -5.6,
+     "z_length_matched": -1.56,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "nominalization_density",
+     "name": "Nominalization Density",
+     "weighted_abs_z": 4.93,
+     "z": 4.11,
+     "z_length_matched": 2.55,
+     "label": "topic",
+     "ranks": {
+      "length": 0.25,
+      "topic": 1.0,
+      "section": 0.09,
+      "house": 0.97
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 4.387,
+     "z": -4.87,
+     "z_length_matched": -0.82,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 4.007,
+     "z": 3.08,
+     "z_length_matched": 2.39,
+     "label": "section",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "article_omission_rate",
+     "name": "Article Omission Rate",
+     "weighted_abs_z": 3.577,
+     "z": 2.75,
+     "z_length_matched": 3.46,
+     "label": "topic",
+     "ranks": {
+      "length": 0.92,
+      "topic": 0.82,
+      "section": 0.45,
+      "house": 0.08
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 23,
+   "paper": "W1907562252",
+   "deviation_score": 0.6126,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1716,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 5.251,
+     "z": 5.25,
+     "z_length_matched": 1.9,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 4.984,
+     "z": -4.53,
+     "z_length_matched": 0.06,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "adverb_rate",
+     "name": "Adverb Rate",
+     "weighted_abs_z": 4.812,
+     "z": 4.01,
+     "z_length_matched": 1.77,
+     "label": "length",
+     "ranks": {
+      "length": 0.15,
+      "topic": 0.77,
+      "section": 0.31,
+      "house": 0.22
+     }
+    },
+    {
+     "code": "additive_ratio",
+     "name": "Additive Ratio",
+     "weighted_abs_z": 3.708,
+     "z": 6.18,
+     "z_length_matched": 1.35,
+     "label": "length",
+     "ranks": {
+      "length": 0.02,
+      "topic": 0.62,
+      "section": 0.46,
+      "house": 0.37
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 2.953,
+     "z": 2.11,
+     "z_length_matched": 1.12,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5030707609",
+   "seed": 23,
+   "paper": "W2126738973",
+   "deviation_score": 0.7223,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1987,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 12.643,
+     "z": 9.73,
+     "z_length_matched": 6.0,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "semicolon_colon_rate",
+     "name": "Semicolon+Colon Rate",
+     "weighted_abs_z": 9.941,
+     "z": 7.65,
+     "z_length_matched": 3.77,
+     "label": "length",
+     "ranks": {
+      "length": 0.08,
+      "topic": 0.52,
+      "section": 0.32,
+      "house": 0.71
+     }
+    },
+    {
+     "code": "burstiness",
+     "name": "Burstiness",
+     "weighted_abs_z": 7.824,
+     "z": 7.11,
+     "z_length_matched": 2.65,
+     "label": "length",
+     "ranks": {
+      "length": 0.65,
+      "topic": 0.69,
+      "section": 0.77,
+      "house": 0.52
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 6.418,
+     "z": -7.13,
+     "z_length_matched": -3.56,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 6.154,
+     "z": -5.59,
+     "z_length_matched": -0.58,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 23,
+   "paper": "W2793924146",
+   "deviation_score": 0.6328,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1749,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "arc_resolution_score",
+     "name": "Arc Resolution Score",
+     "weighted_abs_z": 8.129,
+     "z": -6.25,
+     "z_length_matched": -2.45,
+     "label": "length",
+     "ranks": {
+      "length": 0.75,
+      "topic": 0.09,
+      "section": 0.15,
+      "house": 0.62
+     }
+    },
+    {
+     "code": "adjective_rate",
+     "name": "Adjective Rate",
+     "weighted_abs_z": 6.66,
+     "z": -5.55,
+     "z_length_matched": -1.96,
+     "label": "length",
+     "ranks": {
+      "length": 0.06,
+      "topic": 0.92,
+      "section": 1.0,
+      "house": 0.86
+     }
+    },
+    {
+     "code": "source_integration_style",
+     "name": "Source Integration Style",
+     "weighted_abs_z": 3.603,
+     "z": -4.5,
+     "z_length_matched": -1.32,
+     "label": "length",
+     "ranks": {
+      "length": 0.8,
+      "topic": 0.49,
+      "section": 0.25,
+      "house": 0.65
+     }
+    },
+    {
+     "code": "pronoun_ambiguity_rate",
+     "name": "Pronoun Ambiguity Rate",
+     "weighted_abs_z": 3.577,
+     "z": -2.75,
+     "z_length_matched": -1.02,
+     "label": "length",
+     "ranks": {
+      "length": 0.78,
+      "topic": 0.11,
+      "section": 0.22,
+      "house": 0.45
+     }
+    },
+    {
+     "code": "sentence_opener_variety",
+     "name": "Sentence Opener Variety",
+     "weighted_abs_z": 3.559,
+     "z": -5.93,
+     "z_length_matched": -3.34,
+     "label": "section",
+     "ranks": {
+      "length": 0.82,
+      "topic": 0.25,
+      "section": 0.8,
+      "house": 0.0
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5031418059",
+   "seed": 23,
+   "paper": "W4281763354",
+   "deviation_score": 0.6051,
+   "action": "schedule_conversation",
+   "topic_distance": 0.2015,
+   "group": "highest",
+   "top_features": [
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 4.473,
+     "z": -3.19,
+     "z_length_matched": -1.15,
+     "label": "length",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "modal_verb_ratio",
+     "name": "Modal Verb Ratio",
+     "weighted_abs_z": 4.343,
+     "z": 4.34,
+     "z_length_matched": 2.76,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.28,
+      "topic": 0.37,
+      "section": 0.69,
+      "house": 0.77
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.251,
+     "z": 4.25,
+     "z_length_matched": 0.81,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "counter_argument_ratio",
+     "name": "Counter-Argument Ratio",
+     "weighted_abs_z": 3.722,
+     "z": 4.65,
+     "z_length_matched": 4.65,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.18,
+      "topic": 0.29,
+      "section": 0.11,
+      "house": 0.58
+     }
+    },
+    {
+     "code": "first_person_ratio",
+     "name": "First-Person Ratio",
+     "weighted_abs_z": 3.546,
+     "z": -4.43,
+     "z_length_matched": -2.53,
+     "label": "topic",
+     "ranks": {
+      "length": 0.51,
+      "topic": 0.83,
+      "section": 0.75,
+      "house": 0.75
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5049265520",
+   "seed": 23,
+   "paper": "W2096844434",
+   "deviation_score": 0.6867,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1881,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "dash_rate",
+     "name": "Dash Rate",
+     "weighted_abs_z": 16.59,
+     "z": 12.76,
+     "z_length_matched": 14.32,
+     "label": "genuine",
+     "ranks": {
+      "length": 0.0,
+      "topic": 0.0,
+      "section": 0.0,
+      "house": 0.0
+     }
+    },
+    {
+     "code": "comma_splice_rate",
+     "name": "Comma Splice Rate",
+     "weighted_abs_z": 12.124,
+     "z": 9.33,
+     "z_length_matched": 3.13,
+     "label": "length",
+     "ranks": {
+      "length": 0.2,
+      "topic": 0.6,
+      "section": 0.63,
+      "house": 0.63
+     }
+    },
+    {
+     "code": "filler_hedge_cluster_rate",
+     "name": "Hedge Clustering",
+     "weighted_abs_z": 8.853,
+     "z": -8.05,
+     "z_length_matched": -0.59,
+     "label": "length",
+     "ranks": {
+      "length": 0.88,
+      "topic": 0.54,
+      "section": 0.17,
+      "house": 0.34
+     }
+    },
+    {
+     "code": "parenthetical_rate",
+     "name": "Parenthetical Rate",
+     "weighted_abs_z": 4.951,
+     "z": -3.81,
+     "z_length_matched": -1.61,
+     "label": "length",
+     "ranks": {
+      "length": 0.6,
+      "topic": 0.8,
+      "section": 0.92,
+      "house": 0.82
+     }
+    },
+    {
+     "code": "structural_centrist_penalty",
+     "name": "Structural Centrist Penalty",
+     "weighted_abs_z": 4.627,
+     "z": -5.14,
+     "z_length_matched": -0.7,
+     "label": "length",
+     "ranks": {
+      "length": 0.98,
+      "topic": 0.26,
+      "section": 0.03,
+      "house": 0.28
+     }
+    }
+   ]
+  },
+  {
+   "author": "A5082978886",
+   "seed": 23,
+   "paper": "W1969941437",
+   "deviation_score": 0.6407,
+   "action": "schedule_conversation",
+   "topic_distance": 0.1778,
+   "group": "typical",
+   "top_features": [
+    {
+     "code": "polysyndeton_ratio",
+     "name": "Polysyndeton Ratio",
+     "weighted_abs_z": 7.486,
+     "z": 6.24,
+     "z_length_matched": 0.65,
+     "label": "length",
+     "ranks": {
+      "length": 0.69,
+      "topic": 0.45,
+      "section": 0.28,
+      "house": 0.88
+     }
+    },
+    {
+     "code": "sentence_initial_conjunction_rate",
+     "name": "Sent-Initial Conj Rate",
+     "weighted_abs_z": 4.687,
+     "z": -3.35,
+     "z_length_matched": -1.34,
+     "label": "length",
+     "ranks": {
+      "length": 0.14,
+      "topic": 0.14,
+      "section": 0.57,
+      "house": 0.03
+     }
+    },
+    {
+     "code": "hapax_legomena_rate",
+     "name": "Hapax Legomena Rate",
+     "weighted_abs_z": 4.548,
+     "z": 4.55,
+     "z_length_matched": 1.31,
+     "label": "length",
+     "ranks": {
+      "length": 1.0,
+      "topic": 0.0,
+      "section": 0.65,
+      "house": 0.12
+     }
+    },
+    {
+     "code": "abbreviation_tendency",
+     "name": "Abbreviation Tendency",
+     "weighted_abs_z": 4.172,
+     "z": 2.98,
+     "z_length_matched": 1.23,
+     "label": "length",
+     "ranks": {
+      "length": 0.58,
+      "topic": 0.2,
+      "section": 0.08,
+      "house": 0.31
+     }
+    },
+    {
+     "code": "quote_rate",
+     "name": "Quotation Rate",
+     "weighted_abs_z": 4.028,
+     "z": 3.1,
+     "z_length_matched": 1.92,
+     "label": "house",
+     "ranks": {
+      "length": 0.17,
+      "topic": 0.03,
+      "section": 0.29,
+      "house": 0.94
+     }
+    }
+   ]
+  }
+ ]
+}
