@@ -45,11 +45,43 @@ _MODIFIED_Z_CONSTANT = 0.6745
 _SIGMA_INFLATION_NOTE_THRESHOLD = 0.5
 
 
+# How a sample got into the baseline (``original/approved_papers.sample_sources``)
+# when a teacher or a supervised sitting stands behind it: rule B, 2026-11. A
+# trusted provenance, a shared past paper a teacher approved, or a take-home
+# sitting a teacher approved. Only a student's own self-upload ("student_upload")
+# and an unrecognised provenance ("unknown") are left out.
+APPROVED_SOURCES = frozenset({"staff_or_supervised", "shared_paper", "take_home"})
+
+
+def count_approved(samples, sources=None) -> int:
+    """Approved past papers among the contributing ``samples`` (rule B).
+
+    ``sources`` is one entry per sample from
+    ``original/approved_papers.sample_sources``. Without it (no records were
+    read, or the read failed) only the trusted provenances can be shown to be
+    approved, so only they count: the count can come out smaller than rule B's,
+    never larger. A sample with no weight does not count either way."""
+    if sources is None:
+        return sum(
+            1
+            for s in samples
+            if (getattr(s, "auth_weight", 0) or 0) > 0
+            and getattr(s, "provenance", None) in TRUSTED_PROVENANCE
+        )
+    return sum(
+        1
+        for s, src in zip(samples, sources, strict=True)
+        if (getattr(s, "auth_weight", 0) or 0) > 0 and src in APPROVED_SOURCES
+    )
+
+
 @dataclass(frozen=True)
 class BaselineIntegrity:
     """Report-only summary of a student's authenticated baseline health."""
 
-    n_baselines: int  # approved (proctored / verified / canvas) samples
+    # Approved samples (rule B, ``count_approved``): trusted provenance, or a
+    # shared paper / take-home sitting a teacher approved.
+    n_baselines: int
     min_required: int
     readiness: str  # "ready" | "thin" | "absent"
     provenance_mix: dict[str, int]
@@ -62,15 +94,19 @@ class BaselineIntegrity:
 def build_baseline_integrity(
     state: StudentState | None,
     impostor_stats: tuple[np.ndarray, np.ndarray] | None = None,
+    sources: list[str] | None = None,
 ) -> BaselineIntegrity | None:
     """Build a :class:`BaselineIntegrity` summary for ``state``.
+
+    ``sources`` says how each sample got in (``count_approved``); the live
+    score route always passes it. Without it only trusted provenances count.
 
     Returns ``None`` when ``state`` has zero samples at all (nothing has
     ever been submitted), or when anything inside the computation raises —
     this function is designed to be safe to call unconditionally.
     """
     try:
-        return _build(state, impostor_stats)
+        return _build(state, impostor_stats, sources)
     except Exception as exc:  # noqa: BLE001
         log.warning(
             "Baseline integrity computation failed (%s: %s); returning None",
@@ -83,15 +119,17 @@ def build_baseline_integrity(
 def _build(
     state: StudentState,
     impostor_stats: tuple[np.ndarray, np.ndarray] | None,
+    sources: list[str] | None = None,
 ) -> BaselineIntegrity | None:
     if state is None or not state.samples:
         return None
 
     contributing = [s for s in state.samples if s.auth_weight > 0]
-    # Readiness counts approved samples only: a self-upload carries weight
-    # but no teacher or proctor stands behind it, and Bluebook treats
-    # anything short of "ready" as too thin to read.
-    n_baselines = sum(1 for s in contributing if s.provenance in TRUSTED_PROVENANCE)
+    # Readiness counts approved samples only (rule B): a student's own
+    # self-upload carries weight but no teacher or proctor stands behind it,
+    # and Bluebook treats anything short of "ready" as too thin to read. A
+    # shared paper or take-home sitting a teacher approved does count.
+    n_baselines = count_approved(state.samples, sources)
 
     if not contributing:
         readiness = "absent"

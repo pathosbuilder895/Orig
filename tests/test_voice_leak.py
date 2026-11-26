@@ -224,15 +224,18 @@ def test_projection_drops_feature_codes_and_scores():
     assert view["formation"]["current_step"] == 1
 
 
-# A baseline Original rates ready (5 counted samples, 3 effective): a result built on
+# A baseline Original rates ready (5 approved papers, 3 effective): a result built on
 # anything thinner is the inconclusive answer, which the tests further down cover.
+# The approved count is the score response's baseline_integrity.n_baselines (rule B,
+# original/approved_papers.py); every result below carries both.
 READY = {"authenticated_count": 5, "effective_sample_count": 3.0}
+APPROVED = {"n_baselines": 5}
 
 
 def test_submission_result_redaction():
     # A raw-ish Layer-7 dict with an action enum + constructive feature codes.
     layer7 = {
-        "baseline_confidence": READY,
+        "baseline_confidence": READY, "baseline_integrity": APPROVED,
         "recommendation": {"action": "monitor"},
         "authorship": {"deviation_score": 0.52},
         "interference": {
@@ -320,7 +323,7 @@ def test_project_headline_addresses_a_named_student_and_not_a_nameless_one():
 def test_project_submission_result_handles_missing_recommendation_and_interference():
     # No "recommendation"/"interference" keys at all: the internal `_get`
     # helper must resolve `obj=None` for those lookups rather than raising.
-    layer7 = {"baseline_confidence": READY, "authorship": {"deviation_score": 0.1}}
+    layer7 = {"baseline_confidence": READY, "baseline_integrity": APPROVED, "authorship": {"deviation_score": 0.1}}
     res = voice_mod.project_submission_result(layer7, "Dana")
     assert res["headline"] == "This reads like you."
     assert res["steady"] == []
@@ -328,7 +331,7 @@ def test_project_submission_result_handles_missing_recommendation_and_interferen
 
 def test_project_submission_result_escalate_uses_the_else_branch():
     layer7 = {
-        "baseline_confidence": READY,
+        "baseline_confidence": READY, "baseline_integrity": APPROVED,
         "recommendation": {"action": "escalate"},
         "authorship": {"deviation_score": 0.9},
         "interference": {"constructive_features": []},
@@ -348,7 +351,7 @@ def test_project_submission_result_stops_after_three_steady_dimensions():
         {"code": "theological_register_score"},  # Register — must not be reached
     ]
     layer7 = {
-        "baseline_confidence": READY,
+        "baseline_confidence": READY, "baseline_integrity": APPROVED,
         "recommendation": {"action": "monitor"},
         "interference": {"constructive_features": constructive},
     }
@@ -529,12 +532,15 @@ def test_voice_affirmed_blurb_says_a_teacher_approved_the_piece_and_claims_nothi
         assert claim not in said, claim
 
 
-def test_me_route_counts_approved_pieces_from_the_trusted_provenances_it_imports():
-    # One definition of "trusted": the router imports it, so a provenance added to
-    # the set later is approved here too, and a copy cannot drift.
+def test_me_route_counts_approved_pieces_with_the_one_shared_definition():
+    # One definition of an approved paper (rule B): the router imports the helper
+    # the score route's floor uses, so a copy cannot drift. Its trusted part is
+    # still the one TRUSTED_PROVENANCE set.
+    from original import approved_papers
     from original.routers import _shared, me
 
-    assert me._TRUSTED_PROVENANCE is _shared._TRUSTED_PROVENANCE
+    assert me.approved_paper_count is approved_papers.approved_paper_count
+    assert not hasattr(me, "_TRUSTED_PROVENANCE")
     assert _shared._TRUSTED_PROVENANCE == {"proctored", "verified", "canvas"}
 
 
@@ -824,7 +830,7 @@ def test_no_returned_string_says_formation_in_any_state():
     results = [voice_mod.project_no_baseline_result()]
     for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
         layer7 = {
-            "baseline_confidence": READY,
+            "baseline_confidence": READY, "baseline_integrity": APPROVED,
             "recommendation": {"action": action},
             "interference": {"constructive_features": [{"code": "burstiness"}]},
         }
@@ -876,7 +882,7 @@ def test_no_baseline_result_is_honest_and_says_nothing_was_added():
 def test_compared_results_never_claim_the_piece_was_kept():
     for action in ("no_action", "monitor", "schedule_conversation", "escalate"):
         res = voice_mod.project_submission_result(
-            {"baseline_confidence": READY, "recommendation": {"action": action}}, "Dana"
+            {"baseline_confidence": READY, "baseline_integrity": APPROVED, "recommendation": {"action": action}}, "Dana"
         )
         said = (res["headline"] + " " + res["summary"]).lower()
         for claim in ("saved", "body of work", "record", "added"):
@@ -885,14 +891,15 @@ def test_compared_results_never_claim_the_piece_was_kept():
 
 # ── A thin baseline: Original says it can't tell ─────────────────────────────
 # NORTH_STAR rule 3: with thin baselines the system should say it can't tell, not
-# guess. The line is the readiness check's "ready" (5 counted samples and 3 effective);
-# below it a comparison is inconclusive, whatever the action was, so a student is
+# guess. The line is 5 approved papers (rule B; a student's own upload does not count)
+# and 3 effective, stricter than the score route's floor of 3; below it a comparison is inconclusive, whatever the action was, so a student is
 # neither told "this reads like you" nor warned on the strength of a handful of pieces.
 
 
 def _with_baseline(counted, effective, action="no_action"):
     return {
         "baseline_confidence": {"authenticated_count": counted, "effective_sample_count": effective},
+        "baseline_integrity": {"n_baselines": counted},
         "recommendation": {"action": action},
         "interference": {"constructive_features": [{"code": "burstiness"}]},
     }
@@ -937,26 +944,57 @@ def test_a_result_on_a_ready_baseline_is_the_reading(counted, effective, action,
     assert res["steady"], "a ready baseline still names what held steady"
 
 
+def test_a_students_own_uploads_do_not_bring_the_baseline_to_a_reading():
+    """The line counts approved papers (rule B): five pieces on file of which
+    three a teacher approved (two the student uploaded) is still inconclusive."""
+    layer7 = {
+        "baseline_confidence": {"authenticated_count": 5, "effective_sample_count": 4.0},
+        "baseline_integrity": {"n_baselines": 3},
+        "recommendation": {"action": "no_action"},
+        "interference": {"constructive_features": [{"code": "burstiness"}]},
+    }
+    assert voice_mod.project_submission_result(layer7, "Dana") == voice_mod.project_inconclusive_result()
+    layer7["baseline_integrity"] = {"n_baselines": 5}
+    assert voice_mod.project_submission_result(layer7, "Dana")["headline"] == "This reads like you."
+
+
 def test_a_result_that_does_not_say_how_thick_the_baseline_is_inconclusive():
     for confidence in (None, {}, {"authenticated_count": 9}, {"effective_sample_count": 9.0},
                        {"authenticated_count": None, "effective_sample_count": 4.0},
                        {"authenticated_count": 5, "effective_sample_count": float("nan")},
                        {"authenticated_count": "9", "effective_sample_count": "9"}):
-        layer7 = {"baseline_confidence": confidence, "recommendation": {"action": "no_action"}}
+        layer7 = {
+            "baseline_confidence": confidence,
+            # The counted value each case gives (or omits) is the approved count now.
+            "baseline_integrity": {"n_baselines": (confidence or {}).get("authenticated_count")},
+            "recommendation": {"action": "no_action"},
+        }
         assert voice_mod.project_submission_result(layer7, "Dana")["headline"] == INCONCLUSIVE_HEADLINE, confidence
+    # A thick baseline_confidence is not enough: the approved count must say too.
+    for integrity in (None, {}, {"n_baselines": None}, {"n_baselines": "9"}):
+        layer7 = {
+            "baseline_confidence": {"authenticated_count": 9, "effective_sample_count": 9.0},
+            "baseline_integrity": integrity,
+            "recommendation": {"action": "no_action"},
+        }
+        assert voice_mod.project_submission_result(layer7, "Dana")["headline"] == INCONCLUSIVE_HEADLINE, integrity
     assert voice_mod.project_submission_result({"recommendation": {"action": "no_action"}}, "Dana")["headline"] == (
         INCONCLUSIVE_HEADLINE
     )
 
 
 def test_the_inconclusive_result_reads_a_typed_response_as_well_as_a_dict():
-    from original.schemas import BaselineConfidenceOut
+    from original.schemas import BaselineConfidenceOut, BaselineIntegrityOut
 
     class Result:
         def __init__(self, counted, effective):
             self.baseline_confidence = BaselineConfidenceOut(
                 purity=0.5, sample_count=counted, authenticated_count=counted,
                 effective_sample_count=effective, trajectory_confidence=0.5,
+            )
+            self.baseline_integrity = BaselineIntegrityOut(
+                n_baselines=counted, min_required=3, readiness="ready", provenance_mix={},
+                span_days=None, loo_outlier_samples=[], sigma_inflation=None, notes=[],
             )
             self.recommendation = {"action": "no_action"}
             self.interference = None

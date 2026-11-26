@@ -495,8 +495,13 @@ def _authorize_provenance(
 # ── Serialisation helper ──────────────────────────────────────────────────────
 
 
-def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
-    """Convert internal dataclasses → Pydantic response model."""
+def _to_response(r, arc=None, report=None, sources=None) -> Layer7OutputResponse:
+    """Convert internal dataclasses → Pydantic response model.
+
+    ``sources`` is the score route's one lookup of how each past paper got in
+    (``approved_papers.gate_sources``), so ``baseline_integrity`` counts
+    approved papers under rule B without reading the records again. Other
+    callers (the admin playground) pass none: only trusted provenances count."""
     from ..explainer import explain
 
     # Phase 6: ScoringReport → ScoringReportOut. Built upstream when a
@@ -523,7 +528,12 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
 
         _bi_state = _repo().get(r.student_id)
         if _bi_state is not None:
-            _bi = build_baseline_integrity(_bi_state)
+            _bi = build_baseline_integrity(
+                _bi_state,
+                sources=sources
+                if sources is not None and len(sources) == len(_bi_state.samples)
+                else None,
+            )
             if _bi is not None:
                 baseline_integrity_out = BaselineIntegrityOut(**_bi.__dict__)
     except Exception:

@@ -1401,14 +1401,19 @@ class ReadinessResponse(BaseModel):
     """
     Pilot-facing baseline-readiness check (GET /students/{id}/readiness).
 
-    verdict: "ready" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),
-    "developing" (1 or more), else "insufficient". Pure read:
+    verdict: "ready" (>= MIN_BASELINE_SAMPLES approved papers, 3 by default),
+    "developing" (1 or more papers on file), else "insufficient". An approved
+    paper is a proctored, verified or canvas sample, or a shared paper or
+    take-home sitting a teacher approved; a student's own self-upload is
+    counted in authenticated_count but not in approved_count. Pure read:
     computed from the same StudentState the score endpoint uses.
     """
 
     student_id: str
     sample_count: int
     authenticated_count: int
+    # The papers the score route's floor counts (original/approved_papers.py).
+    approved_count: int
     effective_sample_count: float
     purity: float
     provenance_mix: dict[str, int]

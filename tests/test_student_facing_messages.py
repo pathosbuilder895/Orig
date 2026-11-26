@@ -68,6 +68,7 @@ def test_a_reading_that_differs_does_not_push_the_student_back_to_their_baseline
 
     layer7 = {
         "baseline_confidence": {"authenticated_count": 5, "effective_sample_count": 3.0},
+        "baseline_integrity": {"n_baselines": 5},
         "recommendation": {"action": "escalate"},
         "authorship": {"deviation_score": 0.9},
         "interference": {"constructive_features": []},

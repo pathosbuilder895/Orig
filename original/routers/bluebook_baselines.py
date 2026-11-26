@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from .. import bluebook_rules as rules
 from .. import principal as principal_mod
+from ..approved_papers import approved_paper_count
 from ..schemas import AddSampleRequest
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
 from ._shared import (
@@ -44,8 +45,7 @@ NOT_ADDED = "Could not be added."
 TOO_LONG = "This booklet is too long to add as a baseline sample."
 TAKE_HOME_DETAIL = "take-home: approve it on its own"
 NEEDS_BASELINE_DETAIL = (
-    "Take-home work can only extend a baseline. Approve at least {n} in-class "
-    "papers for this student first."
+    "Take-home work can only extend a baseline. Approve at least {n} papers for this student first."
 )
 HELD_DETAIL = (
     "Not added: this booklet differs strongly from the student's existing samples. "
@@ -187,8 +187,10 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
         if reason:
             return _row(rec, "needs_review", reason)
     if take_home:
+        # The baseline it extends is counted in approved papers (rule B,
+        # approved_papers.py): a student's own self-upload does not count.
         needed = min_baseline_samples()
-        have = 0 if state is None else state.sample_count
+        have = 0 if state is None else approved_paper_count(rec["student_id"], state.samples)
         if have < needed:
             return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
     try:

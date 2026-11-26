@@ -14,13 +14,14 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 
 from .. import voice as voice_mod
+from ..approved_papers import approved_paper_count
 from ..schemas import (
     ScoreSubmissionRequest,
     VoiceSubmitRequest,
     VoiceSubmitResult,
     VoiceView,
 )
-from ._shared import _TRUSTED_PROVENANCE, _repo, _require_student_session
+from ._shared import _repo, _require_student_session
 from .students_scoring import _throttle_score, score_submission
 
 router = APIRouter()
@@ -72,11 +73,11 @@ def my_voice(request: Request):
             code: float(state.baseline_mean[i]) for i, code in enumerate(ALL_FEATURE_CODES)
         }
         sample_count = state.sample_count
-        # Voice Affirmed means a piece a teacher approved is on file. That is the
-        # trusted provenances (a supervised sitting, a teacher-verified paper, a
-        # course-site import), not authenticated_count, which also counts a
-        # student's own upload at half weight.
-        approved_count = sum(1 for s in state.samples if s.provenance in _TRUSTED_PROVENANCE)
+        # Voice Affirmed means a piece a teacher approved is on file: an approved
+        # past paper under the one definition the score route's floor uses
+        # (rule B, approved_papers.py), not authenticated_count, which also
+        # counts a student's own upload at half weight. Only the count is used.
+        approved_count = approved_paper_count(sid, state.samples)
     else:
         baseline_vector = {}
         sample_count = 0
@@ -109,10 +110,14 @@ def my_work(request: Request, body: VoiceSubmitRequest):
     affirmations + whether a review opportunity opened). This route never adds
     the piece to the student's baseline, so the student's sample count is the
     same before and after, and the piece itself is not stored. The raw Layer-7
-    payload never leaves the server. When the writing on file is too thin to
-    rate ready (fewer than five counted samples, or less than three effective),
-    the answer is "not enough writing on file to compare yet", with no reading
-    of the piece (``voice.project_inconclusive_result``).
+    payload never leaves the server. Below the score route's floor (3 approved
+    papers by default, rule B in approved_papers.py; a student's own upload
+    does not count) the score route refuses and the answer is "no approved
+    writing on file yet" (``voice.project_no_baseline_result``). When the
+    writing on file is still too thin to read (fewer than five approved
+    papers, or less than three effective), the answer is "not enough writing
+    on file to compare yet", with no reading of the piece
+    (``voice.project_inconclusive_result``).
     """
     session = _require_student_session(request)
     sid = str(session["sid"])

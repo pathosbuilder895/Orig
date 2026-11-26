@@ -235,11 +235,12 @@ def project_milestones(
     Never sends the raw counts or "3 of 5 samples" — only whether each named
     milestone has been *reached* or is *upcoming*, with affirming copy.
 
-    ``approved_count`` is the number of samples a teacher has approved or a
-    supervised sitting has attested: provenance ``proctored``, ``verified`` or
-    ``canvas`` (``routers/_shared._TRUSTED_PROVENANCE``). It is not the
-    baseline's ``authenticated_count``, which also counts a student's own
-    unverified upload at half weight: a student cannot affirm their own voice.
+    ``approved_count`` is the number of approved past papers
+    (``original/approved_papers.py``, rule B): provenance ``proctored``,
+    ``verified`` or ``canvas``, or a shared paper or take-home sitting a
+    teacher approved. It is not the baseline's ``authenticated_count``, which
+    also counts a student's own unverified upload at half weight: a student
+    cannot affirm their own voice.
     """
     reached_established = sample_count >= 3
     reached_sampled = sample_count >= 1
@@ -420,12 +421,13 @@ def project_no_baseline_result() -> dict[str, Any]:
     }
 
 
-# Below this much counted writing (the server's authenticated_count, which includes a
-# student's own uploads) or this much effective weight, Original's reading of a piece is
-# not one to hand a student: the same line the teacher's readiness check draws for
-# "ready" (routers/students.py, get_student_readiness). A comparison against a thinner
-# baseline is inconclusive, not "this reads like you" and not a warning either
-# (NORTH_STAR rule 3). The numbers are used here and never sent.
+# Below this many approved papers (the result's baseline_integrity.n_baselines: rule B
+# in original/approved_papers.py, the definition the score route's floor uses, so a
+# student's own upload does not count) or this much effective weight, Original's
+# reading of a piece is not one to hand a student. Stricter than the score route's
+# floor (3 by default) on purpose. A comparison against a thinner baseline is
+# inconclusive, not "this reads like you" and not a warning either (NORTH_STAR
+# rule 3). The numbers are used here and never sent.
 MIN_COUNTED_SAMPLES = 5
 MIN_EFFECTIVE_SAMPLES = 3.0
 
@@ -458,9 +460,9 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
     ``human_explanation`` never cross the wire.
 
     When the baseline behind the result is thin (fewer than ``MIN_COUNTED_SAMPLES``
-    counted samples or less than ``MIN_EFFECTIVE_SAMPLES`` effective weight), or the
-    result does not say, the answer is ``project_inconclusive_result()`` and nothing
-    of the reading is used.
+    approved papers, ``baseline_integrity.n_baselines``, or less than
+    ``MIN_EFFECTIVE_SAMPLES`` effective weight), or the result does not say, the
+    answer is ``project_inconclusive_result()`` and nothing of the reading is used.
     """
 
     def _get(obj: Any, key: str, default: Any = None) -> Any:
@@ -471,7 +473,7 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         return getattr(obj, key, default)
 
     confidence = _get(layer7, "baseline_confidence")
-    counted = _get(confidence, "authenticated_count")
+    counted = _get(_get(layer7, "baseline_integrity"), "n_baselines")
     effective = _get(confidence, "effective_sample_count")
     if not (
         isinstance(counted, int | float)

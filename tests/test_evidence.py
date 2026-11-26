@@ -474,7 +474,8 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
         ss._attach_staff_explainability(response, request, EDGE, state, result)
         assert response.evidence is None and response.preliminary is None
     response = fresh()
-    ss._attach_staff_explainability(response, teacher, EDGE, state, result)
+    # approved: the score route's own count of approved papers (rule B).
+    ss._attach_staff_explainability(response, teacher, EDGE, state, result, approved=5)
     assert response.preliminary.score == 0.66 and response.preliminary.band_words == ev.BAND_WORDS["schedule_conversation"]
     assert response.preliminary.habits_compared is not None and response.preliminary.band_rate is None
     assert response.preliminary.band_rate_status.verdict in ("not run", "uninformative", "fail")
@@ -513,14 +514,16 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
 
     # Below the three-paper floor: no number. At it (the alpha's three papers): a number.
     # conftest lowers the floor to 1 for fixtures; pin the deployed default here.
+    # The floor counts approved papers (rule B, the score route's own count), so
+    # three papers on file of which two are approved is still below it.
     monkeypatch.setenv("MIN_BASELINE_SAMPLES", "3")
-    thin =SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=2, effective_sample_count=2.0)})
+    thin =SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=2.0)})
     response = fresh()
-    ss._attach_staff_explainability(response, teacher, EDGE, state, thin)
+    ss._attach_staff_explainability(response, teacher, EDGE, state, thin, approved=2)
     assert response.preliminary.score is None
     three = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=2.4)})
     response = fresh()
-    ss._attach_staff_explainability(response, teacher, EDGE, state, three)
+    ss._attach_staff_explainability(response, teacher, EDGE, state, three, approved=3)
     assert response.preliminary.score == 0.66
 
     monkeypatch.setattr("original.evidence.build_evidence", lambda *a, **k: 1 / 0)
@@ -759,7 +762,7 @@ def test_a_failed_range_count_leaves_the_preliminary_reading_without_it(monkeypa
     response = SimpleNamespace(evidence=None, preliminary=None)
     teacher = SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role="professor")))
     with caplog.at_level(logging.ERROR):
-        ss._attach_staff_explainability(response, teacher, EDGE, state, result)
+        ss._attach_staff_explainability(response, teacher, EDGE, state, result, approved=5)
     assert response.preliminary.score == 0.66
     prelim = response.preliminary
     assert prelim.habits_outside is None and prelim.habits_compared is None
