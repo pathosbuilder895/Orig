@@ -38,7 +38,10 @@ from .db.models.live import (
     BluebookCourse,
     BluebookEnrollment,
     BluebookExam,
+    BluebookExamDraft,
     BluebookInvite,
+    BluebookJoinLink,
+    BluebookPhonePark,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -49,12 +52,16 @@ from .db.models.live import (
     FusedScore,
     ParkBeat,
     ParkSession,
+    RuleDProfile,
     StaffUser,
     StudentName,
+    StudentPastPaper,
     StudentProfile,
     SubmissionManifest,
     Tenant,
     TunedThresholds,
+    UserDisplayPrefs,
+    UserLastLocation,
 )
 from .db.postgres_session import session_scope
 from .db.tenancy_shim import _LEGACY_FLAT_TENANT, join_scoped_id, split_scoped_id
@@ -68,6 +75,11 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vector_rules_from_doc,
+    _extra_vectors_doc,
+    _extra_vectors_from_doc,
+    _part_overrides_doc,
+    _refuse_measurement_view,
     genre_stats_from_groups,
     park_iso_utc,
     park_utc,
@@ -162,6 +174,7 @@ class PostgresRepository:
     def _state_to_doc(state: StudentState) -> dict:
         """Mirrors store.py's _serialize — a dict, not a JSON string,
         since StudentProfile.data is already a JSON/JSONB column."""
+        _refuse_measurement_view(state)
         return {
             "student_id": state.student_id,
             "samples": [
@@ -185,6 +198,10 @@ class PostgresRepository:
                     # mirrors store.py's _serialize; None for legacy/
                     # summary-less samples.
                     "composition_summary": s.composition_summary,
+                    # Versioned measurements — mirrors store.py's _serialize.
+                    **_extra_vectors_doc(s),
+                    # A teacher's choice of parts: mirrors store.py's _serialize.
+                    **_part_overrides_doc(s),
                 }
                 for s in state.samples
             ],
@@ -242,6 +259,9 @@ class PostgresRepository:
                     # mirrors store.py's _deserialize; None for legacy/
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
+                    extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
+                    extra_vector_rules=_extra_vector_rules_from_doc(s),
+                    part_overrides=s.get("part_overrides") or None,
                 )
             )
         return state
@@ -362,6 +382,14 @@ class PostgresRepository:
                 BluebookSubmission.student_id == student_id
             ),
             select(BluebookSession.student_key).where(BluebookSession.student_key == student_id),
+            select(BluebookExamDraft.student_key).where(
+                BluebookExamDraft.student_key == student_id
+            ),
+            select(UserLastLocation.account_key).where(UserLastLocation.account_key == student_id),
+            select(UserDisplayPrefs.account_key).where(UserDisplayPrefs.account_key == student_id),
+            select(BluebookPhonePark.student_key).where(
+                BluebookPhonePark.student_key == student_id
+            ),
             select(BluebookEnrollment.student_id).where(
                 BluebookEnrollment.student_id == student_id
             ),
@@ -515,6 +543,43 @@ class PostgresRepository:
                 session.execute(
                     BluebookEnrollment.__table__.delete().where(
                         BluebookEnrollment.student_id == student_id,
+                    )
+                )
+                # Past papers the student shared (2026-10): full scoped id
+                # verbatim, like the roster rows above.
+                session.execute(
+                    StudentPastPaper.__table__.delete().where(
+                        StudentPastPaper.student_id == student_id,
+                    )
+                )
+                # Unsealed exam drafts kept on the server (2026-10).
+                session.execute(
+                    BluebookExamDraft.__table__.delete().where(
+                        BluebookExamDraft.student_key == student_id,
+                    )
+                )
+                # The student's own parked-phone records (2026-10).
+                session.execute(
+                    BluebookPhonePark.__table__.delete().where(
+                        BluebookPhonePark.student_key == student_id,
+                    )
+                )
+                # Where the student last was in the app (2026-10).
+                session.execute(
+                    UserLastLocation.__table__.delete().where(
+                        UserLastLocation.account_key == student_id,
+                    )
+                )
+                # The student's chosen text font and size (2026-11).
+                session.execute(
+                    UserDisplayPrefs.__table__.delete().where(
+                        UserDisplayPrefs.account_key == student_id,
+                    )
+                )
+                # Rule D profiles of the student's approved papers (2026-11).
+                session.execute(
+                    RuleDProfile.__table__.delete().where(
+                        RuleDProfile.student_id == student_id,
                     )
                 )
                 session.execute(
@@ -757,6 +822,9 @@ class PostgresRepository:
                         FusedScore.student_id == local_id,
                     )
                 ).scalar_one()
+                rule_d_count = session.execute(
+                    select(func.count()).where(RuleDProfile.student_id == student_id)
+                ).scalar_one()
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 # Captured as plain values before the session closes below —
                 # ORM attribute access on a detached instance raises.
@@ -793,6 +861,7 @@ class PostgresRepository:
                     "audit_log_entries": {"count": int(audit_count)},
                     "ai_likelihood_scores": {"count": int(ai_likelihood_count)},
                     "fused_scores": {"count": int(fused_count)},
+                    "rule_d_profiles": {"count": int(rule_d_count)},
                     "display_name": {"on_file": has_display_name},
                 },
                 "effective_sample_weight": state.effective_sample_count,
@@ -2148,7 +2217,11 @@ class PostgresRepository:
             return result.rowcount == 1
 
     def delete_bluebook_exam(self, exam_id):
+        # Same as store.delete_bluebook_exam: unsealed drafts, sittings and
+        # phone parks go with the exam (there is no FK cascade).
         with session_scope() as session:
+            for model in (BluebookExamDraft, BluebookSession, BluebookPhonePark):
+                session.execute(model.__table__.delete().where(model.exam_id == exam_id))
             result = session.execute(
                 BluebookExam.__table__.delete().where(BluebookExam.exam_id == exam_id)
             )
@@ -2193,6 +2266,21 @@ class PostgresRepository:
             ).scalars()
             return [self._bluebook_sub_to_dict(r) for r in rows]
 
+    def list_bluebook_submission_texts_for_student(self, student_id):
+        with session_scope() as session:
+            rows = session.execute(
+                select(BluebookSubmission)
+                .where(BluebookSubmission.student_id == student_id)
+                .order_by(BluebookSubmission.created_at)
+            ).scalars()
+            out = []
+            for r in rows:
+                d = self._bluebook_sub_to_dict(r)
+                d["text"] = r.text
+                d["answers"] = r.answers_json or []
+                out.append(d)
+            return out
+
     def list_bluebook_submissions_for_exam(self, exam_id):
         with session_scope() as session:
             rows = session.execute(
@@ -2233,6 +2321,9 @@ class PostgresRepository:
                 BluebookEnrollment.__table__.delete().where(
                     BluebookEnrollment.course_id == course_id
                 )
+            )
+            session.execute(
+                BluebookJoinLink.__table__.delete().where(BluebookJoinLink.course_id == course_id)
             )
             result = session.execute(
                 BluebookCourse.__table__.delete().where(BluebookCourse.course_id == course_id)
@@ -2359,17 +2450,16 @@ class PostgresRepository:
             )
             return self._invite_to_dict(row) if row else None
 
-    def void_invites_for_user(self, user_id):
+    def void_invites_for_user(self, user_id, course_id=None):
+        stmt = update(BluebookInvite).where(
+            BluebookInvite.user_id == user_id,
+            BluebookInvite.redeemed_at.is_(None),
+            BluebookInvite.voided_at.is_(None),
+        )
+        if course_id is not None:
+            stmt = stmt.where(BluebookInvite.course_id == course_id)
         with session_scope() as session:
-            result = session.execute(
-                update(BluebookInvite)
-                .where(
-                    BluebookInvite.user_id == user_id,
-                    BluebookInvite.redeemed_at.is_(None),
-                    BluebookInvite.voided_at.is_(None),
-                )
-                .values(voided_at=datetime.now(UTC))
-            )
+            result = session.execute(stmt.values(voided_at=datetime.now(UTC)))
             return int(result.rowcount)
 
     def redeem_invite(self, invite_id):
@@ -2384,6 +2474,68 @@ class PostgresRepository:
                 .values(redeemed_at=datetime.now(UTC))
             )
             return result.rowcount == 1
+
+    @staticmethod
+    def _join_link_to_dict(row: BluebookJoinLink) -> dict:
+        return {
+            "link_id": row.link_id,
+            "tenant_id": row.tenant_id,
+            "course_id": row.course_id,
+            "token_hash": row.token_hash,
+            "created_by": row.created_by,
+            "created_at": row.created_at.isoformat(),
+            "voided_at": _iso_or_none(row.voided_at),
+        }
+
+    def put_join_link(self, rec):
+        with session_scope() as session:
+            self._ensure_tenant_exists(session, rec["tenant_id"])
+            session.add(
+                BluebookJoinLink(
+                    link_id=rec["link_id"],
+                    tenant_id=rec["tenant_id"],
+                    course_id=rec["course_id"],
+                    token_hash=rec["token_hash"],
+                    created_by=rec["created_by"],
+                    created_at=_dt_or_none(rec["created_at"]),
+                )
+            )
+
+    def get_join_link_by_hash(self, token_hash):
+        with session_scope() as session:
+            row = session.execute(
+                select(BluebookJoinLink).where(BluebookJoinLink.token_hash == token_hash)
+            ).scalar_one_or_none()
+            return self._join_link_to_dict(row) if row else None
+
+    def active_join_link_for_course(self, course_id):
+        with session_scope() as session:
+            row = (
+                session.execute(
+                    select(BluebookJoinLink)
+                    .where(
+                        BluebookJoinLink.course_id == course_id,
+                        BluebookJoinLink.voided_at.is_(None),
+                    )
+                    .order_by(BluebookJoinLink.created_at.desc())
+                    .limit(1)
+                )
+                .scalars()
+                .first()
+            )
+            return self._join_link_to_dict(row) if row else None
+
+    def void_join_links_for_course(self, course_id):
+        with session_scope() as session:
+            result = session.execute(
+                update(BluebookJoinLink)
+                .where(
+                    BluebookJoinLink.course_id == course_id,
+                    BluebookJoinLink.voided_at.is_(None),
+                )
+                .values(voided_at=datetime.now(UTC))
+            )
+            return int(result.rowcount)
 
     # ── Audit ─────────────────────────────────────────────────────────────
     @staticmethod
@@ -2454,6 +2606,38 @@ class PostgresRepository:
                 )
         except Exception:
             log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+    def list_audit_actions_for_student(self, student_id, actions):
+        if not student_id or not actions:
+            return []
+        with session_scope() as session:
+            rows = (
+                session.execute(
+                    select(AuditLogEntry)
+                    .where(*self._audit_scope_criteria(student_id))
+                    .where(AuditLogEntry.action.in_(list(actions)))
+                    .order_by(AuditLogEntry.created_at, AuditLogEntry.id)
+                )
+                .scalars()
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat(),
+                    "action": row.action,
+                    "student_id": (
+                        join_scoped_id(row.tenant_id, row.student_id)
+                        if row.tenant_id
+                        else row.student_id
+                    ),
+                    "tenant_id": row.tenant_id,
+                    "actor": row.actor,
+                    "result": row.result,
+                    "details": row.details_json or {},
+                }
+                for row in rows
+            ]
 
     def list_audit(self, student_id=None, action=None, limit=100, offset=0, tenant_id=None):
         limit = min(limit, 1000)
@@ -2836,3 +3020,287 @@ class PostgresRepository:
     # ── DB path ───────────────────────────────────────────────────────────
     def db_path(self):
         self._todo("db_path")
+
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+
+    def put_past_paper(self, rec):
+        with session_scope() as session:
+            session.add(
+                StudentPastPaper(
+                    paper_id=rec["paper_id"],
+                    tenant_id=rec["tenant_id"],
+                    student_id=rec["student_id"],
+                    title=rec["title"],
+                    text=rec["text"],
+                    word_count=int(rec["word_count"]),
+                    filename=rec.get("filename"),
+                    baseline_source=rec.get("baseline_source") or "independent",
+                    parent_title=rec.get("parent_title"),
+                    status=rec.get("status") or "pending",
+                    created_at=datetime.now(UTC),
+                )
+            )
+
+    def get_past_paper(self, paper_id):
+        with session_scope() as session:
+            row = session.get(StudentPastPaper, paper_id)
+            return _past_paper_to_dict(row) if row else None
+
+    def list_past_papers(self, tenant_id, student_id=None):
+        with session_scope() as session:
+            stmt = select(StudentPastPaper).where(StudentPastPaper.tenant_id == tenant_id)
+            if student_id is not None:
+                stmt = stmt.where(StudentPastPaper.student_id == student_id)
+            rows = session.execute(stmt.order_by(StudentPastPaper.created_at.desc())).scalars()
+            return [_past_paper_to_dict(r) for r in rows]
+
+    def count_past_papers_since(self, student_id, since_iso):
+        since = datetime.fromisoformat(since_iso)
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=UTC)
+        with session_scope() as session:
+            return int(
+                session.execute(
+                    select(func.count())
+                    .select_from(StudentPastPaper)
+                    .where(
+                        StudentPastPaper.student_id == student_id,
+                        StudentPastPaper.created_at >= since,
+                    )
+                ).scalar_one()
+            )
+
+    def set_past_paper_status(self, paper_id, status, reviewed_by):
+        with session_scope() as session:
+            session.execute(
+                update(StudentPastPaper)
+                .where(StudentPastPaper.paper_id == paper_id)
+                .values(status=status, reviewed_at=datetime.now(UTC), reviewed_by=reviewed_by)
+            )
+
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+
+    def put_exam_draft(self, exam_id, student_key, tenant_id, content, answers, client_saved_at):
+        now = datetime.now(UTC)
+        values = dict(
+            tenant_id=tenant_id,
+            content=content,
+            answers=answers,
+            client_saved_at=int(client_saved_at),
+            updated_at=now,
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(BluebookExamDraft)
+                .values(exam_id=exam_id, student_key=student_key, **values)
+                .on_conflict_do_update(index_elements=["exam_id", "student_key"], set_=values)
+            )
+        return self.get_exam_draft(exam_id, student_key) or {}
+
+    def get_exam_draft(self, exam_id, student_key):
+        with session_scope() as session:
+            row = session.get(BluebookExamDraft, (exam_id, student_key))
+            if row is None:
+                return None
+            return {
+                "exam_id": row.exam_id,
+                "student_key": row.student_key,
+                "tenant_id": row.tenant_id,
+                "content": row.content,
+                "answers": row.answers,
+                "client_saved_at": int(row.client_saved_at or 0),
+                "updated_at": _iso_or_none(row.updated_at),
+            }
+
+    def delete_exam_draft(self, exam_id, student_key):
+        with session_scope() as session:
+            session.execute(
+                BluebookExamDraft.__table__.delete().where(
+                    BluebookExamDraft.exam_id == exam_id,
+                    BluebookExamDraft.student_key == student_key,
+                )
+            )
+
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+
+    def put_last_location(self, account_key, tenant_id, role, loc):
+        values = dict(
+            tenant_id=tenant_id,
+            role=role,
+            screen=loc["screen"],
+            entity_kind=loc.get("entity_kind", ""),
+            entity_id=loc.get("entity_id", ""),
+            tab=loc.get("tab", ""),
+            scroll_fraction=float(loc.get("scroll_fraction", 0.0)),
+            scroll_anchor=loc.get("scroll_anchor", ""),
+            updated_at=datetime.now(UTC),
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserLastLocation)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_last_location(account_key) or {}
+
+    def get_last_location(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserLastLocation, account_key)
+            if row is None:
+                return None
+            return {
+                "account_key": row.account_key,
+                "tenant_id": row.tenant_id,
+                "role": row.role,
+                "screen": row.screen,
+                "entity_kind": row.entity_kind,
+                "entity_id": row.entity_id,
+                "tab": row.tab,
+                "scroll_fraction": float(row.scroll_fraction or 0.0),
+                "scroll_anchor": row.scroll_anchor,
+                "updated_at": _iso_or_none(row.updated_at),
+            }
+
+    def delete_last_location(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserLastLocation.__table__.delete().where(
+                    UserLastLocation.account_key == account_key
+                )
+            )
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+
+    def put_display_prefs(self, account_key, prefs):
+        values = dict(font=prefs["font"], size=prefs["size"], updated_at=datetime.now(UTC))
+        with session_scope() as session:
+            session.execute(
+                pg_insert(UserDisplayPrefs)
+                .values(account_key=account_key, **values)
+                .on_conflict_do_update(index_elements=["account_key"], set_=values)
+            )
+        return self.get_display_prefs(account_key) or {}
+
+    def get_display_prefs(self, account_key):
+        with session_scope() as session:
+            row = session.get(UserDisplayPrefs, account_key)
+            if row is None:
+                return None
+            return {"font": row.font, "size": row.size, "updated_at": _iso_or_none(row.updated_at)}
+
+    def delete_display_prefs(self, account_key):
+        with session_scope() as session:
+            session.execute(
+                UserDisplayPrefs.__table__.delete().where(
+                    UserDisplayPrefs.account_key == account_key
+                )
+            )
+
+    # ── Rule D profiles: one per approved past paper (2026-11) ────────────
+
+    def get_rule_d_profiles(self, student_id):
+        with session_scope() as session:
+            rows = session.query(RuleDProfile).filter(RuleDProfile.student_id == student_id).all()
+            return {r.text_sha256: json.loads(r.data) for r in rows}
+
+    def put_rule_d_profile(self, student_id, text_sha256, data):
+        from .principal import tenant_of
+
+        values = dict(
+            student_id=student_id,
+            tenant_id=tenant_of(student_id),
+            text_sha256=text_sha256,
+            data=json.dumps(data, separators=(",", ":")),
+            created_at=datetime.now(UTC),
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(RuleDProfile)
+                .values(profile_key=f"{student_id}|{text_sha256}", **values)
+                .on_conflict_do_update(index_elements=["profile_key"], set_=values)
+            )
+
+    def delete_rule_d_profiles(self, student_id, keep=None):
+        keep = set(keep or ())
+        with session_scope() as session:
+            rows = session.query(RuleDProfile).filter(RuleDProfile.student_id == student_id).all()
+            gone = [r for r in rows if r.text_sha256 not in keep]
+            for r in gone:
+                session.delete(r)
+            return len(gone)
+
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+
+    @staticmethod
+    def _phone_park_dict(row):
+        return {
+            "exam_id": row.exam_id,
+            "student_key": row.student_key,
+            "tenant_id": row.tenant_id,
+            "state": row.state,
+            "parked_at": _iso_or_none(row.parked_at),
+            "last_seen_at": _iso_or_none(row.last_seen_at),
+            "override_by": row.override_by,
+            "override_at": _iso_or_none(row.override_at),
+            "override_note": row.override_note,
+        }
+
+    def put_phone_park(self, exam_id, student_key, tenant_id, fields):
+        allowed = (
+            "state",
+            "parked_at",
+            "last_seen_at",
+            "override_by",
+            "override_at",
+            "override_note",
+        )
+        values = {}
+        for k in allowed:
+            if k in fields:
+                v = fields[k]
+                if k.endswith("_at") and isinstance(v, str):
+                    v = datetime.fromisoformat(v)
+                values[k] = v
+        with session_scope() as session:
+            stmt = pg_insert(BluebookPhonePark).values(
+                exam_id=exam_id, student_key=student_key, tenant_id=tenant_id, **values
+            )
+            stmt = (
+                stmt.on_conflict_do_update(index_elements=["exam_id", "student_key"], set_=values)
+                if values
+                else stmt.on_conflict_do_nothing(index_elements=["exam_id", "student_key"])
+            )
+            session.execute(stmt)
+        return self.get_phone_park(exam_id, student_key) or {}
+
+    def get_phone_park(self, exam_id, student_key):
+        with session_scope() as session:
+            row = session.get(BluebookPhonePark, (exam_id, student_key))
+            return None if row is None else self._phone_park_dict(row)
+
+    def list_phone_parks(self, exam_id):
+        with session_scope() as session:
+            rows = session.scalars(
+                select(BluebookPhonePark)
+                .where(BluebookPhonePark.exam_id == exam_id)
+                .order_by(BluebookPhonePark.student_key)
+            ).all()
+            return [self._phone_park_dict(r) for r in rows]
+
+
+def _past_paper_to_dict(row) -> dict:
+    return {
+        "paper_id": row.paper_id,
+        "tenant_id": row.tenant_id,
+        "student_id": row.student_id,
+        "title": row.title,
+        "text": row.text,
+        "word_count": row.word_count,
+        "filename": row.filename,
+        "baseline_source": row.baseline_source,
+        "parent_title": row.parent_title,
+        "status": row.status,
+        "created_at": _iso_or_none(row.created_at),
+        "reviewed_at": _iso_or_none(row.reviewed_at),
+        "reviewed_by": row.reviewed_by,
+    }

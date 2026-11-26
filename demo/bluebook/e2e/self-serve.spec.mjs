@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from '@playwright/test'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 
@@ -51,7 +52,7 @@ test.describe('Public self-serve journey', () => {
     await teacher.getByRole('button', { name: 'Create workspace' }).click()
     await expect(teacher.getByRole('button', { name: 'Overview', exact: true })).toBeVisible({ timeout: 10_000 })
     // A Bluebook-only workspace has no Original cross-link.
-    await expect(teacher.getByRole('button', { name: /Original Analysis/ })).toHaveCount(0)
+    await expect(teacher.getByRole('button', { name: /^Original/ })).toHaveCount(0)
 
     // ── Teacher: course (creating it opens its roster) ─────────────────
     await teacher.getByRole('button', { name: 'Courses', exact: true }).click()
@@ -78,8 +79,8 @@ test.describe('Public self-serve journey', () => {
     expect(linksCsv).toContain(inviteUrl)
 
     // ── Teacher: exam with two questions, linked to the course ─────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await teacher.getByRole('button', { name: '+ New examination' }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
+    await teacher.getByRole('button', { name: '+ New collection' }).click()
     await teacher.locator('#neTitle').fill(examTitle)
     await teacher.locator('#neDuration').fill('30')
     await teacher.locator('#neMinWords').fill('5')
@@ -88,10 +89,10 @@ test.describe('Public self-serve journey', () => {
     await teacher.locator('#nePrompt1').fill(q2)
     const [createRes] = await Promise.all([
       teacher.waitForResponse(r => r.url().endsWith('/bluebook/exams') && r.request().method() === 'POST'),
-      teacher.getByRole('button', { name: 'Publish Examination' }).click(),
+      teacher.getByRole('button', { name: 'Publish Collection' }).click(),
     ])
     expect((await createRes.json()).questions).toEqual([q1, q2])
-    await expect(teacher.getByText('Examination Created')).toBeVisible({ timeout: 10_000 })
+    await expect(teacher.getByText('Collection Created')).toBeVisible({ timeout: 10_000 })
 
     // ── Student: redeem, see the exam, sit it ───────────────────────────
     const sctx = await browser.newContext()
@@ -102,21 +103,24 @@ test.describe('Public self-serve journey', () => {
     await student.goto(new URL(inviteUrl).pathname + new URL(inviteUrl).search)
     await student.getByLabel('New password').fill('e2e-student-pass-1')
     await student.getByLabel('Confirm password').fill('e2e-student-pass-1')
+    // A student's invitation asks them to read the student notice and accept the terms.
+    await expect(student.getByText(/I have read the student notice/)).toBeVisible()
+    await student.getByRole('checkbox').check()
     await student.getByRole('button', { name: 'Save and continue' }).click()
     await expect(student.getByText(examTitle)).toBeVisible({ timeout: 10_000 })
     await expect(student).not.toHaveURL(/invite=/)
     await student.getByRole('button', { name: 'Open' }).click()
-    await expect(student.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(student.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     // Honest conditions: nothing claims AI tools are blocked.
     await expect(student.getByText(/AI .*blocked/i)).toHaveCount(0)
-    await student.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+    await student.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
 
     // One question at a time, one answer box each.
     await expect(student.getByText(q1, { exact: false })).toBeVisible({ timeout: 10_000 })
     const box1 = student.getByLabel('Your answer to question 1')
     await box1.focus()
     await student.keyboard.type(answer, { delay: 1 })
-    await student.getByRole('button', { name: 'Next →' }).click()
+    await student.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(student.getByText(q2, { exact: false })).toBeVisible()
     const box2 = student.getByLabel('Your answer to question 2')
     await expect(box2).toHaveValue('')
@@ -141,26 +145,26 @@ test.describe('Public self-serve journey', () => {
         return ok
       }
     })
-    student.once('dialog', d => d.accept())
+    await student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
     const [sealRes] = await Promise.all([
       student.waitForResponse(r => r.url().endsWith('/bluebook/submissions') && r.request().method() === 'POST'),
-      student.locator('button', { hasText: /Seal & Submit|Sealing/ }).click(),
+      confirmSeal(student),
     ])
     const sealBody = sealRes.request().postDataJSON()
     expect(sealBody.answers).toEqual([answer, answer2])
     // Exactly the one warning this test caused on purpose: the seal
     // confirmation itself records nothing.
     expect(sealBody.warnings.map(w => w.type)).toEqual(['focus_lost'])
-    await expect(student.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+    await expect(student.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
     await expect(student.getByText('✓ Delivered to your teacher')).toBeVisible()
     // A Bluebook-only workspace never reaches Original.
     expect(originalCalls).toEqual([])
 
-    await student.getByRole('button', { name: 'Back to my exams' }).click()
+    await student.getByRole('button', { name: 'Back to my collections' }).click()
     await expect(student.getByText('Not yet released')).toBeVisible({ timeout: 10_000 })
 
     // ── Teacher: read each answer and the warning, mark, release ────────
-    await teacher.getByRole('button', { name: 'Examinations', exact: true }).click()
+    await teacher.getByRole('button', { name: 'Collections', exact: true }).click()
     await teacher.getByRole('button', { name: examTitle, exact: true }).click()
     await expect(teacher.getByRole('button', { name: 'Export CSV' })).toBeVisible({ timeout: 10_000 })
     await teacher.getByRole('button', { name: 'Read & mark' }).click()

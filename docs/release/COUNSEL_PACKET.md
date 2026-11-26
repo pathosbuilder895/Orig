@@ -23,49 +23,67 @@ The three pages are served at `/legal/privacy.html`, `/legal/terms.html` and
 and privacy policy before setting a password. The server records the
 `TERMS_VERSION` they accepted.
 
+## 0. Update, 2026-10-13: pages rewritten to match the code
+
+On Andrew's instruction (overnight task, PR #273) engineering rewrote all three
+pages so every statement matches what the code does, with a code citation for
+each in that PR's description, and marked each page "DRAFT, pending counsel
+review" at the top. The version string is unchanged (`2026-10-01-draft`), so no
+teacher's recorded acceptance changes meaning. `tests/test_legal_pages_match_code.py`
+now fails if a page drops one of those statements or the code stops matching it.
+The sections below are updated to the new text.
+
+Things counsel should know that the code does **not** do yet, and that the pages
+now say plainly:
+
+- **Retention.** The pages state the defaults Andrew set (365 days for submitted
+  work, 35 days for backups), and say that automatic deletion at 365 days is
+  not switched on yet: nothing in the live stack deletes work on a schedule.
+  Either it is built before launch, or the default changes.
+- **Backups expire by a bucket rule**, not by code. The 35 days holds only once
+  that lifecycle rule is set on the bucket (owner step B1).
+- **Request logs record an IP address and user agent** for each request (the
+  app's request log, kept by Render, not in the database). No IP address is
+  stored in the database; one operator route that used to write the caller's
+  address into the audit log was changed in PR #273.
+- **Deletion leaves sign-in records** (they hold the email address used), one
+  receipt of the deletion, and backup copies until they expire.
+- **No age check** exists in the product.
+
 ## 1. Blanks to fill
 
-| Page and line | Blank | Notes for counsel |
+| Page and section | Blank | Notes for counsel |
 |---|---|---|
-| `privacy.html:18` | `[company legal name and address]` | The operating entity. |
-| `privacy.html:37` | `[confirm region]` | Render, Oregon (US West), per `render.yaml`. Hosting is not yet signed off. |
-| `privacy.html:40` | `[object-storage provider]` | Cloudflare R2 or Backblaze B2, whichever Andrew opens. Backups are encrypted before upload. |
-| `privacy.html:45` | `[30]` (backup retention, days) | Must match the bucket's lifecycle rule once it is set. |
-| `terms.html:15` | `[company legal name]` | Same entity as the privacy page. |
-| `terms.html:42` | warranties, liability, indemnity | The placeholder says "a free educational service". Confirm the pilot is free; billing is not built. |
-| `terms.html:45` | governing law and venue | |
+| privacy, "Who we are" | `[company legal name and address]` | The operating entity. |
+| privacy, "Request logs" | Render's log retention | Plan-dependent; Andrew reads it from the Render dashboard. |
+| privacy, "Who processes it for us" | confirm R2 and its location | Cloudflare R2 is the intended backup store; the code works with any S3-compatible store. Backups are Fernet-encrypted before upload. |
+| privacy, "Who processes it for us" | is error reporting on? | `SENTRY_DSN` is set in the dashboard, not in `render.yaml`. |
+| privacy, "How long we keep it" | build 365-day deletion, or change the default | See section 0. |
+| privacy, "How long we keep it" | 35-day bucket rule; Render snapshot period | Owner confirmations. |
+| privacy, "Children" | student age range | See section 4. |
+| terms, header | `[company legal name]` | Same entity as the privacy page. |
+| terms, section 3 | terms for a teacher with no school agreement | See section 3. |
+| terms, section 10 | warranties, liability, indemnity | The placeholder says "a free educational service". Confirm the pilot is free; billing is not built. |
+| terms, section 11 | governing law and venue | |
 
 `student-notice.html` has no blanks.
 
-## 2. Sentences that become untrue when Original is on
+## 2. Sentences that were untrue when Original is on: resolved
 
-1. **`student-notice.html:25`** (under "What Collections does not do"): "It does not analyse your writing style or compare it with your earlier work."
-2. **`privacy.html:33`**: "...and Collections does not analyse a student's writing style or compare it with earlier work."
-
-Both are true for a Collections-only workspace. Neither is true where Original is
-on. There, a teacher can approve a student's sealed exams as reference writing,
-including exams sat before Original was switched on. Original then compares
-later writing with them. Teachers can undo an approval.
-
-**Proposal for the student notice:**
-
-> Collections itself does not analyse your writing style. If your teacher's
-> workspace uses Original, a separate feature that is still in its testing
-> phase, your teacher may choose some of your sealed work as reference writing
-> and compare later work with it. Your teacher can undo that choice. A result
-> is only ever a reason for a conversation with you, never evidence on its own.
-
-**Proposal for the privacy page:** the same idea in third person. Also add
-"reference writing approved by the teacher, and comparison results" as a data
-category that exists only where Original is on.
+The two "does not analyse your writing style" sentences are gone. Both the
+privacy page and the student notice now have a section on Original: off by
+default, in its testing phase, a reason for a conversation and never proof,
+sealed work joins a writing profile only when the teacher approves it (and the
+teacher can undo that), and no score is shown to students in Collections. The
+terms have a matching section 5. Counsel should check that wording.
 
 ## 3. Lines that assume a school
 
-| Page and line | Text | Question |
+| Page and section | Text now | Question |
 |---|---|---|
-| `privacy.html:21` | "When a teacher uses Collections for a school, we process student information on the school's and teacher's behalf..." | What is our role when there is no school, only an independent teacher? |
-| `terms.html:24` | "...you confirm that you are authorised to do so (for example by your school)..." | What should an independent teacher confirm before adding students? |
-| `student-notice.html:29` | "Only your teacher (and people your school authorises)." | Change to "Only your teacher" where there is no school? |
+| privacy, "What the service is for" | "...on the teacher's behalf (and, where there is one, the school's)..." | What is our role when there is no school, only an independent teacher? |
+| terms, section 3 | "...you confirm that you are allowed to do so..." | What should an independent teacher confirm before adding students? |
+| student notice, "Who sees your work" | "Your teacher, and anyone your school authorises." | Drop the school where there is none? |
 
 ## 4. Age of students
 

@@ -218,6 +218,44 @@ def test_security_headers_adds_hsts_when_enabled(monkeypatch, live_client):
     assert r.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
 
 
+def test_health_returns_503_and_deployment_fields_when_database_probe_fails(
+    monkeypatch, live_client
+):
+    monkeypatch.setattr(health_mod, "_database_probe", lambda: (_ for _ in ()).throw(OSError()))
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "test-commit")
+    monkeypatch.setattr("original.repository.backend_name", lambda: "postgres")
+    monkeypatch.setattr(health_mod, "_signup_open", lambda: False)
+
+    response = live_client.get("/health")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "unavailable",
+        "commit": "test-commit",
+        "backend": "postgres",
+        "signup_open": False,
+    }
+
+
+def test_database_probe_executes_a_live_sqlite_query(monkeypatch, store_reset):
+    monkeypatch.setattr("original.repository.backend_name", lambda: "sqlite")
+
+    health_mod._database_probe()
+
+
+def test_livez_does_not_probe_database(monkeypatch, live_client):
+    monkeypatch.setattr(
+        health_mod,
+        "_database_probe",
+        lambda: pytest.fail("liveness must not depend on the database"),
+    )
+
+    response = live_client.get("/livez")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # api.py: _resolve_app_version — remaining arm ([195,199])
 # ─────────────────────────────────────────────────────────────────────────────
@@ -312,7 +350,9 @@ class _FakeHealthRepo:
         return self._db_path
 
 
-def test_admin_health_degrades_when_manifest_stats_raises(monkeypatch, live_client, store_reset, tmp_path):
+def test_admin_health_degrades_when_manifest_stats_raises(
+    monkeypatch, live_client, store_reset, tmp_path
+):
     monkeypatch.setattr(
         health_mod,
         "_repo",
@@ -325,7 +365,9 @@ def test_admin_health_degrades_when_manifest_stats_raises(monkeypatch, live_clie
     assert out["flagged_count"] == 0
 
 
-def test_admin_health_degrades_when_list_manifests_raises(monkeypatch, live_client, store_reset, tmp_path):
+def test_admin_health_degrades_when_list_manifests_raises(
+    monkeypatch, live_client, store_reset, tmp_path
+):
     monkeypatch.setattr(
         health_mod,
         "_repo",
@@ -337,7 +379,9 @@ def test_admin_health_degrades_when_list_manifests_raises(monkeypatch, live_clie
     assert out["avg_latency_ms"] is None
 
 
-def test_admin_health_averages_latency_when_present(monkeypatch, live_client, store_reset, tmp_path):
+def test_admin_health_averages_latency_when_present(
+    monkeypatch, live_client, store_reset, tmp_path
+):
     items = [{"latency_ms": 120}, {"latency_ms": 80}, {"latency_ms": None}]
     monkeypatch.setattr(
         health_mod, "_repo", lambda: _FakeHealthRepo(items=items, db_path=tmp_path / "p.db")
@@ -348,7 +392,9 @@ def test_admin_health_averages_latency_when_present(monkeypatch, live_client, st
     assert out["avg_latency_ms"] == 100
 
 
-def test_admin_health_latency_stays_none_when_all_items_lack_it(monkeypatch, live_client, store_reset, tmp_path):
+def test_admin_health_latency_stays_none_when_all_items_lack_it(
+    monkeypatch, live_client, store_reset, tmp_path
+):
     items = [{"latency_ms": None}, {"latency_ms": None}]
     monkeypatch.setattr(
         health_mod, "_repo", lambda: _FakeHealthRepo(items=items, db_path=tmp_path / "p.db")

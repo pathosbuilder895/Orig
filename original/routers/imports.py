@@ -4,16 +4,18 @@ Canvas baseline import. Moved verbatim from original/api.py."""
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
 import logging
 
 import anyio
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
+from .. import measurement as _measurement
 from ..constants import AUTH_WEIGHTS
+from ..features import feature_flags as _ff
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
+from ..upload_utils import text_digest
 from ._shared import (
     _authorize_provenance,
     _persist_or_503,
@@ -24,6 +26,12 @@ from ._shared import (
 from .students_baseline import _existing_text_hashes
 
 router = APIRouter()
+
+
+def _measure_default(text: str):
+    """``feature_vector`` measured the default way (stored vectors never mix versions)."""
+    with _ff.measuring(_measurement.DEFAULT):
+        return feature_vector(text)
 
 
 # ── Turnitin CSV import ───────────────────────────────────────────────────────
@@ -145,7 +153,7 @@ async def list_canvas_submissions(
             text = await canvas_live.get_submission_text(submission, access_token, client)
             if not text or len(text.split()) < canvas_live.MIN_WORDS:
                 continue
-            digest = hashlib.sha256(text.encode()).hexdigest()
+            digest = text_digest(text)
             previews.append(
                 {
                     "canvas_submission_id": str(submission.get("id", "")),
@@ -200,11 +208,15 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                 if not text or len(text.split()) < canvas_live.MIN_WORDS:
                     skipped += 1
                     continue
-                digest = hashlib.sha256(text.encode()).hexdigest()
+                digest = text_digest(text)
                 if digest in existing_hashes:
                     skipped += 1
                     continue
-                vec = await anyio.to_thread.run_sync(feature_vector, text)
+                # Default measurement for the stored vector (original/measurement.py).
+                vec = await anyio.to_thread.run_sync(_measure_default, text)
+                extra_vectors = await anyio.to_thread.run_sync(
+                    _measurement.extra_vectors_at_upload, text
+                )
                 sample = BaselineSample(
                     text=text,
                     vector=vec,
@@ -215,6 +227,8 @@ async def import_canvas_baseline(student_id: str, req: dict | None = None, reque
                     ),
                     submitted_at=submission.get("submitted_at") or "",
                     word_count=len(text.split()),
+                    extra_vectors=extra_vectors,
+                    extra_vector_rules=_measurement.rules_stamps(extra_vectors),
                 )
                 sample.text_hash = digest  # type: ignore[attr-defined]
                 if AUTH_WEIGHTS[provenance] > 0:

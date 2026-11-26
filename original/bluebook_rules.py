@@ -91,19 +91,113 @@ def exam_state(exam: dict, now: datetime) -> str:
     return OPEN
 
 
-def session_seconds(exam: dict, now: datetime, default_minutes: int = 90) -> int:
+def session_seconds(exam: dict, now: datetime, default_minutes: int = 90) -> int | None:
     """Sitting length in seconds: the exam duration, clipped so the pinned
     deadline never passes ``closes_at``. Never below 60 seconds, matching
-    the existing session route's floor."""
+    the existing session route's floor.
+
+    An untimed collection (``conditions.timed`` is False) has no duration:
+    the sitting runs until ``closes_at`` (the deadline is the close time), or
+    has no deadline at all (``None``) when the collection never closes. It is
+    never given a large stand-in duration."""
+    closes = parse_instant(exam.get("closes_at"))
+    if not is_timed(exam):
+        if closes is None:
+            return None
+        return max(60, int((closes - now).total_seconds()))
     try:
         minutes = int(exam.get("duration") or default_minutes)
     except (TypeError, ValueError):
         minutes = default_minutes
     seconds = max(60, minutes * 60)
-    closes = parse_instant(exam.get("closes_at"))
     if closes is not None:
         seconds = min(seconds, int((closes - now).total_seconds()))
     return max(60, seconds)
+
+
+# ── Collection options (Collections merge, 2026-10-20) ────────────────────────
+# Every assignment is one collection; its options live in ``conditions`` so
+# no column changes. Missing keys read as the behaviour before the merge:
+# timed, in class, no size.
+
+SMALLS_GREATS_CUTOFF = 1000  # words: Smalls are 1,000 and under; Greats are over 1,000
+SIZES = ("small", "great")
+SETTINGS = ("in_class", "take_home")
+IN_CLASS, TAKE_HOME = SETTINGS
+
+
+def _conditions(exam: dict) -> dict:
+    c = exam.get("conditions")
+    return c if isinstance(c, dict) else {}
+
+
+def is_timed(exam: dict) -> bool:
+    return _conditions(exam).get("timed") is not False
+
+
+def setting(exam: dict) -> str:
+    return TAKE_HOME if _conditions(exam).get("setting") == TAKE_HOME else IN_CLASS
+
+
+def size_class(exam: dict) -> str | None:
+    """'small' | 'great' | None: the chosen size, else read off the range."""
+    chosen = _conditions(exam).get("size")
+    if chosen in SIZES:
+        return chosen
+    lo = int(exam.get("minWords") or 0)
+    hi = int(exam.get("maxWords") or 0)
+    if lo > SMALLS_GREATS_CUTOFF:
+        return "great"
+    if 0 < hi <= SMALLS_GREATS_CUTOFF:
+        return "small"
+    return None
+
+
+def collection_options(conditions, min_words: int, max_words: int) -> tuple[dict, int, int]:
+    """Check a collection's options and apply the size preset.
+
+    Returns ``(conditions, min_words, max_words)``. A Small with no maximum
+    gets ``CUTOFF``; a Great with no minimum gets ``CUTOFF + 1``. Raises
+    ``ValueError`` (plain wording, shown to the teacher) when the options
+    disagree with each other or with the word range."""
+    cond = dict(conditions) if isinstance(conditions, dict) else {}
+    lo, hi = int(min_words or 0), int(max_words or 0)
+    if "timed" in cond and not isinstance(cond["timed"], bool):
+        raise ValueError("timed must be true or false")
+    if "phonePark" in cond and not isinstance(cond["phonePark"], bool):
+        raise ValueError("phonePark must be true or false")
+    if "setting" in cond and cond["setting"] not in SETTINGS:
+        raise ValueError("setting must be in_class or take_home")
+    size = cond.get("size")
+    if size is None:
+        return cond, lo, hi
+    if size not in SIZES:
+        raise ValueError("size must be small or great")
+    if size == "small":
+        if not hi:
+            hi = SMALLS_GREATS_CUTOFF
+        if hi > SMALLS_GREATS_CUTOFF:
+            raise ValueError(
+                f"A Small is {SMALLS_GREATS_CUTOFF:,} words or fewer; lower the maximum."
+            )
+    else:
+        if not lo:
+            lo = SMALLS_GREATS_CUTOFF + 1
+        if lo <= SMALLS_GREATS_CUTOFF:
+            raise ValueError(
+                f"A Great is over {SMALLS_GREATS_CUTOFF:,} words; raise the minimum above "
+                f"{SMALLS_GREATS_CUTOFF:,}."
+            )
+    if hi and lo > hi:
+        raise ValueError("The minimum is above the maximum.")
+    return cond, lo, hi
+
+
+def phone_park_required(exam: dict | None) -> bool:
+    """True when the teacher switched phone parking on for this collection.
+    Off unless set: every existing collection behaves exactly as before."""
+    cond = (exam or {}).get("conditions") or {}
+    return isinstance(cond, dict) and cond.get("phonePark") is True
 
 
 # ── Response shaping ──────────────────────────────────────────────────────────
@@ -123,10 +217,15 @@ def student_view(rec: dict, released: bool = False) -> dict:
     """A submission as its own author sees it: never any score, whatever the
     tenant bought (scores are for staff judgement, not a student display),
     never who graded it, and the mark and feedback only once the teacher has
-    released results for the exam."""
+    released results for the exam.
+
+    ``status`` is dropped too: the seal stores Original's reading there
+    (FLAGGED, INCONCLUSIVE), and a student's own data never carries a
+    comparison, even where no screen shows it."""
     out = {k: v for k, v in rec.items() if k not in SCORE_FIELDS}
     out.pop("tenant_id", None)
     out.pop("graded_by", None)
+    out.pop("status", None)
     out["results_released"] = bool(released)
     if not released:
         for k in GRADE_FIELDS:

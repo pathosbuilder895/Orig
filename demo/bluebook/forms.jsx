@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB, BtnPrimary, GoldRule, Logotype, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BtnPrimary, GoldRule, Logotype, fontBody, fontDisplay, fontMono } from './components.jsx';
 import './bluebook-app.css';
 
 // ════════════════════════════════════════════════════════════════
@@ -12,9 +12,9 @@ export function Field({ id, label, type = 'text', value, onChange, placeholder, 
   return (
     <div className="bb-field">
       <label htmlFor={id}>{label}</label>
+      {hint && <p className="bb-hint">{hint}</p>}
       <input id={id} className="bb-input" type={type} value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder} autoComplete={autoComplete} required={required} {...rest} />
-      {hint && <p className="bb-hint">{hint}</p>}
     </div>
   );
 }
@@ -23,9 +23,9 @@ export function TextArea({ id, label, value, onChange, rows = 4, placeholder, hi
   return (
     <div className="bb-field">
       <label htmlFor={id}>{label}</label>
+      {hint && <p className="bb-hint">{hint}</p>}
       <textarea id={id} className="bb-input" rows={rows} value={value} placeholder={placeholder}
         onChange={e => onChange(e.target.value)} {...rest} />
-      {hint && <p className="bb-hint">{hint}</p>}
     </div>
   );
 }
@@ -50,7 +50,7 @@ export function Notice({ children }) {
 }
 
 export function Btn({ children, primary = false, danger = false, className = '', ...rest }) {
-  const cls = ['bb-btn', primary && 'primary', danger && 'danger', className].filter(Boolean).join(' ');
+  const cls = ['bb-btn', primary ? 'btn-gold' : 'btn-ghost', danger && 'danger', className].filter(Boolean).join(' ');
   return <button type="button" className={cls} {...rest}>{children}</button>;
 }
 
@@ -124,10 +124,10 @@ export function Table({ columns, rows, rowKey, empty = 'Nothing here yet.', capt
             <tr><td className="bb-empty lead" colSpan={columns.length}>{empty}</td></tr>
           )}
           {rows.map(r => (
-            <tr key={rowKey(r)}>
+            <tr key={rowKey(r)} data-resume-anchor={`row-${rowKey(r)}`}>
               {columns.map(c => (
                 <td key={c.key} data-label={c.label}
-                  className={[c.lead && 'lead', c.num && 'num', c.actions && 'actions'].filter(Boolean).join(' ') || undefined}>
+                  className={[c.lead && 'lead', c.num && 'num', c.actions && 'actions', c.className].filter(Boolean).join(' ') || undefined}>
                   {c.render ? c.render(r) : (r[c.key] ?? '—')}
                 </td>
               ))}
@@ -146,18 +146,17 @@ export function Stat({ value, label, note }) {
 // Centered card for the public auth screens (sign in style).
 export function AuthShell({ title, onBack, children, footer }) {
   return (
-    <div className="bb-screen" style={{
-      minHeight: '100vh', background: BB.oxford,
+    <div className="teacher-ui teacher-page bb-screen" style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 16,
     }}>
       {onBack && (
         <button onClick={onBack} style={{
           position: 'fixed', top: 20, left: 20,
-          fontFamily: fontMono, fontSize: 11, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: BB.fade,
+          fontFamily: fontMono, fontSize: '.75rem', letterSpacing: '0.18em',
+          textTransform: 'uppercase', color: 'var(--dim)',
           background: 'none', border: 'none', cursor: 'pointer', padding: 10,
-        }}>← Return</button>
+        }}>← Back</button>
       )}
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -165,10 +164,10 @@ export function AuthShell({ title, onBack, children, footer }) {
           <GoldRule double style={{ margin: '18px 0 14px' }} />
           <h1 style={{
             fontFamily: fontDisplay, fontStyle: 'italic', fontWeight: 400,
-            fontSize: 21, color: BB.fade, letterSpacing: '0.04em', margin: 0,
+            fontSize: '1.3125rem', color: 'var(--dim)', letterSpacing: '0.04em', margin: 0,
           }}>{title}</h1>
         </div>
-        <div className="bb-page" style={{ border: '1px solid rgba(201,169,97,0.28)', padding: 'clamp(20px, 5vw, 32px)' }}>
+        <div className="bb-page bb-auth-card" style={{ padding: 'clamp(20px, 5vw, 32px)' }}>
           {children}
         </div>
         {footer}
@@ -179,7 +178,7 @@ export function AuthShell({ title, onBack, children, footer }) {
 
 export function SubmitButton({ busy, children, busyLabel = 'Working…' }) {
   return (
-    <BtnPrimary full style={{ padding: '14px 0', fontSize: 17 }}>
+    <BtnPrimary full style={{ padding: '14px 0', fontSize: '1.0625rem' }}>
       {busy ? busyLabel : children}
     </BtnPrimary>
   );
@@ -187,15 +186,23 @@ export function SubmitButton({ busy, children, busyLabel = 'Working…' }) {
 
 // Plain text for small print inside dark pages.
 export function Small({ children }) {
-  return <p style={{ fontFamily: fontBody, fontSize: 15, color: BB.fade, lineHeight: 1.55 }}>{children}</p>;
+  return <p style={{ fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)', lineHeight: 1.55 }}>{children}</p>;
 }
 
 // Local, human date-time for an ISO string (or an em dash).
+// Compact on purpose: phone cards at Largest used to wrap a medium date onto
+// three lines ("Nov 5," / "2026, 2:49" / "PM"). Same year drops the year.
 export function when(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d)) return '—';
-  return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    year: sameYear ? undefined : 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
 }
 
 // ISO string -> value for <input type="datetime-local"> in local time.

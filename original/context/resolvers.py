@@ -26,6 +26,7 @@ called from Phase 3 onwards via `original/context/manifest.build_manifest()`.
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -745,7 +746,12 @@ def run_resolvers(
     errors: list[dict[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = {pool.submit(fn, *args): name for name, (fn, args) in tasks.items()}
+        # A copy of this context per task: features.feature_flags.measuring()
+        # (a ContextVar) then holds inside the workers as well.
+        futures = {
+            pool.submit(contextvars.copy_context().run, fn, *args): name
+            for name, (fn, args) in tasks.items()
+        }
         for fut in as_completed(futures, timeout=_RESOLVER_TIMEOUT_SEC):
             name = futures[fut]
             try:

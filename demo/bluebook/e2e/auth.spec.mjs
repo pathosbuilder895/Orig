@@ -28,7 +28,8 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { provisionTenantWithStaff } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, provisionTenantWithStaff } from './fixtures/api-setup.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 async function fillLogin(page, email, password) {
   await page.getByPlaceholder('you@school.edu').fill(email)
@@ -36,13 +37,40 @@ async function fillLogin(page, email, password) {
 }
 
 test.describe('Staff login / logout @smoke', () => {
-  test('valid credentials sign in and land on the dashboard', async ({ page, request }) => {
+  // A teacher whose workspace has Original starts in Original, as the main
+  // sign-in page sends them (staffOriginalHome, deep-link.jsx). This spec's
+  // tenants have Original, so signing in at the bare address leaves Collections.
+  test('valid credentials at the bare address sign a teacher with Original into Original', async ({ page, request }) => {
     const { staff } = await provisionTenantWithStaff(request)
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
+  })
+
+  test('valid credentials sign in and land on the dashboard when Collections is named', async ({ page, request }) => {
+    const { staff } = await provisionTenantWithStaff(request)
+    await page.goto(COLLECTIONS_HOME)
+    await page.getByRole('button', { name: 'Sign in' }).first().click()
+    await fillLogin(page, staff.email, staff.password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('a workspace without Original signs in to the Collections dashboard at the bare address', async ({ page, request }) => {
+    const { staff } = await provisionTenantWithStaff(request)
+    await page.route('**/auth/login', async route => {
+      const res = await route.fetch()
+      const body = await res.json()
+      await route.fulfill({ response: res, json: { ...body, products: ['bluebook'] } })
+    })
+    await page.goto('/bluebook/')
+    await page.getByRole('button', { name: 'Sign in' }).first().click()
+    await fillLogin(page, staff.email, staff.password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(page.url()).pathname).toBe('/bluebook/')
   })
 
   test('bad credentials show the exact server error', async ({ page, request }) => {
@@ -50,20 +78,20 @@ test.describe('Staff login / logout @smoke', () => {
     await page.goto('/bluebook/')
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, 'definitely-the-wrong-password')
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByText('Invalid email or password')).toBeVisible({ timeout: 10_000 })
   })
 
   test('signed-in staff can sign out back to landing', async ({ page, request }) => {
     const { staff } = await provisionTenantWithStaff(request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.getByRole('button', { name: 'Sign in' }).first().click()
     await fillLogin(page, staff.email, staff.password)
-    await page.getByRole('button', { name: 'Enter' }).click()
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
 
-    await page.getByRole('button', { name: 'Sign Out' }).click()
-    await expect(page.getByText('Academic integrity,')).toBeVisible({ timeout: 10_000 })
+    await clickAccountMenuItem(page, 'Sign out')
+    await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     expect(await page.evaluate(() => localStorage.getItem('original_principal_token'))).toBeNull()
   })
 })
@@ -79,10 +107,10 @@ test.describe('Bound student launch (magic-link / LTI launch consequence)', () =
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    // BriefingScreen renders the exam title + "Preliminary Instructions" —
+    // BriefingScreen renders the exam title + "Before you begin" —
     // never the sign-in form — confirming isStudentLaunch() short-circuited
     // routing straight past login/landing (app.jsx: BB_API.isStudentLaunch()).
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByPlaceholder('you@school.edu')).toHaveCount(0)
   })
 
@@ -158,7 +186,7 @@ test.describe('Login throttle lockout @serial-lockout', () => {
     // _LOGIN_MAX_ATTEMPTS = 10 (original/api.py) — drive it past the limit.
     for (let i = 0; i < 11; i++) {
       await page.getByPlaceholder('••••••••••').fill(`still-wrong-${i}`)
-      await page.getByRole('button', { name: /^Enter$|^Verifying…$/ }).click()
+      await page.getByRole('button', { name: /^Sign in$|^Signing in…$/ }).click()
       await page.waitForTimeout(200)
     }
     await expect(page.getByText('Too many sign-in attempts. Try again in a few minutes.'))

@@ -37,11 +37,12 @@ Configuration (env):
                                      once the pilot has real students).
 
 Usage:
-    scripts/restore_drill.py                  # auto-source, scratch tempfile
-    scripts/restore_drill.py --local-only      # skip off-box, use BACKUP_DIR
-    scripts/restore_drill.py /path/to/some.db  # drill a specific file
+    scripts/restore_drill.py --database-url postgresql://...  # newest encrypted off-box dump
+    scripts/restore_drill.py --database-url sqlite:////tmp/drill.db backup.jsonl.gz.fernet
+    scripts/restore_drill.py                  # legacy SQLite snapshot sanity check
 
-This does not touch the live database — it only ever reads a backup copy.
+The logical-backup mode writes only to the explicit target URL and refuses the
+configured DATABASE_URL. The legacy SQLite mode only reads a backup copy.
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ import sqlite3
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -69,17 +71,26 @@ def fetch_offbox_copy(cfg: OffboxConfig, scratch_dir: Path) -> Path | None:
     try:
         keys = list_keys(cfg)
     except Exception as exc:  # noqa: BLE001 - report, don't crash the drill
-        log.warning("restore drill: could not list off-box backups (%s) — falling back to local.", exc)
+        log.warning(
+            "restore drill: could not list off-box backups (%s) — falling back to local.", exc
+        )
         return None
     if not keys:
-        log.warning("restore drill: off-box bucket has no backups under prefix %r — falling back to local.", cfg.prefix)
+        log.warning(
+            "restore drill: off-box bucket has no backups under prefix %r — falling back to local.",
+            cfg.prefix,
+        )
         return None
     newest_key = keys[-1]
     dest = scratch_dir / Path(newest_key).name
     try:
         download_latest(cfg, dest, newest_key)
     except Exception as exc:  # noqa: BLE001
-        log.warning("restore drill: off-box download of %s failed (%s) — falling back to local.", newest_key, exc)
+        log.warning(
+            "restore drill: off-box download of %s failed (%s) — falling back to local.",
+            newest_key,
+            exc,
+        )
         return None
     log.info("restore drill: pulled off-box copy %s", newest_key)
     return dest
@@ -133,12 +144,105 @@ def verify(scratch_db: Path, min_rows: int = 0) -> tuple:
     return ok, lines
 
 
+def _database_identity(url: str) -> tuple[str, str, int | None, str]:
+    """Comparable URL identity without retaining or displaying credentials."""
+    parsed = urlsplit(url)
+    scheme = "postgresql" if parsed.scheme == "postgres" else parsed.scheme
+    return (
+        scheme,
+        (parsed.hostname or "").lower(),
+        parsed.port,
+        parsed.path.lstrip("/"),
+    )
+
+
+def _run_postgres_drill(path_arg: str | None, database_url: str) -> int:
+    """Restore and verify a logical Postgres dump in the supplied scratch DB."""
+    production_url = os.environ.get("DATABASE_URL", "").strip()
+    if production_url and _database_identity(database_url) == _database_identity(production_url):
+        log.error("restore drill: refusing the configured DATABASE_URL target.")
+        return 1
+
+    key = os.environ.get("BACKUP_ENCRYPTION_KEY", "").strip()
+    if not key:
+        log.error("restore drill: BACKUP_ENCRYPTION_KEY is not set.")
+        return 1
+
+    from scripts import pg_backup_offbox as pgb
+
+    src: Path | None = Path(path_arg) if path_arg else None
+    if src is None:
+        cfg = pgb.offbox_config(os.environ)
+        missing = cfg.missing()
+        if missing:
+            log.error("restore drill: bucket configuration is missing %s.", ", ".join(missing))
+            return 1
+        try:
+            with tempfile.TemporaryDirectory(prefix="original-restore-download-") as tmp:
+                src = pgb.download_newest(cfg, Path(tmp))
+                return _restore_pg_file(src, key, database_url, pgb)
+        except Exception as exc:  # report only exception type; never expose URLs or credentials
+            log.error("restore drill: backup download failed (%s).", type(exc).__name__)
+            return 1
+
+    if not src.is_file():
+        log.error("restore drill: local backup file does not exist.")
+        return 1
+    return _restore_pg_file(src, key, database_url, pgb)
+
+
+def _restore_pg_file(src: Path, key: str, database_url: str, pgb) -> int:
+    from original.db import postgres_session
+
+    old_database_url = os.environ.get("DATABASE_URL")
+    decrypted: Path | None = None
+    try:
+        if src.name.endswith(pgb.ENC_SUFFIX):
+            fd, tmp_name = tempfile.mkstemp(suffix=".jsonl.gz")
+            os.close(fd)
+            decrypted = Path(tmp_name)
+            pgb.decrypt_file(src, key, decrypted)
+
+        os.environ["DATABASE_URL"] = database_url
+        postgres_session.reset_engine()
+        postgres_session.init_db()
+        report = pgb.restore(postgres_session.session_scope, decrypted or src)
+        for table in report["tables"]:
+            log.info(
+                "  %-28s %6d / %-6d %s",
+                table["table"],
+                table["restored"],
+                table["expected"],
+                "ok" if table["ok"] else "MISMATCH",
+            )
+        log.info("restore parity: %s", "OK" if report["parity"] else "FAILED")
+        return 0 if report["parity"] else 1
+    except Exception as exc:  # don't print driver exceptions, which can contain connection URLs
+        log.error("restore drill: restore failed (%s).", type(exc).__name__)
+        return 1
+    finally:
+        if decrypted is not None:
+            decrypted.unlink(missing_ok=True)
+        postgres_session.reset_engine()
+        if old_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = old_database_url
+
+
 def main(argv: list) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", help="specific backup file to drill")
     parser.add_argument("--local-only", action="store_true", help="skip off-box, use BACKUP_DIR")
+    parser.add_argument(
+        "--database-url",
+        help="empty throwaway database URL for a Postgres logical-backup restore",
+    )
     args = parser.parse_args(argv)
+
+    if args.database_url:
+        return _run_postgres_drill(args.path, args.database_url)
 
     min_rows = int(os.environ.get("RESTORE_DRILL_MIN_ROWS", "0") or 0)
 

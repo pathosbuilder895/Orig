@@ -256,6 +256,8 @@ FLAG_OFF_VALUES: dict[str, str] = {
     "LENGTH_ADAPTIVE_WEIGHTS": "0",
     "TOPIC_VARIANCE_INFLATION": "off",
     "CHARACTERISTIC_WEIGHTS": "off",
+    "OPPORTUNITY_MASK": "off",
+    "LENGTH_MATCHED_BASELINE": "off",
     "RANK_REMEDIATION": "none",
     "AI_LIKELIHOOD_ENABLED": "0",
     "AI_LIKELIHOOD_SHADOW": "0",
@@ -267,6 +269,20 @@ FLAG_OFF_VALUES: dict[str, str] = {
     "TYPICALITY_SCORING": "0",
     "TYPICALITY_POOLED_CALIBRATION": "0",
     "IDENTITY_AXIS": "0",
+    # ADR-013 staff explainability: report-only, never moves a score.
+    "EVIDENCE_PASSAGES_ENABLED": "0",
+    "PRELIMINARY_SCORE_ENABLED": "0",
+    # Teacher-only paper profile (original/paper_profile.py): descriptive,
+    # never moves a score; off by default.
+    "PAPER_PROFILE_ENABLED": "0",
+    # Rule D: report-only, staff-only consistency observation; never moves a score.
+    "RULE_D_OBSERVATION": "off",
+    # Measurement versions (features/feature_flags.py): off = the old measurement.
+    "FEATURE_SET": "1",
+    "MATTER_SPLITTER_ENABLED": "0",
+    "PARAGRAPH_BREAKS_ENABLED": "0",
+    # ADR-014: a second stored measurement on new uploads; never moves a score.
+    "UPLOAD_ALSO_MEASURE": "",
 }
 
 
@@ -435,13 +451,31 @@ def unit_payload(*, with_pool: bool = False, **config_kwargs: Any) -> dict:
     return _quantize(json.loads(json.dumps(dataclasses.asdict(output), default=_json_default)))
 
 
+# Flags whose CODE default is on while testing (2026-11, owner decision). The committed
+# snapshot is "every flag off", so these are set to their off literal instead of unset;
+# test_default_on_flags_read_as_on pins the unset default itself.
+DEFAULT_ON_FLAGS: dict[str, str] = {
+    "EVIDENCE_PASSAGES_ENABLED": "0",
+    "PRELIMINARY_SCORE_ENABLED": "0",
+    "RULE_D_OBSERVATION": "off",
+}
+
+
 @contextlib.contextmanager
 def clean_flag_env() -> Iterator[None]:
-    """Every flag unset (SECRET_KEY blanked), restored on exit."""
+    """Every flag off, restored on exit: unset, except the DEFAULT_ON_FLAGS, which are
+    set to their off literal (SECRET_KEY blanked).
+
+    The two ADR-013 staff explainability flags (on by default since 2026-11) and rule D
+    (on by default while testing) only add report-only `evidence`/`preliminary`/`rule_d`
+    fields to a staff response. These snapshots pin the score, which none of them can
+    move (tests/test_evidence.py, tests/test_rule_d.py and
+    test_api_unset_default_changes_only_report_fields hold that)."""
     saved = {name: os.environ.get(name) for name in FLAG_OFF_VALUES}
     try:
         for name in FLAG_OFF_VALUES:
             os.environ.pop(name, None)
+        os.environ.update(DEFAULT_ON_FLAGS)
         os.environ["SECRET_KEY"] = ""
         yield
     finally:
@@ -570,16 +604,27 @@ def api_harness() -> Iterator[Callable[[dict[str, str]], dict]]:
             _seed_api_store(client)
             cache: dict[tuple[tuple[str, str], ...], dict] = {}
 
-            def call(env: dict[str, str] | None = None) -> dict:
+            def call(env: dict[str, str] | None = None, extra: dict | None = None) -> dict:
+                # extra: more request fields (e.g. a teacher's exclude_ranges);
+                # none for every arm but the part-choice ones.
                 env = dict(env or {})
-                key = tuple(sorted(env.items()))
+                key = tuple(sorted((k, "\0unset" if v is None else v) for k, v in env.items()))
+                if extra:
+                    key += (("\0body", json.dumps(extra, sort_keys=True)),)
                 if key not in cache:
                     with pytest.MonkeyPatch.context() as mp:
                         for name, value in env.items():
-                            mp.setenv(name, value)
+                            if value is None:  # None = truly unset (the code default)
+                                mp.delenv(name, raising=False)
+                            else:
+                                mp.setenv(name, value)
                         response = client.post(
                             f"/students/{STUDENT_ID}/score",
-                            json={"text": SUBMISSION_TEXT, "submission_id": SUBMISSION_ID},
+                            json={
+                                "text": SUBMISSION_TEXT,
+                                "submission_id": SUBMISSION_ID,
+                                **(extra or {}),
+                            },
                         )
                     assert response.status_code == 200, response.text[:400]
                     cache[key] = normalise_api(response.json())
@@ -622,7 +667,7 @@ def api_call() -> Iterator[Callable[[dict[str, str]], dict]]:
     # comparison is quantized-vs-quantized and cross-platform last-bit noise
     # in linalg-derived fields cannot register as a change.
     with api_harness() as call:
-        yield lambda env: _quantize(call(env))
+        yield lambda env, extra=None: _quantize(call(env, extra))
 
 
 @pytest.fixture(scope="module")
@@ -657,7 +702,8 @@ def test_unit_default_matches_snapshot(unit_env):
 
 
 def test_api_default_matches_snapshot(api_call):
-    """`POST /students/{id}/score` with every flag unset must byte-match."""
+    """`POST /students/{id}/score` with every flag off must byte-match: unset, except the
+    DEFAULT_ON_FLAGS, which are set to their off literal (see clean_flag_env)."""
     current = serialise(api_call({}))
     snapshot = API_SNAPSHOT_PATH.read_text(encoding="utf-8")
     if current != snapshot:
@@ -705,6 +751,8 @@ UNIT_OFF_ARMS: dict[str, dict[str, Any]] = {
     "llr_action_mode": {"llr_action_mode": "gate"},
     "topic_variance_inflation": {"topic_variance_inflation": "off"},
     "characteristic_weights": {"characteristic_weights": "off"},
+    "opportunity_mask": {"opportunity_mask": "off"},
+    "length_matched_baseline": {"length_matched_baseline": "off"},
     "authentic_fidelities": {"authentic_fidelities": None},
     "genre_stats": {"genre_stats": None},
     "tuned_action_thresholds": {"tuned_action_thresholds": None},
@@ -818,6 +866,8 @@ API_SHADOW_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str]]] = {
     ),
     "AI_LIKELIHOOD_SHADOW=1": ({}, {"AI_LIKELIHOOD_SHADOW": "1"}, set()),
     "FUSED_SCORE_SHADOW=1": ({}, {"FUSED_SCORE_SHADOW": "1"}, set()),
+    # Rule D shadow computes and logs but attaches nothing.
+    "RULE_D_OBSERVATION=shadow": ({}, {"RULE_D_OBSERVATION": "shadow"}, set()),
     "CHARACTERISTIC_WEIGHTS=shadow": (
         {},
         {"CHARACTERISTIC_WEIGHTS": "shadow"},
@@ -1081,6 +1131,16 @@ TYPICALITY = {"TYPICALITY_SCORING": "1"}
 PRIOR = {"BAYESIAN_PRIOR_ENABLED": "1"}
 LLR_SHADOW = {"NULL_MODEL": "impostor", "LLR_ACTION_MODE": "shadow"}
 
+#: The version stamp a fallback adds (original/measurement.py), and nothing else.
+_MEASUREMENT_STAMP_PATHS = {
+    "measurement.requested",
+    "measurement.used",
+    "measurement.past_papers",
+    "measurement.past_papers_measured",
+    "measurement.fallback",
+}
+
+
 API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, str]] = {
     "CONTEXT_MANIFEST_ENABLED=1": (
         {},
@@ -1163,6 +1223,14 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {"style_authorship", "style_authorship.probability_same_author"},
         "",
     ),
+    # Rule D on: the staff-only `rule_d` block appears (inconclusive for the
+    # single-student fixture, which is below the class-size floor).
+    "RULE_D_OBSERVATION=on": (
+        {},
+        {"RULE_D_OBSERVATION": "on"},
+        {"rule_d"},
+        "",
+    ),
     "TYPICALITY_SCORING=1": (
         {},
         TYPICALITY,
@@ -1223,6 +1291,34 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
         {"recommendation.action"},
         "",
     ),
+    # ADR-014 versioned measurements. The profile's past papers were added
+    # with every flag unset, so none carries the requested measurement: the
+    # score falls back to the default for paper and past papers alike and only
+    # the `measurement` stamp appears (asserted EXACTLY, so a fallback that
+    # moved any score would fail). With every past paper measured the new way
+    # the score does move: tests/test_versioned_measurements.py.
+    "FEATURE_SET=2": ({}, {"FEATURE_SET": "2"}, _MEASUREMENT_STAMP_PATHS, ""),
+    "MATTER_SPLITTER_ENABLED=1": (
+        {},
+        {"MATTER_SPLITTER_ENABLED": "1"},
+        _MEASUREMENT_STAMP_PATHS,
+        "",
+    ),
+    "PARAGRAPH_BREAKS_ENABLED=1": (
+        {},
+        {"PARAGRAPH_BREAKS_ENABLED": "1"},
+        _MEASUREMENT_STAMP_PATHS,
+        "",
+    ),
+    "UPLOAD_ALSO_MEASURE=fs2+matter": (
+        {},
+        {"UPLOAD_ALSO_MEASURE": "fs2+matter"},
+        None,
+        "it only adds a stored second measurement to past papers added while it "
+        "is set; this profile's past papers were added before, and a score never "
+        "reads it unless FEATURE_SET / MATTER_SPLITTER_ENABLED ask for it "
+        "(tests/test_versioned_measurements.py)",
+    ),
     "TOPIC_VARIANCE_INFLATION=on": (
         MANIFEST,
         {"TOPIC_VARIANCE_INFLATION": "on"},
@@ -1235,7 +1331,14 @@ API_ON_ARMS: dict[str, tuple[dict[str, str], dict[str, str], set[str] | None, st
 
 # Arms whose changed set is asserted as an equality rather than a subset,
 # because the flag's documented blast radius is exactly known.
-_EXACT_API_ON_ARMS = frozenset({"NULL_MODEL=impostor"})
+_EXACT_API_ON_ARMS = frozenset(
+    {
+        "NULL_MODEL=impostor",
+        "FEATURE_SET=2",
+        "MATTER_SPLITTER_ENABLED=1",
+        "PARAGRAPH_BREAKS_ENABLED=1",
+    }
+)
 
 
 # ── measurements behind the API `uninformative` verdicts ─────────────────────
@@ -1422,6 +1525,35 @@ def test_api_on_arm_is_not_inert(api_call, caplog, arm):
         assert changed == expected, f"{arm} moved {sorted(changed)}, not exactly {sorted(expected)}"
         return
     assert expected <= changed, f"{arm} did not move {sorted(expected - changed)}"
+
+
+def test_api_paper_profile_only_adds_its_own_staff_field(api_call):
+    """PAPER_PROFILE_ENABLED=1 is report-only: with evidence on, it adds
+    ``evidence.paper_profile`` and moves nothing else in the response."""
+    evidence_on = {"EVIDENCE_PASSAGES_ENABLED": "1"}
+    reference = api_call(evidence_on)
+    assert "paper_profile" not in (reference.get("evidence") or {})
+    changed = changed_paths(reference, api_call({**evidence_on, "PAPER_PROFILE_ENABLED": "1"}))
+    assert changed, "PAPER_PROFILE_ENABLED=1 attached nothing"
+    assert all(path.startswith("evidence.paper_profile") for path in changed), sorted(changed)
+    # Without evidence there is nowhere to attach it: the response is the default.
+    assert changed_paths(api_call({}), api_call({"PAPER_PROFILE_ENABLED": "1"})) == set()
+
+
+def test_api_empty_part_choice_is_byte_identical(api_call):
+    """``exclude_ranges`` / ``include_ranges`` (features/part_overrides.py) sent
+    empty, or null, is no choice: the response is the default's, byte for byte,
+    with the switches off and with the splitter and the paper profile on. (A
+    real choice is refused with 409 with a switch off, and moves only the
+    splitter's measurement with both on: tests/test_part_overrides.py.)"""
+    for env in ({}, {"EVIDENCE_PASSAGES_ENABLED": "1", "MATTER_SPLITTER_ENABLED": "1",
+                     "PAPER_PROFILE_ENABLED": "1"}):  # fmt: skip
+        reference = api_call(env)
+        for extra in (
+            {"exclude_ranges": [], "include_ranges": []},
+            {"exclude_ranges": None, "include_ranges": None},
+        ):
+            assert changed_paths(reference, api_call(env, extra)) == set(), (env, extra)
 
 
 def test_api_topic_on_is_uninformative(api_call):
@@ -1669,3 +1801,27 @@ def test_every_scoring_config_field_has_an_off_arm():
     """Every `ScoringConfig` field is pinned at its default by an off-arm."""
     fields = {f.name for f in dataclasses.fields(ScoringConfig)}
     assert fields == set(UNIT_OFF_ARMS), sorted(fields ^ set(UNIT_OFF_ARMS))
+
+
+def test_default_on_flags_read_as_on(monkeypatch):
+    """The two report-only, staff-only flags that are on by default while testing."""
+    from original.evidence import evidence_enabled, preliminary_enabled
+    from original.rule_d import mode
+
+    for name in DEFAULT_ON_FLAGS:
+        monkeypatch.delenv(name, raising=False)
+    assert evidence_enabled() is True and preliminary_enabled() is True
+    assert mode() == "on"
+    assert set(DEFAULT_ON_FLAGS) <= set(FLAG_OFF_VALUES)
+    for name, off in DEFAULT_ON_FLAGS.items():
+        assert FLAG_OFF_VALUES[name] == off
+
+
+def test_api_unset_default_changes_only_report_fields(api_call, api_snapshot):
+    """The real code default (DEFAULT_ON_FLAGS truly unset) may add the staff-only report
+    blocks and nothing else: no score, action or other field moves."""
+    unset = api_call({name: None for name in DEFAULT_ON_FLAGS})
+    changed = changed_paths(api_snapshot, unset)
+    assert unset["evidence"] is not None and unset["rule_d"] is not None, "default-on flags inert"
+    stray = sorted(p for p in changed if re.split(r"[.\[]", p, maxsplit=1)[0] not in {"evidence", "preliminary", "rule_d"})
+    assert stray == [], stray

@@ -602,6 +602,111 @@ def test_me_voice_affirms_a_voice_once_a_teacher_approved_piece_is_on_file(fresh
     assert _affirmed_state(tok)["Voice Affirmed"] == "reached"
 
 
+# ── ADR-013: the staff-only evidence and preliminary score over HTTP ────────
+# render.yaml turns EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED on
+# for the pilot. With both on, the score route attaches them for staff only: a
+# student scoring their own piece gets neither, and /me/work never carries them.
+# (tests/test_evidence.py drives _attach_staff_explainability directly.)
+
+
+def test_evidence_and_preliminary_are_staff_only_with_both_flags_on(monkeypatch):
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
+    # A school of their own, so no other module's exams gate this student's scoring.
+    r = client.post(
+        "/student-auth/login",
+        json={
+            "email": f"ev-{uuid.uuid4().hex[:10]}@example.edu",
+            "institution": f"Evidence Leak School {uuid.uuid4().hex[:8]}",
+            "name": "Evi Test",
+        },
+    )
+    assert r.status_code == 200, r.text
+    tok, sid = r.json()["token"], r.json()["student_id"]
+    hdr = {"Authorization": f"Bearer {tok}"}
+    for i in range(3):
+        rr = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": f"{LONG_TEXT} Paper {i} closes the thought.", "assignment": f"a{i}",
+                  "provenance": "verified"},
+        )
+        assert rr.status_code == 200, rr.text
+    piece = {"text": LONG_TEXT + " A new paragraph; it ends here.", "submission_id": f"ev-{sid}"}
+
+    as_student = client.post(f"/students/{sid}/score", headers=hdr, json=piece)
+    assert as_student.status_code == 200, as_student.text
+    assert as_student.json()["evidence"] is None
+    assert as_student.json()["preliminary"] is None
+
+    # The demo's anonymous principal stands in for the teacher here (not a student session).
+    as_staff = client.post(f"/students/{sid}/score", json={**piece, "submission_id": f"ev2-{sid}"})
+    assert as_staff.status_code == 200, as_staff.text
+    assert as_staff.json()["evidence"] is not None
+    assert as_staff.json()["preliminary"] is not None
+    # Report-only: the same piece scores the same either way.
+    assert as_staff.json()["authorship"]["deviation_score"] == as_student.json()["authorship"]["deviation_score"]
+    assert as_staff.json()["recommendation"] == as_student.json()["recommendation"]
+
+    # The past-paper examples route: refused to the student, open to staff.
+    assert client.get(f"/students/{sid}/past-paper-examples", headers=hdr).status_code == 403
+    examples = client.get(f"/students/{sid}/past-paper-examples")
+    assert examples.status_code == 200, examples.text
+    assert len(examples.json()["features"]) == 7
+
+    work = client.post("/me/work", headers=hdr, json={"text": piece["text"], "title": "A piece"})
+    assert work.status_code == 200, work.text
+    blob = json.dumps(work.json())
+    assert "evidence" not in work.json() and "preliminary" not in work.json()
+    assert "all_features" not in blob and "baseline_papers" not in blob
+    _assert_submit_result_clean(work.json())
+
+
+def test_paper_profile_never_reaches_a_student(monkeypatch):
+    """PAPER_PROFILE_ENABLED=1 (teacher-only paper profile): staff get
+    ``evidence.paper_profile``; a student's own score call, /me/work and
+    /me/voice carry it nowhere, under any key or value."""
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
+    monkeypatch.setenv("PAPER_PROFILE_ENABLED", "1")
+    r = client.post(
+        "/student-auth/login",
+        json={
+            "email": f"pp-{uuid.uuid4().hex[:10]}@example.edu",
+            "institution": f"Paper Profile School {uuid.uuid4().hex[:8]}",
+            "name": "Pat Profile",
+        },
+    )
+    assert r.status_code == 200, r.text
+    tok, sid = r.json()["token"], r.json()["student_id"]
+    hdr = {"Authorization": f"Bearer {tok}"}
+    for i in range(3):
+        rr = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": f"{LONG_TEXT} Paper {i} cites (Smith 4{i}).\n\nWorks Cited\n\nSmith, Ann. A Book. Press, 2001.",
+                  "assignment": f"a{i}", "provenance": "verified"},
+        )
+        assert rr.status_code == 200, rr.text
+    piece = {"text": LONG_TEXT + " A new paragraph (Smith 12); it ends here.", "submission_id": f"pp-{sid}"}
+
+    as_staff = client.post(f"/students/{sid}/score", json={**piece, "submission_id": f"pp2-{sid}"})
+    assert as_staff.status_code == 200, as_staff.text
+    assert "paper_profile" in as_staff.json()["evidence"]
+
+    as_student = client.post(f"/students/{sid}/score", headers=hdr, json=piece)
+    assert as_student.status_code == 200, as_student.text
+    assert "paper_profile" not in as_student.text and as_student.json()["evidence"] is None
+
+    work = client.post("/me/work", headers=hdr, json={"text": piece["text"], "title": "A piece"})
+    assert work.status_code == 200, work.text
+    assert "paper_profile" not in work.text
+    _assert_submit_result_clean(work.json())
+
+    view = client.get("/me/voice", headers=hdr)
+    assert view.status_code == 200, view.text
+    assert "paper_profile" not in view.text
+    _assert_voice_view_clean(view.json())
+
+
 # ── The old student pages: what happens to a piece a student submits ────────
 # /me/work compares a piece and adds nothing to the profile (NORTH_STAR rule 8),
 # so the old student pages may not tell a student it joined a "formation record".

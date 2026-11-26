@@ -11,6 +11,12 @@ Until an image is credited, its page shows the design's navy gradient instead.
 
 | File | Source | Licence | Credit line shown on the page |
 |---|---|---|---|
+| `codrington-library.jpeg` | Owner-supplied 2026-10-08 design handoff (copy of `demo/assets/codrington-library.jpeg`) | No licence on record; shipped at the owner's direction, 2026-10-21, same terms as `demo/original/assets/CREDITS.md` | None |
+| `radcliffe-interior.avif` | Owner-supplied handoff (copy of `demo/original/assets/`) | No licence on record; shipped at the owner's direction, 2026-10-21 | None |
+| `radcliffe-observatory-watercolour.jpg` | Owner-supplied handoff, a signed 1953 watercolour (copy of `demo/original/assets/`) | No licence on record; shipped at the owner's direction, 2026-10-21 | None |
+| `st-andrews-quad.jpg` | Owner-supplied handoff (copy of `demo/original/assets/`) | No licence on record; shipped at the owner's direction, 2026-10-21 | None |
+| `gonville-caius-facade.jpg` | Owner-supplied handoff, re-encoded JPEG (copy of `demo/original/assets/`) | No licence on record; shipped at the owner's direction, 2026-10-21 | None |
+| `radcliffe-night-stars.jpeg` | Owner-supplied handoff (copy of `demo/original/assets/`); photographer's permission pending, as for the app's Your classes page | No licence on record; shipped at the owner's direction, 2026-10-21 | None |
 
 ## Pending (from the 2026-10-08 design handoff)
 

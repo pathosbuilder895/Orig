@@ -18,7 +18,7 @@ const MOCK_EXAMS = [
 
 const NAV_ITEMS = [
   { label: 'Overview',      screen: 'dashboard' },
-  { label: 'Examinations',  screen: 'exams'     },
+  { label: 'Collections',   screen: 'sessions'  },
   { label: 'Courses',       screen: 'courses'   },
   { label: 'Students',      screen: 'students'  },
   { label: 'Results',       screen: 'results'   },
@@ -69,7 +69,7 @@ function Sidebar({ activeScreen, onNavigate }) {
                 padding: '9px 12px',
                 background: 'none', border: 'none',
                 borderLeft: isActive ? `2px solid ${BB.gold}` : '2px solid transparent',
-                fontFamily: fontBody, fontSize: 16,
+                fontFamily: fontBody, fontSize: '1rem',
                 color: isActive ? BB.cream : isHov ? BB.gold : BB.fade,
                 cursor: screen ? 'pointer' : 'default',
                 letterSpacing: '0.02em',
@@ -100,7 +100,7 @@ function Sidebar({ activeScreen, onNavigate }) {
             padding: '9px 12px',
             background: 'none', border: 'none',
             borderLeft: '2px solid transparent',
-            fontFamily: fontBody, fontSize: 16,
+            fontFamily: fontBody, fontSize: '1rem',
             color: hovered === 'original' ? BB.gold : BB.fade,
             cursor: 'pointer', letterSpacing: '0.02em',
             transition: 'color 0.25s',
@@ -108,7 +108,7 @@ function Sidebar({ activeScreen, onNavigate }) {
           }}
         >
           <span>Original Analysis</span>
-          <span style={{ fontSize: 11, opacity: 0.6 }}>↗</span>
+          <span style={{ fontSize: '.75rem', opacity: 0.6 }}>↗</span>
         </button>
         )}
       </nav>
@@ -118,7 +118,7 @@ function Sidebar({ activeScreen, onNavigate }) {
         <GoldRule />
         <div style={{ padding: '16px 24px' }}>
           <p style={{
-            fontFamily: fontBody, fontSize: 16,
+            fontFamily: fontBody, fontSize: '1rem',
             color: BB.cream, margin: '0 0 3px',
             letterSpacing: '0.02em',
           }}>{displayName}</p>
@@ -135,7 +135,7 @@ function Sidebar({ activeScreen, onNavigate }) {
             style={{
               display: 'block', width: '100%', padding: '8px 12px',
               background: 'none', border: 'none', borderLeft: '2px solid transparent',
-              fontFamily: fontBody, fontSize: 15,
+              fontFamily: fontBody, fontSize: '.9375rem',
               color: BB.fade,
               cursor: 'pointer', textAlign: 'left', letterSpacing: '0.02em',
               transition: 'color 0.25s',
@@ -193,14 +193,14 @@ export function ExamsScreen({ onNavigate }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
         <div>
           <h1 style={{
-            fontFamily: fontDisplay, fontSize: 34,
+            fontFamily: fontDisplay, fontSize: '2.125rem',
             color: BB.cream, fontWeight: 400,
             letterSpacing: '0.01em', margin: '0 0 6px',
-          }}>Examinations</h1>
-          <MetaLabel>{loading ? 'Loading…' : `${exams.length} examination${exams.length === 1 ? '' : 's'} on record`}</MetaLabel>
+          }}>Collections</h1>
+          <MetaLabel>{loading ? 'Loading…' : `${exams.length} collection${exams.length === 1 ? '' : 's'} on record`}</MetaLabel>
         </div>
-        <BtnPrimary onClick={() => onNavigate('new-exam')} style={{ padding: '10px 28px', fontSize: 16 }}>
-          + New Examination
+        <BtnPrimary onClick={() => onNavigate('new-exam')} style={{ padding: '10px 28px', fontSize: '1rem' }}>
+          + New Collection
         </BtnPrimary>
       </div>
       <GoldRule double style={{ margin: '20px 0 36px' }} />
@@ -233,7 +233,7 @@ export function ExamsScreen({ onNavigate }) {
               onKeyDown={rowKeyDown(() => manageOrPreview(exam, onNavigate))}
             >
               <div>
-                <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.cream, margin: 0 }}>
+                <p style={{ fontFamily: fontBody, fontSize: '1rem', color: BB.cream, margin: 0 }}>
                   {exam.title}
                 </p>
               </div>
@@ -242,7 +242,7 @@ export function ExamsScreen({ onNavigate }) {
               <MetaLabel>{exam.duration}m</MetaLabel>
               <MetaLabel>{exam.submissions || '—'}</MetaLabel>
               <button onClick={e => { e.stopPropagation(); manageOrPreview(exam, onNavigate); }} style={{
-                fontFamily: fontMono, fontSize: 10,
+                fontFamily: fontMono, fontSize: '.75rem',
                 letterSpacing: '0.15em', textTransform: 'uppercase',
                 color: BB.gold, background: 'none', border: 'none',
                 cursor: 'pointer',

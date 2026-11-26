@@ -461,9 +461,11 @@ def test_failed_persist_releases_the_attestation(client, store_reset, monkeypatc
     def _fail(state):
         raise HTTPException(status_code=503, detail="Not persisted; retry.")
 
-    monkeypatch.setattr(students_baseline, "_persist_or_503", _fail)
-    assert _post_baseline(client, sid, "proctored", headers=headers).status_code == 503
-    monkeypatch.undo()
+    # A scoped patch: monkeypatch.undo() would also revert store_reset's
+    # _DB_PATH, sending the retry to a different database.
+    with monkeypatch.context() as m:
+        m.setattr(students_baseline, "_persist_or_503", _fail)
+        assert _post_baseline(client, sid, "proctored", headers=headers).status_code == 503
 
     retry = client.post(
         f"/students/{sid}/baseline",

@@ -76,6 +76,7 @@ def get_engine():
                 pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "3600") or 3600),
                 echo=echo,
                 hide_parameters=True,
+                connect_args={"connect_timeout": 2},
             )
         log.info("Live-schema engine created for %s", db_url.split("@")[-1])
     return _engine

@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Collections</title>
+  <link rel="stylesheet" href="../assets/type.css" />
+  <link rel="stylesheet" href="../assets/tokens.css" />
+  <script src="../assets/display-prefs.js"></script>
   <link rel="stylesheet" href="bluebook.bundle.css" />
 
 
@@ -13,12 +16,11 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { font-size: 16px; }
 
     body {
-      background: #001020;
-      color: #F0EDE4;
-      font-family: 'EB Garamond', serif;
+      background: var(--navy-0);
+      color: var(--cream);
+      font-family: var(--bb-font-body);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
@@ -37,12 +39,12 @@
       background-size: 256px 256px;
     }
 
-    ::selection { background: rgba(201,169,97,0.28); color: #001020; }
+    ::selection { background: rgba(201,160,40,0.28); color: var(--navy-0); }
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #001020; }
-    ::-webkit-scrollbar-thumb { background: #0A2D5E; }
-    ::-webkit-scrollbar-thumb:hover { background: #C9A961; }
+    ::-webkit-scrollbar-track { background: var(--navy-0); }
+    ::-webkit-scrollbar-thumb { background: var(--navy-2); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold-2); }
 
     /* ── Animations ─────────────────────────────────────────── */
     @keyframes bbFadeIn {
@@ -73,13 +75,13 @@
       border-color: rgba(201,169,97,0.7) !important;
       outline: none;
     }
-    textarea { caret-color: #C9A961; }
+    textarea { caret-color: var(--gold-2); }
 
     /* Autofill override */
     input:-webkit-autofill,
     input:-webkit-autofill:focus {
-      -webkit-text-fill-color: #F0EDE4;
-      -webkit-box-shadow: 0 0 0 1000px #001C3B inset;
+      -webkit-text-fill-color: var(--cream);
+      -webkit-box-shadow: 0 0 0 1000px var(--navy-1) inset;
       transition: background-color 5000s;
     }
 
@@ -93,7 +95,7 @@
     [role="button"]:focus-visible,
     [role="switch"]:focus-visible,
     [role="radio"]:focus-visible {
-      outline: 2px solid #C9A961;
+      outline: 2px solid var(--gold-2);
       outline-offset: 2px;
     }
   </style>

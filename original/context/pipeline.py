@@ -30,6 +30,7 @@ than failing the request.
 from __future__ import annotations
 
 import concurrent.futures
+import contextvars
 import logging
 from dataclasses import dataclass, field
 
@@ -248,9 +249,12 @@ def run_adaptive_pipeline(
             baseline_indices=[] if _anchor else _indices,
         )
 
+    # Each task runs in a copy of this context, so a measurement chosen with
+    # features.feature_flags.measuring() (a ContextVar) holds in the workers too.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as _pool:
-        _fw = _pool.submit(_build_weights, manifest)
+        _fw = _pool.submit(contextvars.copy_context().run, _build_weights, manifest)
         _ff = _pool.submit(
+            contextvars.copy_context().run,
             _extract_features,
             text,
             baseline_texts,

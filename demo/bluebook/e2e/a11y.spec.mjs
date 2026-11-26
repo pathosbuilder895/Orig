@@ -33,8 +33,10 @@
 
 import { test as base, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { test as tenancyTest } from './fixtures/tenancy.mjs'
-import { createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { test as tenancyTest, isolatedTest } from './fixtures/tenancy.mjs'
+import { COLLECTIONS_HOME, createCourse, createExam, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 /**
  * Wait until the screen has stopped moving, so axe measures the UI a person
@@ -100,6 +102,11 @@ function logViolations(results, label) {
  * silently dropping its blocking gate — `MIGRATED_SCREENS` would name a screen
  * that no longer exists, and this file would refuse to load.
  */
+const WRITING_SCREENS = [
+  'Exam (one answer)', 'Exam (one answer, 200% zoom)', 'Exam (notes and offline)',
+  'Sealed', 'Seal not delivered',
+]
+
 const ALL_SCREENS = [
   'Landing', 'Login', 'Briefing', 'Parked phone page',
   'Dashboard', 'Examinations', 'Courses', 'Students', 'Results',
@@ -108,8 +115,12 @@ const ALL_SCREENS = [
   'Account',
   // Self-serve screens, each scanned at desktop and at phone width (375px).
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
-    'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
+    'Manage examination', 'Student home', 'Student account', 'Exam with separate answers',
+    'Instructions (teacher)', 'Instructions (student)']
     .flatMap(l => [l, `${l} (375px)`]),
+  // The student writing screen in each state a student can meet it in
+  // (exam-access.spec.mjs checks what axe cannot: keyboard, focus, zoom).
+  ...WRITING_SCREENS,
 ]
 
 /**
@@ -119,7 +130,7 @@ const ALL_SCREENS = [
  * Every label here was measured at zero violations, settled (see `settle()`),
  * against the committed `bluebook.bundle.js` at this commit. That measurement
  * is the entire entry criterion: a screen is listed because it passes, not
- * because it is expected to. All 30 currently do, so the list is complete —
+ * because it is expected to. All 39 currently do, so the list is complete,
  * which means the next screen added to this file starts outside the gate and
  * has to earn its way in, exactly as these did.
  *
@@ -172,6 +183,12 @@ const MIGRATED_SCREENS = [
   ...['Sign up', 'Forgot password', 'Set password (invite)', 'Course roster',
     'Manage examination', 'Student home', 'Student account', 'Exam with separate answers']
     .flatMap(l => [l, `${l} (375px)`]),
+  // Measured at zero violations on 2026-10-30, at desktop and 375px, when the
+  // Instructions guide was added.
+  ...['Instructions (teacher)', 'Instructions (student)'].flatMap(l => [l, `${l} (375px)`]),
+  // Measured at zero violations on 2026-10-13, when the writing screen got
+  // its accessibility and reliability pass.
+  ...WRITING_SCREENS,
 ]
 
 for (const label of MIGRATED_SCREENS) {
@@ -218,7 +235,7 @@ base.describe('Axe scan — public screens @a11y', () => {
     })
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
     checkA11y(results, 'Briefing')
   })
@@ -248,21 +265,22 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // also stops a nav click which silently did nothing from producing a green
   // scan of whatever screen was already showing.
   const SCREENS = [
-    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome back|Begin with the writing)/ },
-    { label: 'Examinations', navLabel: 'Examinations', heading: 'Examinations' },
+    { label: 'Dashboard', navLabel: 'Overview', heading: /^(Welcome|Begin with the writing)/ },
+    { label: 'Examinations', navLabel: 'Collections', heading: 'Collections' },
     { label: 'Courses', navLabel: 'Courses', heading: 'Courses' },
     { label: 'Students', navLabel: 'Students', heading: 'Students' },
-    { label: 'Results', navLabel: 'Submissions', heading: 'Results' },
-    { label: 'Proctor', navLabel: 'Proctor', heading: 'Live examination' },
+    { label: 'Results', navLabel: 'Submissions', heading: 'Submissions' },
+    { label: 'Proctor', navLabel: 'Proctor', heading: 'Live sitting' },
     { label: 'Account', navLabel: 'Account', heading: 'Your account' },
   ]
 
   for (const { label, navLabel, heading } of SCREENS) {
     tenancyTest(`${label} screen`, async ({ staffPage }) => {
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       if (navLabel !== 'Dashboard') {
-        await staffPage.getByRole('button', { name: navLabel, exact: true }).click()
+        if (navLabel === 'Account') await clickAccountMenuItem(staffPage, 'Account')
+        else await staffPage.getByRole('button', { name: navLabel, exact: true }).click()
       }
       await expect(staffPage.getByRole('heading', { name: heading })).toBeVisible({ timeout: 10_000 })
       const results = await runAxe(staffPage)
@@ -275,7 +293,7 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // gets its own case for the same reason New Examination does: one extra
   // interaction stands between navigation and the markup worth scanning.
   tenancyTest('Proctor screen (code projected, one tile)', async ({ staffPage, workerTenant, request }) => {
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     await staffPage.getByRole('button', { name: 'Proctor', exact: true }).click()
     await staffPage.getByRole('tab', { name: 'Phone park' }).click()
@@ -309,12 +327,12 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
   // taking whatever this worker's tenant happens to hold.
   tenancyTest('New Examination screen', async ({ staffPage, workerTenant, request }) => {
     await createCourse(request, workerTenant.staff.token, { code: 'A11Y 100', name: 'A11y Scan Course' })
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
-    await staffPage.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await expect(staffPage.getByRole('heading', { name: 'Examinations' })).toBeVisible()
-    await staffPage.getByRole('button', { name: '+ New examination' }).click()
-    await expect(staffPage.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Collections' })).toBeVisible()
+    await staffPage.getByRole('button', { name: '+ New collection' }).click()
+    await expect(staffPage.getByRole('heading', { name: 'New Collection' })).toBeVisible()
     // The picker itself, not the empty-state fallback — settle() would
     // otherwise be timing the difference rather than the animation.
     await expect(staffPage.locator('#neCourse')).toHaveJSProperty('tagName', 'SELECT')
@@ -329,12 +347,12 @@ tenancyTest.describe('Axe scan — authenticated professor screens @a11y', () =>
     const { staff } = await provisionTenantWithStaff(request)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
     const page = await context.newPage()
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Examinations', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Examinations' })).toBeVisible()
-    await page.getByRole('button', { name: '+ New examination' }).click()
-    await expect(page.getByRole('heading', { name: 'New Examination' })).toBeVisible()
+    await page.getByRole('button', { name: 'Collections', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
+    await page.getByRole('button', { name: '+ New collection' }).click()
+    await expect(page.getByRole('heading', { name: 'New Collection' })).toBeVisible()
     await expect(page.getByText('No courses yet')).toBeVisible({ timeout: 10_000 })
     const results = await runAxe(page)
     checkA11y(results, 'New Examination (no courses yet)')
@@ -425,7 +443,7 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
         headers: { Authorization: `Bearer ${workerTenant.staff.token}` },
         data: { students: [{ email: `a11y-${Date.now()}@e2e.test`, name: 'A11y Student' }] },
       })
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       await staffPage.getByRole('button', { name: 'Courses', exact: true }).click()
       await staffPage.getByRole('button', { name: course.name }).first().click()
@@ -435,9 +453,9 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
 
     tenancyTest(`Manage examination${tag}`, async ({ staffPage, request, workerTenant }) => {
       const exam = await createExam(request, workerTenant.staff.token, { title: `A11y Manage ${Date.now()}` })
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
-      await staffPage.getByRole('button', { name: 'Examinations', exact: true }).click()
+      await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
       await staffPage.getByRole('button', { name: exam.title }).click()
       await expect(staffPage.getByRole('button', { name: 'Save changes' })).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(staffPage), 'Manage examination' + tag)
@@ -453,9 +471,39 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.waitForLoadState('networkidle')
       await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(page), 'Student home' + tag)
-      await page.getByRole('button', { name: 'Account' }).click()
+      await clickAccountMenuItem(page, 'Account')
       await expect(page.getByLabel('Current password')).toBeVisible()
       checkA11y(await runAxe(page), 'Student account' + tag)
+      await context.close()
+    })
+
+    // The Instructions guide (instructions.jsx), scanned open: a modal dialog
+    // over the teacher frame, then over the student shell. Escape closes it
+    // and hands focus back to the account button that holds its menu item.
+    tenancyTest(`Instructions guide${tag}`, async ({ staffPage, browser, baseURL, workerTenant }) => {
+      await staffPage.goto(COLLECTIONS_HOME)
+      await staffPage.waitForLoadState('networkidle')
+      await clickAccountMenuItem(staffPage, 'Instructions')
+      await expect(staffPage.getByRole('dialog', { name: 'Using Collections' })).toBeVisible()
+      checkA11y(await runAxe(staffPage), 'Instructions (teacher)' + tag)
+      await staffPage.keyboard.press('Escape')
+      await expect(staffPage.getByRole('dialog')).toBeHidden()
+      // The item is in the closed account menu, so focus comes back to the account button.
+      await expect(staffPage.locator('#me-btn')).toBeFocused()
+
+      const context = await browser.newContext({
+        storageState: studentAccountState(baseURL, workerTenant.student),
+        ...(viewport ? { viewport } : {}),
+      })
+      const page = await context.newPage()
+      await page.goto('/bluebook/')
+      await page.waitForLoadState('networkidle')
+      await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible({ timeout: 10_000 })
+      await clickAccountMenuItem(page, 'Instructions')
+      await expect(page.getByRole('dialog', { name: 'Alpha test: what to do' })).toBeVisible()
+      checkA11y(await runAxe(page), 'Instructions (student)' + tag)
+      await page.getByRole('button', { name: 'Close' }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
       await context.close()
     })
 
@@ -474,10 +522,85 @@ for (const viewport of [null, { width: 375, height: 812 }]) {
       await page.goto('/bluebook/')
       await page.waitForLoadState('networkidle')
       await page.getByRole('row', { name: new RegExp(exam.title) }).getByRole('button', { name: /Open|Resume/ }).click()
-      await page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+      await page.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
       await expect(page.getByLabel('Your answer to question 1')).toBeVisible({ timeout: 10_000 })
       checkA11y(await runAxe(page), 'Exam with separate answers' + tag)
       await context.close()
     })
   })
 }
+
+// The student writing screen, booted the way a launch link boots it (a real
+// exam, a bound student), in each state a student can meet: writing, writing
+// at 200% zoom (640x400 CSS pixels), writing with notes for the teacher and
+// the offline banner showing, sealed, and a seal that could not be delivered.
+isolatedTest.describe('Axe scan: student writing screen @a11y', () => {
+  async function bootWriting(page, request, testTenant, label) {
+    const res = await request.post('/bluebook/exams', {
+      headers: { Authorization: `Bearer ${testTenant.staff.token}` },
+      data: { title: `A11y ${label} ${Date.now()}`, course: 'PHIL 101', duration: 60, minWords: 5, maxWords: 300, prompt: 'Describe a good argument.', status: 'PUBLISHED' },
+    })
+    const exam = await res.json()
+    await page.addInitScript(([e, sid]) => {
+      localStorage.setItem('bluebook_student_id', sid)
+      window.BB_EXAM_CONFIG = {
+        id: e.id, title: e.title, course: e.course, courseTitle: e.course, candidate: 'A11y Candidate',
+        duration: 60, minWords: 5, maxWords: 300, prompt: e.prompt, blockWeb: true, blockCopy: true, spellChk: false,
+      }
+      Element.prototype.requestFullscreen = function () { return Promise.resolve() }
+    }, [exam, testTenant.student.student_id])
+    await page.goto('/bluebook/')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Begin writing' }).click()
+    await expect(page.getByLabel('Your answer', { exact: true })).toBeFocused()
+    await page.keyboard.type('A good argument names its premises and shows why they hold.', { delay: 1 })
+  }
+
+  isolatedTest('Exam (one answer)', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'one answer')
+    checkA11y(await runAxe(studentPage), 'Exam (one answer)')
+  })
+
+  isolatedTest('Exam (one answer, 200% zoom)', async ({ browser, request, testTenant }) => {
+    const context = await browser.newContext({
+      viewport: { width: 640, height: 400 },
+      storageState: studentAccountState(testTenant.baseURL, testTenant.student),
+    })
+    const page = await context.newPage()
+    await bootWriting(page, request, testTenant, 'zoom')
+    checkA11y(await runAxe(page), 'Exam (one answer, 200% zoom)')
+    await context.close()
+  })
+
+  isolatedTest('Exam (notes and offline)', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'notes')
+    await studentPage.evaluate(() => {
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    await studentPage.context().setOffline(true)
+    await expect(studentPage.getByRole('region', { name: /Notes for your teacher/ })).toBeVisible()
+    await expect(studentPage.getByText(/You are offline/)).toBeVisible()
+    checkA11y(await runAxe(studentPage), 'Exam (notes and offline)')
+    await studentPage.context().setOffline(false)
+  })
+
+  isolatedTest('Sealed', async ({ studentPage, request, testTenant }) => {
+    await bootWriting(studentPage, request, testTenant, 'sealed')
+    await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByRole('heading', { name: 'Collection Sealed' })).toBeVisible({ timeout: 20_000 })
+    checkA11y(await runAxe(studentPage), 'Sealed')
+  })
+
+  isolatedTest('Seal not delivered', async ({ studentPage, request, testTenant }) => {
+    await studentPage.route('**/bluebook/submissions', route => (route.request().method() === 'POST'
+      ? route.fulfill({ status: 422, contentType: 'application/json', body: '{"detail":"Not accepted."}' })
+      : route.continue()))
+    await bootWriting(studentPage, request, testTenant, 'not delivered')
+    await studentPage.getByRole('button', { name: 'Seal & Submit' }).click()
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByRole('button', { name: /Try again/i })).toBeVisible({ timeout: 10_000 })
+    checkA11y(await runAxe(studentPage), 'Seal not delivered')
+  })
+})

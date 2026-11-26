@@ -47,7 +47,7 @@ test.describe('Tweaks panel dev gate', () => {
     await bootAsStudent(page)
     await page.goto('/bluebook/')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
 
     await requestPanel(page)
     await expect(page.locator(PANEL)).toHaveCount(0)
@@ -68,7 +68,7 @@ test.describe('Tweaks panel dev gate', () => {
     await bootAsStudent(page)
     await page.goto('/bluebook/?dev=1')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Preliminary Instructions')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Before you begin')).toBeVisible({ timeout: 10_000 })
     // The flag really was stored — the refusal below is devToolsEnabled()
     // declining it, not the bootstrap having quietly dropped it.
     expect(await page.evaluate(() => localStorage.getItem('bluebook_dev_tools'))).toBe('1')

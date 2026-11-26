@@ -98,12 +98,11 @@ def test_canvas_import_refuses_private_and_local_urls(
     # the direct witness that the server dialed the attacker-supplied host
     # before (if ever) rejecting it, not an inference from status alone.
     assert seen == [], (
-        f"server contacted {attacker_url!r} — recorded requests: "
-        f"{[str(req.url) for req in seen]}"
+        f"server contacted {attacker_url!r} — recorded requests: {[str(req.url) for req in seen]}"
     )
-    assert (
-        status is not None and 400 <= status < 500
-    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    assert status is not None and 400 <= status < 500, (
+        f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    )
 
 
 NUMERIC_IP_ATTACKER_URLS = [
@@ -150,12 +149,11 @@ def test_canvas_import_refuses_numeric_ip_encodings(
         status, body_text = None, f"<unhandled exception before a response: {exc!r}>"
 
     assert seen == [], (
-        f"server contacted {attacker_url!r} — recorded requests: "
-        f"{[str(req.url) for req in seen]}"
+        f"server contacted {attacker_url!r} — recorded requests: {[str(req.url) for req in seen]}"
     )
-    assert (
-        status is not None and 400 <= status < 500
-    ), f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    assert status is not None and 400 <= status < 500, (
+        f"expected a 4xx refusal for {attacker_url!r}, got {status!r}: {body_text}"
+    )
 
 
 def test_canvas_import_control_public_url_is_contacted(two_tenants, live_client, monkeypatch):
@@ -165,6 +163,11 @@ def test_canvas_import_control_public_url_is_contacted(two_tenants, live_client,
     out for an ordinary request — so an empty recorded-request list in the
     red cases above is evidence of a refusal, not a broken monkeypatch.
     """
+    monkeypatch.setattr(
+        live_import.socket,
+        "getaddrinfo",
+        lambda host, port: [(None, None, None, "", ("93.184.215.14", 443))],
+    )
     transport, seen = _recording_transport()
     monkeypatch.setattr(
         live_import,

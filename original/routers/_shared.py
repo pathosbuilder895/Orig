@@ -332,6 +332,30 @@ def _record_login_failure(request: Request, email: str = "", scope: str = "login
         _login_attempts.clear()
 
 
+# The launch page and its error page share one look. Named "Collections" only:
+# a launch can come from a Collections-only workspace, which never shows
+# Original's name.
+_LAUNCH_BODY = (
+    '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
+    'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px">'
+)
+_LAUNCH_TEXT = "font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem;max-width:32ch;text-align:center;line-height:1.5"
+
+
+def _render_launch_error(message: str) -> HTMLResponse:
+    """A launch link is opened by a browser, so a link that cannot be used
+    gets a short page the student can read, not a JSON error body."""
+    import html as _html
+
+    page = (
+        "<!doctype html><meta charset=utf-8>"
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        "<title>Collections</title>"
+        f'{_LAUNCH_BODY}<main><p style="{_LAUNCH_TEXT}">{_html.escape(message)}</p></main></body>'
+    )
+    return HTMLResponse(page, status_code=400)
+
+
 def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     """Server-render a page that seeds ``ls`` into localStorage then redirects.
 
@@ -341,10 +365,8 @@ def _render_launch_localstorage(ls: dict, redirect: str) -> HTMLResponse:
     """
     sets = "".join(f"localStorage.setItem({json.dumps(k)},{json.dumps(v)});" for k, v in ls.items())
     html = (
-        "<!doctype html><meta charset=utf-8><title>Collections · Original</title>"
-        '<body style="font-family:Inter,system-ui;background:#001020;color:#C9A961;'
-        'display:flex;align-items:center;justify-content:center;height:100vh;margin:0">'
-        "<div style=\"font-family:'Cormorant Garamond',Georgia,serif;font-size:1.3rem\">Entering examination…</div>"
+        "<!doctype html><meta charset=utf-8><title>Collections</title>"
+        f'{_LAUNCH_BODY}<div style="{_LAUNCH_TEXT}">Opening your exam…</div>'
         f"<script>try{{{sets}}}catch(e){{}}"
         f"var u={json.dumps(redirect)};try{{window.top.location.replace(u);}}catch(e){{location.replace(u);}}"
         "</script></body>"
@@ -607,6 +629,18 @@ def _to_response(r, arc=None, report=None) -> Layer7OutputResponse:
         characteristic_factor_dispersion=getattr(r, "characteristic_factor_dispersion", None),
         characteristic_rms_z_preview=getattr(r, "characteristic_rms_z_preview", None),
         characteristic_deviation_preview=getattr(r, "characteristic_deviation_preview", None),
+        # Opportunity mask (OPPORTUNITY_MASK). Same reasoning again: a shadow
+        # soak can only be read if its preview reaches the response.
+        opportunity_mask_applied=getattr(r, "opportunity_mask_applied", False),
+        opportunity_mode=getattr(r, "opportunity_mode", None),
+        unmeasured_features=getattr(r, "unmeasured_features", None),
+        opportunity_deviation_preview=getattr(r, "opportunity_deviation_preview", None),
+        # Length-matched baseline (LENGTH_MATCHED_BASELINE): same reasoning.
+        length_match_applied=getattr(r, "length_match_applied", False),
+        length_match_mode=getattr(r, "length_match_mode", None),
+        length_match_pieces=getattr(r, "length_match_pieces", None),
+        length_match_deviation_preview=getattr(r, "length_match_deviation_preview", None),
+        length_match_action_preview=getattr(r, "length_match_action_preview", None),
         # Phase 3: ContextManifestOut when CONTEXT_MANIFEST_ENABLED=1, else None.
         context_manifest=(
             ContextManifestOut(**getattr(r, "context_manifest", None))
@@ -667,3 +701,31 @@ def _audit_maintenance_access(username: str, remote: str) -> None:
         remote,
         datetime.datetime.utcnow().isoformat() + "Z",
     )
+
+
+DEFAULT_MIN_BASELINE_SAMPLES = 3
+
+
+def min_baseline_samples() -> int:
+    """Approved baseline papers required before Original scores a student.
+
+    Default 3. ``MIN_BASELINE_SAMPLES`` may raise it (or lower it for research
+    harnesses); values below 1 fall back to 1."""
+    raw = os.environ.get("MIN_BASELINE_SAMPLES", "").strip()
+    try:
+        return max(1, int(raw)) if raw else DEFAULT_MIN_BASELINE_SAMPLES
+    except ValueError:
+        return DEFAULT_MIN_BASELINE_SAMPLES
+
+
+def drift_gate_advisory() -> bool:
+    """``DRIFT_GATE=advisory``: the baseline drift check still runs and is
+    reported, but never holds a teacher's paper out of the baseline.
+
+    Default ``hold`` keeps the Phase 8 behaviour (202/409 on a single add, a
+    per-file hold in a batch). The 2026-11 alpha builds each baseline from
+    exactly three papers the teacher has vouched for, and a held paper has no
+    override, so one outlier left a volunteer below the three-paper floor.
+    ``advisory`` (also ``off``) admits the paper and keeps the drift reading
+    on the response."""
+    return os.environ.get("DRIFT_GATE", "hold").strip().lower() in {"advisory", "off"}

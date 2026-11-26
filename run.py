@@ -63,6 +63,7 @@ def seed_demo_store():
 
 def create_demo_app(frontend_dir: Path):
     """Return the legacy demo app with the static frontend mounted."""
+    from fastapi import Request
     from fastapi.responses import RedirectResponse
     from fastapi.staticfiles import StaticFiles
 
@@ -82,6 +83,24 @@ def create_demo_app(frontend_dir: Path):
     # Bluebook's index.html is the same file in dev and production — React is
     # bundled into bluebook.bundle.js (build.mjs), not loaded from a CDN or
     # vendored globals, so there's no separate prod entrypoint to swap in.
+    # /collections/ is the user-facing path for the Collections app (the
+    # Bluebook SPA renamed). It serves the same files as /bluebook/, which
+    # stays live because invite/reset emails, LTI launches and the API all
+    # use it. The SPA's assets are relative and its API calls absolute, so
+    # the same index.html works under either prefix.
+    collections_dir = frontend_dir / "bluebook"
+    if collections_dir.is_dir():
+
+        @app.get("/collections", include_in_schema=False)
+        def collections_slash(request: Request):
+            q = request.url.query
+            return RedirectResponse(url="/collections/" + (f"?{q}" if q else ""), status_code=307)
+
+        app.mount(
+            "/collections",
+            StaticFiles(directory=str(collections_dir), html=True),
+            name="collections",
+        )
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
     app.state._original_demo_frontend_mounted = True
     return app

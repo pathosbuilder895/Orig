@@ -336,6 +336,27 @@ def project_headline(name: str, arc: list[dict[str, Any]]) -> dict[str, str]:
     return {"headline": headline, "subhead": sub + "."}
 
 
+# ── Staff-only fields: never in a student's read model ───────────────────────
+
+#: Keys that only staff responses may carry. The student projections below never
+#: build them, and ``drop_staff_only`` removes them from anything handed to a
+#: student route (or, later, to a student guide), at any depth, so a new staff
+#: field cannot reach a student by being copied into a student payload.
+#: ``paper_profile`` (original/paper_profile.py) describes a paper's headings,
+#: citations and list of sources for the teacher only.
+STAFF_ONLY_KEYS = frozenset({"paper_profile"})
+
+
+def drop_staff_only(blob: Any) -> Any:
+    """``blob`` without any ``STAFF_ONLY_KEYS`` key, at any depth (a copy;
+    ``blob`` itself is not changed). Everything else is returned as it was."""
+    if isinstance(blob, dict):
+        return {k: drop_staff_only(v) for k, v in blob.items() if k not in STAFF_ONLY_KEYS}
+    if isinstance(blob, list):
+        return [drop_staff_only(v) for v in blob]
+    return blob
+
+
 def project_voice_view(
     *,
     name: str,
@@ -480,10 +501,13 @@ def project_submission_result(layer7: Any, name: str) -> dict[str, Any]:
         )
     else:
         headline = "Some passages here read differently from your voice."
+        # No "revisit" nudge back toward the baseline (NORTH_STAR rule 5), and no
+        # pathway this page does not offer.
         summary = (
-            "Parts of this piece diverge from your established voice. That is worth "
-            "revisiting: not a verdict, an invitation to look again. A guided "
-            "pathway is available if you would like a structured way through it."
+            "Parts of this piece read differently from the writing in your profile. "
+            "That often happens when a writer tries something new, and it is not a "
+            "judgement about you. If you would like to talk it through, your teacher "
+            "is the person to ask."
         )
 
     # Map the constructive (steady) features up into voice-dimension language so

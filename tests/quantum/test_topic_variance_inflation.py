@@ -309,7 +309,7 @@ def _state_with_ghostwriting_baseline(seed=11):
     return state
 
 
-def test_ghostwriting_escalate_survives_topic_inflation():
+def test_ghostwriting_escalate_survives_topic_inflation(monkeypatch):
     """
     Finding 2's stated real-world harm, tested end to end: `_recommend`
     forces action="escalate" once ghostwriting_confirmed fires -- a T1-T11
@@ -349,6 +349,17 @@ def test_ghostwriting_escalate_survives_topic_inflation():
     falls all the way to "no_action" -- i.e. this fixture would ALSO have
     caught the original bug, not just the generic destructive-features one.
     """
+    # error_kl_divergence is a comparison code, which past papers have no
+    # value for today, so scoring leaves it out and the override cannot fire
+    # through score() (ADR-013, "Comparison measurements"). Score as if past
+    # papers had real values, so the override's survival under inflation
+    # stays checked for when they do.
+    from original.quantum import scoring as scoring_module
+    from original.quantum import state as state_module
+
+    none = np.zeros(FEATURE_DIM, dtype=bool)
+    monkeypatch.setattr(scoring_module, "NOT_COMPUTED_FOR_BASELINES_MASK", none)
+    monkeypatch.setattr(state_module, "NOT_COMPUTED_FOR_BASELINES_MASK", none)
     state = _state_with_ghostwriting_baseline()
     mu = state.baseline_mean
     vec = mu.copy()

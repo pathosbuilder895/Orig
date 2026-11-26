@@ -14,6 +14,7 @@
 
 import { test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor, studentLogin, studentStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const staffAuth = workerTenant => ({ Authorization: `Bearer ${workerTenant.staff.token}` })
 
@@ -34,6 +35,9 @@ async function createExam(request, workerTenant, title) {
     data: {
       title, course: 'PHIL 301A', duration: 120, minWords: 12, maxWords: 5000,
       prompt: 'Discuss.', status: 'PUBLISHED',
+      // The server only lets a student score during a sitting whose exam has
+      // writing consistency enabled, so enable it on the exam itself.
+      conditions: { aiDetect: true },
     },
   })
   expect(res.ok()).toBe(true)
@@ -42,8 +46,10 @@ async function createExam(request, workerTenant, title) {
 
 async function sealAsNewStudent({ browser, request, workerTenant }, samples, title) {
   const student = await studentLogin(request, { staffToken: workerTenant.staff.token })
+  // Seeded by the teacher: readiness counts approved samples only, and a
+  // student's own upload is downgraded to 'unverified' (baseline_integrity.py).
   for (const text of samples) {
-    await addBaselineFor(request, student.student_id, student.token, { text })
+    await addBaselineFor(request, student.student_id, workerTenant.staff.token, { text })
   }
   const exam = await createExam(request, workerTenant, title)
   const candidate = `Thin ${samples.length} ${Date.now()}`
@@ -58,6 +64,7 @@ async function sealAsNewStudent({ browser, request, workerTenant }, samples, tit
       id: examArg.id, title: examArg.title, course: examArg.course,
       courseTitle: examArg.course, candidate: cand, duration: 7200,
       minWords: 12, maxWords: null, blockWeb: false, blockCopy: false, spellChk: true,
+      aiDetect: true, // writing consistency is off by default
     }
   }, [exam, student.student_id, candidate])
   await page.goto('/bluebook/')
@@ -67,8 +74,8 @@ async function sealAsNewStudent({ browser, request, workerTenant }, samples, tit
   await expect(box).toBeVisible({ timeout: 10_000 })
   await box.focus()
   await page.keyboard.type(ESSAY, { delay: 1 })
-  page.once('dialog', d => d.accept())
   await page.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+  await confirmSeal(page)
   await expect(page.getByText('✓ Delivered to your teacher')).toBeVisible({ timeout: 60_000 })
   await context.close()
 

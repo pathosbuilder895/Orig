@@ -10,7 +10,21 @@ const { BB_API } = await import('data:text/javascript;base64,' + Buffer.from(bui
 
 test('an expired sign-in is not reported as an empty submission list', async () => {
   globalThis.fetch = async () => new Response('{"detail":"Expired"}', { status: 401 });
-  await assert.rejects(BB_API.listSubmissions(), /sign out and sign in again/);
+  await assert.rejects(BB_API.listSubmissions(), /Your sign-in has expired\. Please sign in again\./);
+});
+test('a 401 that says something specific is passed on, not replaced', async () => {
+  globalThis.fetch = async () => new Response('{"detail":"Current password is incorrect."}', { status: 401 });
+  await assert.rejects(BB_API.changePassword('old-password', 'new-password-1'), /^Error: Current password is incorrect\.$/);
+});
+test('a failure the server did not explain is said in plain words, not as a status line', async () => {
+  globalThis.fetch = async () => new Response('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+  await assert.rejects(BB_API.listSubmissions(), /Something went wrong on our side/);
+  globalThis.fetch = async () => new Response('{"detail":[{"msg":"Field required"}]}', { status: 422, statusText: 'Unprocessable Entity' });
+  await assert.rejects(BB_API.listSubmissions(), /That did not go through/);
+});
+test('a failed request carries its HTTP status', async () => {
+  globalThis.fetch = async () => new Response('{"detail":"Not accepted."}', { status: 422 });
+  await assert.rejects(BB_API.recordSubmission({}), err => err.status === 422 && err.message === 'Not accepted.');
 });
 test('a server failure is not reported as an empty submission list', async () => {
   globalThis.fetch = async () => new Response('{"detail":"Temporarily unavailable"}', { status: 503 });

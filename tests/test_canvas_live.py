@@ -15,6 +15,8 @@ Canvas failures surfacing as 502.
 
 from __future__ import annotations
 
+import socket
+
 import httpx
 import pytest
 
@@ -109,6 +111,17 @@ def _make_transport() -> httpx.MockTransport:
 
 @pytest.fixture
 def fake_canvas(monkeypatch):
+    real_getaddrinfo = socket.getaddrinfo
+
+    def fake_getaddrinfo(host, *args, **kwargs):
+        if host == "canvas.test":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.215.14", 443))]
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    # The endpoint's SSRF guard resolves the Canvas hostname before the
+    # MockTransport takes over HTTP. Pin that DNS result too, so these tests
+    # never depend on the sandbox resolver or external network.
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
     transport = _make_transport()
     monkeypatch.setattr(
         live_import,
@@ -450,9 +463,7 @@ async def test_get_submission_text_short_attachment_falls_through_to_next():
         return httpx.Response(200, content=TEXT_B.encode())
 
     sub = _sub_upload(306, f"{CANVAS_URL}/files/short.txt", "short.txt", "Two Attachment Essay")
-    sub["attachments"].append(
-        {"url": f"{CANVAS_URL}/files/full.txt", "display_name": "full.txt"}
-    )
+    sub["attachments"].append({"url": f"{CANVAS_URL}/files/full.txt", "display_name": "full.txt"})
 
     async with _client(handler) as client:
         text = await live_import.get_submission_text(sub, TOKEN, client)

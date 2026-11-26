@@ -367,6 +367,154 @@
         "title": "AuthorshipSignalOut",
         "type": "object"
       },
+      "BandRateCellOut": {
+        "description": "One band's measured rates from gate G9 (validation/band_rates.json):\nthe share of genuine student papers that landed in the band, and the\nshare that landed in it or further out, each with a 95% Wilson interval.",
+        "properties": {
+          "at_or_beyond": {
+            "title": "At Or Beyond",
+            "type": "number"
+          },
+          "ci_at_or_beyond": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci At Or Beyond",
+            "type": "array"
+          },
+          "ci_in_band": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci In Band",
+            "type": "array"
+          },
+          "in_band": {
+            "title": "In Band",
+            "type": "number"
+          }
+        },
+        "required": [
+          "in_band",
+          "at_or_beyond",
+          "ci_in_band",
+          "ci_at_or_beyond"
+        ],
+        "title": "BandRateCellOut",
+        "type": "object"
+      },
+      "BandRateOut": {
+        "description": "The one measured rate a teacher page may quote for this band, present\nonly when gate G9 passed in strict mode (NORTH_STAR rule 2). ``kind`` is\n\"in_band\" below the first band and \"at_or_beyond\" (the false-alarm rate\nat that bar) otherwise. Never a probability that the paper is the\nstudent's own.",
+        "properties": {
+          "ci": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ci",
+            "type": "array"
+          },
+          "corpus": {
+            "title": "Corpus",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "rate": {
+            "title": "Rate",
+            "type": "number"
+          },
+          "students": {
+            "title": "Students",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rate",
+          "kind",
+          "ci",
+          "n",
+          "students",
+          "corpus",
+          "date"
+        ],
+        "title": "BandRateOut",
+        "type": "object"
+      },
+      "BandRateStatusOut": {
+        "description": "Gate G9's last recorded run, whatever its verdict, so a staff page can\nshow how the band rates are being measured. ``verdict`` is \"not run\"\nuntil the first run is recorded.",
+        "properties": {
+          "bands": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BandRateCellOut"
+            },
+            "default": {},
+            "title": "Bands",
+            "type": "object"
+          },
+          "corpus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "n_papers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Papers"
+          },
+          "n_students": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Students"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "BandRateStatusOut",
+        "type": "object"
+      },
       "BaselineConfidenceOut": {
         "properties": {
           "authenticated_count": {
@@ -595,6 +743,16 @@
               }
             ],
             "title": "Fallback Reason"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "n_tokens": {
             "default": 0,
@@ -939,12 +1097,26 @@
       "BluebookSessionResponse": {
         "properties": {
           "deadline_at": {
-            "title": "Deadline At",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
           },
           "duration_seconds": {
-            "title": "Duration Seconds",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
           },
           "exam_id": {
             "title": "Exam Id",
@@ -1196,6 +1368,44 @@
         "title": "Body_import_turnitin_csv_import_courses__course_id__turnitin_csv_post",
         "type": "object"
       },
+      "Body_share_past_paper_bluebook_me_papers_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "is_section": {
+            "default": "",
+            "title": "Is Section",
+            "type": "string"
+          },
+          "parent_title": {
+            "default": "",
+            "title": "Parent Title",
+            "type": "string"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "title": "Body_share_past_paper_bluebook_me_papers_post",
+        "type": "object"
+      },
       "Body_upload_baseline_batch_students__student_id__baseline_upload_batch_post": {
         "properties": {
           "assignment": {
@@ -1214,6 +1424,11 @@
           "provenance": {
             "default": "verified",
             "title": "Provenance",
+            "type": "string"
+          },
+          "submitted_at": {
+            "default": "",
+            "title": "Submitted At",
             "type": "string"
           }
         },
@@ -2195,6 +2410,30 @@
         "title": "EntanglementAnomalyOut",
         "type": "object"
       },
+      "ExamDraftBody": {
+        "description": "The student's unsealed writing for one exam, as the booklet holds it.",
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "client_saved_at": {
+            "default": 0,
+            "title": "Client Saved At",
+            "type": "integer"
+          },
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "title": "ExamDraftBody",
+        "type": "object"
+      },
       "FeatureContributionOut": {
         "properties": {
           "baseline_value": {
@@ -2359,6 +2598,11 @@
             "title": "Commit",
             "type": "string"
           },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
+          },
           "environment": {
             "default": "demo",
             "title": "Environment",
@@ -2458,6 +2702,55 @@
           "password"
         ],
         "title": "InviteRedeemRequest",
+        "type": "object"
+      },
+      "JoinLinkInfoRequest": {
+        "description": "POST /auth/join/info and POST /bluebook/me/join — a course sign-up link.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "JoinLinkInfoRequest",
+        "type": "object"
+      },
+      "JoinLinkRequest": {
+        "description": "POST /auth/join — create a student account from a course sign-up link.",
+        "properties": {
+          "accept_terms": {
+            "default": false,
+            "description": "Must be true: the student notice, terms and privacy policy",
+            "title": "Accept Terms",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "JoinLinkRequest",
         "type": "object"
       },
       "Layer7OutputResponse": {
@@ -2588,6 +2881,18 @@
               }
             ]
           },
+          "evidence": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
           "feature_vector": {
             "additionalProperties": {
               "type": "number"
@@ -2620,6 +2925,102 @@
           "interference": {
             "$ref": "#/components/schemas/InterferenceDecompositionOut"
           },
+          "length_match_action_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Action Preview"
+          },
+          "length_match_applied": {
+            "default": false,
+            "title": "Length Match Applied",
+            "type": "boolean"
+          },
+          "length_match_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Deviation Preview"
+          },
+          "length_match_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Mode"
+          },
+          "length_match_pieces": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length Match Pieces"
+          },
+          "measurement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opportunity_deviation_preview": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Deviation Preview"
+          },
+          "opportunity_mask_applied": {
+            "default": false,
+            "title": "Opportunity Mask Applied",
+            "type": "boolean"
+          },
+          "opportunity_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Mode"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreliminaryScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "recommendation": {
             "$ref": "#/components/schemas/RecommendedActionOut"
           },
@@ -2627,6 +3028,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ScoringReportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rule_d": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleDObservationOut"
               },
               {
                 "type": "null"
@@ -2760,6 +3171,20 @@
               }
             ],
             "title": "Typicality Source"
+          },
+          "unmeasured_features": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unmeasured Features"
           }
         },
         "required": [
@@ -2947,6 +3372,50 @@
         "title": "ManifestStatsResponse",
         "type": "object"
       },
+      "MeasurementOut": {
+        "description": "Which way a score's papers were measured (original/measurement.py).",
+        "properties": {
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the default was used instead, when it was.",
+            "title": "Fallback"
+          },
+          "past_papers": {
+            "title": "Past Papers",
+            "type": "integer"
+          },
+          "past_papers_measured": {
+            "description": "Past papers that already carry the requested measurement.",
+            "title": "Past Papers Measured",
+            "type": "integer"
+          },
+          "requested": {
+            "description": "The measurement the switches asked for.",
+            "title": "Requested",
+            "type": "string"
+          },
+          "used": {
+            "description": "The measurement actually used (\"v1\" = the default).",
+            "title": "Used",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested",
+          "used",
+          "past_papers",
+          "past_papers_measured"
+        ],
+        "title": "MeasurementOut",
+        "type": "object"
+      },
       "MilestoneOut": {
         "description": "A positive credential as a named milestone — no raw counts.",
         "properties": {
@@ -3060,6 +3529,51 @@
         "title": "ParkOpenRequest",
         "type": "object"
       },
+      "PartChoiceRequest": {
+        "description": "A teacher's choice of which parts of one past paper are measured\n(``PUT /students/{id}/samples/{index}/parts``). Checked against the\npaper's text the same way as the score request's fields.",
+        "properties": {
+          "exclude_ranges": {
+            "description": "Character ranges of the paper set aside whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Exclude Ranges",
+            "type": "array"
+          },
+          "include_ranges": {
+            "description": "Character ranges of the paper measured whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Include Ranges",
+            "type": "array"
+          }
+        },
+        "title": "PartChoiceRequest",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "description": "POST /auth/password.",
         "properties": {
@@ -3093,12 +3607,195 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PastPaperExamplesResponse": {
+        "description": "Real sentences from a student's past papers for one habit and its family\n(ADR-013). Staff only; this response never changes any score.\n``baseline_papers`` matches the score response's ``evidence.baseline_papers``.",
+        "properties": {
+          "baseline_papers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Baseline Papers",
+            "type": "array"
+          },
+          "families": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Families",
+            "type": "array"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "habit": {
+            "title": "Habit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline_papers",
+          "family",
+          "habit",
+          "families",
+          "features"
+        ],
+        "title": "PastPaperExamplesResponse",
+        "type": "object"
+      },
+      "PhoneBeatBody": {
+        "properties": {
+          "beat_token": {
+            "title": "Beat Token",
+            "type": "string"
+          },
+          "state": {
+            "default": "parked",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "beat_token"
+        ],
+        "title": "PhoneBeatBody",
+        "type": "object"
+      },
+      "PhoneOverrideBody": {
+        "properties": {
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "title": "PhoneOverrideBody",
+        "type": "object"
+      },
+      "PhoneScanBody": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PhoneScanBody",
+        "type": "object"
+      },
+      "PreliminaryScoreOut": {
+        "description": "Optional preliminary score (ADR-013). Staff and teachers only, never a\nstudent session; null unless PRELIMINARY_SCORE_ENABLED=1. Built only from\nthe deviation score and action band this response already carries, plus\nthe count of measured habits outside the past-paper range and gate G9's\nband rate when one has been measured.",
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "band_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BandRateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "band_rate_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BandRateStatusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "band_words": {
+            "title": "Band Words",
+            "type": "string"
+          },
+          "habits_compared": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Compared"
+          },
+          "habits_outside": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Habits Outside"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "label",
+          "score",
+          "band",
+          "band_words",
+          "note"
+        ],
+        "title": "PreliminaryScoreOut",
+        "type": "object"
+      },
       "ReadinessResponse": {
-        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= 5 authenticated samples AND >= 3 effective),\n\"developing\" (>= 2 authenticated), else \"insufficient\". Pure read —\ncomputed from the same StudentState the score endpoint uses.",
+        "description": "Pilot-facing baseline-readiness check (GET /students/{id}/readiness).\n\nverdict: \"ready\" (>= MIN_BASELINE_SAMPLES authenticated, 3 by default),\n\"developing\" (1 or more), else \"insufficient\". Pure read:\ncomputed from the same StudentState the score endpoint uses.",
         "properties": {
           "authenticated_count": {
             "title": "Authenticated Count",
             "type": "integer"
+          },
+          "drift_gate": {
+            "default": "hold",
+            "title": "Drift Gate",
+            "type": "string"
           },
           "effective_sample_count": {
             "title": "Effective Sample Count",
@@ -3334,6 +4031,134 @@
         "title": "RosterStudent",
         "type": "object"
       },
+      "RuleDObservationOut": {
+        "description": "Rule D (RULE_D_OBSERVATION=on), staff and teachers only, never a student session.\n\nA report-only, testing-phase consistency observation: does the new paper read like the\nstudent's earlier approved writing, compared with the same workspace's other students?\nPlain-English reasons both ways and a confidence note tied to measured results on\npublished scholarly prose. Never a probability, never a verdict, and it never changes\n``deviation_score`` or the recommended action. \"inconclusive\" below the class-size floor\nor for a very short paper.",
+        "properties": {
+          "classmate_papers": {
+            "default": 0,
+            "title": "Classmate Papers",
+            "type": "integer"
+          },
+          "classmates": {
+            "default": 0,
+            "title": "Classmates",
+            "type": "integer"
+          },
+          "components": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Components",
+            "type": "object"
+          },
+          "confidence_note": {
+            "title": "Confidence Note",
+            "type": "string"
+          },
+          "configuration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration"
+          },
+          "configuration_note": {
+            "default": "",
+            "title": "Configuration Note",
+            "type": "string"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "reads_less_like": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reads Less Like",
+            "type": "array"
+          },
+          "reads_less_like_student": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reads Less Like Student"
+          },
+          "reads_like": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Reads Like",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "study_id": {
+            "title": "Study Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "testing_phase_label": {
+            "title": "Testing Phase Label",
+            "type": "string"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "required": [
+          "status",
+          "testing_phase_label",
+          "study_id",
+          "summary",
+          "confidence_note"
+        ],
+        "title": "RuleDObservationOut",
+        "type": "object"
+      },
       "SampleSummary": {
         "properties": {
           "assignment": {
@@ -3350,6 +4175,12 @@
           },
           "provenance": {
             "title": "Provenance",
+            "type": "string"
+          },
+          "source": {
+            "default": "unknown",
+            "description": "How the sample got into the baseline, derived at read time: 'staff_or_supervised' | 'take_home' | 'shared_paper' | 'student_upload' | 'unknown'. Wording only; never read by scoring.",
+            "title": "Source",
             "type": "string"
           },
           "submitted_at": {
@@ -3388,6 +4219,58 @@
             ],
             "description": "Macro-only composition timing (session_seconds, word_count, paste_attempts, focus_losses, started_at, ended_at, exam_config) — the ADR-010 replacement for keystroke_data's per-key telemetry. No per-key timing is collected; per the T-69/T-74 macro-only keystroke posture, only session-level metrics are captured. While the 'behavioral' feature group is disabled (the default), only those fields (and block_copy, min_words, duration_min inside exam_config) are kept; anything else is discarded on arrival.",
             "title": "Composition Summary"
+          },
+          "exclude_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only (a student session gets 403); 409 unless MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. Character ranges of `text`, as [start, end] pairs, sorted and non-overlapping, set aside by the splitter's measurement whatever its rules say: a teacher's 'Set this part aside'. Snapped to whole lines; each must hold a word; together at most 60% of the words the rules measure (422 otherwise). Never changes the default measurement. Absent, empty or null: the rules alone, as before.",
+            "title": "Exclude Ranges"
+          },
+          "include_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only, same switches as `exclude_ranges`. Parts the rules set aside (or listed as possible) that the splitter's measurement measures anyway: a teacher's 'Measure this part'. Each range must be exactly such a part (or touching parts merged), never overlapping `exclude_ranges` (422 otherwise).",
+            "title": "Include Ranges"
           },
           "keystroke_data": {
             "anyOf": [
@@ -4482,6 +5365,24 @@
         ],
         "title": "WindowScoreOut",
         "type": "object"
+      },
+      "WriterCreateRequest": {
+        "description": "POST /students: a writer added by name, with no course or account.",
+        "properties": {
+          "name": {
+            "description": "The writer's name, 1-120 characters once trimmed, no control characters",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]*$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WriterCreateRequest",
+        "type": "object"
       }
     }
   },
@@ -5346,6 +6247,80 @@
         "summary": "Auth Invite Redeem"
       }
     },
+    "/auth/join": {
+      "post": {
+        "description": "Create (or finish setting up) a student account from a course sign-up\nlink, enrol it on the course, and sign the student in.\n\n- A new email: the account is created in the course's workspace, with the\n  same student id a roster add would give it (derive_student_id).\n- Any email that already has an account is refused: one with a password\n  (sign in instead), one the teacher added that has never set a password\n  (use the personal invite link), and a teacher's or another workspace's.\n  The link only ever sets the password on an account it just created.\n\nThe student must tick the consent box; nothing is created without it.\nFailures count against a per-IP and per-email budget like invite\nredemption; successes do not, so a class on one school network is not\nthrottled by its own sign-ups.",
+        "operationId": "auth_join_auth_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join"
+      }
+    },
+    "/auth/join/info": {
+      "post": {
+        "description": "What the sign-up screen shows before anyone types: the course and\nits teacher. One answer for every link that cannot be used.",
+        "operationId": "auth_join_info_auth_join_info_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Auth Join Info"
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "auth_login_auth_login_post",
@@ -5401,7 +6376,7 @@
     },
     "/auth/password": {
       "post": {
-        "description": "Change your own password (any signed-in account, staff or student).",
+        "description": "Change your own password (any signed-in account, staff or student).\n\nEvery session issued before the change stops working, this one included\n(T-79), so the reply carries a fresh sign-in for this browser.",
         "operationId": "auth_change_password_auth_password_post",
         "requestBody": {
           "content": {
@@ -5767,6 +6742,154 @@
           }
         },
         "summary": "Roster Reissue Pending"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link": {
+      "delete": {
+        "description": "Turn the sign-up link off. Accounts already made with it are unaffected.",
+        "operationId": "join_link_disable_bluebook_courses__course_id__join_link_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Disable"
+      },
+      "get": {
+        "description": "The course's sign-up link, if it is on. Off until the teacher turns it on.",
+        "operationId": "join_link_get_bluebook_courses__course_id__join_link_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Get"
+      },
+      "post": {
+        "description": "Turn the sign-up link on. Keeps a link that is already on.",
+        "operationId": "join_link_enable_bluebook_courses__course_id__join_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Enable"
+      }
+    },
+    "/bluebook/courses/{course_id}/join-link/regenerate": {
+      "post": {
+        "description": "Replace the sign-up link. The old link stops working at once;\naccounts already made with it are unaffected.",
+        "operationId": "join_link_regenerate_bluebook_courses__course_id__join_link_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course_id",
+            "required": true,
+            "schema": {
+              "title": "Course Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Link Regenerate"
       }
     },
     "/bluebook/courses/{course_id}/students": {
@@ -6170,7 +7293,7 @@
         "summary": "Exam Baseline Status"
       },
       "post": {
-        "description": "Add every sealed submission of an examination to its student's baseline, except late or warned sittings, which are set aside for the professor's review.",
+        "description": "Add every sealed submission of an examination to its student's baseline, except late, warned or take-home sittings, which are set aside for the professor's review.",
         "operationId": "approve_exam_baselines_bluebook_exams__exam_id__baseline_post",
         "parameters": [
           {
@@ -6204,6 +7327,90 @@
           }
         },
         "summary": "Approve Exam Baselines"
+      }
+    },
+    "/bluebook/exams/{exam_id}/draft": {
+      "get": {
+        "description": "The signed-in student's own unsealed draft of this exam, or null.\n\nLets a sitting resume from another browser. Once the exam is sealed the\ndraft is gone (and any left over is deleted here), so a sealed exam\nnever reopens with text.",
+        "operationId": "bluebook_get_draft_bluebook_exams__exam_id__draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Get Draft"
+      },
+      "put": {
+        "description": "Save the signed-in student's unsealed draft (about every 30 seconds and\nwhen the page is hidden or closed). Refused once the exam is sealed. The\ndraft is never scored, never shown to staff and never becomes part of a\nbaseline; the sealed submission is the only record that counts.",
+        "operationId": "bluebook_put_draft_bluebook_exams__exam_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExamDraftBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bluebook Put Draft"
       }
     },
     "/bluebook/exams/{exam_id}/export": {
@@ -6280,6 +7487,101 @@
           }
         },
         "summary": "Exam Live"
+      }
+    },
+    "/bluebook/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "One entry per student who may sit this collection (its course roster,\nor every rostered student for a collection with no course), plus anyone\nwho has already parked, so the teacher can see who is still waiting and\nlet a student without a phone begin.",
+        "operationId": "exam_phone_parks_bluebook_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exam Phone Parks"
+      }
+    },
+    "/bluebook/exams/{exam_id}/phone-park/{student_id}/override": {
+      "post": {
+        "description": "Let one student begin without a parked phone (for example, they have\nnone with them). Recorded on their row with who and when, and in the\naudit log. It says nothing about the student and changes no score.",
+        "operationId": "override_phone_park_bluebook_exams__exam_id__phone_park__student_id__override_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneOverrideBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Override Phone Park"
       }
     },
     "/bluebook/exams/{exam_id}/release": {
@@ -6462,6 +7764,66 @@
         "summary": "Me"
       }
     },
+    "/bluebook/me/display": {
+      "get": {
+        "description": "The signed-in account's own text font and size, or null (defaults).",
+        "operationId": "get_display_prefs_bluebook_me_display_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Display Prefs"
+      },
+      "put": {
+        "description": "Save the signed-in account's text font and size. Only known values are kept.",
+        "operationId": "put_display_prefs_bluebook_me_display_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Display Prefs"
+      }
+    },
     "/bluebook/me/exams": {
       "get": {
         "operationId": "my_exams_bluebook_me_exams_get",
@@ -6515,6 +7877,54 @@
         "summary": "My Exam"
       }
     },
+    "/bluebook/me/exams/{exam_id}/phone-park": {
+      "get": {
+        "description": "Whether this collection asks the student to park their phone, whether\nthey have, and (``code=1``) a fresh QR code that parks it for them alone.\nPolling with ``code=0`` reads the status without minting a code.",
+        "operationId": "my_phone_park_bluebook_me_exams__exam_id__phone_park_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Code",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "My Phone Park"
+      }
+    },
     "/bluebook/me/exams/{exam_id}/start": {
       "post": {
         "description": "Begin (or resume) a sitting from the dashboard. Pins the server\ndeadline exactly as the launch-link path does, clipped so it never\npasses the exam's closes_at. No proctor attestation is issued: the\nseal's report-only comparison does not need one, and the seal never\nadds to the student's baseline (a professor approves which sealed exams\ndo).",
@@ -6551,6 +7961,154 @@
           }
         },
         "summary": "My Exam Start"
+      }
+    },
+    "/bluebook/me/join": {
+      "post": {
+        "description": "A signed-in student opens a course sign-up link: join that course.\nOnly a course in the student's own workspace, and only with an account\n(a launch-link session has none).",
+        "operationId": "me_join_bluebook_me_join_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkInfoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Me Join"
+      }
+    },
+    "/bluebook/me/location": {
+      "get": {
+        "description": "Where the signed-in account last was, if it may still go there; null\nsends the app to its home screen. Only the caller's own row is read.",
+        "operationId": "get_last_location_bluebook_me_location_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Last Location"
+      },
+      "put": {
+        "description": "Save where the signed-in account is now (one row per account). The\nsign-in is checked before the body, so a caller who is not signed in\nlearns nothing about the shape.",
+        "operationId": "put_last_location_bluebook_me_location_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Last Location"
+      }
+    },
+    "/bluebook/me/papers": {
+      "get": {
+        "description": "The signed-in student's own shared papers: title and review status only.",
+        "operationId": "my_past_papers_bluebook_me_papers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "My Past Papers"
+      },
+      "post": {
+        "description": "Share one past paper (a PDF, DOCX or TXT file, or pasted text) for the\nteacher to review. Stored as pending; never scored.",
+        "operationId": "share_past_paper_bluebook_me_papers_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_share_past_paper_bluebook_me_papers_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Share Past Paper"
       }
     },
     "/bluebook/me/submissions": {
@@ -6604,6 +8162,281 @@
           }
         },
         "summary": "My Submission"
+      }
+    },
+    "/bluebook/past-papers": {
+      "get": {
+        "description": "Every paper students in this workspace have shared, newest first.",
+        "operationId": "list_shared_papers_bluebook_past_papers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "student_id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Student Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Shared Papers"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}": {
+      "get": {
+        "description": "One shared paper with its text, for the teacher to read before deciding.",
+        "operationId": "read_shared_paper_bluebook_past_papers__paper_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/approve": {
+      "post": {
+        "description": "Add the paper to the student's baseline (as a self-upload).",
+        "operationId": "approve_shared_paper_bluebook_past_papers__paper_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/decline": {
+      "post": {
+        "description": "Leave the paper out of the baseline.",
+        "operationId": "decline_shared_paper_bluebook_past_papers__paper_id__decline_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decline Shared Paper"
+      }
+    },
+    "/bluebook/past-papers/{paper_id}/unapprove": {
+      "post": {
+        "description": "Undo an approval: take the paper back out of the student's baseline\nand leave it waiting for approval again. Safe to repeat: a paper that is\nalready pending stays pending and nothing is removed.",
+        "operationId": "unapprove_shared_paper_bluebook_past_papers__paper_id__unapprove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paper_id",
+            "required": true,
+            "schema": {
+              "title": "Paper Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unapprove Shared Paper"
+      }
+    },
+    "/bluebook/phone-park/beat": {
+      "post": {
+        "description": "\"This page is still open\" from a parked phone.",
+        "operationId": "phone_beat_bluebook_phone_park_beat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneBeatBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Beat"
+      }
+    },
+    "/bluebook/phone-park/scan": {
+      "post": {
+        "description": "A phone opened a student's QR code. The signed code names the student\nand the collection; nothing about the phone is read or kept. Returns the\ngrant the page uses to say it is still open.",
+        "operationId": "phone_scan_bluebook_phone_park_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Phone Scan"
       }
     },
     "/bluebook/students": {
@@ -7106,6 +8939,23 @@
         "summary": "Import Turnitin Csv"
       }
     },
+    "/livez": {
+      "get": {
+        "description": "Fast process liveness probe; deliberately does not touch the database.",
+        "operationId": "livez_livez_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Livez"
+      }
+    },
     "/lti/jwks": {
       "get": {
         "operationId": "lti_jwks_lti_jwks_get",
@@ -7486,6 +9336,41 @@
           }
         },
         "summary": "List Students"
+      },
+      "post": {
+        "description": "Add a writer by name: no course, email, invite or account.\n\nFor a writer who sends papers by email. The id is minted in the caller's\nown tenant by the rule every student id follows\n(``student_auth.derive_student_id``: ``\"{tenant}:{16 hex}\"``), keyed on\na random value instead of an email, so nothing in a request can choose or\nwiden the tenant. The writer is then what a roster add makes for a tenant\nwith Original (an empty profile plus a stored name), so every Original\npage treats them as a student, and ``DELETE /students/{id}`` erases them.\nNames are not deduplicated: two people can share one.\n\nThe open fictional demo (no sign-in, never a real deploy) may add a\nwriter anonymously, into the demo tenant, as it may use its other write\nroutes; on a real deploy only a signed-in staff account can.\n\n``set_display_name`` logs and swallows a write failure, so the name is\nread back: a writer whose name did not save is erased again and the\ncaller gets a 503, never a 201 for a nameless writer.",
+        "operationId": "create_writer_students_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriterCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Writer"
       }
     },
     "/students/{student_id}": {
@@ -7826,6 +9711,56 @@
         "summary": "Advance Formation"
       }
     },
+    "/students/{student_id}/past-paper-examples": {
+      "get": {
+        "description": "ADR-013, staff only: real sentences from this student's past papers that\nshow one habit and the family of habits around it. Read-only; changes no\nscore. Off unless EVIDENCE_PASSAGES_ENABLED=1.",
+        "operationId": "past_paper_examples_students__student_id__past_paper_examples_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "habit",
+            "required": false,
+            "schema": {
+              "default": "mean_sentence_length",
+              "title": "Habit",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastPaperExamplesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Past Paper Examples"
+      }
+    },
     "/students/{student_id}/readiness": {
       "get": {
         "operationId": "get_student_readiness_students__student_id__readiness_get",
@@ -7913,6 +9848,153 @@
         "summary": "Request Proctored Baseline"
       }
     },
+    "/students/{student_id}/samples/{index}/parts": {
+      "delete": {
+        "description": "Go back to the rules for one past paper (staff only), whatever the switches say.",
+        "operationId": "delete_sample_parts_students__student_id__samples__index__parts_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Sample Parts"
+      },
+      "get": {
+        "description": "The parts of one past paper and what happens to each (staff only).",
+        "operationId": "get_sample_parts_students__student_id__samples__index__parts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sample Parts"
+      },
+      "put": {
+        "description": "Store the teacher's choice of parts for one past paper and measure its\nsplitter measurement again (staff only). Empty lists go back to the rules.",
+        "operationId": "put_sample_parts_students__student_id__samples__index__parts_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartChoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Sample Parts"
+      }
+    },
     "/students/{student_id}/samples/{index}/text": {
       "get": {
         "description": "Return the raw prose of a single baseline sample.\n\nReturns 404 if the student doesn't exist or the index is out of range.\nResponse shape mirrors the SampleSummary metadata so the caller can\nrender headers + body in a single round-trip without re-fetching the\nstudent state.",
@@ -7962,6 +10044,7 @@
     },
     "/students/{student_id}/score": {
       "post": {
+        "description": "Score one paper against the student's past papers.\n\nRuns in a copy of the current context so the measurement chosen for this\nscore (original/measurement.py, a ContextVar) ends with it.",
         "operationId": "score_submission_students__student_id__score_post",
         "parameters": [
           {
@@ -8071,7 +10154,7 @@
     },
     "/students/{student_id}/upload": {
       "post": {
-        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.\n\nPlain ``def``, not ``async def`` (T-09): the .docx (python-docx) and\n.pdf (pypdf) branches do real CPU-bound parsing inline — python-docx\nbuilds a full DOM, pypdf's extract_text() walks the content stream page\nby page — and doing that inside an async handler blocks the whole\nevent loop for the duration, which stalls every other in-flight\nrequest, including a live exam's heartbeat polling. FastAPI dispatches\na plain ``def`` route to its threadpool automatically, so this one\nchange fixes all three branches (.txt included) with no other code\nchange — same fix already applied to the sibling upload routes,\n``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is\nUploadFile's underlying sync SpooledTemporaryFile, same as those two.",
+        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.\n\nPlain ``def``, not ``async def`` (T-09): the .docx (python-docx) and\n.pdf (pypdf) branches do real CPU-bound parsing inline — python-docx\nbuilds a full DOM, pypdf's extract_text() walks the content stream page\nby page — and doing that inside an async handler blocks the whole\nevent loop for the duration, which stalls every other in-flight\nrequest, including a live exam's heartbeat polling. FastAPI dispatches\na plain ``def`` route to its threadpool automatically, so this one\nchange fixes all three branches (.txt included) with no other code\nchange — same fix already applied to the sibling upload routes,\n``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is\nUploadFile's underlying sync SpooledTemporaryFile, same as those two.\n\nThe text goes into a box the teacher sees and edits. A PDF's comes back\nwithout its page markers and tag (``matter.without_page_breaks``):\nexactly the text this route returned before markers were kept, so the\ntag does not show in the box or count as a word there. A PDF analysed\nfrom the box is therefore measured like a paste, with no page-based\nrules; the stored-paper upload routes keep the markers. A .docx keeps\nits page markers (one alone on its line, which the box's word count\nskips): the parts list reads a title page from the break after it.",
         "operationId": "upload_file_students__student_id__upload_post",
         "parameters": [
           {

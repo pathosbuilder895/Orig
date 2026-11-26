@@ -33,6 +33,11 @@
  * Requests are intercepted rather than answered for real, so the assertion is
  * about the URL the page CHOSE and never depends on CORS or on any student
  * record existing.
+ *
+ * Since 2026-10-13 both pages are demo-only (original/api.py
+ * _DEMO_ONLY_STATICS): a real deploy answers 404, which the last test checks.
+ * The origin tests therefore run only against a demo server; CI's e2e job
+ * boots in pilot mode, so there they skip and the 404 test runs instead.
  */
 
 import { test, expect } from '@playwright/test'
@@ -73,8 +78,17 @@ async function writeAndSave(target) {
   await btn.click()
 }
 
+/** Whether the server under test is a real deploy (pilot, staging, production). */
+async function realDeploy(request) {
+  const health = await (await request.get('/health')).json()
+  return health.environment !== 'demo'
+}
+
+const DEMO_ONLY = 'the classic student pages are demo-only; a real deploy answers 404 (tested below)'
+
 test.describe('Focus Coach API origin', () => {
-  test('a coach page opened directly calls the origin it was served from', async ({ page, baseURL }) => {
+  test('a coach page opened directly calls the origin it was served from', async ({ page, baseURL, request }) => {
+    test.skip(await realDeploy(request), DEMO_ONLY)
     const origin = aliasOrigin(baseURL)
     const seen = await recordStudentRequests(page)
 
@@ -88,7 +102,8 @@ test.describe('Focus Coach API origin', () => {
     }
   })
 
-  test('the coach opened from the student dashboard calls that same origin', async ({ page, context, baseURL }) => {
+  test('the coach opened from the student dashboard calls that same origin', async ({ page, context, baseURL, request }) => {
+    test.skip(await realDeploy(request), DEMO_ONLY)
     const origin = aliasOrigin(baseURL)
     await page.goto(origin + '/student.html')
 
@@ -106,6 +121,13 @@ test.describe('Focus Coach API origin', () => {
       .toBeGreaterThan(0)
     for (const url of seen) {
       expect(new URL(url).origin, `coach called ${url} from a page on ${origin}`).toBe(origin)
+    }
+  })
+
+  test('a real deploy does not serve the classic student pages at all', async ({ request }) => {
+    test.skip(!(await realDeploy(request)), 'the demo serves them')
+    for (const path of ['/student.html', '/student-coach.html']) {
+      expect((await request.get(path)).status(), path).toBe(404)
     }
   })
 })

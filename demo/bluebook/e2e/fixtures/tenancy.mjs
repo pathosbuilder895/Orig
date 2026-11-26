@@ -63,4 +63,32 @@ export const test = base.extend({
   },
 })
 
+/**
+ * `isolatedTest`: the same fixtures, plus `testTenant`, a tenant (teacher and
+ * one student) provisioned for a single test, and a `studentPage` signed in as
+ * that student. For specs that SEAL submissions: the worker's tenant is shared
+ * by every spec that lands on that worker, and professor-journey.spec.mjs
+ * counts the submissions in it, so a seal written there by another spec turns
+ * its "1 submissions" into "2". Costs one staff login per test.
+ */
+export const isolatedTest = test.extend({
+  testTenant: async ({ playwright }, use, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL
+    const request = await playwright.request.newContext({ baseURL })
+    const { tenant, staff } = await provisionTenantWithStaff(request, { role: 'professor' })
+    const student = await studentLogin(request, { staffToken: staff.token })
+    await request.dispose()
+    await use({ tenant, staff, student, baseURL })
+  },
+
+  studentPage: async ({ browser, testTenant }, use) => {
+    const context = await browser.newContext({
+      storageState: studentStorageState(testTenant.baseURL, testTenant.student),
+    })
+    const page = await context.newPage()
+    await use(page)
+    await context.close()
+  },
+})
+
 export { expect } from '@playwright/test'

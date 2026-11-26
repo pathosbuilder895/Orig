@@ -33,6 +33,13 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
+from . import feature_flags as _ff
+from . import paragraphs as _para
+from . import part_overrides as _po
+from . import pdf_reflow as _reflow
+from .matter import is_pdf_text, without_page_breaks
+from .matter import kept_ranges as _matter_kept_ranges
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
 # ══════════════════════════════════════════════════════════════════════════════
@@ -63,6 +70,45 @@ def _strip_backmatter(text: str) -> str:
     if m:
         text = text[: m.start()].rstrip()
     return text
+
+
+def body_segments(text: str) -> list[tuple[int, int]]:
+    """Ranges of ``text`` that make up the body, in order.
+
+    Default: one range, everything before the first back-matter heading
+    (``_strip_backmatter``), exactly as before. With MATTER_SPLITTER_ENABLED on:
+    the text outside ``features.matter.find_matter``'s front and back matter.
+    ``evidence.engine_view`` maps quotes through the same ranges. With the
+    splitter on, a teacher's own choice carried by this paper's text
+    (``features.part_overrides``) wins over the rules when both switches are
+    on; any other text gets the rules' ranges untouched."""
+    if not _ff.matter_splitter_enabled():
+        return [(0, len(_strip_backmatter(text)))]
+    return _po.apply(text, _matter_kept_ranges(text))
+
+
+def reflows(text: str) -> bool:
+    """Is ``text`` a PDF upload measured with the splitter on? Then its body is
+    reflowed (``features.pdf_reflow``) before it is measured."""
+    return _ff.matter_splitter_enabled() and is_pdf_text(text)
+
+
+def _body(text: str) -> str:
+    """The measured body. Stored page markers (``matter.PAGE_MARK``, kept by
+    uploads for the splitter) are dropped here, with the switch on or off, so
+    an uploaded paper measures exactly as it did before markers were kept; any
+    other character, a pasted form feed included, is measured as before. With
+    the splitter on, a PDF upload's body is first reflowed into paragraphs.
+    With PARAGRAPH_BREAKS_ENABLED on, a Word-style paste's line breaks are
+    then read as paragraph breaks (``features.paragraphs``).
+    ``evidence.engine_view`` makes the same edits."""
+    body = "".join(text[a:b] for a, b in body_segments(text))
+    if reflows(text):
+        body = _reflow.apply_ops(body, _reflow.reflow_ops(body))
+    body = without_page_breaks(body)
+    if _ff.paragraph_breaks_enabled():
+        body = _reflow.apply_ops(body, _para.paragraph_ops(body))
+    return body
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -96,18 +142,69 @@ _SCRIPTURE_PAREN = re.compile(
     r"\((?:[1-3]\s*)?[A-Z][a-z]+\.?\s+\d+(?::\d+)?(?:[–\-]\d+)?(?:;\s*(?:[1-3]\s*)?[A-Z][a-z]+\.?\s+\d+(?::\d+)?)*\)",
 )
 
-# Block quotes: 40+ words in "…" or indented 4 spaces / tab
-# Block-quote detector: match "..." spans of 200+ characters (\u224840+ words).
-# Uses [^"] to avoid nested quantifiers and catastrophic backtracking on texts
-# that have an unmatched opening quote (common in 18th-century prose that uses
-# "\u2026" for emphasis rather than block quotation).
+# Block quotes: 40+ words in "…" / “…” or indented 4 spaces / tab.
+#
+# The quote detector matches a quotation of 200+ characters (~40+ words) from
+# a real OPENING mark to its real CLOSING mark:
+#
+# * Straight quotes are ambiguous, so their role is read from context: an
+#   opening " sits at the start of the text or after whitespace / an opening
+#   bracket / a dash and is followed by a non-space character; a closing "
+#   follows a non-space character and is followed by whitespace, punctuation,
+#   a closing bracket, a dash or the end of the text.
+# * Curly quotes say which side they are on: “ opens, ” closes.
+# * The quoted body may not contain any double-quote character (" “ ”). So a
+#   match can never run from one short quote's closing mark to the next short
+#   quote's opening mark, and nested or unbalanced double quotes produce no
+#   match at all: the text is kept (fail safe), never dropped.
+#
+# The earlier pattern, '"[^"]{200,}"', also matched from a CLOSING quote to the
+# next OPENING quote, so any paper with two short quotations more than 200
+# characters apart lost all the prose between them (2026-10-24 finding,
+# docs/STATUS.md). The body class is still a single negated class with no
+# nested quantifier, so a text with an unmatched quote cannot backtrack
+# catastrophically.
+_QUOTE_CHARS = '"\u201c\u201d'
 _DOUBLE_QUOTE_BLOCK = re.compile(
-    r'"[^"]{200,}"',
-    re.DOTALL,
+    # straight quotes: opener in opening position, closer in closing position
+    r'(?<![^\s(\[{\u2014\u2013-])"(?=[^\s' + _QUOTE_CHARS + r"])"
+    r"[^" + _QUOTE_CHARS + r"]{200,}"
+    r'(?<=\S)"(?=[\s.,;:!?)\]}\u2014\u2013-]|$)'
+    # curly quotes: “ … ” with no double-quote character inside
+    r"|\u201c[^" + _QUOTE_CHARS + r"]{200,}\u201d",
 )
+# Indented block quote: a WHOLE paragraph (blank line or start of text before
+# it, blank line or end of text after it) of two or more lines that all begin
+# with 4 spaces or a tab. The earlier pattern, '(?m)^(?:    |\t).+(?:\n...)*',
+# also took the first line of every paragraph written with a first-line indent
+# (hard-wrapped text) and every one-line paragraph that starts with a tab
+# (a typed paragraph indent), dropping the writer's own prose. A single
+# indented line, or an indented first line followed by unindented lines, is a
+# paragraph indent and is kept. See _indent_is_paragraph_style for the case
+# where every paragraph is indented.
 _INDENT_BLOCK = re.compile(
-    r"(?m)^(?:    |\t).+(?:\n(?:    |\t).+)*",
+    r"(?:\A|(?<=\n\n))"
+    r"(?:    |\t)[^\n]*\S[^\n]*"
+    r"(?:\n(?:    |\t)[^\n]*\S[^\n]*)+"
+    r"(?=\n[ \t]*\n|[ \t\n]*\Z)",
 )
+_PARAGRAPH_SPLIT = re.compile(r"\n[ \t]*\n")
+
+
+def _indent_is_paragraph_style(body: str) -> bool:
+    """True when every paragraph is indented: then indentation is how the
+    writer lays out paragraphs, not a marker of quoted text, so nothing is
+    stripped as an indented block quote (fail safe: keep the text)."""
+    paragraphs = [p for p in _PARAGRAPH_SPLIT.split(body) if p.strip()]
+    return bool(paragraphs) and all(p.lstrip("\n").startswith(("    ", "\t")) for p in paragraphs)
+
+
+def _indent_blocks(body: str) -> list[re.Match]:
+    """Indented block quotes in *body* (empty when indentation is paragraph style)."""
+    if _indent_is_paragraph_style(body):
+        return []
+    return list(_INDENT_BLOCK.finditer(body))
+
 
 # Ibid. / op. cit. / loc. cit.
 _IBID_RE = re.compile(r"\bibid(?:\.|,)?\b|\bop\.\s*cit\.\b|\bloc\.\s*cit\.\b", re.IGNORECASE)
@@ -251,8 +348,8 @@ def preprocess(text: str) -> tuple[str, CitationData]:
     citation_data : CitationData
         Structured citation usage data for Tier 16.
     """
-    # ── 1. Strip back-matter ──────────────────────────────────────────────────
-    body = _strip_backmatter(text)
+    # ── 1. Strip back-matter (and, if switched on, front matter) ──────────────
+    body = _body(text)
 
     # ── 2. Extract citation fingerprint data ──────────────────────────────────
     citation_data = _extract_citation_data(body)
@@ -306,7 +403,7 @@ def _extract_citation_data(body: str) -> CitationData:
             cd.block_quote_word_count += wc
         else:
             cd.short_quote_count += 1
-    for m in _INDENT_BLOCK.finditer(body):
+    for m in _indent_blocks(body):
         cd.block_quote_word_count += len(m.group(0).split())
 
     # ── Per-paragraph citation density ────────────────────────────────────────
@@ -357,7 +454,7 @@ def _clean_prose(body: str) -> str:
     - Block quotes (indented or > 40 words in quotes)
     """
     # Remove block quotes (indented) first so we don't process their content
-    prose = _INDENT_BLOCK.sub(" ", body)
+    prose = body if _indent_is_paragraph_style(body) else _INDENT_BLOCK.sub(" ", body)
 
     # Remove long quoted blocks
     def _maybe_strip_quote(m: re.Match) -> str:

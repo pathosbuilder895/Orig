@@ -13,22 +13,22 @@
  * session endpoint has a row to pin the deadline against.
  */
 
-import { test, expect } from './fixtures/tenancy.mjs'
+import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { addBaselineFor } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
-function staffAuth(workerTenant) {
-  return { Authorization: `Bearer ${workerTenant.staff.token}` }
+function staffAuth(testTenant) {
+  return { Authorization: `Bearer ${testTenant.staff.token}` }
 }
 
-/** "119:58" | "09:41" → seconds. */
-function toSeconds(mmss) {
-  const [m, s] = String(mmss).trim().split(':').map(Number)
-  return m * 60 + s
+/** "1:59:58" | "09:41" to seconds. */
+function toSeconds(clock) {
+  return String(clock).trim().split(':').map(Number).reduce((total, part) => total * 60 + part, 0)
 }
 
-async function createExam(request, workerTenant, title) {
+async function createExam(request, testTenant, title) {
   const res = await request.post('/bluebook/exams', {
-    headers: staffAuth(workerTenant),
+    headers: staffAuth(testTenant),
     data: {
       title, course: 'PHIL 301A', duration: 120, minWords: 12, maxWords: 5000,
       prompt: 'Discuss.', status: 'PUBLISHED',
@@ -38,7 +38,7 @@ async function createExam(request, workerTenant, title) {
   return res.json()
 }
 
-async function bootInExam(studentPage, exam, workerTenant, candidate) {
+async function bootInExam(studentPage, exam, testTenant, candidate) {
   await studentPage.addInitScript(([examArg, studentId, cand]) => {
     localStorage.setItem('bluebook_student_id', studentId)
     window.BB_EXAM_CONFIG = {
@@ -54,7 +54,7 @@ async function bootInExam(studentPage, exam, workerTenant, candidate) {
       blockCopy: false,
       spellChk: true,
     }
-  }, [exam, workerTenant.student.student_id, candidate])
+  }, [exam, testTenant.student.student_id, candidate])
   await studentPage.goto('/bluebook/')
   await studentPage.waitForLoadState('networkidle')
   await studentPage.evaluate(() => {
@@ -72,15 +72,15 @@ const ESSAY =
   'reason rather than outcome and separating obligation from inclination.'
 
 test.describe('Exam-day robustness @robustness', () => {
-  test('reload does not reset the exam clock', async ({ studentPage, workerTenant, request }) => {
+  test('reload does not reset the exam clock', async ({ studentPage, testTenant, request }) => {
     test.setTimeout(60_000)
-    const exam = await createExam(request, workerTenant, 'Robustness clock exam')
+    const exam = await createExam(request, testTenant, 'Robustness clock exam')
 
     // Enter the exam and wait for the session to pin the deadline.
     const sessionSeen = studentPage.waitForResponse(
       r => r.url().includes(`/bluebook/exams/${exam.id}/session`) && r.ok(),
     )
-    await bootInExam(studentPage, exam, workerTenant, 'Clock Candidate')
+    await bootInExam(studentPage, exam, testTenant, 'Clock Candidate')
     await sessionSeen
     await studentPage.waitForTimeout(1500) // one tick so the display is deadline-derived
 
@@ -105,11 +105,11 @@ test.describe('Exam-day robustness @robustness', () => {
   })
 
   test('seal retries a transient submission failure and succeeds', async ({
-    studentPage, workerTenant, request,
+    studentPage, testTenant, request,
   }) => {
     test.setTimeout(90_000)
-    const exam = await createExam(request, workerTenant, 'Robustness retry exam')
-    await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, {
+    const exam = await createExam(request, testTenant, 'Robustness retry exam')
+    await addBaselineFor(request, testTenant.student.student_id, testTenant.student.token, {
       text: 'An earlier verified writing sample establishing this student’s baseline voice profile.',
     })
 
@@ -122,32 +122,32 @@ test.describe('Exam-day robustness @robustness', () => {
       return route.continue()
     })
 
-    await bootInExam(studentPage, exam, workerTenant, 'Retry Candidate')
+    await bootInExam(studentPage, exam, testTenant, 'Retry Candidate')
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
-    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
-    await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 60_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByText('Collection Sealed')).toBeVisible({ timeout: 60_000 })
     expect(failedOnce).toBe(true) // the abort really happened; success came from the retry
   })
 
   test('total seal failure preserves the draft and reports it', async ({
-    studentPage, workerTenant, request,
+    studentPage, testTenant, request,
   }) => {
     test.setTimeout(90_000)
-    const exam = await createExam(request, workerTenant, 'Robustness failure exam')
+    const exam = await createExam(request, testTenant, 'Robustness failure exam')
 
     // Kill the seal's submission record (its only write) on every attempt.
     await studentPage.route('**/bluebook/submissions', (route) =>
       route.request().method() === 'POST' ? route.abort() : route.continue())
 
-    await bootInExam(studentPage, exam, workerTenant, 'Failure Candidate')
+    await bootInExam(studentPage, exam, testTenant, 'Failure Candidate')
     await studentPage.locator('textarea[placeholder="Begin writing here…"]').focus()
     await studentPage.keyboard.type(ESSAY, { delay: 1 })
 
-    studentPage.once('dialog', d => d.accept())
     await studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
+    await confirmSeal(studentPage)
 
     // 3 attempts with 2s/5s backoff between them → well under this timeout.
     await studentPage.waitForFunction(

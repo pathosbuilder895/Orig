@@ -7,13 +7,18 @@ students.py for file size.
 
 from __future__ import annotations
 
+import contextvars
 import dataclasses
 import logging
 import os
 import time
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from .. import measurement as _measurement
+from ..features import feature_flags as _ff
+from ..features import part_overrides as _po
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -22,11 +27,20 @@ from ..schemas import (
     BlendDetectionRequest,
     BlendResultOut,
     Layer7OutputResponse,
+    MeasurementOut,
+    PastPaperExamplesResponse,
     ScoreSubmissionRequest,
     WindowScoreOut,
 )
 from ..tension_arc import analyze_tension_arc
-from ._shared import _api, _client_ip, _repo, _send_notification_email, _to_response
+from ._shared import (
+    _api,
+    _client_ip,
+    _repo,
+    _require_staff,
+    _send_notification_email,
+    _to_response,
+)
 
 router = APIRouter()
 
@@ -62,7 +76,70 @@ def _throttle_score(request: Request | None) -> None:
         _score_calls.clear()
 
 
+def _score_source(request: Request | None) -> str:
+    """Where a scoring call came from, for shadow-soak lines only: a student's
+    own practice check (/me/work, which passes no request), a student's exam
+    seal, or staff. A soak should not mix practice traffic into its rates."""
+    if request is None:
+        return "practice"
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    return "exam" if principal is not None and principal.role == "student" else "staff"
+
+
+def _require_student_exam_scoring(request: Request | None, student_id: str) -> None:
+    """Students may score only their own work during an enabled exam sitting.
+
+    Staff batch scoring uses a staff token and is unaffected. In particular,
+    a student cannot bypass an exam's disabled writing-consistency setting by
+    calling the Original scoring API directly.
+    """
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is None or principal.role != "student":
+        return
+    if principal.user_id != student_id:
+        raise HTTPException(status_code=403, detail="Students may score only their own work.")
+    repo = _repo()
+    exams = repo.list_bluebook_exams(principal.tenant_id)
+    # Preserve the standalone scoring API for tenants that have not created an
+    # exam. Once exams exist, a student score must be tied to an enabled sitting.
+    if not exams:
+        return
+    for exam in exams:
+        if not (exam.get("conditions") or {}).get("aiDetect"):
+            continue
+        if repo.get_bluebook_session(exam["id"], student_id):
+            return
+    raise HTTPException(
+        status_code=403,
+        detail="Writing consistency scoring is unavailable for this exam.",
+    )
+
+
 # ── Score submission ──────────────────────────────────────────────────────────
+
+
+from ._shared import min_baseline_samples  # noqa: E402
+
+
+def _require_min_baseline(state) -> None:
+    _min_baseline = min_baseline_samples()
+    if state.authenticated_count < _min_baseline:
+        # Too few approved papers to know this student's normal range: return
+        # a clear "insufficient baseline" state instead of a number. With two
+        # papers the false-flag rate roughly triples in simulation.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "insufficient_baseline",
+                "message": (
+                    f"Original needs at least {_min_baseline} approved baseline papers "
+                    f"before it can compare new writing; this student has "
+                    f"{state.authenticated_count}."
+                ),
+                "required": _min_baseline,
+                "have": state.authenticated_count,
+            },
+        )
 
 
 @router.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
@@ -72,7 +149,44 @@ def score_submission(
     force: bool = False,
     request: Request = None,  # injected by FastAPI; None for in-process callers
 ):
+    """Score one paper against the student's past papers.
+
+    Runs in a copy of the current context so the measurement chosen for this
+    score (original/measurement.py, a ContextVar) ends with it."""
+    return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
+
+
+def _part_choice(req: ScoreSubmissionRequest, request: Request | None):
+    """The teacher's choice of parts for this paper (features/part_overrides.py),
+    or None. ``exclude_ranges`` / ``include_ranges`` are a teacher's control:
+    a student session that sends either gets 403. Empty or null is no choice.
+    A choice is refused with 409 unless MATTER_SPLITTER_ENABLED and
+    PAPER_PROFILE_ENABLED are both on, and with 422 when it does not fit the
+    text. Nothing is scored on a refusal."""
+    if req.exclude_ranges is None and req.include_ranges is None:
+        return None
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        raise HTTPException(
+            status_code=403, detail="Only staff can choose which parts of a paper are measured."
+        )
+    if not req.exclude_ranges and not req.include_ranges:
+        return None
+    if not _po.switches_on():
+        raise HTTPException(
+            status_code=409,
+            detail="Choosing the parts of a paper is turned off on this deployment.",
+        )
+    try:
+        return _po.validate(req.text, req.exclude_ranges, req.include_ranges)
+    except _po.OverrideError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
+    _choice = _part_choice(req, request)
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -84,6 +198,21 @@ def score_submission(
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+    _require_min_baseline(state)
+
+    # ── Versioned measurements (original/measurement.py) ──────────────────────
+    # Default (both measurement switches off): plan.used == "v1", the state is
+    # unchanged and nothing is stamped. Otherwise the requested measurement is
+    # used only when every past paper has it, and everything below (this
+    # paper, evidence re-reads, peer texts) is measured the same way.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
+    # This paper's text as it is measured: carrying the teacher's choice of
+    # parts from this request, if any (features/part_overrides.py). Past
+    # papers carry their own stored choices (part_overrides.text_of); a choice
+    # applies only to the splitter's measurement with both switches on.
+    _text = _po.chosen(req.text, _choice)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -104,7 +233,7 @@ def score_submission(
         from ..context.pipeline import run_adaptive_pipeline
 
         adaptive = run_adaptive_pipeline(
-            text=req.text,
+            text=_text,
             state=state,
             submission_id=submission_id,
             keystroke_data=req.keystroke_data,
@@ -126,8 +255,8 @@ def score_submission(
             submission_id,
             e,
         )
-        feat_dict = extract_features(req.text, keystroke_data=req.keystroke_data)
-        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+        feat_dict = extract_features(_text, keystroke_data=req.keystroke_data)
+        vec = feature_vector(_text, keystroke_data=req.keystroke_data)
         manifest = None
         adaptive_weights = None
 
@@ -160,6 +289,8 @@ def score_submission(
         nonlocal _all_states_cache
         if _all_states_cache is None:
             _all_states_cache = _repo().all_states(tenant_id=tenant_of(student_id))
+            if plan.used != _measurement.DEFAULT:
+                _all_states_cache = _measurement.states_measured_as(_all_states_cache, plan.used)
         return _all_states_cache
 
     # ── Explicit null model (rank-and-null work, production wiring) ───────────
@@ -300,6 +431,40 @@ def score_submission(
         tuned_action_thresholds=_tuned_action_thresholds,
     )
 
+    # ── Opportunity mask (OPPORTUNITY_MASK, default off) ──────────────────────
+    # Which share-type measurements this paper gave no chance to occur
+    # (features/opportunity.py). Computed only when the flag is not "off": it
+    # re-runs a handful of the extractors' own counts over the text. A failure
+    # here leaves the mask None, which score() treats exactly as flag-off.
+    _unmeasured_mask = None
+    if _scoring_config_env.opportunity_mask != "off":
+        try:
+            from ..features.opportunity import unmeasured_mask
+
+            _unmeasured_mask = unmeasured_mask(_text)
+        except Exception:
+            logging.getLogger(__name__).exception("opportunity mask failed: scored without it")
+
+    # ── Length-matched reference (LENGTH_MATCHED_BASELINE, default off) ───────
+    # When past papers are at least twice the length of this one, re-measure
+    # them in pieces of this paper's length (quantum/length_match.py). Built
+    # only when the flag is not "off": it costs one feature extraction per
+    # piece, up to LENGTH_MATCH_MAX_PIECES. Pieces are measured the way past
+    # papers are (feature_vector on plain text). A failure here leaves the
+    # state None, which score() treats exactly as flag-off.
+    # The paper's length here is its BODY, counted as past papers are cut
+    # (body_word_count); _n_tokens stays the raw count everywhere else.
+    _length_state = None
+    _body_words = 0
+    if _scoring_config_env.length_matched_baseline != "off":
+        try:
+            from ..quantum.length_match import body_word_count, build_length_matched_state
+
+            _body_words = body_word_count(_text)
+            _length_state = build_length_matched_state(state, _body_words, feature_vector)
+        except Exception:
+            logging.getLogger(__name__).exception("length match failed: scored without it")
+
     result = quantum_score(
         state=state,
         submission_vector=vec,
@@ -310,7 +475,46 @@ def score_submission(
         n_tokens=_n_tokens,
         impostor_stats=_impostor_stats,
         scoring_config=_scoring_config,
+        unmeasured_mask=_unmeasured_mask,
+        length_matched_state=_length_state,
     )
+
+    # ── Length-match audit line ───────────────────────────────────────────────
+    # One INFO line per scoring call whenever LENGTH_MATCHED_BASELINE is not
+    # "off". pieces=0 means no past paper was twice this paper's length, so
+    # the flag was inert for it. No student id, counts only.
+    if _scoring_config_env.length_matched_baseline != "off":
+        logging.getLogger(__name__).info(
+            "length_match mode=%s source=%s pieces=%d papers_cut=%d n_tokens=%d body_words=%d "
+            "deviation=%.4f action=%s deviation_preview=%s action_preview=%s",
+            _scoring_config_env.length_matched_baseline,
+            _score_source(request),
+            result.length_match_pieces or 0,
+            _length_state.papers_cut if _length_state is not None else 0,
+            _n_tokens,
+            _body_words,
+            result.authorship.deviation_score,
+            result.recommendation.action,
+            result.length_match_deviation_preview,
+            result.length_match_action_preview,
+        )
+
+    # ── Opportunity mask audit line ───────────────────────────────────────────
+    # One INFO line per scoring call whenever OPPORTUNITY_MASK is not "off".
+    # n_unmeasured=0 means the paper measured everything the student is
+    # compared on, so the flag was inert for it: a soak that returns mostly
+    # zeros says the fault is rare in real traffic, whatever a corpus shows.
+    # Same privacy rule as the lines below: no student id, counts only.
+    if _scoring_config_env.opportunity_mask != "off":
+        logging.getLogger(__name__).info(
+            "opportunity_mask mode=%s n_unmeasured=%d n_tokens=%d deviation=%.4f "
+            "deviation_preview=%s",
+            _scoring_config_env.opportunity_mask,
+            len(result.unmeasured_features or ()),
+            _n_tokens,
+            result.authorship.deviation_score,
+            result.opportunity_deviation_preview,
+        )
 
     # ── Topic-adaptive variance inflation audit line ───────────────────────────
     # One INFO line per scoring call whenever TOPIC_VARIANCE_INFLATION is not
@@ -516,7 +720,20 @@ def score_submission(
     # topic_inflation_applied (set from the same _sigma_was_inflated there),
     # so this can only skip on the "on" path -- shadow never sets it and
     # stays byte-identical.
-    if result.authorship.quantum_fidelity > 0 and not result.topic_inflation_applied:
+    #
+    # The opportunity mask has the same hazard: under "on", a paper with
+    # unmeasured features has its fidelity encoded over fewer features than
+    # every stored one. scoring.py withholds the p-value for that paper; the
+    # write is skipped here so the value cannot contaminate later papers
+    # either. "on" only: shadow never sets opportunity_mask_applied.
+    if (
+        result.authorship.quantum_fidelity > 0
+        and not result.topic_inflation_applied
+        and not result.opportunity_mask_applied
+        # Length matching: the fidelity was encoded against a different mean
+        # and spread from every stored one. "on" only, as above.
+        and not result.length_match_applied
+    ):
         try:
             _repo().put_fidelity_score(
                 submission_id=submission_id,
@@ -590,7 +807,224 @@ def score_submission(
     except Exception:
         pass
 
-    return _to_response(result, arc, report=report)
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing). Computed
+    # after the score and action are final and from separate inputs, so it cannot change
+    # either. Only for staff HTTP callers: not computed at all for ``/me/work``
+    # (request=None) or a student principal, who could never be shown it.
+    from ..rule_d import mode as _rule_d_mode
+
+    _rd_mode = _rule_d_mode()
+    _rule_d_obs = None
+    _rd_principal = getattr(getattr(request, "state", None), "principal", None)
+    _rd_staff = request is not None and getattr(_rd_principal, "role", None) != "student"
+    if _rd_mode != "off" and _rd_staff:
+        try:
+            from ..rule_d.service import observe_for
+
+            _rule_d_obs = observe_for(_repo(), state, _all_states(), req.text, vec, feature_vector)
+            logging.getLogger(__name__).info(
+                "rule_d_observation mode=%s status=%s configuration=%s reads_less_like=%s classmates=%d",
+                _rd_mode,
+                _rule_d_obs.status,
+                _rule_d_obs.configuration,
+                _rule_d_obs.reads_less_like_student,
+                _rule_d_obs.classmates,
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("rule_d observation failed; omitted")
+            _rule_d_obs = None
+
+    response = _to_response(result, arc, report=report)
+    stamp = plan.stamp()
+    if stamp is not None:
+        response.measurement = MeasurementOut(**stamp)
+    _attach_staff_explainability(response, request, _text, state, result, student_id)
+    if _rd_mode == "on" and _rule_d_obs is not None:
+        try:
+            _attach_rule_d(response, request, _rule_d_obs)
+        except Exception:  # a report-only field must never fail a score request
+            logging.getLogger(__name__).exception("rule_d attach failed; omitted")
+            response.rule_d = None
+    return response
+
+
+def _attach_rule_d(response, request, obs) -> None:
+    """Rule D is for staff only: never for a student session, never in-process."""
+    if request is None:
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    from ..schemas import RuleDObservationOut
+
+    response.rule_d = RuleDObservationOut(**obs.as_dict())
+
+
+def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
+    """The past papers the engine can show: samples that count toward the
+    baseline and kept their text, labelled ``past paper 1…N`` in that order."""
+    used = [s for s in state.samples if s.auth_weight > 0 and s.text]
+    # Each past paper's text carries its own stored choice of parts, if any.
+    return used, [(f"past paper {i + 1}", _po.text_of(s)) for i, s in enumerate(used)]
+
+
+def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
+    """How each past paper got into the baseline, read now (staff wording
+    only), so an analysis kept for later still says what was true when it ran.
+    No student id (in-process callers): no source. A failed lookup loses only
+    `source`, never the side-by-side. No past paper to show: no lookup."""
+    by_sample: dict[int, str] = {}
+    if student_id and used:
+        try:
+            from .students import _sample_sources
+
+            by_sample = {
+                id(sample): src
+                for sample, src in zip(
+                    state.samples,
+                    _sample_sources(student_id, state.samples),
+                    strict=True,
+                )
+            }
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "past paper sources failed; omitted from the evidence"
+            )
+            by_sample = {}
+    return [
+        {
+            "paper": label,
+            "assignment": getattr(s, "assignment", "") or None,
+            "submitted_at": getattr(s, "submitted_at", "") or None,
+            "provenance": getattr(s, "provenance", None),
+            "word_count": getattr(s, "word_count", None),
+            **({"source": by_sample[id(s)]} if id(s) in by_sample else {}),
+        }
+        for (label, _), s in zip(baselines, used, strict=True)
+    ]
+
+
+def _attach_staff_explainability(
+    response, request, text: str, state, result, student_id: str | None = None
+) -> None:
+    """ADR-013: located evidence and the preliminary score, both off by default.
+
+    Only for an HTTP caller that is not a student session. In-process callers
+    (``/me/work`` scores a student's own piece with ``request=None``) never
+    get either, and neither changes the score or the action.
+    """
+    from ..evidence import (
+        build_evidence,
+        evidence_enabled,
+        load_band_rates,
+        preliminary_enabled,
+        preliminary_score,
+        range_counts,
+    )
+    from ..paper_profile import build_paper_profiles, paper_profile_enabled
+
+    want_evidence, want_preliminary = evidence_enabled(), preliminary_enabled()
+    if request is None or not (want_evidence or want_preliminary):
+        return
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        return
+    if want_preliminary:
+        from ..schemas import PreliminaryScoreOut
+
+        confidence = result.baseline_confidence
+        # The same floor the score route itself enforces (_require_min_baseline,
+        # 3 approved papers by default). The alpha builds every baseline from
+        # exactly three papers, so the old "ready" line (5 papers) made every
+        # alpha reading inconclusive. Below the floor the route 422s anyway.
+        ready = confidence.authenticated_count >= min_baseline_samples()
+        # The counted samples' own vectors, the same ones the score compared
+        # against; a count that cannot be made is simply absent.
+        try:
+            outside, compared = range_counts(
+                result.feature_vector, [s.vector for s in state.samples if s.auth_weight > 0]
+            )
+        except Exception:
+            logging.getLogger(__name__).exception("range counts failed; omitted")
+            outside = compared = None
+        response.preliminary = PreliminaryScoreOut(
+            **preliminary_score(
+                result.authorship.deviation_score,
+                result.recommendation.action,
+                inconclusive=not ready,
+                habits_outside=outside,
+                habits_compared=compared,
+                band_rates=load_band_rates(),
+            )
+        )
+    if want_evidence:
+        try:
+            used, baselines = _past_papers_of(state)
+            # Every measurement, with the engine's own vectors and baseline
+            # mean when every contributing sample has its text (otherwise the
+            # mean would cover papers the page cannot show).
+            complete = len(used) == sum(1 for s in state.samples if s.auth_weight > 0)
+            response.evidence = build_evidence(
+                [dataclasses.asdict(f) for f in result.interference.destructive_features],
+                text,
+                baselines,
+                all_features=True,
+                submission_vector=result.feature_vector,
+                baseline_vectors=[s.vector for s in used],
+                past_average=state.baseline_mean if complete else None,
+            )
+            response.evidence["baseline_papers"] = _baseline_papers(
+                state, used, baselines, student_id
+            )
+            if paper_profile_enabled():
+                # Teacher-only description of each paper's headings, citations and
+                # sources (original/paper_profile.py). Reads the stored texts only;
+                # nothing it returns feeds the score. A failure leaves it out.
+                try:
+                    response.evidence["paper_profile"] = build_paper_profiles(text, baselines)
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "paper profile failed; omitted from the response"
+                    )
+            if getattr(response, "measurement", None) is not None:
+                response.evidence["measurement"] = response.measurement.model_dump()
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "evidence passages failed; omitted from the response"
+            )
+            response.evidence = None
+
+
+@router.get("/students/{student_id}/past-paper-examples", response_model=PastPaperExamplesResponse)
+def past_paper_examples(
+    student_id: str, request: Request, habit: str = "mean_sentence_length"
+) -> PastPaperExamplesResponse:
+    """ADR-013, staff only: real sentences from this student's past papers that
+    show one habit and the family of habits around it. Read-only; changes no
+    score. Off unless EVIDENCE_PASSAGES_ENABLED=1."""
+    from .. import evidence
+
+    if not evidence.evidence_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    _require_staff(request)
+    state = _repo().get(student_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"Student '{student_id}' not found")
+    if habit not in evidence.LOCATABLE:
+        raise HTTPException(status_code=422, detail="Unknown habit")
+    try:
+        used, baselines = _past_papers_of(state)
+        examples = evidence.build_past_paper_examples(habit, baselines)
+        body = {
+            **examples,
+            "baseline_papers": _baseline_papers(state, used, baselines, student_id),
+        }
+        return PastPaperExamplesResponse(**body)
+    except Exception:
+        logging.getLogger(__name__).exception("past paper examples failed")
+        raise HTTPException(
+            status_code=503, detail="Examples could not be shown just now."
+        ) from None
 
 
 # ── Score audit log (best-effort, never raises) ───────────────────────────────
@@ -605,7 +1039,7 @@ def score_submission(
     "/students/{student_id}/score/blend",
     response_model=BlendResultOut,
 )
-def score_blend(student_id: str, req: BlendDetectionRequest):
+def score_blend(student_id: str, req: BlendDetectionRequest, request: Request = None):
     """
     Detect mid-document fingerprint shifts (collaboration / AI insertion /
     advisor edits) by scoring overlapping token windows separately.
@@ -613,6 +1047,11 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
     Cost is N× the regular `/score` endpoint (one full feature extraction
     per window) — kept on a separate route so callers opt in explicitly.
     """
+    return contextvars.copy_context().run(_score_blend, student_id, req, request)
+
+
+def _score_blend(student_id: str, req: BlendDetectionRequest, request):
+    _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
         raise HTTPException(
@@ -625,6 +1064,15 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
+
+    _require_min_baseline(state)
+
+    # Same rule as /score: like with like, stamped when anything but the default
+    # was asked for.
+    plan = _measurement.plan_for(state)
+    state = plan.state
+    _ff.set_measurement(plan.used)
+    stamp = plan.stamp()
 
     from ..context.blend import detect_blend
 
@@ -655,4 +1103,5 @@ def score_blend(student_id: str, req: BlendDetectionRequest):
         fallback_reason=result.fallback_reason,
         ai_window_max=result.ai_window_max,
         ai_window_mean=result.ai_window_mean,
+        measurement=MeasurementOut(**stamp) if stamp is not None else None,
     )

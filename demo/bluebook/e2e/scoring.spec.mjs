@@ -38,9 +38,12 @@ test.describe('Submit → score → recommendation @smoke', () => {
   test('analyzing a submission renders a recommendation matching the API payload', async ({ page, request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
     const student = await studentLogin(request, { staffToken: staff.token, name: 'Scoring Test Student' })
-    await addBaselineFor(request, student.student_id, staff.token, {
-      text: 'An established baseline essay with a clear and consistent authorial voice used to score against, written some weeks ago.',
-    })
+    // Original scores only with 3+ approved baseline papers (MIN_BASELINE_SAMPLES).
+    for (const when of ['some weeks ago', 'last month', 'at the start of term']) {
+      await addBaselineFor(request, student.student_id, staff.token, {
+        text: `An established baseline essay with a clear and consistent authorial voice used to score against, written ${when}.`,
+      })
+    }
 
     await openStudentInProfessorConsole(page, staff, 'Scoring Test Student')
 
@@ -67,9 +70,12 @@ test.describe('Blend-detection surface', () => {
   test('Run blend check surfaces blend_detected/blend_index matching the API payload', async ({ page, request }) => {
     const { tenant, staff } = await provisionTenantWithStaff(request)
     const student = await studentLogin(request, { staffToken: staff.token, name: 'Blend Test Student' })
-    await addBaselineFor(request, student.student_id, staff.token, {
-      text: 'An established baseline essay with a clear and consistent authorial voice used to score against, written some weeks ago.',
-    })
+    // Original scores only with 3+ approved baseline papers (MIN_BASELINE_SAMPLES).
+    for (const when of ['some weeks ago', 'last month', 'at the start of term']) {
+      await addBaselineFor(request, student.student_id, staff.token, {
+        text: `An established baseline essay with a clear and consistent authorial voice used to score against, written ${when}.`,
+      })
+    }
 
     await openStudentInProfessorConsole(page, staff, 'Blend Test Student')
 

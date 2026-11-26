@@ -254,6 +254,7 @@ class Repository(Protocol):
     def count_bluebook_submissions_since(self, tenant_id: str, since_iso: str) -> int: ...
     def get_bluebook_submission(self, submission_id: str) -> dict | None: ...
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]: ...
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]: ...
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]: ...
     def get_bluebook_course(self, course_id: str) -> dict | None: ...
     def delete_bluebook_course(self, course_id: str) -> bool: ...
@@ -266,11 +267,57 @@ class Repository(Protocol):
     def put_invite(self, rec: dict) -> None: ...
     def get_invite_by_hash(self, token_hash: str) -> dict | None: ...
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
-    def void_invites_for_user(self, user_id: str) -> int: ...
+    def void_invites_for_user(self, user_id: str, course_id: str | None = None) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
+    def put_join_link(self, rec: dict) -> None: ...
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None: ...
+    def active_join_link_for_course(self, course_id: str) -> dict | None: ...
+    def void_join_links_for_course(self, course_id: str) -> int: ...
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool: ...
+
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+    def put_past_paper(self, rec: dict) -> None: ...
+    def get_past_paper(self, paper_id: str) -> dict | None: ...
+    def list_past_papers(self, tenant_id: str, student_id: str | None = None) -> list[dict]: ...
+    def count_past_papers_since(self, student_id: str, since_iso: str) -> int: ...
+    def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None: ...
+
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+    def put_exam_draft(
+        self,
+        exam_id: str,
+        student_key: str,
+        tenant_id: str,
+        content: str,
+        answers: str,
+        client_saved_at: int,
+    ) -> dict: ...
+    def get_exam_draft(self, exam_id: str, student_key: str) -> dict | None: ...
+    def delete_exam_draft(self, exam_id: str, student_key: str) -> None: ...
+
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+    def put_last_location(self, account_key: str, tenant_id: str, role: str, loc: dict) -> dict: ...
+    def get_last_location(self, account_key: str) -> dict | None: ...
+    def delete_last_location(self, account_key: str) -> None: ...
+
+    # ── Display preferences: text font and size (2026-11) ─────────────────
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
+    def get_display_prefs(self, account_key: str) -> dict | None: ...
+    def delete_display_prefs(self, account_key: str) -> None: ...
+
+    # ── Rule D profiles: one per approved past paper (2026-11) ────────────
+    def get_rule_d_profiles(self, student_id: str) -> dict: ...
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None: ...
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int: ...
+
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+    def put_phone_park(
+        self, exam_id: str, student_key: str, tenant_id: str, fields: dict
+    ) -> dict: ...
+    def get_phone_park(self, exam_id: str, student_key: str) -> dict | None: ...
+    def list_phone_parks(self, exam_id: str) -> list[dict]: ...
 
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
@@ -282,6 +329,7 @@ class Repository(Protocol):
         result: str = "ok",
         details: dict | None = None,
     ) -> None: ...
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]: ...
     def list_audit(
         self,
         student_id: str | None = None,
@@ -743,6 +791,9 @@ class SqliteRepository:
     def list_bluebook_submissions_for_student(self, student_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_student(student_id)
 
+    def list_bluebook_submission_texts_for_student(self, student_id: str) -> list[dict]:
+        return store.list_bluebook_submission_texts_for_student(student_id)
+
     def list_bluebook_submissions_for_exam(self, exam_id: str) -> list[dict]:
         return store.list_bluebook_submissions_for_exam(exam_id)
 
@@ -779,16 +830,102 @@ class SqliteRepository:
     def latest_invite_for_user(self, user_id: str) -> dict | None:
         return store.latest_invite_for_user(user_id)
 
-    def void_invites_for_user(self, user_id: str) -> int:
-        return store.void_invites_for_user(user_id)
+    def void_invites_for_user(self, user_id: str, course_id: str | None = None) -> int:
+        return store.void_invites_for_user(user_id, course_id)
 
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
+
+    def put_join_link(self, rec: dict) -> None:
+        store.put_join_link(rec)
+
+    def get_join_link_by_hash(self, token_hash: str) -> dict | None:
+        return store.get_join_link_by_hash(token_hash)
+
+    def active_join_link_for_course(self, course_id: str) -> dict | None:
+        return store.active_join_link_for_course(course_id)
+
+    def void_join_links_for_course(self, course_id: str) -> int:
+        return store.void_join_links_for_course(course_id)
 
     def set_bluebook_submission_feedback(
         self, submission_id: str, mark: str | None, feedback: str | None, graded_by: str
     ) -> bool:
         return store.set_bluebook_submission_feedback(submission_id, mark, feedback, graded_by)
+
+    # ── Student-shared past papers (2026-10 alpha) ────────────────────────
+    def put_past_paper(self, rec: dict) -> None:
+        store.put_past_paper(rec)
+
+    def get_past_paper(self, paper_id: str) -> dict | None:
+        return store.get_past_paper(paper_id)
+
+    def list_past_papers(self, tenant_id: str, student_id: str | None = None) -> list[dict]:
+        return store.list_past_papers(tenant_id, student_id)
+
+    def count_past_papers_since(self, student_id: str, since_iso: str) -> int:
+        return store.count_past_papers_since(student_id, since_iso)
+
+    def set_past_paper_status(self, paper_id: str, status: str, reviewed_by: str) -> None:
+        store.set_past_paper_status(paper_id, status, reviewed_by)
+
+    # ── Unsealed exam drafts (2026-10) ────────────────────────────────────
+    def put_exam_draft(
+        self,
+        exam_id: str,
+        student_key: str,
+        tenant_id: str,
+        content: str,
+        answers: str,
+        client_saved_at: int,
+    ) -> dict:
+        return store.put_exam_draft(
+            exam_id, student_key, tenant_id, content, answers, client_saved_at
+        )
+
+    def get_exam_draft(self, exam_id: str, student_key: str) -> dict | None:
+        return store.get_exam_draft(exam_id, student_key)
+
+    def delete_exam_draft(self, exam_id: str, student_key: str) -> None:
+        store.delete_exam_draft(exam_id, student_key)
+
+    # ── Last location, for cross-device resume (2026-10) ──────────────────
+    def put_last_location(self, account_key: str, tenant_id: str, role: str, loc: dict) -> dict:
+        return store.put_last_location(account_key, tenant_id, role, loc)
+
+    def get_last_location(self, account_key: str) -> dict | None:
+        return store.get_last_location(account_key)
+
+    def delete_last_location(self, account_key: str) -> None:
+        store.delete_last_location(account_key)
+
+    def put_display_prefs(self, account_key: str, prefs: dict) -> dict:
+        return store.put_display_prefs(account_key, prefs)
+
+    def get_display_prefs(self, account_key: str) -> dict | None:
+        return store.get_display_prefs(account_key)
+
+    def delete_display_prefs(self, account_key: str) -> None:
+        store.delete_display_prefs(account_key)
+
+    def get_rule_d_profiles(self, student_id: str) -> dict:
+        return store.get_rule_d_profiles(student_id)
+
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None:
+        store.put_rule_d_profile(student_id, text_sha256, data)
+
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int:
+        return store.delete_rule_d_profiles(student_id, keep)
+
+    # ── A student's own parked phone, per collection (2026-10) ────────────
+    def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
+        return store.put_phone_park(exam_id, student_key, tenant_id, fields)
+
+    def get_phone_park(self, exam_id: str, student_key: str) -> dict | None:
+        return store.get_phone_park(exam_id, student_key)
+
+    def list_phone_parks(self, exam_id: str) -> list[dict]:
+        return store.list_phone_parks(exam_id)
 
     # ── Audit log ─────────────────────────────────────────────────────────
     def log_audit(
@@ -808,6 +945,9 @@ class SqliteRepository:
             result=result,
             details=details,
         )
+
+    def list_audit_actions_for_student(self, student_id: str, actions: list[str]) -> list[dict]:
+        return store.list_audit_actions_for_student(student_id, actions)
 
     def list_audit(
         self,
@@ -910,6 +1050,15 @@ _WRITE_METHODS = frozenset(
         "put",
         "clear",
         "delete_student",
+        "put_past_paper",
+        "put_exam_draft",
+        "delete_exam_draft",
+        "put_last_location",
+        "delete_last_location",
+        "put_display_prefs",
+        "delete_display_prefs",
+        "put_phone_park",
+        "set_past_paper_status",
         "delete_tenant_students",
         "set_display_name",
         "put_manifest",
