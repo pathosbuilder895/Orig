@@ -29,3 +29,9 @@ def mark_used(jti: str, tenant_id: str | None, exam: str, student_id: str) -> bo
     ``PostgresRepository.consume_proctor_attestation``.
     """
     return get_repository().consume_proctor_attestation(jti, tenant_id, exam, student_id)
+
+
+def release(jti: str) -> None:
+    """Return a consumed attestation to unused, for a write that failed to
+    persist after ``mark_used`` succeeded."""
+    get_repository().release_proctor_attestation(jti)

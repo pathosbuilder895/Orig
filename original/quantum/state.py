@@ -74,8 +74,8 @@ class BaselineSample:
     # word_count, paste_attempts, focus_losses, revision_count, started_at,
     # ended_at, exam_config) — no per-key timing. Frozen shape: threat-model
     # spec §5.3. Replaces keystroke_data as what Bluebook's exam client
-    # posts; resolve_composition_mode actually consuming it is a separate
-    # change (out of scope here).
+    # posts. Stored for audit only: no resolver or scorer reads it, and the
+    # score request's own summary is ignored too (client-supplied; T-81).
     composition_summary: dict | None = None
 
     # ── Versioned measurements (additive — None for every sample stored

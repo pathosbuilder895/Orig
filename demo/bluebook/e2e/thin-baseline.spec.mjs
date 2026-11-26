@@ -46,8 +46,10 @@ async function createExam(request, workerTenant, title) {
 
 async function sealAsNewStudent({ browser, request, workerTenant }, samples, title) {
   const student = await studentLogin(request, { staffToken: workerTenant.staff.token })
+  // Seeded by the teacher: readiness counts approved samples only, and a
+  // student's own upload is downgraded to 'unverified' (baseline_integrity.py).
   for (const text of samples) {
-    await addBaselineFor(request, student.student_id, student.token, { text })
+    await addBaselineFor(request, student.student_id, workerTenant.staff.token, { text })
   }
   const exam = await createExam(request, workerTenant, title)
   const candidate = `Thin ${samples.length} ${Date.now()}`

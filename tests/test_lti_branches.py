@@ -668,3 +668,36 @@ def test_verify_launch_rejects_hs256_forged_with_the_platform_public_key(monkeyp
     # algorithm check itself (the RSA JWK would also refuse HMAC use).
     with pytest.raises(lti.LtiError, match="alg value is not allowed"):
         lti.verify_launch(forged, state)
+
+
+# ── principal_from_claims: the proctor attestation is bound to the sitting ───
+
+
+def _exam_claims(resource_id: str) -> dict:
+    return {
+        "_tenant_id": TENANT,
+        lti.CLAIM_ROLES: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"],
+        "sub": "lms-user-exam",
+        "email": "exam@northfield.edu",
+        lti.CLAIM_CUSTOM: {"bluebook": 1},
+        lti.CLAIM_RESOURCE_LINK: {"id": resource_id, "title": "Midterm"},
+    }
+
+
+def _attestation_of(claims: dict) -> str:
+    return lti.principal_from_claims(claims)["extra"]["bluebook_proctor_token"]
+
+
+def test_relaunching_the_same_resource_link_keeps_one_sitting(monkeypatch):
+    """Relaunching the exam from the LMS mints a fresh attestation, but for
+    the same sitting, so it cannot buy a second proctored sample."""
+    from original import student_auth
+
+    first = _attestation_of(_exam_claims("rl-1"))
+    clock = student_auth.time.time()
+    monkeypatch.setattr(student_auth.time, "time", lambda: clock + 120)
+    again = _attestation_of(_exam_claims("rl-1"))
+    other = _attestation_of(_exam_claims("rl-2"))
+    assert first != again
+    assert student_auth.attestation_jti(first) == student_auth.attestation_jti(again)
+    assert student_auth.attestation_jti(other) != student_auth.attestation_jti(first)
