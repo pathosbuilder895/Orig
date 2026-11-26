@@ -9,9 +9,13 @@ when a teacher or a supervised sitting stands behind it:
 * it is a past paper the student shared and a teacher approved
   (``routers/past_papers.py``; it enters the baseline as ``unverified``); or
 * it is a take-home Collections sitting a teacher approved into the baseline
-  (``routers/bluebook_baselines.py``; also ``unverified``).
+  (``routers/bluebook_baselines.py``; also ``unverified``); or
+* its provenance is none of ``AUTH_WEIGHTS`` (``unknown``, e.g. the legacy
+  ``instructor_verified``): the baseline routes refuse those, so the server
+  or a script wrote it, never a student.
 
-Only a student's own self-upload that no teacher approved is left out. The
+Only a student's own self-upload that no teacher approved is left out: an
+``unverified`` sample that is neither of the two approvals above. The
 sample's provenance and weight are untouched: this decides the floor and the
 readiness wording only, never which samples enter the baseline or how much
 they weigh (``AUTH_WEIGHTS``).
@@ -126,13 +130,13 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
 def gate_sources(student_id: str, samples: Sequence) -> list[str] | None:
     """:func:`sample_sources` for a gate, or ``None`` when the lookup failed.
 
-    ``None`` makes :func:`count_approved` fall back to the trusted
-    provenances alone, the part of rule B that needs no record: a failed
-    read can only make the count smaller, never let a self-upload through."""
+    ``None`` makes :func:`count_approved` count no ``unverified`` sample,
+    the part of rule B that needs no record: a failed read can only make the
+    count smaller, never let a self-upload through."""
     try:
         return sample_sources(student_id, samples)
     except Exception:
-        log.exception("approved-paper lookup failed; counting trusted provenances only")
+        log.exception("approved-paper lookup failed; counting no unverified sample")
         return None
 
 

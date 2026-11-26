@@ -180,7 +180,7 @@ for (const [size, viewport] of SIZES) {
 isolatedTest('a reading: Writing State before and after, its packet and side-by-side page, at both sizes: no serious or critical axe violation', async ({ browser, request, testTenant }) => {
   isolatedTest.setTimeout(240_000)
   const { staff, student, baseURL } = testTenant
-  await seedPastPapers(request, student)
+  await seedPastPapers(request, student, testTenant.staff)
   const { context, page } = await openAs(browser, staffStorageState(baseURL, staff), DESKTOP)
   const problems = []
   for (const [size, viewport] of SIZES) {
@@ -211,7 +211,7 @@ isolatedTest('a reading: Writing State before and after, its packet and side-by-
 isolatedTest('tap targets: every control on every page is at least 44px at 390px', async ({ browser, request, testTenant }) => {
   isolatedTest.setTimeout(240_000)
   const { staff, student, baseURL } = testTenant
-  await seedPastPapers(request, student)
+  await seedPastPapers(request, student, testTenant.staff)
   const { context, page } = await openAs(browser, staffStorageState(baseURL, staff), PHONE)
   const problems = []
   await visit(page, pathFor('writing-state', student.student_id))

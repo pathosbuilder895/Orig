@@ -116,7 +116,7 @@ def _s(provenance, weight=1.0):
     return SimpleNamespace(provenance=provenance, auth_weight=weight)
 
 
-def test_rule_b_counts_trusted_and_teacher_approved_and_nothing_else():
+def test_rule_b_leaves_out_only_a_students_own_self_upload():
     samples = [
         _s(p)
         for p in (
@@ -139,10 +139,13 @@ def test_rule_b_counts_trusted_and_teacher_approved_and_nothing_else():
         "staff_or_supervised",
         "shared_paper",
         "take_home",
+        "unknown",
     }
-    assert baseline_integrity.count_approved(samples, sources) == 5
-    # No records read: only what provenance alone shows to be approved.
-    assert baseline_integrity.count_approved(samples, None) == 3
+    # Everything but the student_upload: a legacy provenance outside
+    # AUTH_WEIGHTS (only the server or a script can write one) counts too.
+    assert baseline_integrity.count_approved(samples, sources) == 6
+    # No records read: no unverified sample can be shown to be approved.
+    assert baseline_integrity.count_approved(samples, None) == 4
     # A sample that carries no weight does not count either way.
     assert (
         baseline_integrity.count_approved(
@@ -444,3 +447,32 @@ def test_a_failed_lookup_counts_trusted_provenances_only(monkeypatch):
     samples = [_s("verified"), _s("unverified"), _s("unverified")]
     assert approved_papers.gate_sources("t:x", samples) is None
     assert approved_papers.approved_paper_count("t:x", samples) == 1
+
+
+def test_a_legacy_provenance_written_by_the_server_counts(live_client):
+    """A sample whose provenance is outside AUTH_WEIGHTS (the baseline routes
+    refuse those, so only the server or a script wrote it, e.g. the legacy
+    "instructor_verified") is not a student's self-upload: it counts."""
+    import numpy as np
+
+    from original.constants import FEATURE_DIM
+    from original.quantum.state import BaselineSample, StudentState
+
+    sid = "demo:legacy-prov"
+    rng = np.random.default_rng(3)
+    state = StudentState(student_id=sid)
+    for i in range(3):
+        state.add_sample(
+            BaselineSample(
+                text=f"seed sample {i}",
+                vector=np.clip(rng.normal(0.5, 0.08, FEATURE_DIM), 0.0, 1.0),
+                provenance="instructor_verified",
+                auth_weight=1.0,
+                assignment=f"a{i}",
+            )
+        )
+    get_repository().put(state)
+    body = _ok(live_client.get(f"/students/{sid}/readiness"))
+    assert (body["verdict"], body["approved_count"]) == ("ready", 3)
+    scored = _ok(live_client.post(f"/students/{sid}/score", json={"text": SUBMISSION}))
+    assert scored["baseline_integrity"]["readiness"] == "ready"

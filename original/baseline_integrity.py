@@ -25,7 +25,6 @@ from datetime import datetime
 
 import numpy as np
 
-from .constants import TRUSTED_PROVENANCE
 from .quantum.state import StudentState
 from .style_authorship import MIN_BASELINES
 
@@ -46,11 +45,13 @@ _SIGMA_INFLATION_NOTE_THRESHOLD = 0.5
 
 
 # How a sample got into the baseline (``original/approved_papers.sample_sources``)
-# when a teacher or a supervised sitting stands behind it: rule B, 2026-11. A
-# trusted provenance, a shared past paper a teacher approved, or a take-home
-# sitting a teacher approved. Only a student's own self-upload ("student_upload")
-# and an unrecognised provenance ("unknown") are left out.
-APPROVED_SOURCES = frozenset({"staff_or_supervised", "shared_paper", "take_home"})
+# for every sample that counts: rule B, 2026-11, which leaves out only a
+# student's own self-upload ("student_upload"). A trusted provenance, a shared
+# past paper a teacher approved and a take-home sitting a teacher approved
+# count, and so does a provenance outside AUTH_WEIGHTS ("unknown"): the API
+# refuses those, so such a sample was written by the server or a script
+# (legacy names such as "instructor_verified"), never uploaded by a student.
+APPROVED_SOURCES = frozenset({"staff_or_supervised", "shared_paper", "take_home", "unknown"})
 
 
 def count_approved(samples, sources=None) -> int:
@@ -58,15 +59,15 @@ def count_approved(samples, sources=None) -> int:
 
     ``sources`` is one entry per sample from
     ``original/approved_papers.sample_sources``. Without it (no records were
-    read, or the read failed) only the trusted provenances can be shown to be
-    approved, so only they count: the count can come out smaller than rule B's,
-    never larger. A sample with no weight does not count either way."""
+    read, or the read failed) an ``unverified`` sample cannot be shown to be a
+    teacher-approved one, so none counts: the count can come out smaller than
+    rule B's, never larger. A sample with no weight does not count either way."""
     if sources is None:
         return sum(
             1
             for s in samples
             if (getattr(s, "auth_weight", 0) or 0) > 0
-            and getattr(s, "provenance", None) in TRUSTED_PROVENANCE
+            and getattr(s, "provenance", None) != "unverified"
         )
     return sum(
         1
@@ -99,7 +100,7 @@ def build_baseline_integrity(
     """Build a :class:`BaselineIntegrity` summary for ``state``.
 
     ``sources`` says how each sample got in (``count_approved``); the live
-    score route always passes it. Without it only trusted provenances count.
+    score route always passes it. Without it no ``unverified`` sample counts.
 
     Returns ``None`` when ``state`` has zero samples at all (nothing has
     ever been submitted), or when anything inside the computation raises —

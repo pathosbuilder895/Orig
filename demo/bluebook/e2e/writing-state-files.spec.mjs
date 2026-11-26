@@ -82,7 +82,7 @@ function makePdf(text) {
 async function openPage(browser, request, testTenant) {
   const { staff, student, baseURL } = testTenant
   for (let i = 1; i <= 3; i++) {
-    await addBaselineFor(request, student.student_id, student.token, { text: read(`mill-${i}.txt`), provenance: 'verified', assignment: `On Liberty, part ${i}`, submittedAt: DATES[i - 1] })
+    await addBaselineFor(request, student.student_id, staff.token, { text: read(`mill-${i}.txt`), provenance: 'verified', assignment: `On Liberty, part ${i}`, submittedAt: DATES[i - 1] })
   }
   const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
   const page = await context.newPage()

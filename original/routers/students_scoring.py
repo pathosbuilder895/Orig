@@ -127,8 +127,9 @@ def _require_min_baseline(state, sources: list[str] | None) -> int:
 
     Counts approved papers only (rule B, original/approved_papers.py): a
     trusted provenance, or a shared paper / take-home sitting a teacher
-    approved. ``sources`` is the request's one lookup (``gate_sources``);
-    ``None`` (the lookup failed) counts trusted provenances only."""
+    approved; only a student's own self-upload is left out. ``sources`` is
+    the request's one lookup (``gate_sources``); ``None`` (the lookup failed)
+    counts no ``unverified`` sample."""
     _min_baseline = min_baseline_samples()
     have = count_approved(state.samples, sources)
     if have < _min_baseline:
@@ -977,7 +978,7 @@ def _attach_staff_explainability(
         # 3 approved papers by default, rule B). The alpha builds every baseline
         # from exactly three papers, so the old "ready" line (5 papers) made
         # every alpha reading inconclusive. Below the floor the route 422s
-        # anyway. Without the route's count, only trusted provenances count.
+        # anyway. Without the route's count, no unverified sample counts.
         if approved is None:
             approved = count_approved(state.samples, None)
         ready = approved >= min_baseline_samples()

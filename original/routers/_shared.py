@@ -501,7 +501,7 @@ def _to_response(r, arc=None, report=None, sources=None) -> Layer7OutputResponse
     ``sources`` is the score route's one lookup of how each past paper got in
     (``approved_papers.gate_sources``), so ``baseline_integrity`` counts
     approved papers under rule B without reading the records again. Other
-    callers (the admin playground) pass none: only trusted provenances count."""
+    callers (the admin playground) pass none: no ``unverified`` sample counts."""
     from ..explainer import explain
 
     # Phase 6: ScoringReport → ScoringReportOut. Built upstream when a

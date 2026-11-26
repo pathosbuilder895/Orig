@@ -29,7 +29,7 @@ test.describe('side by side, flags set to 0', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student, baseURL } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
     const page = await context.newPage()
     const body = await analyse(page, student.student_id)
@@ -75,7 +75,7 @@ test.describe('side by side, flags on @evidence-on', () => {
   test('cards render, marks are API slices, every measurement is listed @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(180_000)
     const { staff, student, baseURL } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff), viewport: { width: 1440, height: 1000 } })
     const page = await context.newPage()
     const body = await analyse(page, student.student_id)
@@ -172,7 +172,7 @@ test.describe('side by side, flags on @evidence-on', () => {
   test('every habit opens its passages on Writing State, the packet quotes the API @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(240_000)
     const { staff, student, baseURL } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff), viewport: { width: 1440, height: 1000 } })
     const page = await context.newPage()
     const errors = []
@@ -341,7 +341,7 @@ test.describe('side by side, flags on @evidence-on', () => {
   test('an open habit after an analysis keeps the top of the page in reach @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(150_000)
     const { staff, student, baseURL } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff), viewport: { width: 1440, height: 1000 } })
     const page = await context.newPage()
     const body = await analyse(page, student.student_id)
@@ -374,7 +374,7 @@ test.describe('side by side, flags on @evidence-on', () => {
   test('a student never sees the side-by-side page or its data @evidence-on', async ({ request, studentPage, testTenant }) => {
     test.setTimeout(120_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     // The score route never hands a student session the evidence or the chip.
     const res = await request.post(`/students/${encodeURIComponent(student.student_id)}/score`, {
       headers: { Authorization: `Bearer ${student.token}` },
