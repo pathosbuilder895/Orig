@@ -110,19 +110,33 @@ def test_demo_without_guard_still_boots(boot_globals, monkeypatch):
 # Subprocess: from a real environment, including ORIGINAL_ENV unset
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Runs the app's lifespan in a clean interpreter. A refusal prints the
+# Runs the app's lifespan in a clean interpreter. A refusal reports the
 # exception's own message behind a marker, so the assertion is on what the
 # check raised and not on some other log line that happens to mention
 # GUARD_DESTRUCTIVE (the boot log names it on every start).
+#
+# The marker goes to its own file (argv[1]), never to stdout. On a real
+# deploy the app logs JSON to stdout, and the backup scheduler that lifespan
+# starts logs from an ``asyncio.to_thread`` worker while the ``with`` body
+# runs. A marker printed to stdout shared that stream with another thread's
+# writes (their order varies from run to run), so the exact-line check
+# depended on thread timing and failed intermittently under load.
 _CHILD = """
 import sys
 from fastapi.testclient import TestClient
 import original.api as api
+
+
+def report(line):
+    with open(sys.argv[1], "w", encoding="utf-8") as fh:
+        fh.write(line + "\\n")
+
+
 try:
     with TestClient(api.app):
-        print("BOOTED")
+        report("BOOTED")
 except RuntimeError as exc:
-    print("REFUSED: " + str(exc))
+    report("REFUSED: " + str(exc))
     sys.exit(1)
 """
 
@@ -142,20 +156,31 @@ _STRIPPED_ENV = (
 )
 
 
-def _boot_child(env_overrides: dict[str, str], tmp_path: Path) -> subprocess.CompletedProcess[str]:
+def _boot_child(
+    env_overrides: dict[str, str], tmp_path: Path
+) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+    """Run the child and return its process result plus the marker lines it
+    reported (empty when it died before reporting)."""
     env = {k: v for k, v in os.environ.items() if k not in _STRIPPED_ENV}
     # A scratch store: a real-deploy boot starts the SQLite backup scheduler
     # next to the database, and that must not be the checkout's profiles.db.
     env["ORIGINAL_DB"] = str(tmp_path / "profiles.db")
     env.update(env_overrides)
-    return subprocess.run(
-        [sys.executable, "-c", _CHILD],
+    marker_file = tmp_path / "boot_marker.txt"
+    result = subprocess.run(
+        [sys.executable, "-c", _CHILD, str(marker_file)],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
         text=True,
         timeout=120,
     )
+    markers = marker_file.read_text(encoding="utf-8").splitlines() if marker_file.exists() else []
+    return result, markers
+
+
+def _child_output(result: subprocess.CompletedProcess[str], markers: list[str]) -> str:
+    return f"markers: {markers}\nstdout:\n{result.stdout[-2000:]}\nstderr:\n{result.stderr[-2000:]}"
 
 
 @pytest.mark.boot
@@ -167,14 +192,13 @@ def _boot_child(env_overrides: dict[str, str], tmp_path: Path) -> subprocess.Com
     ],
 )
 def test_child_refuses_guard_destructive_outside_real_deploy(env_overrides, tmp_path):
-    result = _boot_child(env_overrides, tmp_path)
+    result, markers = _boot_child(env_overrides, tmp_path)
 
     assert result.returncode == 1, (
-        f"expected a refusal, got exit {result.returncode}\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr[-2000:]}"
+        f"expected a refusal, got exit {result.returncode}\n{_child_output(result, markers)}"
     )
-    refused = [line for line in result.stdout.splitlines() if line.startswith("REFUSED: ")]
-    assert refused, f"no refusal line in stdout:\n{result.stdout}"
+    refused = [line for line in markers if line.startswith("REFUSED: ")]
+    assert refused, f"no refusal marker:\n{_child_output(result, markers)}"
     assert "GUARD_DESTRUCTIVE" in refused[0]
     # Unset ORIGINAL_ENV means demo (api.py's default), and the message says so.
     assert "ORIGINAL_ENV=demo" in refused[0]
@@ -182,7 +206,7 @@ def test_child_refuses_guard_destructive_outside_real_deploy(env_overrides, tmp_
 
 @pytest.mark.boot
 def test_child_boots_guard_destructive_on_pilot(tmp_path):
-    result = _boot_child(
+    result, markers = _boot_child(
         {
             "ORIGINAL_ENV": "pilot",
             "GUARD_DESTRUCTIVE": "1",
@@ -193,6 +217,6 @@ def test_child_boots_guard_destructive_on_pilot(tmp_path):
 
     assert result.returncode == 0, (
         f"pilot with GUARD_DESTRUCTIVE=1 must boot, got exit {result.returncode}\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr[-2000:]}"
+        f"{_child_output(result, markers)}"
     )
-    assert "BOOTED" in result.stdout.splitlines()
+    assert "BOOTED" in markers, f"no BOOTED marker:\n{_child_output(result, markers)}"

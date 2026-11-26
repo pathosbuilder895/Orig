@@ -242,6 +242,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         "roster",
         "sealed",
         "signOut",
+        "keepSignIn",
     ):
         assert re.search(rf"\b{key}\s*:", exported), f"Live.{key} is not exported"
     for token_key in (
@@ -284,6 +285,7 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # ?v= query; change the version (on every page at once) when any of them changes.
 VERSIONED = (
     "live.js",
+    "shell.js",
     "js/feature-data.js",
     "js/fingerprint.js",
     "js/evidence-view.js",
@@ -318,9 +320,9 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     assert len(queries) == 1, f"{path.name}: {sorted(queries)}"
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
-    # Every page carries the suite's stylesheet, font file and shared script; the
+    # Every page carries the suite's stylesheet, font file, shared script and top bar; the
     # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
-    assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
+    assert {"live.js", "shell.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
 
@@ -429,17 +431,17 @@ def test_students_page_adds_a_writer_by_name_inline():
     page = (SUITE / "students.html").read_text(encoding="utf-8")
     # The button opens a labelled inline form; the Collections link keeps its href.
     assert (
-        '<button type="button" class="add-btn ghost" id="writer-btn" aria-expanded="false" '
+        '<button type="button" class="add-btn ghost btn-ghost" id="writer-btn" aria-expanded="false" '
         'aria-controls="writer-form">'
     ) in page
     assert ">Add a writer</button>" in page
     assert '<form class="writer" id="writer-form" hidden' in page
     assert '<label for="writer-name">Their name</label>' in page
     assert '<input id="writer-name" type="text" maxlength="120"' in page
-    assert '<button type="submit" class="add-btn" id="writer-go">Add</button>' in page
+    assert '<button type="submit" class="add-btn btn-gold" id="writer-go">Add</button>' in page
     assert '<button type="button" class="w-cancel" id="writer-cancel">Cancel</button>' in page
     assert '<div class="w-msg" id="writer-msg" role="alert"></div>' in page
-    assert '<a class="add-btn" id="add-btn" href="/bluebook/#students"' in page
+    assert '<a class="add-btn btn-gold" id="add-btn" href="/bluebook/#students"' in page
     assert ">Add to a Collections course</a>" in page
     script = page[page.index("// ── add a writer ──") : page.index("// ── go ──")]
     assert "Live.api('/students',{method:'POST',body:{name:n}})" in script
@@ -570,6 +572,48 @@ def test_feature_data_lists_the_97_active_features_in_constants_order():
     assert "base:" not in src and "sub:" not in src and "FLAGS" not in src
 
 
+def _feature_data_rows() -> list[tuple[str, str, str]]:
+    src = (SUITE / "js" / "feature-data.js").read_text(encoding="utf-8")
+    rows = re.findall(r"\['([a-z0-9_]+)','((?:[^'\\]|\\.)*)','((?:[^'\\]|\\.)*)'\]", src)
+    return [(c, n.replace("\\'", "'"), d.replace("\\'", "'")) for c, n, d in rows]
+
+
+def test_every_habit_is_named_by_its_plain_name():
+    """A teacher reads the plain name (original/explainer.py FEATURE_PLAIN_NAMES)
+    with its first letter capitalised, never the engine's label; the evidence
+    API (describe()) reads the same name, so the pages and the report agree."""
+    from original import evidence
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    rows = _feature_data_rows()
+    assert len(rows) == 97
+    for code, name, _desc in rows:
+        plain = FEATURE_PLAIN_NAMES[code]
+        assert name == plain[0].upper() + plain[1:], code
+        assert evidence.describe(code)[0] == name, code
+
+
+def test_plain_names_are_short_everyday_words():
+    from original.constants import ALL_FEATURE_CODES
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    assert set(FEATURE_PLAIN_NAMES) == set(ALL_FEATURE_CODES)
+    names = list(FEATURE_PLAIN_NAMES.values())
+    assert len(set(names)) == len(names), "two habits share a name"
+    jargon = re.compile(
+        r"ratio|entropy|variance|density|index|\bttr\b|z-score|lexical|semantic|"
+        r"syntactic|stylometr|prosod|clausul|polysyndeton|chiasmus|nominali|hapax|"
+        r"divergence|perplexity|burstiness|\bai\b|fingerprint|detect",
+        re.IGNORECASE,
+    )
+    for code, name in FEATURE_PLAIN_NAMES.items():
+        # Lower case first, so the page's sentence form (feature-data.js
+        # `phrase`) is the exact inverse of the capitalised name.
+        assert name[:1].islower(), f"{code}: {name!r} must start lower case"
+        assert not jargon.search(name), f"{code}: {name!r} is still engine jargon"
+        assert len(re.sub(r"\([^)]*\)", "", name).split()) <= 6, f"{code}: {name!r} is too long"
+
+
 def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exist():
     page = (SUITE / "settings.html").read_text(encoding="utf-8")
     # POST /auth/password {current_password, new_password}, through the shared client.
@@ -578,6 +622,9 @@ def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exi
     # A typed password is never logged or kept: no console output, no storage.
     for leak in ("console.", "localStorage", "sessionStorage"):
         assert leak not in page, f"settings.html uses {leak}"
+    # The change signs out every earlier session, this page's included (T-79):
+    # the fresh sign-in it returns is kept through the shared client.
+    assert "Live.keepSignIn(res.data)" in page
     # A failed submit must not put the password in a URL (a form posts, it never GETs).
     assert 'method="post"' in page
     # There is no sensitivity setting and no LMS integration to configure.
@@ -672,7 +719,7 @@ def test_no_file_but_live_js_names_the_sealed_exam_list_route(live_js):
         for path in _code_files()
         if path != SUITE / "live.js" and SEALED_LIST_ROUTE.search(path.read_text(encoding="utf-8"))
     ]
-    assert not named, f"{named} name the sealed exam list route; call Live.sealed() instead"
+    assert not named, f"{named} name the sealed booklet list route; call Live.sealed() instead"
 
 
 def test_reports_page_counts_only_what_live_roster_returns():
@@ -847,12 +894,83 @@ class _AccountMenu(HTMLParser):
             self._link[1] += data
 
 
+# The top bar (brand, app switch, page pills, account menu) is drawn by shell.js
+# from one definition. A page carries only a placeholder with its audience and
+# its own name, and the script straight after it; the tests below run shell.js's
+# Shell.markup under node for that placeholder and read what a browser would get.
+_SHELL_PLACEHOLDER = re.compile(
+    r'<nav class="shell(?: shell-bar)?" data-audience="(teacher|student)" data-current="([a-z-]+)" '
+    r'aria-label="Original"></nav>\s*<script src="shell\.js\?v=[^"]+"></script>'
+)
+
+SHELL_RUN = r"""
+const fs = require('fs');
+const window = {};
+const document = { querySelectorAll() { return []; }, readyState: 'complete', addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(process.argv[1], 'utf8'))(window, document);
+const out = {};
+for (const pair of JSON.parse(process.argv[2])) out[pair.join('/')] = window.Shell.markup(pair[0], pair[1]);
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _placeholder(path: Path) -> tuple[str, str]:
+    found = _SHELL_PLACEHOLDER.findall(path.read_text(encoding="utf-8"))
+    assert len(found) == 1, f"{path.name} has no top bar placeholder followed by shell.js"
+    return found[0]
+
+
+_SHELL_CACHE: dict[str, str] = {}
+
+
+def _shell_nav(path: Path) -> str:
+    """The top bar's markup on this page, as shell.js draws it."""
+    if not _SHELL_CACHE:
+        pairs = sorted({_placeholder(p) for p in PAGES})
+        run = subprocess.run(
+            [shutil.which("node"), "-e", SHELL_RUN, str(SUITE / "shell.js"), json.dumps(pairs)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert run.returncode == 0, run.stderr
+        _SHELL_CACHE.update(json.loads(run.stdout))
+    return _SHELL_CACHE["/".join(_placeholder(path))]
+
+
 def _account_menu(path: Path) -> list[tuple[str, str]]:
     parser = _AccountMenu()
-    parser.feed(path.read_text(encoding="utf-8"))
+    parser.feed(_shell_nav(path))
     return parser.links
 
 
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_every_page_draws_the_one_top_bar_and_keeps_no_copy_of_its_own(path):
+    audience, current = _placeholder(path)
+    assert audience == ("student" if path.name in STUDENT_PAGES else "teacher"), path.name
+    assert current == path.stem, path.name
+    page = path.read_text(encoding="utf-8")
+    # The bar's markup, its menu script and its styles live in shell.js and tokens.css only.
+    for copy in ('id="me-menu"', 'class="pills"', "$('me-btn')", "  .me-menu{", "  .pill{", "  .brand{"):
+        assert copy not in page, f"{path.name} keeps its own {copy}"
+    assert '<link rel="stylesheet" href="../assets/tokens.css?v=' in page
+    assert '<link rel="stylesheet" href="../assets/type.css" />' in page
+    # The Text setting is in the account menu, so no floating button covers the page.
+    assert '<script src="../assets/display-prefs.js"></script>' in page
+    assert "data-float" not in page
+
+
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_account_menu_holds_the_text_setting(path):
+    nav = _shell_nav(path)
+    assert 'id="mm-text" data-testid="text-settings-button"' in nav
+    assert '<span class="mm-aa" aria-hidden="true">Aa</span>Text</button>' in nav
+    menu = nav[nav.index('id="me-menu"') :]
+    assert menu.index('id="mm-text"') < menu.index('id="sign-out"')
+
+
+@needs_node
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
@@ -865,6 +983,7 @@ def test_account_menu_is_settings_then_sign_out_with_no_classic_link(path):
     assert texts.index("Settings") < texts.index("Sign out"), f"{path.name}: {texts}"
 
 
+@needs_node
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
@@ -881,14 +1000,16 @@ def test_account_menu_opens_the_collections_dashboard_first(path):
 def test_collections_page_head_links_to_the_collections_dashboard():
     page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
     head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
-    assert '<a class="head-link" href="/bluebook/#dashboard">' in head
+    assert '<a class="head-link btn-ghost" href="/bluebook/#dashboard">' in head
     assert "Open Collections</a>" in head
 
 
+@needs_node
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
 def test_student_account_menu_is_sign_out_only(name):
     # A student has no Settings page and no classic analysis page; both are
-    # teacher tools, so the menu holds Sign out and nothing else.
+    # teacher tools, so the menu holds Sign out and nothing else (and the Text
+    # setting, a button rather than a link).
     links = _account_menu(SUITE / name)
     assert [text for _, text in links] == ["Sign out"], f"{name}: {links}"
 
@@ -1721,7 +1842,7 @@ def _course(cid: str, code: str) -> dict:
 
 
 def _two_course_scenario(**extra) -> dict:
-    """Four students; two courses; five sealed exams, one of them (s4) on an
+    """Four students; two courses; five sealed booklets, one of them (s4) on an
     exam with no course and one (s5) from a student on no roster course."""
     roster = [
         {"id": sid, "name": sid.upper(), "authenticated_count": 5, "sample_count": 5}
@@ -1771,27 +1892,27 @@ def _two_course_scenario(**extra) -> dict:
     return scenario
 
 
-NOTE = "Counted by student for exams without a course: a student in two courses appears in both."
+NOTE = "Counted by student for booklets without a course: a student in two courses appears in both."
 
 
 @needs_node
 def test_reports_course_tabs_count_a_sealed_exam_under_the_exams_own_course():
     everything, c1, c2 = _page("reports.html", **_two_course_scenario())["snaps"]
     # All courses: five exams, four waiting. No fallback is in play, so no note.
-    assert "4 sealed exams</b> are waiting" in everything["headline"]
-    assert everything["termD"] == "2 courses · 4 students · 5 sealed exams"
+    assert "4 sealed booklets</b> are waiting" in everything["headline"]
+    assert everything["termD"] == "2 courses · 4 students · 5 sealed booklets"
     assert everything["tabNote"]["hidden"] is True
     assert 'data-c="c1"' in everything["tabs"] and 'data-c="c2"' in everything["tabs"]
     # THEO 301: s1 and s3 by their exam, s4 by its student (c). Student c's s3 is
     # not counted in BIB 101 even though c is on both rosters.
     assert c1["headline"].startswith("THEO 301: ")
-    assert "3 sealed exams</b> are waiting" in c1["headline"]
-    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed exams"
+    assert "3 sealed booklets</b> are waiting" in c1["headline"]
+    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed booklets"
     assert c1["reviewed"] == ["0", "of 3 sealed · 3 waiting"]
     # BIB 101: s2 (reviewed) by its exam, s4 by its student.
     assert c2["headline"].startswith("BIB 101: ")
-    assert "1 sealed exam</b> is waiting" in c2["headline"]
-    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed exams"
+    assert "1 sealed booklet</b> is waiting" in c2["headline"]
+    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed booklets"
     assert c2["reviewed"] == ["1", "of 2 sealed · 1 waiting"]
     # The note appears exactly in the tabs where an exam was counted by student.
     for tab in (c1, c2):
@@ -1804,7 +1925,7 @@ def test_reports_course_tab_with_every_exam_on_a_known_course_shows_no_note():
     subs = [r for r in scenario["bbSubmissions"][1]["submissions"] if r["exam_id"] != "e3"]
     scenario["bbSubmissions"] = [200, {"submissions": subs}]
     _, c1, c2 = _page("reports.html", **scenario)["snaps"]
-    assert "2 sealed exams</b> are waiting" in c1["headline"]  # s1, s3
+    assert "2 sealed booklets</b> are waiting" in c1["headline"]  # s1, s3
     assert c1["tabNote"]["hidden"] is True and c2["tabNote"]["hidden"] is True
 
 
@@ -1843,9 +1964,9 @@ def test_reports_course_tab_counts_unread_readiness_within_its_own_students():
 @pytest.mark.parametrize(
     "scenario,term",
     [
-        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed exams"),
-        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed exams"),
-        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed exams · 1 student"),
+        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed booklets"),
+        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed booklets"),
+        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed booklets · 1 student"),
     ],
     ids=["all", "students", "sealed"],
 )
@@ -2981,6 +3102,17 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+def test_the_classic_voice_profile_shows_the_students_own_figures():
+    """demo/professor.html's Voice Profile rows once carried fixed sample figures
+    (84%, 78%, 67%, 71%) that no code replaced, so every student showed the same
+    numbers. Each figure is now filled from that student's baseline values."""
+    page = (SUITE.parent / "professor.html").read_text(encoding="utf-8")
+    assert re.findall(r'class="trait-pct"[^>]*>\s*\d', page) == []
+    for i in range(1, 5):
+        assert f'<span class="trait-pct" id="ptv{i}">' in page
+    assert "document.getElementById(id.replace('ptb', 'ptv'))" in page
+
+
 # authenticated_count is every sample the server weighs above zero: a teacher-approved one or
 # a student's own upload. It is "counted", never "approved" (a count of what a teacher
 # approved needs the sample list and its provenance). So no file may call a sample
@@ -3252,9 +3384,9 @@ def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a
     )
     assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
     # The lower-weight note is its own sentence, after the bracket, whenever a take-home exam is counted.
-    assert all_you["line"].endswith("Take-home exams and shared papers you approved count at a lower weight.")
+    assert all_you["line"].endswith("Take-home collections and shared papers you approved count at a lower weight.")
     assert all_you["note"].count("count at a lower weight.") == 1
-    assert "lower weight" not in mixed["line"].replace("Take-home exams and shared papers you approved count at a lower weight.", "")
+    assert "lower weight" not in mixed["line"].replace("Take-home collections and shared papers you approved count at a lower weight.", "")
     assert "(3 counted samples, 2 approved by you, 1 student upload; ready needs" in mixed["line"]
     assert "(2 counted samples, none approved by you, 2 student uploads; ready needs" in upload_only["line"]
     assert "(3 counted samples, 1 approved by you, 2 student uploads; ready needs" in missing["line"]
@@ -3318,15 +3450,15 @@ def test_live_approvals_counts_who_approved_each_sample_and_says_so_in_plain_wor
     assert run.returncode == 0, run.stderr
     mixed, uploads, old, one, unknown, empty = json.loads(run.stdout)
     assert mixed["a"] == {"counted": 4, "byYou": 4, "supervised": 1, "takeHome": 2, "shared": 1, "uploads": 0, "unknown": 0}
-    assert mixed["words"] == "all approved by you (2 take-home exams and 1 shared paper count at a lower weight)"
+    assert mixed["words"] == "all approved by you (2 take-home collections and 1 shared paper count at a lower weight)"
     assert mixed["bare"] == "all approved by you"
     assert uploads["a"]["byYou"] == 1 and uploads["a"]["uploads"] == 2
     assert uploads["words"] == "1 approved by you, 2 student uploads"
     assert old["a"] == {"counted": 3, "byYou": 2, "supervised": 2, "takeHome": 0, "shared": 0, "uploads": 1, "unknown": 0}
     assert old["words"] == "2 approved by you, 1 student upload"
     assert old["how"] == ["Supervised sitting", "Imported", "Student upload"]
-    assert one["words"] == "all approved by you (1 take-home exam counts at a lower weight)"
-    assert one["how"] == ["Take-home exam approved by you"]
+    assert one["words"] == "all approved by you (1 take-home collection counts at a lower weight)"
+    assert one["how"] == ["Take-home collection approved by you"]
     assert unknown["a"]["unknown"] == 2 and unknown["words"] == ""
     assert empty["a"]["counted"] == 0 and empty["words"] == ""
     for c in (mixed, uploads, old, one):
@@ -3421,7 +3553,7 @@ def test_packet_card_describes_a_listed_habit_in_the_neutral_words_of_writing_st
     habits = out["habits"]
     assert "This is one of the habits furthest from Ada\u2019s usual range in this paper, by Original\u2019s measure." in habits
     assert "outside" not in habits
-    assert "<b>What this habit measures:</b> How often dashes (like this) interrupt or extend a sentence." in habits
+    assert "<b>What this habit measures:</b> How often a dash (an em dash, an en dash or a double hyphen) appears, per 100 words, including dashes in number ranges." in habits
     # 0.1 against 0.5: lower by 0.40, on the scale the page names.
     assert "Here the paper is lower than Ada\u2019s usual by 0.40, on a scale from 0 to 1." in habits
     assert "5 counted samples" in habits
@@ -3502,8 +3634,8 @@ def test_packet_says_a_take_home_exam_was_approved_by_you_and_a_student_upload_w
     ]
     out = _packet_run(counts, student=[200, {"authenticated_count": 3, "samples": samples}])
     assert "<b>3 counted samples</b> (2 approved by you, 1 student upload)" in out["sub"]
-    assert "On file now: 3 samples, 2 approved by you (1 take-home exam and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
-    assert '<span class="how">Take-home exam approved by you</span>' in out["baseline"]
+    assert "On file now: 3 samples, 2 approved by you (1 take-home collection and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
+    assert '<span class="how">Take-home collection approved by you</span>' in out["baseline"]
     assert '<span class="how">Shared paper approved by you</span>' in out["baseline"]
     assert out["baseline"].count('<span class="how">Student upload</span>') == 1
 
@@ -3784,29 +3916,67 @@ def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_ca
 
 
 # ── Bluebook Sessions (bluebook.html) ─────────────────────────────────────────
-# Owner decision 2026-10-11: the Bluebook pill on a teacher page opens this suite
+# Owner decision 2026-10-11: the sessions pill on a teacher page opens this suite
 # page; /bluebook/ itself is the public sign-up and learn site, and the Bluebook
 # app opens one exam from a link (#exam/<id>, #live/<id>; demo/bluebook/deep-link.jsx).
+# Owner decision 2026-11-20 (W3): one top bar for both apps. Its switch is the only
+# place the bare word "Collections" names a place (the Collections app), so this
+# suite page's pill is "Your collections" (#361: a student sits a collection) and
+# the same word never means two places.
 
 _PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?([^<]*)</a>', re.S)
+_SWITCH = re.compile(r'<div class="app-switch"[^>]*>(.*?)</div>', re.S)
 
 
-def _bluebook_pills(path: Path) -> list[str]:
-    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Collections"]
+def _pills(path: Path) -> list[tuple[str, str]]:
+    return [(href, label.strip()) for href, label in _PILL.findall(_shell_nav(path))]
 
 
+@needs_node
 @pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
-def test_the_bluebook_pill_opens_the_suite_page_for_teachers_and_the_app_for_students(path):
-    want = "/bluebook/" if path.name in STUDENT_PAGES else "bluebook.html"
-    assert _bluebook_pills(path) == [want], path.name
+def test_the_collections_pill_opens_the_suite_page_for_teachers_and_students_have_none(path):
+    pills = _pills(path)
+    sessions = [href for href, label in pills if label == "Your collections"]
+    assert sessions == ([] if path.name in STUDENT_PAGES else ["bluebook.html"]), path.name
+    # No page pill says Collections any more: the switch names the app.
+    assert "Collections" not in [label for _, label in pills], path.name
+    want = ["My voice", "My work"] if path.name in STUDENT_PAGES else ["Overview", "Students", "Submissions", "Your collections", "Reports"]
+    assert [label for _, label in pills] == want, path.name
 
 
-def test_the_bluebook_pill_is_marked_current_only_on_the_bluebook_page():
-    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
-    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in page
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_app_switch_names_both_apps_and_marks_original_current(path):
+    (switch,) = _SWITCH.findall(_shell_nav(path))
+    collections = "/bluebook/" if path.name in STUDENT_PAGES else "/bluebook/#dashboard"
+    home = "voice.html" if path.name in STUDENT_PAGES else "index.html"
+    assert switch == f'<a href="{collections}">Collections</a><a href="{home}" aria-current="true">Original</a>', path.name
+
+
+@needs_node
+def test_the_collections_pill_is_marked_current_only_on_the_bluebook_page():
+    nav = _shell_nav(SUITE / "bluebook.html")
+    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in nav
     for path in PAGES:
         if path.name != "bluebook.html":
+            assert 'href="bluebook.html" aria-current' not in _shell_nav(path), path.name
             assert 'href="bluebook.html" aria-current' not in path.read_text(encoding="utf-8"), path.name
+
+
+@needs_node
+def test_a_students_own_pages_mark_students_as_their_section_not_their_page():
+    for name in ("baseline.html", "writing-state.html", "evidence.html", "packet.html"):
+        nav = _shell_nav(SUITE / name)
+        assert '<a class="pill on" href="students.html" aria-current="true">' in nav, name
+        assert 'aria-current="page"' not in nav, name
+    assert '<a class="pill on" href="students.html" aria-current="page">' in _shell_nav(SUITE / "students.html")
+    # Settings marks no pill, only its own menu item.
+    settings = _shell_nav(SUITE / "settings.html")
+    assert "pill on" not in settings and '<a href="settings.html" aria-current="page">' in settings
+
+
+def test_live_js_hides_the_switch_to_collections_with_the_other_collections_links(live_js):
+    assert """'#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]'""" in live_js
 
 
 def _bluebook_page() -> str:
@@ -3992,7 +4162,7 @@ def test_bluebook_page_lists_past_sessions_newest_first_with_counts_from_the_sea
     assert re.findall(r'<div class="s-t">([^<]*)</div>', s["sessions"]) == ["Midterm", "In-class essay", "Reformation causes"]
     hrefs = re.findall(r'<a class="sess" href="([^"]*)"', s["sessions"])
     assert hrefs == ["/bluebook/#exam/e-new", "/bluebook/#exam/e-mid", "/bluebook/#exam/e-old"]
-    assert s["count"] == "3 sessions · newest first"
+    assert s["count"] == "3 collections · newest first"
     # e-new is open with one ungraded booklet; e-mid has two, both graded, one in a baseline.
     assert "Open now" in s["sessions"] and "1 sealed · 1 to review" in s["sessions"]
     assert "All reviewed" in s["sessions"] and "2 sealed · 1 in a baseline" in s["sessions"]
@@ -4015,7 +4185,7 @@ def test_bluebook_page_asks_about_baselines_for_the_visible_rows_only_six_at_a_t
     asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
     assert asked == [f"/bluebook/exams/e{i:02d}/baseline" for i in range(4, 10)]
     assert out["max"] <= 6
-    assert out["before"]["more"] == "Show all 10 sessions"
+    assert out["before"]["more"] == "Show all 10 collections"
 
 
 @needs_node
@@ -4033,8 +4203,8 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     }}]
     after = out["after"]
     assert after["err"] == ""
-    assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
-    assert "<b>My exams</b>" in after["chip"]
+    assert "Collection is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
+    assert "<b>My collections</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
     assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
     assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"
@@ -4051,10 +4221,10 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
         ),
         (
             {"ok": False, "status": 422, "data": {"detail": [{"msg": "field required"}]}},
-            "The session could not be saved. Your questions are still here.",
+            "The collection could not be saved. Your questions are still here.",
         ),
         ({"ok": False, "status": 0, "data": None}, "Could not reach the server. Your questions are still here."),
-        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The session could not be saved. Your questions are still here."),
+        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The collection could not be saved. Your questions are still here."),
     ],
     ids=["server-sentence", "validation-list", "no-network", "no-id"],
 )
@@ -4062,7 +4232,7 @@ def test_bluebook_page_shows_the_servers_refusal_as_text(reply, said):
     out = _bluebook_run(**_bb_scenario(created=reply), form={"questions": ["A question."]})
     # Set as textContent, so markup in the server's words is shown, never run.
     assert out["after"]["err"] == said
-    assert "Session is open." not in out["after"]["chip"]
+    assert "Collection is open." not in out["after"]["chip"]
 
 
 @needs_node
@@ -4099,7 +4269,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     s = out["before"]
     assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in s["courses"]
     assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
-    assert "No sessions yet. Your first one will appear here." in s["sessions"]
+    assert "No collections yet. Your first one will appear here." in s["sessions"]
 
 
 @needs_node
@@ -4107,7 +4277,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     "scenario,where,said",
     [
         (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "courses", "Your classes could not be loaded just now."),
-        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your sessions could not be loaded just now."),
+        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your collections could not be loaded just now."),
         (dict(rejectOn=["^/bluebook/submissions$"]), "note", "Sealed booklets could not be counted just now."),
     ],
     ids=["courses-500", "exams-not-a-list", "sealed-down"],
@@ -4294,9 +4464,9 @@ def test_writing_state_loads_a_sealed_exam_but_never_analyses_it_by_itself():
     fail = fail[: fail.index("\n  }\n")]
     assert "$('an-text').value=''; $('an-assign').value='';" in fail and "msg(text,true)" in fail
     for words in (
-        "This sealed exam was not found in your workspace, so nothing was loaded.",
-        "You do not have access to this sealed exam, so nothing was loaded.",
-        "This sealed exam was written by a different student, so it was not loaded.",
+        "This sealed booklet was not found in your workspace, so nothing was loaded.",
+        "You do not have access to this sealed booklet, so nothing was loaded.",
+        "This sealed booklet was written by a different student, so it was not loaded.",
     ):
         assert words in body
 
@@ -4335,7 +4505,7 @@ def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
 
 
 def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
-    """2026-11-17, live pilot: a sealed exam whose student had since been removed
+    """2026-11-17, live pilot: a sealed booklet whose student had since been removed
     from every roster showed the exam app's stock "Candidate No. 00042" as its
     student and offered "Add writing first", a link to a student page that
     cannot open. A removed student is now said to be one, with no link."""

@@ -159,6 +159,13 @@ def test_short_matches_inside_long_sentences_get_a_window_around_them():
     assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
 
 
+def test_a_match_outside_every_sentence_is_quoted_as_it_stands():
+    """A counted span the sentence split did not cover (text between two
+    sentences) is quoted exactly, unclipped, rather than borrowing a sentence."""
+    text = "One sentence. ; Another sentence."
+    assert ev._passage(text, [(0, 13), (16, len(text))], 14, 15) == (14, 15, False, False)
+
+
 def test_evidence_is_deterministic():
     baselines = [(f"past paper {i + 1}", t) for i, t in enumerate(PLAIN)]
     feats = [_feature("transition_density"), _feature("char_trigram_entropy"), _feature("comma_rate", -0.2)]
@@ -431,7 +438,7 @@ def test_descriptions_come_from_the_suite_feature_data(monkeypatch):
     assert ev.describe("sentence_length_variance")[1] == "How much the writer's sentence lengths bounce around compared with staying even."
     ev._descriptions.cache_clear()
     monkeypatch.setattr(ev, "_FEATURE_DATA", Path("/nonexistent/feature-data.js"))
-    assert ev.describe("comma_rate") == ("Comma Rate", "")
+    assert ev.describe("comma_rate") == ("Comma usage", "")
     ev._descriptions.cache_clear()
 
 
@@ -725,3 +732,35 @@ def test_unknown_habit_is_refused():
     for habit in ("typing_speed_cv", "nope"):
         with pytest.raises(ValueError):
             ev.build_past_paper_examples(habit, [])
+
+
+def test_a_failed_range_count_leaves_the_preliminary_reading_without_it(monkeypatch, caplog):
+    from original.routers import students_scoring as ss
+
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
+
+    def broken(*_a, **_k):
+        raise ValueError("vectors of different lengths")
+
+    monkeypatch.setattr(ev, "range_counts", broken)
+    flat = [0.5] * FEATURE_DIM
+    result = SimpleNamespace(
+        baseline_confidence=SimpleNamespace(authenticated_count=5, effective_sample_count=3.2),
+        authorship=SimpleNamespace(deviation_score=0.66),
+        recommendation=SimpleNamespace(action="schedule_conversation"),
+        interference=SimpleNamespace(destructive_features=[]),
+        feature_vector={code: 0.5 for code in ALL_FEATURE_CODES},
+    )
+    state = SimpleNamespace(
+        samples=[SimpleNamespace(text=t, auth_weight=1.0, vector=flat) for t in PLAIN],
+        baseline_mean=flat,
+    )
+    response = SimpleNamespace(evidence=None, preliminary=None)
+    teacher = SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role="professor")))
+    with caplog.at_level(logging.ERROR):
+        ss._attach_staff_explainability(response, teacher, EDGE, state, result)
+    assert response.preliminary.score == 0.66
+    prelim = response.preliminary
+    assert prelim.habits_outside is None and prelim.habits_compared is None
+    assert "range counts failed; omitted" in caplog.text

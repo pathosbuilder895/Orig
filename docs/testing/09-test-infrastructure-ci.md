@@ -18,14 +18,15 @@ split, plus the fixture and marker changes the other documents assume.
 **Shipped 2026-09-08 (T-46).** Three shards by *path*, not by `pytest-xdist`
 hashing — path shards are reproducible and let a failure be re-run locally
 with the same command. Membership is defined ONCE, in
-`scripts/shard_paths.py`'s `SHARDS` dict; the three workflow jobs and the
+`scripts/shard_paths.py`'s `SHARDS` dict; the shard workflow jobs and the
 Makefile targets both ask that script for a shard's pytest arguments.
 
 | Shard | Job | Selection | Collected | Postgres |
 |---|---|---|---|---|
 | `core` | `pytest-core` | `tests/quantum tests/context tests/fusion tests/validation validation/test_tier10_optional.py`, minus `--ignore` for any file below routed out by the postgres-marker rule | see script¹ | no |
 | `api` | `pytest-api` | `tests/` root files matching `test_*api*.py`, `test_*router*.py`, `test_bluebook*.py`, `test_pilot*.py`, `test_cutover*.py`, `test_repository_contract*.py`, `test_shadow*.py`, `test_migration*.py`, `test_persistence*.py`, `test_alembic*.py` (no matches yet), plus `tests/security tests/config tests/perf`, **plus every `tests/` file anywhere that uses `@pytest.mark.postgres`** regardless of which directory it lives in (`scripts/shard_paths.py:postgres_marked_files()`, grepped at run time — not a maintained list) | see script¹ | **yes** |
-| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other two shards own (including `api`'s postgres-routed files) | see script¹ | no |
+| `rest2` | `pytest-rest2` | `tests/alpha tests/adversarial` (split out of `rest` on 2026-11-20, when `rest` took 19-21 min), minus `--ignore` for any postgres-routed file | see script¹ | no |
+| `rest` | `pytest-rest` | `tests/` **minus** `--ignore` for every path the other shards own (including `api`'s postgres-routed files) | see script¹ | no |
 
 ¹ Collected counts (`-m "not blocker and not certification"`) grow with the
 suite and are not pinned in this table — run
@@ -84,9 +85,9 @@ Only the `api` shard gets the Postgres service (it owns
 `tests/test_repository_contract.py`, which parametrizes over a `postgres`
 backend). The other two drop it and start faster.
 
-Local equivalents: `make test-shard-core|test-shard-api|test-shard-rest`, and
-`make test-fast` = the `rest` shard minus `slow` (§8). Both the Makefile and
-the three workflow steps call `python scripts/shard_paths.py --run <shard>
+Local equivalents: `make test-shard-core|test-shard-api|test-shard-rest|test-shard-rest2`, and
+`make test-fast` = the `rest` and `rest2` shards minus `slow` (§8). Both the Makefile and
+the shard workflow steps call `python scripts/shard_paths.py --run <shard>
 <extra pytest args>`, which builds the argv list and `os.execv`s it directly
 — no shell, no quoting round-trip, no `eval`. Running the script with just a
 shard name (no `--run`) instead prints the shell-quoted argument list for a
@@ -218,8 +219,9 @@ way:
 
 ```
 lint ─┬─ pytest-core ────┐
-      ├─ pytest-api ─────┼─ coverage-combine (≥98)
-      ├─ pytest-rest ────┘
+      ├─ pytest-api ─────┤
+      ├─ pytest-rest ────┼─ coverage-combine (≥98)
+      ├─ pytest-rest2 ───┘
       ├─ certification (fast; fails on `fail`, reports `uninformative`)
       ├─ boot-matrix
       ├─ bundle-e2e (bluebook + demo/app if live)

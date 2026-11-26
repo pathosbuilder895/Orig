@@ -6,15 +6,22 @@
    .live-empty     an honest empty state inside a card (Live.empty)
    .live-panel     the sign-in and "Original is off" panels (Live.gate)
 
-   The colour variables come from each page's own :root and fall back to
-   the navy suite palette. */
+   The colour variables come from ../assets/tokens.css (and a page's own
+   :root on top) and fall back to the navy suite palette. */
+
+/* Text size comes from ../assets/type.css alone: an 18px base (112.5% of the
+   browser's 16px, so a reader's own browser text size still counts) times the
+   reader's Text setting (display-prefs.js), the same base as Collections.
+   Owner decision 2026-11-20: both apps read at 18px. A page that crowds at
+   18px is fixed by its layout (columns that shrink, headings and strips that
+   wrap), not by a smaller root. */
 
 .live-testing {
   display: block; margin-top: .8rem; max-width: 62ch;
   padding: .6rem .85rem;
-  border: 1px solid rgba(201,160,40,0.38); border-radius: 10px;
+  border: 1px solid rgba(201,160,40,0.3); border-radius: 10px;
   background: rgba(201,160,40,0.08);
-  font: italic .86rem/1.45 'EB Garamond', Georgia, serif;
+  font: italic .86rem/1.45 var(--body, 'Source Serif 4', Georgia, serif);
   color: rgba(245,239,224,0.84);
   pointer-events: auto;
 }
@@ -22,7 +29,7 @@
    the notice must read the same everywhere. */
 .live-testing.live-testing b {
   display: inline; margin: 0;
-  font-family: 'EB Garamond', Georgia, serif; font-size: 1em; font-style: normal; font-weight: 600;
+  font-family: var(--body, 'Source Serif 4', Georgia, serif); font-size: 1em; font-style: normal; font-weight: 600;
   color: #e0be55;
 }
 
@@ -47,18 +54,33 @@
   mask-image: linear-gradient(to right, transparent, #000 2.4rem, #000 calc(100% - 2.4rem), transparent);
 }
 
+/* Scrollbars: every scrolling pane shows one, thin and quiet, in the suite's
+   gold on a clear track. The standard properties are what current Chrome,
+   Edge and Firefox use (scrollbar-color is inherited; scrollbar-width is not,
+   hence *); the ::-webkit-scrollbar rules are for Safari, which has no
+   scrollbar-color. */
+html { scrollbar-color: rgba(201,160,40,0.3) transparent; }
+* { scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(201,160,40,0.3) padding-box;
+  border: 2px solid transparent; border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(201,160,40,0.55); }
+
 .live-empty {
   margin: auto 0;
-  font: italic .88rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  font: italic .88rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 
 .live-panel {
   grid-column: 1 / -1;
   align-self: center; justify-self: center;
-  width: min(520px, calc(100% - 3rem));
+  width: min(520px, 100%);
   margin: 2rem 0;
-  padding: 2rem 2rem 1.9rem;
+  padding: 2rem min(2rem, 6vw) 1.9rem;
   text-align: center;
   background: rgba(255,255,255,0.035);
   border: 1px solid var(--line-soft, rgba(255,255,255,0.07));
@@ -70,15 +92,114 @@
 }
 .live-panel p {
   margin-top: .7rem;
-  font: italic 1rem/1.5 var(--body, 'EB Garamond', Georgia, serif);
-  color: var(--dim, rgba(245,239,224,0.55));
+  font: italic 1rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
 }
 .live-panel a {
-  display: inline-block; margin-top: 1.2rem;
+  display: inline-block; max-width: 100%; margin-top: 1.2rem;
   padding: .5rem 1.15rem;
   border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 999px;
-  font: 1rem var(--body, 'EB Garamond', Georgia, serif);
+  font: 1rem var(--body, 'Source Serif 4', Georgia, serif);
   color: var(--gold-2, #e0be55); text-decoration: none;
   transition: all .15s;
 }
 .live-panel a:hover { border-color: rgba(201,160,40,0.5); background: rgba(201,160,40,0.08); }
+
+/* Tap targets on a phone or a touch screen: every control is at least 44px
+   tall, and an icon-only one (the account button) 44px wide as well (WCAG
+   2.5.5). Desktop sizes with a mouse are unchanged.
+
+   This file loads before each page's own <style>, so the floor is set with
+   min-height and min-width, which hold against a page's height and width
+   whatever the order. The min-height floor has no specificity (:where), so
+   a page that sets its own, larger min-height (a writing box) keeps it. A
+   link inside a sentence is display:inline, where min-height does nothing,
+   so paragraphs keep their line spacing. A link stretched over its row with
+   an ::after (.tap-row) is tapped on the whole row and keeps its own size.
+
+   A control whose label would sit at the top of the taller box is centred
+   with .tap-mid (inline-flex) or .tap-line (one line of text, line-height,
+   keeps an ellipsis working). */
+@media (max-width: 760px), (pointer: coarse) {
+  :where(a, button, [role=button], summary, select,
+    input:not([type=checkbox], [type=radio], [type=range], [type=hidden])):not(.tap-row) {
+    min-height: 44px;
+  }
+  html :is(.avatar, .icirc, .evi-close) { min-width: 44px; }
+  html :is(a, button, [role=button]):is(.pill, .chip, .stats-btn, .fpq-btn, .evi-tab, .evi-close,
+    .tri-btn, .ctab, .fam, .side-link, .back, .r-ws, .tap-mid):not([hidden]) {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  html .me-menu a:not([hidden]) { display: flex; align-items: center; }
+  html .tap-line { line-height: 44px; }
+}
+
+/* ── Essentials first (W3, ADR-015) ────────────────────────────────────────
+   Writing State, Overview, Students and Submissions open on what matters now
+   and fold everything else under "Look closer": one closed <details
+   class="deep"> per section, opened with one click on its heading.
+
+   .attn        the "needs your attention" card (Live.attention fills it)
+   .deep-head   the "Look closer" heading over the folds
+   details.deep one fold; .deep-body its content */
+.attn {
+  padding: 1.3rem 1.4rem 1.25rem;
+  background: rgba(12,20,46,0.86);
+  border: 1px solid var(--line, rgba(201,160,40,0.16)); border-radius: 18px;
+}
+.attn-eyebrow {
+  font-family: var(--mono, 'IBM Plex Mono', monospace); font-size: .64rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--gold, #c9a028); margin-bottom: .45rem;
+}
+.attn-h {
+  font: 500 1.5rem/1.2 var(--display, 'Playfair Display', Georgia, serif);
+  color: var(--cream, #f5efe0);
+}
+.attn-lede {
+  margin-top: .45rem; max-width: 62ch;
+  font: italic .92rem/1.5 var(--body, 'Source Serif 4', Georgia, serif);
+  color: var(--dim, rgba(245,239,224,0.68));
+}
+.attn-items { list-style: none; margin-top: 1rem; display: flex; flex-direction: column; gap: .9rem; }
+.attn-item { border-top: 1px solid var(--line-soft, rgba(255,255,255,0.07)); padding-top: .9rem; }
+.attn-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .45rem .9rem; }
+.attn-txt { flex: 1 1 14rem; min-width: 0; }
+.attn-txt b { display: block; font-weight: 600; font-size: 1rem; color: var(--cream, #f5efe0); overflow-wrap: anywhere; }
+.attn-txt span { display: block; margin-top: .12rem; font-size: .88rem; line-height: 1.45; color: var(--dim, rgba(245,239,224,0.68)); }
+.attn-names { list-style: none; margin-top: .6rem; display: flex; flex-direction: column; gap: .5rem; }
+.attn-names .attn-row { padding: .55rem .75rem; border-radius: 12px; background: rgba(255,255,255,0.03); }
+.attn-names .attn-txt b { font-weight: 500; }
+.attn-go { flex-shrink: 0; font-size: .86rem; padding: .45rem 1rem; }
+.attn-more { margin-top: .55rem; }
+.attn-more .attn-go { font-size: .82rem; }
+@media (max-width: 600px) {
+  .attn { padding: 1.1rem 1rem 1rem; }
+  .attn-names .attn-row { padding: .55rem .6rem; }
+}
+
+.deep-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .55rem; margin: .4rem 0 -.6rem; }
+.deep-head b { font: 500 1.1rem var(--display, 'Playfair Display', Georgia, serif); color: var(--cream, #f5efe0); }
+.deep-head span { color: var(--dim-2, rgba(245,239,224,0.56)); font-size: .84rem; font-style: italic; }
+details.deep { border: 1px solid var(--line-soft, rgba(255,255,255,0.07)); border-radius: 16px; background: rgba(255,255,255,0.025); }
+/* The heading and its note stack in the first column; the + sits level with them on the right
+   and never wraps onto a line of its own, however narrow the fold. */
+details.deep > summary {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: .8rem; row-gap: .1rem; padding: .85rem 1.2rem;
+}
+details.deep > summary > * { grid-column: 1; }
+details.deep > summary::-webkit-details-marker { display: none; }
+details.deep > summary b { font: 500 1.08rem var(--display, 'Playfair Display', Georgia, serif); color: var(--cream, #f5efe0); }
+details.deep > summary span { color: var(--dim, rgba(245,239,224,0.68)); font-size: .84rem; }
+details.deep > summary::after { content: '+'; grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--gold, #c9a028); font-family: var(--mono, monospace); font-size: 1rem; }
+details.deep[open] > summary::after { content: '-'; }
+details.deep > summary:hover { background: rgba(255,255,255,0.03); border-radius: 16px; }
+details.deep > summary:focus-visible { outline: 2px solid var(--gold-2, #e0be55); outline-offset: -2px; border-radius: 16px; }
+.deep-body { padding: .2rem 1.2rem 1.2rem; }
+/* Phones: a 1rem gutter inside the fold. */
+@media (max-width: 600px) {
+  details.deep > summary { padding: .85rem 1rem; }
+  .deep-body { padding: .2rem 1rem 1rem; }
+}
+/* A fold over a photograph (Students, Submissions) reads on a dark wash of its own. */
+details.deep.on-photo { background: rgba(10,16,38,0.82); }

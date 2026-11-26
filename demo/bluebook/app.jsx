@@ -41,7 +41,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
 // Screens whose own bar or sidebar already carries the Text button.
 const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
-  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
+  'proctor', 'manage-exam', 'roster', 'account', 'new-exam', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
@@ -201,7 +201,7 @@ function App() {
   switch (screen) {
     case 'login':
       content = <>
-        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your exam. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your collection. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
         <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
       </>;
       break;
@@ -368,9 +368,9 @@ function App() {
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
-            { label: '⑤ Exam Briefing',         value: 'briefing'  },
+            { label: '⑤ Briefing',              value: 'briefing'  },
             { label: '⑥ New Collection',         value: 'new-exam'  },
-            { label: '⑦ Active Examination',    value: 'exam'      },
+            { label: '⑦ Writing',                value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}
           onChange={(v) => navigate(v)}

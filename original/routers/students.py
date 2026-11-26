@@ -10,13 +10,13 @@ students_scoring.py — same route group, split only for file size.
 
 from __future__ import annotations
 
-import io
 import secrets
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from .. import principal as principal_mod
 from .. import student_auth
+from ..features.matter import without_page_breaks
 from ..repository import get_repository
 from ..schemas import (
     BaselineWordStats,
@@ -25,6 +25,7 @@ from ..schemas import (
     StudentStateResponse,
     WriterCreateRequest,
 )
+from ..upload_utils import ExtractorUnavailableError, extract_text_from_bytes
 from ._shared import (
     _bluebook_tenant,
     _repo,
@@ -374,7 +375,7 @@ def get_sample_text(student_id: str, index: int):
         "submitted_at": s.submitted_at,
         "auth_weight": s.auth_weight,
         "word_count": len((s.text or "").split()),
-        "char_count": len(s.text or ""),
+        "char_count": len(without_page_breaks(s.text or "")),  # page markers do not count
         "text": s.text or "",
     }
 
@@ -527,39 +528,34 @@ def upload_file(student_id: str, file: UploadFile = File(...)):
     change — same fix already applied to the sibling upload routes,
     ``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is
     UploadFile's underlying sync SpooledTemporaryFile, same as those two.
+
+    The text goes into a box the teacher sees and edits. A PDF's comes back
+    without its page markers and tag (``matter.without_page_breaks``):
+    exactly the text this route returned before markers were kept, so the
+    tag does not show in the box or count as a word there. A PDF analysed
+    from the box is therefore measured like a paste, with no page-based
+    rules; the stored-paper upload routes keep the markers. A .docx keeps
+    its page markers (one alone on its line, which the box's word count
+    skips): the parts list reads a title page from the break after it.
     """
     filename = file.filename or "unknown"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
     raw = file.file.read()
 
-    if ext == "txt":
-        text = raw.decode("utf-8", errors="replace")
-    elif ext == "docx":
-        try:
-            from docx import Document
-
-            doc = Document(io.BytesIO(raw))
-            text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="python-docx not installed") from exc
-        except Exception as exc:  # corrupt file: the caller's input
-            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
-    elif ext == "pdf":
-        try:
-            from pypdf import PdfReader
-
-            reader = PdfReader(io.BytesIO(raw))
-            text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="pypdf not installed") from exc
-        except Exception as exc:  # corrupt file: the caller's input
-            raise HTTPException(status_code=422, detail="This file could not be read.") from exc
-    else:
+    if ext not in ("txt", "docx", "pdf"):
         raise HTTPException(
             status_code=422,
             detail=f"Unsupported file type '.{ext}'. Use .txt, .docx, or .pdf.",
         )
+    try:
+        text = extract_text_from_bytes(raw, f"upload.{ext}")
+    except ExtractorUnavailableError as exc:
+        raise HTTPException(status_code=500, detail=f"{exc.package} not installed") from exc
+    except ValueError as exc:  # corrupt file: the caller's input
+        raise HTTPException(status_code=422, detail="This file could not be read.") from exc
 
+    if ext == "pdf":
+        text = without_page_breaks(text)
     word_count = len(text.split())
     return {"text": text, "filename": filename, "word_count": word_count}

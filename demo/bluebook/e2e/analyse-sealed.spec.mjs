@@ -103,6 +103,8 @@ test('a sealed exam opens in Writing State prefilled, from Submissions and from 
 
   // ...and the Submissions row's link still opens the sealed exam, not that analysis.
   await page.goto('/original/submissions.html')
+  // The page opens on what is waiting; every booklet's row is under Look closer.
+  await page.locator('#deep-queue > summary').click()
   const row = page.locator('.q-item').filter({ hasText: examTitle })
   const analyseLink = row.getByRole('link', { name: 'Analyse against baseline' })
   await expect(analyseLink).toBeVisible({ timeout: 30_000 })
@@ -159,6 +161,8 @@ test('a student who has no baseline gets "Add writing first" on Submissions', as
   const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff) })
   const page = await context.newPage()
   await page.goto('/original/submissions.html')
+  // The page opens on what is waiting; every booklet's row is under Look closer.
+  await page.locator('#deep-queue > summary').click()
   const row = page.locator('.q-item').filter({ hasText: examTitle })
   const add = row.getByRole('link', { name: 'Add writing first' })
   await expect(add).toBeVisible({ timeout: 30_000 })

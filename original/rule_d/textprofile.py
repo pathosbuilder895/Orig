@@ -23,6 +23,8 @@ from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
+from ..features.matter import without_page_breaks
+
 ARTIFACT = Path(__file__).resolve().parent.parent / "data" / "rule_d_vectorizer_v1.json.gz"
 
 FUNCTION_WORDS = tuple(
@@ -65,6 +67,9 @@ class Vectorizer:
         self.terms = spec["vocabulary"]
 
     def prepare(self, text: str) -> str:
+        # An upload's page markers are dropped first, so a profile is exactly
+        # the one of the same paper extracted before markers were kept.
+        text = without_page_breaks(text)
         if self.masked:
             return mask_topic(text)
         return text.lower() if self.lowercase else text

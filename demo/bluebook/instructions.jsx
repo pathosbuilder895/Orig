@@ -11,7 +11,7 @@ import './instructions.css';
 export const TEACHER_STEPS = [
   ['Make a course', 'Go to Courses and create one for each class you teach.'],
   ['Add your students', 'Open the course and add their email addresses, or turn on its sign-up link and share it. Each student then sets a password.'],
-  ['Set a collection', 'Go to Collections and choose + New collection. Write the question, choose the course, then Publish Collection. Students find it under My exams.'],
+  ['Set a collection', 'Go to Collections and choose + New collection. Write the question, choose the course, then Publish Collection. Students find it under My collections.'],
   ['Watch it live', 'Optional. Proctor shows who has started, the minutes left and who has submitted.'],
   ['Read, mark and release', 'Open the collection to read each sealed booklet and add a mark and feedback. Choose Release results when students may see them. Export CSV keeps a copy.'],
 ];
@@ -25,11 +25,11 @@ export const TEACHER_NOTES = [
 export const TEACHER_ORIGINAL_NOTE = 'Original is in its testing phase and is not validated on real student writing. Only booklets you approve become reference writing, and you can undo that.';
 
 export const STUDENT_STEPS = [
-  ['Find your exam', 'It appears under My exams once your teacher opens it.'],
-  ['Begin', 'Read the briefing, then choose Begin Examination. The clock starts then and keeps running, even if you close the page.'],
-  ['Write', 'Your work saves itself on this device as you write. If the page closes, open the exam again on the same device and choose Resume Examination.'],
+  ['Find your collection', 'It appears under My collections once your teacher opens it.'],
+  ['Begin', 'Read the briefing, then choose Begin writing. The clock starts then and keeps running, even if you close the page.'],
+  ['Write', 'Your work saves itself as you write. If the page closes, open the collection again from My collections and choose Resume writing.'],
   ['Seal & Submit', 'Choose Seal & Submit when you are done. A sealed booklet cannot be changed.'],
-  ['See your results', 'Your mark and feedback appear under My exams once your teacher releases them.'],
+  ['See your results', 'Your mark and feedback appear under My collections once your teacher releases them.'],
 ];
 
 export const STUDENT_NOTES = [
@@ -65,7 +65,7 @@ export function instructionsFor(who, hasOriginal, alpha = SHOW_ALPHA_GUIDE) {
   }
   if (who === 'student') {
     return {
-      title: 'Taking an exam',
+      title: 'Writing a collection',
       steps: STUDENT_STEPS,
       notes: hasOriginal ? [...STUDENT_NOTES, REFERENCE_WRITING_LINE] : STUDENT_NOTES,
     };
@@ -77,35 +77,45 @@ export function instructionsFor(who, hasOriginal, alpha = SHOW_ALPHA_GUIDE) {
   };
 }
 
-// The nav button and the guide it opens. A native modal <dialog>: Escape
-// closes it, focus stays inside while it is open, and a click on the dimmed
-// backdrop (the dialog element itself, outside .bb-howto-card) closes it too.
-export function InstructionsButton({ who = 'teacher', className }) {
-  const dialog = useRef(null);
+// The guide itself: a native modal <dialog>. Escape closes it, focus stays
+// inside while it is open, and a click on the dimmed backdrop (the dialog
+// element itself, outside .bb-howto-card) closes it too. `dialog` is the ref
+// the opener calls showModal() on. `returnFocusTo` (a ref) names where focus
+// goes when it closes, for an opener that is not on screen once it has been
+// used (the account menu's Instructions item).
+export function InstructionsGuide({ who = 'teacher', dialog, returnFocusTo }) {
   const titleId = useId();
   const guide = instructionsFor(who, BB_API.hasOriginal());
-  const open = () => {
-    const d = dialog.current;
-    if (d && !d.open) d.showModal();
-  };
   const close = () => { if (dialog.current) dialog.current.close(); };
-  return <>
-    <button type="button" className={className} aria-haspopup="dialog" onClick={open}>Instructions</button>
-    <dialog ref={dialog} className="bb-howto" aria-labelledby={titleId} onClick={e => { if (e.target === e.currentTarget) close(); }}>
-      <div className="bb-howto-card">
-        <div className="bb-howto-head">
-          <h2 id={titleId}>{guide.title}</h2>
-          <button type="button" className="bb-howto-close" onClick={close}>Close</button>
-        </div>
-        <ol className="bb-howto-steps">
-          {guide.steps.map(([step, text]) => <li key={step}><strong>{step}.</strong> {text}</li>)}
-        </ol>
-        <h3>Good to know</h3>
-        <ul className="bb-howto-notes">
-          {guide.notes.map(note => <li key={note}>{note}</li>)}
-        </ul>
-        <p className="bb-howto-foot">Reopen these any time from Instructions at the top of the page.</p>
+  const closed = () => { if (returnFocusTo && returnFocusTo.current) returnFocusTo.current.focus(); };
+  return <dialog ref={dialog} className="bb-howto" aria-labelledby={titleId} onClose={closed} onClick={e => { if (e.target === e.currentTarget) close(); }}>
+    <div className="bb-howto-card">
+      <div className="bb-howto-head">
+        <h2 id={titleId}>{guide.title}</h2>
+        <button type="button" className="bb-howto-close" onClick={close}>Close</button>
       </div>
-    </dialog>
+      <ol className="bb-howto-steps">
+        {guide.steps.map(([step, text]) => <li key={step}><strong>{step}.</strong> {text}</li>)}
+      </ol>
+      <h3>Good to know</h3>
+      <ul className="bb-howto-notes">
+        {guide.notes.map(note => <li key={note}>{note}</li>)}
+      </ul>
+      <p className="bb-howto-foot">Reopen these any time from Instructions at the top of the page.</p>
+    </div>
+  </dialog>;
+}
+
+export function openGuide(dialog) {
+  const d = dialog.current;
+  if (d && !d.open) d.showModal();
+}
+
+// The nav button and the guide it opens.
+export function InstructionsButton({ who = 'teacher', className }) {
+  const dialog = useRef(null);
+  return <>
+    <button type="button" className={className} aria-haspopup="dialog" onClick={() => openGuide(dialog)}>Instructions</button>
+    <InstructionsGuide who={who} dialog={dialog} />
   </>;
 }
