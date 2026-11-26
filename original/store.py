@@ -882,7 +882,34 @@ def _extra_vectors_doc(sample) -> dict:
     extra = getattr(sample, "extra_vectors", None)
     if not extra:
         return {}
-    return {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    doc: dict = {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    rules = getattr(sample, "extra_vector_rules", None)
+    if rules:  # rules-version stamp per measurement (features/rules_stamp.py)
+        doc["extra_vector_rules"] = {
+            k: v if isinstance(v, str) else int(v) for k, v in sorted(rules.items())
+        }
+    return doc
+
+
+def _extra_vector_rules_from_doc(s: dict) -> dict | None:
+    """Stored rules-version stamps (features/rules_stamp.py), or None
+    (unstamped: see UNSTAMPED_RULES_VERSION in features/matter.py and
+    features/paragraphs.py). A value that is not a stamp is dropped."""
+    from .features import rules_stamp
+
+    raw = s.get("extra_vector_rules")
+    if not raw or not isinstance(raw, dict):
+        return None
+    out = {k: v for k, v in raw.items() if rules_stamp.parse(v) is not None}
+    return out or None
+
+
+def _part_overrides_doc(sample) -> dict:
+    """``{"part_overrides": {...}}`` for a sample with a teacher's choice of
+    parts (features/part_overrides.py), else {}: a sample with none stores
+    exactly as before."""
+    choice = getattr(sample, "part_overrides", None)
+    return {"part_overrides": choice} if choice else {}
 
 
 def _extra_vectors_from_doc(s: dict, student_id: str) -> dict | None:
@@ -945,6 +972,8 @@ def _serialize(state: StudentState) -> str:
             # Versioned measurements (additive): written only when present,
             # so a document with none is byte-identical to before.
             **_extra_vectors_doc(s),
+            # A teacher's choice of parts (additive, same rule).
+            **_part_overrides_doc(s),
         }
         for s in state.samples
     ]
@@ -1020,6 +1049,8 @@ def _deserialize(data: str) -> StudentState:
                 # field existed.
                 composition_summary=s.get("composition_summary"),
                 extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
+                extra_vector_rules=_extra_vector_rules_from_doc(s),
+                part_overrides=s.get("part_overrides") or None,
             )
         )
     return state
@@ -3391,14 +3422,19 @@ def latest_invite_for_user(user_id: str) -> dict | None:
     return _invite_to_dict(row) if row else None
 
 
-def void_invites_for_user(user_id: str) -> int:
-    """Void every unredeemed, unvoided invite for this user."""
+def void_invites_for_user(user_id: str, course_id: str | None = None) -> int:
+    """Void every unredeemed, unvoided invite for this user, or only the ones
+    issued for ``course_id`` when one is given."""
+    sql = (
+        "UPDATE bluebook_invites SET voided_at = ? "
+        "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL"
+    )
+    params: list = [datetime.now(UTC).isoformat(), user_id]
+    if course_id is not None:
+        sql += " AND course_id = ?"
+        params.append(course_id)
     with _get_conn() as conn:
-        cur = conn.execute(
-            "UPDATE bluebook_invites SET voided_at = ? "
-            "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL",
-            (datetime.now(UTC).isoformat(), user_id),
-        )
+        cur = conn.execute(sql, params)
         conn.commit()
     return cur.rowcount
 

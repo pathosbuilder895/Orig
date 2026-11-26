@@ -75,8 +75,10 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vector_rules_from_doc,
     _extra_vectors_doc,
     _extra_vectors_from_doc,
+    _part_overrides_doc,
     _refuse_measurement_view,
     genre_stats_from_groups,
     park_iso_utc,
@@ -198,6 +200,8 @@ class PostgresRepository:
                     "composition_summary": s.composition_summary,
                     # Versioned measurements — mirrors store.py's _serialize.
                     **_extra_vectors_doc(s),
+                    # A teacher's choice of parts: mirrors store.py's _serialize.
+                    **_part_overrides_doc(s),
                 }
                 for s in state.samples
             ],
@@ -256,6 +260,8 @@ class PostgresRepository:
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
                     extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
+                    extra_vector_rules=_extra_vector_rules_from_doc(s),
+                    part_overrides=s.get("part_overrides") or None,
                 )
             )
         return state
@@ -2444,17 +2450,16 @@ class PostgresRepository:
             )
             return self._invite_to_dict(row) if row else None
 
-    def void_invites_for_user(self, user_id):
+    def void_invites_for_user(self, user_id, course_id=None):
+        stmt = update(BluebookInvite).where(
+            BluebookInvite.user_id == user_id,
+            BluebookInvite.redeemed_at.is_(None),
+            BluebookInvite.voided_at.is_(None),
+        )
+        if course_id is not None:
+            stmt = stmt.where(BluebookInvite.course_id == course_id)
         with session_scope() as session:
-            result = session.execute(
-                update(BluebookInvite)
-                .where(
-                    BluebookInvite.user_id == user_id,
-                    BluebookInvite.redeemed_at.is_(None),
-                    BluebookInvite.voided_at.is_(None),
-                )
-                .values(voided_at=datetime.now(UTC))
-            )
+            result = session.execute(stmt.values(voided_at=datetime.now(UTC)))
             return int(result.rowcount)
 
     def redeem_invite(self, invite_id):

@@ -176,7 +176,7 @@ def test_a_sample_held_by_the_drift_gate_is_reported_not_added(live_client, monk
     assert r.status_code == 200
     assert r.json()["status"] == "held"
     assert r.json()["detail"] == (
-        "Not added: this exam differs strongly from the student's existing samples. "
+        "Not added: this booklet differs strongly from the student's existing samples. "
         "Approval does not override this check."
     )
     assert _sample_count(stu) == 0
@@ -533,11 +533,11 @@ def test_an_exam_too_long_for_a_baseline_sample_is_refused_not_a_500(live_client
     bulk = live_client.post(f"/bluebook/exams/{exam['id']}/baseline", headers=h)
 
     assert single.status_code == 422
-    assert single.json()["detail"] == "This exam is too long to add as a baseline sample."
+    assert single.json()["detail"] == "This booklet is too long to add as a baseline sample."
     assert bulk.status_code == 200, bulk.text
     assert (bulk.json()["added"], bulk.json()["errors"]) == (0, 1)
     assert bulk.json()["results"][0]["status"] == "error"
-    assert bulk.json()["results"][0]["detail"] == "This exam is too long to add as a baseline sample."
+    assert bulk.json()["results"][0]["detail"] == "This booklet is too long to add as a baseline sample."
     assert _sample_count(stu) == 0
 
 

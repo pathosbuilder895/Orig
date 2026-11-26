@@ -1,6 +1,6 @@
 """Measurement-version switches for the writing-habit features.
 
-Two switches, both OFF by default. With both off every measurement, vector and
+Three switches, all OFF by default. With all off every measurement, vector and
 score is byte-for-byte what it was before they existed
 (``tests/config/test_flag_byte_identity.py``).
 
@@ -12,10 +12,22 @@ score is byte-for-byte what it was before they existed
     "then", "first", "that is"). Any other value means ``1``.
 
 ``MATTER_SPLITTER_ENABLED`` (default off)
-    On: ``features/matter.py`` sets aside the heading block, section headings,
-    running heads and page numbers, footnote text and a verified list of
-    sources before anything is measured, in place of the older back-matter
-    rule. Cover letters and notes without years are not detected.
+    On: ``features/matter.py`` sets aside the title page, the heading block,
+    an abstract, section headings, running heads and page numbers, verified
+    notes and footnotes and a verified list of sources (up to an appendix)
+    before anything is measured, in place of the older back-matter rule; a
+    PDF upload's measured body is also reflowed into paragraphs
+    (``features/pdf_reflow.py``; stored text never changes). Cover letters and
+    notes without years outside a verified notes block are not detected.
+
+``PARAGRAPH_BREAKS_ENABLED`` (default off)
+    On: a measured body with no blank line at all whose lines are paragraph
+    length (``features/paragraphs.py``: most of its words on lines of at least
+    25 words that end a sentence, as a Word paste gives) has each single line
+    break read as a paragraph break, so it is measured exactly as the same
+    text pasted with blank lines between paragraphs. Any other text is
+    measured unchanged. Combines with the others: ``para``, ``matter+para``,
+    ``fs2+para``, ``fs2+matter+para``.
 
 ``UPLOAD_ALSO_MEASURE`` (default empty)
     A measurement id (e.g. ``fs2+matter``): each newly added past paper also
@@ -25,7 +37,7 @@ Past papers' ``vector`` is always the default ``v1`` measurement; other
 measurements are stored beside it and filled in by
 ``scripts/backfill_measurements.py``. A score uses the requested measurement
 only when every past paper has it, otherwise the default, and says which it
-used (``original/measurement.py``, ADR-014). Do not switch either on for live
+used (``original/measurement.py``, ADR-014). Do not switch any on for live
 scoring before the backfill and a recalibration.
 """
 
@@ -38,25 +50,34 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TypeVar
 
+from . import part_overrides as _part_overrides
+
 T = TypeVar("T")
 
 _ON_VALUES = frozenset({"1", "on", "true", "yes"})
 
 
-#: Named measurements: (feature set, splitter on). "v1" is the default and
-#: the measurement every stored ``BaselineSample.vector`` was made with.
-MEASUREMENTS: dict[str, tuple[int, bool]] = {
-    "v1": (1, False),
-    "fs2": (2, False),
-    "matter": (1, True),
-    "fs2+matter": (2, True),
+#: Named measurements: (feature set, splitter on, paragraph breaks on). "v1"
+#: is the default and the measurement every stored ``BaselineSample.vector``
+#: was made with.
+MEASUREMENTS: dict[str, tuple[int, bool, bool]] = {
+    "v1": (1, False, False),
+    "fs2": (2, False, False),
+    "matter": (1, True, False),
+    "fs2+matter": (2, True, False),
+    "para": (1, False, True),
+    "fs2+para": (2, False, True),
+    "matter+para": (1, True, True),
+    "fs2+matter+para": (2, True, True),
 }
 _ID_OF = {key: mid for mid, key in MEASUREMENTS.items()}
 
 #: Set by ``measuring()``: the measurement in force for this context,
 #: overriding the environment. A ContextVar, so one request's choice never
 #: leaks into another thread's.
-_OVERRIDE: ContextVar[tuple[int, bool] | None] = ContextVar("measurement_override", default=None)
+_OVERRIDE: ContextVar[tuple[int, bool, bool] | None] = ContextVar(
+    "measurement_override", default=None
+)
 
 
 def _env_feature_set() -> int:
@@ -65,6 +86,10 @@ def _env_feature_set() -> int:
 
 def _env_matter() -> bool:
     return os.environ.get("MATTER_SPLITTER_ENABLED", "0").strip().lower() in _ON_VALUES
+
+
+def _env_para() -> bool:
+    return os.environ.get("PARAGRAPH_BREAKS_ENABLED", "0").strip().lower() in _ON_VALUES
 
 
 def feature_set() -> int:
@@ -83,19 +108,31 @@ def matter_splitter_enabled() -> bool:
     return override[1] if override is not None else _env_matter()
 
 
-def cache_key() -> tuple[int, bool]:
-    """The switch state, for any cache keyed on a paper's text."""
-    return (feature_set(), matter_splitter_enabled())
+def paragraph_breaks_enabled() -> bool:
+    override = _OVERRIDE.get()
+    return override[2] if override is not None else _env_para()
+
+
+def _state() -> tuple[int, bool, bool]:
+    return (feature_set(), matter_splitter_enabled(), paragraph_breaks_enabled())
+
+
+def cache_key() -> tuple:
+    """The switch state, for any cache keyed on a paper's text. With the
+    paragraph switch off it is the two-part key it always was (so caches keyed
+    on it, ``validation/vector_cache.py`` among them, are unchanged)."""
+    fs, matter, para = _state()
+    return (fs, matter, True) if para else (fs, matter)
 
 
 def requested_measurement() -> str:
-    """The measurement the environment asks for ("v1" with both switches off)."""
-    return _ID_OF[(_env_feature_set(), _env_matter())]
+    """The measurement the environment asks for ("v1" with every switch off)."""
+    return _ID_OF[(_env_feature_set(), _env_matter(), _env_para())]
 
 
 def current_measurement() -> str:
     """The measurement in force right now (``measuring()`` or the environment)."""
-    return _ID_OF[cache_key()]
+    return _ID_OF[_state()]
 
 
 @contextmanager
@@ -125,18 +162,21 @@ def upload_also_measure() -> str | None:
 
 def text_cache(maxsize: int) -> Callable[[Callable[[str], T]], Callable[[str], T]]:
     """``functools.lru_cache`` for a function of one paper's text, keyed on the
-    text *and* the switch state, so a value computed under one setting is never
+    text *and* the switch state (and the teacher's choice of parts that text
+    carries, when it applies), so a value computed under one setting is never
     served under another. Keeps ``cache_clear``/``cache_info``/``__wrapped__``.
-    With both switches off it caches exactly as ``lru_cache(maxsize)`` did."""
+    With every switch off it caches exactly as ``lru_cache(maxsize)`` did."""
 
     def deco(fn: Callable[[str], T]) -> Callable[[str], T]:
         @functools.lru_cache(maxsize=maxsize)
-        def keyed(text: str, _key: tuple[int, bool]) -> T:
+        def keyed(text: str, _key: tuple, _choice: object) -> T:
             return fn(text)
 
         @functools.wraps(fn)
         def wrapper(text: str) -> T:
-            return keyed(text, cache_key())
+            # The teacher's choice this paper's text carries, when it applies
+            # (features.part_overrides), is part of the key; None otherwise.
+            return keyed(text, cache_key(), _part_overrides.for_text(text))
 
         wrapper.cache_clear = keyed.cache_clear  # type: ignore[attr-defined]
         wrapper.cache_info = keyed.cache_info  # type: ignore[attr-defined]

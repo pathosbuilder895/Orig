@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..features.matter import without_page_breaks
 from ..quantum.state import StudentState
 from .artifact import load_artifact
 from .channels import (
@@ -145,6 +146,7 @@ def predict_fused_score_with_reason(
     bug.
     """
     try:
+        text = without_page_breaks(text)  # a stored page break is not writing
         # Cheapest checks first: a short probe or a missing artifact must not
         # pay for eight peer profiles before abstaining.
         if len(text.split()) < MIN_WORDS:

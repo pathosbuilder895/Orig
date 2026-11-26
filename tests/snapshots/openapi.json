@@ -3529,6 +3529,51 @@
         "title": "ParkOpenRequest",
         "type": "object"
       },
+      "PartChoiceRequest": {
+        "description": "A teacher's choice of which parts of one past paper are measured\n(``PUT /students/{id}/samples/{index}/parts``). Checked against the\npaper's text the same way as the score request's fields.",
+        "properties": {
+          "exclude_ranges": {
+            "description": "Character ranges of the paper set aside whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Exclude Ranges",
+            "type": "array"
+          },
+          "include_ranges": {
+            "description": "Character ranges of the paper measured whatever the rules say.",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "title": "Include Ranges",
+            "type": "array"
+          }
+        },
+        "title": "PartChoiceRequest",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "description": "POST /auth/password.",
         "properties": {
@@ -4174,6 +4219,58 @@
             ],
             "description": "Macro-only composition timing (session_seconds, word_count, paste_attempts, focus_losses, started_at, ended_at, exam_config) — the ADR-010 replacement for keystroke_data's per-key telemetry. No per-key timing is collected; per the T-69/T-74 macro-only keystroke posture, only session-level metrics are captured. While the 'behavioral' feature group is disabled (the default), only those fields (and block_copy, min_words, duration_min inside exam_config) are kept; anything else is discarded on arrival.",
             "title": "Composition Summary"
+          },
+          "exclude_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only (a student session gets 403); 409 unless MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. Character ranges of `text`, as [start, end] pairs, sorted and non-overlapping, set aside by the splitter's measurement whatever its rules say: a teacher's 'Set this part aside'. Snapped to whole lines; each must hold a word; together at most 60% of the words the rules measure (422 otherwise). Never changes the default measurement. Absent, empty or null: the rules alone, as before.",
+            "title": "Exclude Ranges"
+          },
+          "include_ranges": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "prefixItems": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ],
+                  "type": "array"
+                },
+                "maxItems": 64,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Staff only, same switches as `exclude_ranges`. Parts the rules set aside (or listed as possible) that the splitter's measurement measures anyway: a teacher's 'Measure this part'. Each range must be exactly such a part (or touching parts merged), never overlapping `exclude_ranges` (422 otherwise).",
+            "title": "Include Ranges"
           },
           "keystroke_data": {
             "anyOf": [
@@ -6279,7 +6376,7 @@
     },
     "/auth/password": {
       "post": {
-        "description": "Change your own password (any signed-in account, staff or student).",
+        "description": "Change your own password (any signed-in account, staff or student).\n\nEvery session issued before the change stops working, this one included\n(T-79), so the reply carries a fresh sign-in for this browser.",
         "operationId": "auth_change_password_auth_password_post",
         "requestBody": {
           "content": {
@@ -9751,6 +9848,153 @@
         "summary": "Request Proctored Baseline"
       }
     },
+    "/students/{student_id}/samples/{index}/parts": {
+      "delete": {
+        "description": "Go back to the rules for one past paper (staff only), whatever the switches say.",
+        "operationId": "delete_sample_parts_students__student_id__samples__index__parts_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Sample Parts"
+      },
+      "get": {
+        "description": "The parts of one past paper and what happens to each (staff only).",
+        "operationId": "get_sample_parts_students__student_id__samples__index__parts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Sample Parts"
+      },
+      "put": {
+        "description": "Store the teacher's choice of parts for one past paper and measure its\nsplitter measurement again (staff only). Empty lists go back to the rules.",
+        "operationId": "put_sample_parts_students__student_id__samples__index__parts_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "student_id",
+            "required": true,
+            "schema": {
+              "title": "Student Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "title": "Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartChoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Sample Parts"
+      }
+    },
     "/students/{student_id}/samples/{index}/text": {
       "get": {
         "description": "Return the raw prose of a single baseline sample.\n\nReturns 404 if the student doesn't exist or the index is out of range.\nResponse shape mirrors the SampleSummary metadata so the caller can\nrender headers + body in a single round-trip without re-fetching the\nstudent state.",
@@ -9910,7 +10154,7 @@
     },
     "/students/{student_id}/upload": {
       "post": {
-        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.\n\nPlain ``def``, not ``async def`` (T-09): the .docx (python-docx) and\n.pdf (pypdf) branches do real CPU-bound parsing inline — python-docx\nbuilds a full DOM, pypdf's extract_text() walks the content stream page\nby page — and doing that inside an async handler blocks the whole\nevent loop for the duration, which stalls every other in-flight\nrequest, including a live exam's heartbeat polling. FastAPI dispatches\na plain ``def`` route to its threadpool automatically, so this one\nchange fixes all three branches (.txt included) with no other code\nchange — same fix already applied to the sibling upload routes,\n``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is\nUploadFile's underlying sync SpooledTemporaryFile, same as those two.",
+        "description": "Extract plain text from an uploaded .txt, .docx, or .pdf file.\n\nPlain ``def``, not ``async def`` (T-09): the .docx (python-docx) and\n.pdf (pypdf) branches do real CPU-bound parsing inline — python-docx\nbuilds a full DOM, pypdf's extract_text() walks the content stream page\nby page — and doing that inside an async handler blocks the whole\nevent loop for the duration, which stalls every other in-flight\nrequest, including a live exam's heartbeat polling. FastAPI dispatches\na plain ``def`` route to its threadpool automatically, so this one\nchange fixes all three branches (.txt included) with no other code\nchange — same fix already applied to the sibling upload routes,\n``import_turnitin_csv`` and ``upload_baseline_batch``. ``file.file`` is\nUploadFile's underlying sync SpooledTemporaryFile, same as those two.\n\nThe text goes into a box the teacher sees and edits. A PDF's comes back\nwithout its page markers and tag (``matter.without_page_breaks``):\nexactly the text this route returned before markers were kept, so the\ntag does not show in the box or count as a word there. A PDF analysed\nfrom the box is therefore measured like a paste, with no page-based\nrules; the stored-paper upload routes keep the markers. A .docx keeps\nits page markers (one alone on its line, which the box's word count\nskips): the parts list reads a title page from the break after it.",
         "operationId": "upload_file_students__student_id__upload_post",
         "parameters": [
           {
