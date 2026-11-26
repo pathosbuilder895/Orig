@@ -595,7 +595,7 @@ def test_each_approval_is_spent_once_and_the_oldest_copy_keeps_it(monkeypatch):
 # ── an approval counts only when it wrote the sample itself ──────────────────
 
 
-def _take_home(sid, ident, text):
+def _take_home(sid, ident, text, exam=None):
     repo = get_repository()
     tenant = principal.tenant_of(sid)
     repo.put_bluebook_exam(
@@ -615,6 +615,7 @@ def _take_home(sid, ident, text):
             "candidate": "S0",
             "answers": [text],
             "text": text,
+            **({"exam_title": exam} if exam else {}),
         }
     )
     return f"bbsub-{ident}"
@@ -719,4 +720,70 @@ def test_removing_one_take_home_undoes_another_with_the_same_text(live_client):
     assert _ok(live_client.post(f"/bluebook/submissions/{first}/baseline", headers=T))[
         "status"
     ] == ("already_in_baseline")
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+
+
+def _paper_id(client, T, title):
+    rows = _ok(client.get("/bluebook/past-papers", headers=T))["papers"]
+    return [p["paper_id"] for p in rows if p["title"] == title]
+
+
+@pytest.mark.slow
+def test_unapproving_a_shared_paper_that_took_a_take_homes_sample_undoes_the_take_home(
+    live_client,
+):
+    """Review D: unapprove picks samples by text, title and provenance, so a
+    shared paper titled like the take-home's exam takes the take-home's sample
+    out. The take-home approval is then undone too, and a student re-post of
+    the text cannot claim it."""
+    T, [(sid, S), _] = _workspace(live_client, "apc15@example.test")
+    _share_and_approve(live_client, T, S, range(3))
+    text = _paper(0, TOPICS[3])
+    sub = _take_home(sid, "apc15a", text, exam="Essay")  # its sample's assignment
+    assert (
+        _ok(live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=T))["status"]
+        == "added"
+    )
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    _ok(_share(live_client, S, text=text, title="Essay"), 201)
+    [pid] = _paper_id(live_client, T, "Essay")
+    assert (
+        _ok(live_client.post(f"/bluebook/past-papers/{pid}/approve", headers=T))["status"]
+        == "approved"
+    )
+    out = _ok(live_client.post(f"/bluebook/past-papers/{pid}/unapprove", headers=T))
+    assert out["removed"] == 1  # the take-home's sample
+    _post_own(live_client, sid, S, text)
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+
+
+@pytest.mark.slow
+def test_unapproving_one_shared_paper_that_took_anothers_sample_undoes_both(live_client):
+    """The same with two shared papers of one title and text: undoing the
+    second (whose approval wrote nothing) takes out the first's sample. The
+    share route refuses a second copy of a text, so the second row is written
+    directly, as a row from before that check would be."""
+    T, [(sid, S), _] = _workspace(live_client, "apc16@example.test")
+    _share_and_approve(live_client, T, S, range(3))
+    text = _paper(0, TOPICS[3])
+    _ok(_share(live_client, S, text=text, title="Twin"), 201)
+    [first] = _paper_id(live_client, T, "Twin")
+    _ok(live_client.post(f"/bluebook/past-papers/{first}/approve", headers=T))
+    second = "pp-twin-2"
+    get_repository().put_past_paper(
+        {
+            "paper_id": second,
+            "tenant_id": principal.tenant_of(sid),
+            "student_id": sid,
+            "title": "Twin",
+            "text": text,
+            "word_count": len(text.split()),
+            "status": "pending",
+        }
+    )
+    _ok(live_client.post(f"/bluebook/past-papers/{second}/approve", headers=T))
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    out = _ok(live_client.post(f"/bluebook/past-papers/{second}/unapprove", headers=T))
+    assert out["removed"] == 1  # the first paper's sample
+    _post_own(live_client, sid, S, text)
     assert _readiness(live_client, sid, T)["approved_count"] == 3

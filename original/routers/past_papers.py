@@ -355,6 +355,14 @@ def unapprove_shared_paper(paper_id: str, request: Request):
         )
     state = _repo().get(rec["student_id"])
     indices = _approval_indices(state, rec) if state is not None else []
+    # Every text this undo takes out. _approval_indices matches by text, title
+    # and provenance, all of which another approval's sample can share (a
+    # take-home whose exam title equals this paper's title, another shared
+    # paper with the same title and text), so approved_papers undoes any
+    # approval whose sample went with it, as for DELETE .../baseline.
+    removed_hashes = (
+        sorted(_hashes_from_samples([state.samples[i] for i in indices])) if indices else []
+    )
     if indices:
         for index in indices:
             state.remove_sample(index)
@@ -375,6 +383,7 @@ def unapprove_shared_paper(paper_id: str, request: Request):
             "paper_id": paper_id,
             "samples_removed": len(indices),
             **({"sample_count_after": state.sample_count} if indices else {}),
+            "text_hashes": removed_hashes,
         },
     )
     return {"paper_id": paper_id, "status": "pending", "removed": len(indices)}

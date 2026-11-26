@@ -89,15 +89,24 @@ class _Approvals:
         # sample; ids whose latest approval wrote nothing are in ``unwritten``.
         self.papers: dict[str, int] = {}
         self.unwritten: set[str] = set()
-        # (position, text hashes) of every exam removal that recorded them.
+        # (position, text hashes) of every removal that recorded them: an
+        # exam's DELETE .../baseline and a shared paper's unapprove, the only
+        # two routes that take single samples out (whole-student erasure also
+        # purges the audit rows, past papers and submissions this reads).
         self.removals: list[tuple[int, set[str]]] = []
+
+    def note_removal(self, pos: int, details: dict) -> None:
+        removed = details.get("text_hashes")
+        if isinstance(removed, list) and removed:
+            self.removals.append((pos, {str(h) for h in removed}))
 
     def revoked(self, hashes: set[str], since: int) -> bool:
         """Whether a removal after ``since`` took out a sample with one of
-        these texts. DELETE /bluebook/submissions/{id}/baseline removes every
-        sample carrying the exam's text, also one that another approval wrote
-        (a shared paper or another take-home with the same answer), so that
-        approval no longer has its sample and is undone with it."""
+        these texts. Both removal routes pick samples by text (DELETE
+        /bluebook/submissions/{id}/baseline: every sample with the exam's
+        text; unapprove: text, title and provenance), so either can take out a
+        sample another approval wrote; that approval no longer has its sample
+        and is undone with it."""
         return any(pos > since and removed & hashes for pos, removed in self.removals)
 
 
@@ -125,6 +134,7 @@ def _approval_records(repo, student_id: str) -> _Approvals:
             if paper_id:
                 out.unwritten.discard(paper_id)
                 out.papers.pop(paper_id, None)
+            out.note_removal(pos, details)
             continue
         sub_id = details.get("submission_id")
         if not sub_id:
@@ -133,9 +143,7 @@ def _approval_records(repo, student_id: str) -> _Approvals:
             out.take_homes[sub_id] = pos
         elif row["action"] == "baseline_remove" and row.get("result") == "removed":
             out.take_homes.pop(sub_id, None)
-            removed = details.get("text_hashes")
-            if isinstance(removed, list) and removed:
-                out.removals.append((pos, {str(h) for h in removed}))
+            out.note_removal(pos, details)
     return out
 
 
