@@ -10,30 +10,39 @@
                      token, else a student's session token); never throws
    Live.session()    who is looking: demo, signed-in or signed-out
    Live.STUDENT_NOTICE  the testing-phase label the student pages show (the only copy)
+   Live.BAND_WORDS   the server's action band (recommendation.action) in the suite's
+                     one set of words, the same words original/evidence.py sends as
+                     band_words (a test keeps the two copies equal)
+   Live.BAND_INNOCENT_CLAUSE  the reminder appended on the two upper bands
+   Live.BAND_RATE_NOT_MEASURED  the number row's sentence until gate G9 has passed
    Live.notices()    fills every [data-testing-notice] with the label, and every
                      [data-student-notice] with the student label
    Live.empty(el,t)  an honest empty state inside a card
+   Live.attention(el, card)  the "needs your attention" card a page opens on
+   Live.rosterCard(r, o)  that card for Overview and Students, from a Live.roster() result
    Live.gate(el, o)  sign-in / "Original is off" panel, or the session; with
                      {audience:'student'} the same for the student pages
    Live.roster()     the teacher's students with the server's baseline verdicts
    Live.VERDICT_WORDS  the server's baseline verdict in the one set of words every page
                      uses: ready Ready, developing Building, insufficient Needs more
    Live.verdictWord(v) that word, or "Not available" for a missing or unknown verdict
-   Live.sealed()     the teacher's sealed exams, copied through one allowlist
+   Live.sealed()     the teacher's sealed booklets, copied through one allowlist
    Live.sampleKind(s)  how one baseline sample got in, from GET /students/{id}: its server
                      `source`, else (an old server sends none) its provenance. One of
                      proctored, verified, canvas, take_home, shared_paper, unverified (a
                      student upload) or other
    Live.approvals(samples)  counts of the baseline samples by who approved them:
                      {counted, byYou, supervised, takeHome, shared, uploads, unknown}.
-                     byYou = supervised + takeHome + shared; take-home exams and shared
+                     byYou = supervised + takeHome + shared; take-home collections and shared
                      papers count at a lower weight
    Live.approvalWords(a, o)  those counts in plain words ("all approved by you (...)",
                      "1 approved by you, 2 student uploads"); '' when nothing is known.
                      {note:false} leaves out the lower-weight note
    Live.howAdded(s)  one sample's "how it got in" label, for a table cell
    Live.signOut()    forget the session and the kept papers, go to the sign-in page
-                     (a student's is Collections', a teacher's the main one) */
+                     (a student's is Collections', a teacher's the main one)
+   Live.keepSignIn(d) keep the fresh sign-in a password change returns; the
+                     change ends every earlier one, this page's included (T-79) */
 (function (window, document) {
   'use strict';
 
@@ -72,6 +81,18 @@
   // told about their sealed work. A student never sees the teacher's sentence.
   var STUDENT_NOTICE = 'Testing phase: Original is not yet validated on real student writing. Your teacher may approve your sealed Collections work as reference writing for it, and can undo that approval.';
 
+  // The action bands in words (chosen 2026-10-30, the "reads-like" set). A
+  // reading of how far the habits moved, never a finding about the student.
+  // original/evidence.py's BAND_WORDS is the server's copy of the same words.
+  var BAND_WORDS = {
+    no_action: 'Reads like their own writing',
+    monitor: 'Mostly like their own writing; a few habits differ',
+    schedule_conversation: 'Reads differently in several habits; worth a conversation',
+    escalate: 'Reads very differently from their past work'
+  };
+  var BAND_INNOCENT_CLAUSE = 'A new topic, heavy revision or a changed genre can do this too.';
+  var BAND_RATE_NOT_MEASURED = 'How often this reading is right has not been measured on student writing yet.';
+
   var ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
   function esc(s) {
@@ -80,6 +101,13 @@
 
   function read(key) {
     try { return window.localStorage.getItem(key) || ''; } catch (e) { return ''; }
+  }
+
+  // Only the token the server returned is kept, never anything typed.
+  function keepSignIn(data) {
+    if (!data || !data.token) return;
+    var key = data.role === 'student' ? 'original_session_token' : 'original_principal_token';
+    try { window.localStorage.setItem(key, data.token); } catch (e) { /* storage blocked */ }
   }
 
   function failed() {
@@ -133,13 +161,14 @@
 
   // A signed-in staff workspace without Collections: every link into it would
   // land on screens the server refuses (403), so the account menu's "Open
-  // Collections" and the page's own head link are hidden. Best-effort DOM work.
+  // Collections", the top bar's switch to Collections (shell.js) and the page's
+  // own head link are hidden. Best-effort DOM work.
   function hideCollectionsLinks(products) {
     if (products.indexOf('bluebook') >= 0) return;
     var run = function () {
       try {
         if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return;
-        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"]');
+        var links = document.querySelectorAll('#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]');
         for (var i = 0; i < links.length; i++) { links[i].hidden = true; links[i].style.display = 'none'; }
       } catch (e) { /* a page without these links */ }
     };
@@ -221,6 +250,57 @@
     el.innerHTML = '<div class="live-empty">' + esc(text) + '</div>';
   }
 
+  // ── Live.attention ───────────────────────────────────────────────────────
+  // The "needs your attention" card that Overview, Students and Submissions
+  // open on (W3, ADR-015: the essentials first, as on Writing State). It draws
+  // only what a page hands it and escapes every word:
+  //   card.head   the one-line answer (an <h2>)
+  //   card.lede   an optional sentence under it
+  //   card.items  [{ title, text, act, rows, more }], each a thing to do now
+  //               act:  { label, href } a link, or { label, id } a button the
+  //                     page answers through card.on[id]; primary: true for gold;
+  //                     aria: a fuller name that starts with the label
+  //               rows: [{ name, note, act }] one line per student or booklet
+  //               more: { label, id } a button under the rows ("Show all 9")
+  //   card.on     { id: function } for the buttons
+  function attnAct(a) {
+    if (!a || !a.label) return '';
+    var cls = (a.primary ? 'btn-gold' : 'btn-ghost') + ' attn-go';
+    // aria: a longer name for a repeated label ("Add past writing for Sam Okafor"); it starts with the label.
+    var aria = a.aria ? ' aria-label="' + esc(a.aria) + '"' : '';
+    if (a.href) return '<a class="' + cls + ' tap-mid" href="' + esc(a.href) + '"' + aria + '>' + esc(a.label) + '</a>';
+    return '<button type="button" class="' + cls + '" data-attn="' + esc(a.id) + '"' + aria + '>' + esc(a.label) + '</button>';
+  }
+  function attnTxt(b, s) {
+    return '<div class="attn-txt"><b>' + esc(b) + '</b>' + (s ? '<span>' + esc(s) + '</span>' : '') + '</div>';
+  }
+  function attention(el, card) {
+    if (!el || !card) return;
+    // The heading keeps the id the card's aria-labelledby names (<card id>-h).
+    var h = '<div class="attn-eyebrow">Needs your attention</div>' +
+      '<h2 class="attn-h"' + (el.id ? ' id="' + esc(el.id + '-h') + '"' : '') + '>' + esc(card.head) + '</h2>' +
+      (card.lede ? '<p class="attn-lede">' + esc(card.lede) + '</p>' : '');
+    var items = Array.isArray(card.items) ? card.items : [];
+    if (items.length) {
+      h += '<ul class="attn-items">' + items.map(function (it) {
+        var rows = Array.isArray(it.rows) ? it.rows : [];
+        return '<li class="attn-item"><div class="attn-row">' + attnTxt(it.title, it.text) + attnAct(it.act) + '</div>' +
+          (rows.length ? '<ul class="attn-names">' + rows.map(function (r) {
+            return '<li class="attn-row">' + attnTxt(r.name, r.note) + attnAct(r.act) + '</li>';
+          }).join('') + '</ul>' : '') +
+          (it.more ? '<div class="attn-more">' + attnAct(it.more) + '</div>' : '') +
+          '</li>';
+      }).join('') + '</ul>';
+    }
+    el.innerHTML = h;
+    el.setAttribute('aria-busy', 'false');
+    var on = card.on || {};
+    [].forEach.call(el.querySelectorAll('[data-attn]'), function (b) {
+      var fn = on[b.getAttribute('data-attn')];
+      if (typeof fn === 'function') b.addEventListener('click', fn);
+    });
+  }
+
   function panel(el, title, text, href, label) {
     (el || document.body).innerHTML =
       '<div class="live-panel" role="status"><h2>' + esc(title) + '</h2><p>' + esc(text) + '</p>' +
@@ -263,7 +343,7 @@
       }
       if (s.products.indexOf('original') < 0) {
         panel(el, 'Original is off for this workspace',
-          'Your workspace uses Collections only. Your classes and sealed exams are in Collections.',
+          'Your workspace uses Collections only. Your classes and sealed booklets are in Collections.',
           '/bluebook/#dashboard', 'Open Collections');
         return null;
       }
@@ -620,6 +700,84 @@
     });
   }
 
+  // ── Live.rosterCard ──────────────────────────────────────────────────────
+  // The attention card Overview and Students open on, built from a Live.roster()
+  // result and nothing else: the server's baseline verdict, the counted samples
+  // and the sealed booklets with no graded_at. Original keeps no readings on
+  // these pages, so a ready student's next step is a reading on Writing State.
+  //   opts.show       names listed per group before "more" (default 4)
+  //   opts.more(n)    the act under a group longer than that
+  //   opts.firstAct   the act for an empty roster
+  // Returns a card for Live.attention; the page adds card.on for its buttons.
+  function rosterCard(res, opts) {
+    opts = opts || {};
+    var show = opts.show || 4;
+    var enc = encodeURIComponent;
+    if (!res || !res.ok) {
+      return {
+        head: 'Your students could not be loaded just now.',
+        items: [{ title: 'Nothing here could be read', text: 'Your students and their papers are still on file.', act: { label: 'Reload the page', id: 'reload' } }]
+      };
+    }
+    var list = res.students || [];
+    if (!list.length) {
+      return {
+        head: 'No students yet.',
+        lede: 'Original compares a new paper with a student\u2019s own past writing, so each student starts with ' + MIN_RULE + '.',
+        items: [{ title: 'Add your first student', text: opts.firstText || '', act: opts.firstAct }]
+      };
+    }
+    var counted = function (st) { return st.counted == null ? '' : ' \u00b7 ' + plur(st.counted, 'counted sample'); };
+    var rank = function (v) { return v === 'insufficient' ? 0 : 1; };
+    var need = list.filter(function (st) { return st.verdict === 'insufficient' || st.verdict === 'developing'; })
+      .sort(function (a, b) { return rank(a.verdict) - rank(b.verdict); });
+    var ready = list.filter(function (st) { return st.verdict === 'ready'; });
+    var pend = res.bluebook === 'ok' ? (res.submissions || []).filter(pendingReview) : [];
+    var items = [], head = [];
+    if (need.length) {
+      head.push(plur(need.length, 'student') + (need.length === 1 ? ' needs' : ' need') + ' more past writing');
+      items.push({
+        title: 'More past writing needed',
+        text: 'Original reads a new paper once a student has ' + MIN_RULE + '. Until then a reading is inconclusive.',
+        rows: need.slice(0, show).map(function (st) {
+          return { name: st.name, note: 'Baseline: ' + verdictWord(st.verdict) + counted(st),
+            act: { label: 'Add past writing', aria: 'Add past writing for ' + st.name, href: 'baseline.html?student=' + enc(st.id) + '#add-writing' } };
+        }),
+        more: need.length > show && opts.more ? opts.more(need.length) : null
+      });
+    }
+    if (pend.length) {
+      head.push(plur(pend.length, 'sealed booklet') + (pend.length === 1 ? ' is' : ' are') + ' waiting for your review');
+      var byId = new Map(list.map(function (st) { return [st.id, st.name]; }));
+      var who = [];
+      pend.forEach(function (x) { var n = byId.get(x.student_id); if (n && who.indexOf(n) < 0) who.push(n); });
+      items.push({
+        title: plur(pend.length, 'sealed booklet') + ' to review',
+        text: (who.length ? 'From ' + who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '') + '. ' : '') +
+          'Submissions lists each one with its next step.',
+        act: { label: 'Open Submissions', href: 'submissions.html', primary: !need.length }
+      });
+    }
+    if (ready.length) {
+      items.push({
+        title: plur(ready.length, 'student') + (ready.length === 1 ? ' is' : ' are') + ' ready for a reading',
+        text: 'Original keeps no readings on this page yet. Analyse a paper on Writing State to see how it compares with their past writing.',
+        rows: ready.slice(0, show).map(function (st) {
+          return { name: st.name, note: 'Baseline: ' + verdictWord(st.verdict) + counted(st),
+            act: { label: 'Analyse a paper', aria: 'Analyse a paper by ' + st.name, href: 'writing-state.html?student=' + enc(st.id) } };
+        }),
+        more: ready.length > show && opts.more ? opts.more(ready.length) : null
+      });
+    }
+    var unknown = list.filter(function (st) { return !st.verdict; }).length;
+    var text = head.length ? head.join(', and ') + '.' : (ready.length === list.length ? 'Every baseline is ready.' : 'Nothing needs you right now.');
+    return {
+      head: text.charAt(0).toUpperCase() + text.slice(1),
+      lede: unknown ? 'Baseline readiness could not be read for ' + plur(unknown, 'student') + '.' : '',
+      items: items
+    };
+  }
+
   // Memoised like Live.sealed: the first call starts the load, every later call
   // in the same page load gets the same answer without a request. The result is
   // frozen because it is shared by every caller.
@@ -676,7 +834,7 @@
     var strips = document.querySelectorAll('.pills');
     for (var i = 0; i < strips.length; i++) {
       (function (strip) {
-        var here = strip.querySelector('[aria-current="page"]');
+        var here = strip.querySelector('[aria-current]');
         if (here && strip.scrollWidth > strip.clientWidth) {
           var room = strip.clientWidth - here.offsetWidth;
           strip.scrollLeft = Math.max(0, here.offsetLeft - strip.offsetLeft - room / 2);
@@ -698,7 +856,7 @@
   // are approved by you, unverified is a student upload).
   var SUPERVISED = ['proctored', 'verified', 'canvas'];
   var HOW = { proctored: 'Supervised sitting', verified: 'Verified by teacher', canvas: 'Imported',
-              take_home: 'Take-home exam approved by you', shared_paper: 'Shared paper approved by you',
+              take_home: 'Take-home collection approved by you', shared_paper: 'Shared paper approved by you',
               unverified: 'Student upload', other: 'Other source' };
 
   function sampleKind(s) {
@@ -737,7 +895,7 @@
     if (a.byYou === a.counted) parts.push('all approved by you');
     else parts.push((a.byYou ? a.byYou : 'none') + ' approved by you');
     var low = [];
-    if (a.takeHome) low.push(plur(a.takeHome, 'take-home exam'));
+    if (a.takeHome) low.push(plur(a.takeHome, 'take-home collection'));
     if (a.shared) low.push(plur(a.shared, 'shared paper'));
     if (low.length && !(o && o.note === false)) {
       parts[0] += ' (' + low.join(' and ') + (a.takeHome + a.shared === 1 ? ' counts' : ' count') + ' at a lower weight)';
@@ -757,11 +915,16 @@
     TOKEN_KEYS: TOKEN_KEYS,
     NOTICE: NOTICE,
     STUDENT_NOTICE: STUDENT_NOTICE,
+    BAND_WORDS: BAND_WORDS,
+    BAND_INNOCENT_CLAUSE: BAND_INNOCENT_CLAUSE,
+    BAND_RATE_NOT_MEASURED: BAND_RATE_NOT_MEASURED,
     esc: esc,
     api: api,
     session: session,
     notices: notices,
     empty: empty,
+    attention: attention,
+    rosterCard: rosterCard,
     gate: gate,
     roster: roster,
     VERDICT_WORDS: VERDICT_WORDS,
@@ -774,6 +937,7 @@
     approvals: approvals,
     approvalWords: approvalWords,
     howAdded: howAdded,
-    signOut: signOut
+    signOut: signOut,
+    keepSignIn: keepSignIn
   };
 })(window, document);

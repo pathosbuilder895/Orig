@@ -41,7 +41,7 @@ jobs:
         run: ruff format --check original/
 
   # ---------------------------------------------------------------------
-  # THE BLOCKING PYTEST LANE — three path-based shards + coverage-combine.
+  # THE BLOCKING PYTEST LANE: four path-based shards + coverage-combine.
   #
   # Until 2026-09-08 this was ONE serial `pytest` job. Its cap had already
   # been raised 20 -> 30 because of RUNNER VARIANCE, not suite growth; every
@@ -63,7 +63,7 @@ jobs:
   # docs/testing/09-test-infrastructure-ci.md §1.1).
   #
   # Shard membership is defined in ONE place — scripts/shard_paths.py — and
-  # tests/test_shard_partition.py proves by collection that the three
+  # tests/test_shard_partition.py proves by collection that the shard
   # selections partition the full blocking set exactly (union == all, pairwise
   # disjoint), so no test can be silently un-run. Per-shard collected counts
   # grow with the suite and are not pinned here — run
@@ -71,7 +71,7 @@ jobs:
   # prints core/api/rest/union/full on every run, so it can never itself go
   # stale the way a comment can).
   #
-  # `rest` is `tests/` MINUS --ignore for everything the other two shards own,
+  # `rest` is `tests/` MINUS --ignore for everything the other shards own,
   # which is what makes "un-run" structurally impossible rather than a thing
   # to remember. Re-run any red shard locally with the same selection:
   #     python scripts/shard_paths.py --run api
@@ -86,6 +86,16 @@ jobs:
   # ~31s, test_feature_pipeline_determinism ~23s + ~17s. --durations=25 on
   # every shard keeps that list current without anyone measuring by hand.
   #
+  # 2026-11-20: `rest` had grown to 19-21 min (its cap had been raised to 30
+  # for it), so it was split in two: the fourth shard the paragraph above
+  # asks for. On main run 44670919664 `rest` spent 842 s in tests: ~432 s in
+  # tests/alpha + tests/adversarial (one test,
+  # test_local_runbook_rehearsal_twenty_concurrent_students_full_delete, is
+  # ~296 s of that) and ~410 s in the tests/ root files. Those two
+  # directories are now `rest2`; `rest` keeps everything else. Each shard
+  # also pays ~2 min of checkout/pip/spaCy setup, so expect ~9-10 min a
+  # shard, ~12-13 min on a slow runner, under the usual 20-minute cap.
+  #
   # Coverage: each shard runs --cov=original --cov-branch with
   # --cov-report= (no report) and a distinct COVERAGE_FILE, then uploads its
   # data file. --cov-fail-under is NOT set on any shard — a single shard's
@@ -95,7 +105,7 @@ jobs:
   # Only pytest-api gets the Postgres service (tests/test_repository_contract.py
   # parametrizes over a "postgres" backend and self-skips without a reachable
   # DATABASE_URL, so its absence was silent rather than a failure — WS-6 P3).
-  # The other two shards drop it and start faster.
+  # The other shards drop it and start faster.
   # ---------------------------------------------------------------------
   pytest-core:
     runs-on: ubuntu-latest
@@ -262,6 +272,9 @@ jobs:
   pytest-rest:
     runs-on: ubuntu-latest
     needs: lint
+    # Back to 20 after the split into `rest` + `rest2` (block comment above).
+    # Before it, on main 90a868f (2026-11-20), this shard's pytest step took
+    # 17m54s and the job 19m40s, which is why its cap had briefly been 30.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -306,6 +319,52 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  pytest-rest2:
+    runs-on: ubuntu-latest
+    needs: lint
+    # tests/alpha + tests/adversarial, split out of `rest` (block comment
+    # above). One ~296 s test sets this shard's floor.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install spaCy model
+        # Pinned to the exact model wheel the byte-exact snapshot in
+        # tests/snapshots/score_default_api.json was generated against.
+        # `python -m spacy download en_core_web_sm` resolves whatever is
+        # latest and would silently produce different tier5/tier11/prosodic
+        # floats -- see tests/config/test_flag_byte_identity.py's
+        # "Deterministic feature backends" section and
+        # EN_CORE_WEB_SM_VERSION there.
+        run: pip install https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+      - name: Run pytest (rest2 shard) with coverage
+        env:
+          COVERAGE_FILE: .coverage.rest2
+        run: >
+          python scripts/shard_paths.py --run rest2
+          -m "not blocker and not certification"
+          --cov=original --cov-branch --cov-report= --durations=25
+          -p no:cacheprovider
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-data-rest2
+          path: .coverage.rest2
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
   # The ONE place the coverage floor is enforced. Ratcheted 70 (WS-2) -> 72
   # (WS-5) -> 78 (#104, additional API coverage tests) -> 98 (2026-08-20,
   # branch-coverage effort, docs/superpowers/plans/2026-08-17-branch-coverage-*.md).
@@ -319,12 +378,12 @@ jobs:
   # `coverage report -m` actually shows passing locally.
   #
   # Splitting the run does not change the combined number: `coverage combine`
-  # unions the three shards' arc data, and all three shards run from the repo
+  # unions the four shards' arc data, and all four shards run from the repo
   # root on the same runner image, so the recorded file paths already match
   # and no [paths] remapping is needed.
   coverage-combine:
     runs-on: ubuntu-latest
-    needs: [pytest-core, pytest-api, pytest-rest]
+    needs: [pytest-core, pytest-api, pytest-rest, pytest-rest2]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -336,7 +395,7 @@ jobs:
           cache: pip
 
       # requirements-dev.txt rather than a bare `pip install coverage`: it
-      # pins pytest-cov==7.1.0, whose coverage is the exact version the three
+      # pins pytest-cov==7.1.0, whose coverage is the exact version the four
       # shards wrote these data files with. requirements.txt is not needed —
       # `coverage report` parses original/*.py, it does not import it.
       - name: Install coverage (same version the shards measured with)
@@ -344,7 +403,7 @@ jobs:
 
       # upload-artifact above is at v7.0.1 and the v4+ artifact backend is
       # shared, so this v4 download reads a v7 upload.
-      - name: Download the three shards' coverage data
+      - name: Download the four shards' coverage data
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-data-*
@@ -354,12 +413,12 @@ jobs:
       # empty artifact; it cannot catch one that never uploaded at all (a
       # cancelled or otherwise-skipped shard job). Without this check
       # `coverage combine` would silently combine whatever subset of the
-      # three data files actually downloaded and the floor below would be
+      # four data files actually downloaded and the floor below would be
       # enforced against a partial number.
-      - name: Verify all three shards' coverage data downloaded
+      - name: Verify all four shards' coverage data downloaded
         run: |
           missing=0
-          for f in .coverage.core .coverage.api .coverage.rest; do
+          for f in .coverage.core .coverage.api .coverage.rest .coverage.rest2; do
             if [ ! -f "$f" ]; then
               echo "::error::missing $f -- coverage-combine cannot run on partial data"
               missing=1
@@ -556,6 +615,9 @@ jobs:
           # the @evidence-on run below covers the default-on path.
           EVIDENCE_PASSAGES_ENABLED: "0"
           PRELIMINARY_SCORE_ENABLED: "0"
+          # Rule D's observation is also ON by default while testing (owner
+          # decision, 2026-11); off here for the same reason.
+          RULE_D_OBSERVATION: "off"
         # --skip-seed is mandatory here: seeding hard-refuses when
         # ORIGINAL_ENV=pilot (synthetic data must never enter a real store),
         # and CI boots exactly the way the Render pilot does.

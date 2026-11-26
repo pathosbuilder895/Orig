@@ -52,6 +52,7 @@ from .db.models.live import (
     FusedScore,
     ParkBeat,
     ParkSession,
+    RuleDProfile,
     StaffUser,
     StudentName,
     StudentPastPaper,
@@ -74,6 +75,11 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vector_rules_from_doc,
+    _extra_vectors_doc,
+    _extra_vectors_from_doc,
+    _part_overrides_doc,
+    _refuse_measurement_view,
     genre_stats_from_groups,
     park_iso_utc,
     park_utc,
@@ -168,6 +174,7 @@ class PostgresRepository:
     def _state_to_doc(state: StudentState) -> dict:
         """Mirrors store.py's _serialize — a dict, not a JSON string,
         since StudentProfile.data is already a JSON/JSONB column."""
+        _refuse_measurement_view(state)
         return {
             "student_id": state.student_id,
             "samples": [
@@ -191,6 +198,10 @@ class PostgresRepository:
                     # mirrors store.py's _serialize; None for legacy/
                     # summary-less samples.
                     "composition_summary": s.composition_summary,
+                    # Versioned measurements — mirrors store.py's _serialize.
+                    **_extra_vectors_doc(s),
+                    # A teacher's choice of parts: mirrors store.py's _serialize.
+                    **_part_overrides_doc(s),
                 }
                 for s in state.samples
             ],
@@ -248,6 +259,9 @@ class PostgresRepository:
                     # mirrors store.py's _deserialize; None for legacy/
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
+                    extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
+                    extra_vector_rules=_extra_vector_rules_from_doc(s),
+                    part_overrides=s.get("part_overrides") or None,
                 )
             )
         return state
@@ -562,6 +576,12 @@ class PostgresRepository:
                         UserDisplayPrefs.account_key == student_id,
                     )
                 )
+                # Rule D profiles of the student's approved papers (2026-11).
+                session.execute(
+                    RuleDProfile.__table__.delete().where(
+                        RuleDProfile.student_id == student_id,
+                    )
+                )
                 session.execute(
                     BluebookInvite.__table__.delete().where(
                         BluebookInvite.user_id == student_id,
@@ -802,6 +822,9 @@ class PostgresRepository:
                         FusedScore.student_id == local_id,
                     )
                 ).scalar_one()
+                rule_d_count = session.execute(
+                    select(func.count()).where(RuleDProfile.student_id == student_id)
+                ).scalar_one()
                 name_row = session.get(StudentName, (tenant_id, local_id))
                 # Captured as plain values before the session closes below —
                 # ORM attribute access on a detached instance raises.
@@ -838,6 +861,7 @@ class PostgresRepository:
                     "audit_log_entries": {"count": int(audit_count)},
                     "ai_likelihood_scores": {"count": int(ai_likelihood_count)},
                     "fused_scores": {"count": int(fused_count)},
+                    "rule_d_profiles": {"count": int(rule_d_count)},
                     "display_name": {"on_file": has_display_name},
                 },
                 "effective_sample_weight": state.effective_sample_count,
@@ -2426,17 +2450,16 @@ class PostgresRepository:
             )
             return self._invite_to_dict(row) if row else None
 
-    def void_invites_for_user(self, user_id):
+    def void_invites_for_user(self, user_id, course_id=None):
+        stmt = update(BluebookInvite).where(
+            BluebookInvite.user_id == user_id,
+            BluebookInvite.redeemed_at.is_(None),
+            BluebookInvite.voided_at.is_(None),
+        )
+        if course_id is not None:
+            stmt = stmt.where(BluebookInvite.course_id == course_id)
         with session_scope() as session:
-            result = session.execute(
-                update(BluebookInvite)
-                .where(
-                    BluebookInvite.user_id == user_id,
-                    BluebookInvite.redeemed_at.is_(None),
-                    BluebookInvite.voided_at.is_(None),
-                )
-                .values(voided_at=datetime.now(UTC))
-            )
+            result = session.execute(stmt.values(voided_at=datetime.now(UTC)))
             return int(result.rowcount)
 
     def redeem_invite(self, invite_id):
@@ -3162,6 +3185,39 @@ class PostgresRepository:
                     UserDisplayPrefs.account_key == account_key
                 )
             )
+
+    # ── Rule D profiles: one per approved past paper (2026-11) ────────────
+
+    def get_rule_d_profiles(self, student_id):
+        with session_scope() as session:
+            rows = session.query(RuleDProfile).filter(RuleDProfile.student_id == student_id).all()
+            return {r.text_sha256: json.loads(r.data) for r in rows}
+
+    def put_rule_d_profile(self, student_id, text_sha256, data):
+        from .principal import tenant_of
+
+        values = dict(
+            student_id=student_id,
+            tenant_id=tenant_of(student_id),
+            text_sha256=text_sha256,
+            data=json.dumps(data, separators=(",", ":")),
+            created_at=datetime.now(UTC),
+        )
+        with session_scope() as session:
+            session.execute(
+                pg_insert(RuleDProfile)
+                .values(profile_key=f"{student_id}|{text_sha256}", **values)
+                .on_conflict_do_update(index_elements=["profile_key"], set_=values)
+            )
+
+    def delete_rule_d_profiles(self, student_id, keep=None):
+        keep = set(keep or ())
+        with session_scope() as session:
+            rows = session.query(RuleDProfile).filter(RuleDProfile.student_id == student_id).all()
+            gone = [r for r in rows if r.text_sha256 not in keep]
+            for r in gone:
+                session.delete(r)
+            return len(gone)
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
 

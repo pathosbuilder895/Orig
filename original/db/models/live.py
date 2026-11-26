@@ -898,6 +898,24 @@ class UserDisplayPrefs(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class RuleDProfile(LiveBase):
+    """Rule D's derived statistics for one approved past paper (``rule_d_profiles``,
+    2026-11): character n-gram and topic-masked profiles, the paper's feature vector and
+    300-word piece vectors, and punctuation rates. No text. Keyed by the full scoped
+    student id plus the SHA-256 of the paper's text; deleted with the student and when the
+    approval is withdrawn.
+    """
+
+    __tablename__ = "rule_d_profiles"
+
+    profile_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    tenant_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class BluebookPhonePark(LiveBase):
     """A student's own parked phone for one collection
     (``bluebook_phone_parks``, 2026-10). Only for collections where the
@@ -950,6 +968,7 @@ LIVE_MODELS = [
     BluebookExamDraft,
     UserLastLocation,
     UserDisplayPrefs,
+    RuleDProfile,
     BluebookPhonePark,
     BluebookJoinLink,
 ]

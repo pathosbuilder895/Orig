@@ -7,19 +7,21 @@ group split out of students.py for file size.
 
 from __future__ import annotations
 
-import io
 import logging
 from datetime import date as _date
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from .. import baseline_requests, bbook_client, consumed_attestations, student_auth
+from .. import measurement as _measurement
 from .. import principal as principal_mod
 from ..constants import AUTH_WEIGHTS
+from ..features import feature_flags as _ff
 from ..features.pipeline import feature_vector
 from ..quantum.state import BaselineSample
 from ..schemas import AddSampleRequest, DriftPendingResponse, DriftResultOut
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
+from ..upload_utils import extract_text_from_bytes, text_digest
 from ._shared import (
     _authorize_provenance,
     _persist_or_503,
@@ -63,13 +65,11 @@ def _hashes_from_samples(samples) -> set[str]:
     (hashed from .text here). Pure — takes samples directly so a caller that
     already holds a fetched StudentState can dedup without a second repo
     round-trip."""
-    import hashlib as _hashlib
-
     hashes: set[str] = set()
     for s in samples:
         h = getattr(s, "text_hash", None)
         if not h and getattr(s, "text", None):
-            h = _hashlib.sha256(s.text.encode()).hexdigest()
+            h = text_digest(s.text)
         if h:
             hashes.add(h)
     return hashes
@@ -140,9 +140,7 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
     # fetched/created above) rather than _existing_text_hashes(student_id),
     # which would redundantly re-fetch the same state from the repo.
     if req.submission_uuid:
-        import hashlib
-
-        text_hash = hashlib.sha256(req.text.encode()).hexdigest()
+        text_hash = text_digest(req.text)
         if text_hash in _hashes_from_samples(state.samples):
             return {
                 "skipped": True,
@@ -154,7 +152,12 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
                 "purity": state.purity,
             }
 
-    vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    # Stored vectors are always the default measurement (original/measurement.py).
+    with _ff.measuring(_measurement.DEFAULT):
+        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+    extra_vectors = _measurement.extra_vectors_at_upload(
+        req.text, req.keystroke_data, extract=feature_vector
+    )
 
     # Genre label — classify the text at ingestion time so the Hierarchical
     # Bayesian prior (BAYESIAN_PRIOR_ENABLED=1) has cross-student genre data.
@@ -184,6 +187,8 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
         # Tier 17's (currently-disabled) feature extraction is unaffected.
         keystroke_data=_strip_raw_keystroke_arrays(req.keystroke_data),
         composition_summary=req.composition_summary,
+        extra_vectors=extra_vectors,
+        extra_vector_rules=_measurement.rules_stamps(extra_vectors),
     )
 
     # ── Phase 8: drift gate before adding to baseline ─────────────────────────
@@ -245,6 +250,18 @@ def add_baseline(student_id: str, req: AddSampleRequest, request: Request = None
             state.baseline_kappa = new_mean
 
     _persist_or_503(state)  # persist to SQLite
+
+    # Rule D (RULE_D_OBSERVATION, report-only, on by default while testing): derive the new paper's
+    # statistics now so scoring does not have to. Off: nothing is computed or stored.
+    from ..rule_d import mode as _rule_d_mode
+
+    if _rule_d_mode() != "off":
+        try:
+            from ..rule_d.service import sync_profiles
+
+            sync_profiles(_repo(), state, feature_vector)
+        except Exception:  # never let a report-only mechanism fail an approval
+            logging.getLogger(__name__).exception("rule_d profile build failed at baseline add")
 
     # Audit log — record the baseline addition
     _repo().log_audit(
@@ -532,22 +549,15 @@ def upload_baseline_batch(
 
         # ── Text extraction ───────────────────────────────────────────────────
         try:
-            if ext == "txt":
-                text = raw.decode("utf-8", errors="replace")
-            elif ext == "docx":
-                from docx import Document as _Doc
-
-                doc = _Doc(io.BytesIO(raw))
-                text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-            elif ext == "pdf":
-                from pypdf import PdfReader as _PdfReader
-
-                reader = _PdfReader(io.BytesIO(raw))
-                text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
+            if ext in ("txt", "docx", "pdf"):
+                text = extract_text_from_bytes(raw, f"upload.{ext}")
             else:
                 errors.append(f"{filename}: unsupported type '.{ext}' — use .txt, .docx, or .pdf")
                 continue
         except Exception as exc:
+            # The library's own message, as before the shared extractor (it
+            # chains its ValueError to the library's exception).
+            exc = exc.__cause__ or exc  # noqa: PLW2901
             errors.append(f"{filename}: extraction error — {exc}")
             continue
 
@@ -556,16 +566,18 @@ def upload_baseline_batch(
             continue
 
         # ── Deduplication ─────────────────────────────────────────────────────
-        import hashlib as _hashlib
-
-        text_hash = _hashlib.sha256(text.encode()).hexdigest()
+        # Page markers dropped, so a file uploaded before they were kept and
+        # the same file uploaded now are the same paper (upload_utils).
+        text_hash = text_digest(text)
         if text_hash in seen_hashes:
             skipped_duplicates += 1
             continue
 
         # ── Feature extraction & store ────────────────────────────────────────
         try:
-            vec = feature_vector(text)
+            with _ff.measuring(_measurement.DEFAULT):
+                vec = feature_vector(text)
+            extra_vectors = _measurement.extra_vectors_at_upload(text, extract=feature_vector)
         except Exception as exc:
             errors.append(f"{filename}: feature extraction failed — {exc}")
             continue
@@ -578,6 +590,8 @@ def upload_baseline_batch(
             auth_weight=AUTH_WEIGHTS[provenance],
             assignment=label,
             submitted_at=submitted_at,
+            extra_vectors=extra_vectors,
+            extra_vector_rules=_measurement.rules_stamps(extra_vectors),
         )
         # Recorded locally (not on the sample — see the comment above
         # seen_hashes) so a duplicate later in *this* batch is still caught.

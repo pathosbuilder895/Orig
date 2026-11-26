@@ -19,8 +19,15 @@ async function rootPx(page) {
   return page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
 }
 
+// On the signed-in screens the Text setting lives in the account menu (the shared top bar).
+async function openTextButton(page) {
+  const btn = page.getByTestId('text-settings-button').first()
+  if (!(await btn.isVisible())) await page.locator('#me-btn').click()
+  return btn
+}
+
 async function pickText(page, { font, size }) {
-  await page.getByTestId('text-settings-button').first().click()
+  await (await openTextButton(page)).click()
   const panel = page.getByTestId('text-settings')
   await expect(panel).toBeVisible()
   if (font) await panel.locator(`[role=radio][data-value="${font}"]`).click()
@@ -160,7 +167,8 @@ test.describe('Text setting', () => {
       await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       // The pill strip scrolls inside itself by design (phone-nav.spec.mjs).
-      await expectNoOverflow(staffPage, ['h1', '.teacher-nav-right button', '.bb-stat', '[data-testid=text-settings-button]'])
+      await staffPage.locator('#me-btn').click()
+      await expectNoOverflow(staffPage, ['h1', '.shell .nav-right button', '.shell .me-menu', '.bb-stat', '[data-testid=text-settings-button]'])
       await staffPage.goto('/bluebook/#students')
       await staffPage.waitForLoadState('networkidle')
       await expectNoOverflow(staffPage, ['h1'])
@@ -200,6 +208,7 @@ test.describe('Text setting', () => {
     await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     await staffPage.evaluate(() => { location.hash = '' })
+    await staffPage.locator('#me-btn').click()
     await expect(staffPage.getByTestId('text-settings-button').first()).toBeVisible()
   })
 })

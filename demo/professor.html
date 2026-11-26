@@ -1631,22 +1631,22 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
       <div class="trait-row">
         <span class="trait-label">Theological register</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb1" style="background:#2563EB;width:0%"></div></div>
-        <span class="trait-pct">84%</span>
+        <span class="trait-pct" id="ptv1">–</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Source integration</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb2" style="background:#D97706;width:0%"></div></div>
-        <span class="trait-pct">78%</span>
+        <span class="trait-pct" id="ptv2">–</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Epistemic certainty</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb3" style="background:#2563EB;width:0%"></div></div>
-        <span class="trait-pct">67%</span>
+        <span class="trait-pct" id="ptv3">–</span>
       </div>
       <div class="trait-row">
         <span class="trait-label">Sentence consistency</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb4" style="background:#4A6B5C;width:0%"></div></div>
-        <span class="trait-pct">71%</span>
+        <span class="trait-pct" id="ptv4">–</span>
       </div>
     </div>
 
@@ -2235,6 +2235,10 @@ function updatePanelBars(bv) {
       bar.style.background = col;
       setTimeout(() => { bar.style.width = Math.round(bv[k] * 100) + '%'; }, 300);
     }
+    // The figure beside the bar is this student's own. The page used to carry
+    // fixed sample figures here that no code ever replaced.
+    const val = document.getElementById(id.replace('ptb', 'ptv'));
+    if (val) val.textContent = (bv[k] !== undefined && bv[k] !== null) ? Math.round(bv[k] * 100) + '%' : '–';
   });
 }
 

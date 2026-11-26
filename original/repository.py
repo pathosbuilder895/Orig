@@ -267,7 +267,7 @@ class Repository(Protocol):
     def put_invite(self, rec: dict) -> None: ...
     def get_invite_by_hash(self, token_hash: str) -> dict | None: ...
     def latest_invite_for_user(self, user_id: str) -> dict | None: ...
-    def void_invites_for_user(self, user_id: str) -> int: ...
+    def void_invites_for_user(self, user_id: str, course_id: str | None = None) -> int: ...
     def redeem_invite(self, invite_id: str) -> bool: ...
     def put_join_link(self, rec: dict) -> None: ...
     def get_join_link_by_hash(self, token_hash: str) -> dict | None: ...
@@ -306,6 +306,11 @@ class Repository(Protocol):
     def put_display_prefs(self, account_key: str, prefs: dict) -> dict: ...
     def get_display_prefs(self, account_key: str) -> dict | None: ...
     def delete_display_prefs(self, account_key: str) -> None: ...
+
+    # ── Rule D profiles: one per approved past paper (2026-11) ────────────
+    def get_rule_d_profiles(self, student_id: str) -> dict: ...
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None: ...
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int: ...
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(
@@ -823,8 +828,8 @@ class SqliteRepository:
     def latest_invite_for_user(self, user_id: str) -> dict | None:
         return store.latest_invite_for_user(user_id)
 
-    def void_invites_for_user(self, user_id: str) -> int:
-        return store.void_invites_for_user(user_id)
+    def void_invites_for_user(self, user_id: str, course_id: str | None = None) -> int:
+        return store.void_invites_for_user(user_id, course_id)
 
     def redeem_invite(self, invite_id: str) -> bool:
         return store.redeem_invite(invite_id)
@@ -900,6 +905,15 @@ class SqliteRepository:
 
     def delete_display_prefs(self, account_key: str) -> None:
         store.delete_display_prefs(account_key)
+
+    def get_rule_d_profiles(self, student_id: str) -> dict:
+        return store.get_rule_d_profiles(student_id)
+
+    def put_rule_d_profile(self, student_id: str, text_sha256: str, data: dict) -> None:
+        store.put_rule_d_profile(student_id, text_sha256, data)
+
+    def delete_rule_d_profiles(self, student_id: str, keep: set | None = None) -> int:
+        return store.delete_rule_d_profiles(student_id, keep)
 
     # ── A student's own parked phone, per collection (2026-10) ────────────
     def put_phone_park(self, exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:

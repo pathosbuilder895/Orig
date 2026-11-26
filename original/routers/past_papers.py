@@ -28,7 +28,6 @@ Nothing else in the baseline, and no exam or submission, is touched.
 
 from __future__ import annotations
 
-import hashlib
 import sys
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -37,8 +36,9 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import ValidationError
 
 from .. import principal as principal_mod
+from ..features.matter import without_page_breaks
 from ..schemas import AddSampleRequest
-from ..upload_utils import extract_text_from_bytes
+from ..upload_utils import extract_text_from_bytes, strip_upload, text_digest
 from ._shared import _bluebook_tenant, _persist_or_503, _repo, _require_staff
 from .bluebook import _can_touch
 from .bluebook_accounts import _require_student
@@ -69,7 +69,8 @@ def _has_original(tenant_id: str | None) -> bool:
 
 
 def _sha(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+    """Duplicate-check hash: page markers dropped (``upload_utils``)."""
+    return text_digest(text)
 
 
 def _student_view(rec: dict) -> dict:
@@ -132,12 +133,12 @@ def share_past_paper(
                 status_code=422,
                 detail="We could not read that file. Use a PDF, DOCX or TXT file, or paste the text.",
             ) from None
-        body = body.strip()
+        body = strip_upload(body)  # keeps a PDF's tag
     else:
         body = pasted
     if not body:
         raise HTTPException(status_code=422, detail="Add a file or paste the text of your paper.")
-    if len(body) > MAX_TEXT_CHARS:
+    if len(without_page_breaks(body)) > MAX_TEXT_CHARS:  # page markers do not count
         raise HTTPException(status_code=413, detail="This paper is too long to share here.")
     words = len(body.split())
     if words < MIN_WORDS:

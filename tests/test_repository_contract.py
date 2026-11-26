@@ -2246,6 +2246,7 @@ class TestDeleteStudentFullFootprint:
         repo.put_fidelity_score("sub-ferpa1", "sem:ferpa", 0.8, is_authentic=True)
         repo.put_ai_likelihood_score("sub-ferpa1", "sem:ferpa", 0.3, "low")
         repo.put_fused_score("sub-ferpa1", "sem:ferpa", 0.5, 0.6, "low", {"peer_centered_z": 0.1})
+        repo.put_rule_d_profile("sem:ferpa", "b" * 64, {"words": 300})
         # C1, 2026-09 fix pass: four more student-scoped tables the original
         # erasure pass missed — each carries FERPA-relevant PII (a display
         # name, an email + unredeemed magic link, or just identifying rows).
@@ -2302,6 +2303,7 @@ class TestDeleteStudentFullFootprint:
         assert repo.get_display_name("sem:ferpa") == ""
         assert "sem:ferpa" not in {r["id"] for r in repo.roster_for_tenant("sem")}
         assert repo.get_fused_scores(student_id="sem:ferpa") == []
+        assert repo.get_rule_d_profiles("sem:ferpa") == {}
         assert repo.get_ai_likelihood_scores(student_id="sem:ferpa") == []
         assert repo.get_authentic_fidelities("sem:ferpa") == []
         assert repo.list_corrections(student_id="sem:ferpa")["items"] == []
@@ -2717,6 +2719,7 @@ def _seed_every_student_table(repo, scoped_id: str, tenant_id: str) -> None:
     repo.put_fused_score(                                       # fused_scores
         "sub-t08", scoped_id, 0.4, 0.6, "low", {"peer_centered_z": 0.2, "compression": 0.1}
     )
+    repo.put_rule_d_profile(scoped_id, "a" * 64, {"words": 300})  # rule_d_profiles
     # A correction on a submission that has NO manifest, so this row can only
     # be reached through its student_id — the submission_id sweep both
     # backends also run would otherwise mask a student_id gap.
@@ -3205,6 +3208,15 @@ class TestBluebookSelfServeContract:
         assert repo.redeem_invite("i3") is False
         assert repo.get_invite_by_hash("h1")["voided_at"] is None
         assert repo.void_invites_for_user("ss-i:ann") == 0
+
+        # Scoped to one course (T-78): the other course's link survives.
+        repo.put_invite(inv("i4", "h4", "2026-10-04T00:00:00+00:00", course_id="c1"))
+        repo.put_invite(inv("i5", "h5", "2026-10-05T00:00:00+00:00", course_id="c2"))
+        assert repo.void_invites_for_user("ss-i:ann", "c1") == 1
+        assert repo.get_invite_by_hash("h4")["voided_at"] is not None
+        assert repo.get_invite_by_hash("h5")["voided_at"] is None
+        assert repo.void_invites_for_user("ss-i:ann", "c9") == 0
+        assert repo.redeem_invite("i5") is True
 
     def test_join_links_one_active_per_course_and_voiding(self, repo):
         repo.put_tenant("ss-j", "SS", environment="pilot")

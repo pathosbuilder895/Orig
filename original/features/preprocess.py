@@ -33,6 +33,13 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
+from . import feature_flags as _ff
+from . import paragraphs as _para
+from . import part_overrides as _po
+from . import pdf_reflow as _reflow
+from .matter import is_pdf_text, without_page_breaks
+from .matter import kept_ranges as _matter_kept_ranges
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Back-matter section headings
 # ══════════════════════════════════════════════════════════════════════════════
@@ -63,6 +70,45 @@ def _strip_backmatter(text: str) -> str:
     if m:
         text = text[: m.start()].rstrip()
     return text
+
+
+def body_segments(text: str) -> list[tuple[int, int]]:
+    """Ranges of ``text`` that make up the body, in order.
+
+    Default: one range, everything before the first back-matter heading
+    (``_strip_backmatter``), exactly as before. With MATTER_SPLITTER_ENABLED on:
+    the text outside ``features.matter.find_matter``'s front and back matter.
+    ``evidence.engine_view`` maps quotes through the same ranges. With the
+    splitter on, a teacher's own choice carried by this paper's text
+    (``features.part_overrides``) wins over the rules when both switches are
+    on; any other text gets the rules' ranges untouched."""
+    if not _ff.matter_splitter_enabled():
+        return [(0, len(_strip_backmatter(text)))]
+    return _po.apply(text, _matter_kept_ranges(text))
+
+
+def reflows(text: str) -> bool:
+    """Is ``text`` a PDF upload measured with the splitter on? Then its body is
+    reflowed (``features.pdf_reflow``) before it is measured."""
+    return _ff.matter_splitter_enabled() and is_pdf_text(text)
+
+
+def _body(text: str) -> str:
+    """The measured body. Stored page markers (``matter.PAGE_MARK``, kept by
+    uploads for the splitter) are dropped here, with the switch on or off, so
+    an uploaded paper measures exactly as it did before markers were kept; any
+    other character, a pasted form feed included, is measured as before. With
+    the splitter on, a PDF upload's body is first reflowed into paragraphs.
+    With PARAGRAPH_BREAKS_ENABLED on, a Word-style paste's line breaks are
+    then read as paragraph breaks (``features.paragraphs``).
+    ``evidence.engine_view`` makes the same edits."""
+    body = "".join(text[a:b] for a, b in body_segments(text))
+    if reflows(text):
+        body = _reflow.apply_ops(body, _reflow.reflow_ops(body))
+    body = without_page_breaks(body)
+    if _ff.paragraph_breaks_enabled():
+        body = _reflow.apply_ops(body, _para.paragraph_ops(body))
+    return body
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -302,8 +348,8 @@ def preprocess(text: str) -> tuple[str, CitationData]:
     citation_data : CitationData
         Structured citation usage data for Tier 16.
     """
-    # ── 1. Strip back-matter ──────────────────────────────────────────────────
-    body = _strip_backmatter(text)
+    # ── 1. Strip back-matter (and, if switched on, front matter) ──────────────
+    body = _body(text)
 
     # ── 2. Extract citation fingerprint data ──────────────────────────────────
     citation_data = _extract_citation_data(body)

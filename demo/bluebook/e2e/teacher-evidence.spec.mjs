@@ -7,7 +7,8 @@
  * preliminary chip only when PRELIMINARY_SCORE_ENABLED=1). So the suite runs
  * this file twice, against two servers (.github/workflows/test.yml):
  *
- * - the main run (flags set to 0; on is the default since 2026-11): Writing State shows no new link,
+ * - the main run (flags set to 0, and RULE_D_OBSERVATION=off; on is the default since
+ *   2026-11): Writing State shows no new link,
  *   the score response carries neither field, and evidence.html opened by hand
  *   shows nothing but its empty state;
  * - "@evidence-on" (a server started with both flags on): the cards render,
@@ -22,7 +23,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
 import { staffStorageState } from './fixtures/api-setup.mjs'
-import { DATES, PAST, PAPER, seedPastPapers, analyse } from './fixtures/evidence-papers.mjs'
+import { DATES, PAST, PAPER, seedPastPapers, analyse, openLookCloser } from './fixtures/evidence-papers.mjs'
 
 test.describe('side by side, flags set to 0', () => {
   test('Writing State shows no new link and the page shows nothing', async ({ browser, request, testTenant }) => {
@@ -36,12 +37,13 @@ test.describe('side by side, flags set to 0', () => {
     expect(body.preliminary ?? null).toBeNull()
     await expect(page.locator('#tri-packet')).toBeVisible()
     await expect(page.locator('#tri-evidence')).toBeHidden()
-    // No text-by-text section and no preliminary chip without the server's fields.
+    // No text-by-text section and no number row without the server's fields.
     await expect(page.locator('#tbt')).toBeHidden()
     await expect(page.locator('#tbt .ex')).toHaveCount(0)
-    await expect(page.locator('#ws-prelim')).toBeHidden()
+    await expect(page.locator('#ess-nums')).toBeHidden()
 
     // A habit opens with its two numbers only: no quote, no mark, no side-by-side link.
+    await openLookCloser(page)
     await page.locator('#heatmap [data-code]').first().click()
     await expect(page.locator('#hero-evi')).toBeVisible()
     await expect(page.locator('#evi-name')).not.toHaveText('')
@@ -203,7 +205,8 @@ test.describe('side by side, flags on @evidence-on', () => {
     const allSlices = new Set()
     for (const f of ev.all_features) for (const side of ['this_paper', 'past_papers']) for (const q of examples(f, side)) allSlices.add(slice(q))
     for (const m of await page.locator('#tbt .ex-q mark').allTextContents()) expect(allSlices.has(m), m).toBe(true)
-    await expect(page.locator('#ws-prelim')).toContainText('Preliminary · unvalidated · not a judgment')
+    await expect(page.locator('#ess-nums')).toContainText('Preliminary · unvalidated · not a judgment')
+    await expect(page.locator('#ess-nums')).toContainText('has not been measured on student writing yet')
     // Every quote is labelled with where it came from and a date.
     for (const src of await page.locator('#tbt .ex-src').allTextContents()) {
       expect(src, src).toMatch(/^(This paper · .*analysed |.* · (\d|[A-Z][a-z]{2} \d)|.* · date not recorded)/)
@@ -239,6 +242,7 @@ test.describe('side by side, flags on @evidence-on', () => {
       }
     }
 
+    await openLookCloser(page)
     // 1. Every habit with a heatmap bar.
     let both = 0
     for (const b of bars) {
@@ -281,6 +285,7 @@ test.describe('side by side, flags on @evidence-on', () => {
 
     // 4. With a located habit open, the triage buttons are visible and not covered.
     await page.goto(`/original/writing-state.html?student=${encodeURIComponent(student.student_id)}`)
+    await openLookCloser(page)
     await expect(page.locator('#heatmap [data-code]').first()).toBeVisible({ timeout: 20_000 })
     const target = ev.all_features.find(f => f.kind === 'located' && examples(f, 'this_paper').length && examples(f, 'past_papers').length && bars.some(b => b.code === f.code))
     await page.locator(`#heatmap [data-code="${target.code}"]`).click()
@@ -303,6 +308,7 @@ test.describe('side by side, flags on @evidence-on', () => {
 
     // 5. The packet quotes the API's own sentences.
     await page.goto(`/original/writing-state.html?student=${encodeURIComponent(student.student_id)}`)
+    await openLookCloser(page)
     await expect(page.locator('#heatmap [data-code]').first()).toBeVisible({ timeout: 20_000 })
     await page.locator(`#heatmap [data-code="${target.code}"]`).click()
     await page.locator('#tri-packet').click()
@@ -326,6 +332,42 @@ test.describe('side by side, flags on @evidence-on', () => {
     expect(await quotesByCode('#p-diff > .ex')).toEqual(onWritingState)
     // No page along the way (the panel, the side-by-side link, the packet) threw.
     expect(errors).toEqual([])
+    await context.close()
+  })
+
+  // A tall open habit used to squeeze the hero to its 600px floor, so its
+  // bottom-aligned title spilled upward over the testing notice, out of
+  // scroll reach (82px on a desktop, 707px on a phone, measured 2026-11-18).
+  test('an open habit after an analysis keeps the top of the page in reach @evidence-on', async ({ browser, request, testTenant }) => {
+    test.setTimeout(150_000)
+    const { staff, student, baseURL } = testTenant
+    await seedPastPapers(request, student)
+    const context = await browser.newContext({ storageState: staffStorageState(baseURL, staff), viewport: { width: 1440, height: 1000 } })
+    const page = await context.newPage()
+    const body = await analyse(page, student.student_id)
+    expect(body.evidence, 'this run needs a server started with EVIDENCE_PASSAGES_ENABLED=1').toBeTruthy()
+    // The heatmap lives in the closed "Look closer" fold since the essentials redesign.
+    await openLookCloser(page)
+    // Scrolled all the way up: where the hero's title sits against the scroll area and the testing notice.
+    const atTop = () => page.evaluate(() => {
+      const rs = document.getElementById('right-scroll')
+      rs.scrollTop = 0
+      const title = document.querySelector('.hero-title').getBoundingClientRect().top
+      const notice = document.getElementById('result-notice')
+      return {
+        belowScrollTop: Math.round(title - rs.getBoundingClientRect().top),
+        belowNotice: notice.hidden ? null : Math.round(title - notice.getBoundingClientRect().bottom),
+      }
+    })
+    for (const size of [{ width: 1440, height: 1000 }, { width: 375, height: 812 }]) {
+      await page.setViewportSize(size)
+      await page.locator('#heatmap [data-code="comma_rate"]').click()
+      await expect(page.locator('#hero-evi')).toBeVisible()
+      await expect(page.locator('#evi-past')).toBeHidden()
+      const at = await atTop()
+      expect(at.belowScrollTop, `title in scroll reach at ${size.width}px`).toBeGreaterThanOrEqual(0)
+      if (at.belowNotice !== null) expect(at.belowNotice, `title below the testing notice at ${size.width}px`).toBeGreaterThanOrEqual(0)
+    }
     await context.close()
   })
 

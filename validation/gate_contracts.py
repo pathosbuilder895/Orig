@@ -43,6 +43,8 @@ from validation.calibration_gate import (
     evaluate_g6_fairness,
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
+    evaluate_g9_band_false_alarm,
+    evaluate_g_rule_d_report_only,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
@@ -353,6 +355,35 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "test_g7_label_destruction_fails_all_three_legs_by_construction."
         ),
     ),
+    "evaluate_g9_band_false_alarm": GateContract(
+        gate="G9",
+        claims="on real student writing scored on the pilot path, no more than "
+        "5% of papers a student wrote themselves land at schedule_conversation "
+        "or above, measured well enough (>= 5 students, >= 30 papers, Wilson "
+        "interval clear of the bar) that the teacher page may quote the rate",
+        # 5 of 20 genuine papers at schedule_conversation+ from 6 students:
+        # a 25% false-alarm rate whose whole Wilson interval (~0.11-0.47)
+        # sits ABOVE the 5% bar. It fails on the measured rate, not on
+        # thinness: 20 papers is below _G9_MIN_PAPERS, and a thin corpus
+        # may only ever downgrade a would-be pass to uninformative, never
+        # rescue a measured failure. test_g9_fails_on_the_measured_rate_not_
+        # on_thinness pins that the fail survives the thin-corpus guard.
+        failure_witness=lambda: evaluate_g9_band_false_alarm(
+            ["no_action"] * 12 + ["monitor"] * 3 + ["schedule_conversation"] * 4 + ["escalate"],
+            6,
+        ),
+        notes=(
+            "No label-destruction leg: G9 has no impostor side to destroy "
+            "labels between. Its corpus is genuine papers only, each confirmed "
+            "by its teacher; shuffling authorship would turn it into a "
+            "cross-student experiment that is G1/G2's business, not a "
+            "false-alarm measurement. The guard against a hollow pass is "
+            "instead the decidability rule: zero flagged papers out of 30 "
+            "gives a Wilson upper bound of ~0.11, above the 0.05 bar, so a "
+            "small clean corpus cannot pass — the interval has to clear the "
+            "bar, which takes roughly 70+ papers at zero flags."
+        ),
+    ),
     "evaluate_g8_genre_discrimination": GateContract(
         gate="G8",
         claims="the v2 genre resolver claims labels that are right "
@@ -401,6 +432,24 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "downgrade path never runs and both are plain criterion fails "
             "rather than 'uninformative' outcomes that merely happen not to "
             "be passes."
+        ),
+    ),
+    "evaluate_g_rule_d_report_only": GateContract(
+        gate="G-RD",
+        claims="RULE_D_OBSERVATION never changes deviation_score or the recommended action, "
+        "and returns no index below the class-size floor",
+        failure_witness=lambda: evaluate_g_rule_d_report_only(
+            {"off": (0.41, "monitor"), "shadow": (0.41, "monitor"), "on": (0.41, "schedule_conversation")},
+            {"status": "observed", "index": 0.2},
+        ),
+        notes=(
+            "The failure witness is the two ways rule D could stop being report-only: the "
+            "`on` arm moves the recommended action one step, and a workspace under the "
+            "3-student / 5-paper floor still gets an index. Each alone fails the gate "
+            "(pinned in tests/test_rule_d.py). Label destruction does not apply: this gate "
+            "checks an invariant of the wiring, not a measurement of authorship; rule D's "
+            "discrimination was measured once, on the pre-registered locked test "
+            "(docs/research/2026-11-12-scholarly-rule-d-locked-test-results.md)."
         ),
     ),
 }
