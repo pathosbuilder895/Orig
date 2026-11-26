@@ -2,11 +2,16 @@
 
 Implements the threat model in
 docs/superpowers/specs/2026-09-20-adversarial-verification-threat-model-design.md
-against the corpora already built for validation/public_authors/. This
-package is entirely offline (no live scoring, no Postgres) and is not
-under the original/ 98% coverage gate.
+against committed public-domain and CC0 corpora. It scores through the real
+app in-process (FastAPI TestClient, a throwaway SQLite file per process):
+no network, no deployment, no Postgres. Not under the original/ 98%
+coverage gate.
 
-Task 13 (this module's first task) is victim-profile construction only —
-see profiles.py. Later tasks add adversarial generators, poisoning
-strategies, a runner, and gate wiring; they are out of scope here.
+Modules: profiles.py (victims), generators.py (mechanical obfuscation and
+the cached LLM attack readers), poisoning.py (baseline poisoning),
+fetch_riddell_juola.py (the CC0 human obfuscation/imitation corpus),
+runner.py (scores one profile under one attack), report.py (the full
+harness run and the reducers behind gates G-A1…G-A6 in
+validation/calibration_gate.py), gen_llm_attacks.py (offline LLM attack
+generation; needs an API key, never runs in tests or CI).
 """

@@ -236,3 +236,21 @@ def test_api_path_uses_isolated_student_id_per_call(tiny_profile, api_client):
 
     assert first.holdout_actions == second.holdout_actions
     assert first.impostor_actions == second.impostor_actions
+
+
+def test_fast_path_reports_scores_sigma_and_integrity(tiny_profile):
+    result = run_attack(tiny_profile, attack="none", path="score")
+    assert len(result.holdout_scores) == len(result.holdout_actions) == 1
+    assert 0.0 <= result.holdout_scores[0] <= 1.0
+    assert result.mean_baseline_std > 0.0
+    assert result.baseline_integrity["n_baselines"] == 3
+    assert result.held_baseline_indices == ()
+    assert result.scoring_refused is False
+
+
+def test_api_path_reports_the_live_integrity_block_and_scores(tiny_profile, api_client):
+    result = run_attack(tiny_profile, attack="none", path="api", client=api_client)
+    assert result.baseline_integrity["readiness"] == "ready"
+    assert len(result.impostor_scores) == len(result.impostor_actions) == 1
+    assert result.mean_baseline_std is not None
+    assert result.scoring_refused is False
