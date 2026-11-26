@@ -1,0 +1,701 @@
+{
+ "collection": "science",
+ "partition": "development",
+ "date": "2026-11-12",
+ "seeds": [
+  7,
+  11,
+  23
+ ],
+ "features_extracted_now": 0,
+ "skipped": {},
+ "candidates": {
+  "flags_off": {
+   "reason": "reference: the shipped default scorer",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3486,
+      "catch_at_5pct_ci95": [
+       0.2918,
+       0.412
+      ],
+      "product_honest_flag_rate": 0.0683,
+      "product_catch_rate": 0.3792,
+      "auc": 0.8053,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0464,
+        0.0929
+       ],
+       "other_writer_catch_rate": [
+        0.3388,
+        0.4273
+       ],
+       "auc": [
+        0.7772,
+        0.8348
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 24
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6219,
+      "catch_at_5pct_ci95": [
+       0.565,
+       0.706
+      ],
+      "product_honest_flag_rate": 0.0273,
+      "product_catch_rate": 0.5268,
+      "auc": 0.906,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0109,
+        0.0464
+       ],
+       "other_writer_catch_rate": [
+        0.4809,
+        0.5727
+       ],
+       "auc": [
+        0.8852,
+        0.9265
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 24
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.388,
+      "catch_at_5pct_ci95": [
+       0.3082,
+       0.494
+      ],
+      "product_honest_flag_rate": 0.6421,
+      "product_catch_rate": 0.9388,
+      "auc": 0.8141,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.5738,
+        0.7023
+       ],
+       "other_writer_catch_rate": [
+        0.9213,
+        0.9541
+       ],
+       "auc": [
+        0.7858,
+        0.8425
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 25
+    }
+   }
+  },
+  "a_length_matched": {
+   "reason": "past papers cut into pieces the size of the new paper, so the baseline mean and spread are estimated at the length being compared",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3486,
+      "catch_at_5pct_ci95": [
+       0.2918,
+       0.412
+      ],
+      "product_honest_flag_rate": 0.0683,
+      "product_catch_rate": 0.3792,
+      "auc": 0.8053,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0464,
+        0.0929
+       ],
+       "other_writer_catch_rate": [
+        0.3388,
+        0.4273
+       ],
+       "auc": [
+        0.7772,
+        0.8348
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 23
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6219,
+      "catch_at_5pct_ci95": [
+       0.565,
+       0.706
+      ],
+      "product_honest_flag_rate": 0.0273,
+      "product_catch_rate": 0.5268,
+      "auc": 0.906,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0109,
+        0.0464
+       ],
+       "other_writer_catch_rate": [
+        0.4809,
+        0.5727
+       ],
+       "auc": [
+        0.8852,
+        0.9265
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.5366,
+      "catch_at_5pct_ci95": [
+       0.4044,
+       0.6044
+      ],
+      "product_honest_flag_rate": 0.0137,
+      "product_catch_rate": 0.2973,
+      "auc": 0.8624,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0,
+        0.0301
+       ],
+       "other_writer_catch_rate": [
+        0.2536,
+        0.3509
+       ],
+       "auc": [
+        0.8354,
+        0.8881
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 26
+    }
+   }
+  },
+  "b_length_adaptive": {
+   "reason": "rescales per-feature weights by submission length",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3399,
+      "catch_at_5pct_ci95": [
+       0.2175,
+       0.4427
+      ],
+      "product_honest_flag_rate": 0.2514,
+      "product_catch_rate": 0.6907,
+      "auc": 0.8057,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.2077,
+        0.2951
+       ],
+       "other_writer_catch_rate": [
+        0.6525,
+        0.7311
+       ],
+       "auc": [
+        0.778,
+        0.8326
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6721,
+      "catch_at_5pct_ci95": [
+       0.5836,
+       0.7377
+      ],
+      "product_honest_flag_rate": 0.0546,
+      "product_catch_rate": 0.6809,
+      "auc": 0.9119,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0301,
+        0.082
+       ],
+       "other_writer_catch_rate": [
+        0.6393,
+        0.7246
+       ],
+       "auc": [
+        0.8907,
+        0.9323
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 23
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3672,
+      "catch_at_5pct_ci95": [
+       0.2754,
+       0.4984
+      ],
+      "product_honest_flag_rate": 0.7705,
+      "product_catch_rate": 0.9803,
+      "auc": 0.8126,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.713,
+        0.8224
+       ],
+       "other_writer_catch_rate": [
+        0.9694,
+        0.9891
+       ],
+       "auc": [
+        0.7835,
+        0.8406
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 24
+    }
+   }
+  },
+  "c_topic_inflation": {
+   "reason": "widens expected spread in proportion to topic distance from the baseline",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3399,
+      "catch_at_5pct_ci95": [
+       0.2831,
+       0.4044
+      ],
+      "product_honest_flag_rate": 0.0683,
+      "product_catch_rate": 0.377,
+      "auc": 0.8032,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0464,
+        0.0929
+       ],
+       "other_writer_catch_rate": [
+        0.3366,
+        0.4252
+       ],
+       "auc": [
+        0.7756,
+        0.8329
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 32
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6219,
+      "catch_at_5pct_ci95": [
+       0.565,
+       0.706
+      ],
+      "product_honest_flag_rate": 0.0273,
+      "product_catch_rate": 0.5268,
+      "auc": 0.906,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0109,
+        0.0464
+       ],
+       "other_writer_catch_rate": [
+        0.4809,
+        0.5727
+       ],
+       "auc": [
+        0.8852,
+        0.9265
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 41
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3792,
+      "catch_at_5pct_ci95": [
+       0.3027,
+       0.4886
+      ],
+      "product_honest_flag_rate": 0.6421,
+      "product_catch_rate": 0.9388,
+      "auc": 0.8123,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.5738,
+        0.7023
+       ],
+       "other_writer_catch_rate": [
+        0.9213,
+        0.9541
+       ],
+       "auc": [
+        0.7839,
+        0.8406
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 40
+    }
+   }
+  },
+  "d_characteristic": {
+   "reason": "weights features by how stable they are for this author relative to peers",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3475,
+      "catch_at_5pct_ci95": [
+       0.2327,
+       0.4208
+      ],
+      "product_honest_flag_rate": 0.4536,
+      "product_catch_rate": 0.8601,
+      "auc": 0.7912,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.4044,
+        0.5027
+       ],
+       "other_writer_catch_rate": [
+        0.8295,
+        0.8896
+       ],
+       "auc": [
+        0.7627,
+        0.8245
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 25
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.553,
+      "catch_at_5pct_ci95": [
+       0.4831,
+       0.6907
+      ],
+      "product_honest_flag_rate": 0.3661,
+      "product_catch_rate": 0.9137,
+      "auc": 0.8933,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.3033,
+        0.429
+       ],
+       "other_writer_catch_rate": [
+        0.8918,
+        0.9344
+       ],
+       "auc": [
+        0.8721,
+        0.9145
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3475,
+      "catch_at_5pct_ci95": [
+       0.2743,
+       0.4164
+      ],
+      "product_honest_flag_rate": 0.9235,
+      "product_catch_rate": 0.9967,
+      "auc": 0.8088,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.8825,
+        0.9563
+       ],
+       "other_writer_catch_rate": [
+        0.9923,
+        1.0
+       ],
+       "auc": [
+        0.7776,
+        0.8385
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    }
+   }
+  },
+  "e_impostor_llr": {
+   "reason": "decides on how much more like the author than like peers the paper is",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.4208,
+      "catch_at_5pct_ci95": [
+       0.2972,
+       0.5104
+      ],
+      "product_honest_flag_rate": 0.0683,
+      "product_catch_rate": 0.3792,
+      "auc": 0.8463,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0464,
+        0.0929
+       ],
+       "other_writer_catch_rate": [
+        0.3388,
+        0.4273
+       ],
+       "auc": [
+        0.8153,
+        0.8781
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 23
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6721,
+      "catch_at_5pct_ci95": [
+       0.6142,
+       0.7934
+      ],
+      "product_honest_flag_rate": 0.0273,
+      "product_catch_rate": 0.5268,
+      "auc": 0.933,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0109,
+        0.0464
+       ],
+       "other_writer_catch_rate": [
+        0.4809,
+        0.5727
+       ],
+       "auc": [
+        0.9133,
+        0.951
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.3934,
+      "catch_at_5pct_ci95": [
+       0.3333,
+       0.4809
+      ],
+      "product_honest_flag_rate": 0.6421,
+      "product_catch_rate": 0.9388,
+      "auc": 0.839,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.5738,
+        0.7023
+       ],
+       "other_writer_catch_rate": [
+        0.9213,
+        0.9541
+       ],
+       "auc": [
+        0.8091,
+        0.8687
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 22
+    }
+   }
+  },
+  "f_length_matched_llr": {
+   "reason": "diagnosis: about 70% of driving features are length-driven (fixed by a); the LLR decision is peer-relative, so inflation shared by honest papers and probes partly cancels",
+   "configs": {
+    "matched_300_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.4208,
+      "catch_at_5pct_ci95": [
+       0.2972,
+       0.5104
+      ],
+      "product_honest_flag_rate": 0.0683,
+      "product_catch_rate": 0.3792,
+      "auc": 0.8463,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0464,
+        0.0929
+       ],
+       "other_writer_catch_rate": [
+        0.3388,
+        0.4273
+       ],
+       "auc": [
+        0.8153,
+        0.8781
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 19
+    },
+    "matched_1200_1200": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.6721,
+      "catch_at_5pct_ci95": [
+       0.6142,
+       0.7934
+      ],
+      "product_honest_flag_rate": 0.0273,
+      "product_catch_rate": 0.5268,
+      "auc": 0.933,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0109,
+        0.0464
+       ],
+       "other_writer_catch_rate": [
+        0.4809,
+        0.5727
+       ],
+       "auc": [
+        0.9133,
+        0.951
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 18
+    },
+    "long_past_1200_short_new_300": {
+     "pooled": {
+      "catch_at_5pct_honest": 0.588,
+      "catch_at_5pct_ci95": [
+       0.4022,
+       0.6896
+      ],
+      "product_honest_flag_rate": 0.0137,
+      "product_catch_rate": 0.2973,
+      "auc": 0.9059,
+      "ci95_author_bootstrap": {
+       "honest_flag_rate": [
+        0.0,
+        0.0301
+       ],
+       "other_writer_catch_rate": [
+        0.2536,
+        0.3509
+       ],
+       "auc": [
+        0.882,
+        0.929
+       ]
+      },
+      "n_authors": 61,
+      "n_honest": 366,
+      "n_probe": 915,
+      "llr_missing": 0
+     },
+     "seconds": 18
+    }
+   }
+  }
+ },
+ "selection_rule": "validation/scholarly/adjust_selection_rule.json"
+}

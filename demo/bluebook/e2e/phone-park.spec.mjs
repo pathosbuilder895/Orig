@@ -33,7 +33,7 @@ test('with phone parking on, Begin waits for the student\'s own phone', async ({
   test.setTimeout(60_000)
   const exam = await createExam(request, testTenant, 'Phone exam', { phonePark: true, aiDetect: false })
   await boot(studentPage, exam, testTenant, { phonePark: true })
-  const begin = studentPage.getByRole('button', { name: 'Begin Examination' })
+  const begin = studentPage.getByRole('button', { name: 'Begin writing' })
   await expect(studentPage.getByRole('heading', { name: 'Park your phone' })).toBeVisible()
   const qrImg = studentPage.getByRole('img', { name: /Your own code for parking your phone/ })
   await expect(qrImg).toBeVisible()
@@ -66,7 +66,7 @@ test('with phone parking on, Begin waits for the student\'s own phone', async ({
   const phoneCtx = await browser.newContext(PHONE)
   const phone = await phoneCtx.newPage()
   await phone.goto(new URL(qr_url).pathname + new URL(qr_url).search)
-  await expect(phone.getByText('Parked for your account on this exam only.', { exact: false })).toBeVisible()
+  await expect(phone.getByText('Parked for your account on this collection only.', { exact: false })).toBeVisible()
   await expect(phone.locator('#status-text')).toHaveText('Parked')
   expect(phone.url()).not.toContain('s=')
   await phoneCtx.close()
@@ -78,7 +78,7 @@ test('with phone parking on, Begin waits for the student\'s own phone', async ({
 test('with phone parking off, the briefing is unchanged', async ({ studentPage, testTenant, request }) => {
   const exam = await createExam(request, testTenant, 'No phone exam', { aiDetect: false })
   await boot(studentPage, exam, testTenant, {})
-  await expect(studentPage.getByRole('button', { name: 'Begin Examination' })).toBeEnabled()
+  await expect(studentPage.getByRole('button', { name: 'Begin writing' })).toBeEnabled()
   await expect(studentPage.getByRole('heading', { name: 'Park your phone' })).toHaveCount(0)
 })
 

@@ -12,10 +12,14 @@ repos:
         exclude: ^validation/public_authors/corpus/.*/_full_work_cache\.txt$
       - id: check-merge-conflict
       - id: detect-private-key       # LTI RSA keys are handled in this repo
+      # The LLM attack corpus is content-addressed (each doc's file name and
+      # manifest doc_sha are the sha256 of its exact bytes), so a hook that
+      # adds a final newline or strips trailing spaces would break every
+      # checksum the gate readers verify.
       - id: end-of-file-fixer
-        exclude: ^demo/bluebook/bluebook\.bundle\.js(\.map)?$
+        exclude: ^(demo/bluebook/bluebook\.bundle\.js(\.map)?|validation/adversarial/corpus/llm_attacks/.*\.txt)$
       - id: trailing-whitespace
-        exclude: ^demo/bluebook/bluebook\.bundle\.js(\.map)?$
+        exclude: ^(demo/bluebook/bluebook\.bundle\.js(\.map)?|validation/adversarial/corpus/llm_attacks/.*\.txt)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.10                    # keep in lockstep with requirements-dev pin

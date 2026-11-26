@@ -41,14 +41,14 @@ router = APIRouter()
 NO_ORIGINAL = "This workspace's plan does not include Original."
 NOTHING_WRITTEN = "Nothing written to add."
 NOT_ADDED = "Could not be added."
-TOO_LONG = "This exam is too long to add as a baseline sample."
+TOO_LONG = "This booklet is too long to add as a baseline sample."
 TAKE_HOME_DETAIL = "take-home: approve it on its own"
 NEEDS_BASELINE_DETAIL = (
     "Take-home work can only extend a baseline. Approve at least {n} in-class "
     "papers for this student first."
 )
 HELD_DETAIL = (
-    "Not added: this exam differs strongly from the student's existing samples. "
+    "Not added: this booklet differs strongly from the student's existing samples. "
     "Approval does not override this check."
 )
 

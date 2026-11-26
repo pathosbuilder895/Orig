@@ -1,0 +1,2492 @@
+{
+ "meta": {
+  "git_sha": "216c3e2d",
+  "live_scoring_env": {
+   "CHARACTERISTIC_WEIGHTS": "0",
+   "COHORT_PRIOR_FALLBACK": "0",
+   "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+   "GENRE_RESOLVER_V2": "off",
+   "LLR_ACTION_MODE": "gate",
+   "MIN_BASELINE_SAMPLES": "3",
+   "REPO_BACKEND": "sqlite",
+   "REPO_SHADOW": "off",
+   "TOPIC_VARIANCE_INFLATION": "0",
+   "TYPICALITY_POOLED_CALIBRATION": "0",
+   "TYPICALITY_SCORING": "0"
+  },
+  "note": "Added after the run, which predates the meta block: git_sha is HEAD at run time (the working tree held the uncommitted corpus and tooling, no scoring code), runtime from the run's progress log, reproduces_report recomputed from these rows.",
+  "reproduces_report": {
+   "checked": 7,
+   "mismatched": []
+  },
+  "runtime_seconds": 349,
+  "workers": 8
+ },
+ "report": "validation/adversarial/reports/2026-11-19_llm_attacks.json",
+ "rows": [
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "escalate",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "escalate",
+   "impostor_probabilities": [
+    0.7683330623764961,
+    0.9054373738698681
+   ],
+   "impostor_scores": [
+    0.7969675158419803,
+    0.6675772448408152
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.022529429715248638,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.945251727941885,
+   "victim_id": "augustine"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.900910674959688
+   ],
+   "impostor_scores": [
+    0.6315733105294924
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.022529429715248638,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.945251727941885,
+   "victim_id": "augustine"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "escalate",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "escalate",
+   "impostor_probabilities": [
+    0.7251856308152518,
+    0.864761519414702
+   ],
+   "impostor_scores": [
+    0.7554046993659668,
+    0.6470647555085914
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.04636848390061078,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.3284362865447344,
+   "victim_id": "boethius"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8218982638898831
+   ],
+   "impostor_scores": [
+    0.5750026900617659
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.04636848390061078,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.3284362865447344,
+   "victim_id": "boethius"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "escalate"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "escalate",
+   "impostor_probabilities": [
+    0.8502668258392481,
+    0.8352993782250292
+   ],
+   "impostor_scores": [
+    0.7035957344282197,
+    0.7599766699570888
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.038686646214317215,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.9783426887727944,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8293610530548103
+   ],
+   "impostor_scores": [
+    0.5598335174334428
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.038686646214317215,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.9783426887727944,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8299604340031542,
+    0.9068095868472553
+   ],
+   "impostor_scores": [
+    0.653270102345813,
+    0.585374833121849
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.03904229236007521,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.5486982659981826,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8868229651497741
+   ],
+   "impostor_scores": [
+    0.5211618178255859
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.03904229236007521,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.5486982659981826,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8372755274492554,
+    0.8501361874571707
+   ],
+   "impostor_scores": [
+    0.6858831738773117,
+    0.6899245709204943
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.038900807851293406,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 1.56145454503987,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.9246415259622635
+   ],
+   "impostor_scores": [
+    0.5750237984615814
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.038900807851293406,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 1.56145454503987,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.894544009771324,
+    0.8268860937141633
+   ],
+   "impostor_scores": [
+    0.5454917025932351,
+    0.6071552331250051
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.059257177141683666,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.8064012730279098,
+   "victim_id": "douglass"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8780742684128939
+   ],
+   "impostor_scores": [
+    0.5349197465170833
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.059257177141683666,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.8064012730279098,
+   "victim_id": "douglass"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8985514309386876,
+    0.8923670437596786
+   ],
+   "impostor_scores": [
+    0.6040295814117499,
+    0.6981996672999325
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.037592375760549315,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.6025693769563997,
+   "victim_id": "edwards"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8576994861430738
+   ],
+   "impostor_scores": [
+    0.6894520223579822
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.037592375760549315,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.6025693769563997,
+   "victim_id": "edwards"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8493627752648076,
+    0.8761421431022978
+   ],
+   "impostor_scores": [
+    0.6241870967519071,
+    0.5636984976849162
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.045483016263917486,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.8367129505263408,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8606039562155056
+   ],
+   "impostor_scores": [
+    0.4143227771265704
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.045483016263917486,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.8367129505263408,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "escalate",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "escalate",
+   "impostor_probabilities": [
+    0.6858250526192169,
+    0.7547877349651277
+   ],
+   "impostor_scores": [
+    0.7793109879078561,
+    0.7095072530845818
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.025876271928219875,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.34660178831179933,
+   "victim_id": "james"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8679416911823139
+   ],
+   "impostor_scores": [
+    0.7338130084796168
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.025876271928219875,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.34660178831179933,
+   "victim_id": "james"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8335509217946973,
+    0.8617186922573465
+   ],
+   "impostor_scores": [
+    0.7322027550521466,
+    0.678367367960141
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.028538203656937447,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.3689414445486012,
+   "victim_id": "kempis"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8854787261061373
+   ],
+   "impostor_scores": [
+    0.5823361212012779
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.028538203656937447,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.3689414445486012,
+   "victim_id": "kempis"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8317775864320478,
+    0.8662078861658136
+   ],
+   "impostor_scores": [
+    0.570046992413667,
+    0.6210038897246521
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.03928049525069781,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 4.186976528059836,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.868012199337382
+   ],
+   "impostor_scores": [
+    0.6252180403221782
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.03928049525069781,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 4.186976528059836,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8387998447089092,
+    0.852576794579456
+   ],
+   "impostor_scores": [
+    0.5969789455657111,
+    0.6630016392491884
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.04230758599647561,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.0176465561514987,
+   "victim_id": "newman"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8791211337429515
+   ],
+   "impostor_scores": [
+    0.6428896153723235
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.04230758599647561,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.0176465561514987,
+   "victim_id": "newman"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8792803482079998,
+    0.9142709161570853
+   ],
+   "impostor_scores": [
+    0.5597997956753632,
+    0.6311160298311392
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.050386054255270755,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 7.010420254819033,
+   "victim_id": "thoreau"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 3,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 3
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8321214139570907
+   ],
+   "impostor_scores": [
+    0.6173895093245595
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.050386054255270755,
+   "n": 3,
+   "n_baseline_docs": 3,
+   "n_baselines": 3,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 7.010420254819033,
+   "victim_id": "thoreau"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8570295849760308,
+    0.8442029159255606
+   ],
+   "impostor_scores": [
+    0.7067549477243839,
+    0.7322830555442175
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.04885587014350146,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3478835288522077,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8595078354255272
+   ],
+   "impostor_scores": [
+    0.5753532142364788
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.04885587014350146,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3478835288522077,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8306617341191767,
+    0.9083897394510991
+   ],
+   "impostor_scores": [
+    0.6409377272477043,
+    0.649975130380553
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.04359325226039739,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.8625443852897376,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.9042875659354629
+   ],
+   "impostor_scores": [
+    0.6380429558690809
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.04359325226039739,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 0.8625443852897376,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.80925128068503,
+    0.8325039489824382
+   ],
+   "impostor_scores": [
+    0.6975995108077215,
+    0.7175853014563535
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.055037300007122376,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.4904676984528655,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8270230223661164
+   ],
+   "impostor_scores": [
+    0.6363647274949825
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.055037300007122376,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.4904676984528655,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8635010841588092,
+    0.859843815180777
+   ],
+   "impostor_scores": [
+    0.6465766759294226,
+    0.5477376458066658
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.05989644549555695,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.3564762663611885,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8806566762754069
+   ],
+   "impostor_scores": [
+    0.5751771845811761
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.05989644549555695,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.3564762663611885,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8759950152410284,
+    0.8431571729683343
+   ],
+   "impostor_scores": [
+    0.5570266770210709,
+    0.6486930009101315
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.04956388337305393,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3677387432388244,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8360229369931984
+   ],
+   "impostor_scores": [
+    0.6320529350075964
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.04956388337305393,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3677387432388244,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8787699690505697,
+    0.9202946866174175
+   ],
+   "impostor_scores": [
+    0.5620738011733508,
+    0.6201039756963697
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.05811176691542828,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 7.880685832172347,
+   "victim_id": "thoreau"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 5,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 5
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8169799544659756
+   ],
+   "impostor_scores": [
+    0.6819667880619248
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.05811176691542828,
+   "n": 5,
+   "n_baseline_docs": 5,
+   "n_baselines": 5,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 7.880685832172347,
+   "victim_id": "thoreau"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "escalate"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "escalate",
+   "impostor_probabilities": [
+    0.864879948843098,
+    0.8304046991307894
+   ],
+   "impostor_scores": [
+    0.6931265836208175,
+    0.7511696038861905
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.05576490525799047,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.95835316031491,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.8659652934309756
+   ],
+   "impostor_scores": [
+    0.5956859328395359
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.05576490525799047,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.95835316031491,
+   "victim_id": "chesterton"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [
+     {
+      "index": 9,
+      "z": 5.598463863551002
+     }
+    ],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [
+     "one sample stylistically unlike the others"
+    ],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.838209261261273,
+    0.8882550300430467
+   ],
+   "impostor_scores": [
+    0.5916704383011675,
+    0.6368838806813698
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.06825145754841438,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 1.216194332815081,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [
+     {
+      "index": 9,
+      "z": 5.598463863551002
+     }
+    ],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [
+     "one sample stylistically unlike the others"
+    ],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "monitor",
+   "impostor_probabilities": [
+    0.9024710420076422
+   ],
+   "impostor_scores": [
+    0.5732876567839524
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.06825145754841438,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 1.216194332815081,
+   "victim_id": "christie"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8076905360929342,
+    0.8387163698134135
+   ],
+   "impostor_scores": [
+    0.7037256039239108,
+    0.7254248663741976
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.06311870471935956,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.224143543301536,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8846118663354108
+   ],
+   "impostor_scores": [
+    0.641965993839283
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.06311870471935956,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 2.224143543301536,
+   "victim_id": "dickens"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation",
+    "monitor"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8521432001777094,
+    0.8933614755954284
+   ],
+   "impostor_scores": [
+    0.6847215291764824,
+    0.583633952630764
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.0602165504227657,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3101635587288865,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8724262069810982
+   ],
+   "impostor_scores": [
+    0.684900692020337
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.0602165504227657,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 3.3101635587288865,
+   "victim_id": "emerson"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8700198390167118,
+    0.8551932629759396
+   ],
+   "impostor_scores": [
+    0.5814219636594464,
+    0.6518864374406537
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.060114432648034836,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 5.188817172040354,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8678923269454544
+   ],
+   "impostor_scores": [
+    0.6506118701445912
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.060114432648034836,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 5.188817172040354,
+   "victim_id": "mill"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [
+     {
+      "index": 2,
+      "z": 4.250384481953117
+     }
+    ],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [
+     "one sample stylistically unlike the others"
+    ],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "monitor",
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8854990842009955,
+    0.9214239913026818
+   ],
+   "impostor_scores": [
+    0.572787528679937,
+    0.6547111308970901
+   ],
+   "injected_indices": [],
+   "kind": "genuine_slice",
+   "mean_baseline_std": 0.05945583783476525,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 6.253681020751176,
+   "victim_id": "thoreau"
+  },
+  {
+   "attack": "none",
+   "baseline_integrity": {
+    "loo_outlier_samples": [
+     {
+      "index": 2,
+      "z": 4.250384481953117
+     }
+    ],
+    "min_required": 3,
+    "n_baselines": 10,
+    "notes": [
+     "one sample stylistically unlike the others"
+    ],
+    "provenance_mix": {
+     "verified": 10
+    },
+    "readiness": "ready",
+    "sigma_inflation": null,
+    "span_days": null
+   },
+   "baseline_rejected_count": 0,
+   "corpus": "controls",
+   "held_baseline_indices": [],
+   "holdout_actions": [],
+   "holdout_max_action": null,
+   "holdout_probabilities": [],
+   "holdout_scores": [],
+   "imitation_success": 0.0,
+   "impostor_actions": [
+    "schedule_conversation"
+   ],
+   "impostor_in_baseline": [],
+   "impostor_max_action": "schedule_conversation",
+   "impostor_probabilities": [
+    0.8879701925922658
+   ],
+   "impostor_scores": [
+    0.6392032557673983
+   ],
+   "injected_indices": [],
+   "kind": "imitation_flat",
+   "mean_baseline_std": 0.05945583783476525,
+   "n": 10,
+   "n_baseline_docs": 10,
+   "n_baselines": 10,
+   "path": "api",
+   "poisoning_success": null,
+   "scoring_refused": false,
+   "sigma_proxy": 6.253681020751176,
+   "victim_id": "thoreau"
+  }
+ ],
+ "summary": {
+  "N=10": {
+   "imitation_flat_vs_genuine_slice": {
+    "auroc": 0.3888888888888889,
+    "auroc_lower_95": 0.09676933255921684,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "imitation_vs_genuine_full": {
+    "auroc": 0.8472222222222222,
+    "auroc_lower_95": 0.4364905634363539,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "imitation_vs_genuine_slice": {
+    "auroc": 0.4305555555555556,
+    "auroc_lower_95": 0.1876128068994087,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "schedule_conversation_plus": {
+    "genuine_full": 0.25,
+    "genuine_slice": 0.6666666666666666,
+    "imitation": 0.6666666666666666,
+    "imitation_flat": 0.6666666666666666
+   },
+   "victims": [
+    "chesterton",
+    "christie",
+    "dickens",
+    "emerson",
+    "mill",
+    "thoreau"
+   ]
+  },
+  "N=3": {
+   "imitation_flat_vs_genuine_slice": {
+    "auroc": 0.27514792899408286,
+    "auroc_lower_95": 0.1268049716161809,
+    "n_attack": 13,
+    "n_genuine": 26
+   },
+   "imitation_vs_genuine_full": {
+    "auroc": 0.8668639053254438,
+    "auroc_lower_95": 0.5776482949136899,
+    "n_attack": 13,
+    "n_genuine": 26
+   },
+   "imitation_vs_genuine_slice": {
+    "auroc": 0.2692307692307692,
+    "auroc_lower_95": 0.1268049716161809,
+    "n_attack": 13,
+    "n_genuine": 26
+   },
+   "schedule_conversation_plus": {
+    "genuine_full": 0.07692307692307693,
+    "genuine_slice": 0.7692307692307693,
+    "imitation": 0.46153846153846156,
+    "imitation_flat": 0.46153846153846156
+   },
+   "victims": [
+    "augustine",
+    "boethius",
+    "chesterton",
+    "christie",
+    "dickens",
+    "douglass",
+    "edwards",
+    "emerson",
+    "james",
+    "kempis",
+    "mill",
+    "newman",
+    "thoreau"
+   ]
+  },
+  "N=5": {
+   "imitation_flat_vs_genuine_slice": {
+    "auroc": 0.3611111111111111,
+    "auroc_lower_95": 0.09676933255921684,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "imitation_vs_genuine_full": {
+    "auroc": 0.8333333333333334,
+    "auroc_lower_95": 0.4364905634363539,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "imitation_vs_genuine_slice": {
+    "auroc": 0.3472222222222222,
+    "auroc_lower_95": 0.09676933255921684,
+    "n_attack": 6,
+    "n_genuine": 12
+   },
+   "schedule_conversation_plus": {
+    "genuine_full": 0.16666666666666666,
+    "genuine_slice": 0.75,
+    "imitation": 0.6666666666666666,
+    "imitation_flat": 0.6666666666666666
+   },
+   "victims": [
+    "chesterton",
+    "christie",
+    "dickens",
+    "emerson",
+    "mill",
+    "thoreau"
+   ]
+  }
+ }
+}

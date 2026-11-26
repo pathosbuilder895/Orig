@@ -59,12 +59,20 @@ def _session_payload(user: dict) -> dict:
     """What every successful sign-in returns. Students get the stateless
     student session the isolation middleware already confines to their own
     record; staff get a principal token. Both carry ``products`` so each
-    dashboard can branch without another call."""
+    dashboard can branch without another call.
+
+    Both tokens carry the tag of the password as stored now (read back, since
+    a caller may hold the row from before it set the password), so a later
+    change or reset ends them (T-79)."""
     tid = user["tenant_id"]
     products = sorted(principal_mod.tenant_products(tid))
+    current = _repo().get_user(user["user_id"]) or user
+    pw = student_auth.password_tag(current.get("password_hash") or "")
     if user["role"] == "student":
         return {
-            "token": student_auth.mint_session(user["user_id"], user.get("name", ""), account=True),
+            "token": student_auth.mint_session(
+                user["user_id"], user.get("name", ""), account=True, pw=pw
+            ),
             "role": "student",
             "tenant_id": tid,
             "student_id": user["user_id"],
@@ -73,7 +81,7 @@ def _session_payload(user: dict) -> dict:
             "products": products,
         }
     return {
-        "token": principal_mod.mint_principal_token(user["user_id"], user["role"], tid),
+        "token": principal_mod.mint_principal_token(user["user_id"], user["role"], tid, pw=pw),
         "role": user["role"],
         "tenant_id": tid,
         "name": user.get("name", ""),
@@ -208,6 +216,9 @@ def auth_invite_redeem(body: InviteRedeemRequest, request: Request):
             detail="This invite link is invalid, expired, or already used.",
         )
     users_mod.set_password(user["user_id"], body.password)
+    # One link is enough: a student invited to several courses holds one per
+    # course (T-78), and the rest must not be able to set the password again.
+    _repo().void_invites_for_user(user["user_id"])
     if inv.get("course_id") and user["role"] == "student":
         _repo().put_enrollment(inv["course_id"], user["user_id"], user["tenant_id"])
     _repo().log_audit(
@@ -383,7 +394,10 @@ def auth_join(body: JoinLinkRequest, request: Request):
 
 @router.post("/auth/password")
 def auth_change_password(body: PasswordChangeRequest, request: Request):
-    """Change your own password (any signed-in account, staff or student)."""
+    """Change your own password (any signed-in account, staff or student).
+
+    Every session issued before the change stops working, this one included
+    (T-79), so the reply carries a fresh sign-in for this browser."""
     p = getattr(request.state, "principal", None)
     user = _repo().get_user(p.user_id) if p is not None and not p.is_demo else None
     if user is None:
@@ -397,7 +411,7 @@ def auth_change_password(body: PasswordChangeRequest, request: Request):
     _repo().log_audit(
         action="password_change", tenant_id=user["tenant_id"], actor=user["email"], result="ok"
     )
-    return {"ok": True}
+    return {"ok": True, **_session_payload(user)}
 
 
 @router.post("/auth/register", status_code=201)
@@ -584,7 +598,7 @@ def auth_password_reset_request(body: PasswordResetRequest, request: Request):
     configured = mailer.configured()
     user = _repo().get_user_by_email(email) if configured and "@" in email else None
     if user is not None:
-        inv = invites_mod.issue(user["tenant_id"], user["user_id"], user["user_id"])
+        inv = invites_mod.issue(user["tenant_id"], user["user_id"], user["user_id"], reset=True)
         path = inv["invite_path"].replace("?invite=", "?reset=")
         sent = mailer.send_reset(email, mailer.absolute_url(path, str(request.base_url)))
         _repo().log_audit(

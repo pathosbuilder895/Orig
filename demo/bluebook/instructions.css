@@ -16,7 +16,7 @@
 .bb-howto-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.9rem}
 .bb-howto h2{margin:0;font:500 1.45rem/1.2 var(--bb-font-display);color:#f5efe0}
 .bb-howto h3{margin:1.1rem 0 .4rem;font:.75rem var(--bb-font-label);letter-spacing:.18em;text-transform:uppercase;color:#e0be55}
-/* Two classes, so the nav bars' own button rules (.bb-student-nav button)
+/* Two classes, so the nav bars' own button rules (.shell button)
    do not restyle Close. */
 .bb-howto .bb-howto-close{
   flex-shrink:0;min-height:44px;padding:.4rem 1rem;border-radius:999px;

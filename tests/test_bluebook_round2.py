@@ -243,7 +243,7 @@ def test_reset_request_is_uniform_and_emails_only_real_accounts(live_client, mai
         r = live_client.post("/auth/password-reset/request", json={"email": email})
         assert r.status_code == 200 and r.json() == {"ok": True, "mail": True}
     assert [m["to"] for m in mail] == ["teach@x.edu"]
-    link = mail[0]["text"].split("expires in 14 days):\n")[1].split("\n")[0]
+    link = mail[0]["text"].split("expires in 24 hours):\n")[1].split("\n")[0]
     assert "?reset=" in link
     r = live_client.post(
         "/auth/invite/redeem", json={"token": _token(link), "password": "brand-new-pw1"}

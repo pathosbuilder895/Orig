@@ -242,6 +242,15 @@ class TestJSONFormatter:
         assert payload["level"] == "INFO"
         assert "exception" not in payload
 
+    def test_timestamp_is_utc_with_real_milliseconds(self):
+        """``time.strftime`` has no ``%f``: the timestamp used to carry a
+        literal ``%f`` and local time behind a ``Z`` suffix."""
+        record = logging.LogRecord("t", logging.INFO, __file__, 1, "m", (), None)
+        record.created = 1_700_000_000.0
+        record.msecs = 42.9
+        payload = json.loads(JSONFormatter().format(record))
+        assert payload["timestamp"] == "2023-11-14T22:13:20.042Z"
+
     def test_format_includes_extra_fields(self):
         """Inner if-True arm: a key from `extra={...}` is not in the
         exclusion set and doesn't start with '_', so it gets merged in."""

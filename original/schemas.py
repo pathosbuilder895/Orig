@@ -128,9 +128,46 @@ class ScoreSubmissionRequest(BaseModel):
         "exam_config) are kept; anything else is discarded on arrival.",
     )
 
+    exclude_ranges: list[tuple[int, int]] | None = Field(
+        None,
+        max_length=64,
+        description="Staff only (a student session gets 403); 409 unless "
+        "MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED are both on. Character ranges of "
+        "`text`, as [start, end] pairs, sorted and non-overlapping, set aside by the "
+        "splitter's measurement whatever its rules say: a teacher's 'Set this part aside'. "
+        "Snapped to whole lines; each must hold a word; together at most 60% of the words "
+        "the rules measure (422 otherwise). Never changes the default measurement. Absent, "
+        "empty or null: the rules alone, as before.",
+    )
+    include_ranges: list[tuple[int, int]] | None = Field(
+        None,
+        max_length=64,
+        description="Staff only, same switches as `exclude_ranges`. Parts the rules set "
+        "aside (or listed as possible) that the splitter's measurement measures anyway: a "
+        "teacher's 'Measure this part'. Each range must be exactly such a part (or touching "
+        "parts merged), never overlapping `exclude_ranges` (422 otherwise).",
+    )
+
     @model_validator(mode="after")
     def _no_keystroke_data(self):
         return _discard_keystroke_derived(self)
+
+
+class PartChoiceRequest(BaseModel):
+    """A teacher's choice of which parts of one past paper are measured
+    (``PUT /students/{id}/samples/{index}/parts``). Checked against the
+    paper's text the same way as the score request's fields."""
+
+    exclude_ranges: list[tuple[int, int]] = Field(
+        default_factory=list,
+        max_length=64,
+        description="Character ranges of the paper set aside whatever the rules say.",
+    )
+    include_ranges: list[tuple[int, int]] = Field(
+        default_factory=list,
+        max_length=64,
+        description="Character ranges of the paper measured whatever the rules say.",
+    )
 
 
 # ── WS-7 step 2: request models for the former `body: dict` endpoints ─────────

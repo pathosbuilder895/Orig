@@ -4,20 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Your classes</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-18.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-18.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
-    --flag:#e0725a; --ok:#6bbf8a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
   html,body{height:100%;}
   body{
     font-family:var(--body);color:var(--cream);
@@ -31,34 +25,22 @@
     box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
     display:flex;flex-direction:column;
   }
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.4rem;margin-left:1rem;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;letter-spacing:.02em;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  a.pill{text-decoration:none;}
-  .pill:hover{color:var(--cream);}
-  .pill:focus-visible,.stats-btn:focus-visible,.me-menu a:focus-visible,.avatar:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
-  .nav-right .avatar{cursor:pointer;border:1px solid var(--line);font-family:var(--display);}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
+  .stats-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .mm-n{margin-left:auto;font-family:var(--mono);font-size:.66rem;background:rgba(224,114,90,0.16);color:#f0a690;border:1px solid rgba(224,114,90,0.35);border-radius:999px;padding:.06rem .45rem;}
-  .pills{min-width:0;overflow-x:auto;}
   .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
   .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
-  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;gap:0;min-height:0;}
-  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;min-height:0;}
-  .right{position:relative;overflow:hidden;}
+  /* The essentials column: the greeting, then what needs the teacher now, on the frame's own
+     background. The photograph on the right carries the title and Look closer; it grows with
+     the text size (28rem is 504px at the 18px default) and never takes more than 42% of the
+     screen. On a phone the three stack in that order: greeting, card, folds. */
+  .grid{flex:1;display:grid;grid-template-columns:minmax(0,1fr) clamp(380px,28rem,42vw);grid-template-rows:auto minmax(0,1fr);gap:0;min-height:0;}
+  .greet-box{grid-column:1;grid-row:1;padding:0.6rem 1.6rem .9rem 1.7rem;min-width:0;}
+  .ess{grid-column:1;grid-row:2;padding:.2rem 1.6rem 1.4rem 1.7rem;min-height:0;min-width:0;overflow-y:auto;}
+  .ess .attn{max-width:52rem;}
+  .right{grid-column:2;grid-row:1 / span 2;position:relative;overflow:hidden;}
+  .look{display:flex;flex-direction:column;gap:1rem;margin-top:1rem;flex-shrink:0;}
+  .look .deep-head{text-shadow:0 1px 12px rgba(7,11,28,0.95),0 0 3px rgba(7,11,28,0.8);}
+  .look .deep-head span{color:var(--dim);}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;letter-spacing:.02em;}
   .greet{font-family:var(--display);font-size:2rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
   .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
@@ -83,7 +65,7 @@
   @keyframes gpulse{0%,100%{transform:scale(1);opacity:.28;}50%{transform:scale(1.7);opacity:0;}}
   .led-num{font-family:var(--mono);font-weight:700;line-height:.9;color:transparent;-webkit-text-fill-color:transparent;background:radial-gradient(var(--gold) 1.05px, transparent 1.35px) 0 0/4.5px 4.5px;-webkit-background-clip:text;background-clip:text;}
   .stat-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
-  .stat{padding:1.05rem 1.1rem;}
+  .stat{padding:1.05rem 1.1rem;min-width:0;}
   .stat .led-num{font-size:2.9rem;margin:.5rem 0 .2rem;}
   .stat .u{font-size:.72rem;color:var(--dim);letter-spacing:.06em;}
   .trend{padding:1.1rem 1.2rem 1rem;flex:1;min-height:0;display:flex;flex-direction:column;}
@@ -99,9 +81,10 @@
   .bar.hot .stem{background:linear-gradient(180deg,var(--gold-2),var(--gold));}
   .bar .tick{font-family:var(--mono);font-size:.58rem;color:var(--dim-2);}
   .bar .tag{position:absolute;top:-1.4rem;background:var(--gold);color:#0d1530;font-family:var(--mono);font-weight:700;font-size:.62rem;padding:.1rem .35rem;border-radius:4px;}
-  .back-term{display:none;background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.4rem .95rem;font-family:var(--body);font-size:.85rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
-  .back-term:hover{color:var(--cream);border-color:var(--line);}
+  .back-term{display:none;align-self:flex-start;}
   .back-term.show{display:inline-flex;}
+  .look-col .plain-read{margin:0;max-width:none;text-shadow:none;}
+  #sum-term>div{flex:1 1 9rem;min-width:0;}
   #sum-stu .card-t{font-size:1.05rem;}
   #sum-stu p{font-size:.88rem;color:var(--dim);font-style:italic;line-height:1.5;margin-top:.35rem;}
   #sum-stu p b{color:var(--gold-2);font-weight:500;font-style:normal;}
@@ -118,7 +101,10 @@
   .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.96) 0%, rgba(10,16,36,0.4) 22%, transparent 46%),linear-gradient(0deg, rgba(7,11,28,0.96) 8%, transparent 42%),radial-gradient(80% 60% at 70% 30%, rgba(201,160,40,0.10), transparent 70%);}
   .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
-  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;}
+  /* The title sits low on the photograph (margin-top:auto, not justify-content:flex-end, so an
+     open fold scrolls from its top instead of being cut off above). */
+  .hero-inner{position:relative;height:100%;display:flex;flex-direction:column;padding:3.4rem 2.6rem 1.4rem 1.9rem;min-height:0;overflow-y:auto;}
+  .hero-inner .hero-title{margin-top:auto;}
   .plain-read{margin-top:.5rem;max-width:60ch;font-size:.92rem;line-height:1.5;color:rgba(245,239,224,0.86);text-shadow:0 1px 12px rgba(7,11,28,0.9);}
   .hero-title{text-shadow:0 2px 18px rgba(7,11,28,0.85);}
   .plain-read b{color:#fff;font-weight:600;}
@@ -129,10 +115,10 @@
   .status{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem .85rem;border-radius:999px;border:1px solid var(--line-soft);background:rgba(10,16,36,0.5);backdrop-filter:blur(8px);font-family:var(--mono);font-size:.76rem;color:var(--cream);}
   .status .d{width:7px;height:7px;border-radius:50%;}
   .status.flag{border-color:rgba(224,114,90,0.5);color:#f0a690;}
-  .ops{margin-top:1.1rem;border-top:1px solid var(--line-soft);padding-top:.9rem;min-height:0;overflow-x:hidden;overflow-y:auto;}
+  .ops{margin-top:1.1rem;border-top:1px solid var(--line-soft);padding-top:.9rem;min-height:0;overflow-x:hidden;overflow-y:auto;container-type:inline-size;}
   .ops .live-empty{margin:.2rem 0 .6rem;max-width:56ch;}
   .ops th,.ops td{text-shadow:0 1px 10px rgba(7,11,28,0.9);}
-  .ops tbody td:first-child{max-width:150px;}
+  .ops tbody td:first-child{max-width:min(9rem,42cqi);}
   .ops-h{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.9rem;}
   .ops-h b{font-family:var(--display);font-weight:500;font-size:1.15rem;}
   .ops-h span{color:var(--dim);font-size:.9rem;}
@@ -152,12 +138,12 @@
   .nm-a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .flag-row:hover .nm-a{color:var(--gold-2);}
   .doc{display:flex;align-items:center;gap:.55rem;min-width:0;}
-  .doc .nm-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doc .nm-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .doc .ic{width:30px;height:30px;border-radius:8px;background:rgba(201,160,40,0.12);display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0;}
   .doc .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
   .st{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;white-space:nowrap;}
   .st .d{width:7px;height:7px;border-radius:50%;}
-  td.crs{max-width:130px;overflow:hidden;text-overflow:ellipsis;color:var(--dim);}
+  td.crs{max-width:8rem;overflow:hidden;text-overflow:ellipsis;color:var(--dim);}
   .dev{font-family:var(--mono);font-size:.82rem;}
   .toggle{display:inline-flex;align-items:center;gap:.5rem;padding:.28rem .3rem .28rem .7rem;border-radius:999px;border:1px solid var(--line-soft);font-family:var(--mono);font-size:.72rem;color:var(--dim);cursor:pointer;user-select:none;background:none;}
   .toggle .knb{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;transition:all .2s;}
@@ -165,78 +151,52 @@
   .toggle.on{background:rgba(201,160,40,0.14);border-color:rgba(201,160,40,0.4);color:var(--gold-2);flex-direction:row-reverse;padding:.28rem .7rem .28rem .3rem;}
   .toggle.on .knb{background:linear-gradient(160deg,var(--gold-2),var(--gold));}
   .toggle.on .knb svg{stroke:#0d1530;}
-  @media (max-width:1150px){
+  /* The roster drops Courses and Last sealed booklet when its own width runs short, measured in
+     rem so a larger Text setting drops them sooner, and lets its headings wrap on a phone. */
+  @container (max-width:44rem){
     .ops th:nth-child(2),.ops td:nth-child(2),.ops th:nth-child(4),.ops td:nth-child(4){display:none;}
   }
+  @container (max-width:24rem){
+    .ops thead th{white-space:normal;}
+  }
+  /* The folds under Look closer: the term's numbers stack, the roster sits on the rail's own background. */
+  .look-col{display:flex;flex-direction:column;gap:1rem;}
+  .look-col .trend{flex:none;height:15rem;}
+  #deep-roster .ops{margin-top:0;border-top:0;padding-top:0;overflow:visible;}
+  #deep-roster .ops th,#deep-roster .ops td{text-shadow:none;}
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
-    .grid{grid-template-columns:1fr;}
-    .right{min-height:520px;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .grid{grid-template-columns:minmax(0,1fr);grid-template-rows:none;}
+    .greet-box,.ess,.right{grid-column:1;grid-row:auto;}
+    .ess{overflow:visible;}
+    .hero-inner{height:auto;overflow:visible;padding:2.4rem 1.6rem 1.4rem;}
+    .right{min-height:340px;}
   }
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
+  /* Phones: a 1rem side gutter, so the card keeps the width of the screen at a large Text setting. */
+  @media (max-width:600px){
+    .greet-box,.ess{padding-left:1rem;padding-right:1rem;}
+    .hero-inner{padding:2rem 1rem 1.2rem;}
+  }
 </style>
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill on" href="index.html" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="/bluebook/#dashboard"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Open Collections</a>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="index" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-25.1"></script>
   <main class="grid" id="live-main">
-    <aside class="left">
-      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
-        <div>
-          <div class="greet-eyebrow" id="greet-name">Your workspace</div>
-          <div class="greet" id="greet">Hello.</div>
-        </div>
-        <button class="back-term" id="back-term">← Back to term view</button>
-      </div>
-      <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
-        <div id="sum-term" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-          <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
-          <a href="students.html" style="font-size:.85rem;white-space:nowrap;color:var(--gold-2);text-decoration:none;border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .95rem;">Open Students</a>
-        </div>
-        <div id="sum-stu" style="display:none;"></div>
-      </div>
-      <div class="stat-row">
-        <div class="card stat">
-          <div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>
-          <div class="led-num" id="stat1-n">-</div>
-          <div class="u" id="stat1-u">Loading</div>
-        </div>
-        <div class="card stat">
-          <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed exams to review</div>
-          <div class="led-num" id="stat2-n">-</div>
-          <div class="u" id="stat2-u">Loading</div>
-        </div>
-      </div>
-      <div class="card trend">
-        <div class="trend-top">
-          <div><div class="card-t" id="trend-t">Sealed exams per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
-          <div class="led-num" id="trend-num">-</div>
-        </div>
-        <div class="bars" id="bars"></div>
-      </div>
-    </aside>
+    <div class="greet-box">
+      <div class="greet-eyebrow" id="greet-name">Your workspace</div>
+      <div class="greet" id="greet">Hello.</div>
+    </div>
+    <div class="ess">
+      <!-- The essentials: what needs the teacher now, each with one action.
+           Everything else on this page is one click further down. -->
+      <section class="attn" id="attention" aria-labelledby="attention-h" aria-busy="true">
+        <div class="attn-eyebrow">Needs your attention</div>
+        <h2 class="attn-h" id="attention-h">Loading</h2>
+      </section>
+    </div>
     <section class="right">
       <div class="hero">
         <div class="hero-photo"></div>
@@ -246,22 +206,61 @@
       </div>
       <div class="hero-inner">
         <div class="hero-title">This Term<br><span>Your classes</span></div>
-        <div class="plain-read" id="plain-read"></div>
-        <div class="ops">
-          <div class="ops-h"><b>Students</b><span id="ops-count"></span></div>
-          <div id="ops-wrap">
-            <table>
-              <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed exam</th><th class="r"></th></tr></thead>
-              <tbody id="ops-body"></tbody>
-            </table>
-          </div>
-        </div>
+        <aside class="look" aria-label="Look closer">
+          <div class="deep-head"><b>Look closer</b><span>the term in numbers and every student</span></div>
+          <details class="deep on-photo" id="deep-term">
+            <summary><b>This term in numbers</b><span>baselines, sealed booklets, the last six weeks</span></summary>
+            <div class="deep-body look-col">
+              <button class="back-term btn-chip" id="back-term" type="button">← Back to term view</button>
+              <p class="plain-read" id="plain-read"></p>
+              <div class="card gauge-card" style="padding:1.1rem 1.3rem;">
+                <div id="sum-term" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.6rem 1rem;">
+                  <div><div class="card-t">Baselines ready</div><div class="card-s" id="ready-s">Loading</div></div>
+                  <a class="btn-ghost tap-mid" href="students.html" style="font-size:.85rem;padding:.4rem .95rem;flex-shrink:0;">Open Students</a>
+                </div>
+                <div id="sum-stu" style="display:none;"></div>
+              </div>
+              <div class="stat-row">
+                <div class="card stat">
+                  <div class="card-s" id="stat1-l" style="color:var(--dim);">Enrolled</div>
+                  <div class="led-num" id="stat1-n">-</div>
+                  <div class="u" id="stat1-u">Loading</div>
+                </div>
+                <div class="card stat">
+                  <div class="card-s" id="stat2-l" style="color:var(--dim);">Sealed booklets to review</div>
+                  <div class="led-num" id="stat2-n">-</div>
+                  <div class="u" id="stat2-u">Loading</div>
+                </div>
+              </div>
+              <div class="card trend">
+                <div class="trend-top">
+                  <div><div class="card-t" id="trend-t">Sealed booklets per week</div><div class="card-s" id="trend-s">last 6 weeks</div></div>
+                  <div class="led-num" id="trend-num">-</div>
+                </div>
+                <div class="bars" id="bars"></div>
+              </div>
+            </div>
+          </details>
+          <details class="deep on-photo" id="deep-roster">
+            <summary><b>Every student</b><span id="ops-count">counted samples and the last sealed booklet</span></summary>
+            <div class="deep-body">
+              <div class="ops">
+                <div id="ops-wrap">
+                  <table>
+                    <thead><tr><th>Student</th><th>Courses</th><th>Counted samples</th><th>Last sealed booklet</th><th class="r"></th></tr></thead>
+                    <tbody id="ops-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </details>
+        </aside>
       </div>
     </section>
   </main>
 </div>
-<script src="live.js?v=2026-11-18.1"></script>
-<script src="js/fingerprint.js?v=2026-11-18.1"></script>
+<script src="live.js?v=2026-11-25.1"></script>
+<script src="js/fingerprint.js?v=2026-11-25.1"></script>
 <script>
   (function(){
     function init(){
@@ -279,25 +278,7 @@
   const DAY=86400000, WEEKS=6;
   const reduceMotion=!!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // ── account menu ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-
-  function initials(name){
-    const w=String(name||'').trim().split(/\s+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
   function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
     const h=new Date().getHours();
     // The greeting carries the first name ("Good afternoon, Andrew.") or ends plainly
     // ("Good afternoon."): never a comma with nothing after it.
@@ -356,6 +337,7 @@
   // Live.roster() does the loading (see live.js); this page only reshapes it.
   async function load(){
     const res=await Live.roster();
+    rosterRes=res;
     rosterOk=res.ok;
     bb=res.bluebook;
     subs=res.submissions;
@@ -374,34 +356,47 @@
     }));
   }
 
+  // ── the essentials: what needs the teacher now, each with one action ──
+  // Live.rosterCard builds it from the roster alone (the same card as Students).
+  let rosterRes=null;
+  function renderAttention(){
+    const card=Live.rosterCard(rosterOk?rosterRes:null,{
+      firstText:'Add a writer by name on Students, or add students to a course in Collections.',
+      firstAct:{label:'Open Students',href:'students.html',primary:true},
+      more:n=>({label:'See all '+n+' on Students',href:'students.html'})
+    });
+    card.on={reload:()=>location.reload()};
+    Live.attention($('attention'),card);
+  }
+
   // ── term view (the left rail, the sentence, the table) ──
   function renderBars(list){
     const bars=$('bars'), counts=weekCounts(list);
     bars.classList.remove('tiers');
     const sum=counts.reduce((a,b)=>a+b,0);
     if(!sum){
-      Live.empty(bars,list===subs?(subs.length?'No sealed exams in the last '+WEEKS+' weeks':'No sealed exams yet'):'No sealed exams from this student in the last '+WEEKS+' weeks');
+      Live.empty(bars,list===subs?(subs.length?'No sealed booklets in the last '+WEEKS+' weeks':'No sealed booklets yet'):'No sealed booklets from this student in the last '+WEEKS+' weeks');
       return 0;
     }
     const max=Math.max.apply(null,counts), hot=WEEKS-1, delta=counts[hot]-counts[hot-1], ticks=weekTicks();
     bars.innerHTML=counts.map((v,i)=>{
       const h=v===0?4:Math.max(8,Math.round(v/max*100));
       const tag=(i===hot&&delta!==0)?'<span class="tag">'+(delta>0?'+':'')+delta+'</span>':'';
-      return '<div class="bar'+(i===hot?' hot':'')+'" title="'+esc(plural(v,'sealed exam')+', week of '+ticks[i])+'">'+tag+
+      return '<div class="bar'+(i===hot?' hot':'')+'" title="'+esc(plural(v,'sealed booklet')+', week of '+ticks[i])+'">'+tag+
         '<span class="stem" style="height:'+h+'%"></span><span class="tick">'+esc(ticks[i])+'</span></div>';
     }).join('');
     return counts[hot];
   }
 
-  function bbNote(){ return bb==='off'?'Collections is off':'Could not load sealed exams'; }
+  function bbNote(){ return bb==='off'?'Collections is off':'Could not load sealed booklets'; }
 
   function renderTerm(first){
     $('back-term').classList.remove('show');
     $('sum-term').style.display='flex';
     $('sum-stu').style.display='none';
     $('stat1-l').textContent='Enrolled';
-    $('stat2-l').textContent='Sealed exams to review';
-    $('trend-t').textContent='Sealed exams per week';
+    $('stat2-l').textContent='Sealed booklets to review';
+    $('trend-t').textContent='Sealed booklets per week';
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.remove('on'));
 
     // "Ready" is the server's verdict (GET /students/{id}/readiness), never a rule of this page.
@@ -437,8 +432,8 @@
         ? '<span class="fG">'+ready+' of '+plural(rows.length,'student')+'</span> '+(ready===1?'has':'have')+' a ready baseline.'+(unread?' Readiness could not be read for '+unread+'.':'')+(beyondCap?' Readiness was not checked for '+beyondCap+'.':'')
         : '<b>'+plural(rows.length,'student')+'</b> on your roster.';
       if(bb==='ok') h+=pending>0
-        ? ' <span class="fW">'+plural(pending,'sealed exam')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Collections.'
-        : ' No sealed exams are waiting for your review.';
+        ? ' <span class="fW">'+plural(pending,'sealed booklet')+'</span> '+(pending===1?'is':'are')+' waiting for your review in Collections.'
+        : ' No sealed booklets are waiting for your review.';
       pr.innerHTML=h;
     }
   }
@@ -458,14 +453,14 @@
   }
 
   function renderTable(){
-    $('ops-count').textContent=rows.length?'/ '+rows.length+' on your roster':'';
+    $('ops-count').textContent=rows.length?plural(rows.length,'student')+' on your roster, their counted samples and last sealed booklet':'counted samples and the last sealed booklet';
     if(!rosterOk){ Live.empty($('ops-wrap'),'Your students could not be loaded just now. Try reloading the page.'); return; }
     if(!rows.length){ Live.empty($('ops-wrap'),'No students on your roster yet.'); return; }
     $('ops-body').innerHTML=rows.map(r=>{
       const last=r.last?fmtDate(r.last):'';
       const href='writing-state.html?student='+encodeURIComponent(r.id);
       return '<tr class="flag-row" data-id="'+esc(r.id)+'" data-href="'+esc(href)+'" title="'+esc('Open '+r.name+'’s Writing State')+'">'+
-        '<td><div class="doc"><span class="ic">'+ICO+'</span><a class="nm-t nm-a" href="'+esc(href)+'">'+esc(r.name)+'</a></div></td>'+
+        '<td><div class="doc"><span class="ic">'+ICO+'</span><a class="nm-t nm-a tap-line" href="'+esc(href)+'">'+esc(r.name)+'</a></div></td>'+
         '<td class="crs">'+esc(r.courses.join(', '))+'</td>'+
         '<td>'+countedCell(r)+'</td>'+
         '<td style="color:var(--dim);">'+esc(bb==='ok'?(last||'None yet'):'-')+'</td>'+
@@ -487,7 +482,7 @@
     if(r.counted==null) return 'Sample counts are not available for this student here.';
     let h='<b>'+plural(r.counted,'counted sample')+'</b> in their baseline'+(r.total>r.counted?', out of '+r.total+' samples in all':'')+'.';
     h+=' Baseline: '+Live.verdictWord(r.verdict)+'.';
-    if(bb==='ok') h+=r.last?' Last sealed exam: '+esc(fmtDate(r.last))+'.':' No sealed exam yet.';
+    if(bb==='ok') h+=r.last?' Last sealed booklet: '+esc(fmtDate(r.last))+'.':' No sealed booklet yet.';
     return h;
   }
 
@@ -502,8 +497,8 @@
     if(r.counted==null){ setNum($('stat1-n'),'-'); setU($('stat1-u'),'Not available here'); }
     else { setNum($('stat1-n'),r.counted); setU($('stat1-u'),r.total>r.counted?'of '+r.total+' on file':'all on file'); }
 
-    $('stat2-l').textContent='Sealed exams';
-    $('trend-t').textContent='Sealed exams per week';
+    $('stat2-l').textContent='Sealed booklets';
+    $('trend-t').textContent='Sealed booklets per week';
     if(bb==='ok'){
       setNum($('stat2-n'),r.sealed); setU($('stat2-u'),r.pending>0?r.pending+' awaiting review':'none awaiting review',r.pending>0);
       setNum($('trend-num'),renderBars(subs.filter(s=>s.student_id===id)));
@@ -512,6 +507,10 @@
       setNum($('trend-num'),'-'); Live.empty($('bars'),bbNote());
     }
     document.querySelectorAll('.stats-btn').forEach(b=>b.classList.toggle('on',b.dataset.id===id));
+    // The student's numbers are drawn in the term fold: open it and bring it into view.
+    const term=$('deep-term');
+    if(!term.open) term.open=true;
+    if(term.scrollIntoView) term.scrollIntoView({block:'nearest',behavior:reduceMotion?'auto':'smooth'});
   }
   $('back-term').addEventListener('click',()=>renderTerm(false));
 
@@ -523,8 +522,8 @@
   Live.gate(document.querySelector('main')).then(async sess=>{
     if(!sess) return;
     try { await load(); } catch(e){ failState(); }
-    try { renderTerm(true); renderTable(); }
-    catch(e){ failState(); try { renderTerm(false); renderTable(); } catch(e2){} }
+    try { renderTerm(true); renderTable(); renderAttention(); }
+    catch(e){ failState(); try { renderTerm(false); renderTable(); renderAttention(); } catch(e2){} }
   });
 })();
 </script>

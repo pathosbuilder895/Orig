@@ -29,6 +29,7 @@
 
 import { test, expect } from '@playwright/test'
 import { COLLECTIONS_HOME, provisionTenantWithStaff } from './fixtures/api-setup.mjs'
+import { clickAccountMenuItem } from './fixtures/account-menu.mjs'
 
 async function fillLogin(page, email, password) {
   await page.getByPlaceholder('you@school.edu').fill(email)
@@ -89,7 +90,7 @@ test.describe('Staff login / logout @smoke', () => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
 
-    await page.getByRole('button', { name: 'Sign Out' }).click()
+    await clickAccountMenuItem(page, 'Sign out')
     await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     expect(await page.evaluate(() => localStorage.getItem('original_principal_token'))).toBeNull()
   })

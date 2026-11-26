@@ -127,8 +127,9 @@ def test_the_page_reads_and_undoes_only_through_the_past_paper_routes():
     assert "Live.api('/bluebook/past-papers/'+enc(id))" in page
     assert "'/bluebook/past-papers/'+enc(id)+'/'+act,{method:'POST'}" in page
     assert "box.textContent=" in page
-    # The Text setting applies here as on every other page.
+    # The Text setting applies here as on every other page, from the account
+    # menu (shell.js) rather than a floating button over the page.
     assert '<link rel="stylesheet" href="../assets/type.css" />' in page
-    assert '<script src="../assets/display-prefs.js" data-float></script>' in page
+    assert '<script src="../assets/display-prefs.js"></script>' in page
     for word in ("ai detection", "cheating", "authorship verification"):
         assert word not in page.lower()
