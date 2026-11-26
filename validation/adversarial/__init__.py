@@ -13,5 +13,6 @@ fetch_riddell_juola.py (the CC0 human obfuscation/imitation corpus),
 runner.py (scores one profile under one attack), report.py (the full
 harness run and the reducers behind gates G-A1…G-A6 in
 validation/calibration_gate.py), gen_llm_attacks.py (offline LLM attack
-generation; needs an API key, never runs in tests or CI).
+generation; needs an API key, never runs in tests or CI), llm_attack_jobs.py
+(the no-key route that built corpus/llm_attacks/ from Claude subagents).
 """

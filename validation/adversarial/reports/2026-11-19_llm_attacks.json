@@ -1,0 +1,1482 @@
+{
+  "gates": [
+    {
+      "criterion": "genuine-holdout flagged rate (action at monitor or above) <= 5% at EVERY baseline size N in {3, 5, 10}, live scoring path",
+      "current_value": "FPR@N=3=61.5% (16/26); FPR@N=5=83.3% (10/12); FPR@N=10=75.0% (9/12) (FAILED: FPR@N=3, FPR@N=5, FPR@N=10)",
+      "detail": {
+        "by_corpus_n": {
+          "public_authors": {
+            "10": [
+              "schedule_conversation",
+              "schedule_conversation",
+              "monitor",
+              "monitor",
+              "schedule_conversation",
+              "monitor",
+              "no_action",
+              "no_action",
+              "no_action",
+              "monitor",
+              "monitor",
+              "monitor"
+            ],
+            "3": [
+              "monitor",
+              "no_action",
+              "monitor",
+              "no_action",
+              "schedule_conversation",
+              "schedule_conversation",
+              "monitor",
+              "monitor",
+              "monitor",
+              "monitor",
+              "no_action",
+              "no_action",
+              "monitor",
+              "monitor",
+              "no_action",
+              "no_action",
+              "no_action",
+              "no_action",
+              "monitor",
+              "monitor",
+              "no_action",
+              "monitor",
+              "monitor",
+              "no_action",
+              "monitor",
+              "monitor"
+            ],
+            "5": [
+              "schedule_conversation",
+              "schedule_conversation",
+              "monitor",
+              "monitor",
+              "monitor",
+              "monitor",
+              "no_action",
+              "no_action",
+              "monitor",
+              "monitor",
+              "monitor",
+              "monitor"
+            ]
+          }
+        },
+        "failed_legs": [
+          "FPR@N=3",
+          "FPR@N=5",
+          "FPR@N=10"
+        ],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "FPR@N=3: 61.5% over n=26 has a 95% CI that straddles the 5% bar",
+          "FPR@N=5: 83.3% over n=12 has a 95% CI that straddles the 5% bar",
+          "FPR@N=10: 75.0% over n=12 has a 95% CI that straddles the 5% bar"
+        ],
+        "legs": [
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "FPR@N=3",
+            "n": 26,
+            "rate": 0.6153846153846154,
+            "state": false,
+            "successes": 16,
+            "why_not": "FPR@N=3: 61.5% over n=26 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.4253452003942009,
+              0.7757164048816557
+            ]
+          },
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "FPR@N=5",
+            "n": 12,
+            "rate": 0.8333333333333334,
+            "state": false,
+            "successes": 10,
+            "why_not": "FPR@N=5: 83.3% over n=12 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.5519636426153274,
+              0.9530358523851776
+            ]
+          },
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "FPR@N=10",
+            "n": 12,
+            "rate": 0.75,
+            "state": false,
+            "successes": 9,
+            "why_not": "FPR@N=10: 75.0% over n=12 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.4676896608793401,
+              0.9110599603710388
+            ]
+          }
+        ],
+        "per_n": {
+          "10": {
+            "n": 12,
+            "rate_at_or_above": {
+              "escalate": 0.0,
+              "monitor": 0.75,
+              "schedule_conversation": 0.25
+            }
+          },
+          "3": {
+            "n": 26,
+            "rate_at_or_above": {
+              "escalate": 0.0,
+              "monitor": 0.6153846153846154,
+              "schedule_conversation": 0.07692307692307693
+            }
+          },
+          "5": {
+            "n": 12,
+            "rate_at_or_above": {
+              "escalate": 0.0,
+              "monitor": 0.8333333333333334,
+              "schedule_conversation": 0.16666666666666666
+            }
+          }
+        },
+        "refused_by_n": {},
+        "riddell_juola_note": null,
+        "uninformative_reasons": [],
+        "unmeasured_legs": []
+      },
+      "name": "G-A1",
+      "passed": false,
+      "verdict": "fail"
+    },
+    {
+      "criterion": "LLM imitations of the student's own baselines caught (action at monitor or above) >= 60% AND deviation_score AUROC against the same students' genuine holdouts >= 0.60, for EVERY population, live scoring path",
+      "current_value": "llm_imitation N=3 catch=100.0% (13/13); llm_imitation N=3 AUROC=0.867; llm_imitation N=5 catch=100.0% (6/6); llm_imitation N=5 AUROC=0.833; llm_imitation N=10 catch=100.0% (6/6); llm_imitation N=10 AUROC=0.847 (UNINFORMATIVE: llm_imitation N=3 AUROC: AUROC 0.867 (n=13 vs 26) has a 95% lower bound 0.578 that does not clear 0.60; llm_imitation N=5 AUROC: AUROC 0.833 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60; llm_imitation N=10 AUROC: AUROC 0.847 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60)",
+      "detail": {
+        "failed_legs": [],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "llm_imitation N=3 AUROC: AUROC 0.867 (n=13 vs 26) has a 95% lower bound 0.578 that does not clear 0.60",
+          "llm_imitation N=5 AUROC: AUROC 0.833 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60",
+          "llm_imitation N=10 AUROC: AUROC 0.847 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60",
+          "llm_imitation N=3 AUROC: AUROC 0.867 (n=13 vs 26) has a 95% lower bound 0.578 that does not clear 0.60",
+          "llm_imitation N=5 AUROC: AUROC 0.833 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60",
+          "llm_imitation N=10 AUROC: AUROC 0.847 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60"
+        ],
+        "legs": [
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_imitation N=3 catch",
+            "n": 13,
+            "rate": 1.0,
+            "state": true,
+            "successes": 13,
+            "why_not": null,
+            "wilson_ci": [
+              0.7718981569447084,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.8668639053254438,
+            "auc_lower_95": 0.5776482949136899,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_imitation N=3 AUROC",
+            "n_attack": 13,
+            "n_genuine": 26,
+            "state": true,
+            "why_not": "llm_imitation N=3 AUROC: AUROC 0.867 (n=13 vs 26) has a 95% lower bound 0.578 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_imitation N=5 catch",
+            "n": 6,
+            "rate": 1.0,
+            "state": true,
+            "successes": 6,
+            "why_not": null,
+            "wilson_ci": [
+              0.6096569663469354,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.8333333333333334,
+            "auc_lower_95": 0.4364905634363539,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_imitation N=5 AUROC",
+            "n_attack": 6,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "llm_imitation N=5 AUROC: AUROC 0.833 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_imitation N=10 catch",
+            "n": 6,
+            "rate": 1.0,
+            "state": true,
+            "successes": 6,
+            "why_not": null,
+            "wilson_ci": [
+              0.6096569663469354,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.8472222222222222,
+            "auc_lower_95": 0.4364905634363539,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_imitation N=10 AUROC",
+            "n_attack": 6,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "llm_imitation N=10 AUROC: AUROC 0.847 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60"
+          }
+        ],
+        "required": [
+          "llm_imitation"
+        ],
+        "required_ns": [
+          3,
+          5,
+          10
+        ],
+        "uninformative_reasons": [
+          "llm_imitation N=3 AUROC: AUROC 0.867 (n=13 vs 26) has a 95% lower bound 0.578 that does not clear 0.60",
+          "llm_imitation N=5 AUROC: AUROC 0.833 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60",
+          "llm_imitation N=10 AUROC: AUROC 0.847 (n=6 vs 12) has a 95% lower bound 0.436 that does not clear 0.60"
+        ],
+        "unmeasured_legs": []
+      },
+      "name": "G-A2",
+      "passed": false,
+      "verdict": "uninformative"
+    },
+    {
+      "criterion": "LLM paraphrases and MT round-trips of the student's own work caught (action at monitor or above) >= 60% AND deviation_score AUROC against the same students' genuine holdouts >= 0.60, for EVERY population, live scoring path",
+      "current_value": "llm_paraphrase N=3 catch=83.3% (10/12); llm_paraphrase N=3 AUROC=0.556; llm_paraphrase N=5 catch=100.0% (12/12); llm_paraphrase N=5 AUROC=0.583; llm_paraphrase N=10 catch=91.7% (11/12); llm_paraphrase N=10 AUROC=0.590; llm_roundtrip_de N=3 catch=83.3% (10/12); llm_roundtrip_de N=3 AUROC=0.576; llm_roundtrip_de N=5 catch=83.3% (10/12); llm_roundtrip_de N=5 AUROC=0.562; llm_roundtrip_de N=10 catch=91.7% (11/12); llm_roundtrip_de N=10 AUROC=0.576; llm_roundtrip_ja N=3 catch=91.7% (11/12); llm_roundtrip_ja N=3 AUROC=0.611; llm_roundtrip_ja N=5 catch=91.7% (11/12); llm_roundtrip_ja N=5 AUROC=0.639; llm_roundtrip_ja N=10 catch=91.7% (11/12); llm_roundtrip_ja N=10 AUROC=0.632 (FAILED: llm_paraphrase N=3 AUROC, llm_paraphrase N=5 AUROC, llm_paraphrase N=10 AUROC, llm_roundtrip_de N=3 AUROC, llm_roundtrip_de N=5 AUROC, llm_roundtrip_de N=10 AUROC)",
+      "detail": {
+        "failed_legs": [
+          "llm_paraphrase N=3 AUROC",
+          "llm_paraphrase N=5 AUROC",
+          "llm_paraphrase N=10 AUROC",
+          "llm_roundtrip_de N=3 AUROC",
+          "llm_roundtrip_de N=5 AUROC",
+          "llm_roundtrip_de N=10 AUROC"
+        ],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "llm_paraphrase N=3 covers 6 of 13 victim profiles",
+          "llm_roundtrip_de N=3 covers 6 of 13 victim profiles",
+          "llm_roundtrip_ja N=3 covers 6 of 13 victim profiles",
+          "llm_paraphrase N=3 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+          "llm_paraphrase N=3 AUROC: AUROC 0.556 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_paraphrase N=5 AUROC: AUROC 0.583 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_paraphrase N=10 AUROC: AUROC 0.590 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_roundtrip_de N=3 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+          "llm_roundtrip_de N=3 AUROC: AUROC 0.576 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_roundtrip_de N=5 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+          "llm_roundtrip_de N=5 AUROC: AUROC 0.562 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_roundtrip_de N=10 AUROC: AUROC 0.576 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_roundtrip_ja N=3 AUROC: AUROC 0.611 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60",
+          "llm_roundtrip_ja N=5 AUROC: AUROC 0.639 (n=12 vs 12) has a 95% lower bound 0.391 that does not clear 0.60",
+          "llm_roundtrip_ja N=10 AUROC: AUROC 0.632 (n=12 vs 12) has a 95% lower bound 0.391 that does not clear 0.60"
+        ],
+        "legs": [
+          {
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_paraphrase N=3 catch",
+            "n": 12,
+            "rate": 0.8333333333333334,
+            "state": true,
+            "successes": 10,
+            "why_not": "llm_paraphrase N=3 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+            "wilson_ci": [
+              0.5519636426153274,
+              0.9530358523851776
+            ]
+          },
+          {
+            "auc": 0.5555555555555556,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_paraphrase N=3 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_paraphrase N=3 AUROC: AUROC 0.556 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_paraphrase N=5 catch",
+            "n": 12,
+            "rate": 1.0,
+            "state": true,
+            "successes": 12,
+            "why_not": null,
+            "wilson_ci": [
+              0.7574992425007574,
+              0.9999999999999998
+            ]
+          },
+          {
+            "auc": 0.5833333333333334,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_paraphrase N=5 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_paraphrase N=5 AUROC: AUROC 0.583 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_paraphrase N=10 catch",
+            "n": 12,
+            "rate": 0.9166666666666666,
+            "state": true,
+            "successes": 11,
+            "why_not": null,
+            "wilson_ci": [
+              0.6461140782014047,
+              0.9851352905492264
+            ]
+          },
+          {
+            "auc": 0.5902777777777778,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_paraphrase N=10 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_paraphrase N=10 AUROC: AUROC 0.590 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_de N=3 catch",
+            "n": 12,
+            "rate": 0.8333333333333334,
+            "state": true,
+            "successes": 10,
+            "why_not": "llm_roundtrip_de N=3 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+            "wilson_ci": [
+              0.5519636426153274,
+              0.9530358523851776
+            ]
+          },
+          {
+            "auc": 0.5763888888888888,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_de N=3 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_roundtrip_de N=3 AUROC: AUROC 0.576 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_de N=5 catch",
+            "n": 12,
+            "rate": 0.8333333333333334,
+            "state": true,
+            "successes": 10,
+            "why_not": "llm_roundtrip_de N=5 catch: 83.3% over n=12 has a 95% CI that straddles the 60% bar",
+            "wilson_ci": [
+              0.5519636426153274,
+              0.9530358523851776
+            ]
+          },
+          {
+            "auc": 0.5625,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_de N=5 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_roundtrip_de N=5 AUROC: AUROC 0.562 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_roundtrip_de N=10 catch",
+            "n": 12,
+            "rate": 0.9166666666666666,
+            "state": true,
+            "successes": 11,
+            "why_not": null,
+            "wilson_ci": [
+              0.6461140782014047,
+              0.9851352905492264
+            ]
+          },
+          {
+            "auc": 0.5763888888888888,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_de N=10 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": false,
+            "why_not": "llm_roundtrip_de N=10 AUROC: AUROC 0.576 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_roundtrip_ja N=3 catch",
+            "n": 12,
+            "rate": 0.9166666666666666,
+            "state": true,
+            "successes": 11,
+            "why_not": null,
+            "wilson_ci": [
+              0.6461140782014047,
+              0.9851352905492264
+            ]
+          },
+          {
+            "auc": 0.6111111111111112,
+            "auc_lower_95": 0.3195073356553728,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_ja N=3 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "llm_roundtrip_ja N=3 AUROC: AUROC 0.611 (n=12 vs 12) has a 95% lower bound 0.320 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_roundtrip_ja N=5 catch",
+            "n": 12,
+            "rate": 0.9166666666666666,
+            "state": true,
+            "successes": 11,
+            "why_not": null,
+            "wilson_ci": [
+              0.6461140782014047,
+              0.9851352905492264
+            ]
+          },
+          {
+            "auc": 0.6388888888888888,
+            "auc_lower_95": 0.3906175873976139,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_ja N=5 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "llm_roundtrip_ja N=5 AUROC: AUROC 0.639 (n=12 vs 12) has a 95% lower bound 0.391 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "llm_roundtrip_ja N=10 catch",
+            "n": 12,
+            "rate": 0.9166666666666666,
+            "state": true,
+            "successes": 11,
+            "why_not": null,
+            "wilson_ci": [
+              0.6461140782014047,
+              0.9851352905492264
+            ]
+          },
+          {
+            "auc": 0.6319444444444444,
+            "auc_lower_95": 0.3906175873976139,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "llm_roundtrip_ja N=10 AUROC",
+            "n_attack": 12,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "llm_roundtrip_ja N=10 AUROC: AUROC 0.632 (n=12 vs 12) has a 95% lower bound 0.391 that does not clear 0.60"
+          }
+        ],
+        "required": [
+          "llm_paraphrase",
+          "llm_roundtrip_de",
+          "llm_roundtrip_ja"
+        ],
+        "required_ns": [
+          3,
+          5,
+          10
+        ],
+        "uninformative_reasons": [],
+        "unmeasured_legs": []
+      },
+      "name": "G-A3",
+      "passed": false,
+      "verdict": "fail"
+    },
+    {
+      "criterion": "peer swaps (a classmate's own writing under this student's name) caught (action at monitor or above) >= 60% AND deviation_score AUROC against the same students' genuine holdouts >= 0.60, for EVERY population, live scoring path",
+      "current_value": "public_authors/peer_swap N=3 catch=100.0% (65/65); public_authors/peer_swap N=3 AUROC=0.907; public_authors/peer_swap N=5 catch=100.0% (30/30); public_authors/peer_swap N=5 AUROC=0.808; public_authors/peer_swap N=10 catch=100.0% (30/30); public_authors/peer_swap N=10 AUROC=0.817 (UNINFORMATIVE: not measured: riddell_juola/peer_swap_same_prompt N=3, riddell_juola/peer_swap_same_prompt N=5, riddell_juola/peer_swap_same_prompt N=10; public_authors/peer_swap N=5 AUROC: AUROC 0.808 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60; public_authors/peer_swap N=10 AUROC: AUROC 0.817 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60)",
+      "detail": {
+        "failed_legs": [],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "not measured: riddell_juola/peer_swap_same_prompt N=3, riddell_juola/peer_swap_same_prompt N=5, riddell_juola/peer_swap_same_prompt N=10",
+          "public_authors/peer_swap N=5 AUROC: AUROC 0.808 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60",
+          "public_authors/peer_swap N=10 AUROC: AUROC 0.817 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60",
+          "public_authors/peer_swap N=5 AUROC: AUROC 0.808 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60",
+          "public_authors/peer_swap N=10 AUROC: AUROC 0.817 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60"
+        ],
+        "legs": [
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "public_authors/peer_swap N=3 catch",
+            "n": 65,
+            "rate": 1.0,
+            "state": true,
+            "successes": 65,
+            "why_not": null,
+            "wilson_ci": [
+              0.9441965323292892,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.9071005917159763,
+            "auc_lower_95": 0.7585805251948495,
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "public_authors/peer_swap N=3 AUROC",
+            "n_attack": 65,
+            "n_genuine": 26,
+            "state": true,
+            "why_not": null
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "public_authors/peer_swap N=5 catch",
+            "n": 30,
+            "rate": 1.0,
+            "state": true,
+            "successes": 30,
+            "why_not": null,
+            "wilson_ci": [
+              0.886482908609522,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.8083333333333333,
+            "auc_lower_95": 0.5519636426153274,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "public_authors/peer_swap N=5 AUROC",
+            "n_attack": 30,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "public_authors/peer_swap N=5 AUROC: AUROC 0.808 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60"
+          },
+          {
+            "bar": 0.6,
+            "demonstrated": true,
+            "label": "public_authors/peer_swap N=10 catch",
+            "n": 30,
+            "rate": 1.0,
+            "state": true,
+            "successes": 30,
+            "why_not": null,
+            "wilson_ci": [
+              0.886482908609522,
+              1.0
+            ]
+          },
+          {
+            "auc": 0.8166666666666667,
+            "auc_lower_95": 0.5519636426153274,
+            "bar": 0.6,
+            "demonstrated": false,
+            "label": "public_authors/peer_swap N=10 AUROC",
+            "n_attack": 30,
+            "n_genuine": 12,
+            "state": true,
+            "why_not": "public_authors/peer_swap N=10 AUROC: AUROC 0.817 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60"
+          }
+        ],
+        "required": [
+          "public_authors/peer_swap",
+          "riddell_juola/peer_swap_same_prompt"
+        ],
+        "required_ns": [
+          3,
+          5,
+          10
+        ],
+        "riddell_juola_note": null,
+        "uninformative_reasons": [
+          "not measured: riddell_juola/peer_swap_same_prompt N=3, riddell_juola/peer_swap_same_prompt N=5, riddell_juola/peer_swap_same_prompt N=10",
+          "public_authors/peer_swap N=5 AUROC: AUROC 0.808 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60",
+          "public_authors/peer_swap N=10 AUROC: AUROC 0.817 (n=30 vs 12) has a 95% lower bound 0.552 that does not clear 0.60"
+        ],
+        "unmeasured_legs": []
+      },
+      "name": "G-A4",
+      "passed": false,
+      "verdict": "uninformative"
+    },
+    {
+      "criterion": "impostor catch (monitor+) against sigma-inflated baselines no more than 10% below the clean-baseline catch AND impostor-vs-genuine AUROC under the inflated baseline >= 0.60; uninformative unless the real-feature baseline sigma actually grew",
+      "current_value": "nothing scored (UNINFORMATIVE: not measured at N=3, 5, 10; nothing was scored)",
+      "detail": {
+        "cells": [],
+        "failed_legs": [],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "not measured at N=3, 5, 10",
+          "nothing was scored"
+        ],
+        "legs": [],
+        "sigma_drop_bar": 0.1,
+        "sigma_min_growth": 0.05,
+        "uninformative_reasons": [
+          "not measured at N=3, 5, 10",
+          "nothing was scored"
+        ],
+        "unmeasured_legs": []
+      },
+      "name": "G-A5",
+      "passed": false,
+      "verdict": "uninformative"
+    },
+    {
+      "criterion": "every poisoned-baseline population detected (drift-gate hold or integrity LOO outlier on an INJECTED document) >= 60% AND every clean population falsely flagged <= 5%",
+      "current_value": "public_authors/clean N=10 false alarm=33.3% (2/6); public_authors/clean N=3 false alarm=0.0% (0/13); public_authors/clean N=5 false alarm=0.0% (0/6) (FAILED: public_authors/clean N=10 false alarm)",
+      "detail": {
+        "drift_holds_on_injected": {},
+        "failed_legs": [
+          "public_authors/clean N=10 false alarm"
+        ],
+        "harness": {
+          "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+          "live_scoring_env": {
+            "CHARACTERISTIC_WEIGHTS": "0",
+            "COHORT_PRIOR_FALLBACK": "0",
+            "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+            "GENRE_RESOLVER_V2": "off",
+            "LLR_ACTION_MODE": "gate",
+            "MIN_BASELINE_SAMPLES": "3",
+            "REPO_BACKEND": "sqlite",
+            "REPO_SHADOW": "off",
+            "TOPIC_VARIANCE_INFLATION": "0",
+            "TYPICALITY_POOLED_CALIBRATION": "0",
+            "TYPICALITY_SCORING": "0"
+          },
+          "llm_attacks": {
+            "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+            "present": true
+          },
+          "n_cells": 68,
+          "n_distinct_documents": 144,
+          "ns": [
+            3,
+            5,
+            10
+          ],
+          "path": "api",
+          "reused_from": [
+            "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+            "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+          ],
+          "riddell_juola": {
+            "attack_splits_present": true,
+            "participant_baselines_present": true,
+            "participants_with_baselines": 65
+          },
+          "runtime_seconds": 635.2,
+          "seed": 20260920,
+          "semantic_backend": "tfidf",
+          "workers": 8
+        },
+        "informativeness_caveats": [
+          "not measured: public_authors/obfuscated_baselines N=3, public_authors/obfuscated_baselines N=5, public_authors/obfuscated_baselines N=10, public_authors/outsourced_baselines N=3, public_authors/outsourced_baselines N=5, public_authors/outsourced_baselines N=10, riddell_juola/embedded_obfuscation N=3, riddell_juola/embedded_obfuscation N=5, riddell_juola/embedded_obfuscation N=10, riddell_juola/embedded_imitation N=3, riddell_juola/embedded_imitation N=5, riddell_juola/embedded_imitation N=10, riddell_juola/embedded_control N=3, riddell_juola/embedded_control N=5, riddell_juola/embedded_control N=10",
+          "public_authors/clean N=10 false alarm: 33.3% over n=6 has a 95% CI that straddles the 5% bar",
+          "public_authors/clean N=3 false alarm: 0.0% over n=13 has a 95% CI that straddles the 5% bar",
+          "public_authors/clean N=5 false alarm: 0.0% over n=6 has a 95% CI that straddles the 5% bar"
+        ],
+        "legs": [
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "public_authors/clean N=10 false alarm",
+            "n": 6,
+            "rate": 0.3333333333333333,
+            "state": false,
+            "successes": 2,
+            "why_not": "public_authors/clean N=10 false alarm: 33.3% over n=6 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.09676933255921684,
+              0.7000116786584712
+            ]
+          },
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "public_authors/clean N=3 false alarm",
+            "n": 13,
+            "rate": 0.0,
+            "state": true,
+            "successes": 0,
+            "why_not": "public_authors/clean N=3 false alarm: 0.0% over n=13 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.0,
+              0.22810184305529166
+            ]
+          },
+          {
+            "bar": 0.05,
+            "demonstrated": false,
+            "label": "public_authors/clean N=5 false alarm",
+            "n": 6,
+            "rate": 0.0,
+            "state": true,
+            "successes": 0,
+            "why_not": "public_authors/clean N=5 false alarm: 0.0% over n=6 has a 95% CI that straddles the 5% bar",
+            "wilson_ci": [
+              0.0,
+              0.3903430336530645
+            ]
+          }
+        ],
+        "missing_populations": [
+          "public_authors/obfuscated_baselines N=3",
+          "public_authors/obfuscated_baselines N=5",
+          "public_authors/obfuscated_baselines N=10",
+          "public_authors/outsourced_baselines N=3",
+          "public_authors/outsourced_baselines N=5",
+          "public_authors/outsourced_baselines N=10",
+          "riddell_juola/embedded_obfuscation N=3",
+          "riddell_juola/embedded_obfuscation N=5",
+          "riddell_juola/embedded_obfuscation N=10",
+          "riddell_juola/embedded_imitation N=3",
+          "riddell_juola/embedded_imitation N=5",
+          "riddell_juola/embedded_imitation N=10",
+          "riddell_juola/embedded_control N=3",
+          "riddell_juola/embedded_control N=5",
+          "riddell_juola/embedded_control N=10"
+        ],
+        "riddell_juola_note": null,
+        "sigma_inflation_detected": {},
+        "uninformative_reasons": [],
+        "unmeasured_legs": []
+      },
+      "name": "G-A6",
+      "passed": false,
+      "verdict": "fail"
+    }
+  ],
+  "meta": {
+    "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+    "kinds": [
+      "clean",
+      "llm_imitation",
+      "llm_paraphrase"
+    ],
+    "live_scoring_env": {
+      "CHARACTERISTIC_WEIGHTS": "0",
+      "COHORT_PRIOR_FALLBACK": "0",
+      "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+      "GENRE_RESOLVER_V2": "off",
+      "LLR_ACTION_MODE": "gate",
+      "MIN_BASELINE_SAMPLES": "3",
+      "REPO_BACKEND": "sqlite",
+      "REPO_SHADOW": "off",
+      "TOPIC_VARIANCE_INFLATION": "0",
+      "TYPICALITY_POOLED_CALIBRATION": "0",
+      "TYPICALITY_SCORING": "0"
+    },
+    "llm_attacks": {
+      "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+      "present": true
+    },
+    "merged_meta": [
+      {
+        "corpus_fingerprint": "520d8fd7bf49022db466919f5e817b308e326e592dd71290ce8297163b6bd78e",
+        "kinds": [
+          "clean",
+          "llm_imitation",
+          "llm_paraphrase"
+        ],
+        "live_scoring_env": {
+          "CHARACTERISTIC_WEIGHTS": "0",
+          "COHORT_PRIOR_FALLBACK": "0",
+          "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+          "GENRE_RESOLVER_V2": "off",
+          "LLR_ACTION_MODE": "gate",
+          "MIN_BASELINE_SAMPLES": "3",
+          "REPO_BACKEND": "sqlite",
+          "REPO_SHADOW": "off",
+          "TOPIC_VARIANCE_INFLATION": "0",
+          "TYPICALITY_POOLED_CALIBRATION": "0",
+          "TYPICALITY_SCORING": "0"
+        },
+        "llm_attacks": {
+          "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+          "present": true
+        },
+        "n_cells": 68,
+        "n_distinct_documents": 144,
+        "ns": [
+          3,
+          5,
+          10
+        ],
+        "path": "api",
+        "riddell_juola": {
+          "attack_splits_present": true,
+          "participant_baselines_present": true,
+          "participants_with_baselines": 65
+        },
+        "runtime_seconds": 635.2,
+        "seed": 20260920,
+        "semantic_backend": "tfidf",
+        "workers": 8
+      },
+      {
+        "corpus_fingerprint": "02d58519a921b15b56b996f3830053e279f4da6fec5a16c02a6af55182e97e06",
+        "kinds": [
+          "llm_roundtrip_de",
+          "llm_roundtrip_ja"
+        ],
+        "live_scoring_env": {
+          "CHARACTERISTIC_WEIGHTS": "0",
+          "COHORT_PRIOR_FALLBACK": "0",
+          "GENRE_INVARIANT_WEIGHTS_ENABLED": "0",
+          "GENRE_RESOLVER_V2": "off",
+          "LLR_ACTION_MODE": "gate",
+          "MIN_BASELINE_SAMPLES": "3",
+          "REPO_BACKEND": "sqlite",
+          "REPO_SHADOW": "off",
+          "TOPIC_VARIANCE_INFLATION": "0",
+          "TYPICALITY_POOLED_CALIBRATION": "0",
+          "TYPICALITY_SCORING": "0"
+        },
+        "llm_attacks": {
+          "manifest": "validation/adversarial/corpus/llm_attacks/manifest.json",
+          "present": true
+        },
+        "n_cells": 36,
+        "n_distinct_documents": 84,
+        "ns": [
+          3,
+          5,
+          10
+        ],
+        "path": "api",
+        "riddell_juola": {
+          "attack_splits_present": true,
+          "participant_baselines_present": true,
+          "participants_with_baselines": 65
+        },
+        "runtime_seconds": 157.5,
+        "seed": 20260920,
+        "semantic_backend": "tfidf",
+        "workers": 8
+      }
+    ],
+    "n_cells": 68,
+    "n_distinct_documents": 144,
+    "ns": [
+      3,
+      5,
+      10
+    ],
+    "path": "api",
+    "read_only_these_gates": "G-A2 and G-A3. This report scored only the public-author clean cells and the LLM attack cells, so the G-A1, G-A4, G-A5 and G-A6 entries below see a fraction of their populations and are not results; those gates' results are in 2026-10-21_sp1_first_run.json.",
+    "reused_from": [
+      "run A at 216c3e2d: kinds clean, llm_imitation, llm_paraphrase (8 workers, 635 s)",
+      "run B at 216c3e2d: kinds llm_roundtrip_de, llm_roundtrip_ja (157 s)"
+    ],
+    "riddell_juola": {
+      "attack_splits_present": true,
+      "participant_baselines_present": true,
+      "participants_with_baselines": 65
+    },
+    "runtime_seconds": 635.2,
+    "seed": 20260920,
+    "semantic_backend": "tfidf",
+    "workers": 8
+  },
+  "summary": {
+    "llm_attacks/llm_imitation/N=10": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.636633449644122,
+        "n": 6,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 1.0,
+          "schedule_conversation": 0.6666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_imitation/N=3": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5914363192072807,
+        "n": 13,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 1.0,
+          "schedule_conversation": 0.46153846153846156
+        }
+      },
+      "profiles": 13,
+      "refused": 0
+    },
+    "llm_attacks/llm_imitation/N=5": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.6208630346131699,
+        "n": 6,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 1.0,
+          "schedule_conversation": 0.6666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_paraphrase/N=10": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5291681122549485,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.9166666666666666,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_paraphrase/N=3": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5236499178464734,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.8333333333333334,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_paraphrase/N=5": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5250054697720437,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 1.0,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_de/N=10": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5280743414039071,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.9166666666666666,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_de/N=3": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5237650882131863,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.8333333333333334,
+          "schedule_conversation": 0.25
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_de/N=5": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5240656015194723,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.8333333333333334,
+          "schedule_conversation": 0.25
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_ja/N=10": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5399957392871301,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.9166666666666666,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_ja/N=3": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5276082566411965,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.9166666666666666,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "llm_attacks/llm_roundtrip_ja/N=5": {
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.5375848987516447,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.9166666666666666,
+          "schedule_conversation": 0.08333333333333333
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "public_authors/clean/N=10": {
+      "holdout": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.4894689262520446,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.75,
+          "schedule_conversation": 0.25
+        }
+      },
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.6226564130060804,
+        "n": 30,
+        "rate_at_or_above": {
+          "escalate": 0.03333333333333333,
+          "monitor": 1.0,
+          "schedule_conversation": 0.7
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    },
+    "public_authors/clean/N=3": {
+      "holdout": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.446700864867406,
+        "n": 26,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.6153846153846154,
+          "schedule_conversation": 0.07692307692307693
+        }
+      },
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.6245562382944946,
+        "n": 65,
+        "rate_at_or_above": {
+          "escalate": 0.03076923076923077,
+          "monitor": 1.0,
+          "schedule_conversation": 0.6461538461538462
+        }
+      },
+      "profiles": 13,
+      "refused": 0
+    },
+    "public_authors/clean/N=5": {
+      "holdout": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.4940620893023204,
+        "n": 12,
+        "rate_at_or_above": {
+          "escalate": 0.0,
+          "monitor": 0.8333333333333334,
+          "schedule_conversation": 0.16666666666666666
+        }
+      },
+      "impostor": {
+        "collections_mark_rate": 0.0,
+        "mean_deviation": 0.6194916920726714,
+        "n": 30,
+        "rate_at_or_above": {
+          "escalate": 0.03333333333333333,
+          "monitor": 1.0,
+          "schedule_conversation": 0.6
+        }
+      },
+      "profiles": 6,
+      "refused": 0
+    }
+  },
+  "rows": [
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","no_action"],"holdout_max_action":"monitor","holdout_probabilities":[0.9752242086064182,0.9866598794461601],"holdout_scores":[0.5012184475630678,0.29009337079053754],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","escalate","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"escalate","impostor_probabilities":[0.9186093665706656,0.8793094969891363,0.8763430647800325,0.8992106547815415,0.8999198795343523],"impostor_scores":[0.6642737187229459,0.6526664083792016,0.7513173280133566,0.6858354795734681,0.6808018986127711],"injected_indices":[],"kind":"clean","mean_baseline_std":0.022529429715248638,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.945251727941885,"victim_id":"augustine"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","no_action"],"holdout_max_action":"monitor","holdout_probabilities":[0.9321320553583142,0.9505191017310135],"holdout_scores":[0.457021391275314,0.36576906361801204],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor","monitor","monitor","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7653772633605755,0.8661863836267604,0.8232686026819518,0.9222936020590096,0.806304458597221],"impostor_scores":[0.7113666917539462,0.5218456199803896,0.5800704061827904,0.5046228079590154,0.6505014487859612],"injected_indices":[],"kind":"clean","mean_baseline_std":0.04636848390061078,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.3284362865447344,"victim_id":"boethius"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["schedule_conversation","schedule_conversation"],"holdout_max_action":"schedule_conversation","holdout_probabilities":[0.8682382310102349,0.8662279704798995],"holdout_scores":[0.6992445181805144,0.7057362028562442],"imitation_success":0.0,"impostor_actions":["monitor","schedule_conversation","schedule_conversation","monitor","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8740357548299404,0.8598470342318326,0.8705392917725451,0.9342481310256587,0.9006625129712997],"impostor_scores":[0.5149373337073951,0.6270628239890613,0.6858798137953902,0.5758803173472633,0.6495455707990969],"injected_indices":[],"kind":"clean","mean_baseline_std":0.038686646214317215,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.9783426887727944,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9061523767106978,0.9287514799550509],"holdout_scores":[0.4730585839984029,0.5620419806609404],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7456590312941537,0.8168790551337393,0.7887484466016518,0.8336878317949703,0.8980089350237839],"impostor_scores":[0.7256081361547666,0.6783314000397511,0.7296035967510877,0.7075786193412034,0.5000466610816826],"injected_indices":[],"kind":"clean","mean_baseline_std":0.03904229236007521,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.5486982659981826,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9310514323972711,0.8659840561014577],"holdout_scores":[0.5516737268300302,0.5509592968267848],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8128391384538158,0.8735042811313597,0.830357436393903,0.836211186843093,0.8776661228723006],"impostor_scores":[0.6311701754627251,0.6196505212701037,0.6203612827113915,0.64112539576827,0.6201854721005683],"injected_indices":[],"kind":"clean","mean_baseline_std":0.038900807851293406,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.56145454503987,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","no_action"],"holdout_max_action":"no_action","holdout_probabilities":[0.9271250328182539,0.9348466147299014],"holdout_scores":[0.3921076671018237,0.3181301787988919],"imitation_success":0.0,"impostor_actions":["monitor","schedule_conversation","schedule_conversation","monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8848362095263655,0.8529841220147845,0.8216238125648302,0.884025392072329,0.8525636199141058],"impostor_scores":[0.5206128606072387,0.6199497113421221,0.6491430082107066,0.5696239540496614,0.5313392527358429],"injected_indices":[],"kind":"clean","mean_baseline_std":0.059257177141683666,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.8064012730279098,"victim_id":"douglass"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9512614756791857,0.9596180078413922],"holdout_scores":[0.4368978141836111,0.4852078483795289],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8508263093057058,0.8534892774738945,0.8179775676050483,0.9159542768573542,0.8722586307368666],"impostor_scores":[0.6819675421720996,0.7013682045963083,0.7312867169609026,0.6489130384388354,0.70575401974721],"injected_indices":[],"kind":"clean","mean_baseline_std":0.037592375760549315,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.6025693769563997,"victim_id":"edwards"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","no_action"],"holdout_max_action":"no_action","holdout_probabilities":[0.9520029682715961,0.9614691687020076],"holdout_scores":[0.3783424676645783,0.3415395665455026],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor","monitor","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8167210898003029,0.8017420778776386,0.8767832339759786,0.8628673166436425,0.8446260492109581],"impostor_scores":[0.6625368156237261,0.5365074389761042,0.5107476221574251,0.6431004203635081,0.6007160421282216],"injected_indices":[],"kind":"clean","mean_baseline_std":0.045483016263917486,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8367129505263408,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","no_action"],"holdout_max_action":"no_action","holdout_probabilities":[0.969267491113956,0.9311240987933841],"holdout_scores":[0.2987546281975921,0.3314519911555803],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.841636518571167,0.8530720583647569,0.85882297758758,0.8658108037771708,0.8210318946903438],"impostor_scores":[0.6578095086198832,0.6487229994401242,0.6780214660172442,0.7268947408848783,0.7089076110052974],"injected_indices":[],"kind":"clean","mean_baseline_std":0.025876271928219875,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.34660178831179933,"victim_id":"james"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9473413389162333,0.9617102184644774],"holdout_scores":[0.4874163946968596,0.4139238165982859],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7959995213581272,0.8636369071581973,0.8525964503694696,0.8513868912674183,0.8393347695449646],"impostor_scores":[0.7218085697512254,0.592987869009183,0.6500674016999476,0.6294647666886961,0.6183507879173905],"injected_indices":[],"kind":"clean","mean_baseline_std":0.028538203656937447,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.3689414445486012,"victim_id":"kempis"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9194183771876078,0.8871029426848527],"holdout_scores":[0.3702303896635641,0.406024916671598],"imitation_success":0.0,"impostor_actions":["monitor","schedule_conversation","monitor","monitor","escalate"],"impostor_in_baseline":[],"impostor_max_action":"escalate","impostor_probabilities":[0.8637134160914046,0.848841772407729,0.7956308352494518,0.9294646985281585,0.7809470894805919],"impostor_scores":[0.4398646142351939,0.6462448066231977,0.5886903178160529,0.5406729146003589,0.7511903148968802],"injected_indices":[],"kind":"clean","mean_baseline_std":0.03928049525069781,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":4.186976528059836,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","no_action"],"holdout_max_action":"monitor","holdout_probabilities":[0.9267631646642268,0.9493136902134718],"holdout_scores":[0.4246484848717336,0.3868107794231349],"imitation_success":0.0,"impostor_actions":["monitor","monitor","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.9246476116449951,0.9055245016451476,0.8933867404153353,0.8917581458079427,0.8868463368165778],"impostor_scores":[0.5179239177905346,0.5778541462604782,0.6784523230889077,0.6300741661581857,0.5943560191321055],"injected_indices":[],"kind":"clean","mean_baseline_std":0.04230758599647561,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.0176465561514987,"victim_id":"newman"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9347962390139151,0.935882263674175],"holdout_scores":[0.48534928041481973,0.5005696795856006],"imitation_success":0.0,"impostor_actions":["monitor","monitor","monitor","monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.909404783514621,0.8496466206201634,0.8936052860868796,0.9136528292766757,0.8349438393861339],"impostor_scores":[0.5293824740146732,0.5769994076586977,0.5550952528706874,0.555454354001835,0.5370291625669855],"injected_indices":[],"kind":"clean","mean_baseline_std":0.050386054255270755,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.010420254819033,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["schedule_conversation","schedule_conversation"],"holdout_max_action":"schedule_conversation","holdout_probabilities":[0.8674622453370149,0.8634294133552636],"holdout_scores":[0.6690482366127328,0.6911613541266023],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8550947920047385,0.9254147548486654,0.902056755551265,0.8224888800711336,0.9222684268504113],"impostor_scores":[0.6845274849420162,0.6163627139824459,0.6494356188996667,0.6989472270587448,0.5842110925990919],"injected_indices":[],"kind":"clean","mean_baseline_std":0.04885587014350146,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3478835288522077,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9129279645186598,0.9332764620340995],"holdout_scores":[0.4819520807715029,0.5800662294046492],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","monitor","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8173614336906563,0.8449263282013504,0.8995106560607702,0.8099082487574294,0.8415842174053938],"impostor_scores":[0.7137725666185811,0.6924804890610468,0.5306667481350186,0.6840850991921946,0.6812336934227451],"injected_indices":[],"kind":"clean","mean_baseline_std":0.04359325226039739,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8625443852897376,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9089477847430621,0.8835530157315434],"holdout_scores":[0.5706400824874919,0.5720211459788621],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","monitor","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8963920013731826,0.8962495536285502,0.8950932972233137,0.86614936341986,0.9256038438795032],"impostor_scores":[0.6288262367960776,0.6212546433689441,0.5731083587023571,0.666860660568633,0.4962683125666782],"injected_indices":[],"kind":"clean","mean_baseline_std":0.055037300007122376,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.4904676984528655,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","no_action"],"holdout_max_action":"no_action","holdout_probabilities":[0.9446571907532028,0.9484500816113406],"holdout_scores":[0.32870750749307587,0.32896655205058345],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor","monitor","monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8201677490687739,0.9085417509931204,0.9151500973727281,0.8314114634570382,0.924110172383694],"impostor_scores":[0.6382861912395879,0.5888775653622743,0.5127240457894094,0.5910726755523286,0.5077141173731576],"injected_indices":[],"kind":"clean","mean_baseline_std":0.05989644549555695,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.3564762663611885,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.934422660960273,0.8681835486440856],"holdout_scores":[0.41736528408409423,0.43196505233393984],"imitation_success":0.0,"impostor_actions":["monitor","escalate","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"escalate","impostor_probabilities":[0.9088027705387258,0.7618545611421734,0.895206743400396,0.8515730185469388,0.8783256905945651],"impostor_scores":[0.5597338090782067,0.7548022847599389,0.652975426603495,0.6812110904219557,0.6363710385921508],"injected_indices":[],"kind":"clean","mean_baseline_std":0.04956388337305393,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3677387432388244,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9452121617360086,0.9405889285750269],"holdout_scores":[0.41577113802522786,0.4410804082590808],"imitation_success":0.0,"impostor_actions":["monitor","monitor","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.9282619690802667,0.9164242498783082,0.9061753256906224,0.8319403143286264,0.8657874051415794],"impostor_scores":[0.4821797980039806,0.5500194183899866,0.6142206222726437,0.7177318475473308,0.5747898852794511],"injected_indices":[],"kind":"clean","mean_baseline_std":0.05811176691542828,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.880685832172347,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["schedule_conversation","schedule_conversation"],"holdout_max_action":"schedule_conversation","holdout_probabilities":[0.8751151821435551,0.8532637656604165],"holdout_scores":[0.659621543115518,0.681673278213516],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8631068601877645,0.9237538647158737,0.8975891236487841,0.8297597091201432,0.9156513185649882],"impostor_scores":[0.7029313898682835,0.6066336364279206,0.6593028200566659,0.7074280370667095,0.6275412412610482],"injected_indices":[],"kind":"clean","mean_baseline_std":0.05576490525799047,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.95835316031491,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":9,"z":5.598463863551002}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9285924399300345,0.9086476524078559],"holdout_scores":[0.4334004615318802,0.5484923121121469],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","monitor","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8429793305103976,0.8560381435233341,0.8819520543197212,0.8276436378368652,0.8640745899516821],"impostor_scores":[0.6688517534445204,0.684329764622515,0.559021057952324,0.6882098013970923,0.6294262825634491],"injected_indices":[],"kind":"clean","mean_baseline_std":0.06825145754841438,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.216194332815081,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["schedule_conversation","monitor"],"holdout_max_action":"schedule_conversation","holdout_probabilities":[0.915147411003796,0.8739443452595188],"holdout_scores":[0.6082711853567011,0.5661386934240538],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8849158309791081,0.884480390738649,0.8841762830637427,0.8748365647614149,0.9152001118836675],"impostor_scores":[0.6364061515221472,0.6208725086449367,0.6013864430250513,0.601244373189886,0.5107861855093178],"injected_indices":[],"kind":"clean","mean_baseline_std":0.06311870471935956,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.224143543301536,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","no_action"],"holdout_max_action":"no_action","holdout_probabilities":[0.9485605860997006,0.9535085024009422],"holdout_scores":[0.3329869820581189,0.31321032520450703],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor","monitor","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8452694900938111,0.9178714485746102,0.9260464814526481,0.8560181961270854,0.9229556174919423],"impostor_scores":[0.6716080976914977,0.5792902315290904,0.535490251016172,0.6269344325938961,0.5513806983769795],"injected_indices":[],"kind":"clean","mean_baseline_std":0.0602165504227657,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3101635587288865,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["no_action","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.9375308036997079,0.9019924608527811],"holdout_scores":[0.36104780057920627,0.44257265347625463],"imitation_success":0.0,"impostor_actions":["monitor","escalate","schedule_conversation","schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"escalate","impostor_probabilities":[0.9095376301864366,0.787858624015016,0.8871444954016978,0.8629082139547708,0.8797400870073486],"impostor_scores":[0.5580047305332787,0.7532007047426652,0.6714276063089483,0.6929780081190655,0.6063765128834981],"injected_indices":[],"kind":"clean","mean_baseline_std":0.060114432648034836,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":5.188817172040354,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":2,"z":4.250384481953117}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"public_authors","held_baseline_indices":[],"holdout_actions":["monitor","monitor"],"holdout_max_action":"monitor","holdout_probabilities":[0.954067172097468,0.9476261189877313],"holdout_scores":[0.44180480327720756,0.4844070766754234],"imitation_success":0.0,"impostor_actions":["monitor","monitor","schedule_conversation","schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.9386502218527326,0.925538333813182,0.9156274999352354,0.8410639310902723,0.8656646026752397],"impostor_scores":[0.48897284230687893,0.5617117127760126,0.6161929132785245,0.6929390911289692,0.5688131103450639],"injected_indices":[],"kind":"clean","mean_baseline_std":0.05945583783476525,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":6.253681020751176,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.900910674959688],"impostor_scores":[0.6315733105294924],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.022529429715248638,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.945251727941885,"victim_id":"augustine"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8218982638898831],"impostor_scores":[0.5750026900617659],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.04636848390061078,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.3284362865447344,"victim_id":"boethius"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.832901323480068],"impostor_scores":[0.5453919980190081],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.038686646214317215,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.9783426887727944,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8447929119092833,0.7766689040752465],"impostor_scores":[0.6664456199737301,0.7080745745959296],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.038686646214317215,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.9783426887727944,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8075110815810574],"impostor_scores":[0.5211618178255859],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.03904229236007521,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.5486982659981826,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9429641529631889,0.9071173207050333],"impostor_scores":[0.5090653973598547,0.492192841069122],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.03904229236007521,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.5486982659981826,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8786331517386692],"impostor_scores":[0.5752014925572055],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.038900807851293406,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.56145454503987,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8557917079266397,0.8638755177042139],"impostor_scores":[0.533433131626937,0.5424945477947352],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.038900807851293406,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.56145454503987,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8780742684128939],"impostor_scores":[0.5349197465170833],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.059257177141683666,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.8064012730279098,"victim_id":"douglass"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8576994861430738],"impostor_scores":[0.6894520223579822],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.037592375760549315,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.6025693769563997,"victim_id":"edwards"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8358269978280767],"impostor_scores":[0.4143227771265704],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.045483016263917486,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8367129505263408,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["monitor","no_action"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.918663771933251,0.8788774659748977],"impostor_scores":[0.43687126021622014,0.37670902914397364],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.045483016263917486,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8367129505263408,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8679416911823139],"impostor_scores":[0.7338130084796168],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.025876271928219875,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.34660178831179933,"victim_id":"james"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8854787261061373],"impostor_scores":[0.5823361212012779],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.028538203656937447,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.3689414445486012,"victim_id":"kempis"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8381133777183487],"impostor_scores":[0.6252180403221782],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.03928049525069781,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":4.186976528059836,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8967685706833205,0.8525390994325441],"impostor_scores":[0.35429293137442236,0.5870298108145624],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.03928049525069781,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":4.186976528059836,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8791211337429515],"impostor_scores":[0.6428896153723235],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.04230758599647561,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.0176465561514987,"victim_id":"newman"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7918737053735645],"impostor_scores":[0.6173895093245595],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.050386054255270755,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.010420254819033,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9182663445326681,0.91958368624019],"impostor_scores":[0.5317353648486516,0.5454545053395439],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.050386054255270755,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.010420254819033,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8090742820596868],"impostor_scores":[0.5836413889854075],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.04885587014350146,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3478835288522077,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8427963558045741,0.765617857955696],"impostor_scores":[0.6356273033896208,0.6739736124252705],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.04885587014350146,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3478835288522077,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8266248203705541],"impostor_scores":[0.6380429558690809],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.04359325226039739,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8625443852897376,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9482399066780332,0.9181252643370336],"impostor_scores":[0.5342065312932536,0.46891439964533754],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.04359325226039739,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8625443852897376,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7849531493646851],"impostor_scores":[0.6366313693336899],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.055037300007122376,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.4904676984528655,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8632936659665889,0.8778670150145191],"impostor_scores":[0.5241954575709119,0.5572260117363377],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.055037300007122376,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.4904676984528655,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8482117207024391],"impostor_scores":[0.5751771845811761],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.05989644549555695,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.3564762663611885,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9034353253011372,0.8831162245348666],"impostor_scores":[0.44551982426129366,0.41967519995666247],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.05989644549555695,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.3564762663611885,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8399494408263399],"impostor_scores":[0.6097185208477404],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.04956388337305393,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3677387432388244,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.908579557476214,0.8294672755656736],"impostor_scores":[0.4022409517239615,0.5821817875184275],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.04956388337305393,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3677387432388244,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.7824204287944364],"impostor_scores":[0.6819667880619248],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.05811176691542828,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.880685832172347,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9115443987934649,0.9160209522908426],"impostor_scores":[0.5190437574557825,0.5372608002876634],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.05811176691542828,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.880685832172347,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8357655617250662],"impostor_scores":[0.5955924983781786],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.05576490525799047,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.95835316031491,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8342698412848079,0.7546662644897902],"impostor_scores":[0.6428847173439648,0.681228333749526],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.05576490525799047,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.95835316031491,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":9,"z":5.598463863551002}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8341968785338169],"impostor_scores":[0.5821577374468746],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.06825145754841438,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.216194332815081,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":9,"z":5.598463863551002}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["monitor","no_action"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9206634826897655,0.9297988997668959],"impostor_scores":[0.4959023666182442,0.3975608974694622],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.06825145754841438,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.216194332815081,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.796902991768432],"impostor_scores":[0.6673346441073528],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.06311870471935956,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.224143543301536,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8479524666278206,0.8591135161987384],"impostor_scores":[0.5684517009741527,0.5410479406877355],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.06311870471935956,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.224143543301536,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8343895883132492],"impostor_scores":[0.684900692020337],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.0602165504227657,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3101635587288865,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.905566158715654,0.8741159023316739],"impostor_scores":[0.47458868061290527,0.44847640866970995],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.0602165504227657,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3101635587288865,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8359094138271139],"impostor_scores":[0.6506118701445912],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.060114432648034836,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":5.188817172040354,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9218038306222801,0.862182545732146],"impostor_scores":[0.4315555807708455,0.5596433995634015],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.060114432648034836,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":5.188817172040354,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":2,"z":4.250384481953117}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8549477619139468],"impostor_scores":[0.6392032557673983],"injected_indices":[],"kind":"llm_imitation","mean_baseline_std":0.05945583783476525,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":6.253681020751176,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":2,"z":4.250384481953117}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9117074700669665,0.9209837622868686],"impostor_scores":[0.5605419899981895,0.5481353306012455],"injected_indices":[],"kind":"llm_paraphrase","mean_baseline_std":0.05945583783476525,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":6.253681020751176,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8722936259029688,0.8741837775636065],"impostor_scores":[0.6361538727355311,0.6661341849237464],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.038686646214317215,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.9783426887727944,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8517243056224573,0.8775800742552645],"impostor_scores":[0.7092509388080181,0.6275925574603931],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.038686646214317215,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.9783426887727944,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.9101509547941087,0.8933316893594319],"impostor_scores":[0.5805983988578166,0.606978226767836],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.03904229236007521,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.5486982659981826,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.925825093435684,0.9085797520924082],"impostor_scores":[0.5076713168741733,0.5597472044387918],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.03904229236007521,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.5486982659981826,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.938665577229734,0.8649243634718413],"impostor_scores":[0.5071628306446084,0.5418657575579577],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.038900807851293406,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.56145454503987,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9380030413060795,0.9336795527738225],"impostor_scores":[0.4861792694420802,0.5512212780422533],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.038900807851293406,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.56145454503987,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9150216701867852,0.9545581005328674],"impostor_scores":[0.37047299237051334,0.42802326755662895],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.045483016263917486,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8367129505263408,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["monitor","no_action"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9116971642069531,0.9623248073463377],"impostor_scores":[0.4072718516095133,0.3002801041069958],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.045483016263917486,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8367129505263408,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9175506273638128,0.8677612431142325],"impostor_scores":[0.3753400175222636,0.5269616512311439],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.03928049525069781,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":4.186976528059836,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9131622589556292,0.9419689766213245],"impostor_scores":[0.5153777172441908,0.5563529353835371],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.03928049525069781,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":4.186976528059836,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9022514573312882,0.9047658925845303],"impostor_scores":[0.5322013772684623,0.5132884811217288],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.050386054255270755,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.010420254819033,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":3,"notes":[],"provenance_mix":{"verified":3},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8824139977346575,0.9192438226967476],"impostor_scores":[0.5489887033121296,0.5613652029722809],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.050386054255270755,"n":3,"n_baseline_docs":3,"n_baselines":3,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.010420254819033,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.865662574396957,0.8647487735631667],"impostor_scores":[0.6431672625337252,0.6793027793729303],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.04885587014350146,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3478835288522077,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8393724717538286,0.8748895675089108],"impostor_scores":[0.6983199080874194,0.5990704118598564],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.04885587014350146,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3478835288522077,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","monitor"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.909217923304132,0.8976342986149088],"impostor_scores":[0.6132291549720671,0.5855784562573491],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.04359325226039739,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8625443852897376,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9272349751181488,0.907982056286628],"impostor_scores":[0.5131682602476176,0.5857488456059],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.04359325226039739,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":0.8625443852897376,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9155672448340066,0.8816763684769974],"impostor_scores":[0.521067838538054,0.5589441080892555],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.055037300007122376,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.4904676984528655,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9165835830675152,0.9153397260625857],"impostor_scores":[0.47896735227845844,0.586397895978301],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.055037300007122376,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.4904676984528655,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9235377955077908,0.9427501474621369],"impostor_scores":[0.3881636629853761,0.412153017542447],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.05989644549555695,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.3564762663611885,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["monitor","no_action"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.915084499643743,0.9467904089990273],"impostor_scores":[0.45906885897672,0.32795385806970356],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.05989644549555695,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.3564762663611885,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9334315797042771,0.8487543913507418],"impostor_scores":[0.3764884038883211,0.5453830235740045],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.04956388337305393,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3677387432388244,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9228513215309444,0.9201018572907351],"impostor_scores":[0.5570329233801365,0.5809223671884216],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.04956388337305393,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3677387432388244,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9061902860056564,0.9187092552600964],"impostor_scores":[0.4783759478041255,0.4869335626760129],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.05811176691542828,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.880685832172347,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":5,"notes":[],"provenance_mix":{"verified":5},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9050189727692309,0.9324617350129656],"impostor_scores":[0.5436398466626682,0.5207282566845342],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.05811176691542828,"n":5,"n_baseline_docs":5,"n_baselines":5,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":7.880685832172347,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.8728449422918816,0.8549946488129676],"impostor_scores":[0.6592491173354623,0.6763631350182032],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.05576490525799047,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.95835316031491,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["schedule_conversation","schedule_conversation"],"impostor_in_baseline":[],"impostor_max_action":"schedule_conversation","impostor_probabilities":[0.830116490741869,0.8833269769246905],"impostor_scores":[0.7115185498540536,0.6093517455391131],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.05576490525799047,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.95835316031491,"victim_id":"chesterton"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":9,"z":5.598463863551002}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.8855630350523618,0.8909869653685678],"impostor_scores":[0.5881704938404483,0.5140787867552882],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.06825145754841438,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.216194332815081,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":9,"z":5.598463863551002}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9098263731082843,0.8848188669882113],"impostor_scores":[0.42786204851437304,0.5690387440174466],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.06825145754841438,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":1.216194332815081,"victim_id":"christie"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9219325683723729,0.8705778527370627],"impostor_scores":[0.560444492411073,0.5529400119096894],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.06311870471935956,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.224143543301536,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9216913603583423,0.9205483749506962],"impostor_scores":[0.5368810937953059,0.5561468724090788],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.06311870471935956,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":2.224143543301536,"victim_id":"dickens"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9136618956466804,0.9472945704982982],"impostor_scores":[0.42477710060341023,0.4002364408474115],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.0602165504227657,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3101635587288865,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["monitor","no_action"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9038089997393985,0.952427098660648],"impostor_scores":[0.48699433957707805,0.3355913063814039],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.0602165504227657,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":3.3101635587288865,"victim_id":"emerson"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.5,"impostor_actions":["no_action","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9360506066289518,0.8836581078489336],"impostor_scores":[0.36455811614769346,0.5416518719571086],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.060114432648034836,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":5.188817172040354,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[],"min_required":3,"n_baselines":10,"notes":[],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9028055939977957,0.916221682532772],"impostor_scores":[0.5555279311603605,0.5486232507482072],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.060114432648034836,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":5.188817172040354,"victim_id":"mill"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":2,"z":4.250384481953117}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9106368238082443,0.9237742200035046],"impostor_scores":[0.5197335863270179,0.5346889436940786],"injected_indices":[],"kind":"llm_roundtrip_de","mean_baseline_std":0.05945583783476525,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":6.253681020751176,"victim_id":"thoreau"},
+    {"attack":"none","baseline_integrity":{"loo_outlier_samples":[{"index":2,"z":4.250384481953117}],"min_required":3,"n_baselines":10,"notes":["one sample stylistically unlike the others"],"provenance_mix":{"verified":10},"readiness":"ready","sigma_inflation":null,"span_days":null},"baseline_rejected_count":0,"corpus":"llm_attacks","held_baseline_indices":[],"holdout_actions":[],"holdout_max_action":null,"holdout_probabilities":[],"holdout_scores":[],"imitation_success":0.0,"impostor_actions":["monitor","monitor"],"impostor_in_baseline":[],"impostor_max_action":"monitor","impostor_probabilities":[0.9126077971176019,0.9379724603181803],"impostor_scores":[0.5574154690280382,0.5849975204211013],"injected_indices":[],"kind":"llm_roundtrip_ja","mean_baseline_std":0.05945583783476525,"n":10,"n_baseline_docs":10,"n_baselines":10,"path":"api","poisoning_success":null,"scoring_refused":false,"sigma_proxy":6.253681020751176,"victim_id":"thoreau"}
+  ]
+}
