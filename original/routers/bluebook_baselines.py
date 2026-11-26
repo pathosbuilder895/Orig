@@ -277,6 +277,9 @@ def remove_submission_baseline(submission_id: str, request: Request):
     indices = _matching_indices(state, fingerprints) if state is not None else []
     if not indices:
         return _row(rec, "not_in_baseline")
+    # Every text this removal takes out, so approved_papers can undo any other
+    # approval (a shared paper, another take-home) whose sample went with it.
+    removed_hashes = sorted(_hashes_from_samples([state.samples[i] for i in indices]))
     for index in indices:
         state.remove_sample(index)
     _rebuild_kappa(state)
@@ -304,6 +307,7 @@ def remove_submission_baseline(submission_id: str, request: Request):
             "submission_id": rec["id"],
             "samples_removed": len(indices),
             "sample_count_after": state.sample_count,
+            "text_hashes": removed_hashes,
         },
     )
     return _row(rec, "removed")

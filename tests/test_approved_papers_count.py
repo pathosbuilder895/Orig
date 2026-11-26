@@ -670,3 +670,53 @@ def test_one_piece_of_writing_counts_once_however_many_approvals_cover_it(live_c
     assert _readiness(live_client, sid, T)["approved_count"] == 4
     staff = _ok(_score(live_client, sid, T))
     assert staff["baseline_integrity"]["n_baselines"] == 4
+
+
+# ── a removal that takes out another approval's sample undoes it too ─────────
+
+
+@pytest.mark.slow
+def test_removing_a_take_home_that_took_a_shared_papers_sample_undoes_that_paper(live_client):
+    """Review C: removing take-home A deletes every sample with A's text,
+    including the one shared paper P's approval wrote. P's approval has no
+    sample left, so a student re-post of that text must not claim it."""
+    T, [(sid, S), _] = _workspace(live_client, "apc13@example.test")
+    _share_and_approve(live_client, T, S, range(4))  # Paper 3 is P
+    sub = _take_home(sid, "apc13a", _paper(0, TOPICS[3]))
+    out = _ok(live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=T))
+    assert out["status"] == "already_in_baseline", out
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    out = _ok(live_client.delete(f"/bluebook/submissions/{sub}/baseline", headers=T))
+    assert out["status"] == "removed", out
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+    _post_own(live_client, sid, S, _paper(0, TOPICS[3]))
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+    assert sorted(_sources_for(live_client, sid, T)) == sorted(
+        ["shared_paper"] * 3 + ["student_upload"]
+    )
+
+
+@pytest.mark.slow
+def test_removing_one_take_home_undoes_another_with_the_same_text(live_client):
+    """The same with two take-homes whose answers are the same text."""
+    T, [(sid, S), _] = _workspace(live_client, "apc14@example.test")
+    _share_and_approve(live_client, T, S, range(3))
+    text = _paper(0, TOPICS[3])
+    first, second = _take_home(sid, "apc14a", text), _take_home(sid, "apc14b", text)
+    assert (
+        _ok(live_client.post(f"/bluebook/submissions/{first}/baseline", headers=T))["status"]
+        == "added"
+    )
+    assert (
+        _ok(live_client.post(f"/bluebook/submissions/{second}/baseline", headers=T))["status"]
+        == "already_in_baseline"
+    )
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    _ok(live_client.delete(f"/bluebook/submissions/{second}/baseline", headers=T))
+    _post_own(live_client, sid, S, text)
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+    # Approving the first again finds only the student's copy: still not counted.
+    assert _ok(live_client.post(f"/bluebook/submissions/{first}/baseline", headers=T))[
+        "status"
+    ] == ("already_in_baseline")
+    assert _readiness(live_client, sid, T)["approved_count"] == 3

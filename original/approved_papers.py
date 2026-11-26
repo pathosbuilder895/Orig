@@ -75,46 +75,68 @@ def approved_submission_ids(repo, student_id: str) -> set[str]:
     """Submission ids whose approval wrote a sample into this student's
     baseline and that a teacher has not since removed, replayed oldest first
     from the audit log."""
-    return _approval_records(repo, student_id)[0]
+    return set(_approval_records(repo, student_id).take_homes)
 
 
-def _approval_records(repo, student_id: str) -> tuple[set[str], set[str]]:
-    """One audit read: (take-home submission ids whose approval wrote a
-    sample and was not undone, shared past-paper ids whose latest approval
-    wrote nothing). A shared paper's approval goes through the baseline route
-    with a submission_uuid, which skips a text already there (e.g. the
-    student's own earlier upload of it); past_paper_approve records that as
-    ``added: false``. Rows written before that field existed say nothing and
-    are taken as written, as they always were."""
-    approved: set[str] = set()
-    unwritten_papers: set[str] = set()
+class _Approvals:
+    """What one replay of the approval audit rows says, oldest first."""
+
+    def __init__(self) -> None:
+        # Take-home submission id -> position of the approval that wrote its
+        # sample (not since removed).
+        self.take_homes: dict[str, int] = {}
+        # Shared past-paper id -> position of its latest approval that wrote a
+        # sample; ids whose latest approval wrote nothing are in ``unwritten``.
+        self.papers: dict[str, int] = {}
+        self.unwritten: set[str] = set()
+        # (position, text hashes) of every exam removal that recorded them.
+        self.removals: list[tuple[int, set[str]]] = []
+
+    def revoked(self, hashes: set[str], since: int) -> bool:
+        """Whether a removal after ``since`` took out a sample with one of
+        these texts. DELETE /bluebook/submissions/{id}/baseline removes every
+        sample carrying the exam's text, also one that another approval wrote
+        (a shared paper or another take-home with the same answer), so that
+        approval no longer has its sample and is undone with it."""
+        return any(pos > since and removed & hashes for pos, removed in self.removals)
+
+
+def _approval_records(repo, student_id: str) -> _Approvals:
+    """One audit read of the approval rows. A shared paper's approval goes
+    through the baseline route with a submission_uuid, which skips a text
+    already there (e.g. the student's own earlier upload of it);
+    past_paper_approve records that as ``added: false``. Rows written before
+    that field existed say nothing and are taken as written, as they always
+    were; removals before ``text_hashes`` was recorded revoke nothing else."""
+    out = _Approvals()
     rows = repo.list_audit_actions_for_student(student_id, _APPROVAL_ACTIONS)
-    for row in rows:
+    for pos, row in enumerate(rows):
         details = row.get("details") or {}
         paper_id = details.get("paper_id")
         if row["action"] == "past_paper_approve" and paper_id:
             if details.get("added") is False:
-                unwritten_papers.add(paper_id)
+                out.unwritten.add(paper_id)
+                out.papers.pop(paper_id, None)
             else:
-                unwritten_papers.discard(paper_id)
+                out.unwritten.discard(paper_id)
+                out.papers[paper_id] = pos
             continue
         if row["action"] == "past_paper_unapprove":
             if paper_id:
-                unwritten_papers.discard(paper_id)
+                out.unwritten.discard(paper_id)
+                out.papers.pop(paper_id, None)
             continue
         sub_id = details.get("submission_id")
         if not sub_id:
             continue
         if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
-            approved.add(sub_id)
-        sub_id = (row.get("details") or {}).get("submission_id")
-        if not sub_id:
-            continue
-        if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
-            approved.add(sub_id)
+            out.take_homes[sub_id] = pos
         elif row["action"] == "baseline_remove" and row.get("result") == "removed":
-            approved.discard(sub_id)
-    return approved, unwritten_papers
+            out.take_homes.pop(sub_id, None)
+            removed = details.get("text_hashes")
+            if isinstance(removed, list) and removed:
+                out.removals.append((pos, {str(h) for h in removed}))
+    return out
 
 
 def sample_sources(student_id: str, samples: Sequence) -> list[str]:
@@ -148,21 +170,32 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
     shared: dict[str, str] = {}
     if any(unverified):
         repo = _repo()
-        approved, unwritten_papers = _approval_records(repo, student_id)
-        if approved:
+        records = _approval_records(repo, student_id)
+        if records.take_homes:
             for rec in repo.list_bluebook_submission_texts_for_student(student_id):
-                if rec.get("id") in approved:
-                    for h in _fingerprints(rec):
-                        take_home.setdefault(h, f"take_home:{rec['id']}")
+                since = records.take_homes.get(rec.get("id"))
+                if since is None:
+                    continue
+                prints = _fingerprints(rec)
+                if records.revoked(prints, since):
+                    continue
+                for h in prints:
+                    take_home.setdefault(h, f"take_home:{rec['id']}")
         tenant = principal_mod.tenant_of(student_id)
         if tenant:
             for p in repo.list_past_papers(tenant, student_id):
-                if (
+                if not (
                     p.get("status") == "approved"
                     and p.get("text")
-                    and p.get("paper_id") not in unwritten_papers
+                    and p.get("paper_id") not in records.unwritten
                 ):
-                    shared.setdefault(_sha(p["text"]), f"shared:{p.get('paper_id')}")
+                    continue
+                digest = _sha(p["text"])
+                # A paper approved with no audit row at all: any removal of
+                # its text undoes it.
+                if records.revoked({digest}, records.papers.get(p.get("paper_id"), -1)):
+                    continue
+                shared.setdefault(digest, f"shared:{p.get('paper_id')}")
     used: set[str] = set()  # approvals already spent
     counted: set[str] = set()  # text hashes already counted as approved
 
