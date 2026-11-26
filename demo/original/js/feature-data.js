@@ -158,17 +158,17 @@
     { key:'tier14', pill:'Tier 14', name:'Error Topology', status:'active', c:'#c8955a',
       blurb:'where possible slips fall (comma splices, likely missing articles, possibly unclear pronouns), not just how many', features:[
       ['error_topology_consistency','Where comma splices fall','Where likely comma splices fall in their paragraphs (early, middle or late); higher means they cluster in one position within this paper. 0.5 with fewer than two, and splices are found by a word pattern, not a grammar check.'],
-      ['article_omission_rate','Likely missing a, an, the','A rough count of singular nouns after a preposition with no a, an, the or similar word before them, per 100 words, scaled 0 to 1. Many are correct English (by faith, in practice), so this is not a count of mistakes.'],
+      ['article_omission_rate','Likely missing a, an, the','A rough count of singular nouns after a preposition with no a, an, the or similar word before them, per 100 words. Many are correct English (by faith, in practice), so this is not a count of mistakes.'],
       ['pronoun_ambiguity_rate','Possibly unclear pronouns','Of the sentences with he, she, it, they or their forms, the share whose two sentences before hold four or more noun-like words. A rough sign of where a reference could be unclear, not a check of what each pronoun refers to.'],
-      ['comma_splice_rate','Comma splice frequency','Likely comma splices per 100 sentences, scaled 0 to 1: a comma followed by a word such as he, it, this or the, with a common verb on both sides. A word pattern, not a grammar check.'],
+      ['comma_splice_rate','Comma splice frequency','Likely comma splices per 100 sentences: a comma followed by a word such as he, it, this or the, with a common verb on both sides. A word pattern, not a grammar check.'],
     ]},
     { key:'tier15', pill:'Tier 15', name:'Lexical Architecture', status:'active', c:'#8a7ad0',
       blurb:'word endings and patterns: Latin endings, abstract nouns, and-chains, mirrored phrases, related main words', features:[
       ['semantic_field_concentration','How related the main nouns are','How related in meaning the 20 most frequent longer words are (four letters or more, nouns or not), from a table of word meanings; without that table, the share that start with the same four letters.'],
       ['polysyndeton_ratio','And-chains vs. comma lists','Whether items are strung with repeated "and"s instead of commas.'],
-      ['chiasmus_rate','Mirrored sentence patterns (A-B-B-A)','How often the last three word classes (noun, verb, adjective and so on) of one sentence appear in reverse order at the start of the next, per 100 sentence pairs, scaled 0 to 1. It compares grammar labels only, not words or meaning.'],
+      ['chiasmus_rate','Mirrored sentence patterns (A-B-B-A)','How often the last three word classes (noun, verb, adjective and so on) of one sentence appear in reverse order at the start of the next, per 100 sentence pairs. It compares grammar labels only, not words or meaning.'],
       ['latinate_ratio','Words with Latin endings (-ous, -ive)','Share of content words with Latin- or French-style endings (-tion, -ment, -ity, -ous, -ive, -ate and similar). It goes by the ending, not the word\'s history.'],
-      ['nominalization_density','Abstract nouns (-tion, -ness)','How often words ending in -tion, -ment, -ness, -ity, -ance or -ence appear, per 100 words, scaled 0 to 1. It goes by the ending, so words such as moment count too.'],
+      ['nominalization_density','Abstract nouns (-tion, -ness)','How often words ending in -tion, -ment, -ness, -ity, -ance or -ence appear, per 100 words. It goes by the ending, so words such as moment count too.'],
     ]},
     { key:'tier16', pill:'Tier 16', name:'Citation Patterns', status:'active', c:'#4d90c8',
       blurb:'personal habits in how sources are used and cited', features:[

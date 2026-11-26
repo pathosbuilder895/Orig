@@ -96,31 +96,177 @@
     return isActive(f) || (!!f && typeof f === 'object' && !isNotCompared(f) && !isConstant(f));
   }
   function notComparedNote(f) {
-    var v = num(((f && f.engine_scale) || {}).this_paper);
-    return (v == null ? '' : 'This paper: ' + fmt(v) + ' (on Original\u2019s 0 to 1 scale). ') +
-      NOT_COMPARED_LINE;
+    return NOT_COMPARED_LINE;
   }
 
-  // The numbers a sentence about one measurement may use: plain units when the
-  // server sent them, else Original's 0 to 1 scale.
-  function numbersOf(f) {
-    var eng = f.engine_scale || {};
-    var pl = f.plain && typeof f.plain === 'object' ? f.plain : null;
-    var src = pl || { this_paper: eng.this_paper, past_papers: eng.past_papers, past_range: eng.past_range };
+  // ── Numbers a teacher can read (one formatter for every page) ──
+  // The server's `display` (original/evidence_features.py display_info) says
+  // how a habit's number is shown:
+  //   percent:  a true proportion, "38% of sentences" (one decimal under 10%);
+  //   unit:     a count rate or everyday measure, "2.4 commas per 100 words";
+  //   category: a code for a kind, "numbered lists";
+  //   compare:  no everyday unit and no true share: only a plain comparison
+  //             with the past papers ("higher than all 3 past papers"), the
+  //             exact position kept for a details line, never as a percent;
+  //   hidden:   not shown to teachers.
+  // The plain (raw) values the server sent are used when present; otherwise
+  // the engine's own value only where it IS the raw value (engine_is_raw).
+  // Any other case falls back to compare. No value is changed, only written.
+  function displayOf(f) {
+    var d = f && f.display;
+    return d && typeof d === 'object' && !Array.isArray(d) ? d : { style: 'compare' };
+  }
+  // The habits never shown to a teacher, also when no `display` was sent (the
+  // numbers-only pages): original/evidence_features.py HIDDEN_CODES, kept
+  // equal by tests/test_evidence_display.py.
+  var HIDDEN_CODES = ['conclusion_strategy_score'];
+  function isHidden(f) {
+    return displayOf(f).style === 'hidden' || (!!f && HIDDEN_CODES.indexOf(f.code) >= 0);
+  }
+
+  // A percent: whole number, one decimal under 10% (never "-0%").
+  function pct(v) {
+    v = num(v);
+    if (v == null) return DASH;
+    var p = v * 100;
+    if (Math.abs(p) < 0.05) return '0%';
+    if (Math.abs(p) < 10) return String(Math.round(p * 10) / 10) + '%';
+    return String(Math.round(p)) + '%';
+  }
+  // A plain-unit number: whole numbers from 100, one decimal from 1, else two
+  // significant figures ("18.4", "2.4", "0.43").
+  function unitNum(v) {
+    v = num(v);
+    if (v == null) return DASH;
+    var a = Math.abs(v);
+    if (a === 0) return '0';
+    if (a >= 100) return String(Math.round(v));
+    if (a >= 1) return v.toFixed(1);
+    return String(Number(v.toPrecision(2)));
+  }
+
+  // { mode, unit, plain, thisValue, past, lo, hi, show(v), words(v) }
+  // `plain` is true when the numbers mean something to a teacher as they are
+  // (mode percent, unit or category); for compare it is false and the page
+  // says where this paper sits in words (compareWords) instead.
+  function readable(f) {
+    var spec = displayOf(f);
+    var eng = (f && f.engine_scale) || {};
+    var pl = f && f.plain && typeof f.plain === 'object' ? f.plain : null;
+    var style = spec.style || 'compare';
+    var src = pl;
+    if (!src && spec.engine_is_raw === true && (style === 'percent' || style === 'unit' || style === 'category')) {
+      src = { this_paper: eng.this_paper, past_papers: eng.past_papers, past_range: eng.past_range };
+    }
+    if (!src || style === 'compare' || style === 'hidden') {
+      src = { this_paper: eng.this_paper, past_papers: eng.past_papers, past_range: eng.past_range };
+      style = style === 'hidden' ? 'hidden' : 'compare';
+    }
     var past = Array.isArray(src.past_papers) ? src.past_papers.filter(function (p) { return p && num(p.value) != null; }) : [];
     var range = Array.isArray(src.past_range) ? src.past_range : null;
-    return {
-      unit: pl ? String(pl.unit || '') : 'on Original\u2019s 0 to 1 scale',
-      plain: !!pl,
-      thisValue: num(src.this_paper),
-      past: past,
-      lo: range ? num(range[0]) : null,
-      hi: range ? num(range[1]) : null,
+    var lo = range ? num(range[0]) : null, hi = range ? num(range[1]) : null;
+    var unit = '', show;
+    if (style === 'percent') {
+      unit = String(spec.of || '');
+      show = pct;
+    } else if (style === 'unit') {
+      unit = String(spec.unit || (pl && pl.unit) || '');
+      var scale = num(spec.scale), cap = num(spec.cap);
+      show = function (v) {
+        v = num(v);
+        if (v == null) return DASH;
+        if (scale == null) return unitNum(v);
+        if (cap != null && v >= cap) return unitNum(cap * scale) + ' or more';
+        return unitNum(v * scale);
+      };
+    } else if (style === 'category') {
+      var labels = spec.labels && typeof spec.labels === 'object' ? spec.labels : {};
+      show = function (v) {
+        v = num(v);
+        if (v == null) return DASH;
+        var key = String(Number(v.toFixed(4)));
+        return Object.prototype.hasOwnProperty.call(labels, key) ? String(labels[key]) : 'a mix of list styles';
+      };
+    } else {
+      show = function (v) { return fmt(v); };
+    }
+    var words = function (v) {
+      var t = show(v);
+      if (style === 'category' || !unit || t === DASH) return t;
+      return t + ' ' + unit;
     };
+    return {
+      mode: style, unit: unit, plain: style === 'percent' || style === 'unit' || style === 'category',
+      thisValue: num(src.this_paper), past: past, lo: lo, hi: hi, show: show, words: words,
+      neutral: typeof spec.neutral === 'string' ? spec.neutral : '',
+    };
+  }
+  // One plain value in words, for a page holding a habit's `display` and its
+  // plain value but no full entry (Writing State's past-paper mode).
+  function valueWords(display, unit, v) {
+    return readable({ display: display, plain: { unit: unit, this_paper: v, past_papers: [] } }).words(v);
+  }
+  // Kept name: every page reads a habit's numbers through this.
+  function numbersOf(f) { return readable(f); }
+
+  // A range of shown values, "20% to 25%" (one value when they are equal).
+  function rangeText(n) {
+    if (n.lo == null || n.hi == null) return '';
+    var a = n.show(n.lo), b = n.show(n.hi);
+    return a === b ? a : a + ' to ' + b;
+  }
+  function rangeWords(n) {
+    var r = rangeText(n);
+    if (!r || n.mode === 'category' || !n.unit) return r;
+    return r + ' ' + n.unit;
+  }
+  // The neutral sentence, only when a shown value is exactly the 0.5 an
+  // extractor records when there is nothing to count.
+  function neutralNote(n) {
+    if (!n.neutral) return '';
+    var vals = [n.thisValue].concat(n.past.map(function (p) { return num(p.value); }));
+    return vals.some(function (v) { return v === 0.5; }) ? n.neutral : '';
+  }
+
+  // Where this paper sits against each past paper, in words, from the
+  // engine's own values (the same order as any plain value: NORM_BOUNDS is
+  // a straight line). "higher than all 3 past papers", "lower than 2 of 3
+  // past papers", "within the range of the past papers".
+  function compareWords(f) {
+    var eng = (f && f.engine_scale) || {};
+    var t = num(eng.this_paper);
+    var past = (Array.isArray(eng.past_papers) ? eng.past_papers : []).map(function (p) { return num(p && p.value); })
+      .filter(function (v) { return v != null; });
+    var n = past.length;
+    if (t == null || !n) return '';
+    var eps = 1e-9, above = 0, below = 0;
+    past.forEach(function (v) { if (t > v + eps) above += 1; else if (t < v - eps) below += 1; });
+    if (n === 1) return above ? 'higher than the past paper' : below ? 'lower than the past paper' : 'the same as the past paper';
+    var all = n === 2 ? 'both past papers' : 'all ' + n + ' past papers';
+    if (above === n) return 'higher than ' + all;
+    if (below === n) return 'lower than ' + all;
+    if (!above && !below) return 'the same as ' + all;
+    if (above > below) return 'higher than ' + above + ' of ' + n + ' past papers';
+    if (below > above) return 'lower than ' + below + ' of ' + n + ' past papers';
+    return 'within the range of the past papers';
+  }
+  // The exact numbers behind a plain comparison, worded as a position (never a
+  // share or a percent). For a details line or a tooltip only.
+  function positionDetail(f) {
+    var eng = (f && f.engine_scale) || {};
+    var t = num(eng.this_paper);
+    if (t == null) return '';
+    var past = (Array.isArray(eng.past_papers) ? eng.past_papers : []).map(function (p) { return num(p && p.value); })
+      .filter(function (v) { return v != null; });
+    var two = function (v) { return v.toFixed(2); };
+    var lo = past.length ? Math.min.apply(null, past) : null, hi = past.length ? Math.max.apply(null, past) : null;
+    var pastText = lo == null ? '' : '; past papers ' + (two(lo) === two(hi) ? two(lo) : two(lo) + ' to ' + two(hi));
+    return clean('Exact position in the range Original expects for this habit (low end 0.00, high end 1.00; a position, not a share or a count): this paper ' +
+      two(t) + pastText + '.', '');
   }
 
   // Where this paper sits against the past papers, by the engine's own flag
-  // (computed on the 0 to 1 scale the score used) and its direction.
+  // (computed on the scale the score used) and its direction.
   function position(f) {
     var eng = f.engine_scale || {};
     var past = Array.isArray(eng.past_papers) ? eng.past_papers : [];
@@ -132,20 +278,25 @@
     var n = ((f.engine_scale || {}).past_papers || []).length;
     var pos = position(f);
     if (pos === 'none') return 'There are no past papers to compare with.';
-    if (pos === 'within') return n === 1 ? 'On Original\u2019s 0 to 1 scale this paper matches the past paper.' : 'On Original\u2019s 0 to 1 scale this paper is within the past papers\u2019 range.';
-    if (n === 1) return 'On Original\u2019s 0 to 1 scale this paper is ' + (pos === 'above' ? 'above' : 'below') + ' the past paper.';
-    return 'On Original\u2019s 0 to 1 scale this paper is ' + (pos === 'above' ? 'above the highest' : 'below the lowest') + ' of the ' + n + ' past papers.';
+    if (pos === 'within') return n === 1 ? 'This paper matches the past paper.' : 'This paper is within the past papers’ range.';
+    if (n === 1) return 'This paper is ' + (pos === 'above' ? 'above' : 'below') + ' the past paper.';
+    return 'This paper is ' + (pos === 'above' ? 'above the highest' : 'below the lowest') + ' of the ' + n + ' past papers.';
   }
 
   function valuesLine(nums, papers) {
-    return nums.past.map(function (p) { return paperName(p.paper, papers) + ' ' + fmt(p.value); });
+    return nums.past.map(function (p) { return paperName(p.paper, papers) + ' ' + nums.show(p.value); });
   }
 
-  // One line under a card's title: this paper's number beside the past range.
+  // One line under a card's title: this paper's number beside the past range,
+  // or, with no everyday unit, where it sits in words.
   function oneLine(f) {
-    var n = numbersOf(f);
-    var range = n.lo == null ? '' : (n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi));
-    var s = 'This paper ' + fmt(n.thisValue) + (range ? '; past papers ' + range : '') + ' (' + n.unit + ').';
+    var n = readable(f);
+    if (!n.plain) {
+      var cw = compareWords(f);
+      return cw ? clean('This paper is ' + cw + '.', '') : '';
+    }
+    var range = rangeText(n);
+    var s = 'This paper ' + n.show(n.thisValue) + (range ? '; past papers ' + range : '') + (n.unit && n.mode !== 'category' ? ' (' + n.unit + ')' : '') + '.';
     return clean(s, '');
   }
 
@@ -153,27 +304,34 @@
   function noteFor(f, papers) {
     if (!f || typeof f !== 'object') return '';
     if (isNotCompared(f)) return clean(notComparedNote(f), '');
-    var n = numbersOf(f);
+    var n = readable(f);
     var parts = [];
+    if (!n.plain) {
+      var cw = compareWords(f);
+      parts.push(cw ? 'This paper is ' + cw + '.' : positionSentence(f));
+      return clean(parts.join(' '), '');
+    }
     var tp = f.this_paper && typeof f.this_paper === 'object' ? f.this_paper : null;
     var pp = f.past_papers && typeof f.past_papers === 'object' ? f.past_papers : null;
     var ex = tp && Array.isArray(tp.examples) && tp.examples[0];
     var counted = f.kind === 'located' && tp && num(tp.count) != null && pp && Array.isArray(pp.per_paper) &&
       !(ex && num(ex.words) != null) && typeof f.what_is_marked === 'string';
     if (counted) {
-      parts.push('Counting each ' + f.what_is_marked + ': this paper has ' + tp.count + (n.thisValue != null ? ' (' + fmt(n.thisValue) + ' ' + n.unit + ')' : '') + '.');
+      parts.push('Counting each ' + f.what_is_marked + ': this paper has ' + tp.count + (n.thisValue != null ? ' (' + n.words(n.thisValue) + ')' : '') + '.');
       var each = pp.per_paper.map(function (p) {
         var v = null;
         n.past.forEach(function (q) { if (q.paper === p.paper) v = q.value; });
-        return paperName(p.paper, papers) + ' has ' + p.count + (v != null ? ' (' + fmt(v) + ')' : '');
+        return paperName(p.paper, papers) + ' has ' + p.count + (v != null ? ' (' + n.show(v) + ')' : '');
       });
       if (each.length) parts.push(listWords(each) + '.');
     } else {
-      parts.push('This paper: ' + fmt(n.thisValue) + ' (' + n.unit + ').');
+      parts.push('This paper: ' + n.words(n.thisValue) + '.');
       var vals = valuesLine(n, papers);
       if (vals.length) parts.push('Past papers: ' + listWords(vals) + '.');
     }
     parts.push(positionSentence(f));
+    var neutral = neutralNote(n);
+    if (neutral) parts.push(neutral);
     return clean(parts.join(' '), positionSentence(f));
   }
 
@@ -196,10 +354,16 @@
     });
   }
   function rangeBrackets(f) {
-    var n = numbersOf(f);
-    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
-    var against = n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi);
-    return ' (' + fmt(n.thisValue) + ' against ' + against + ' ' + n.unit + ')';
+    var n = readable(f);
+    if (!n.plain || n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var unit = n.unit && n.mode !== 'category' ? ' ' + n.unit : '';
+    return ' (' + n.show(n.thisValue) + ' against ' + rangeText(n) + unit + ')';
+  }
+  // The sentence a whole-text habit carries: the server's own note (a
+  // whole-paper pattern, or why it is numbers only), else the generic words.
+  function wholeWords(f) {
+    var note = f && typeof f.note === 'string' ? clean(f.note, '') : '';
+    return note || WHOLE_TEXT_WORDS;
   }
   function noticeFor(f) {
     if (!f || typeof f !== 'object') return '';
@@ -216,10 +380,10 @@
       var lead = f.in_top_list
         ? 'This paper sits inside the past papers\u2019 range here, but far from where they usually sit.'
         : 'This habit is in line with the past papers.';
-      return clean(lead + (whole ? ' ' + WHOLE_TEXT_WORDS : ''), '');
+      return clean(lead + (whole ? ' ' + wholeWords(f) : ''), '');
     }
     var dir = pos === 'above' ? 'higher' : 'lower';
-    var tail = (whole ? ' ' + WHOLE_TEXT_WORDS : '') + ' ' + CAUTION;
+    var tail = (whole ? ' ' + wholeWords(f) : '') + ' ' + CAUTION;
     // The habit's own name and numbers when they pass the wording check,
     // else the generic name, else no numbers.
     var tries = [
@@ -301,7 +465,7 @@
   function steady(ev, located, whole) {
     var full = ev && Array.isArray(ev.all_features) ? ev.all_features : [];
     var inside = full.filter(function (f) {
-      return isActive(f) && f.engine_scale && !f.engine_scale.outside_past_range &&
+      return isActive(f) && !isHidden(f) && f.engine_scale && !f.engine_scale.outside_past_range &&
         (f.engine_scale.past_papers || []).length > 0;
     }).slice();
     inside.sort(function (a, b) {
@@ -347,14 +511,21 @@
   };
   function differenceLine(f) {
     if (!isActive(f)) return '';
-    var n = numbersOf(f);
-    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
-    var nums = fmt(n.thisValue) + ' vs ' + (n.lo === n.hi ? fmt(n.lo) : fmt(n.lo) + ' to ' + fmt(n.hi)) + ' ' + n.unit;
+    var n = readable(f);
     var pos = position(f);
     if (pos === 'none') return '';
-    // Which way, from the plain numbers when the server sent them (they are what
-    // the line shows), else the engine's own flag on its 0 to 1 scale.
-    var dir = n.plain ? (n.thisValue > n.hi ? 'above' : n.thisValue < n.lo ? 'below' : 'within') : pos;
+    // A kind, not an amount: say which kind each side uses.
+    if (n.mode === 'category') return oneLine(f);
+    // No everyday unit: where it sits, in words only (compareWords).
+    if (!n.plain) {
+      var cw = compareWords(f);
+      if (!cw) return '';
+      return clean('This paper is ' + cw + ' on ' + habitName(f) + '.', clean('This paper is ' + cw + ' on this habit.', ''));
+    }
+    if (n.thisValue == null || n.lo == null || n.hi == null) return '';
+    var nums = n.show(n.thisValue) + ' vs ' + rangeText(n) + (n.unit ? ' ' + n.unit : '');
+    // Which way, from the plain numbers (they are what the line shows).
+    var dir = n.thisValue > n.hi ? 'above' : n.thisValue < n.lo ? 'below' : 'within';
     if (dir === 'within') {
       var where = f.in_top_list || pos !== 'within'
         ? 'This paper sits inside the past papers\u2019 range, but far from where they usually sit: '
@@ -460,6 +631,9 @@
     NOT_COMPARED_LINE: NOT_COMPARED_LINE, habitName: habitName, isShortMatch: isShortMatch, dayOf: dayOf,
     SEP: SEP, pastSource: pastSource, quoteSource: quoteSource, thisSource: thisSource,
     differenceLine: differenceLine, unmarkedLead: unmarkedLead, PHRASES: PHRASES,
+    displayOf: displayOf, isHidden: isHidden, HIDDEN_CODES: HIDDEN_CODES, readable: readable, pct: pct, unitNum: unitNum,
+    rangeText: rangeText, rangeWords: rangeWords, compareWords: compareWords, positionDetail: positionDetail,
+    valueWords: valueWords,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.EvidenceView = API;
