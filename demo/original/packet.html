@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-26.1" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -92,6 +92,16 @@
   .ex-vals li b.rel{font-family:inherit;font-weight:600;}
   .ex-exact{font-size:.82rem;color:var(--ink-2);margin-top:.45rem;}
   .ex-exact summary{cursor:pointer;}
+  .ex-break{margin-top:.7rem;font-size:.88rem;}
+  .ex-break-h{font-weight:600;margin:.5rem 0 .3rem;}
+  .ex-break-h span{font-weight:400;font-style:italic;color:var(--ink-2);}
+  .ex-break-wrap{overflow-x:auto;}
+  .ex-break-t{border-collapse:collapse;font-size:.85rem;}
+  .ex-break-t th,.ex-break-t td{padding:.2rem .5rem;border-bottom:1px dotted var(--rule);text-align:right;white-space:nowrap;}
+  .ex-break-t th[scope=row]{text-align:left;font-weight:600;}
+  .ex-break-t td.ex-short{text-align:left;font-style:italic;}
+  .ex-cols2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media (max-width:760px){.ex-cols2{grid-template-columns:1fr;}}
   .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
   .ex-other-row{padding:.6rem 0;border-top:1px solid var(--rule);}
   .ex-other-row b,.ex-other-line,.ex-other-why{display:block;}
@@ -202,7 +212,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="packet" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-26.1"></script>
+  <script src="shell.js?v=2026-11-26.2"></script>
   <main class="body" id="live-main">
     <div class="wrap">
       <div class="chrome">
@@ -265,10 +275,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-26.1"></script>
-<script src="js/feature-data.js?v=2026-11-26.1"></script>
-<script src="js/evidence-view.js?v=2026-11-26.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-26.1"></script>
+<script src="live.js?v=2026-11-26.2"></script>
+<script src="js/feature-data.js?v=2026-11-26.2"></script>
+<script src="js/evidence-view.js?v=2026-11-26.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.2"></script>
 <script>
 (function(){
   'use strict';

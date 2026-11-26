@@ -153,6 +153,9 @@ def test_kinds_notes_and_off_or_placeholder_measurements(full_evidence):
             assert f["direction"] == "not_compared" and "plain" not in f and f["locatable"] is False
             assert f["note"] == "Not compared: past papers have no value for this."
             assert f["in_top_list"] is False
+        elif code == "source_integration_style" and f["kind"] == "whole_text":
+            # A paper with no citing sentence: numbers only, and the note says why.
+            assert f["locatable"] is False and f["note"] == ev.UNPLACED_NOTES["no_citations"]
         elif code in ev.LOCATABLE:
             assert f["kind"] == "located" and f["locatable"] is True
             assert "examples" in f["this_paper"] and f["plain"]["unit"] == ev.LOCATABLE[code].unit
@@ -160,7 +163,8 @@ def test_kinds_notes_and_off_or_placeholder_measurements(full_evidence):
             assert f["kind"] == "whole_text" and f["note"] == ev.whole_text_note(code)
             assert ("plain" in f) == (info[code]["unit"] is not None)
             assert ("plain_note" in f) == (info[code]["unit"] is None)
-    assert sum(f["kind"] == "located" for f in by_code.values()) == len(ev.LOCATABLE)
+    unplaced = int(by_code["source_integration_style"]["kind"] == "whole_text")
+    assert sum(f["kind"] == "located" for f in by_code.values()) == len(ev.LOCATABLE) - unplaced
     assert by_code["comma_rate"]["in_top_list"] is True
     assert sum(f["in_top_list"] for f in by_code.values()) == 1
 

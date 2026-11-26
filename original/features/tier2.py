@@ -215,23 +215,25 @@ def paragraph_topic_position(doc: TextDoc) -> float:
         # return an empty list, even for empty/whitespace-only text.
         return 0.5
 
-    fronted = 0
-    for para in paras:
-        if len(para) < 2:
-            fronted += 1  # single-sentence paragraph trivially fronted
-            continue
-        densities = []
-        for sent in para:
-            toks = _tokenize(sent)
-            if not toks:
-                densities.append(0.0)
-                continue
-            cw = [t for t in toks if t.lower() not in STOP_WORDS and t.isalpha()]
-            densities.append(len(cw) / len(toks))
-        if densities and densities[0] == max(densities):
-            fronted += 1
-
+    fronted = sum(1 for para in paras if _paragraph_fronted(para))
     return fronted / len(paras)
+
+
+def _paragraph_fronted(para: list[str]) -> bool:
+    """paragraph_topic_position's rule for one paragraph: its first sentence has
+    the highest share of content words (a one-sentence paragraph counts).
+    Shared with original/evidence.py, which quotes those first sentences."""
+    if len(para) < 2:
+        return True  # single-sentence paragraph trivially fronted
+    densities = []
+    for sent in para:
+        toks = _tokenize(sent)
+        if not toks:
+            densities.append(0.0)
+            continue
+        cw = [t for t in toks if t.lower() not in STOP_WORDS and t.isalpha()]
+        densities.append(len(cw) / len(toks))
+    return bool(densities) and densities[0] == max(densities)
 
 
 def avg_paragraph_length(doc: TextDoc) -> float:

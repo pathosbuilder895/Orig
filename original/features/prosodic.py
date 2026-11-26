@@ -443,27 +443,42 @@ def _pronoun_ambiguity_counts(doc: TextDoc) -> tuple[int, int]:
         for w in words:
             pronoun_map[w] = g
 
-    total_pronouns = 0
-    ambiguous = 0
-    sents = doc.sentences
+    flags = _pronoun_ambiguity_flags(doc, pronoun_map)
+    return sum(1 for _, flagged in flags if flagged), len(flags)
 
+
+def _pronoun_ambiguity_flags(doc: TextDoc, pronoun_map: dict[str, str] | None = None):
+    """[(sentence index, flagged)] for each sentence holding a third-person
+    pronoun, in order. The rule behind _pronoun_ambiguity_counts; shared with
+    original/evidence.py, which quotes the flagged sentences."""
+    if pronoun_map is None:
+        pronoun_map = {
+            w: g
+            for g, words in {
+                "m": {"he", "him", "his", "himself"},
+                "f": {"she", "her", "hers", "herself"},
+                "pl": {"they", "them", "their", "theirs", "themselves"},
+                "n": {"it", "its", "itself"},
+            }.items()
+            for w in words
+        }
+    sents = doc.sentences
+    flags: list[tuple[int, bool]] = []
     for i, sent in enumerate(sents):
         tokens = [t.lower() for t in _tokenize(sent)]
         for tok in tokens:
             gender = pronoun_map.get(tok)
             if gender is None:
                 continue
-            total_pronouns += 1
             # Check window: previous 2 sentences
             window_text = " ".join(sents[max(0, i - 2) : i])
             # Count nouns (rough proxy: words that follow "the" or "a/an", or are title-cased)
             noun_candidates = len(re.findall(r"\b(?:the|a|an)\s+[A-Za-z]+", window_text))
             noun_candidates += len(re.findall(r"\b[A-Z][a-z]{2,}", window_text))
-            if noun_candidates >= 4:  # require 4+ candidates for conservative flagging
-                ambiguous += 1
+            # require 4+ candidates for conservative flagging
+            flags.append((i, noun_candidates >= 4))
             break  # count once per sentence
-
-    return ambiguous, total_pronouns
+    return flags
 
 
 def _comma_splice_rate(doc: TextDoc) -> float:

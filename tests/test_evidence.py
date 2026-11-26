@@ -25,6 +25,7 @@ from original import evidence as ev
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 from original.evidence_features import feature_info
 from original.features import preprocess as pp
+from original.features import tier3
 from original.features.pipeline import extract_features
 from original.features.tier1 import TextDoc
 
@@ -88,6 +89,10 @@ def test_every_locatable_habit_is_located_and_counts_match_the_engine(index):
     doc = TextDoc(pp.preprocess(text)[0])
     for code, spec in ev.LOCATABLE.items():
         reading = ev.read_paper(text, code)
+        if code == "source_integration_style" and not tier3._source_integration_parts(doc)[0]:
+            # No citing sentence: the extractor scores summary phrases instead, so numbers only.
+            assert reading.places is None
+            continue
         assert reading.places is not None, code
         assert reading.value == spec.value(doc)
         if spec.sentence_length is None:
@@ -102,7 +107,8 @@ def test_locatable_codes_are_real_active_features_in_engine_order():
 
     order = [c for c in ALL_FEATURE_CODES if c in ev.LOCATABLE]
     assert list(ev.LOCATABLE) == order
-    assert all(FEATURE_TIER[c] in (1, 2, 3, 4, 6) for c in ev.LOCATABLE)
+    # Tiers 13 to 15 since 2026-11-26 (prosodic.py rules with no spaCy parse); never Tier 5.
+    assert all(FEATURE_TIER[c] in (1, 2, 3, 4, 6, 13, 14, 15) for c in ev.LOCATABLE)
     assert DISABLED_FEATURE_GROUPS  # tiers 17/18 stay out of this list
     assert set(ev.LOCATABLE) <= set(extract_features(PLAIN[0]))
 
@@ -728,7 +734,7 @@ def test_a_paper_that_cannot_be_located_has_no_examples_and_says_so(monkeypatch)
 
 def test_no_past_papers_gives_empty_lists():
     out = ev.build_past_paper_examples("comma_rate", [])
-    assert len(out["features"]) == 7
+    assert len(out["features"]) == len(ev.FAMILIES["Sentence shape"]) == 9
     for feature in out["features"]:
         assert feature["per_paper"] == [] and "note" not in feature
 
