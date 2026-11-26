@@ -1,0 +1,10 @@
+{
+ "fixed_before": "humanities Step 3 results existed (science single-candidate results had been seen)",
+ "agreed_with_owner": "catch@5% on 1200-past/300-new (chosen in session, 2026-11-12)",
+ "partition": "development only; calibration is used once afterwards to fix thresholds and report",
+ "rule": [
+  "1. A candidate is eligible only if, in BOTH collections and in BOTH matched configurations (300/300, 1200/1200), the upper end of its author-bootstrap 95% interval for catch at 5% honest flags is at least the flags_off point estimate (it is not clearly worse where lengths already match).",
+  "2. Eligible candidates other than flags_off are ranked by the mean, over the two collections, of their catch at 5% honest flags in the 1200-past/300-new configuration.",
+  "3. The top two (at most) are chosen, the same candidates for both collections; their thresholds are then fixed per collection and configuration on the calibration partition (5% honest flag rate), and calibration results are reported once. No change after seeing calibration."
+ ]
+}
