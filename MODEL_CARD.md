@@ -443,7 +443,7 @@ peers** (`original/quantum/null_pool.py`), producing
 distinctly this student's voice; toward 1 = fits the peer pool better than
 the claimed student's own baseline.
 
-**Measured lift** (binary authorship verification, N=3 baselines). Seminary
+**Measured lift** (binary same-writer comparison, N=3 baselines). Seminary
 (`validation/benchmarks/2026-07-01/*nullmodel*`; 5 synthetic template
 "students", 10 same-author / 40 different-author pairs, not real student
 writing): median per-author AUC 0.8125 → **1.0** (pooled 0.8925 →
@@ -592,7 +592,7 @@ investigation of the ghostwritten-pulls-prior-toward-it hypothesis above.
 
 ---
 
-## Cross-Work Authorship Verification (2026-08-04)
+## Cross-Work Same-Writer Comparison (2026-08-04)
 
 A source-work-disjoint corpus now uses three 2,500-word baseline windows from
 one book and three probe windows from another for G.K. Chesterton, Agatha
