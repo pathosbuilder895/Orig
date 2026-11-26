@@ -496,10 +496,13 @@ def _score_with_and_without(client, sid, summary):
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
+        manifest = body.get("context_manifest") or {}
         return {
             "deviation_score": body["authorship"]["deviation_score"],
             "quantum_fidelity": body["authorship"]["quantum_fidelity"],
             "recommendation": body["recommendation"],
+            "composition_mode": (manifest.get("composition_mode") or {}).get("mode"),
+            "manifest_built": bool(manifest),
         }
 
     without = _score({})
@@ -524,4 +527,8 @@ class TestScoreRequestSummaryIsInert:
         # {"composition_summary": {"paste_attempts": 5,
         #                          "exam_config": {"block_copy": false}}}
         without, with_summary = _score_with_and_without(client, "demo:cs-inert-on", _FAKED_PASTES)
+        # The guarded path really ran: a manifest was built, and its
+        # composition mode is the text-only reading, not tool_cleaned.
+        assert without["manifest_built"] and with_summary["manifest_built"]
+        assert with_summary["composition_mode"] == "natural_drafted"
         assert with_summary == without

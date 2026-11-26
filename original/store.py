@@ -967,7 +967,7 @@ def _serialize(state: StudentState) -> str:
             "keystroke_data": s.keystroke_data,
             # ADR-010 macro-only composition timing (additive) — None for
             # legacy/summary-less samples. Stored for audit; no scorer reads
-            # it (the resolver uses the score request's own summary).
+            # it, and the score request's own summary is ignored too (T-81).
             "composition_summary": s.composition_summary,
             # Versioned measurements (additive): written only when present,
             # so a document with none is byte-identical to before.
