@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from original import evidence as ev
-from original.features import matter
+from original.features import matter, tier3
 from original.features import preprocess as pp
 
 FIXTURES = Path(__file__).parent / "fixtures" / "paper_matter"
@@ -238,6 +238,13 @@ def test_evidence_aligns_with_the_splitter_on(name, feature_set, splitter_on, mo
     for code, spec in ev.LOCATABLE.items():
         reading = ev.read_paper(text, code)
         assert reading is not None
+        if reading.unplaced is not None:
+            # No places by design, not a count mismatch: the only such case is
+            # source_integration_style in a paper with no citing sentence, where the
+            # extractor scores summary phrases instead (shown as numbers only).
+            assert (code, reading.unplaced) == ("source_integration_style", "no_citations")
+            assert not tier3._source_integration_parts(view.doc)[0], name
+            continue
         assert reading.places is not None, f"{name}/{code}: located count disagreed"
         if spec.sentence_length is None:
             assert len(reading.places) == 0 or reading.value != 0.0
