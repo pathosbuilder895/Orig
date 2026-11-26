@@ -26,6 +26,7 @@ argument beyond the first by keyword for exactly this reason — a positional
 slip silently binds to the wrong parameter and can flip a witness from
 "tests the guard" to "tests something else that happens to also fail".
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -50,13 +51,17 @@ from validation.calibration_gate import (
     evaluate_g_a4_peer_imitation,
     evaluate_g_a5_sigma_inflation,
     evaluate_g_a6_baseline_integrity,
+    evaluate_g_rebind,
     evaluate_g_rule_d_report_only,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
     evaluate_g_t4_coldstart,
+    evaluate_g_writerline,
 )
+from validation.rebind.harness import PairRecord
 from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
+from validation.writer_line.harness import WriterPairRecord
 
 
 @dataclass(frozen=True)
@@ -68,29 +73,86 @@ class GateContract:
     notes: str = ""
 
 
+def _rebind_inverted_records() -> list[PairRecord]:
+    """llr inverted: genuine pairs read impostor-like, impostors genuine-like."""
+    genuine = [PairRecord(f"g{k % 20}", True, 0.8, 0.9, "witness") for k in range(400)]
+    impostor = [PairRecord(f"i{k % 20}", False, 0.5, 0.1, "witness") for k in range(400)]
+    return genuine + impostor
+
+
+def _rebind_witness() -> GateResult:
+    from original.quantum.scoring import LLR_REBIND_THRESHOLDS
+
+    return evaluate_g_rebind(_rebind_inverted_records(), thresholds=LLR_REBIND_THRESHOLDS)
+
+
+def _writerline_witness() -> GateResult:
+    """Genuine papers sit far above their own leave-one-out deviations (writer z ~6,
+    escalate under fixed bands) while gate leaves them at monitor; impostors sit
+    at their writer's mean."""
+    bands = {
+        "no_action": (float("-inf"), 1.0),
+        "monitor": (1.0, 2.0),
+        "schedule_conversation": (2.0, 3.0),
+        "escalate": (3.0, float("inf")),
+    }
+    loo = (0.25, 0.3, 0.35)
+    genuine = [
+        WriterPairRecord(f"g{k % 20}", True, 0.55, 0.5, "witness", loo_dev=loo) for k in range(400)
+    ]
+    impostor = [
+        WriterPairRecord(f"i{k % 20}", False, 0.3, 0.5, "witness", loo_dev=loo) for k in range(400)
+    ]
+    return evaluate_g_writerline(genuine + impostor, thresholds=bands)
+
+
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_writerline": GateContract(
+        gate="G-WRITERLINE",
+        claims="the per-writer line catches more impostors at "
+        "schedule_conversation+ than gate on held-out writers without raising "
+        "honest false alarms (<= 5% and <= gate's at schedule_conversation+, "
+        "<= gate's at escalate)",
+        failure_witness=_writerline_witness,
+        notes="Witness inverts the writer line at n=400 per side: every genuine "
+        "pair escalates while gate leaves it at no_action, so the false-alarm "
+        "legs fail.",
+    ),
+    "evaluate_g_rebind": GateContract(
+        gate="G-REBIND",
+        claims="rebind catches more impostors at schedule_conversation+ than "
+        "gate on held-out writers without raising honest false alarms "
+        "(<= 5% and <= gate's at schedule_conversation+, <= gate's at escalate)",
+        failure_witness=_rebind_witness,
+        notes="Witness is inverted llr separation at n=400 per side: rebind "
+        "flags every genuine pair, so the false-alarm legs fail.",
+    ),
     "evaluate_g_t1_honest_term": GateContract(
-        gate="T-1", claims="honest-term action budget",
+        gate="T-1",
+        claims="honest-term action budget",
         failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),
         notes="Deployment outcome gate; label destruction is not applicable to honest-term rates.",
     ),
     "evaluate_g_t2_detection": GateContract(
-        gate="T-2", claims="GHOST detection floor",
+        gate="T-2",
+        claims="GHOST detection floor",
         failure_witness=lambda: evaluate_g_t2_detection(0.20, 5),
         notes="The scenario is itself the positive control; no separate label-destruction leg.",
     ),
     "evaluate_g_t3_growth": GateContract(
-        gate="T-3", claims="baseline-growth neutrality",
+        gate="T-3",
+        claims="baseline-growth neutrality",
         # The witness is the MEASURED fused compression-channel confound
         # (0.799 @ 3 baselines -> 0.730 @ 48; tests/test_fusion_confound.py),
         # not a synthetic number: T-3's bound is calibrated below it so the
         # known-bad channel demonstrably fails this gate when attached.
         failure_witness=lambda: evaluate_g_t3_growth(FUSED_COMPRESSION_SLOPE, 8),
         notes="Longitudinal neutrality has no authorship-label input to destroy; "
-              "witness = the measured fused C1 slope.",
+        "witness = the measured fused C1 slope.",
     ),
     "evaluate_g_t4_coldstart": GateContract(
-        gate="T-4", claims="cold-start parity",
+        gate="T-4",
+        claims="cold-start parity",
         failure_witness=lambda: evaluate_g_t4_coldstart(0.50, 0.10, 8),
         notes="Cohort parity has no authorship-label input to destroy.",
     ),
@@ -202,8 +264,7 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     ),
     "evaluate_g3_attribution": GateContract(
         gate="G3",
-        claims="public_authors top-1 attribution accuracy >= 0.7 "
-        "(impostor-calibrated)",
+        claims="public_authors top-1 attribution accuracy >= 0.7 (impostor-calibrated)",
         failure_witness=lambda: evaluate_g3_attribution(0.455),
         label_destruction=lambda: evaluate_g3_attribution(1.0 / 9.0),
         notes=(
@@ -281,11 +342,8 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     ),
     "evaluate_g6_fairness": GateContract(
         gate="G6",
-        claims="native/non-native flagged-rate ratio on the p_central "
-        "action does not exceed 2x",
-        failure_witness=lambda: evaluate_g6_fairness(
-            native_fpr=0.01, non_native_fpr=0.10
-        ),
+        claims="native/non-native flagged-rate ratio on the p_central action does not exceed 2x",
+        failure_witness=lambda: evaluate_g6_fairness(native_fpr=0.01, non_native_fpr=0.10),
         label_destruction=None,
         notes=(
             "No label-destruction leg is registered for the same reason as "
@@ -651,7 +709,11 @@ GATE_CONTRACTS: dict[str, GateContract] = {
         claims="RULE_D_OBSERVATION never changes deviation_score or the recommended action, "
         "and returns no index below the class-size floor",
         failure_witness=lambda: evaluate_g_rule_d_report_only(
-            {"off": (0.41, "monitor"), "shadow": (0.41, "monitor"), "on": (0.41, "schedule_conversation")},
+            {
+                "off": (0.41, "monitor"),
+                "shadow": (0.41, "monitor"),
+                "on": (0.41, "schedule_conversation"),
+            },
             {"status": "observed", "index": 0.2},
         ),
         notes=(

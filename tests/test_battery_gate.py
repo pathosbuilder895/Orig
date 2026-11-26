@@ -241,7 +241,7 @@ def _legs(tmp_path, overrides=None, drop=(), error=None):
     """One report per CI matrix leg group, as the workflow's merge job sees them."""
     overrides = overrides or {}
     groups = [
-        ("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "G9", "T"),
+        ("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "G9", "G-REBIND", "G-WRITERLINE", "T"),
         ("G-A1", "G-A2", "G-A3", "G-A4", "G-A5", "G-A6"),
     ]
     paths = []

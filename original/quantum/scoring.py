@@ -510,6 +510,13 @@ class RecommendedAction:
 
 
 _TOPIC_INFLATION_MODES = frozenset({"off", "shadow", "on"})
+_WRITER_LINE_MODES = frozenset({"off", "shadow", "on"})
+
+
+def _parse_writer_line_mode(raw: str) -> str:
+    """Map WRITER_LINE to a mode; anything unrecognised is "off"."""
+    mode = (raw or "").strip().lower()
+    return mode if mode in _WRITER_LINE_MODES else "off"
 
 
 def _parse_topic_inflation_mode(raw: str) -> str:
@@ -648,7 +655,17 @@ class ScoringConfig:
     #               deviation_score and llr_deviation_score. DO NOT ENABLE:
     #               looked best on false-positive rate alone, but collapsed
     #               genuine-impostor severity when checked at a matched bar.
+    #   "rebind"  — action tier is set from llr_deviation_score alone, via
+    #               LLR_REBIND_THRESHOLDS (can raise or lower any number of
+    #               steps). Only applies with null_model="impostor" and a real
+    #               llr_deviation_score. Thresholds are placeholders pending
+    #               calibration; off unless explicitly selected.
     llr_action_mode: str = "gate"  # was LLR_ACTION_MODE
+    # Per-writer verdict line (WRITER_LINE): "off" (default) never computes
+    # it; "shadow" attaches writer_line_z / writer_line_action without
+    # touching recommendation; "on" replaces the base tier from _recommend()
+    # with the writer-line tier before the LLR step and catastrophic drift.
+    writer_line: str = "off"  # was WRITER_LINE
     # Topic-adaptive variance inflation (see original/constants.py's
     # TOPIC_SENSITIVITY block and the 2026-08 topic-invariance spec).
     #   "off"    — DEFAULT. Byte-identical to Phase 1.
@@ -740,6 +757,7 @@ class ScoringConfig:
             == "1",
             identity_axis_enabled=os.environ.get("IDENTITY_AXIS", "0") == "1",
             llr_action_mode=os.environ.get("LLR_ACTION_MODE", "gate"),
+            writer_line=_parse_writer_line_mode(os.environ.get("WRITER_LINE", "off")),
             topic_variance_inflation=_parse_topic_inflation_mode(
                 os.environ.get("TOPIC_VARIANCE_INFLATION", "0")
             ),
@@ -926,6 +944,11 @@ class Layer7Output:
     # for the same reason: additive, cannot change deviation_score or the
     # recommendation, pending an institutional holdout per ADR-008.
     trend_aware_typicality: TrendAwareTypicality | None = field(default=None)
+    # Per-writer line (WRITER_LINE). None unless the mode is "shadow" or
+    # "on" and the line did not abstain. writer_line_action is the tier the
+    # line gives (in shadow: what it would give).
+    writer_line_z: float | None = field(default=None)
+    writer_line_action: str | None = field(default=None)
 
 
 # ── Amplitude scoring helper ──────────────────────────────────────────────────
@@ -1871,6 +1894,43 @@ def score(
         ),
     )
 
+    # ── Per-writer line (WRITER_LINE) ─────────────────────────────────────────
+    # "off" computes nothing. "shadow" only fills the two diagnostic fields.
+    # "on" replaces the base tier, keeping the original confidence; the LLR
+    # step and catastrophic drift below still apply on top of it.
+    writer_line_z: float | None = None
+    writer_line_tier: str | None = None
+    # The reference is each baseline paper's leave-one-out deviation_score,
+    # scored under the same weights and flags as this submission, so no
+    # comparability guard is needed. Costs one score() call per paper.
+    if config.writer_line in ("shadow", "on"):
+        from .writer_line import loo_deviation_scores as _loo_deviation_scores
+        from .writer_line import writer_line_action as _writer_line_action
+        from .writer_line import writer_z as _writer_z
+
+        _writer_ref = _loo_deviation_scores(
+            state,
+            score,
+            adaptive_weights=adaptive_weights,
+            manifest=manifest,
+            n_tokens=n_tokens,
+            impostor_stats=impostor_stats,
+            scoring_config=config,
+            pooled_states=pooled_states,
+            student_id=student_id,
+        )
+        writer_line_z = _writer_z(D_adjusted, _writer_ref)
+        writer_line_tier = _writer_line_action(writer_line_z)
+        if config.writer_line == "on" and writer_line_tier is not None:
+            recommendation = RecommendedAction(
+                action=writer_line_tier,
+                confidence=recommendation.confidence,
+                rationale=(
+                    f"Per-writer line: this paper sits {writer_line_z:.2f} of the "
+                    f"writer's own spreads from their past papers."
+                ),
+            )
+
     # ── LLR-informed action mode (2026-08 cross-genre study) ──────────────────
     # Gated the same way llr_deviation_score itself is: null_model=="impostor"
     # AND a real llr_deviation_score. config.llr_action_mode defaults to
@@ -1962,6 +2022,8 @@ def score(
         ),
         characteristic_rms_z_preview=_char_rms_z_preview,
         characteristic_deviation_preview=characteristic_deviation_preview,
+        writer_line_z=writer_line_z,
+        writer_line_action=writer_line_tier,
         opportunity_mask_applied=_opportunity_applied,
         opportunity_mode=(config.opportunity_mask if _unmeasured is not None else None),
         unmeasured_features=(
@@ -2533,6 +2595,34 @@ _ACTION_SEVERITY = ["no_action", "monitor", "schedule_conversation", "escalate"]
 LLR_ACTION_GENUINE_THRESHOLD = 0.35  # below → confidently more like the claimed author
 LLR_ACTION_IMPOSTOR_THRESHOLD = 0.65  # above → confidently more like the impostor pool
 
+# Action bands applied directly to llr_deviation_score by LLR_ACTION_MODE=rebind.
+# Keyed like constants.ACTION_THRESHOLDS. Selected 2026-11-16 by
+# validation/rebind/run.py (seed 20261116) on the derivation split of
+# seminary + public_authors + PAN20 cross-fandom records; see
+# validation/rebind/report_2026-11-16.json. G-REBIND is UNINFORMATIVE
+# (29 genuine hold-out pairs) and rebind caught fewer impostors than gate on
+# that hold-out, so this mode is not validated. Off by default.
+LLR_REBIND_THRESHOLDS: dict[str, tuple[float, float]] = {
+    "no_action": (0.0, 0.5925641849220357),
+    "monitor": (0.5925641849220357, 0.7425641849220357),
+    "schedule_conversation": (0.7425641849220357, 0.7694367004049205),
+    "escalate": (0.7694367004049205, 1.0),
+}
+
+
+def _rebind_action(
+    llr_deviation_score: float,
+    thresholds: dict[str, tuple[float, float]] = LLR_REBIND_THRESHOLDS,
+) -> str:
+    """Action tier read straight off llr_deviation_score (peer-relative)."""
+    action = "no_action"
+    for act, (lo, hi) in thresholds.items():
+        if lo <= llr_deviation_score < hi:
+            action = act
+    if llr_deviation_score >= 1.0:
+        action = "escalate"
+    return action
+
 
 def _llr_action_candidates(
     action: str,
@@ -2563,7 +2653,12 @@ def _llr_action_candidates(
     if blended >= 1.0:
         blend_action = "escalate"
 
-    return {"gate": gate_action, "trigger": trigger_action, "blend": blend_action}
+    return {
+        "gate": gate_action,
+        "trigger": trigger_action,
+        "blend": blend_action,
+        "rebind": _rebind_action(llr_deviation_score),
+    }
 
 
 def _apply_llr_action_mode(
@@ -2586,11 +2681,12 @@ def _apply_llr_action_mode(
     if mode == "shadow":
         log.info(
             "llr_action_shadow live=%s gate_would=%s trigger_would=%s blend_would=%s "
-            "llr=%.3f deviation=%.3f",
+            "rebind_would=%s llr=%.3f deviation=%.3f",
             recommendation.action,
             candidates["gate"],
             candidates["trigger"],
             candidates["blend"],
+            candidates["rebind"],
             llr_deviation_score,
             deviation,
         )
@@ -2603,7 +2699,7 @@ def _apply_llr_action_mode(
     if new_action == recommendation.action:
         return recommendation
 
-    _verbs = {"gate": "downgraded", "trigger": "raised", "blend": "re-derived"}
+    _verbs = {"gate": "downgraded", "trigger": "raised", "blend": "re-derived", "rebind": "rebound"}
     _reasons = {
         "gate": (
             f"llr_deviation_score={llr_deviation_score:.3f} indicates this is more "
@@ -2616,6 +2712,9 @@ def _apply_llr_action_mode(
         "blend": (
             f"action tier re-derived from a 50/50 blend of deviation_score and "
             f"llr_deviation_score={llr_deviation_score:.3f}."
+        ),
+        "rebind": (
+            f"action tier set from llr_deviation_score={llr_deviation_score:.3f} (peer-relative)."
         ),
     }
     return RecommendedAction(

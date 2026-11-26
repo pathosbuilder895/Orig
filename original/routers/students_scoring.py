@@ -556,6 +556,24 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             result.characteristic_deviation_preview,
         )
 
+    # ── Per-writer line audit line ─────────────────────────────────────────────
+    # One INFO line per scoring call whenever WRITER_LINE is not "off". Same
+    # privacy rule as the lines above: no student id, aggregate numbers only.
+    if _scoring_config_env.writer_line != "off":
+        if result.writer_line_action is None:
+            _wl_outcome = "abstain"
+        elif _scoring_config_env.writer_line == "on":
+            _wl_outcome = "applied"
+        else:
+            _wl_outcome = "shadow"
+        logging.getLogger(__name__).info(
+            "writer_line mode=%s outcome=%s would=%s z=%s",
+            _scoring_config_env.writer_line,
+            _wl_outcome,
+            result.writer_line_action,
+            None if result.writer_line_z is None else round(result.writer_line_z, 4),
+        )
+
     # Default-off, report-only longitudinal signal. The probe is never added
     # to the fitted history and this cannot change the primary score/action.
     from ..quantum.longitudinal import (

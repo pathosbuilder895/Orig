@@ -1,0 +1,1803 @@
+{
+ "label": "public_authors_nullmodel_N3",
+ "generated_at": "2026-11-16T17:01:55.229040Z",
+ "extra": {
+  "pairs": [
+   {
+    "baseline_author": "augustine",
+    "submission_author": "augustine",
+    "deviation": 0.2858750118592588,
+    "llr": 0.3121142453190643
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "augustine",
+    "deviation": 0.3279672666357093,
+    "llr": 0.3161579216563199
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "augustine",
+    "deviation": 0.5232089562383371,
+    "llr": 0.4571089188241178
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "boethius",
+    "deviation": 0.669277558091069,
+    "llr": 0.6650325792819584
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "boethius",
+    "deviation": 0.6694250382213525,
+    "llr": 0.6515335667034681
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "chesterton",
+    "deviation": 0.7105575890082382,
+    "llr": 0.7925976457431365
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "chesterton",
+    "deviation": 0.6709765693277201,
+    "llr": 0.7762121928558743
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "douglass",
+    "deviation": 0.7135018417510456,
+    "llr": 0.7591820151656963
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "douglass",
+    "deviation": 0.7291741937723506,
+    "llr": 0.7591160963052419
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "douglass",
+    "deviation": 0.7425699533804554,
+    "llr": 0.799930477728105
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "edwards",
+    "deviation": 0.6865567414223323,
+    "llr": 0.6748001831509542
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "edwards",
+    "deviation": 0.6632774822978844,
+    "llr": 0.740211393858523
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "edwards",
+    "deviation": 0.5879118735348168,
+    "llr": 0.6171129842474566
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "emerson",
+    "deviation": 0.7141326653070658,
+    "llr": 0.7777883989386314
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "emerson",
+    "deviation": 0.7152588936291309,
+    "llr": 0.7979736594374931
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "james",
+    "deviation": 0.7067409218609544,
+    "llr": 0.7891277733581237
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "james",
+    "deviation": 0.6985734637434549,
+    "llr": 0.8290566639319941
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "james",
+    "deviation": 0.7202206174141735,
+    "llr": 0.8104850207884663
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "james",
+    "deviation": 0.6755096423828127,
+    "llr": 0.7918274752971515
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "kempis",
+    "deviation": 0.6681810322524611,
+    "llr": 0.6199333447525459
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "kempis",
+    "deviation": 0.5856257793200469,
+    "llr": 0.6022686820227469
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "mill",
+    "deviation": 0.6063484631350678,
+    "llr": 0.7010540201868889
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "mill",
+    "deviation": 0.6302988157249894,
+    "llr": 0.6463381006007233
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "newman",
+    "deviation": 0.5769839926715211,
+    "llr": 0.6210900253266392
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "newman",
+    "deviation": 0.5424834452696333,
+    "llr": 0.6076527958192687
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "thoreau",
+    "deviation": 0.6964889667437902,
+    "llr": 0.8033320079600275
+   },
+   {
+    "baseline_author": "augustine",
+    "submission_author": "thoreau",
+    "deviation": 0.6954963924169633,
+    "llr": 0.7839248335600101
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "augustine",
+    "deviation": 0.5425795262824464,
+    "llr": 0.561904385195256
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "augustine",
+    "deviation": 0.5703825715741586,
+    "llr": 0.539316099213948
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "augustine",
+    "deviation": 0.6235465159968141,
+    "llr": 0.6376449838573016
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "boethius",
+    "deviation": 0.4102565572242232,
+    "llr": 0.36264961124335926
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "boethius",
+    "deviation": 0.49381021798615765,
+    "llr": 0.4202515202451405
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "chesterton",
+    "deviation": 0.5716571476263542,
+    "llr": 0.638701300687343
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "chesterton",
+    "deviation": 0.6047495038112832,
+    "llr": 0.7153577120623358
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "douglass",
+    "deviation": 0.606028643526745,
+    "llr": 0.5976466577226671
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "douglass",
+    "deviation": 0.6144025238257993,
+    "llr": 0.6125053283191575
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "douglass",
+    "deviation": 0.626047122269595,
+    "llr": 0.6423075221684137
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "edwards",
+    "deviation": 0.6384848124898405,
+    "llr": 0.5914222192380824
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "edwards",
+    "deviation": 0.5899503659927591,
+    "llr": 0.6453520147745567
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "edwards",
+    "deviation": 0.5646426218184712,
+    "llr": 0.5937838411751043
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "emerson",
+    "deviation": 0.6399067029970366,
+    "llr": 0.7107706733686419
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "emerson",
+    "deviation": 0.6205642411747958,
+    "llr": 0.695465834595388
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "james",
+    "deviation": 0.514992432462037,
+    "llr": 0.5766169280510537
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "james",
+    "deviation": 0.5151111719393725,
+    "llr": 0.5941275883596977
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "james",
+    "deviation": 0.5305974957617634,
+    "llr": 0.6014826446933655
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "james",
+    "deviation": 0.5365202514777891,
+    "llr": 0.5933773297871554
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "kempis",
+    "deviation": 0.5017052149222364,
+    "llr": 0.5013989399740665
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "kempis",
+    "deviation": 0.4445008112336755,
+    "llr": 0.4441165246318781
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "mill",
+    "deviation": 0.5357097000115015,
+    "llr": 0.6185337557995879
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "mill",
+    "deviation": 0.6066044149534716,
+    "llr": 0.6266327785505176
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "newman",
+    "deviation": 0.558496591458164,
+    "llr": 0.6250712361052291
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "newman",
+    "deviation": 0.5721078675959758,
+    "llr": 0.6530025686752987
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "thoreau",
+    "deviation": 0.6406554940364417,
+    "llr": 0.7606409180982057
+   },
+   {
+    "baseline_author": "boethius",
+    "submission_author": "thoreau",
+    "deviation": 0.589658337474691,
+    "llr": 0.6644955532639247
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "augustine",
+    "deviation": 0.7099117713965228,
+    "llr": 0.7522849571499346
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "augustine",
+    "deviation": 0.7414211265140083,
+    "llr": 0.7659377843192353
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "augustine",
+    "deviation": 0.7711142974304995,
+    "llr": 0.8343635337062721
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "boethius",
+    "deviation": 0.7548778575645123,
+    "llr": 0.7570639911878836
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "boethius",
+    "deviation": 0.7695001950340447,
+    "llr": 0.7950473196906659
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "chesterton",
+    "deviation": 0.39317722154518214,
+    "llr": 0.4366050412813677
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "chesterton",
+    "deviation": 0.3156800069329457,
+    "llr": 0.4316332790426422
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "douglass",
+    "deviation": 0.7109551492467576,
+    "llr": 0.754527363013177
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "douglass",
+    "deviation": 0.6942838205272449,
+    "llr": 0.6872789084373447
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "douglass",
+    "deviation": 0.683407495803261,
+    "llr": 0.7096459868493645
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "edwards",
+    "deviation": 0.7551397620606538,
+    "llr": 0.7701390264067071
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "edwards",
+    "deviation": 0.6430842504349177,
+    "llr": 0.71131949816499
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "edwards",
+    "deviation": 0.7226424092136666,
+    "llr": 0.7867671536325354
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "emerson",
+    "deviation": 0.6401554043050286,
+    "llr": 0.7115144762105101
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "emerson",
+    "deviation": 0.6559443340782675,
+    "llr": 0.737769507864175
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "james",
+    "deviation": 0.6911374355650725,
+    "llr": 0.7769162390666627
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "james",
+    "deviation": 0.6242334955588553,
+    "llr": 0.7200199646753057
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "james",
+    "deviation": 0.6648032026468417,
+    "llr": 0.7360653789305845
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "james",
+    "deviation": 0.7040810587486285,
+    "llr": 0.7695498031168493
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "kempis",
+    "deviation": 0.7294243958750044,
+    "llr": 0.7729156721577791
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "kempis",
+    "deviation": 0.6998726415969846,
+    "llr": 0.7684221764330719
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "mill",
+    "deviation": 0.6651641130023425,
+    "llr": 0.7760159412928731
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "mill",
+    "deviation": 0.6927303747992621,
+    "llr": 0.736331342996636
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "newman",
+    "deviation": 0.6875251491229983,
+    "llr": 0.7670929300275293
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "newman",
+    "deviation": 0.7144451386517496,
+    "llr": 0.8252052297842238
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "thoreau",
+    "deviation": 0.6247356176091671,
+    "llr": 0.730859980829035
+   },
+   {
+    "baseline_author": "chesterton",
+    "submission_author": "thoreau",
+    "deviation": 0.6529954463233628,
+    "llr": 0.7337877435885402
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "augustine",
+    "deviation": 0.5650895306772082,
+    "llr": 0.5835171931695833
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "augustine",
+    "deviation": 0.6200678778850434,
+    "llr": 0.603822907231516
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "augustine",
+    "deviation": 0.6504194657178491,
+    "llr": 0.6706040985893766
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "boethius",
+    "deviation": 0.6084278842561642,
+    "llr": 0.6336123920460823
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "boethius",
+    "deviation": 0.6149345194355035,
+    "llr": 0.5771248894013069
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "chesterton",
+    "deviation": 0.553790942274367,
+    "llr": 0.6431323250764509
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "chesterton",
+    "deviation": 0.5540348158562296,
+    "llr": 0.6794319904877221
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "douglass",
+    "deviation": 0.3897311441004779,
+    "llr": 0.3268758005524439
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "douglass",
+    "deviation": 0.3144625826959977,
+    "llr": 0.3056013780426901
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "douglass",
+    "deviation": 0.38209758129955734,
+    "llr": 0.309934196485677
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "edwards",
+    "deviation": 0.670594697402233,
+    "llr": 0.683655425779349
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "edwards",
+    "deviation": 0.6020917845544498,
+    "llr": 0.6683451404439973
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "edwards",
+    "deviation": 0.5908742338404114,
+    "llr": 0.6625616548413489
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "emerson",
+    "deviation": 0.4008537032134809,
+    "llr": 0.4731024811364012
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "emerson",
+    "deviation": 0.3647982255677222,
+    "llr": 0.431243670591567
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "james",
+    "deviation": 0.4924506316252416,
+    "llr": 0.527379389477255
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "james",
+    "deviation": 0.5231004430798276,
+    "llr": 0.5854485531988979
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "james",
+    "deviation": 0.525248856669029,
+    "llr": 0.5310568733716081
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "james",
+    "deviation": 0.5356637575067003,
+    "llr": 0.5779988321883666
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "kempis",
+    "deviation": 0.6082333429167861,
+    "llr": 0.5858496893615384
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "kempis",
+    "deviation": 0.5197452321819886,
+    "llr": 0.5515408093918002
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "mill",
+    "deviation": 0.5725123963214036,
+    "llr": 0.646572248648366
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "mill",
+    "deviation": 0.5747699992405437,
+    "llr": 0.5751355477000981
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "newman",
+    "deviation": 0.5927162733464534,
+    "llr": 0.6715717736250366
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "newman",
+    "deviation": 0.5824533456497363,
+    "llr": 0.6793155643035779
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "thoreau",
+    "deviation": 0.44341241504163587,
+    "llr": 0.5620587016457463
+   },
+   {
+    "baseline_author": "douglass",
+    "submission_author": "thoreau",
+    "deviation": 0.40664762837459095,
+    "llr": 0.49377621413513845
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "augustine",
+    "deviation": 0.6417909024932623,
+    "llr": 0.64742665647915
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "augustine",
+    "deviation": 0.6769231069667043,
+    "llr": 0.6535767936181968
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "augustine",
+    "deviation": 0.6567332819300665,
+    "llr": 0.644539171702393
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "boethius",
+    "deviation": 0.6631670590718542,
+    "llr": 0.6608642234083648
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "boethius",
+    "deviation": 0.6638955600221477,
+    "llr": 0.6247767557711135
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "chesterton",
+    "deviation": 0.669392146365179,
+    "llr": 0.752275270261165
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "chesterton",
+    "deviation": 0.642982915969734,
+    "llr": 0.7305742371307267
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "douglass",
+    "deviation": 0.7043855526541529,
+    "llr": 0.7297209989134981
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "douglass",
+    "deviation": 0.7297592955677147,
+    "llr": 0.7475220200126174
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "douglass",
+    "deviation": 0.7641185389821318,
+    "llr": 0.8287294550713667
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "edwards",
+    "deviation": 0.4381554498912331,
+    "llr": 0.30542421437036293
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "edwards",
+    "deviation": 0.4768075877316849,
+    "llr": 0.43700675058624766
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "edwards",
+    "deviation": 0.4796349636217639,
+    "llr": 0.4441540272865546
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "emerson",
+    "deviation": 0.729168385540562,
+    "llr": 0.8209562744491987
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "emerson",
+    "deviation": 0.7307397606033024,
+    "llr": 0.8222238221523375
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "james",
+    "deviation": 0.702706736120543,
+    "llr": 0.775499929419991
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "james",
+    "deviation": 0.7065870338632849,
+    "llr": 0.8022530287644107
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "james",
+    "deviation": 0.7247241422377849,
+    "llr": 0.7753884007615461
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "james",
+    "deviation": 0.7028467849533546,
+    "llr": 0.7574500506012958
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "kempis",
+    "deviation": 0.6831302118155509,
+    "llr": 0.6774144216256477
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "kempis",
+    "deviation": 0.6432254619273728,
+    "llr": 0.6570549104249412
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "mill",
+    "deviation": 0.6377237770342497,
+    "llr": 0.7026012653174809
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "mill",
+    "deviation": 0.6626136714647458,
+    "llr": 0.6730627224184017
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "newman",
+    "deviation": 0.6138001855933095,
+    "llr": 0.6156730322070624
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "newman",
+    "deviation": 0.5988284908323713,
+    "llr": 0.668442575245893
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "thoreau",
+    "deviation": 0.6438703837272973,
+    "llr": 0.7405454027950397
+   },
+   {
+    "baseline_author": "edwards",
+    "submission_author": "thoreau",
+    "deviation": 0.6716903903031866,
+    "llr": 0.7391563030884318
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "augustine",
+    "deviation": 0.6669025103282279,
+    "llr": 0.6885120575519323
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "augustine",
+    "deviation": 0.713929751712915,
+    "llr": 0.7159148726322233
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "augustine",
+    "deviation": 0.7302722980649269,
+    "llr": 0.7555322995602138
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "boethius",
+    "deviation": 0.7201274101254055,
+    "llr": 0.7222347094817951
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "boethius",
+    "deviation": 0.7090240353381412,
+    "llr": 0.7416976733613356
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "chesterton",
+    "deviation": 0.6472130018443973,
+    "llr": 0.7375112850958344
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "chesterton",
+    "deviation": 0.636608909270372,
+    "llr": 0.7556885829651081
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "douglass",
+    "deviation": 0.5291794212068334,
+    "llr": 0.509688705945796
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "douglass",
+    "deviation": 0.5255044554891274,
+    "llr": 0.5719943906555681
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "douglass",
+    "deviation": 0.5517516017810941,
+    "llr": 0.5509061291977035
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "edwards",
+    "deviation": 0.7248462765383358,
+    "llr": 0.7249501741020434
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "edwards",
+    "deviation": 0.6977442949409121,
+    "llr": 0.7799326439036994
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "edwards",
+    "deviation": 0.6945492413749406,
+    "llr": 0.7778608055571239
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "emerson",
+    "deviation": 0.26500205600647087,
+    "llr": 0.3221515943746973
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "emerson",
+    "deviation": 0.2946331911449601,
+    "llr": 0.3542507778569033
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "james",
+    "deviation": 0.564779643039135,
+    "llr": 0.6595887274912873
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "james",
+    "deviation": 0.5493033535033514,
+    "llr": 0.6714487135506513
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "james",
+    "deviation": 0.5261876220548579,
+    "llr": 0.6206410928485379
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "james",
+    "deviation": 0.5799896340839433,
+    "llr": 0.6728129067627246
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "kempis",
+    "deviation": 0.7011152156328208,
+    "llr": 0.7319578928046122
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "kempis",
+    "deviation": 0.6131927598243512,
+    "llr": 0.6628435770406437
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "mill",
+    "deviation": 0.6441692732689264,
+    "llr": 0.7333161074797765
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "mill",
+    "deviation": 0.6607986199093457,
+    "llr": 0.6749191458256266
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "newman",
+    "deviation": 0.6681097052634647,
+    "llr": 0.7449033623442346
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "newman",
+    "deviation": 0.6775072309564428,
+    "llr": 0.764841691121622
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "thoreau",
+    "deviation": 0.4962626369083569,
+    "llr": 0.609300327201695
+   },
+   {
+    "baseline_author": "emerson",
+    "submission_author": "thoreau",
+    "deviation": 0.5005734781874845,
+    "llr": 0.593620521834862
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "augustine",
+    "deviation": 0.7122265398402912,
+    "llr": 0.7732806109578096
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "augustine",
+    "deviation": 0.7230471296783737,
+    "llr": 0.7542474558504124
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "augustine",
+    "deviation": 0.7557874210809333,
+    "llr": 0.8118750163676082
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "boethius",
+    "deviation": 0.7363784898990012,
+    "llr": 0.7692684354611691
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "boethius",
+    "deviation": 0.7487634415105447,
+    "llr": 0.7646761662368151
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "chesterton",
+    "deviation": 0.5626661066125895,
+    "llr": 0.6154621114997069
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "chesterton",
+    "deviation": 0.6257750394175545,
+    "llr": 0.724553604070914
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "douglass",
+    "deviation": 0.6811284252103498,
+    "llr": 0.7514795678166981
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "douglass",
+    "deviation": 0.6893524364240049,
+    "llr": 0.7302960564118348
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "douglass",
+    "deviation": 0.6631759143897943,
+    "llr": 0.7063900921797577
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "edwards",
+    "deviation": 0.76082502904482,
+    "llr": 0.8143812888666649
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "edwards",
+    "deviation": 0.7223821444183023,
+    "llr": 0.8194791077524961
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "edwards",
+    "deviation": 0.7272772416663287,
+    "llr": 0.8112446312130033
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "emerson",
+    "deviation": 0.6633057663976519,
+    "llr": 0.7454083464231787
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "emerson",
+    "deviation": 0.6711954953079914,
+    "llr": 0.7712013228074805
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "james",
+    "deviation": 0.35804363127100736,
+    "llr": 0.398549560577265
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "james",
+    "deviation": 0.3259106768870931,
+    "llr": 0.32374219899567336
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "james",
+    "deviation": 0.2973330018710409,
+    "llr": 0.28778390834193734
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "james",
+    "deviation": 0.3097697363387486,
+    "llr": 0.31690731328221083
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "kempis",
+    "deviation": 0.6829385318199671,
+    "llr": 0.6868382115503735
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "kempis",
+    "deviation": 0.6362397294622,
+    "llr": 0.6953006185597075
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "mill",
+    "deviation": 0.5752348737074091,
+    "llr": 0.6605555518010697
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "mill",
+    "deviation": 0.6686395352731893,
+    "llr": 0.6975739210905689
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "newman",
+    "deviation": 0.7087227349420928,
+    "llr": 0.7859235115292659
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "newman",
+    "deviation": 0.6883516661758793,
+    "llr": 0.7868586316595332
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "thoreau",
+    "deviation": 0.6766128868626993,
+    "llr": 0.7889145104256554
+   },
+   {
+    "baseline_author": "james",
+    "submission_author": "thoreau",
+    "deviation": 0.6372123226629876,
+    "llr": 0.7288630498995909
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "augustine",
+    "deviation": 0.6621474081570116,
+    "llr": 0.7276157135183893
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "augustine",
+    "deviation": 0.666578684922056,
+    "llr": 0.6734025827158117
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "augustine",
+    "deviation": 0.6977631486009952,
+    "llr": 0.7235598752582321
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "boethius",
+    "deviation": 0.6842324309939738,
+    "llr": 0.6895437283971753
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "boethius",
+    "deviation": 0.6865977111127886,
+    "llr": 0.6732312413764177
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "chesterton",
+    "deviation": 0.6091454097932796,
+    "llr": 0.6783446208564143
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "chesterton",
+    "deviation": 0.5980544313207345,
+    "llr": 0.7033334871569641
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "douglass",
+    "deviation": 0.6437705082148506,
+    "llr": 0.6585112398172859
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "douglass",
+    "deviation": 0.6413430168963479,
+    "llr": 0.663507081300833
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "douglass",
+    "deviation": 0.6332453722126266,
+    "llr": 0.6813939606358119
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "edwards",
+    "deviation": 0.7072170786486176,
+    "llr": 0.7596663411486182
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "edwards",
+    "deviation": 0.6877221899716391,
+    "llr": 0.7708885952332297
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "edwards",
+    "deviation": 0.7072546330066083,
+    "llr": 0.7715862770453108
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "emerson",
+    "deviation": 0.614033954924789,
+    "llr": 0.656246324008693
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "emerson",
+    "deviation": 0.616268987397355,
+    "llr": 0.6748667919252039
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "james",
+    "deviation": 0.5373898617670297,
+    "llr": 0.5615893197481123
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "james",
+    "deviation": 0.48774617749196986,
+    "llr": 0.6044781710465137
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "james",
+    "deviation": 0.5055413375842319,
+    "llr": 0.5065202576653023
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "james",
+    "deviation": 0.538984118378754,
+    "llr": 0.5896345399956969
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "kempis",
+    "deviation": 0.5138148319813685,
+    "llr": 0.4060514329048416
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "kempis",
+    "deviation": 0.45838555647916096,
+    "llr": 0.38406024928025206
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "mill",
+    "deviation": 0.6388500961608765,
+    "llr": 0.7467650249792297
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "mill",
+    "deviation": 0.6598828155454766,
+    "llr": 0.6875842084278788
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "newman",
+    "deviation": 0.6825933136698425,
+    "llr": 0.7725216376779256
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "newman",
+    "deviation": 0.6857519945187195,
+    "llr": 0.7864226664428636
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "thoreau",
+    "deviation": 0.6382762389414229,
+    "llr": 0.7451641839171295
+   },
+   {
+    "baseline_author": "kempis",
+    "submission_author": "thoreau",
+    "deviation": 0.6065357603790758,
+    "llr": 0.6986513080645511
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "augustine",
+    "deviation": 0.6747575156258899,
+    "llr": 0.7148892048658352
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "augustine",
+    "deviation": 0.6883478518100281,
+    "llr": 0.6896461211431383
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "augustine",
+    "deviation": 0.7079580191125652,
+    "llr": 0.7426533013471718
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "boethius",
+    "deviation": 0.6597955209897062,
+    "llr": 0.6742219093765439
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "boethius",
+    "deviation": 0.642120009432213,
+    "llr": 0.6641928753324714
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "chesterton",
+    "deviation": 0.66563671641868,
+    "llr": 0.7622074668849266
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "chesterton",
+    "deviation": 0.6398093124954233,
+    "llr": 0.7546966408304052
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "douglass",
+    "deviation": 0.6113024668685719,
+    "llr": 0.633997736495601
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "douglass",
+    "deviation": 0.6430853111831912,
+    "llr": 0.7444776548368603
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "douglass",
+    "deviation": 0.6648200594931998,
+    "llr": 0.662793479357167
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "edwards",
+    "deviation": 0.6378730554237491,
+    "llr": 0.6451482669242159
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "edwards",
+    "deviation": 0.5881929618958421,
+    "llr": 0.6450072288556467
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "edwards",
+    "deviation": 0.5901552082357314,
+    "llr": 0.6543931287329932
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "emerson",
+    "deviation": 0.6411085852533964,
+    "llr": 0.7152930618323146
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "emerson",
+    "deviation": 0.6499665376783181,
+    "llr": 0.7434780290642521
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "james",
+    "deviation": 0.538578155016645,
+    "llr": 0.5855045288063461
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "james",
+    "deviation": 0.5757792405266243,
+    "llr": 0.6305476216706057
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "james",
+    "deviation": 0.6185653507315375,
+    "llr": 0.6819397897201831
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "james",
+    "deviation": 0.5266384694597966,
+    "llr": 0.5532433036170664
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "kempis",
+    "deviation": 0.6732555780725398,
+    "llr": 0.6983468416514873
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "kempis",
+    "deviation": 0.623592143974713,
+    "llr": 0.680937938533247
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "mill",
+    "deviation": 0.2859525755584071,
+    "llr": 0.33065306993938126
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "mill",
+    "deviation": 0.2768866407244635,
+    "llr": 0.24142868627706554
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "newman",
+    "deviation": 0.5507274349808782,
+    "llr": 0.6010512923015303
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "newman",
+    "deviation": 0.4754520755826011,
+    "llr": 0.531667412294422
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "thoreau",
+    "deviation": 0.6476194769083522,
+    "llr": 0.7738973704785337
+   },
+   {
+    "baseline_author": "mill",
+    "submission_author": "thoreau",
+    "deviation": 0.680697572464719,
+    "llr": 0.8069679945043441
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "augustine",
+    "deviation": 0.5735277568160158,
+    "llr": 0.6399463646675654
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "augustine",
+    "deviation": 0.6423222464588618,
+    "llr": 0.6866490431851457
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "augustine",
+    "deviation": 0.61512445086062,
+    "llr": 0.6255737770264271
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "boethius",
+    "deviation": 0.6825111114634177,
+    "llr": 0.6878799976485366
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "boethius",
+    "deviation": 0.6667598085792427,
+    "llr": 0.6366909196084962
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "chesterton",
+    "deviation": 0.6879758594379174,
+    "llr": 0.7838115882179437
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "chesterton",
+    "deviation": 0.6729387658357219,
+    "llr": 0.7771392661999845
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "douglass",
+    "deviation": 0.6413191181147606,
+    "llr": 0.6582070638546607
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "douglass",
+    "deviation": 0.6728261380084001,
+    "llr": 0.68986429333784
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "douglass",
+    "deviation": 0.6782602109247026,
+    "llr": 0.7036739096373128
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "edwards",
+    "deviation": 0.6644809561832167,
+    "llr": 0.6689022586685691
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "edwards",
+    "deviation": 0.6244742030200263,
+    "llr": 0.7136416664737748
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "edwards",
+    "deviation": 0.5856865493212279,
+    "llr": 0.6364220371249575
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "emerson",
+    "deviation": 0.644305369988188,
+    "llr": 0.7158009992491574
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "emerson",
+    "deviation": 0.6752948092131256,
+    "llr": 0.7683769569091177
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "james",
+    "deviation": 0.6020419824198429,
+    "llr": 0.6444692157556942
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "james",
+    "deviation": 0.6209549260017917,
+    "llr": 0.62730099360955
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "james",
+    "deviation": 0.6348600426281357,
+    "llr": 0.6175787429277813
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "james",
+    "deviation": 0.6196424683729808,
+    "llr": 0.6800222321960362
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "kempis",
+    "deviation": 0.6958487089465741,
+    "llr": 0.7583446058782686
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "kempis",
+    "deviation": 0.6134717521238571,
+    "llr": 0.7097827493069753
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "mill",
+    "deviation": 0.48935834086712443,
+    "llr": 0.5383000821970833
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "mill",
+    "deviation": 0.5085659326667137,
+    "llr": 0.4516593753908886
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "newman",
+    "deviation": 0.43135502348764587,
+    "llr": 0.4449044426079587
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "newman",
+    "deviation": 0.3787788545179062,
+    "llr": 0.40381229601861895
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "thoreau",
+    "deviation": 0.6895306277864809,
+    "llr": 0.8027954618747903
+   },
+   {
+    "baseline_author": "newman",
+    "submission_author": "thoreau",
+    "deviation": 0.6592463866080018,
+    "llr": 0.753370623538731
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "augustine",
+    "deviation": 0.5866319136257019,
+    "llr": 0.6022661272047434
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "augustine",
+    "deviation": 0.6286068892566656,
+    "llr": 0.6183342232939979
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "augustine",
+    "deviation": 0.7043508694409998,
+    "llr": 0.7238054828699854
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "boethius",
+    "deviation": 0.6878940056254479,
+    "llr": 0.7006036199037259
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "boethius",
+    "deviation": 0.6750036455435003,
+    "llr": 0.6968533109939173
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "chesterton",
+    "deviation": 0.6323664197117618,
+    "llr": 0.7209741932979192
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "chesterton",
+    "deviation": 0.626077093183175,
+    "llr": 0.7435870095483741
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "douglass",
+    "deviation": 0.4923339701234826,
+    "llr": 0.49884038588391366
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "douglass",
+    "deviation": 0.5184180115032994,
+    "llr": 0.5918433568964816
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "douglass",
+    "deviation": 0.524306687077749,
+    "llr": 0.515805622103236
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "edwards",
+    "deviation": 0.7147903412429998,
+    "llr": 0.7096596160735321
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "edwards",
+    "deviation": 0.6767766261986572,
+    "llr": 0.7489143240239617
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "edwards",
+    "deviation": 0.6352163500339875,
+    "llr": 0.7127357667351389
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "emerson",
+    "deviation": 0.4513256434004703,
+    "llr": 0.528143586919864
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "emerson",
+    "deviation": 0.43694574368449846,
+    "llr": 0.5301312971555696
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "james",
+    "deviation": 0.504204358104185,
+    "llr": 0.585437874417079
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "james",
+    "deviation": 0.5503162818501437,
+    "llr": 0.6331804814106013
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "james",
+    "deviation": 0.5120456911479841,
+    "llr": 0.6029859168428008
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "james",
+    "deviation": 0.5134392231829947,
+    "llr": 0.5910301407849178
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "kempis",
+    "deviation": 0.6511580938353857,
+    "llr": 0.6869310122483216
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "kempis",
+    "deviation": 0.5590441362354168,
+    "llr": 0.6287494443681622
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "mill",
+    "deviation": 0.5999071763951719,
+    "llr": 0.7144831965611284
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "mill",
+    "deviation": 0.6201604902213709,
+    "llr": 0.6424339863752001
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "newman",
+    "deviation": 0.6372206999738839,
+    "llr": 0.7202953943824115
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "newman",
+    "deviation": 0.6101979507965842,
+    "llr": 0.6928280868104693
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "thoreau",
+    "deviation": 0.4805845050184391,
+    "llr": 0.595669304885283
+   },
+   {
+    "baseline_author": "thoreau",
+    "submission_author": "thoreau",
+    "deviation": 0.39356890605583905,
+    "llr": 0.4994556791067123
+   }
+  ],
+  "eligible_authors": [
+   "augustine",
+   "boethius",
+   "chesterton",
+   "douglass",
+   "edwards",
+   "emerson",
+   "james",
+   "kempis",
+   "mill",
+   "newman",
+   "thoreau"
+  ]
+ }
+}

@@ -3028,6 +3028,236 @@ def _compute_adversarial_gates(legs: tuple[str, ...]) -> list[GateResult]:
 LAST_RUN_VECTOR_CACHE: dict | None = None
 
 
+# ── G-REBIND — llr rebind vs gate on held-out writers ─────────────────────────
+
+_G_REBIND_FA_BAR = 0.05
+_G_REBIND_SEED = 20261116
+_G_REBIND_RECORDS_DIR = _HERE / "rebind" / "records"
+_G_REBIND_CRITERION = (
+    "On author-disjoint hold-out, with rebind cut-offs chosen on the "
+    "derivation split only: rebind catch @ schedule_conversation+ > gate's; "
+    "rebind honest false-alarm @ schedule_conversation+ <= 5% and <= gate's; "
+    "rebind honest false-alarm @ escalate <= gate's. Uninformative when there "
+    "are no genuine or no impostor records, or when a 0-false-alarm result's "
+    "Wilson 95% upper bound would still exceed 5% at the available n."
+)
+
+
+def evaluate_g_rebind(holdout: list, thresholds: dict) -> GateResult:
+    """G-REBIND — does LLR_ACTION_MODE=rebind beat gate on held-out writers?"""
+    from validation.power import wilson_interval
+    from validation.rebind.harness import rates
+
+    gate = rates(holdout, "gate", thresholds)
+    rebind = rates(holdout, "rebind", thresholds)
+    n_gen, n_imp = rebind["n_genuine"], rebind["n_impostor"]
+    detail = {
+        "rates": {"gate": gate, "rebind": rebind},
+        "thresholds": {k: list(v) for k, v in thresholds.items()},
+        "fa_bar": _G_REBIND_FA_BAR,
+    }
+
+    def _result(verdict: str, value: str) -> GateResult:
+        return GateResult(
+            name="G-REBIND",
+            passed=verdict == "pass",
+            criterion=_G_REBIND_CRITERION,
+            current_value=value,
+            detail=detail,
+            verdict=verdict,
+        )
+
+    if n_gen == 0 or n_imp == 0:
+        return _result(
+            "uninformative",
+            f"no {'genuine' if n_gen == 0 else 'impostor'} hold-out records "
+            f"(n_genuine={n_gen}, n_impostor={n_imp})",
+        )
+    best_case_hi = wilson_interval(0, n_gen)[1]
+    detail["zero_fa_wilson_upper"] = best_case_hi
+    if best_case_hi > _G_REBIND_FA_BAR:
+        return _result(
+            "uninformative",
+            f"n_genuine={n_gen} too small: even 0 false alarms has Wilson 95% "
+            f"upper bound {best_case_hi:.1%} > {_G_REBIND_FA_BAR:.0%}",
+        )
+    legs = {
+        "catch_sc_beats_gate": rebind["catch_sc"] > gate["catch_sc"],
+        "fa_sc_under_bar": rebind["fa_sc"] <= _G_REBIND_FA_BAR,
+        "fa_sc_not_worse": rebind["fa_sc"] <= gate["fa_sc"],
+        "fa_esc_not_worse": rebind["fa_esc"] <= gate["fa_esc"],
+    }
+    detail["legs"] = legs
+    value = (
+        f"catch@sched+ rebind {rebind['catch_sc']:.1%} vs gate {gate['catch_sc']:.1%}; "
+        f"FA@sched+ {rebind['fa_sc']:.1%} vs {gate['fa_sc']:.1%}; "
+        f"FA@esc {rebind['fa_esc']:.1%} vs {gate['fa_esc']:.1%} "
+        f"(n_genuine={n_gen}, n_impostor={n_imp})"
+    )
+    return _result("pass" if all(legs.values()) else "fail", value)
+
+
+def _compute_g_rebind_data(records_dir=None) -> GateResult:
+    """Load every run_null_model.py report under records_dir, split
+    author-disjoint, pick cut-offs on derivation, evaluate on hold-out. The
+    records are not committed by default, so a missing or empty directory is
+    a loud uninformative skip — never a pass."""
+    from validation.rebind.harness import (
+        load_records,
+        rates,
+        select_thresholds,
+        split_by_author,
+    )
+
+    records_dir = Path(records_dir) if records_dir is not None else _G_REBIND_RECORDS_DIR
+    files = sorted(records_dir.glob("*.json")) if records_dir.is_dir() else []
+    if not files:
+        return GateResult(
+            name="G-REBIND",
+            passed=False,
+            criterion=_G_REBIND_CRITERION,
+            current_value=(
+                f"SKIPPED: no run_null_model.py records in {records_dir} — "
+                "regenerate with validation/verify/run_null_model.py --baselines 3"
+            ),
+            detail={"records_dir": str(records_dir)},
+            verdict="uninformative",
+        )
+    records = [r for f in files for r in load_records(f)]
+    derivation, holdout = split_by_author(records, seed=_G_REBIND_SEED)
+    thresholds = select_thresholds(derivation)
+    result = evaluate_g_rebind(holdout, thresholds)
+    result.detail["per_corpus"] = {
+        corpus: {
+            mode: rates([r for r in holdout if r.corpus == corpus], mode, thresholds)
+            for mode in ("gate", "rebind")
+        }
+        for corpus in sorted({r.corpus for r in records})
+    }
+    result.detail["records_files"] = [str(f) for f in files]
+    result.detail["n_derivation"] = len(derivation)
+    result.detail["n_holdout"] = len(holdout)
+    return result
+
+
+# ── G-WRITERLINE: per-writer line vs gate on held-out writers ────────────────
+
+_G_WRITERLINE_FA_BAR = 0.05
+_G_WRITERLINE_SEED = 20261116
+_G_WRITERLINE_RECORDS_DIR = _HERE / "writer_line" / "records"
+_G_WRITERLINE_CRITERION = (
+    "On author-disjoint hold-out, with writer z cut-offs chosen on the "
+    "derivation split only (pairs whose writer line abstains fall back to the "
+    "gate action): writer_line catch @ schedule_conversation+ > gate's; "
+    "writer_line honest false-alarm @ schedule_conversation+ <= 5% and <= "
+    "gate's; writer_line honest false-alarm @ escalate <= gate's. Uninformative "
+    "when there are no genuine or no impostor records, or when a 0-false-alarm "
+    "result's Wilson 95% upper bound would still exceed 5% at the available n."
+)
+
+
+def evaluate_g_writerline(holdout: list, thresholds: dict) -> GateResult:
+    """G-WRITERLINE: does WRITER_LINE=on beat gate on held-out writers?"""
+    from validation.power import wilson_interval
+    from validation.writer_line.harness import rates
+
+    gate = rates(holdout, "gate", thresholds)
+    wl = rates(holdout, "writer_line", thresholds)
+    n_gen, n_imp = wl["n_genuine"], wl["n_impostor"]
+    detail = {
+        "rates": {"gate": gate, "writer_line": wl},
+        "thresholds": {k: list(v) for k, v in thresholds.items()},
+        "fa_bar": _G_WRITERLINE_FA_BAR,
+        "n_fallback": wl["n_fallback"],
+    }
+
+    def _result(verdict: str, value: str) -> GateResult:
+        return GateResult(
+            name="G-WRITERLINE",
+            passed=verdict == "pass",
+            criterion=_G_WRITERLINE_CRITERION,
+            current_value=value,
+            detail=detail,
+            verdict=verdict,
+        )
+
+    if n_gen == 0 or n_imp == 0:
+        return _result(
+            "uninformative",
+            f"no {'genuine' if n_gen == 0 else 'impostor'} hold-out records "
+            f"(n_genuine={n_gen}, n_impostor={n_imp})",
+        )
+    best_case_hi = wilson_interval(0, n_gen)[1]
+    detail["zero_fa_wilson_upper"] = best_case_hi
+    if best_case_hi > _G_WRITERLINE_FA_BAR:
+        return _result(
+            "uninformative",
+            f"n_genuine={n_gen} too small: even 0 false alarms has Wilson 95% "
+            f"upper bound {best_case_hi:.1%} > {_G_WRITERLINE_FA_BAR:.0%}",
+        )
+    legs = {
+        "catch_sc_beats_gate": wl["catch_sc"] > gate["catch_sc"],
+        "fa_sc_under_bar": wl["fa_sc"] <= _G_WRITERLINE_FA_BAR,
+        "fa_sc_not_worse": wl["fa_sc"] <= gate["fa_sc"],
+        "fa_esc_not_worse": wl["fa_esc"] <= gate["fa_esc"],
+    }
+    detail["legs"] = legs
+    value = (
+        f"catch@sched+ writer_line {wl['catch_sc']:.1%} vs gate {gate['catch_sc']:.1%}; "
+        f"FA@sched+ {wl['fa_sc']:.1%} vs {gate['fa_sc']:.1%}; "
+        f"FA@esc {wl['fa_esc']:.1%} vs {gate['fa_esc']:.1%} "
+        f"(n_genuine={n_gen}, n_impostor={n_imp}, fallback={wl['n_fallback']})"
+    )
+    return _result("pass" if all(legs.values()) else "fail", value)
+
+
+def _compute_g_writerline_data(records_dir=None) -> GateResult:
+    """Same corpora and split as G-REBIND (records in writer_line/records); a missing directory is a loud
+    uninformative skip, never a pass."""
+    from validation.rebind.harness import split_by_author
+    from validation.writer_line.harness import (
+        load_writer_records,
+        rates,
+        select_z_thresholds,
+        writers_escalate_unreachable,
+    )
+
+    records_dir = Path(records_dir) if records_dir is not None else _G_WRITERLINE_RECORDS_DIR
+    files = sorted(records_dir.glob("*.json")) if records_dir.is_dir() else []
+    if not files:
+        return GateResult(
+            name="G-WRITERLINE",
+            passed=False,
+            criterion=_G_WRITERLINE_CRITERION,
+            current_value=(
+                f"SKIPPED: no run_null_model.py records in {records_dir}; "
+                "regenerate with validation/verify/run_null_model.py --baselines 3"
+            ),
+            detail={"records_dir": str(records_dir)},
+            verdict="uninformative",
+        )
+    records = [r for f in files for r in load_writer_records(f)]
+    derivation, holdout = split_by_author(records, seed=_G_WRITERLINE_SEED)
+    thresholds = select_z_thresholds(derivation)
+    result = evaluate_g_writerline(holdout, thresholds)
+    corpora = sorted({r.corpus for r in records})
+    result.detail["per_corpus"] = {
+        c: {
+            m: rates([r for r in holdout if r.corpus == c], m, thresholds)
+            for m in ("gate", "writer_line")
+        }
+        for c in corpora
+    }
+    result.detail["writers_escalate_unreachable"] = {
+        c: writers_escalate_unreachable([r for r in holdout if r.corpus == c], thresholds)
+        for c in corpora
+    }
+    result.detail["records_files"] = [str(f) for f in files]
+    result.detail["n_derivation"] = len(derivation)
+    result.detail["n_holdout"] = len(holdout)
+    return result
+
+
 def run_all(only: set[str] | None = None) -> list[GateResult]:
     """Run every gate. When CALIBRATION_GATE_VECTOR_CACHE names a directory,
     the two API route modules' feature_vector bindings are memoised on disk
@@ -3067,7 +3297,7 @@ def _leg_clock():
 
 
 GATE_LEGS: tuple[str, ...] = (
-    "G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "T", *ADVERSARIAL_LEGS,
+    "G1", "G1p", "G2", "G2b", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G-REBIND", "G-WRITERLINE", "T", *ADVERSARIAL_LEGS,
 )
 
 
@@ -3346,6 +3576,27 @@ def _run_all_gates(only: set[str] | None = None) -> list[GateResult]:
         except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
             results.append(_machinery_error_result("G9", _G9_CRITERION, exc))
         _mark("G9")
+
+    if _want("G-REBIND"):
+        # G-REBIND: rebind vs gate on author-disjoint hold-out writers. Its
+        # records (run_null_model.py output) are not committed, so a fresh
+        # checkout gets a loud "uninformative" skip, same as G7. A crash is a
+        # machinery failure, same convention as the wrappers above.
+        try:
+            results.append(_compute_g_rebind_data())
+        except Exception as exc:  # noqa: BLE001 — see _machinery_error_result
+            results.append(_machinery_error_result("G-REBIND", _G_REBIND_CRITERION, exc))
+        _mark("G-REBIND")
+
+    if _want("G-WRITERLINE"):
+        # G-WRITERLINE: per-writer line vs gate on validation/writer_line/records.
+        try:
+            results.append(_compute_g_writerline_data())
+        except Exception as exc:  # noqa: BLE001, see _machinery_error_result
+            results.append(
+                _machinery_error_result("G-WRITERLINE", _G_WRITERLINE_CRITERION, exc)
+            )
+        _mark("G-WRITERLINE")
 
     # Deployment-shaped gates consume the latest deterministic TermSim metrics.
     # Corpus extraction remains outside this already-expensive battery; the

@@ -1321,6 +1321,8 @@ class Layer7OutputResponse(BaseModel):
     characteristic_factor_dispersion: float | None = None
     characteristic_rms_z_preview: float | None = None
     characteristic_deviation_preview: float | None = None
+    writer_line_z: float | None = None
+    writer_line_action: str | None = None
     # Opportunity mask (OPPORTUNITY_MASK) audit trail + shadow preview. Same
     # arrangement as the characteristic block above: defaults match
     # Layer7Output's own, and opportunity_deviation_preview is report-only

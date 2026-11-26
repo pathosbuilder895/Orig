@@ -3185,6 +3185,28 @@
               }
             ],
             "title": "Unmeasured Features"
+          },
+          "writer_line_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Writer Line Action"
+          },
+          "writer_line_z": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Writer Line Z"
           }
         },
         "required": [

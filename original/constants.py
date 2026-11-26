@@ -712,6 +712,21 @@ ACTION_THRESHOLDS = {
     "escalate":             (0.75, 1.00),
 }
 
+# Per-writer line: a paper's deviation_score judged against the writer's own
+# leave-one-out deviation_scores (each baseline paper scored against the
+# others; floor on a 0-1 scale). Bands chosen on the derivation split only
+# (python -m validation.writer_line.run, seed 20261116,
+# validation/writer_line/report_2026-11-16.json). Not validated:
+# G-WRITERLINE is uninformative at n_genuine=29.
+WRITER_LINE_MIN_PAPERS = 3
+WRITER_LINE_STD_FLOOR = 0.02
+WRITER_LINE_Z_THRESHOLDS: dict[str, tuple[float, float]] = {
+    "no_action":             (float("-inf"), 3.094378993655378),
+    "monitor":               (3.094378993655378, 5.373099254132627),
+    "schedule_conversation": (5.373099254132627, 6.9002992378269585),
+    "escalate":              (6.9002992378269585, float("inf")),
+}
+
 # ── Lexicons ─────────────────────────────────────────────────────────────────
 
 FUNCTION_WORDS = {
