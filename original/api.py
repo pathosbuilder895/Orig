@@ -26,6 +26,7 @@ import asyncio
 import importlib.metadata
 import logging
 import os
+import posixpath
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -60,9 +61,11 @@ from .routers import (
     lti_routes,
     me,
     past_papers,
+    phone_park,
     proctor,
     students,
     students_baseline,
+    students_parts,
     students_scoring,
     tenants,
 )
@@ -154,6 +157,11 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
+    # The two staff-only explainability flags (ADR-013): report-only, never
+    # change a score or action. One line so a deploy's state is readable from logs.
+    from .evidence import staff_explainability_status
+
+    _log.info("%s", staff_explainability_status())
     # Tells an operator who exported SENDGRID_API_KEY that no email is sent.
     # No-ops when the key is unset. See routers/_shared.py.
     log_email_sender_status()
@@ -288,7 +296,20 @@ async def security_headers(request: Request, call_next):
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     if _ENABLE_HSTS:
         resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    # Pages, scripts and styles: revalidate on every load (ETag, so an unchanged
+    # file is a quick 304). Without a Cache-Control header browsers cache them
+    # heuristically for a fraction of their age, so after a deploy a teacher
+    # could keep seeing the old page for minutes to hours. A route that sets
+    # its own Cache-Control keeps it.
+    ctype = resp.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if ctype in _REVALIDATE_TYPES:
+        resp.headers.setdefault("Cache-Control", "no-cache")
     return resp
+
+
+_REVALIDATE_TYPES = frozenset(
+    {"text/html", "text/javascript", "application/javascript", "text/css"}
+)
 
 
 # ── Tenant-isolation middleware (ADR-003, Phase 1) ────────────────────────────
@@ -376,6 +397,18 @@ _DEMO_ONLY_STATIC_PREFIXES = frozenset({"/prototypes"})
 _ALWAYS_BLOCKED_STATIC_PREFIXES = frozenset({"/app"})
 
 
+def _static_lookup_path(path: str) -> str:
+    """The path StaticFiles will actually serve for the URL path *path*.
+
+    StaticFiles splits the path on "/" and normalises the join, so empty and
+    dot segments vanish: "//seed.db", "/%2Fseed.db" (decoded to "//seed.db"),
+    "/./seed.db" and "/bluebook//bluebook.bundle.js.map" all serve the gated
+    file. The gates below compare against this resolved form rather than the
+    raw URL, or any of those spellings walks past them.
+    """
+    return posixpath.normpath("/" + path.lstrip("/"))
+
+
 def _is_demo_only_static_path(path: str) -> bool:
     """Return whether *path* belongs to a demo-only static surface.
 
@@ -385,7 +418,7 @@ def _is_demo_only_static_path(path: str) -> bool:
     explicit path-boundary check avoids accidentally hiding a legitimate path
     such as ``/prototypes-public``.
     """
-    normalized = path.rstrip("/") or "/"
+    normalized = _static_lookup_path(path)
     if normalized in _DEMO_ONLY_STATICS:
         return True
     return any(
@@ -395,7 +428,7 @@ def _is_demo_only_static_path(path: str) -> bool:
 
 
 def _is_always_blocked_static_path(path: str) -> bool:
-    normalized = path.rstrip("/") or "/"
+    normalized = _static_lookup_path(path)
     return any(
         normalized == prefix or normalized.startswith(f"{prefix}/")
         for prefix in _ALWAYS_BLOCKED_STATIC_PREFIXES
@@ -638,6 +671,7 @@ app.router.routes.extend(past_papers.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)
+app.router.routes.extend(students_parts.router.routes)
 app.router.routes.extend(tenants.router.routes)
 app.router.routes.extend(me.router.routes)
 app.router.routes.extend(imports.router.routes)
@@ -645,3 +679,6 @@ app.router.routes.extend(admin.router.routes)
 # T8 QR phone-park. Additive and inert until a professor calls
 # /proctor/park/open — no flag, no startup cost, no effect on any other route.
 app.router.routes.extend(proctor.router.routes)
+# Phone parking tied to the student's account (2026-10). Off unless a
+# teacher switches it on for a collection (conditions.phonePark).
+app.router.routes.extend(phone_park.router.routes)

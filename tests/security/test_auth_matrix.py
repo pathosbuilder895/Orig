@@ -92,9 +92,11 @@ ROUTE_ROUTER: dict[str, str] = {
     "GET /me/voice": "me",
     "GET /bluebook/me/papers": "past_papers",
     "GET /proctor/park/status?exam_session_id=nonexistent": "proctor",
+    "GET /bluebook/exams/nonexistent/phone-park": "phone_park",
     "GET /students/{A_student}": "students",
     "GET /baseline-requests/pending": "students_baseline",
     "POST /students/{A_student}/score": "students_scoring",
+    "GET /students/{A_student}/samples/0/parts": "students_parts",
     "GET /tenants/{A}/stats": "tenants",
 }
 

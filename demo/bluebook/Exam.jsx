@@ -1,5 +1,6 @@
 import React from 'react';
-import { BB_API, MockupFonts, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
+import { BB_API, MockupFonts, TextSettingsButton, PARCHMENT_SHADES, STOCK_CANDIDATE, BB_SIGNED_OUT_EVENT } from './components.jsx';
+import { QrCode } from './qr-code.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Examination Screens
@@ -69,8 +70,8 @@ export function examToConfig(detail, extra = {}) {
 // A refresh (or a crash) during a sitting reloads the app on the student's
 // home. The exam screen remembers, for this tab only, which exam is being
 // written, so the home takes the student straight back to its briefing,
-// where "Resume Examination" continues with the writing saved on the device.
-// The memory is used once: a student who then chooses "My exams" stays there.
+// where "Resume writing" continues with the writing saved on the device.
+// The memory is used once: a student who then chooses "My collections" stays there.
 const BB_RESUME_KEY = 'bb_resume_exam';
 export function rememberSitting(examId) {
   try {
@@ -187,10 +188,11 @@ export const REFERENCE_WRITING_LINE = 'Your teacher may choose to keep this book
 function buildConditions(cfg, withOriginal) {
   return [
     cfg.blockAI   && 'Please write on your own, without AI assistants or other writing tools.',
-    cfg.blockWeb  && 'The exam opens full screen. If you leave it or switch tabs, your teacher sees a short note with the time.',
+    cfg.blockWeb  && 'The writing page opens full screen. If you leave it or switch tabs, your teacher sees a short note with the time.',
     cfg.blockCopy && 'Copy and paste are turned off in the answer box.',
-    withOriginal  && 'Your teacher also sees a few session facts, such as how long you wrote and your word count, as context.',
+    withOriginal  && 'Your teacher also sees a few facts about how you wrote, such as how long you took and your word count, as context.',
     cfg.phoneBlk  && 'Please silence your phone and other devices.',
+    cfg.phonePark === true && 'Before you begin, you park your phone by scanning your own code on this page. The phone page reports only whether it is open.',
     withOriginal && cfg.aiDetect && 'After you submit, your writing is compared with your own past work. This is a starting point for your teacher, never proof of anything.',
     withOriginal  && REFERENCE_WRITING_LINE,
   ].filter(Boolean);
@@ -517,6 +519,88 @@ export function bbSealStatus(withOriginal, seal) {
   return seal.aiScore != null && seal.aiScore < 70 ? 'FLAGGED' : 'SUBMITTED';
 }
 
+// ─── Phone parking (2026-10) ─────────────────────────────────────────────────
+// Only for a collection where the teacher switched it on. The code is the
+// student's own: it parks a phone for them, on this collection, and nobody
+// else. It lasts a few minutes, so it is refreshed while the page is open.
+const BB_PHONE_POLL_MS = 3000;
+const BB_PHONE_CODE_REFRESH_MS = 8 * 60 * 1000;
+
+export function bbPhoneParkCleared(st) {
+  return !!(st && (!st.required || st.parked || st.overridden));
+}
+
+function PhoneParkPanel({ examId, onCleared }) {
+  const [st, setSt] = useExState(null);
+  const [qr, setQr] = useExState('');
+  const [err, setErr] = useExState('');
+  useExEffect(() => {
+    let live = true;
+    let poll = null;
+    let refresh = null;
+    const apply = (d) => {
+      if (!live || !d) return;
+      setSt(d);
+      if (d.qr_url) setQr(d.qr_url);
+      onCleared(bbPhoneParkCleared(d));
+      if (bbPhoneParkCleared(d)) { clearInterval(poll); clearInterval(refresh); }
+    };
+    const fail = () => { if (live) setErr('We could not reach Collections just now. This page will keep trying.'); };
+    BB_API.myPhonePark(examId, true).then(d => { setErr(''); apply(d); }).catch(fail);
+    poll = setInterval(() => {
+      BB_API.myPhonePark(examId, false).then(d => { setErr(''); apply(d); }).catch(fail);
+    }, BB_PHONE_POLL_MS);
+    refresh = setInterval(() => {
+      BB_API.myPhonePark(examId, true).then(apply).catch(fail);
+    }, BB_PHONE_CODE_REFRESH_MS);
+    return () => { live = false; clearInterval(poll); clearInterval(refresh); };
+  }, [examId]);
+
+  if (!st || !st.required) {
+    return err ? <p role="alert" className="bk-cover-note state">{err}</p> : null;
+  }
+  const cleared = bbPhoneParkCleared(st);
+  return (
+    <div className="bk-conditions bk-phone-park" data-testid="phone-park">
+      <div className="bk-phone-park-head">
+        <h2>Park your phone</h2>
+        <span role="status" className={'bk-phone-park-badge' + (cleared ? ' is-cleared' : '')}>
+          {cleared ? (st.parked ? 'Phone parked' : 'Ready to begin') : 'Waiting for your phone…'}
+        </span>
+      </div>
+      {cleared ? (
+        <p className="bk-cover-note state">
+          {st.parked
+            ? 'Your phone is parked. Leave it where it is, with the page open, until you hand in.'
+            : 'Your teacher has let you begin without a parked phone.'}
+        </p>
+      ) : (
+        <div className="bk-phone-park-body">
+          <p className="bk-phone-park-lead">Your teacher asks everyone to park their phone before beginning.</p>
+          {qr && (
+            <div className="bk-phone-qr-wrap">
+              <div className="bk-phone-qr-card">
+                <QrCode value={qr} px={180} label="Your own code for parking your phone. Point your phone’s camera at it." />
+              </div>
+              <span className="bk-phone-qr-caption">Scan with your phone’s camera</span>
+            </div>
+          )}
+          <ol>
+            <li>Open your phone’s camera and point it at this code, then tap the link that appears. No app and no sign-in are needed.</li>
+            <li>Put your phone face down where your teacher asks: at the front of the room, or on the corner of your desk if they have not said. Leave the page open.</li>
+            <li>When this page says your phone is parked, you can begin.</li>
+          </ol>
+          <p className="bk-conditions-note">No phone with you, or the code will not scan? Tell your teacher. They can let you begin without one.</p>
+        </div>
+      )}
+      {err && <p role="alert" className="bk-conditions-note">{err}</p>}
+      <p className="bk-conditions-note bk-phone-park-foot">
+        The phone page reports only whether it is open, for your account on this exam. Nothing else about your phone is kept.
+      </p>
+    </div>
+  );
+}
+
 // ─── Briefing Screen ──────────────────────────────────────────────────────────
 // Whether this browser belongs to a student (launch link or account).
 function bbIsStudent() {
@@ -547,8 +631,8 @@ export function BriefingScreen({ onNavigate }) {
       .catch(err => {
         if (!live) return;
         setLoadError(err && err.status === 401
-          ? 'Your sign-in has expired. Please sign in again to open this exam.'
-          : 'We could not open this exam just now. Please refresh the page, or ask your teacher for a new link.');
+          ? 'Your sign-in has expired. Please sign in again to open this collection.'
+          : 'We could not open this collection just now. Please refresh the page, or ask your teacher for a new link.');
         setLoadState('error');
       });
     return () => { live = false; };
@@ -561,6 +645,10 @@ export function BriefingScreen({ onNavigate }) {
   const conditions = buildConditions(cfg, withOriginal);
   const studentAccount = BB_API.isStudentAccount();
   const cannotBegin = cfg.loaded && cfg.state && cfg.state !== 'open';
+  // Phone parking: a student's new sitting waits for their phone. A sitting
+  // already under way is never held up, and a teacher previewing is not asked.
+  const needsPhone = !!(cfg.phonePark === true && cfg.id && bbIsStudent() && !cfg.inProgress && !cannotBegin);
+  const [phoneCleared, setPhoneCleared] = useExState(false);
   if (loadState !== 'ready') {
     return (
       <div className="bk-stage bb-screen">
@@ -568,10 +656,10 @@ export function BriefingScreen({ onNavigate }) {
         <div className="bk-booklet compact">
           <div className="bk-cover">
             <div className="bk-cover-inner">
-              <span className="bk-exam-lbl">Examination Booklet</span>
+              <span className="bk-exam-lbl">Collection Booklet</span>
               <h1>Collections</h1>
               <p role={loadState === 'error' ? 'alert' : 'status'} className="bk-cover-note state">
-                {loadState === 'error' ? loadError : 'Opening your exam…'}
+                {loadState === 'error' ? loadError : 'Opening your collection…'}
               </p>
             </div>
           </div>
@@ -588,18 +676,19 @@ export function BriefingScreen({ onNavigate }) {
   return (
     <div className="bk-stage bb-screen">
       <MockupFonts hand />
-      <div className="bk-booklet">
+      <div className="bk-booklet bk-briefing">
         <div className="bk-cover">
           {/* A launch-link student has nowhere else to go; an account student
               goes back to their exams; staff previewing go back to the list. */}
           {(!BB_API.isStudentLaunch()) && (
             <button type="button" className="bk-leave" onClick={() => onNavigate(studentAccount ? 'student-home' : 'exams')}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-              {studentAccount ? 'My exams' : 'Examinations'}
+              {studentAccount ? 'My collections' : 'Collections'}
             </button>
           )}
 
           <div className="bk-cover-inner">
+            <div className="bk-briefing-textbtn"><TextSettingsButton className="bk-textbtn" /></div>
             <span className="bk-exam-lbl">Before you begin</span>
             <h1>Collections</h1>
             <div className="bk-rule" />
@@ -607,7 +696,7 @@ export function BriefingScreen({ onNavigate }) {
             <div className="bk-fields">
               <div className="bk-field"><b>Name</b><span className="fill hand">{bbCandidateLabel(cfg)}</span></div>
               {cfg.courseTitle && <div className="bk-field"><b>Course</b><span className="fill">{cfg.courseTitle}</span></div>}
-              <div className="bk-field"><b>Exam</b><span className="fill">{cfg.title}</span></div>
+              <div className="bk-field"><b>Collection</b><span className="fill">{cfg.title}</span></div>
               <div className="bk-field"><b>Date</b><span className="fill">{today}</span></div>
             </div>
 
@@ -617,7 +706,7 @@ export function BriefingScreen({ onNavigate }) {
             </p>
             {cfg.inProgress && (
               <p role="status" className="bk-cover-note state">
-                You have already started this exam. Your writing is saved on this device, and the clock has kept running. Choose Resume to carry on.
+                You have already started this collection. Your writing is saved on this device, and the clock has kept running. Choose Resume to carry on.
               </p>
             )}
             {cfg.closesAt && (
@@ -625,12 +714,13 @@ export function BriefingScreen({ onNavigate }) {
             )}
 
             <div className="bk-conditions">
-              <h2>How this exam works</h2>
+              <h2>How this collection works</h2>
+              <p className="bk-conditions-note">A collection is writing you do on this page in one sitting. When you finish, it is sealed and sent to your teacher.</p>
               <ul>
                 {conditions.map(rule => <li key={rule}>{rule}</li>)}
               </ul>
               {(cfg.blockWeb || cfg.blockCopy) && (
-                <p className="bk-conditions-note">These notes help your teacher understand the session. Short moments away are normal.</p>
+                <p className="bk-conditions-note">These notes help your teacher understand how the writing went. Short moments away are normal.</p>
               )}
               {/* Before the clock starts, so reading it costs no exam time. */}
               <p className="bk-conditions-note">
@@ -638,15 +728,20 @@ export function BriefingScreen({ onNavigate }) {
               </p>
             </div>
 
+            {needsPhone && <PhoneParkPanel examId={cfg.id} onCleared={setPhoneCleared} />}
+            {cfg.phonePark === true && !bbIsStudent() && (
+              <p className="bk-cover-note">Phone parking is on: each student sees their own code here and parks their phone before beginning.</p>
+            )}
+
             {cannotBegin ? (
               <p role="status" className="bk-cover-note state">
                 {cfg.state === 'upcoming'
-                  ? 'This exam is not open yet. Please come back at the time your teacher gave you.'
-                  : 'This exam has closed. If you think that is a mistake, please talk to your teacher.'}
+                  ? 'This collection is not open yet. Please come back at the time your teacher gave you.'
+                  : 'This collection has closed. If you think that is a mistake, please talk to your teacher.'}
               </p>
             ) : (
-              <button type="button" className="bk-begin" onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
-                {cfg.inProgress ? 'Resume Examination' : 'Begin Examination'}
+              <button type="button" className="bk-begin" disabled={needsPhone && !phoneCleared} onClick={() => { if (cfg.blockWeb) bbRequestFullscreen(); bbLockOriginalDecision(cfg, withOriginal); onNavigate('exam'); }}>
+                {cfg.inProgress ? 'Resume writing' : 'Begin writing'}
               </button>
             )}
             <p className="bk-cover-note">Once you begin, the clock keeps running, even if you close this page</p>
@@ -677,14 +772,14 @@ function bbNewSealId() {
 // threat, or a guess about why. Only the event's type and time go to the
 // teacher (see recordWarning), never these words.
 export const BB_NOTICE = {
-  focus_lost:      'You moved away from the exam window.',
-  tab_hidden:      'The exam tab was in the background for a moment.',
+  focus_lost:      'You moved away from the writing window.',
+  tab_hidden:      'The writing tab was in the background for a moment.',
   fullscreen_exit: 'Full screen was turned off. You can turn it back on with the button at the top.',
-  print_or_save:   'Printing and saving are turned off during this exam.',
-  paste_blocked:   'Pasting is turned off for this exam, so nothing was added.',
+  print_or_save:   'Printing and saving are turned off during this collection.',
+  paste_blocked:   'Pasting is turned off for this collection, so nothing was added.',
 };
 
-export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARCHMENT_SHADES.warm }) {
+export function ExamScreen({ onNavigate, writingSize = 17, parchmentColor = PARCHMENT_SHADES.warm }) {
   const cfg = getExamConfig();
   const candidateLabel = bbCandidateLabel(cfg);
   // Draft persistence: a sitting must survive a crash, a refresh, a dropped
@@ -798,15 +893,30 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   // One notice per real event: blur and visibilitychange fire together for
   // a single tab switch, so repeats inside 1.5s collapse into one.
   const lastWarnRef = useExRef(0);
-  // True only while the seal confirmation is open. The browser may blur the
-  // window for its own dialog; that is not the student leaving the exam, so
-  // nothing is recorded (or sent to the teacher) while it is up.
-  const sealPromptRef = useExRef(false);
+  // The seal confirmation is the page's own dialog, not the browser's: it
+  // keeps the booklet's look and full-screen, and opening it does not blur
+  // the window, so leaving the page while it is up is still noted as usual.
+  const [sealAsk, setSealAsk] = useExState(false);
+  const sealDialogRef = useExRef(null);
+  const sealAskShown = sealAsk && !submitting && !locked;
+  useExEffect(() => {
+    const d = sealDialogRef.current;
+    if (!d) return;
+    if (sealAskShown && !d.open) {
+      try { d.showModal(); } catch (e) { d.setAttribute('open', ''); }
+    } else if (!sealAskShown && d.open) {
+      d.close();
+    }
+  }, [sealAskShown]);
+  function answerSealAsk(seal) {
+    setSealAsk(false);
+    if (seal) handleSubmit();
+  }
   function recordWarning(msg, type = 'other') {
     // Nothing is noted once the answers are final: what a student does while
     // the seal is on its way is not part of the sitting, and the notes sent
     // with every retry stay exactly those of the sitting.
-    if (sealPromptRef.current || lockedRef.current) return;
+    if (lockedRef.current) return;
     const now = Date.now();
     if (now - lastWarnRef.current < 1500) return;
     lastWarnRef.current = now;
@@ -1274,7 +1384,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
   return (
     <main className="bk-stage">
       <MockupFonts hand />
-      <h1 className="bk-sr">{cfg.title || 'Examination'}</h1>
+      <h1 className="bk-sr">{cfg.title || 'Collection'}</h1>
       {/* The one polite live region: time and word-count milestones, saving,
           connection and notices. Never interrupts the student. */}
       <div role="status" aria-live="polite" className="bk-sr">{liveMsg}</div>
@@ -1297,7 +1407,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 }
               }}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-                Exit Exam
+                Exit preview
               </button>
             )}
             {multi && (
@@ -1315,6 +1425,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             )}
             <div className="bk-bar-right">
               <span className="bk-cand">{candidateLabel}</span>
+              <TextSettingsButton className="bk-textbtn" />
               {cfg.blockWeb && fsLost && (
                 <button type="button" className="bk-restore" onClick={bbRequestFullscreen}>
                   <span aria-hidden="true">↺ </span>Restore full-screen
@@ -1346,7 +1457,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
           )}
           {alreadySubmitted && (
             <div role="status" className="bk-offline">
-              You have already submitted this exam, so this booklet cannot be sent again. Your teacher has the work you submitted. If you need to change something, please talk to your teacher.
+              You have already submitted this collection, so this booklet cannot be sent again. Your teacher has the work you submitted. If you need to change something, please talk to your teacher.
             </div>
           )}
           {!storageOk && (
@@ -1385,7 +1496,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             <div className="bk-sheet-inner">
               <section className="bk-qhead" aria-labelledby="bbQn">
                 <div className="bk-qtop">
-                  <h2 className="bk-qn" id="bbQn">{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Examination prompt'}</h2>
+                  <h2 className="bk-qn" id="bbQn">{multi ? `Question ${qIndex + 1} of ${questions.length}` : 'Prompt'}</h2>
                   <button type="button" className="bk-qlink" onClick={() => setPromptOpen(o => !o)}
                     aria-expanded={promptOpen} aria-controls="bbQuestionText">
                     {promptOpen ? 'Hide question' : 'Show question'}
@@ -1404,7 +1515,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 )}
               </section>
 
-              <div className="bk-writing" style={{ '--bk-fs': `${writingSize}px`, '--bk-lh': `${writingSize + 16}px` }}>
+              <div className="bk-writing" style={{ '--bk-fs': `${writingSize / 16}rem` }}>
                 <textarea
                   key={qIndex}
                   ref={textareaRef}
@@ -1427,7 +1538,7 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                   autoComplete="off"
                   autoCorrect="off"
                   placeholder="Begin writing here…"
-                  aria-label={multi ? `Your answer to question ${qIndex + 1}` : 'Your examination answer'}
+                  aria-label={multi ? `Your answer to question ${qIndex + 1}` : 'Your answer'}
                   aria-describedby="bbQuestionText bbWordSummary"
                 />
               </div>
@@ -1456,18 +1567,10 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
                 type="button"
                 className="bk-finish"
                 onClick={() => {
-                  // A stray tap must not end the exam. Time expiry seals via
-                  // handleSubmit({ force: true }) and never reaches this.
-                  sealPromptRef.current = true;
-                  let ok = false;
-                  try { ok = window.confirm('Ready to submit? Once your booklet is sealed, your answers cannot be changed.'); }
-                  finally {
-                    sealPromptRef.current = false;
-                    // A blur or visibility event can arrive just after the
-                    // dialog closes: let the 1.5s dedupe window absorb it.
-                    lastWarnRef.current = Date.now();
-                  }
-                  if (ok) handleSubmit();
+                  // A stray tap must not end the collection: it only asks.
+                  // Time expiry seals via handleSubmit({ force: true }) and
+                  // never reaches this.
+                  setSealAsk(true);
                 }}
                 disabled={words < cfg.minWords || !words || submitting || locked}
                 aria-describedby={sealHint ? 'bbSealHint' : (sealNote ? 'bbSealNote' : undefined)}
@@ -1477,6 +1580,22 @@ export function ExamScreen({ onNavigate, writingSize = 18, parchmentColor = PARC
             </div>
           </div>
         </div>
+
+        {/* "Keep writing" has focus first, so a stray Enter never seals.
+            Escape is the same as Keep writing. */}
+        <dialog ref={sealDialogRef} className="bk-confirm" aria-labelledby="bbSealAskTitle" aria-describedby="bbSealAskBody"
+          onCancel={e => { e.preventDefault(); answerSealAsk(false); }}>
+          {sealAskShown && (
+            <React.Fragment>
+              <h2 id="bbSealAskTitle">Ready to submit?</h2>
+              <p id="bbSealAskBody">Once your booklet is sealed, your answers cannot be changed.</p>
+              <div className="bk-confirm-acts">
+                <button type="button" className="back" autoFocus onClick={() => answerSealAsk(false)}>Keep writing</button>
+                <button type="button" className="go" onClick={() => answerSealAsk(true)}>Seal and submit</button>
+              </div>
+            </React.Fragment>
+          )}
+        </dialog>
 
         {/* The cover swings open over the page as the booklet is entered. */}
         <div className="bk-cover bk-cover-open" aria-hidden="true" />
@@ -1520,10 +1639,10 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             {transmitFailed ? (
               <React.Fragment>
-                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : sub.alreadySubmitted ? 'This exam was already submitted' : 'Your exam has not been submitted yet'}</h1>
+                <h1 ref={headRef} tabIndex={-1}>{sub.empty ? 'Time is up' : sub.alreadySubmitted ? 'This collection was already submitted' : 'Your collection has not been submitted yet'}</h1>
                 {sub.alreadySubmitted ? (
                   <p>
-                    Your account already has a submission for this exam, perhaps
+                    Your account already has a submission for this collection, perhaps
                     from another tab or device, so this copy was not sent. Your
                     writing is still saved on this device. If you meant to change
                     your answers, please talk to your teacher.
@@ -1550,9 +1669,9 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
               </React.Fragment>
             ) : (
               <React.Fragment>
-                <h1 ref={headRef} tabIndex={-1}>Examination Sealed</h1>
+                <h1 ref={headRef} tabIndex={-1}>Collection Sealed</h1>
                 <p>
-                  Your examination has been received, sealed, and submitted
+                  Your collection has been received, sealed, and submitted
                   for your teacher to read.{compared && ' Your writing will be compared with your own past work, as a starting point for your teacher, never proof of anything.'}{withOriginal && ` ${REFERENCE_WRITING_LINE}`}
                 </p>
                 {sub.expired && (
@@ -1566,7 +1685,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
 
             <div className="gist">
               {[
-                { label: 'Exam',         value: examTitle             },
+                { label: 'Collection',   value: examTitle             },
                 { label: 'Course',       value: courseT               },
                 { label: 'Name',         value: candidate             },
                 { label: 'Words',        value: `${finalWords} words` },
@@ -1586,7 +1705,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
                 <button type="button" className="back" onClick={() => onNavigate('dashboard')}>Return to Dashboard</button>
               )}
               {studentAccount && (
-                <button type="button" className="back" onClick={() => onNavigate('student-home')}>Back to my exams</button>
+                <button type="button" className="back" onClick={() => onNavigate('student-home')}>Back to my collections</button>
               )}
             </div>
 
@@ -1598,7 +1717,7 @@ export function SubmittedScreen({ onNavigate, wordsFinal = 847 }) {
             )}
 
             {!transmitFailed && (
-              <p className="closed-on">Sealed on {new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+              <p className="closed-on">Sealed on {new Date().toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' })}</p>
             )}
           </div>
         </div>

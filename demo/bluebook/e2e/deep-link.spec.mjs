@@ -13,7 +13,7 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
-import { createCourse, createExam, provisionTenantWithStaff } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, createCourse, createExam, provisionTenantWithStaff } from './fixtures/api-setup.mjs'
 
 function staffAuth(workerTenant) {
   return { Authorization: `Bearer ${workerTenant.staff.token}` }
@@ -30,6 +30,16 @@ async function examFor(request, workerTenant, title) {
   })
   expect(res.ok()).toBe(true)
   return exam
+}
+
+// A place saved on "another device" (resume-location.jsx): signing in opens it
+// unless the visitor followed a link. Saved explicitly so the link has to win
+// every time, not only when no earlier test happened to leave a place behind.
+async function saveAPlace(request, workerTenant) {
+  const res = await request.put('/bluebook/me/location', {
+    headers: staffAuth(workerTenant), data: { screen: 'courses', scroll_fraction: 0 },
+  })
+  expect(res.ok(), await res.text()).toBe(true)
 }
 
 // The teacher overview (TeacherWorkspace.jsx TeacherOverview): the e2e staff
@@ -77,7 +87,7 @@ test.describe('Deep links into one exam', () => {
   test('a link followed while the app is open opens that exam', async ({ staffPage, workerTenant, request }) => {
     const title = `Deep link hashchange ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await expect(staffPage.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10_000 })
     await staffPage.evaluate(id => { window.location.hash = `#exam/${id}` }, exam.id)
     await expect(staffPage.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
@@ -121,7 +131,8 @@ test.describe('Deep links into one exam', () => {
     await expect(staffPage.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
   })
 
-  test('a signed-out visitor following #students gets the landing page, then the Students screen after signing in', async ({ page, workerTenant }) => {
+  test('a signed-out visitor following #students gets the landing page, then the Students screen after signing in', async ({ page, workerTenant, request }) => {
+    await saveAPlace(request, workerTenant)
     await page.goto('/bluebook/#students')
     await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()
@@ -160,6 +171,7 @@ test.describe('Deep links into one exam', () => {
   test('a signed-out visitor gets the landing page, then the exam after signing in', async ({ page, workerTenant, request }) => {
     const title = `Deep link after sign-in ${workerTenant.tenant.tenant_id}`
     const exam = await examFor(request, workerTenant, title)
+    await saveAPlace(request, workerTenant)
     await page.goto(`/bluebook/#exam/${exam.id}`)
     await expect(page.getByText('Your own words,')).toBeVisible({ timeout: 10_000 })
     await page.getByRole('button', { name: 'Sign in' }).first().click()
@@ -167,6 +179,44 @@ test.describe('Deep links into one exam', () => {
     await page.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('heading', { name: title })).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('a teacher whose sign-in lapses is back on the same screen after signing in again', async ({ staffPage, workerTenant, request }) => {
+    // The place saved for resuming on another device is somewhere else, so
+    // only the address can bring the teacher back to Students.
+    await saveAPlace(request, workerTenant)
+    await staffPage.goto(COLLECTIONS_HOME)
+    await expect(staffPage.getByText('Students who have joined')).toBeVisible({ timeout: 10_000 })
+    await staffPage.waitForLoadState('networkidle')
+    // The 8-hour sign-in lapses as the teacher opens Students: on a real
+    // deploy the server answers with this 401 (teacher-view-refresh.spec.mjs
+    // pins the same answer).
+    const lapsed = /\/bluebook\/students(\?.*)?$/
+    await staffPage.route(lapsed, route => route.fulfill({
+      status: 401, contentType: 'application/json',
+      body: JSON.stringify({ detail: 'Authentication required, sign in with a staff account.' }),
+    }))
+    await staffPage.getByRole('button', { name: 'Students', exact: true }).click()
+    await expect(staffPage.getByTestId('signin-expired')).toBeVisible({ timeout: 10_000 })
+    await staffPage.unroute(lapsed)
+    await staffPage.getByPlaceholder('you@school.edu').fill(workerTenant.staff.email)
+    await staffPage.getByPlaceholder('••••••••••').fill(workerTenant.staff.password)
+    await staffPage.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(staffPage.getByRole('heading', { name: 'Students' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).hash).toBe('#students')
+  })
+
+  test('a course join link still opens the join screen for a signed-in teacher', async ({ staffPage, workerTenant, request }) => {
+    const course = await createCourse(request, workerTenant.staff.token, { name: `Join staff ${workerTenant.tenant.tenant_id}` })
+    const enabled = await request.post(`/bluebook/courses/${encodeURIComponent(course.id)}/join-link`, {
+      headers: { Authorization: `Bearer ${workerTenant.staff.token}` },
+    })
+    expect(enabled.ok()).toBe(true)
+    const { join_path: joinPath } = await enabled.json()
+    expect(joinPath).toContain('join=')
+    await staffPage.goto(joinPath)
+    await expect(staffPage.getByTestId('join-signs-out-teacher')).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
   })
 
   test("the hash changes nothing for a student", async ({ browser, workerTenant, request }) => {
@@ -188,13 +238,65 @@ test.describe('Deep links into one exam', () => {
       },
     })
     const page = await context.newPage()
-    for (const hash of [`#exam/${exam.id}`, '#students', '#courses']) {
+    for (const hash of ['', `#exam/${exam.id}`, '#students', '#courses', '#dashboard']) {
       await page.goto(`/bluebook/${hash}`)
-      await expect(page.getByRole('heading', { name: 'Examinations' })).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByRole('heading', { name: 'Collections', exact: true })).toBeVisible({ timeout: 10_000 })
       await expect(page.getByRole('heading', { name: 'My submissions' })).toBeVisible()
     }
     await expect(page.getByRole('button', { name: 'Watch live' })).toHaveCount(0)
     await expect(page.getByText('Opening the collection…')).toHaveCount(0)
     await context.close()
+  })
+
+  // The bare address is a teacher's way in, and their home is Original when
+  // the workspace has it (staffOriginalHome, deep-link.jsx; the same places the
+  // main sign-in page sends them). Any hash, /collections/, or a workspace
+  // without Original stays in Collections.
+  test('a signed-in teacher at the bare address opens Original; a named Collections screen stays', async ({ staffPage }) => {
+    // The site root sends a real deploy to /bluebook/ (run.py), so it lands in Original too.
+    await staffPage.goto('/')
+    await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
+    await staffPage.goto(COLLECTIONS_HOME)
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+    await staffPage.goto('/collections/')
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/collections/')
+
+    // Once this tab is working in Collections, a reload of a screen the address
+    // does not name (here the bare address itself) stays in Collections.
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+  })
+
+  test('a teacher whose workspace has no Original stays on the Collections dashboard', async ({ staffPage }) => {
+    await staffPage.addInitScript(() => localStorage.setItem('original_products', JSON.stringify(['bluebook'])))
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+  })
+
+  // Stored products said Original, the server no longer does: Original's gate
+  // stores the server's list and its panel names the Collections dashboard, so
+  // the teacher is not bounced between the two.
+  test('a workspace that lost Original after sign-in is not bounced back to Original', async ({ staffPage }) => {
+    await staffPage.route('**/auth/me', async route => {
+      const res = await route.fetch()
+      const body = await res.json()
+      await route.fulfill({ response: res, json: { ...body, products: ['bluebook'] } })
+    })
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage).toHaveURL(/\/original\/(index\.html)?$/, { timeout: 10_000 })
+    const open = staffPage.getByRole('link', { name: 'Open Collections' })
+    await expect(open).toHaveAttribute('href', '/bluebook/#dashboard', { timeout: 10_000 })
+    await expect.poll(() => staffPage.evaluate(() => localStorage.getItem('original_products'))).toBe('["bluebook"]')
+    await staffPage.goto('/bluebook/')
+    await expect(staffPage.getByRole('heading', { name: 'Begin with the writing.' })).toBeVisible({ timeout: 10_000 })
+    expect(new URL(staffPage.url()).pathname).toBe('/bluebook/')
+    // Let any in-flight intercepted /auth/me finish before the context closes.
+    await staffPage.unrouteAll({ behavior: 'ignoreErrors' })
   })
 })

@@ -41,9 +41,8 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
-import {
-  addBaselineFor, provisionTenantWithStaff, staffStorageState,
-} from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, addBaselineFor, provisionTenantWithStaff, staffStorageState } from './fixtures/api-setup.mjs'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const HARDCODED_COURSE_CODE = 'PHIL 301A' // must match a NewExam.jsx COURSES entry
 
@@ -68,7 +67,7 @@ function names(workerTenant) {
 // "Submissions"; the spec keeps its own vocabulary and maps it here.
 const NAV = { Results: 'Submissions' }
 async function openScreen(page, navLabel) {
-  await page.goto('/bluebook/')
+  await page.goto(COLLECTIONS_HOME)
   await page.waitForLoadState('networkidle')
   if (navLabel) await page.getByRole('button', { name: NAV[navLabel] || navLabel, exact: true }).click()
 }
@@ -150,7 +149,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // The exact toggle states set above must round-trip through the API.
     expect(createdExam.conditions).toEqual({
       blockAI: true, blockWeb: true, blockCopy: true,
-      spellChk: true, phoneBlk: false, aiDetect: true,
+      spellChk: true, phoneBlk: false, phonePark: false, aiDetect: true,
       // Collection options: the in-class, timed default (no size chosen).
       timed: true, setting: 'in_class',
     })
@@ -230,6 +229,18 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
       await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
     }
 
+    // The exam sits on the course the professor created above, and a student
+    // sits only an exam on a course they are enrolled on (the session and
+    // seal routes apply the dashboard's rules). Add this worker's student to
+    // that course from the roster, as the teacher would.
+    if (journey.exam.course_id) {
+      const enrolled = await request.post(
+        `/bluebook/courses/${encodeURIComponent(journey.exam.course_id)}/students`,
+        { headers: staffAuth(workerTenant), data: { students: [{ email: workerTenant.student.email, name: candidateName }] } },
+      )
+      expect(enrolled.ok(), await enrolled.text()).toBe(true)
+    }
+
     // Mirrors exam-flow.spec.mjs's bootInExam(): inject BB_EXAM_CONFIG so
     // the briefing→exam transition is immediate, using the real exam id
     // captured from the publish step (and the same toggle states).
@@ -272,9 +283,9 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
 
     const sealBtn = studentPage.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
-    studentPage.once('dialog', d => d.accept())
     await sealBtn.click()
-    await expect(studentPage.getByText('Examination Sealed')).toBeVisible({ timeout: 45_000 })
+    await confirmSeal(studentPage)
+    await expect(studentPage.getByText('Collection Sealed')).toBeVisible({ timeout: 45_000 })
     // The submission record was written (the sealed screen only says
     // "Delivered" when recordSubmission succeeded — Exam.jsx handleSubmit).
     await expect(studentPage.getByText('✓ Delivered to your teacher'))
@@ -304,7 +315,7 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
   }) => {
     const { examTitle, draftTitle } = names(workerTenant)
     await openScreen(staffPage) // authed staff land on the overview
-    await expect(staffPage.getByRole('heading', { name: /^(Welcome back|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
+    await expect(staffPage.getByRole('heading', { name: /^(Welcome|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
     // Recent submissions shows the sealed sitting under its exam's title;
     // the draft has nothing submitted, so it is not on the overview.
     await expect(staffPage.getByText(examTitle).first()).toBeVisible({ timeout: 10_000 })
@@ -624,9 +635,9 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Dashboard shows the empty tenant, not the demo mock exams', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: /^(Welcome back|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /^(Welcome|Begin with the writing)/ })).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('Create your first course →')).toBeVisible()
     await expect(page.getByText('Ethics in the Modern World')).toHaveCount(0) // MOCK_EXAMS leak guard
     await context.close()
@@ -634,7 +645,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Results shows zero submissions, not the demo mock candidates', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Submissions', exact: true }).click()
     await expect(page.getByText(/0 submissions/)).toBeVisible({ timeout: 10_000 })
@@ -644,7 +655,7 @@ test.describe('First-run professor surfaces (fresh tenant, empty states)', () =>
 
   test('Students shows zero enrolled, not the demo mock roster', async ({ browser, baseURL, request }) => {
     const { page, context } = await freshStaffPage(browser, baseURL, request)
-    await page.goto('/bluebook/')
+    await page.goto(COLLECTIONS_HOME)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Students', exact: true }).click()
     await expect(page.getByText(/0 students across your courses/)).toBeVisible({ timeout: 10_000 })

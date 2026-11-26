@@ -20,6 +20,7 @@
 
 import { test, expect } from '@playwright/test'
 import { createHmac } from 'node:crypto'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 // A deterministic, test-only student id we can verify by API afterwards.
 // Must be under the "demo" tenant prefix because the principal-scoping layer
@@ -162,7 +163,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await expect(textarea).toHaveValue('')
 
     // The examiner's warning banner appears with the canonical copy
-    await expect(page.getByText('Pasting is turned off for this exam, so nothing was added.', { exact: true }))
+    await expect(page.getByText('Pasting is turned off for this collection, so nothing was added.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -179,7 +180,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     const mod = browserName === 'webkit' || process.platform === 'darwin' ? 'Meta' : 'Control'
     await page.keyboard.press(`${mod}+p`)
 
-    await expect(page.getByText('Printing and saving are turned off during this exam.', { exact: true }))
+    await expect(page.getByText('Printing and saving are turned off during this collection.', { exact: true }))
       .toBeVisible({ timeout: 5_000 })
   })
 
@@ -205,7 +206,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     // submit handler's early-return keeps us on the exam screen.
     await sealBtn.click({ force: true })
     await page.waitForTimeout(500)
-    await expect(page.getByText('Examination Sealed')).toHaveCount(0)
+    await expect(page.getByText('Collection Sealed')).toHaveCount(0)
     await expect(textarea).not.toHaveValue('')
   })
 
@@ -254,11 +255,11 @@ test.describe('Bluebook exam lockdown — full flow', () => {
 
     const sealBtn = page.locator('button', { hasText: /Seal & Submit|Sealing/ })
     await expect(sealBtn).toBeVisible()
-    page.once('dialog', d => d.accept())
     await sealBtn.click()
+    await confirmSeal(page)
 
     // The submitted screen renders the canonical sealed headline
-    await expect(page.getByText('Examination Sealed'))
+    await expect(page.getByText('Collection Sealed'))
       .toBeVisible({ timeout: 15_000 })
 
     // The delivery line shows the success token (the submission record was written)
@@ -310,7 +311,7 @@ test.describe('Bluebook exam lockdown — full flow', () => {
     await textarea.click()
     await page.keyboard.type('Short answer, far below the minimum.', { delay: 4 })
 
-    await expect(page.getByText('Examination Sealed')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText('Collection Sealed')).toBeVisible({ timeout: 20_000 })
     await expect(page.getByText('Time ran out, so your booklet was sealed with everything you had written.')).toBeVisible()
   })
 

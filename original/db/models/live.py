@@ -818,6 +818,28 @@ class StudentPastPaper(LiveBase):
     reviewed_by: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class BluebookJoinLink(LiveBase):
+    """A forwardable course sign-up link (``bluebook_join_links``, 2026-10).
+
+    Anyone with the link can create their own student account and join the
+    course. Only the sha256 of the token is stored (``original/join_links.py``
+    derives the token from ``link_id`` with an HMAC keyed by SECRET_KEY, so
+    the teacher can copy the same link again). One unvoided row per course;
+    turning the link off or replacing it sets ``voided_at``.
+    """
+
+    __tablename__ = "bluebook_join_links"
+    __table_args__ = (Index("idx_bluebook_join_links_course", "course_id"),)
+
+    link_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, ForeignKey("tenants.tenant_id"), nullable=False)
+    course_id: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class BluebookExamDraft(LiveBase):
     """A student's unsealed exam draft kept on the server
     (``bluebook_exam_drafts``, 2026-10) so a sitting can resume from any
@@ -861,7 +883,63 @@ class UserLastLocation(LiveBase):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-#: All 26 live models in store-DDL order, for tests and the P3 repository.
+class UserDisplayPrefs(LiveBase):
+    """The text font and size an account chose in Settings
+    (``user_display_prefs``, 2026-11). One row per account; display only,
+    never applied to submitted text or anything measured; deleted with the
+    student's data on withdrawal.
+    """
+
+    __tablename__ = "user_display_prefs"
+
+    account_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    font: Mapped[str] = mapped_column(Text, nullable=False, server_default="serif")
+    size: Mapped[str] = mapped_column(Text, nullable=False, server_default="default")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RuleDProfile(LiveBase):
+    """Rule D's derived statistics for one approved past paper (``rule_d_profiles``,
+    2026-11): character n-gram and topic-masked profiles, the paper's feature vector and
+    300-word piece vectors, and punctuation rates. No text. Keyed by the full scoped
+    student id plus the SHA-256 of the paper's text; deleted with the student and when the
+    approval is withdrawn.
+    """
+
+    __tablename__ = "rule_d_profiles"
+
+    profile_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    tenant_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BluebookPhonePark(LiveBase):
+    """A student's own parked phone for one collection
+    (``bluebook_phone_parks``, 2026-10). Only for collections where the
+    teacher switched phone parking on. One row per (exam, student): when the
+    phone was parked (scanned from the student's own briefing QR code), the
+    phone page's last reported state and time, and any proctor override for
+    a missing phone (who, when, an optional note). No device details. Deleted
+    with the student's data on withdrawal.
+    """
+
+    __tablename__ = "bluebook_phone_parks"
+
+    exam_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    student_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    parked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_by: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    override_note: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+
+
+#: All 28 live models in store-DDL order, for tests and the P3 repository.
 LIVE_MODELS = [
     StudentProfile,
     StudentName,
@@ -889,4 +967,8 @@ LIVE_MODELS = [
     StudentPastPaper,
     BluebookExamDraft,
     UserLastLocation,
+    UserDisplayPrefs,
+    RuleDProfile,
+    BluebookPhonePark,
+    BluebookJoinLink,
 ]

@@ -1,4 +1,5 @@
 import React from 'react';
+import { clearCollectionsTab } from './deep-link.jsx';
 
 // ════════════════════════════════════════════════════════════════
 //  BLUEBOOK — Design System Components
@@ -7,6 +8,25 @@ import React from 'react';
 
 // Keydown handler for div-as-button rows: Enter/Space activates like a
 // click (WS-4). Shared across every screen that renders a click-only row.
+// The old Oxford palette. No live screen uses it since the navy design; only the
+// dead Sidebar and ExamsScreen in Dashboard.jsx and the unrendered Courses.jsx and
+// Students.jsx still import it. Kept until the owner decides whether to delete them.
+export const BB = {
+  oxford:      '#002147',
+  deep:        '#001020',
+  oxfordLight: '#0A2D5E',
+  gold:        '#C9A961',
+  goldDark:    '#B8860B',
+  parchment:   '#F4EFE6',
+  parchmentDk: '#EDE5D8',
+  ink:         '#1A1A1A',
+  inkMid:      '#2C2C2C',
+  indigo:      '#3B4A6B',
+  fade:        '#8B9BB4',
+  cream:       '#F0EDE4',
+  fadedCream:  '#B8B4AC',
+};
+
 export function rowKeyDown(fn) {
   return (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); }
@@ -27,25 +47,11 @@ export function MockupFonts({ hand = false }) {
   return <style>{MOCKUP_MONO_CSS + (hand ? MOCKUP_HAND_CSS : '')}</style>;
 }
 
-export const BB = {
-  oxford:      '#002147',
-  deep:        '#001020',
-  oxfordLight: '#0A2D5E',
-  gold:        '#C9A961',
-  goldDark:    '#B8860B',
-  parchment:   '#F4EFE6',
-  parchmentDk: '#EDE5D8',
-  ink:         '#1A1A1A',
-  inkMid:      '#2C2C2C',
-  indigo:      '#3B4A6B',
-  fade:        '#8B9BB4',
-  cream:       '#F0EDE4',
-  fadedCream:  '#B8B4AC',
-};
 
-export const fontDisplay = "'Cormorant Garamond', serif";
-export const fontBody    = "'EB Garamond', serif";
-export const fontMono    = "'IBM Plex Mono', monospace";
+// Every family follows the Text setting (assets/type.css, display-prefs.js).
+export const fontDisplay = "var(--bb-font-display, 'Cormorant Garamond', serif)";
+export const fontBody    = "var(--bb-font-body, 'EB Garamond', serif)";
+export const fontMono    = "var(--bb-font-label, 'IBM Plex Mono', monospace)";
 
 export const PARCHMENT_SHADES = {
   warm:  '#F4EFE6',
@@ -74,7 +80,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
       style={{
         fontFamily: fontDisplay,
         fontSize: size,
-        color: BB.gold,
+        color: 'var(--gold-2)',
         fontWeight: 600,
         letterSpacing: '0.06em',
         cursor: onClick ? 'pointer' : 'default',
@@ -89,7 +95,7 @@ export function Logotype({ size = 22, onClick, light = false }) {
         fontVariant: 'small-caps',
         letterSpacing: '0.15em',
         fontSize: size * 0.88,
-        color: light ? BB.fadedCream : BB.gold,
+        color: light ? 'var(--dim)' : 'var(--gold-2)',
       }}>ollections</span>
     </Tag>
   );
@@ -106,19 +112,19 @@ export function Seal({ size = 22, verified = true, glow = false }) {
     >
       {glow && (
         <circle cx="16" cy="16" r="14"
-          fill="rgba(201,169,97,0.12)" />
+          fill="rgba(201,160,40,0.12)" />
       )}
       <circle cx="16" cy="16" r="14"
-        fill="none" stroke={BB.gold} strokeWidth="1" opacity={a} />
+        fill="none" stroke="var(--gold-2)" strokeWidth="1" opacity={a} />
       <circle cx="16" cy="16" r="9.5"
-        fill="none" stroke={BB.gold} strokeWidth="0.5" opacity={a * 0.6} />
+        fill="none" stroke="var(--gold-2)" strokeWidth="0.5" opacity={a * 0.6} />
       {ticks.map(angle => {
         const rad = angle * Math.PI / 180;
         return (
           <line key={angle}
             x1={16 + 11 * Math.cos(rad)} y1={16 + 11 * Math.sin(rad)}
             x2={16 + 14 * Math.cos(rad)} y2={16 + 14 * Math.sin(rad)}
-            stroke={BB.gold} strokeWidth="0.75" opacity={a * 0.55}
+            stroke="var(--gold-2)" strokeWidth="0.75" opacity={a * 0.55}
           />
         );
       })}
@@ -126,7 +132,7 @@ export function Seal({ size = 22, verified = true, glow = false }) {
         textAnchor="middle"
         fontFamily={fontDisplay}
         fontSize="10"
-        fill={BB.gold}
+        fill="var(--gold-2)"
         fontStyle="italic"
         opacity={a}
       >C</text>
@@ -137,7 +143,7 @@ export function Seal({ size = 22, verified = true, glow = false }) {
 // ─── Gold Rule ───────────────────────────────────────────────────────────────
 export function GoldRule({ double = false, faint = false, style: s = {} }) {
   const alpha = faint ? 0.22 : 0.72;
-  const color = `rgba(201,169,97,${alpha})`;
+  const color = `rgba(201,160,40,${alpha})`;
   return (
     <div style={s}>
       <div style={{ borderTop: `1px solid ${color}` }} />
@@ -153,12 +159,12 @@ export function Ornament({ char = '❦', py = 20 }) {
       display: 'flex', alignItems: 'center', gap: 16,
       padding: `${py}px 0`,
     }}>
-      <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
+      <div style={{ flex: 1, borderTop: '1px solid rgba(201,160,40,0.22)' }} />
       <span style={{
-        color: BB.gold, fontSize: 18, opacity: 0.65, lineHeight: 1,
+        color: 'var(--gold-2)', fontSize: '1.125rem', opacity: 0.65, lineHeight: 1,
         userSelect: 'none',
       }}>{char}</span>
-      <div style={{ flex: 1, borderTop: '1px solid rgba(201,169,97,0.22)' }} />
+      <div style={{ flex: 1, borderTop: '1px solid rgba(201,160,40,0.22)' }} />
     </div>
   );
 }
@@ -172,91 +178,46 @@ export function MetaLabel({ children, style: s = {}, htmlFor, className }) {
   return (
     <Tag {...forProp} className={className} style={{
       fontFamily: fontMono,
-      fontSize: 12.5,
+      fontSize: '.7812rem',
       letterSpacing: '0.14em',
       textTransform: 'uppercase',
-      color: BB.fade,
+      color: 'var(--dim)',
       ...s,
     }}>{children}</Tag>
   );
 }
 
-// ─── Primary Button ──────────────────────────────────────────────────────────
+// ─── Primary and Ghost Buttons ───────────────────────────────────────────────
+// Colour, shape and type are the shared buttons (.btn-gold / .btn-ghost,
+// demo/assets/tokens.css); only layout is set here.
+const btnLayout = (full, s) => ({
+  width: full ? '100%' : 'auto',
+  display: full ? 'flex' : 'inline-flex',
+  ...s,
+});
+
 export function BtnPrimary({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: disabled ? BB.gold : hover ? BB.goldDark : BB.gold,
-        color: BB.deep,
-        border: 'none',
-        padding: '12px 40px',
-        fontSize: 17,
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'background 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-gold" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
-// ─── Ghost Button ────────────────────────────────────────────────────────────
 export function BtnGhost({ children, onClick, disabled = false, style: s = {}, full = false }) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontFamily: fontBody,
-        fontVariant: 'small-caps',
-        letterSpacing: '0.14em',
-        background: hover ? 'rgba(201,169,97,0.07)' : 'transparent',
-        color: BB.gold,
-        border: `1px solid rgba(201,169,97,${hover ? 0.6 : 0.32})`,
-        padding: '12px 40px',
-        fontSize: 17,
-        fontWeight: 500,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-        transition: 'all 0.35s ease',
-        width: full ? '100%' : 'auto',
-        display: full ? 'block' : 'inline-block',
-        textAlign: 'center',
-        ...s,
-      }}
-    >{children}</button>
-  );
+  return <button className="btn-ghost" onClick={onClick} disabled={disabled} style={btnLayout(full, s)}>{children}</button>;
 }
 
 // ─── Status Badge ────────────────────────────────────────────────────────────
 const STATUS_MAP = {
   ACTIVE:      { color: '#5EB87C', border: 'rgba(94,184,124,0.28)' },
-  DRAFT:       { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  COMPLETED:   { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  SCHEDULED:   { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  DRAFT:       { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  COMPLETED:   { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  SCHEDULED:   { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
   FLAGGED:     { color: '#C47A6B', border: 'rgba(196,122,107,0.28)' },
   ARCHIVED:    { color: '#4A4A4A', border: 'rgba(74,74,74,0.28)' },
-  IN_PROGRESS: { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
+  IN_PROGRESS: { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
   OPEN:        { color: '#5EB87C', border: 'rgba(94,184,124,0.28)' },
-  CLOSED:      { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
-  SUBMITTED:   { color: BB.cream,  border: 'rgba(240,237,228,0.28)' },
-  INVITED:     { color: BB.gold,   border: 'rgba(201,169,97,0.28)' },
-  LINK:        { color: BB.fade,   border: 'rgba(139,155,180,0.25)' },
+  CLOSED:      { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
+  SUBMITTED:   { color: 'var(--cream)',  border: 'rgba(245,239,224,0.28)' },
+  INVITED:     { color: 'var(--gold-2)',   border: 'rgba(201,160,40,0.28)' },
+  LINK:        { color: 'var(--dim)',   border: 'rgba(245,239,224,0.2)' },
 };
 
 // ─── The "worth a look" mark and Original's testing-phase label ─────────────
@@ -282,7 +243,7 @@ export function StatusBadge({ status, pulse = false }) {
   return (
     <span title={flagged ? `${WORTH_A_LOOK_SOURCE} ${ORIGINAL_TESTING_NOTICE}` : undefined} style={{
       fontFamily: fontMono,
-      fontSize: 9,
+      fontSize: '.75rem',
       letterSpacing: '0.18em',
       textTransform: 'uppercase',
       color: s.color,
@@ -406,17 +367,10 @@ export const BB_API = {
       return (await r.json()).exams || [];
     } catch (e) { return null; }
   },
-  async createExam(payload) {
-    const r = await fetch(this.base + '/bluebook/exams', {
-      method: 'POST', headers: this._headers(), body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    return r.json();
-  },
+  // Through _json, so a lapsed sign-in sends the teacher to sign in (the
+  // form's draft stays on this computer) instead of a raw "Authentication
+  // required" under the form.
+  createExam(payload) { return this._json('POST', '/bluebook/exams', payload); },
   // Throws on failure. The seal loop retries on a throw and keeps the draft
   // on the device until this lands — a seal is only "sealed" once the
   // submission row exists, because that row is all the teacher ever sees.
@@ -456,6 +410,23 @@ export const BB_API = {
     try {
       const r = await fetch(this.base + '/bluebook/me/location', {
         method: 'PUT', headers: this._headers(), body: JSON.stringify(loc), keepalive,
+      });
+      return r.status;
+    } catch (e) { return 0; }
+  },
+  // The Text setting (assets/display-prefs.js), kept on the account so it
+  // follows the person to another device. Display only. Never throws.
+  async getDisplay() {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/display', { headers: this._headers() });
+      if (!r.ok) return null;
+      return (await r.json()).display || null;
+    } catch (e) { return null; }
+  },
+  async putDisplay(prefs) {
+    try {
+      const r = await fetch(this.base + '/bluebook/me/display', {
+        method: 'PUT', headers: this._headers(), body: JSON.stringify({ font: prefs.font, size: prefs.size }),
       });
       return r.status;
     } catch (e) { return 0; }
@@ -505,17 +476,10 @@ export const BB_API = {
       return (await r.json()).items || [];
     } catch (e) { return null; }
   },
-  async createCourse(payload) {
-    const r = await fetch(this.base + '/bluebook/courses', {
-      method: 'POST', headers: this._headers(), body: JSON.stringify(payload),
-    });
-    if (!r.ok) {
-      let detail = r.statusText;
-      try { detail = (await r.json()).detail || detail; } catch (e) {}
-      throw new Error(detail);
-    }
-    return r.json();
-  },
+  // Through _json, so a lapsed sign-in sends the teacher to sign in (the
+  // form's draft stays on this computer) instead of a raw "Authentication
+  // required" under the form.
+  createCourse(payload) { return this._json('POST', '/bluebook/courses', payload); },
   // ── QR phone park (proctoring deterrence) ──
   // Staff-only endpoints; the phones themselves post to /proctor/park/beat
   // anonymously and never touch this client.
@@ -581,6 +545,12 @@ export const BB_API = {
   async reissuePending(courseId, sendEmail = false) {
     return (await this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/invites/reissue-pending`, { send_email: sendEmail })).students || [];
   },
+  // The course's forwardable sign-up link: one link anyone can use to make
+  // their own student account on this course. Off until the teacher turns it on.
+  joinLinkGet(courseId)        { return this._json('GET',    `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
+  joinLinkEnable(courseId)     { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
+  joinLinkRegenerate(courseId) { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link/regenerate`); },
+  joinLinkDisable(courseId)    { return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
   async listStudents()  { return (await this._json('GET', '/bluebook/students')).students || []; },
   examLive(id)          { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/live`); },
   saveFeedback(id, { mark, feedback }) {
@@ -625,6 +595,13 @@ export const BB_API = {
   async myExams()        { return (await this._json('GET', '/bluebook/me/exams')).exams || []; },
   myExam(id)             { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}`); },
   startMyExam(id)        { return this._json('POST', `/bluebook/me/exams/${encodeURIComponent(id)}/start`); },
+  // Phone parking tied to the student's account (2026-10). `code` false polls
+  // the status without minting a new QR code.
+  myPhonePark(id, code = true) { return this._json('GET', `/bluebook/me/exams/${encodeURIComponent(id)}/phone-park?code=${code ? 1 : 0}`); },
+  examPhoneParks(id)     { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/phone-park`); },
+  overridePhonePark(id, studentId, note) {
+    return this._json('POST', `/bluebook/exams/${encodeURIComponent(id)}/phone-park/${encodeURIComponent(studentId)}/override`, { note: note || '' });
+  },
   async mySubmissions()  { return (await this._json('GET', '/bluebook/me/submissions')).submissions || []; },
   // Past papers the student shares for their teacher to review (titles and
   // review status only; nothing here is ever scored).
@@ -701,8 +678,38 @@ export const BB_API = {
   redeemInvite(token, password, acceptTerms = false) {
     return this._auth('/auth/invite/redeem', { token, password, accept_terms: acceptTerms }, 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.');
   },
-  changePassword(currentPassword, newPassword) {
-    return this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
+  // A course sign-up link (?join=): what it is for, before anyone types.
+  async joinInfo(token) {
+    const r = await fetch(this.base + '/auth/join/info', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+    });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, 'This sign-up link could not be opened.'));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
+  // Create a student account from a course sign-up link and sign in.
+  async joinSignup(token, name, email, password, acceptTerms) {
+    const r = await fetch(this.base + '/auth/join', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name, email, password, accept_terms: acceptTerms }),
+    });
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r, 'Could not create your account.'));
+      err.status = r.status;
+      throw err;
+    }
+    return this._storeSession(await r.json());
+  },
+  // A signed-in student opens a course sign-up link: join that course.
+  meJoin(token) { return this._json('POST', '/bluebook/me/join', { token }); },
+  // The change ends every earlier sign-in, this one included, so keep the
+  // fresh one the server sends back.
+  async changePassword(currentPassword, newPassword) {
+    const data = await this._json('POST', '/auth/password', { current_password: currentPassword, new_password: newPassword });
+    return data && data.token ? this._storeSession(data) : data;
   },
   // The public health probe, fetched once per page. A failure resolves to
   // null; every reader below treats null as "not a demo, signup closed".
@@ -739,6 +746,8 @@ export const BB_API = {
   logout() {
     this._clearSession();
     bbClearKeptPapers();
+    // The next sign-in in this tab starts at the staff home again (deep-link.jsx).
+    clearCollectionsTab();
   },
   // Which account this browser is signed in as, for noticing a switch made
   // in another tab. Token-based, so a re-login as a different user counts.
@@ -806,4 +815,38 @@ export const BB_API = {
 export function devToolsEnabled() {
   if (BB_API.isStudentLaunch()) return false;
   return BB_API.isDevToolsArmed();
+}
+
+// ─── Text setting button ─────────────────────────────────────────────────────
+// Opens the site-wide Text panel (assets/display-prefs.js): font and text
+// size, applied at once to every page. It never touches what a student writes,
+// the word count, the timer or the session, so it is safe mid-collection.
+export function TextSettingsButton({ floating = false, className = '', style }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!floating) return undefined;
+    document.body.classList.add('bbd-has-float');
+    return () => document.body.classList.remove('bbd-has-float');
+  }, [floating]);
+  if (typeof window === 'undefined' || !window.BBDisplay) return null;
+  return (
+    <button ref={ref} type="button" style={style}
+      className={'bbd-btn' + (floating ? ' bbd-float' : '') + (className ? ' ' + className : '')}
+      aria-haspopup="dialog" data-testid="text-settings-button" title="Text size and font"
+      onClick={() => window.BBDisplay.open(ref.current)}>
+      <span className="bbd-aa" aria-hidden="true">Aa</span><span>Text</span>
+    </button>
+  );
+}
+
+// Keep the Text setting on the signed-in account (and pick it up from there).
+let _displaySyncedFor = null;
+export function syncDisplayWithAccount() {
+  if (typeof window === 'undefined' || !window.BBDisplay) return;
+  const who = BB_API.identity();
+  const sig = who.authed && !BB_API.isStudentLaunch() ? `${who.tenant}|${who.email}|${who.role}` : '';
+  if (sig === _displaySyncedFor) return;
+  _displaySyncedFor = sig;
+  if (!sig) { window.BBDisplay.sync(null, null); return; }
+  window.BBDisplay.sync(() => BB_API.getDisplay(), p => BB_API.putDisplay(p));
 }

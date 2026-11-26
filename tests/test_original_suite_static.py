@@ -242,6 +242,7 @@ def test_live_js_exposes_the_shared_interface(live_js):
         "roster",
         "sealed",
         "signOut",
+        "keepSignIn",
     ):
         assert re.search(rf"\b{key}\s*:", exported), f"Live.{key} is not exported"
     for token_key in (
@@ -282,7 +283,17 @@ def test_references_stay_on_this_site_and_resolve_under_demo(path):
 # so a page loaded from cache next to a newer live.js would run the old code
 # against new markup. Every page therefore asks for these files with one shared
 # ?v= query; change the version (on every page at once) when any of them changes.
-VERSIONED = ("live.js", "js/feature-data.js", "js/fingerprint.js", "suite.css", "fonts.css")
+VERSIONED = (
+    "live.js",
+    "shell.js",
+    "js/feature-data.js",
+    "js/fingerprint.js",
+    "js/evidence-view.js",
+    "js/evidence-cards.js",
+    "js/paper-profile.js",
+    "suite.css",
+    "fonts.css",
+)
 
 
 def _versioned_refs(path: Path) -> list[tuple[str, str, str]]:
@@ -309,9 +320,9 @@ def test_every_page_loads_the_suite_scripts_and_styles_with_the_shared_version(p
     assert len(queries) == 1, f"{path.name}: {sorted(queries)}"
     (query,) = queries
     assert re.fullmatch(r"v=[0-9A-Za-z._-]+", query), f"{path.name}: {query!r}"
-    # Every page carries the suite's stylesheet, font file and shared script; the
-    # others (feature-data.js, fingerprint.js) appear where the page uses them.
-    assert {"live.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
+    # Every page carries the suite's stylesheet, font file, shared script and top bar; the
+    # others (feature-data.js, fingerprint.js, evidence-view.js) appear where the page uses them.
+    assert {"live.js", "shell.js", "suite.css", "fonts.css"} <= {name for name, _, _ in found}, path.name
     assert len(found) == len({name for name, _, _ in found}), f"{path.name} loads one twice"
 
 
@@ -356,6 +367,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/baseline.html",
         "/original/writing-state.html",
         "/original/packet.html",
+        "/original/evidence.html",
         "/original/settings.html",
         "/original/submissions.html",
         "/original/reports.html",
@@ -367,6 +379,7 @@ def test_no_file_in_the_suite_exceeds_the_commit_limit():
         "/original/fonts.css",
         "/original/js/fingerprint.js",
         "/original/js/feature-data.js",
+        "/original/js/evidence-view.js",
         "/original/assets/radcliffe-night-stars.jpeg",
         "/original/assets/st-andrews-quad.jpg",
         "/original/assets/radcliffe-observatory-watercolour.jpg",
@@ -412,6 +425,38 @@ def test_students_page_loads_through_live_roster():
     # The loader is shared: the page keeps no copy of its requests.
     for endpoint in ("/readiness", "/bluebook/students"):
         assert endpoint not in page, f"students.html calls {endpoint} itself"
+
+
+def test_students_page_adds_a_writer_by_name_inline():
+    page = (SUITE / "students.html").read_text(encoding="utf-8")
+    # The button opens a labelled inline form; the Collections link keeps its href.
+    assert (
+        '<button type="button" class="add-btn ghost btn-ghost" id="writer-btn" aria-expanded="false" '
+        'aria-controls="writer-form">'
+    ) in page
+    assert ">Add a writer</button>" in page
+    assert '<form class="writer" id="writer-form" hidden' in page
+    assert '<label for="writer-name">Their name</label>' in page
+    assert '<input id="writer-name" type="text" maxlength="120"' in page
+    assert '<button type="submit" class="add-btn btn-gold" id="writer-go">Add</button>' in page
+    assert '<button type="button" class="w-cancel" id="writer-cancel">Cancel</button>' in page
+    assert '<div class="w-msg" id="writer-msg" role="alert"></div>' in page
+    assert '<a class="add-btn btn-gold" id="add-btn" href="/bluebook/#students"' in page
+    assert ">Add to a Collections course</a>" in page
+    script = page[page.index("// ── add a writer ──") : page.index("// ── go ──")]
+    assert "Live.api('/students',{method:'POST',body:{name:n}})" in script
+    # One request at a time: a double click makes one writer.
+    assert "if(busy) return;" in script and "go.disabled=true" in script
+    assert (
+        "window.location.assign('baseline.html?student='+encodeURIComponent(id)+'#add-writing')"
+        in script
+    )
+    # Escape closes it, and focus goes into the form and back to the button.
+    assert "e.key==='Escape'" in script
+    assert "name.focus()" in script and "btn.focus()" in script
+    # Errors are plain words set as text, never markup.
+    assert "innerHTML" not in script
+    assert chr(0x2014) not in page and chr(0x2015) not in page
 
 
 # ── Writing State (writing-state.html) ────────────────────────────────────────
@@ -487,7 +532,11 @@ def test_writing_state_keeps_triage_local_and_names_each_analysis():
     # no_action when manifests are off (original/routers/admin.py). Each score
     # call sends its own submission_id so analyses cannot share one.
     page = (SUITE / "writing-state.html").read_text(encoding="utf-8")
-    assert "/submissions/" not in page
+    # The one submissions route it names is the read of a sealed Collections
+    # exam (GET, staff-only), never a write about an analysis.
+    read_sealed = "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))"
+    assert page.count(read_sealed) == 1
+    assert "/submissions/" not in page.replace(read_sealed, "")
     assert "/correct" not in page
     assert "submission_id" in page
     assert "original_portfolio_" in page
@@ -523,6 +572,48 @@ def test_feature_data_lists_the_97_active_features_in_constants_order():
     assert "base:" not in src and "sub:" not in src and "FLAGS" not in src
 
 
+def _feature_data_rows() -> list[tuple[str, str, str]]:
+    src = (SUITE / "js" / "feature-data.js").read_text(encoding="utf-8")
+    rows = re.findall(r"\['([a-z0-9_]+)','((?:[^'\\]|\\.)*)','((?:[^'\\]|\\.)*)'\]", src)
+    return [(c, n.replace("\\'", "'"), d.replace("\\'", "'")) for c, n, d in rows]
+
+
+def test_every_habit_is_named_by_its_plain_name():
+    """A teacher reads the plain name (original/explainer.py FEATURE_PLAIN_NAMES)
+    with its first letter capitalised, never the engine's label; the evidence
+    API (describe()) reads the same name, so the pages and the report agree."""
+    from original import evidence
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    rows = _feature_data_rows()
+    assert len(rows) == 97
+    for code, name, _desc in rows:
+        plain = FEATURE_PLAIN_NAMES[code]
+        assert name == plain[0].upper() + plain[1:], code
+        assert evidence.describe(code)[0] == name, code
+
+
+def test_plain_names_are_short_everyday_words():
+    from original.constants import ALL_FEATURE_CODES
+    from original.explainer import FEATURE_PLAIN_NAMES
+
+    assert set(FEATURE_PLAIN_NAMES) == set(ALL_FEATURE_CODES)
+    names = list(FEATURE_PLAIN_NAMES.values())
+    assert len(set(names)) == len(names), "two habits share a name"
+    jargon = re.compile(
+        r"ratio|entropy|variance|density|index|\bttr\b|z-score|lexical|semantic|"
+        r"syntactic|stylometr|prosod|clausul|polysyndeton|chiasmus|nominali|hapax|"
+        r"divergence|perplexity|burstiness|\bai\b|fingerprint|detect",
+        re.IGNORECASE,
+    )
+    for code, name in FEATURE_PLAIN_NAMES.items():
+        # Lower case first, so the page's sentence form (feature-data.js
+        # `phrase`) is the exact inverse of the capitalised name.
+        assert name[:1].islower(), f"{code}: {name!r} must start lower case"
+        assert not jargon.search(name), f"{code}: {name!r} is still engine jargon"
+        assert len(re.sub(r"\([^)]*\)", "", name).split()) <= 6, f"{code}: {name!r} is too long"
+
+
 def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exist():
     page = (SUITE / "settings.html").read_text(encoding="utf-8")
     # POST /auth/password {current_password, new_password}, through the shared client.
@@ -531,6 +622,9 @@ def test_settings_page_changes_the_password_and_offers_nothing_that_does_not_exi
     # A typed password is never logged or kept: no console output, no storage.
     for leak in ("console.", "localStorage", "sessionStorage"):
         assert leak not in page, f"settings.html uses {leak}"
+    # The change signs out every earlier session, this page's included (T-79):
+    # the fresh sign-in it returns is kept through the shared client.
+    assert "Live.keepSignIn(res.data)" in page
     # A failed submit must not put the password in a URL (a form posts, it never GETs).
     assert 'method="post"' in page
     # There is no sensitivity setting and no LMS integration to configure.
@@ -625,7 +719,7 @@ def test_no_file_but_live_js_names_the_sealed_exam_list_route(live_js):
         for path in _code_files()
         if path != SUITE / "live.js" and SEALED_LIST_ROUTE.search(path.read_text(encoding="utf-8"))
     ]
-    assert not named, f"{named} name the sealed exam list route; call Live.sealed() instead"
+    assert not named, f"{named} name the sealed booklet list route; call Live.sealed() instead"
 
 
 def test_reports_page_counts_only_what_live_roster_returns():
@@ -736,9 +830,18 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "<title>Original · Conversation packet</title>" in page
     title = re.search(r"<title>(.*?)</title>", page).group(1).lower()
     assert "flag" not in title
-    # No case numbers, no quoted passages (no text positions exist to quote).
+    # No case numbers. Quoted passages appear only as the staff-only text-by-text
+    # section, built from the server's evidence by the cards all three pages
+    # share (js/evidence-cards.js): the page builds no mark itself, and nothing
+    # is built unless evidence is present.
     assert not re.search(r"\bcase\s+(?:no\.?\s*)?[A-Z]*-?\d", page, re.I)
-    assert "<mark" not in page
+    assert page.count("<mark") == 0 and "EC.card(" in page
+    assert "if(has(d.result,'evidence')&&d.result.evidence) addSideBySide(" in page
+    assert '<script src="js/evidence-view.js?v=' in page
+    assert '<script src="js/evidence-cards.js?v=' in page
+    cards = (SUITE / "js" / "evidence-cards.js").read_text(encoding="utf-8")
+    # The one place a mark is built, and only where EvidenceView.markParts found the slice.
+    assert cards.count("'<mark'") == 1 and "EV.markParts(q)" in cards
     # Outcome and signature are blank form lines for the teacher, never data.
     assert page.count('<div class="line"></div>') == 2
     assert "Teacher signature" in page and "Outcome of the conversation" in page
@@ -748,11 +851,14 @@ def test_packet_is_a_conversation_packet_with_no_cases_quotes_or_filled_in_lines
     assert "writing-state.html" in page
 
 
-# ── Teachers land on these pages; the old page stays one click away ───────────
+# ── Teachers land on these pages; the old page is no longer linked ───────────
 # Owner decision 2026-10-10: sign-in sends a teacher to /original/. The old
-# professor.html stays reachable as "Analysis (classic)" until these pages cover
-# it. The account menu markup is written out on every page (no templating), so
-# the check runs over every page in the suite, present and future.
+# professor.html stayed reachable as "Analysis (classic)" until 2026-10-30,
+# when the link was removed: that page shows "% consistent" and "confirmed
+# authentic", wording the amended NORTH_STAR rule 2 does not allow a teacher
+# to see. The file stays for the demo until Task 12 retires it. The account
+# menu markup is written out on every page (no templating), so the check runs
+# over every page in the suite, present and future.
 
 
 class _AccountMenu(HTMLParser):
@@ -788,29 +894,122 @@ class _AccountMenu(HTMLParser):
             self._link[1] += data
 
 
+# The top bar (brand, app switch, page pills, account menu) is drawn by shell.js
+# from one definition. A page carries only a placeholder with its audience and
+# its own name, and the script straight after it; the tests below run shell.js's
+# Shell.markup under node for that placeholder and read what a browser would get.
+_SHELL_PLACEHOLDER = re.compile(
+    r'<nav class="shell(?: shell-bar)?" data-audience="(teacher|student)" data-current="([a-z-]+)" '
+    r'aria-label="Original"></nav>\s*<script src="shell\.js\?v=[^"]+"></script>'
+)
+
+SHELL_RUN = r"""
+const fs = require('fs');
+const window = {};
+const document = { querySelectorAll() { return []; }, readyState: 'complete', addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(process.argv[1], 'utf8'))(window, document);
+const out = {};
+for (const pair of JSON.parse(process.argv[2])) out[pair.join('/')] = window.Shell.markup(pair[0], pair[1]);
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _placeholder(path: Path) -> tuple[str, str]:
+    found = _SHELL_PLACEHOLDER.findall(path.read_text(encoding="utf-8"))
+    assert len(found) == 1, f"{path.name} has no top bar placeholder followed by shell.js"
+    return found[0]
+
+
+_SHELL_CACHE: dict[str, str] = {}
+
+
+def _shell_nav(path: Path) -> str:
+    """The top bar's markup on this page, as shell.js draws it."""
+    if not _SHELL_CACHE:
+        pairs = sorted({_placeholder(p) for p in PAGES})
+        run = subprocess.run(
+            [shutil.which("node"), "-e", SHELL_RUN, str(SUITE / "shell.js"), json.dumps(pairs)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert run.returncode == 0, run.stderr
+        _SHELL_CACHE.update(json.loads(run.stdout))
+    return _SHELL_CACHE["/".join(_placeholder(path))]
+
+
 def _account_menu(path: Path) -> list[tuple[str, str]]:
     parser = _AccountMenu()
-    parser.feed(path.read_text(encoding="utf-8"))
+    parser.feed(_shell_nav(path))
     return parser.links
 
 
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_every_page_draws_the_one_top_bar_and_keeps_no_copy_of_its_own(path):
+    audience, current = _placeholder(path)
+    assert audience == ("student" if path.name in STUDENT_PAGES else "teacher"), path.name
+    assert current == path.stem, path.name
+    page = path.read_text(encoding="utf-8")
+    # The bar's markup, its menu script and its styles live in shell.js and tokens.css only.
+    for copy in ('id="me-menu"', 'class="pills"', "$('me-btn')", "  .me-menu{", "  .pill{", "  .brand{"):
+        assert copy not in page, f"{path.name} keeps its own {copy}"
+    assert '<link rel="stylesheet" href="../assets/tokens.css?v=' in page
+    assert '<link rel="stylesheet" href="../assets/type.css" />' in page
+    # The Text setting is in the account menu, so no floating button covers the page.
+    assert '<script src="../assets/display-prefs.js"></script>' in page
+    assert "data-float" not in page
+
+
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_account_menu_holds_the_text_setting(path):
+    nav = _shell_nav(path)
+    assert 'id="mm-text" data-testid="text-settings-button"' in nav
+    assert '<span class="mm-aa" aria-hidden="true">Aa</span>Text</button>' in nav
+    menu = nav[nav.index('id="me-menu"') :]
+    assert menu.index('id="mm-text"') < menu.index('id="sign-out"')
+
+
+@needs_node
 @pytest.mark.parametrize(
     "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
 )
-def test_account_menu_offers_the_classic_analysis_page_after_settings(path):
+def test_account_menu_is_settings_then_sign_out_with_no_classic_link(path):
     links = _account_menu(path)
     assert links, f"{path.name} has no account menu"
     texts = [text for _, text in links]
-    assert texts.count("Analysis (classic)") == 1, f"{path.name}: {texts}"
-    classic = texts.index("Analysis (classic)")
-    assert links[classic][0] == "/professor.html"
-    assert classic > 0 and texts[classic - 1] == "Settings", f"{path.name}: {texts}"
+    assert "Analysis (classic)" not in texts, f"{path.name}: {texts}"
+    assert not any(href == "/professor.html" for href, _ in links), f"{path.name} links professor.html"
+    assert texts.index("Settings") < texts.index("Sign out"), f"{path.name}: {texts}"
 
 
+@needs_node
+@pytest.mark.parametrize(
+    "path", [p for p in PAGES if p.name not in STUDENT_PAGES], ids=lambda p: p.name
+)
+def test_account_menu_opens_the_collections_dashboard_first(path):
+    # Bare /bluebook/ sends a teacher to Original, so the way back to the
+    # Collections dashboard is a named link: the first item, before Settings.
+    links = _account_menu(path)
+    texts = [text for _, text in links]
+    assert texts.count("Open Collections") == 1, f"{path.name}: {texts}"
+    assert links[0] == ("/bluebook/#dashboard", "Open Collections"), f"{path.name}: {links}"
+    assert texts[1] == "Settings", f"{path.name}: {texts}"
+
+
+def test_collections_page_head_links_to_the_collections_dashboard():
+    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
+    head = page[page.index('<div class="head">') : page.index('<div class="cols">')]
+    assert '<a class="head-link btn-ghost" href="/bluebook/#dashboard">' in head
+    assert "Open Collections</a>" in head
+
+
+@needs_node
 @pytest.mark.parametrize("name", sorted(STUDENT_PAGES))
 def test_student_account_menu_is_sign_out_only(name):
     # A student has no Settings page and no classic analysis page; both are
-    # teacher tools, so the menu holds Sign out and nothing else.
+    # teacher tools, so the menu holds Sign out and nothing else (and the Text
+    # setting, a button rather than a link).
     links = _account_menu(SUITE / name)
     assert [text for _, text in links] == ["Sign out"], f"{name}: {links}"
 
@@ -1587,7 +1786,12 @@ def test_sign_out_clears_kept_papers_and_the_last_result_but_nothing_else():
             "original_portfolio": "not a kept paper: no trailing underscore",
             "another_site_key": "left alone",
         },
-        session={"original_last_result": '{"result":{}}', "unrelated": "left alone"},
+        # bluebook_collections_tab: Collections' per-tab mark (deep-link.jsx).
+        session={
+            "original_last_result": '{"result":{}}',
+            "bluebook_collections_tab": "1",
+            "unrelated": "left alone",
+        },
     )
     assert sorted(out["local"]) == ["another_site_key", "original_portfolio"]
     assert out["session"] == ["unrelated"]
@@ -1638,7 +1842,7 @@ def _course(cid: str, code: str) -> dict:
 
 
 def _two_course_scenario(**extra) -> dict:
-    """Four students; two courses; five sealed exams, one of them (s4) on an
+    """Four students; two courses; five sealed booklets, one of them (s4) on an
     exam with no course and one (s5) from a student on no roster course."""
     roster = [
         {"id": sid, "name": sid.upper(), "authenticated_count": 5, "sample_count": 5}
@@ -1688,27 +1892,27 @@ def _two_course_scenario(**extra) -> dict:
     return scenario
 
 
-NOTE = "Counted by student for exams without a course: a student in two courses appears in both."
+NOTE = "Counted by student for booklets without a course: a student in two courses appears in both."
 
 
 @needs_node
 def test_reports_course_tabs_count_a_sealed_exam_under_the_exams_own_course():
     everything, c1, c2 = _page("reports.html", **_two_course_scenario())["snaps"]
     # All courses: five exams, four waiting. No fallback is in play, so no note.
-    assert "4 sealed exams</b> are waiting" in everything["headline"]
-    assert everything["termD"] == "2 courses · 4 students · 5 sealed exams"
+    assert "4 sealed booklets</b> are waiting" in everything["headline"]
+    assert everything["termD"] == "2 courses · 4 students · 5 sealed booklets"
     assert everything["tabNote"]["hidden"] is True
     assert 'data-c="c1"' in everything["tabs"] and 'data-c="c2"' in everything["tabs"]
     # THEO 301: s1 and s3 by their exam, s4 by its student (c). Student c's s3 is
     # not counted in BIB 101 even though c is on both rosters.
     assert c1["headline"].startswith("THEO 301: ")
-    assert "3 sealed exams</b> are waiting" in c1["headline"]
-    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed exams"
+    assert "3 sealed booklets</b> are waiting" in c1["headline"]
+    assert c1["termD"] == "THEO 301 · 2 students · 3 sealed booklets"
     assert c1["reviewed"] == ["0", "of 3 sealed · 3 waiting"]
     # BIB 101: s2 (reviewed) by its exam, s4 by its student.
     assert c2["headline"].startswith("BIB 101: ")
-    assert "1 sealed exam</b> is waiting" in c2["headline"]
-    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed exams"
+    assert "1 sealed booklet</b> is waiting" in c2["headline"]
+    assert c2["termD"] == "BIB 101 · 2 students · 2 sealed booklets"
     assert c2["reviewed"] == ["1", "of 2 sealed · 1 waiting"]
     # The note appears exactly in the tabs where an exam was counted by student.
     for tab in (c1, c2):
@@ -1721,7 +1925,7 @@ def test_reports_course_tab_with_every_exam_on_a_known_course_shows_no_note():
     subs = [r for r in scenario["bbSubmissions"][1]["submissions"] if r["exam_id"] != "e3"]
     scenario["bbSubmissions"] = [200, {"submissions": subs}]
     _, c1, c2 = _page("reports.html", **scenario)["snaps"]
-    assert "2 sealed exams</b> are waiting" in c1["headline"]  # s1, s3
+    assert "2 sealed booklets</b> are waiting" in c1["headline"]  # s1, s3
     assert c1["tabNote"]["hidden"] is True and c2["tabNote"]["hidden"] is True
 
 
@@ -1760,9 +1964,9 @@ def test_reports_course_tab_counts_unread_readiness_within_its_own_students():
 @pytest.mark.parametrize(
     "scenario,term",
     [
-        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed exams"),
-        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed exams"),
-        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed exams · 1 student"),
+        (dict(students=[500, {"detail": "boom"}], rejectOn=["^/bluebook/"]), "Could not load your students or sealed booklets"),
+        (dict(students=[500, {"detail": "boom"}]), "Could not load your students · 0 sealed booklets"),
+        (dict(students=[200, {"students": ["a"], "roster": None}], rejectOn=["^/bluebook/"]), "Could not load sealed booklets · 1 student"),
     ],
     ids=["all", "students", "sealed"],
 )
@@ -1909,6 +2113,7 @@ STUDENT_TAIL = r"""
     const s = await window.Live.gate(el, sc.opts);
     out.session = s ? { role: s.role, mode: s.mode } : null;
     out.html = el.innerHTML;
+    out.products = window.localStorage.getItem('original_products');
   } else if (sc.call === 'api') {
     out.res = await window.Live.api(sc.path, sc.opts);
   }
@@ -1982,6 +2187,46 @@ def test_student_gate_sends_everyone_else_to_bluebooks_sign_in(health):
     assert out["replaced"] == []
     assert "Sign in to continue" in out["html"]
     assert 'href="/bluebook/"' in out["html"]
+
+
+@needs_node
+def test_a_staff_gate_without_original_points_at_the_collections_dashboard_and_heals_products():
+    # Collections sends a teacher at the bare /bluebook/ address to Original while
+    # the stored products say Original. A workspace that lost it would bounce
+    # between the two: the panel names the Collections dashboard (#dashboard),
+    # and the server's products replace the stale stored list.
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": ["bluebook"], "tenant_id": "t"}],
+    )
+    assert out["session"] is None and out["replaced"] == []
+    assert "Original is off for this workspace" in out["html"]
+    assert 'href="/bluebook/#dashboard"' in out["html"]
+    assert 'href="/bluebook/"' not in out["html"]
+    assert json.loads(out["products"]) == ["bluebook"]
+
+
+@needs_node
+def test_a_staff_gate_with_original_stores_the_servers_products():
+    out = _student(call="gate", local={"original_principal_token": "p"}, me=STAFF_ME)
+    assert out["session"] == {"role": "professor", "mode": "signed-in"}
+    assert json.loads(out["products"]) == ["original", "bluebook"]
+
+
+@needs_node
+def test_a_gate_whose_server_lists_no_products_keeps_what_sign_in_stored():
+    out = _student(
+        call="gate",
+        local={"original_principal_token": "p", "original_products": '["original","bluebook"]'},
+        me=[200, {"role": "professor", "products": [], "tenant_id": "t"}],
+    )
+    assert out["products"] == '["original","bluebook"]'
+
+
+def test_professor_page_collections_link_names_the_collections_dashboard():
+    page = (DEMO / "professor.html").read_text(encoding="utf-8")
+    assert 'href="bluebook/#dashboard" target="_blank" title="Collections: writing sessions"' in page
 
 
 @needs_node
@@ -2453,14 +2698,17 @@ def test_baseline_page_reads_what_the_api_returns_and_nothing_else():
 
 def test_baseline_page_says_what_the_baseline_holds_without_overclaiming():
     page = _baseline_page()
-    # "Approved" is a teacher's act: only supervised, verified and imported samples.
-    assert "const APPROVED=['proctored','verified','canvas']" in page
+    # "Approved by you" is a teacher's act, and comes from the one shared rule in live.js
+    # (supervised, verified, imported, a take-home exam or a shared paper), not a copy of it.
+    assert "Live.approvals(samples())" in page and "Live.approvalWords(" in page
+    assert "const APPROVED=" not in page
     # The server's authenticated_count is "counted" (student uploads are in it); it is
     # never called approved, and the server's own sentences say "counted" too.
     assert "replace(/authenticated/gi,'counted')" in page
     assert "'approved')" not in page
-    # The full readiness rule, and the wording of the building verdict.
-    assert "5 or more counted samples with an effective count of 3 or more" in page
+    # The full readiness rule (ready at the score route's 3-paper floor), and the
+    # wording of the building verdict.
+    assert "ready at 3 or more counted samples" in page
     assert "results are less reliable; false alarms are likely" in page
     assert "cannot tell" not in page
     # Recency is by the order samples were added, not by the date written, and the
@@ -2635,9 +2883,9 @@ def test_baseline_page_takes_one_write_at_a_time_and_says_it_is_saving():
 def test_baseline_page_counts_approved_samples_by_provenance_and_calls_the_servers_count_counted():
     out = _baseline_run()["before"]
     # 5 samples: one student upload (never "approved") and 4 supervised sittings.
-    assert out["meta"] == "4 teacher-approved samples · 1 student upload"
-    assert "5 counted samples (4 teacher-approved, 1 student upload)" in out["short"]
-    assert "approved sample" not in out["short"].replace("teacher-approved", "")
+    assert out["meta"] == "5 samples: 4 approved by you, 1 student upload"
+    assert "5 counted samples (4 approved by you, 1 student upload)" in out["short"]
+    assert "teacher-approved" not in out["short"] and "approved sample" not in out["short"]
     # The server's sentence is shown with its "authenticated" read as "counted", and no dash.
     assert "Collect 1 more counted sample(s): more is better." in out["traj"]
     assert "authenticated" not in out["traj"] and chr(0x2014) not in out["traj"]
@@ -2660,11 +2908,81 @@ def _writing_state() -> str:
     return (SUITE / "writing-state.html").read_text(encoding="utf-8")
 
 
-def test_writing_state_has_one_testing_label_and_it_comes_first_in_the_result_column():
+def test_writing_state_has_one_testing_label_and_it_sits_under_the_answer():
     page = _writing_state()
     assert page.count("data-testing-notice") == 1
     column = page.index('id="right-scroll"')
-    assert column < page.index("data-testing-notice") < page.index('class="hero-inner"')
+    # Under the answer line, above everything that folds away.
+    assert column < page.index('id="ess-answer"') < page.index("data-testing-notice") < page.index('<details class="deep"')
+
+
+# ── Writing State leads with the essentials (2026-10-30) ───────────────────
+# The answer, why, how sure and what next come first and always show; every
+# other part of the reading sits in a closed <details class="deep"> below.
+
+DEEP_SECTIONS = ("deep-habits", "deep-tiers", "deep-pattern", "deep-math", "deep-cal")
+
+
+def test_writing_state_puts_the_essentials_first_and_folds_the_rest():
+    page = _writing_state()
+    column = page.index('id="right-scroll"')
+    ess = page.index('id="essentials"')
+    first_fold = page.index('<details class="deep"')
+    assert column < ess < first_fold
+    # The essentials block, in order: answer, why, how sure, numbers, what next.
+    order = ['id="ess-answer"', 'id="ess-sub"', 'id="plain-read"', 'id="ess-sure"', 'id="ess-nums"', 'id="triage"']
+    positions = [page.index(needle) for needle in order]
+    assert positions == sorted(positions) and positions[-1] < first_fold
+    # The folded sections, in the documented order, every one closed by default.
+    folds = re.findall(r'<details class="deep"( open)? id="([a-z-]+)">', page)
+    assert [name for _, name in folds] == list(DEEP_SECTIONS)
+    assert not any(flag for flag, _ in folds), "a deep section ships open"
+    # The left rail keeps only the analyse card: the radar moved into a fold.
+    aside = page[page.index('<aside class="left">') : page.index("</aside>")]
+    assert "radar-canvas" not in aside and 'id="an-card"' in aside
+    assert page.index('id="radar-canvas"') > page.index('id="deep-tiers"')
+
+
+def test_writing_state_band_words_are_the_suites_one_copy_and_inconclusive_shows_none():
+    page = _writing_state()
+    for band in ("no_action", "monitor", "schedule_conversation", "escalate"):
+        assert f"Live.BAND_WORDS.{band}" in page
+    for gone in ("Close to their usual writing", "A few habits differ", "Several habits differ markedly"):
+        assert gone not in page, gone
+    # A baseline that is not rated ready gets the inconclusive answer and no band words.
+    assert "const INCONCLUSIVE_ANSWER='Inconclusive: not enough past writing to compare yet';" in page
+    assert "setAnswer(INCONCLUSIVE_ANSWER,'inc',who());" in page
+    assert "action_words:readyNow()?look().words:INCONCLUSIVE_ANSWER," in page
+    # The two upper bands carry the innocent-causes reminder (NORTH_STAR rule 4).
+    assert "Live.BAND_INNOCENT_CLAUSE" in page
+
+
+def test_writing_state_quotes_a_percentage_only_from_a_recorded_g9_pass():
+    page = _writing_state()
+    script = _inline_scripts(SUITE / "writing-state.html")
+    sentence = _extract(script, "rateSentence")
+    # The only place a percent sign can reach the reading: inside rateSentence,
+    # and only when the server sent band_rate (gate G9 passed). Otherwise the
+    # not-measured sentence, the server's own wording.
+    assert "return esc(Live.BAND_RATE_NOT_MEASURED);" in sentence
+    assert sentence.index("Live.BAND_RATE_NOT_MEASURED") < sentence.index("'%'")
+    body = script[script.index("function renderNumbers("):]
+    assert "'%'" not in body.replace(sentence, "").split("function renderCalibration(")[0]
+    assert "rateSentence(pre.band_rate)" in page
+    # The distance is a distance: the math note says so, and nothing presents one as a probability.
+    assert "on a 0 to 100 scale" in page and "a distance, not a probability" in page
+    assert not re.search(r"probability (of|that)|% (consistent|authentic|likely)", page, re.I)
+
+
+def test_writing_state_not_measured_sentence_and_band_words_match_the_server():
+    from original.evidence import BAND_INNOCENT_CLAUSE, BAND_RATE_NOT_MEASURED, BAND_WORDS
+
+    live = (SUITE / "live.js").read_text(encoding="utf-8")
+    block = re.search(r"var BAND_WORDS = \{(.*?)\};", live, re.S).group(1)
+    words = dict(re.findall(r"(\w+): '([^']*)'", block))
+    assert words == BAND_WORDS
+    assert re.search(r"var BAND_INNOCENT_CLAUSE = '([^']*)';", live).group(1) == BAND_INNOCENT_CLAUSE
+    assert re.search(r"var BAND_RATE_NOT_MEASURED = '([^']*)';", live).group(1) == BAND_RATE_NOT_MEASURED
 
 
 def test_writing_state_says_a_listed_habit_is_among_the_furthest_not_that_it_is_outside_the_range():
@@ -2784,6 +3102,17 @@ def test_no_suite_file_shows_the_word_authentic(path):
     assert _displayed_authentic(path.read_text(encoding="utf-8")) == [], path.name
 
 
+def test_the_classic_voice_profile_shows_the_students_own_figures():
+    """demo/professor.html's Voice Profile rows once carried fixed sample figures
+    (84%, 78%, 67%, 71%) that no code replaced, so every student showed the same
+    numbers. Each figure is now filled from that student's baseline values."""
+    page = (SUITE.parent / "professor.html").read_text(encoding="utf-8")
+    assert re.findall(r'class="trait-pct"[^>]*>\s*\d', page) == []
+    for i in range(1, 5):
+        assert f'<span class="trait-pct" id="ptv{i}">' in page
+    assert "document.getElementById(id.replace('ptb', 'ptv'))" in page
+
+
 # authenticated_count is every sample the server weighs above zero: a teacher-approved one or
 # a student's own upload. It is "counted", never "approved" (a count of what a teacher
 # approved needs the sample list and its provenance). So no file may call a sample
@@ -2793,9 +3122,9 @@ _APPROVED_SAMPLES = re.compile(r"(?<!teacher-)(?<!teacher )\bapproved (?:baselin
 
 COUNTED_LABELS = {
     "index.html": ("<th>Counted samples</th>", "plural(r.counted,'counted sample')", "$('stat1-l').textContent='Counted samples'"),
-    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more'", "' teacher-approved'"),
-    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "' teacher-approved)'"),
-    "reports.html": ("5 or more counted samples with an effective count of 3 or more",),
+    "writing-state.html": ("plural(counted()||0,'counted sample')", "READY_NEEDS='ready needs 3 or more counted samples'", "Live.approvalWords("),
+    "packet.html": ("plural(nUsed,'counted sample')", "poss+' counted samples'", "Live.approvalWords("),
+    "reports.html": ("ready at 3 or more counted samples",),
 }
 
 
@@ -2938,7 +3267,7 @@ def _verdicts(cases: list[dict]) -> list[dict]:
     src = "\n".join(
         _extract(script, name)
         for name in (
-            "num", "plural", "baselineHref", "APPROVED", "counted", "teacherApproved", "countedPhrase",
+            "num", "plural", "baselineHref", "counted", "teacherApproved", "approvalLine", "lowerWeightNote", "countedPhrase",
             "READY_NEEDS", "rated", "resultVerdict", "verdictNow", "thinResultLine", "thinNote",
         )
     )
@@ -2967,12 +3296,12 @@ def _scored(authenticated, effective, **state) -> dict:
     "authenticated,effective,verdict",
     [
         (5, 3.0, "ready"),
-        (5, 2.9, "developing"),  # five samples that barely count are still building
-        (9, 2.0, "developing"),
-        (4, 10, "developing"),
-        (3, 0, "developing"),
-        (2, 0, "insufficient"),  # below the 3-paper minimum Original does not compare
-        (1, 1, "insufficient"),
+        (5, 2.9, "ready"),  # ready at the score route's 3-paper floor, whatever the weights
+        (9, 2.0, "ready"),
+        (4, 10, "ready"),
+        (3, 0, "ready"),  # the alpha's three papers
+        (2, 0, "developing"),  # below the 3-paper minimum Original does not compare: building
+        (1, 1, "developing"),
         (0, 0, "insufficient"),
         (None, 3, None),  # a missing field is no verdict, never "fine"
         (5, None, None),
@@ -3006,16 +3335,16 @@ def test_writing_state_prefers_the_rosters_verdict_over_the_one_it_derives():
 @needs_node
 def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready():
     ready, building, thin, unreadable = _verdicts(
-        [_scored(5, 3), _scored(3, 2), _scored(1, 1), _scored(None, None)]
+        [_scored(3, 2), _scored(2, 2), _scored(1, 1, verdict="insufficient"), _scored(None, None)]
     )
-    assert ready["line"] == ""
+    assert ready["line"] == ""  # three counted samples: the alpha's baseline reads normally
     assert building["line"] == (
-        " Original rates this baseline \u201cBuilding\u201d (3 counted samples; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        " Original rates this baseline \u201cBuilding\u201d (2 counted samples; "
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     assert thin["line"] == (
         " Original rates this baseline \u201cNeeds more\u201d (1 counted sample; "
-        "ready needs 5 or more counted samples and an effective count of 3 or more), so treat this reading as inconclusive."
+        "ready needs 3 or more counted samples), so treat this reading as inconclusive."
     )
     # Nothing could be read: the page says so rather than leave the reading unqualified.
     assert unreadable["line"] == (
@@ -3023,31 +3352,123 @@ def test_writing_state_adds_the_inconclusive_line_unless_the_baseline_is_ready()
     )
     # The card's own note speaks only for a rated-thin baseline.
     assert ready["note"] == "" and unreadable["note"] == ""
-    assert "\u201cBuilding\u201d (3 counted samples; ready needs 5 or more counted samples and an effective count of 3 or more)" in building["note"]
-    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 5 or more counted samples and an effective count of 3 or more)" in thin["note"]
+    assert "\u201cBuilding\u201d (2 counted samples; ready needs 3 or more counted samples)" in building["note"]
+    assert "\u201cNeeds more\u201d (1 counted sample; ready needs 3 or more counted samples)" in thin["note"]
 
 
 def _record(counted: int, *provenances: str) -> dict:
     return {"authenticated_count": counted, "samples": [{"provenance": p} for p in provenances]}
 
 
+def _sourced(*pairs: tuple[str, str]) -> dict:
+    """A record whose samples say how they got in: ``(provenance, source)`` each."""
+    return {
+        "authenticated_count": len(pairs),
+        "samples": [{"provenance": p, "source": src} for p, src in pairs],
+    }
+
+
 @needs_node
-def test_writing_state_counts_teacher_approved_samples_apart_from_counted_ones():
-    # authenticated_count is every sample the server weighs, a student upload included: it is
-    # "counted". The sample list says which of them a teacher approved (proctored, verified,
-    # canvas), and that number is shown beside it, never in its place.
-    split, no_list, stale = _verdicts(
+def test_writing_state_counts_an_approved_take_home_exam_as_approved_by_you_at_a_lower_weight():
+    take_home = ("unverified", "take_home")
+    all_you, mixed, upload_only, missing = _verdicts(
         [
-            _scored(3, 2, student=_record(3, "proctored", "verified", "unverified")),
-            _scored(3, 2, student={"authenticated_count": 3}),  # no sample list: no split to give
-            _scored(3, 2, student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+            # The roster rates each "Building" (a server with a higher MIN_BASELINE_SAMPLES),
+            # so the line that carries the approval wording is shown.
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), ("verified", "staff_or_supervised"), take_home)),
+            _scored(3, 2, verdict="developing", student=_sourced(("proctored", "staff_or_supervised"), take_home, ("unverified", "student_upload"))),
+            _scored(2, 2, student=_sourced(("unverified", "student_upload"), ("unverified", "student_upload"))),
+            # An old server sends no source: the provenance rule decides.
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "unverified", "unverified")),
         ]
     )
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["line"]
-    assert "(3 counted samples, 2 teacher-approved; ready needs 5 or more counted samples and an effective count of 3 or more)" in split["note"]
-    assert "teacher-approved" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
+    assert "(3 counted samples, all approved by you; ready needs" in all_you["line"]
+    # The lower-weight note is its own sentence, after the bracket, whenever a take-home exam is counted.
+    assert all_you["line"].endswith("Take-home collections and shared papers you approved count at a lower weight.")
+    assert all_you["note"].count("count at a lower weight.") == 1
+    assert "lower weight" not in mixed["line"].replace("Take-home collections and shared papers you approved count at a lower weight.", "")
+    assert "(3 counted samples, 2 approved by you, 1 student upload; ready needs" in mixed["line"]
+    assert "(2 counted samples, none approved by you, 2 student uploads; ready needs" in upload_only["line"]
+    assert "(3 counted samples, 1 approved by you, 2 student uploads; ready needs" in missing["line"]
+    assert "teacher-approved" not in all_you["line"] + mixed["line"] + upload_only["line"] + missing["line"]
+
+
+@needs_node
+def test_writing_state_counts_samples_approved_by_you_apart_from_counted_ones():
+    # authenticated_count is every sample the server weighs, a student upload included: it is
+    # "counted". The sample list says which of them you approved (supervised, verified,
+    # imported, or a take-home exam or shared paper), and that is shown beside it, never in its place.
+    split, no_list, stale = _verdicts(
+        [
+            _scored(3, 2, verdict="developing", student=_record(3, "proctored", "verified", "unverified")),
+            _scored(3, 2, verdict="developing", student={"authenticated_count": 3}),  # no sample list: no split to give
+            _scored(3, 2, verdict="developing", student=_record(5, "proctored", "proctored", "verified", "canvas", "unverified")),
+        ]
+    )
+    rule = "ready needs 3 or more counted samples"
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["line"]
+    assert f"(3 counted samples, 2 approved by you, 1 student upload; {rule})" in split["note"]
+    assert "approved by you" not in no_list["line"] and "(3 counted samples;" in no_list["line"]
     # The analysis counted 3 and the record now says 5: splitting 5 by provenance beside a 3 would mislead.
-    assert "teacher-approved" not in stale["line"] and "(3 counted samples;" in stale["line"]
+    assert "approved by you" not in stale["line"] and "(3 counted samples;" in stale["line"]
+
+
+APPROVALS_RUN = r"""
+const fs = require('fs');
+const sc = JSON.parse(fs.readFileSync(0, 'utf8'));
+const window = {};
+const document = { readyState: 'complete', querySelectorAll() { return []; }, addEventListener() {} };
+new Function('window', 'document', fs.readFileSync(sc.live, 'utf8'))(window, document);
+process.stdout.write(JSON.stringify(sc.cases.map((c) => {
+  const a = window.Live.approvals(c);
+  return { a, words: window.Live.approvalWords(a), bare: window.Live.approvalWords(a, { note: false }), how: c.map((s) => window.Live.howAdded(s)) };
+})));
+"""
+
+
+@needs_node
+def test_live_approvals_counts_who_approved_each_sample_and_says_so_in_plain_words():
+    def smp(prov, source=None):
+        d = {"provenance": prov}
+        if source:
+            d["source"] = source
+        return d
+
+    cases = [
+        [smp("proctored", "staff_or_supervised"), smp("unverified", "take_home"), smp("unverified", "take_home"), smp("unverified", "shared_paper")],
+        [smp("verified", "staff_or_supervised"), smp("unverified", "student_upload"), smp("unverified", "student_upload")],
+        [smp("proctored"), smp("canvas"), smp("unverified")],  # an old server: no source, provenance rule
+        [smp("unverified", "take_home")],
+        [smp("unverified", "unknown"), smp("unverified", "unknown")],  # nothing known: no split to give
+        [],
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", APPROVALS_RUN],
+        input=json.dumps({"live": str(SUITE / "live.js"), "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    mixed, uploads, old, one, unknown, empty = json.loads(run.stdout)
+    assert mixed["a"] == {"counted": 4, "byYou": 4, "supervised": 1, "takeHome": 2, "shared": 1, "uploads": 0, "unknown": 0}
+    assert mixed["words"] == "all approved by you (2 take-home collections and 1 shared paper count at a lower weight)"
+    assert mixed["bare"] == "all approved by you"
+    assert uploads["a"]["byYou"] == 1 and uploads["a"]["uploads"] == 2
+    assert uploads["words"] == "1 approved by you, 2 student uploads"
+    assert old["a"] == {"counted": 3, "byYou": 2, "supervised": 2, "takeHome": 0, "shared": 0, "uploads": 1, "unknown": 0}
+    assert old["words"] == "2 approved by you, 1 student upload"
+    assert old["how"] == ["Supervised sitting", "Imported", "Student upload"]
+    assert one["words"] == "all approved by you (1 take-home collection counts at a lower weight)"
+    assert one["how"] == ["Take-home collection approved by you"]
+    assert unknown["a"]["unknown"] == 2 and unknown["words"] == ""
+    assert empty["a"]["counted"] == 0 and empty["words"] == ""
+    for c in (mixed, uploads, old, one):
+        assert "teacher-approved" not in c["words"]
+
+
+def test_side_by_side_past_paper_table_says_how_each_paper_was_approved():
+    page = _evidence_page()
+    assert "Live.howAdded(p)" in page and "addSources(ev,st)" in page
+    assert "teacher-approved" not in page
 
 
 # The packet's inline script, run for real under node: the stored analysis is in
@@ -3132,7 +3553,7 @@ def test_packet_card_describes_a_listed_habit_in_the_neutral_words_of_writing_st
     habits = out["habits"]
     assert "This is one of the habits furthest from Ada\u2019s usual range in this paper, by Original\u2019s measure." in habits
     assert "outside" not in habits
-    assert "<b>What this habit measures:</b> How often dashes (like this) interrupt or extend a sentence." in habits
+    assert "<b>What this habit measures:</b> How often a dash (an em dash, an en dash or a double hyphen) appears, per 100 words, including dashes in number ranges." in habits
     # 0.1 against 0.5: lower by 0.40, on the scale the page names.
     assert "Here the paper is lower than Ada\u2019s usual by 0.40, on a scale from 0 to 1." in habits
     assert "5 counted samples" in habits
@@ -3154,13 +3575,14 @@ def test_packet_with_an_unknown_approved_count_prints_no_count_and_says_so():
     "counts,said,not_said",
     [
         ({"authenticated_count": 5, "effective_sample_count": 3}, "A paper on a new topic or in a new genre", "inconclusive"),
-        ({"authenticated_count": 5, "effective_sample_count": 2.9}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 3, "effective_sample_count": 0}, "\u201cBuilding\u201d", None),
-        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cNeeds more\u201d", None),
+        ({"authenticated_count": 3, "effective_sample_count": 0}, "A paper on a new topic or in a new genre", "inconclusive"),
+        ({"authenticated_count": 2, "effective_sample_count": 2}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 1, "effective_sample_count": 1}, "\u201cBuilding\u201d", None),
+        ({"authenticated_count": 0, "effective_sample_count": 0}, "\u201cNeeds more\u201d", None),
         ({"authenticated_count": 5}, "could not read this baseline", "\u201cBuilding\u201d"),
         ({}, "could not read this baseline", "\u201cNeeds more\u201d"),
     ],
-    ids=["ready", "five-barely-counting", "three-samples", "one-sample", "no-effective-count", "no-counts"],
+    ids=["ready", "three-samples", "two-samples", "one-sample", "no-samples", "no-effective-count", "no-counts"],
 )
 def test_packet_falls_back_to_the_counts_stored_with_the_analysis_when_readiness_fails(counts, said, not_said):
     out = _packet_run(counts, student=[200, {"samples": _samples(3)}])  # readiness: 500
@@ -3199,7 +3621,23 @@ def test_packet_trusts_a_fresh_readiness_verdict_only_when_it_is_one_of_the_serv
 def test_packet_keeps_the_thin_baseline_caution_when_the_sample_list_is_missing(student, table_says):
     out = _packet_run({"authenticated_count": 1, "effective_sample_count": 1}, student=student)
     assert table_says in out["baseline"]
-    assert "\u201cNeeds more\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+    assert "\u201cBuilding\u201d" in out["baseline"] and "treat this reading as inconclusive" in out["baseline"]
+
+
+@needs_node
+def test_packet_says_a_take_home_exam_was_approved_by_you_and_a_student_upload_was_not():
+    counts = {"authenticated_count": 3, "effective_sample_count": 3}
+    samples = [
+        {"index": 0, "assignment": "Exam", "provenance": "unverified", "source": "take_home", "submitted_at": "2025-01-20"},
+        {"index": 1, "assignment": "Shared", "provenance": "unverified", "source": "shared_paper", "submitted_at": "2025-01-21"},
+        {"index": 2, "assignment": "Own", "provenance": "unverified", "source": "student_upload", "submitted_at": "2025-01-22"},
+    ]
+    out = _packet_run(counts, student=[200, {"authenticated_count": 3, "samples": samples}])
+    assert "<b>3 counted samples</b> (2 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 3 samples, 2 approved by you (1 take-home collection and 1 shared paper count at a lower weight), 1 student upload." in out["baseline"]
+    assert '<span class="how">Take-home collection approved by you</span>' in out["baseline"]
+    assert '<span class="how">Shared paper approved by you</span>' in out["baseline"]
+    assert out["baseline"].count('<span class="how">Student upload</span>') == 1
 
 
 def _mixed_samples() -> list:
@@ -3212,14 +3650,14 @@ def _mixed_samples() -> list:
 
 
 @needs_node
-def test_packet_counts_teacher_approved_samples_apart_from_counted_ones_and_uses_baseline_words():
+def test_packet_counts_samples_approved_by_you_apart_from_counted_ones_and_uses_baseline_words():
     counts = {"authenticated_count": 5, "effective_sample_count": 4}
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    # The server's count is "counted"; the sample list says how many of them a teacher approved.
-    assert "<b>5 counted samples</b> (4 teacher-approved)" in out["sub"]
-    assert "On file now: 5 samples, 4 teacher-approved and 1 student upload." in out["baseline"]
+    # The server's count is "counted"; the sample list says how many of them you approved.
+    assert "<b>5 counted samples</b> (4 approved by you, 1 student upload)" in out["sub"]
+    assert "On file now: 5 samples, 4 approved by you, 1 student upload." in out["baseline"]
     # The provenance words are the ones baseline.html uses.
     for word in ("Supervised sitting", "Verified by teacher", "Imported", "Student upload"):
         assert f'<span class="how">{word}</span>' in out["baseline"], word
@@ -3234,7 +3672,7 @@ def test_packet_gives_no_teacher_approved_split_beside_a_count_the_record_no_lon
     out = _packet_run(
         counts, student=[200, {"authenticated_count": 5, "samples": _mixed_samples()}]
     )
-    assert "<b>4 counted samples</b>" in out["sub"] and "teacher-approved" not in out["sub"]
+    assert "<b>4 counted samples</b>" in out["sub"] and "approved by you" not in out["sub"]
     assert "This analysis compared the paper with 4 counted samples; 5 are on file now." in out["baseline"]
 
 
@@ -3271,7 +3709,7 @@ def test_baseline_page_draws_the_student_before_the_sealed_list_has_loaded():
     # student's own baseline needs only two, so it is drawn without waiting for it.
     out = _baseline_run(early=300, delay={"/bluebook/submissions": 900})
     early = out["early"]
-    assert early["meta"] == "4 teacher-approved samples \u00b7 1 student upload"
+    assert early["meta"] == "5 samples: 4 approved by you, 1 student upload"
     assert "5 counted samples" in early["short"]
     assert 'data-act="approve"' not in early["sealed"]
     # ...and the sealed exams are there once they arrive.
@@ -3283,13 +3721,13 @@ def test_baseline_page_does_not_say_how_many_samples_a_student_has_when_it_could
     out = _baseline_run(failStudentAfterWrite=True)
     lines = out["after"]["lines"]
     assert lines[0] == "Added as sample 6. The count could not be refreshed just now. Reload the page to see it."
-    assert not [line for line in lines if "now has" in line or "teacher-approved sample" in line]
+    assert not [line for line in lines if "now has" in line or "approved by you" in line]
 
 
 @needs_node
 def test_baseline_page_still_says_how_many_when_the_follow_up_read_works():
     out = _baseline_run()
-    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 teacher-approved samples."
+    assert out["after"]["lines"][0] == "Added as sample 6. s1 now has 5 samples approved by you."
 
 
 @needs_node
@@ -3478,29 +3916,67 @@ def test_settings_page_shows_a_platform_admin_by_name_and_a_signed_in_account_ca
 
 
 # ── Bluebook Sessions (bluebook.html) ─────────────────────────────────────────
-# Owner decision 2026-10-11: the Bluebook pill on a teacher page opens this suite
+# Owner decision 2026-10-11: the sessions pill on a teacher page opens this suite
 # page; /bluebook/ itself is the public sign-up and learn site, and the Bluebook
 # app opens one exam from a link (#exam/<id>, #live/<id>; demo/bluebook/deep-link.jsx).
+# Owner decision 2026-11-20 (W3): one top bar for both apps. Its switch is the only
+# place the bare word "Collections" names a place (the Collections app), so this
+# suite page's pill is "Your collections" (#361: a student sits a collection) and
+# the same word never means two places.
 
 _PILL = re.compile(r'<a class="pill[^"]*" href="([^"]*)"[^>]*>(?:<svg.*?</svg>)?([^<]*)</a>', re.S)
+_SWITCH = re.compile(r'<div class="app-switch"[^>]*>(.*?)</div>', re.S)
 
 
-def _bluebook_pills(path: Path) -> list[str]:
-    return [href for href, label in _PILL.findall(path.read_text(encoding="utf-8")) if label.strip() == "Collections"]
+def _pills(path: Path) -> list[tuple[str, str]]:
+    return [(href, label.strip()) for href, label in _PILL.findall(_shell_nav(path))]
 
 
+@needs_node
 @pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
-def test_the_bluebook_pill_opens_the_suite_page_for_teachers_and_the_app_for_students(path):
-    want = "/bluebook/" if path.name in STUDENT_PAGES else "bluebook.html"
-    assert _bluebook_pills(path) == [want], path.name
+def test_the_collections_pill_opens_the_suite_page_for_teachers_and_students_have_none(path):
+    pills = _pills(path)
+    sessions = [href for href, label in pills if label == "Your collections"]
+    assert sessions == ([] if path.name in STUDENT_PAGES else ["bluebook.html"]), path.name
+    # No page pill says Collections any more: the switch names the app.
+    assert "Collections" not in [label for _, label in pills], path.name
+    want = ["My voice", "My work"] if path.name in STUDENT_PAGES else ["Overview", "Students", "Submissions", "Your collections", "Reports"]
+    assert [label for _, label in pills] == want, path.name
 
 
-def test_the_bluebook_pill_is_marked_current_only_on_the_bluebook_page():
-    page = (SUITE / "bluebook.html").read_text(encoding="utf-8")
-    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in page
+@needs_node
+@pytest.mark.parametrize("path", PAGES, ids=lambda p: p.name)
+def test_the_app_switch_names_both_apps_and_marks_original_current(path):
+    (switch,) = _SWITCH.findall(_shell_nav(path))
+    collections = "/bluebook/" if path.name in STUDENT_PAGES else "/bluebook/#dashboard"
+    home = "voice.html" if path.name in STUDENT_PAGES else "index.html"
+    assert switch == f'<a href="{collections}">Collections</a><a href="{home}" aria-current="true">Original</a>', path.name
+
+
+@needs_node
+def test_the_collections_pill_is_marked_current_only_on_the_bluebook_page():
+    nav = _shell_nav(SUITE / "bluebook.html")
+    assert '<a class="pill on" href="bluebook.html" aria-current="page">' in nav
     for path in PAGES:
         if path.name != "bluebook.html":
+            assert 'href="bluebook.html" aria-current' not in _shell_nav(path), path.name
             assert 'href="bluebook.html" aria-current' not in path.read_text(encoding="utf-8"), path.name
+
+
+@needs_node
+def test_a_students_own_pages_mark_students_as_their_section_not_their_page():
+    for name in ("baseline.html", "writing-state.html", "evidence.html", "packet.html"):
+        nav = _shell_nav(SUITE / name)
+        assert '<a class="pill on" href="students.html" aria-current="true">' in nav, name
+        assert 'aria-current="page"' not in nav, name
+    assert '<a class="pill on" href="students.html" aria-current="page">' in _shell_nav(SUITE / "students.html")
+    # Settings marks no pill, only its own menu item.
+    settings = _shell_nav(SUITE / "settings.html")
+    assert "pill on" not in settings and '<a href="settings.html" aria-current="page">' in settings
+
+
+def test_live_js_hides_the_switch_to_collections_with_the_other_collections_links(live_js):
+    assert """'#me-menu a[href^="/bluebook/"], a.head-link[href^="/bluebook/"], .app-switch a[href^="/bluebook/"]'""" in live_js
 
 
 def _bluebook_page() -> str:
@@ -3686,7 +4162,7 @@ def test_bluebook_page_lists_past_sessions_newest_first_with_counts_from_the_sea
     assert re.findall(r'<div class="s-t">([^<]*)</div>', s["sessions"]) == ["Midterm", "In-class essay", "Reformation causes"]
     hrefs = re.findall(r'<a class="sess" href="([^"]*)"', s["sessions"])
     assert hrefs == ["/bluebook/#exam/e-new", "/bluebook/#exam/e-mid", "/bluebook/#exam/e-old"]
-    assert s["count"] == "3 sessions · newest first"
+    assert s["count"] == "3 collections · newest first"
     # e-new is open with one ungraded booklet; e-mid has two, both graded, one in a baseline.
     assert "Open now" in s["sessions"] and "1 sealed · 1 to review" in s["sessions"]
     assert "All reviewed" in s["sessions"] and "2 sealed · 1 in a baseline" in s["sessions"]
@@ -3709,7 +4185,7 @@ def test_bluebook_page_asks_about_baselines_for_the_visible_rows_only_six_at_a_t
     asked = sorted(c for c in out["calls"] if c.endswith("/baseline"))
     assert asked == [f"/bluebook/exams/e{i:02d}/baseline" for i in range(4, 10)]
     assert out["max"] <= 6
-    assert out["before"]["more"] == "Show all 10 sessions"
+    assert out["before"]["more"] == "Show all 10 collections"
 
 
 @needs_node
@@ -3727,8 +4203,8 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
     }}]
     after = out["after"]
     assert after["err"] == ""
-    assert "Session is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
-    assert "<b>My exams</b>" in after["chip"]
+    assert "Collection is open." in after["chip"] and "<b>HIST 210</b> roster" in after["chip"]
+    assert "<b>My collections</b>" in after["chip"]
     assert '<a href="/bluebook/#live/e-made">Open the live room</a>' in after["chip"]
     assert '<a href="/bluebook/#exam/e-made">Manage it in Collections</a>' in after["chip"]
     assert re.findall(r'<a class="sess" href="([^"]*)"', after["sessions"])[0] == "/bluebook/#exam/e-made"
@@ -3745,10 +4221,10 @@ def test_bluebook_page_opens_a_session_and_says_how_students_reach_it():
         ),
         (
             {"ok": False, "status": 422, "data": {"detail": [{"msg": "field required"}]}},
-            "The session could not be saved. Your questions are still here.",
+            "The collection could not be saved. Your questions are still here.",
         ),
         ({"ok": False, "status": 0, "data": None}, "Could not reach the server. Your questions are still here."),
-        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The session could not be saved. Your questions are still here."),
+        ({"ok": True, "status": 201, "data": {"detail": "no id"}}, "The collection could not be saved. Your questions are still here."),
     ],
     ids=["server-sentence", "validation-list", "no-network", "no-id"],
 )
@@ -3756,7 +4232,7 @@ def test_bluebook_page_shows_the_servers_refusal_as_text(reply, said):
     out = _bluebook_run(**_bb_scenario(created=reply), form={"questions": ["A question."]})
     # Set as textContent, so markup in the server's words is shown, never run.
     assert out["after"]["err"] == said
-    assert "Session is open." not in out["after"]["chip"]
+    assert "Collection is open." not in out["after"]["chip"]
 
 
 @needs_node
@@ -3793,7 +4269,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     s = out["before"]
     assert '<a href="/bluebook/#courses">Add a course in Collections first</a>' in s["courses"]
     assert s["launchDisabled"] is True and s["sum"] == "Choose a class · 1 question · 50 minutes"
-    assert "No sessions yet. Your first one will appear here." in s["sessions"]
+    assert "No collections yet. Your first one will appear here." in s["sessions"]
 
 
 @needs_node
@@ -3801,7 +4277,7 @@ def test_bluebook_page_sends_a_teacher_with_no_course_to_bluebook_first():
     "scenario,where,said",
     [
         (dict(routes={"/bluebook/courses": [500, {"detail": "boom"}]}), "courses", "Your classes could not be loaded just now."),
-        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your sessions could not be loaded just now."),
+        (dict(bbExams=[200, {"exams": "nope"}]), "sessions", "Your collections could not be loaded just now."),
         (dict(rejectOn=["^/bluebook/submissions$"]), "note", "Sealed booklets could not be counted just now."),
     ],
     ids=["courses-500", "exams-not-a-list", "sealed-down"],
@@ -3818,3 +4294,251 @@ def test_bluebook_page_gates_like_the_other_teacher_pages():
     out = _bluebook_run(local={}, health=[200, {"environment": "pilot"}])
     assert "Sign in to continue" in out["before"]["gate"]
     assert not [c for c in out["calls"] if c.startswith("/bluebook/")]
+
+
+# ── Side by side (evidence.html, ADR-013 teacher view) ──────────────────────
+# The teacher's side-by-side page reads the staff-only `evidence` field the
+# last analysis carried (EVIDENCE_PASSAGES_ENABLED=1); with the flag off the
+# field is null, Writing State shows no link, and the page says there is
+# nothing to show. Its words come from demo/original/js/evidence-view.js,
+# templated from numbers (demo/bluebook/unit/evidence-view.test.mjs).
+
+
+def _evidence_page() -> str:
+    return (SUITE / "evidence.html").read_text(encoding="utf-8")
+
+
+def test_evidence_page_reads_what_writing_state_stores_and_scores_nothing():
+    page = _evidence_page()
+    assert "<title>Original · Side by side</title>" in page
+    assert "sessionStorage.getItem(STORE_KEY)" in page and "STORE_KEY='original_last_result'" in page
+    assert "removeItem(STORE_KEY)" in page
+    for endpoint in ("/score", "/correct", "/baseline"):
+        assert endpoint not in page, f"evidence.html calls {endpoint}"
+    # Teacher-only: the suite's gate sends a student session to Collections.
+    assert "Live.gate(main)" in page
+    # Nothing without the server's evidence field: no field, no comparison.
+    assert "if(!isObj(ev)||!Array.isArray(ev.all_features)){ showEmpty('off',id); return; }" in page
+    # The words are the shared templates, never written inline.
+    assert '<script src="js/evidence-view.js?v=' in page
+    assert '<script src="js/evidence-cards.js?v=' in page
+    for fn in ("EV.noteFor(", "EV.summarize(", "EV.steady(", "EC.card("):
+        assert fn in page, fn
+
+
+def test_evidence_page_keeps_the_starting_point_notice_and_one_testing_slot():
+    page = _evidence_page()
+    assert "<b>This is a starting point, not a verdict.</b>" in page
+    assert page.count("data-testing-notice") == 1
+    # The preliminary chip is the server's own field, shown only when it was sent.
+    assert "renderChip(d.result.preliminary)" in page
+    assert "if(!isObj(pre)||typeof pre.label!=='string') return '';" in page
+
+
+def test_evidence_page_is_keyboard_and_motion_friendly():
+    page = _evidence_page()
+    assert "@media (prefers-reduced-motion:reduce)" in page
+    assert ".paper summary:focus-visible" in page
+    assert '<details class="m"' in page
+    # Section headings are real headings, in order.
+    heads = re.findall(r'<h2 class="sec-t" id="(h-[a-z]+)"', page)
+    # h-ruled: rule D, hidden unless sent. h-about: "About the papers", hidden
+    # unless the server sent a paper profile.
+    assert heads == ["h-summary", "h-ruled", "h-diff", "h-steady", "h-all", "h-past", "h-about"]
+
+
+def test_writing_state_links_to_the_side_by_side_page_only_with_evidence():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    link = re.search(r'<a [^>]*id="tri-evidence"[^>]*>', state).group(0)
+    assert " hidden" in link and 'href="evidence.html"' in link
+    assert ".tri-btn[hidden]{display:none;}" in state
+    assert "const hasEvidence=r=>!!(r&&r.evidence&&typeof r.evidence==='object'&&Array.isArray(r.evidence.all_features));" in state
+    assert "a.hidden=!on;" in state
+    # Kept for the side-by-side page only when the server sent it.
+    assert "if(hasEvidence(r)) keep.result.evidence=r.evidence;" in state
+    assert "if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;" in state
+    assert "if(r.rule_d&&typeof r.rule_d==='object') keep.result.rule_d=r.rule_d;" in state
+
+
+def test_evidence_page_shows_rule_d_only_when_sent_with_its_testing_label():
+    page = _evidence_page()
+    assert '<section id="s-ruled" aria-labelledby="h-ruled" hidden>' in page
+    assert '<a href="#s-ruled" id="toc-ruled" hidden>' in page
+    assert "if(!isObj(rd)||typeof rd.status!=='string') return;" in page
+    assert "renderRuleD(d.result.rule_d);" in page
+    # Every server sentence passes the banned-wording check before it is shown.
+    body = page[page.index("function renderRuleD(") : page.index("async function render(")]
+    assert "esc(t)" in body and "EV.clean(t,'')" in body
+    assert "EV.clean(rd.summary,'')" in body and "EV.clean(rd.confidence_note,'')" in body
+
+
+def test_evidence_templates_carry_none_of_the_banned_wording_outside_the_check():
+    code = (SUITE / "js" / "evidence-view.js").read_text(encoding="utf-8")
+    # The banned list itself names the phrases; every other line is clean.
+    body = code[code.index("function isClean(") :]
+    for rx in (r"\bai[- ]detect", r"\bcheat", r"authorship verification", r"\baccura(te|cy)\b", r"generated prose"):
+        assert not re.search(rx, body, re.I), rx
+
+
+# ── Writing State opens .docx and .pdf ────────────────────────────────────────
+
+
+def test_writing_state_file_control_accepts_docx_pdf_and_txt():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    ctl = re.search(r'<label class="an-file">(.*?)</label>', state).group(1)
+    assert "or open a .docx, .pdf or .txt file" in ctl
+    accept = re.search(r'accept="([^"]*)"', ctl).group(1).split(",")
+    assert {".docx", ".pdf", ".txt"} <= set(accept)
+    # Errors land in the existing role=status element.
+    assert 'id="an-msg" role="status"' in state
+
+
+def test_writing_state_sends_docx_and_pdf_only_to_the_extraction_route():
+    state = (SUITE / "writing-state.html").read_text(encoding="utf-8")
+    posts = re.findall(r"\+'(/[a-z]+)',\{method:'POST'", state)
+    # The paper itself only ever goes to /score; a file goes to /upload and nowhere else.
+    assert sorted(posts) == ["/score", "/upload"]
+    assert "fd.append('file',f)" in state
+    assert "Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd})" in state
+    # Never the baseline routes: analysing a paper adds nothing to a baseline.
+    assert "upload-batch" not in state and "/baseline/upload" not in state
+    assert "fetch(" not in state
+    # .txt stays in the browser; docx/pdf take the server path.
+    assert "openDocument(f,ext); return;" in state
+    assert "rd.readAsText(f)" in state
+    # Honest failures.
+    assert "This file has no text Original can read. If it is a scan, paste the text instead." in state
+    assert "FILE_LIMIT=10*1024*1024" in state and "TXT_LIMIT=1048576" in state
+    # A late server reply never overwrites newer input.
+    assert "const my=++openSeq;" in state and "if(my!==openSeq) return;" in state
+    assert "$('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });" in state
+
+
+# ── A sealed Collections exam analysed against the baseline ─────────────────
+
+
+SEALED_JOIN = re.compile(r"function sealedPaperText\(sub\)\{.*?\}\n")
+
+
+@needs_node
+def test_writing_state_joins_a_sealed_exam_exactly_as_the_baseline_approval_does():
+    from original.routers.bluebook_baselines import _baseline_text
+
+    fn = SEALED_JOIN.findall(_writing_state())
+    assert len(fn) == 1, "sealedPaperText must stay a one-line function"
+    samples = [
+        {"answers": ["  First answer.\n", "", "Second\nanswer.  ", "   "], "text": "Question 1.\nFirst"},
+        {"answers": ["Only one."], "text": "Only one."},
+        {"answers": [], "text": "  Question 1.\nOld text with headings.\n"},
+        {"answers": ["", "  "], "text": "Question 1.\nx"},
+        {"answers": [None, "Kept", "\tTabbed\t"], "text": ""},
+        {"text": None},
+        {},
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", fn[0] + "process.stdout.write(JSON.stringify("
+         "JSON.parse(require('fs').readFileSync(0,'utf8')).map(sealedPaperText)));"],
+        input=json.dumps(samples), capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [_baseline_text(s) for s in samples]
+
+
+def test_writing_state_loads_a_sealed_exam_but_never_analyses_it_by_itself():
+    state = _writing_state()
+    assert "get('submission')" in state
+    # The staff-only detail route, for this submission only.
+    assert "Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId))" in state
+    body = state[state.index("async function loadSealed(){") :]
+    body = body[: body.index("\n  }\n")]
+    # The paper is checked to be this student's before anything is filled.
+    assert "if(String(d.student_id||'')!==S.id){ sealedFail(" in body
+    assert body.index("String(d.student_id||'')!==S.id") < body.index("$('an-text').value=text;")
+    # The teacher presses Analyse: loading never scores, never touches a baseline.
+    for never in ("/score", "analyse(", "requestSubmit", ".submit(", "/baseline", "click()"):
+        assert never not in body, never
+    assert "'Loaded from Collections: '+label" in body
+    assert "label=exam+(date?', sealed '+date:'')" in body
+    # Every failure leaves the form empty and says so plainly.
+    fail = state[state.index("function sealedFail(text){") :]
+    fail = fail[: fail.index("\n  }\n")]
+    assert "$('an-text').value=''; $('an-assign').value='';" in fail and "msg(text,true)" in fail
+    for words in (
+        "This sealed booklet was not found in your workspace, so nothing was loaded.",
+        "You do not have access to this sealed booklet, so nothing was loaded.",
+        "This sealed booklet was written by a different student, so it was not loaded.",
+    ):
+        assert words in body
+
+
+def test_a_sealed_exam_link_wins_over_the_kept_last_analysis():
+    state = _writing_state()
+    restore = state[state.index("  function restoreLast(){") :]
+    restore = restore[: restore.index("\n  }\n")]
+    # The kept record is shown on a ?submission= link only when it is that
+    # exam's own analysis; otherwise the sealed exam loads.
+    assert "if(S.subId&&recSub!==S.subId) return false;" in restore
+    assert "else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }" in state
+    # The record says which sealed exam it analysed, and only when the box
+    # still held exactly that exam's text.
+    assert "collections_submission:S.resultSub," in state
+    assert "S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';" in state
+
+
+def test_submissions_rows_offer_analysis_beside_the_row_link_never_inside_it():
+    page = (SUITE / "submissions.html").read_text(encoding="utf-8")
+    row = page[page.index("  function rowHTML(r){") :]
+    row = row[: row.index("\n  }\n")]
+    # The action follows the closing </a>: no link nested in the row link.
+    assert "'</a>'+actHTML(r)+'</div>'" in row
+    act = page[page.index("  function actHTML(r){") :]
+    act = act[: act.index("\n  }\n")]
+    assert "'writing-state.html?student='+encodeURIComponent(sid)+'&submission='+encodeURIComponent(String(r.id))" in act
+    assert ">Analyse against baseline</a>" in act
+    assert "'baseline.html?student='+encodeURIComponent(sid)+'#add-writing'" in act
+    assert ">Add writing first</a>" in act
+    # Who has a baseline comes from the shared roster, never a request of its own.
+    assert "await Live.roster()" in page and "Live.api(" not in page
+    assert "(counted.get(sid)||0)>0" in act
+    # Nothing until the roster answers: no action is offered on a guess.
+    assert "if(!counted||!sid" in act
+
+
+def test_submissions_never_names_a_student_by_placeholder_or_links_a_removed_one():
+    """2026-11-17, live pilot: a sealed booklet whose student had since been removed
+    from every roster showed the exam app's stock "Candidate No. 00042" as its
+    student and offered "Add writing first", a link to a student page that
+    cannot open. A removed student is now said to be one, with no link."""
+    code = _inline_scripts(SUITE / "submissions.html")
+    assert "'A student no longer on your roster'" in code
+    assert r"/^Candidate No\.\s*\d+$/" in code  # the stock placeholder is never a name
+    assert "if(!r.named&&!counted.has(sid)) return '<div class=\"q-act\"><span class=\"q-gone\">No longer on your roster</span></div>';" in code
+    assert "String(r.student_id||'Unknown student')" not in code  # never an id for a name
+
+
+# ── About the papers (paper_profile, teacher only) ───────────────────────────
+# Writing State and the side-by-side page draw the server's paper_profile with
+# one builder (js/paper-profile.js), only when evidence.paper_profile was sent
+# (PAPER_PROFILE_ENABLED, off by default). No student page loads it.
+
+
+@pytest.mark.parametrize("name", ["writing-state.html", "evidence.html"])
+def test_staff_pages_draw_the_paper_profile_only_when_sent(name):
+    page = (SUITE / name).read_text(encoding="utf-8")
+    assert '<script src="js/paper-profile.js?v=' in page
+    assert "PP.has(ev)" in page and "PP.table(ev.paper_profile" in page
+    assert "About the papers" in page and "not part of the comparison" in page
+    # The section starts hidden: nothing new appears unless the server sent it.
+    assert re.search(r'id="(?:pp|s-about)"[^>]*\bhidden\b', page)
+
+
+def test_no_student_page_loads_the_paper_profile():
+    for name in sorted(STUDENT_PAGES):
+        assert "paper-profile" not in (SUITE / name).read_text(encoding="utf-8"), name
+
+
+def test_paper_profile_words_are_plain():
+    code = (SUITE / "js" / "paper-profile.js").read_text(encoding="utf-8").lower()
+    for bad in ("ai detection", "cheat", "authorship verification", "fingerprint", "score", "verdict"):
+        assert bad not in code, bad
+    assert "best guess" not in code or "citation style" in code

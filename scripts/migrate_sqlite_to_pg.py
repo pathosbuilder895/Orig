@@ -67,6 +67,7 @@ from original.db.models.live import (
     BluebookEnrollment,
     BluebookExam,
     BluebookInvite,
+    BluebookJoinLink,
     BluebookSession,
     BluebookSubmission,
     CalibrationRun,
@@ -81,7 +82,10 @@ from original.db.models.live import (
     StudentName,
     StudentPastPaper,
     BluebookExamDraft,
+    UserDisplayPrefs,
+    RuleDProfile,
     UserLastLocation,
+    BluebookPhonePark,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -1178,6 +1182,47 @@ class _BluebookInviteMigrator(_Migrator):
         ]
 
 
+class _BluebookJoinLinkMigrator(_Migrator):
+    """Forwardable course sign-up links (2026-10). Only token hashes exist
+    in either store, so copying them moves no usable credential."""
+
+    name = "bluebook_join_links"
+    model = BluebookJoinLink
+    pk = "link_id"
+
+    _COLS = (
+        "link_id",
+        "tenant_id",
+        "course_id",
+        "token_hash",
+        "created_by",
+        "created_at",
+        "voided_at",
+    )
+    _TS = {"created_at", "voided_at"}
+
+    def _canon(self, values):
+        return {
+            c: (_canon_ts(v) if c in self._TS else v)
+            for c, v in zip(self._COLS, values, strict=True)
+        }
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_join_links").fetchall()
+        return [self._canon(r) for r in rows]
+
+    def to_model(self, row):
+        return BluebookJoinLink(
+            **{c: (_parse_ts(row[c]) if c in self._TS else row[c]) for c in self._COLS}
+        )
+
+    def read_pg(self, session):
+        return [
+            self._canon([getattr(i, c) for c in self._COLS])
+            for i in session.query(BluebookJoinLink).all()
+        ]
+
+
 class _ConsumedAttestationMigrator(_Migrator):
     """T-69: the proctor-attestation single-use ledger. No tenant FK,
     mirroring audit_log — see the tenants-referenced-set comment near
@@ -1545,6 +1590,106 @@ class _UserLastLocationMigrator(_Migrator):
         return out
 
 
+class _UserDisplayPrefsMigrator(_Migrator):
+    """Each account's chosen text font and size (2026-11). Keyed by the
+    account id verbatim in both schemas."""
+
+    name = "user_display_prefs"
+    model = UserDisplayPrefs
+    pk = "account_key"
+    _COLS = ("account_key", "font", "size", "updated_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM user_display_prefs").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["updated_at"] = _parse_ts(row["updated_at"])
+        return UserDisplayPrefs(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(UserDisplayPrefs).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["updated_at"] = _canon_ts(row["updated_at"])
+            out.append(row)
+        return out
+
+
+class _RuleDProfileMigrator(_Migrator):
+    """Rule D profiles, one per approved past paper (2026-11). Keyed by the full scoped
+    student id plus the text hash, verbatim in both schemas."""
+
+    name = "rule_d_profiles"
+    model = RuleDProfile
+    pk = "profile_key"
+    _COLS = ("profile_key", "student_id", "tenant_id", "text_sha256", "data", "created_at")
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM rule_d_profiles").fetchall()
+        out = []
+        for r in rows:
+            row = dict(zip(self._COLS, r, strict=True))
+            row["created_at"] = _canon_ts(row["created_at"])
+            out.append(row)
+        return out
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        kwargs["created_at"] = _parse_ts(row["created_at"])
+        return RuleDProfile(**kwargs)
+
+    def read_pg(self, session):
+        out = []
+        for p in session.query(RuleDProfile).all():
+            row = {k: getattr(p, k) for k in self._COLS}
+            row["created_at"] = _canon_ts(row["created_at"])
+            out.append(row)
+        return out
+
+
+class _BluebookPhoneParkMigrator(_Migrator):
+    """A student's own parked phone per collection (2026-10). Composite key,
+    like bluebook_exam_drafts."""
+
+    name = "bluebook_phone_parks"
+    model = BluebookPhonePark
+    pk = "park_key"
+    _COLS = (
+        "exam_id", "student_key", "tenant_id", "state", "parked_at", "last_seen_at",
+        "override_by", "override_at", "override_note",
+    )  # fmt: skip
+    _TS = ("parked_at", "last_seen_at", "override_at")
+
+    def _canon(self, row):
+        for k in self._TS:
+            row[k] = _canon_ts(row[k])
+        row["park_key"] = f"{row['exam_id']}:{row['student_key']}"
+        return row
+
+    def read_sqlite(self, conn):
+        rows = conn.execute(f"SELECT {', '.join(self._COLS)} FROM bluebook_phone_parks").fetchall()
+        return [self._canon(dict(zip(self._COLS, r, strict=True))) for r in rows]
+
+    def to_model(self, row):
+        kwargs = {k: row[k] for k in self._COLS}
+        for k in self._TS:
+            kwargs[k] = _parse_ts(row[k])
+        return BluebookPhonePark(**kwargs)
+
+    def read_pg(self, session):
+        return [
+            self._canon({k: getattr(p, k) for k in self._COLS})
+            for p in session.query(BluebookPhonePark).all()
+        ]
+
+
 MIGRATORS: list[_Migrator] = [
     _TenantMigrator(),
     _UserMigrator(),
@@ -1563,6 +1708,7 @@ MIGRATORS: list[_Migrator] = [
     _BluebookSessionMigrator(),
     _BluebookEnrollmentMigrator(),
     _BluebookInviteMigrator(),
+    _BluebookJoinLinkMigrator(),
     _AuditMigrator(),
     _ConsumedAttestationMigrator(),
     _FormationMigrator(),
@@ -1572,6 +1718,9 @@ MIGRATORS: list[_Migrator] = [
     _StudentPastPaperMigrator(),
     _BluebookExamDraftMigrator(),
     _UserLastLocationMigrator(),
+    _UserDisplayPrefsMigrator(),
+    _RuleDProfileMigrator(),
+    _BluebookPhoneParkMigrator(),
 ]
 
 

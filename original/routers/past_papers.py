@@ -15,6 +15,11 @@ feature, drift reading or baseline count (#288/#290). A paper the drift gate
 kept out after approval is ``held`` for the teacher and shows the student
 "pending", since the reason is a score-derived reading.
 
+An approval can be undone (2026-11 alpha, four-paper design): the sample the
+approval added comes back out of the baseline and the paper is pending again,
+so the teacher can approve it later or keep it aside as a held-out paper.
+Nothing else in the baseline, and no exam or submission, is touched.
+
 ``baseline_source`` records whether the paper is a whole paper
 (``independent``) or a section of a longer one (``split``, with
 ``parent_title``), so calibration can keep split-derived baselines apart
@@ -23,7 +28,7 @@ kept out after approval is ``held`` for the teacher and shows the student
 
 from __future__ import annotations
 
-import hashlib
+import sys
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -31,12 +36,13 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import ValidationError
 
 from .. import principal as principal_mod
+from ..features.matter import without_page_breaks
 from ..schemas import AddSampleRequest
-from ..upload_utils import extract_text_from_bytes
-from ._shared import _bluebook_tenant, _repo, _require_staff
+from ..upload_utils import extract_text_from_bytes, strip_upload, text_digest
+from ._shared import _bluebook_tenant, _persist_or_503, _repo, _require_staff
 from .bluebook import _can_touch
 from .bluebook_accounts import _require_student
-from .students_baseline import add_baseline
+from .students_baseline import _hashes_from_samples, add_baseline
 
 router = APIRouter()
 
@@ -63,7 +69,8 @@ def _has_original(tenant_id: str | None) -> bool:
 
 
 def _sha(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+    """Duplicate-check hash: page markers dropped (``upload_utils``)."""
+    return text_digest(text)
 
 
 def _student_view(rec: dict) -> dict:
@@ -126,12 +133,12 @@ def share_past_paper(
                 status_code=422,
                 detail="We could not read that file. Use a PDF, DOCX or TXT file, or paste the text.",
             ) from None
-        body = body.strip()
+        body = strip_upload(body)  # keeps a PDF's tag
     else:
         body = pasted
     if not body:
         raise HTTPException(status_code=422, detail="Add a file or paste the text of your paper.")
-    if len(body) > MAX_TEXT_CHARS:
+    if len(without_page_breaks(body)) > MAX_TEXT_CHARS:  # page markers do not count
         raise HTTPException(status_code=413, detail="This paper is too long to share here.")
     words = len(body.split())
     if words < MIN_WORDS:
@@ -305,3 +312,60 @@ def decline_shared_paper(paper_id: str, request: Request):
         details={"paper_id": paper_id},
     )
     return {"paper_id": paper_id, "status": "declined"}
+
+
+def _approval_indices(state, rec: dict) -> list[int]:
+    """Indices of the baseline samples this paper's approval added, highest
+    first so they can be popped in order. A sample matches only when it has
+    the paper's exact text, the self-upload provenance and the paper's title
+    as its assignment -- the three things the approval wrote -- so a sealed
+    exam or a teacher-added paper that happens to share the text is never
+    taken out with it."""
+    digest = _sha(rec["text"])
+    return [
+        i
+        for i in range(len(state.samples) - 1, -1, -1)
+        if state.samples[i].provenance == "unverified"
+        and (state.samples[i].assignment or "") == rec["title"]
+        and digest in _hashes_from_samples([state.samples[i]])
+    ]
+
+
+@router.post("/bluebook/past-papers/{paper_id}/unapprove")
+def unapprove_shared_paper(paper_id: str, request: Request):
+    """Undo an approval: take the paper back out of the student's baseline
+    and leave it waiting for approval again. Safe to repeat: a paper that is
+    already pending stays pending and nothing is removed."""
+    rec = _owned_paper(paper_id, request)
+    if rec["status"] == "pending":
+        return {"paper_id": paper_id, "status": "pending", "removed": 0}
+    if rec["status"] != "approved":
+        raise HTTPException(
+            status_code=409,
+            detail="This paper is not in the baseline, so there is nothing to undo.",
+        )
+    state = _repo().get(rec["student_id"])
+    indices = _approval_indices(state, rec) if state is not None else []
+    if indices:
+        for index in indices:
+            state.remove_sample(index)
+        _persist_or_503(state)
+        # The fused score keeps a per-student profile of raw baseline text in
+        # process (FUSED_SCORE_* flags); drop it, as baseline removal does.
+        fusion_peers = sys.modules.get("original.fusion.peers")
+        if fusion_peers is not None:
+            fusion_peers.clear_student(rec["student_id"])
+    _repo().set_past_paper_status(paper_id, "pending", _actor(request))
+    _repo().log_audit(
+        action="past_paper_unapprove",
+        student_id=rec["student_id"],
+        tenant_id=rec["tenant_id"],
+        actor=_actor(request),
+        result="pending",
+        details={
+            "paper_id": paper_id,
+            "samples_removed": len(indices),
+            **({"sample_count_after": state.sample_count} if indices else {}),
+        },
+    )
+    return {"paper_id": paper_id, "status": "pending", "removed": len(indices)}

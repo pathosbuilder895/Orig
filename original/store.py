@@ -665,6 +665,48 @@ def _init_schema(conn: sqlite3.Connection) -> None:
             updated_at      TEXT NOT NULL
         )
     """)
+    # Each account's chosen text font and size (2026-11) — mirrors alembic
+    # revision a1d5f3c7e9b2.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_display_prefs (
+            account_key TEXT PRIMARY KEY,
+            font        TEXT NOT NULL DEFAULT 'serif',
+            size        TEXT NOT NULL DEFAULT 'default',
+            updated_at  TEXT NOT NULL
+        )
+    """)
+    # Rule D character profiles, one row per student per approved past paper
+    # (2026-11) — mirrors alembic revision c3e7a9d1f5b8. Derived n-gram and
+    # feature statistics only; deleted with the student and with the approval.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS rule_d_profiles (
+            profile_key  TEXT PRIMARY KEY,
+            student_id   TEXT NOT NULL,
+            tenant_id    TEXT,
+            text_sha256  TEXT NOT NULL,
+            data         TEXT NOT NULL,
+            created_at   TEXT NOT NULL
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS ix_rule_d_profiles_student ON rule_d_profiles (student_id)"
+    )
+    # A student's own parked phone per collection (2026-10) — mirrors alembic
+    # revision a7e3c5d9f2b4.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_phone_parks (
+            exam_id       TEXT NOT NULL,
+            student_key   TEXT NOT NULL,
+            tenant_id     TEXT NOT NULL,
+            state         TEXT NOT NULL DEFAULT '',
+            parked_at     TEXT,
+            last_seen_at  TEXT,
+            override_by   TEXT NOT NULL DEFAULT '',
+            override_at   TEXT,
+            override_note TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (exam_id, student_key)
+        )
+    """)
     # Bluebook self-serve (2026-09) — mirrors alembic revision e8d2b4a6c1f0.
     # PRAGMA-guarded ALTERs (no migration ladder in SQLite, same idiom as
     # _sub_cols above); every added column is nullable or defaulted so an
@@ -734,6 +776,23 @@ def _init_schema(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE INDEX IF NOT EXISTS idx_bluebook_invites_user
             ON bluebook_invites(user_id)
+    """)
+    # Forwardable course sign-up links (2026-10). Only the sha256 of the
+    # token is stored; voided_at set = turned off or replaced.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bluebook_join_links (
+            link_id     TEXT PRIMARY KEY,
+            tenant_id   TEXT NOT NULL,
+            course_id   TEXT NOT NULL,
+            token_hash  TEXT NOT NULL UNIQUE,
+            created_by  TEXT NOT NULL,
+            created_at  TEXT NOT NULL,
+            voided_at   TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_bluebook_join_links_course
+            ON bluebook_join_links(course_id)
     """)
     conn.commit()
 
@@ -818,8 +877,75 @@ def reset_memory_conn() -> None:
     _MEMORY_GENERATION += 1
 
 
+def _extra_vectors_doc(sample) -> dict:
+    """``{"extra_vectors": {...}}`` for a sample with other measurements, else {}."""
+    extra = getattr(sample, "extra_vectors", None)
+    if not extra:
+        return {}
+    doc: dict = {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    rules = getattr(sample, "extra_vector_rules", None)
+    if rules:  # rules-version stamp per measurement (features/rules_stamp.py)
+        doc["extra_vector_rules"] = {
+            k: v if isinstance(v, str) else int(v) for k, v in sorted(rules.items())
+        }
+    return doc
+
+
+def _extra_vector_rules_from_doc(s: dict) -> dict | None:
+    """Stored rules-version stamps (features/rules_stamp.py), or None
+    (unstamped: see UNSTAMPED_RULES_VERSION in features/matter.py and
+    features/paragraphs.py). A value that is not a stamp is dropped."""
+    from .features import rules_stamp
+
+    raw = s.get("extra_vector_rules")
+    if not raw or not isinstance(raw, dict):
+        return None
+    out = {k: v for k, v in raw.items() if rules_stamp.parse(v) is not None}
+    return out or None
+
+
+def _part_overrides_doc(sample) -> dict:
+    """``{"part_overrides": {...}}`` for a sample with a teacher's choice of
+    parts (features/part_overrides.py), else {}: a sample with none stores
+    exactly as before."""
+    choice = getattr(sample, "part_overrides", None)
+    return {"part_overrides": choice} if choice else {}
+
+
+def _extra_vectors_from_doc(s: dict, student_id: str) -> dict | None:
+    """Stored other measurements, read with ``.get()``; a vector of the wrong
+    length is dropped (that paper then counts as not yet measured that way)."""
+    raw = s.get("extra_vectors")
+    if not raw:
+        return None
+    out = {}
+    for key, values in raw.items():
+        v = np.array(values, dtype=np.float64)
+        if v.shape != (FEATURE_DIM,):
+            log.warning(
+                "Stored %s vector for student %s has dimension %s; ignoring it.",
+                key,
+                student_id,
+                v.shape,
+            )
+            continue
+        out[key] = v
+    return out or None
+
+
+def _refuse_measurement_view(state: StudentState) -> None:
+    """A state swapped to another measurement (original/measurement.py) holds
+    non-default vectors in ``vector``; persisting it would mix versions."""
+    if getattr(state, "_measurement_view", None) is not None:
+        raise ValueError(
+            f"refusing to store a {state._measurement_view!r} measurement view of "
+            f"{state.student_id}; store the original state"
+        )
+
+
 def _serialize(state: StudentState) -> str:
     """Convert StudentState to a JSON string for SQLite storage."""
+    _refuse_measurement_view(state)
     samples = [
         {
             "text": s.text,
@@ -843,6 +969,11 @@ def _serialize(state: StudentState) -> str:
             # legacy/summary-less samples. Not yet read by any scorer (Task 9
             # wires resolve_composition_mode to it).
             "composition_summary": s.composition_summary,
+            # Versioned measurements (additive): written only when present,
+            # so a document with none is byte-identical to before.
+            **_extra_vectors_doc(s),
+            # A teacher's choice of parts (additive, same rule).
+            **_part_overrides_doc(s),
         }
         for s in state.samples
     ]
@@ -917,6 +1048,9 @@ def _deserialize(data: str) -> StudentState:
                 # defaults to None for every sample serialized before this
                 # field existed.
                 composition_summary=s.get("composition_summary"),
+                extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
+                extra_vector_rules=_extra_vector_rules_from_doc(s),
+                part_overrides=s.get("part_overrides") or None,
             )
         )
     return state
@@ -1834,6 +1968,8 @@ _BLUEBOOK_FOOTPRINT_SQL = (
     "SELECT 1 FROM student_past_papers WHERE student_id = ? LIMIT 1",
     "SELECT 1 FROM bluebook_exam_drafts WHERE student_key = ? LIMIT 1",
     "SELECT 1 FROM user_last_location WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM user_display_prefs WHERE account_key = ? LIMIT 1",
+    "SELECT 1 FROM bluebook_phone_parks WHERE student_key = ? LIMIT 1",
 )
 
 
@@ -1941,6 +2077,12 @@ def delete_student(student_id: str) -> bool:
             conn.execute("DELETE FROM bluebook_exam_drafts WHERE student_key = ?", (student_id,))
             # Where the student last was in the app (2026-10).
             conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (student_id,))
+            # The student's chosen text font and size (2026-11).
+            conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (student_id,))
+            # Rule D profiles of the student's approved papers (2026-11).
+            conn.execute("DELETE FROM rule_d_profiles WHERE student_id = ?", (student_id,))
+            # The student's own parked-phone records (2026-10).
+            conn.execute("DELETE FROM bluebook_phone_parks WHERE student_key = ?", (student_id,))
             conn.commit()
     except Exception:
         log.exception("delete_student failed for %s — no data was removed", student_id)
@@ -3009,7 +3151,13 @@ def set_user_password_hash(user_id: str, password_hash: str) -> bool:
 
 
 def delete_bluebook_exam(exam_id: str) -> bool:
+    """Delete the exam and what hangs off it before a seal: unsealed drafts,
+    sittings and phone parks. The route refuses an exam with submissions, so
+    this never orphans sealed work; without it a student's unsealed text
+    outlived the exam and only erasing the whole student removed it."""
     with _get_conn() as conn:
+        for table in ("bluebook_exam_drafts", "bluebook_sessions", "bluebook_phone_parks"):
+            conn.execute(f"DELETE FROM {table} WHERE exam_id = ?", (exam_id,))
         cur = conn.execute("DELETE FROM bluebook_exams WHERE exam_id = ?", (exam_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3068,6 +3216,25 @@ def list_bluebook_submissions_for_student(student_id: str) -> list[dict]:
     return [_bluebook_sub_to_dict(r) for r in rows]
 
 
+def list_bluebook_submission_texts_for_student(student_id: str) -> list[dict]:
+    """Every Collections submission stored for this student, oldest first,
+    WITH ``text`` and ``answers``. GET /students/{id} hashes only the ones a
+    teacher approved into the baseline (see the audit replay there)."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUB_COLS}, text, answers_json FROM bluebook_submissions "
+            "WHERE student_id = ? ORDER BY created_at",
+            (student_id,),
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = _bluebook_sub_to_dict(r)
+        d["text"] = r[20]
+        d["answers"] = json.loads(r[21] or "[]")
+        out.append(d)
+    return out
+
+
 def list_bluebook_submissions_for_exam(exam_id: str) -> list[dict]:
     """Every submission for one exam, oldest first, WITH ``text`` (export)."""
     with _get_conn() as conn:
@@ -3113,6 +3280,7 @@ def delete_bluebook_course(course_id: str) -> bool:
     """Delete a course and its roster. Callers refuse first when exams use it."""
     with _get_conn() as conn:
         conn.execute("DELETE FROM bluebook_enrollments WHERE course_id = ?", (course_id,))
+        conn.execute("DELETE FROM bluebook_join_links WHERE course_id = ?", (course_id,))
         cur = conn.execute("DELETE FROM bluebook_courses WHERE course_id = ?", (course_id,))
         conn.commit()
     return cur.rowcount == 1
@@ -3254,14 +3422,19 @@ def latest_invite_for_user(user_id: str) -> dict | None:
     return _invite_to_dict(row) if row else None
 
 
-def void_invites_for_user(user_id: str) -> int:
-    """Void every unredeemed, unvoided invite for this user."""
+def void_invites_for_user(user_id: str, course_id: str | None = None) -> int:
+    """Void every unredeemed, unvoided invite for this user, or only the ones
+    issued for ``course_id`` when one is given."""
+    sql = (
+        "UPDATE bluebook_invites SET voided_at = ? "
+        "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL"
+    )
+    params: list = [datetime.now(UTC).isoformat(), user_id]
+    if course_id is not None:
+        sql += " AND course_id = ?"
+        params.append(course_id)
     with _get_conn() as conn:
-        cur = conn.execute(
-            "UPDATE bluebook_invites SET voided_at = ? "
-            "WHERE user_id = ? AND redeemed_at IS NULL AND voided_at IS NULL",
-            (datetime.now(UTC).isoformat(), user_id),
-        )
+        cur = conn.execute(sql, params)
         conn.commit()
     return cur.rowcount
 
@@ -3278,6 +3451,70 @@ def redeem_invite(invite_id: str) -> bool:
         )
         conn.commit()
     return cur.rowcount == 1
+
+
+_JOIN_LINK_COLS = "link_id, tenant_id, course_id, token_hash, created_by, created_at, voided_at"
+
+
+def _join_link_to_dict(row) -> dict:
+    return {
+        "link_id": row[0],
+        "tenant_id": row[1],
+        "course_id": row[2],
+        "token_hash": row[3],
+        "created_by": row[4],
+        "created_at": row[5],
+        "voided_at": row[6],
+    }
+
+
+def put_join_link(rec: dict) -> None:
+    """Insert one course join link. Timestamps are ISO."""
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT INTO bluebook_join_links ({_JOIN_LINK_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                rec["link_id"],
+                rec["tenant_id"],
+                rec["course_id"],
+                rec["token_hash"],
+                rec["created_by"],
+                rec["created_at"],
+                None,
+            ),
+        )
+        conn.commit()
+
+
+def get_join_link_by_hash(token_hash: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def active_join_link_for_course(course_id: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {_JOIN_LINK_COLS} FROM bluebook_join_links "
+            "WHERE course_id = ? AND voided_at IS NULL ORDER BY created_at DESC LIMIT 1",
+            (course_id,),
+        ).fetchone()
+    return _join_link_to_dict(row) if row else None
+
+
+def void_join_links_for_course(course_id: str) -> int:
+    """Void every active join link for this course."""
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE bluebook_join_links SET voided_at = ? "
+            "WHERE course_id = ? AND voided_at IS NULL",
+            (datetime.now(UTC).isoformat(), course_id),
+        )
+        conn.commit()
+    return cur.rowcount
 
 
 def list_tenants(environment: str | None = None) -> list[dict]:
@@ -3369,6 +3606,35 @@ def log_audit(
             conn.commit()
     except Exception:
         log.exception("log_audit silently failed for action=%s student=%s", action, student_id)
+
+
+def list_audit_actions_for_student(student_id: str, actions: list[str]) -> list[dict]:
+    """Every audit row of these actions for one student, oldest first, with
+    no page cap: GET /students/{id} replays baseline approvals and undos
+    from it. Same row shape as ``list_audit`` items."""
+    if not student_id or not actions:
+        return []
+    marks = ", ".join("?" for _ in actions)
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, action, student_id, tenant_id, actor, result, "
+            f"details_json FROM audit_log WHERE student_id = ? AND action IN ({marks}) "
+            "ORDER BY created_at, id",
+            [student_id, *actions],
+        ).fetchall()
+    return [
+        {
+            "id": r[0],
+            "created_at": r[1],
+            "action": r[2],
+            "student_id": r[3],
+            "tenant_id": r[4],
+            "actor": r[5],
+            "result": r[6],
+            "details": json.loads(r[7] or "{}"),
+        }
+        for r in rows
+    ]
 
 
 def list_audit(
@@ -3763,6 +4029,11 @@ def student_data_inventory(student_id: str) -> dict | None:
                 (student_id,),
             ).fetchone()[0]
 
+            rule_d_count = conn.execute(
+                "SELECT COUNT(*) FROM rule_d_profiles WHERE student_id = ?",
+                (student_id,),
+            ).fetchone()[0]
+
             name_row = conn.execute(
                 "SELECT display_name FROM student_names WHERE student_id = ?",
                 (student_id,),
@@ -3772,6 +4043,7 @@ def student_data_inventory(student_id: str) -> dict | None:
         fidelity_count = manifest_rows = correction_count = audit_count = 0
         ai_likelihood_count = 0
         fused_count = 0
+        rule_d_count = 0
         name_row = None
 
     manifests_by_action: dict = {}
@@ -3808,6 +4080,9 @@ def student_data_inventory(student_id: str) -> dict | None:
             },
             "fused_scores": {
                 "count": int(fused_count),
+            },
+            "rule_d_profiles": {
+                "count": int(rule_d_count),
             },
             "display_name": {
                 "on_file": bool(name_row and name_row[0]),
@@ -4407,3 +4682,146 @@ def delete_last_location(account_key: str) -> None:
     with _get_conn() as conn:
         conn.execute("DELETE FROM user_last_location WHERE account_key = ?", (account_key,))
         conn.commit()
+
+
+# ── Display preferences: text font and size (2026-11) ─────────────────────────
+
+
+def put_display_prefs(account_key: str, prefs: dict) -> dict:
+    now = datetime.now(UTC).isoformat()
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO user_display_prefs (account_key, font, size, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (account_key, prefs["font"], prefs["size"], now),
+        )
+        conn.commit()
+    return get_display_prefs(account_key) or {}
+
+
+def get_display_prefs(account_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT font, size, updated_at FROM user_display_prefs WHERE account_key = ?",
+            (account_key,),
+        ).fetchone()
+    return {"font": row[0], "size": row[1], "updated_at": row[2]} if row else None
+
+
+def delete_display_prefs(account_key: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM user_display_prefs WHERE account_key = ?", (account_key,))
+        conn.commit()
+
+
+# ── Rule D profiles: one per approved past paper (2026-11) ────────────────────
+
+
+def get_rule_d_profiles(student_id: str) -> dict:
+    """{text_sha256: profile dict} for one student."""
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT text_sha256, data FROM rule_d_profiles WHERE student_id = ?", (student_id,)
+        ).fetchall()
+    return {r[0]: json.loads(r[1]) for r in rows}
+
+
+def put_rule_d_profile(student_id: str, text_sha256: str, data: dict) -> None:
+    from original.principal import tenant_of
+
+    with _get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO rule_d_profiles "
+            "(profile_key, student_id, tenant_id, text_sha256, data, created_at) VALUES (?, ?, "
+            "?, ?, ?, ?)",
+            (
+                f"{student_id}|{text_sha256}",
+                student_id,
+                tenant_of(student_id),
+                text_sha256,
+                json.dumps(data, separators=(",", ":")),
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        conn.commit()
+
+
+def delete_rule_d_profiles(student_id: str, keep: set | None = None) -> int:
+    """Delete the student's profiles, except those whose text hash is in ``keep``."""
+    keep = set(keep or ())
+    with _get_conn() as conn:
+        shas = [
+            r[0]
+            for r in conn.execute(
+                "SELECT text_sha256 FROM rule_d_profiles WHERE student_id = ?", (student_id,)
+            ).fetchall()
+        ]
+        gone = [s for s in shas if s not in keep]
+        for s in gone:
+            conn.execute(
+                "DELETE FROM rule_d_profiles WHERE profile_key = ?", (f"{student_id}|{s}",)
+            )
+        conn.commit()
+    return len(gone)
+
+
+# ── A student's own parked phone, per collection (2026-10) ────────────────────
+
+PHONE_PARK_FIELDS = (
+    "exam_id",
+    "student_key",
+    "tenant_id",
+    "state",
+    "parked_at",
+    "last_seen_at",
+    "override_by",
+    "override_at",
+    "override_note",
+)
+
+
+def put_phone_park(exam_id: str, student_key: str, tenant_id: str, fields: dict) -> dict:
+    """Upsert one (exam, student) row, changing only the keys in ``fields``.
+    Timestamps are ISO strings (or None)."""
+    row = get_phone_park(exam_id, student_key) or {
+        "exam_id": exam_id,
+        "student_key": student_key,
+        "tenant_id": tenant_id,
+        "state": "",
+        "parked_at": None,
+        "last_seen_at": None,
+        "override_by": "",
+        "override_at": None,
+        "override_note": "",
+    }
+    for k, v in fields.items():
+        if k in PHONE_PARK_FIELDS and k not in ("exam_id", "student_key", "tenant_id"):
+            row[k] = v
+    with _get_conn() as conn:
+        conn.execute(
+            f"INSERT OR REPLACE INTO bluebook_phone_parks ({', '.join(PHONE_PARK_FIELDS)}) "
+            f"VALUES ({', '.join('?' * len(PHONE_PARK_FIELDS))})",
+            tuple(row[k] for k in PHONE_PARK_FIELDS),
+        )
+        conn.commit()
+    return get_phone_park(exam_id, student_key) or {}
+
+
+def get_phone_park(exam_id: str, student_key: str) -> dict | None:
+    with _get_conn() as conn:
+        row = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? AND student_key = ?",
+            (exam_id, student_key),
+        ).fetchone()
+    return dict(zip(PHONE_PARK_FIELDS, row, strict=True)) if row else None
+
+
+def list_phone_parks(exam_id: str) -> list[dict]:
+    with _get_conn() as conn:
+        rows = conn.execute(
+            f"SELECT {', '.join(PHONE_PARK_FIELDS)} FROM bluebook_phone_parks "
+            "WHERE exam_id = ? ORDER BY student_key",
+            (exam_id,),
+        ).fetchall()
+    return [dict(zip(PHONE_PARK_FIELDS, r, strict=True)) for r in rows]

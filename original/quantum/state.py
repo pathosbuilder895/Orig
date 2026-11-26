@@ -35,6 +35,7 @@ from ..constants import (
     RECENCY_DECAY,
     TRAJECTORY_MIN_SAMPLES,
 )
+from ..features.baseline_scope import NOT_COMPUTED_FOR_BASELINES_MASK
 
 
 @dataclass
@@ -76,6 +77,27 @@ class BaselineSample:
     # posts; resolve_composition_mode actually consuming it is a separate
     # change (out of scope here).
     composition_summary: dict | None = None
+
+    # ── Versioned measurements (additive — None for every sample stored
+    # before this field existed). ``vector`` is always the default "v1"
+    # measurement; this holds the same paper measured another way, keyed by
+    # measurement id ("fs2", "matter", "fs2+matter"; features/feature_flags.py
+    # MEASUREMENTS). Written by scripts/backfill_measurements.py or, when
+    # UPLOAD_ALSO_MEASURE is set, at upload. Read only by original/measurement.py.
+    extra_vectors: dict[str, np.ndarray] | None = None
+    # The rules-version stamp (features/rules_stamp.py: the splitter's and
+    # the paragraph rule's versions) each measurement in ``extra_vectors``
+    # that uses either was made under, keyed the same way. None, or a key
+    # missing, means unstamped (stored before stamps existed; taken as each
+    # rule set's UNSTAMPED_RULES_VERSION). Read only by original/measurement.py.
+    extra_vector_rules: dict[str, int | str] | None = None
+
+    # ── A teacher's own choice of parts (additive: None for every sample
+    # with no choice made). ``{"exclude_ranges": [[start, end], ...],
+    # "include_ranges": [...]}`` in this sample's ``text``; applied whenever
+    # the paper is measured (features/part_overrides.py). Set only by
+    # PUT /students/{id}/samples/{index}/parts.
+    part_overrides: dict | None = None
 
 
 @dataclass
@@ -318,13 +340,19 @@ class StudentState:
              A feature never observed in baseline is not an identity marker;
              its presence in a test doc tells us nothing about authorship.
 
+          3. Not computed for past papers: the comparison measurements
+             (features/baseline_scope.py). A past paper's vector never has a
+             value for them, by how it is made, so they are never compared,
+             whatever the stored numbers are and however many samples exist.
+
         Note: we exclude zero-frequency features (all-zero baseline) but NOT
         features with low positive values — those may be genuine identity markers
         (e.g. comma_splice_rate=0.01 ± 0.005 is informative, chiasmus=0.00 is not).
         """
+        compared = ~NOT_COMPUTED_FOR_BASELINES_MASK
         contributing = [s for s in self.samples if s.auth_weight > 0]
         if len(contributing) < 2:
-            return np.ones(FEATURE_DIM, dtype=bool)
+            return compared.copy()
         V = np.stack([s.vector for s in contributing])  # (N, D)
 
         # Condition 1: stuck at neutral placeholder
@@ -343,7 +371,7 @@ class StudentState:
         # all samples, source_integration_style=0.0, arc_resolution_score=0.51.
         constant_value = V.std(axis=0) < 0.008
 
-        return ~(stuck_at_neutral | zero_frequency | constant_value)
+        return ~(stuck_at_neutral | zero_frequency | constant_value) & compared
 
     @property
     def effective_sample_count(self) -> float:

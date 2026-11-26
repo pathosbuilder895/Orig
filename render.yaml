@@ -109,12 +109,35 @@ services:
         value: "0"
       - key: LONGITUDINAL_DRIFT_ENABLED
         value: "0"
+      # Testing phase (owner decision, 2026-11): rule D's report-only consistency
+      # observation is ON for teachers by default (on the side-by-side page, whose
+      # evidence flag is set below). It never changes a score or a recommended
+      # action; students never see it. To turn off: RULE_D_OBSERVATION=off.
+      - key: RULE_D_OBSERVATION
+        value: "on"
       # run.py --demo would otherwise setdefault NULL_MODEL=impostor, and with
       # the default LLR_ACTION_MODE=gate that can move a recommended action
       # once Original is on. Not validated on real student writing, so the
       # pilot says "none" explicitly (NORTH_STAR rule 4).
       - key: NULL_MODEL
         value: "none"
+      # Staff-only explainability (ADR-013): the side-by-side page's located
+      # evidence and the "Preliminary · unvalidated · not a judgment" chip.
+      # Report-only: never changes a score or a recommended action, never
+      # attached for a student session or on /me/work. The boot log line
+      # "staff_explainability evidence_passages=... preliminary_score=..." says
+      # what the running service read.
+      # Both are on by default in code since 2026-11 (only "0" turns them
+      # off); kept here so the blueprint states it.
+      - key: EVIDENCE_PASSAGES_ENABLED
+        value: "1"
+      - key: PRELIMINARY_SCORE_ENABLED
+        value: "1"
+      # Alpha: the baseline drift check reports an unusual paper but never
+      # holds one the teacher approved (a held paper had no override, so one
+      # outlier left a volunteer below the three-paper floor).
+      - key: DRIFT_GATE
+        value: "advisory"
       # ── Bbook external exam app (original/bbook_client.py) ──
       # Outbound client for POST /students/{id}/request-baseline. Both unset
       # means that endpoint returns 503 with manual-upload guidance — the

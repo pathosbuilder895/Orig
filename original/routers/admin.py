@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from .. import invites as invites_mod
 from .. import principal as principal_mod
+from .. import users as users_mod
 from ..features.pipeline import feature_vector
 from ..quantum.scoring import ScoringConfig
 from ..quantum.scoring import score as quantum_score
@@ -61,7 +62,9 @@ def admin_user_reset_link(user_id: str, request: Request):
     if user is None or user.get("role") == "student":
         # Students are reset by their teacher (roster invite), not here.
         raise HTTPException(status_code=404, detail="staff user not found")
-    inv = invites_mod.issue(user["tenant_id"], user_id, p.user_id)
+    inv = invites_mod.issue(
+        user["tenant_id"], user_id, p.user_id, reset=users_mod.is_activated(user)
+    )
     _repo().log_audit(
         action="admin_reset_link",
         tenant_id=user["tenant_id"],

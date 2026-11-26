@@ -91,10 +91,10 @@ function ExpandedRow({ result, onClose, onNavigate }) {
         {/* Right: where corrections are made, and Close */}
         <div>
           <CorrectionNote />
-          {/* The writing itself, with marking and feedback, is read in its examination. */}
+          {/* The writing itself, with marking and feedback, is read in its collection. */}
           {result.exam_id && onNavigate && (
             <div style={{ marginTop: '.8rem' }}>
-              <Btn primary onClick={() => openManageExam(result.exam_id, onNavigate)} style={{ width: '100%', justifyContent: 'center' }}>Read and mark in the examination →</Btn>
+              <Btn primary onClick={() => openManageExam(result.exam_id, onNavigate)} style={{ width: '100%', justifyContent: 'center' }}>Read and mark in the collection →</Btn>
             </div>
           )}
           <div style={{ marginTop: '.8rem' }}>
@@ -167,13 +167,13 @@ function ScoredResultsScreen({ onNavigate }) {
 
       <div className="bb-filter" role="group" aria-label="Show submissions">
         {[['all','All'],['SUBMITTED','Submitted'],...(showMark ? [['FLAGGED','Worth a look']] : []),['REVIEWED','Reviewed']].map(([val,label]) => (
-          <button key={val} type="button" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
+          <button key={val} type="button" className="btn-chip" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
         ))}
       </div>
 
       <div className="bb-results">
         <div className="bb-rgrid bb-rhead">
-          {['Student', 'Examination', 'Words', 'Time', 'Status'].map(h => (
+          {['Student', 'Collection', 'Words', 'Time', 'Status'].map(h => (
             <span key={h}>{h}</span>
           ))}
         </div>
@@ -181,7 +181,7 @@ function ScoredResultsScreen({ onNavigate }) {
         {filtered.length === 0 && (
           <p role="status" className="bb-empty" style={{ padding: '1rem' }}>
             {serverResults === null && BB_API.isAuthed() ? 'Loading submissions…'
-              : results.length ? 'Nothing matches this filter.' : 'No sealed exams yet. They appear here as students submit them.'}
+              : results.length ? 'Nothing matches this filter.' : 'No sealed booklets yet. They appear here as students submit them.'}
           </p>
         )}
         {filtered.map(result => (

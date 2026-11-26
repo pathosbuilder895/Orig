@@ -4,20 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Writing State</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-15.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-15.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.55); --dim-2:rgba(245,239,224,0.38);
-    --flag:#e0725a; --ok:#6bbf8a; --t1:#4d90c8; --t2:#9a7ad0; --t3:#5aab7a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
+  /* This page's own colours, on top of ../assets/tokens.css. */
+  :root{--t1:#4d90c8;--t2:#9a7ad0;--t3:#5aab7a;}
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);
     background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);
@@ -27,27 +23,15 @@
     border:1px solid var(--line);border-radius:26px;overflow:hidden;
     box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);
     display:flex;flex-direction:column;}
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.4rem;margin-left:1rem;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .95rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .pill:hover{color:var(--cream);}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;}
   .icirc{width:38px;height:38px;border-radius:50%;border:1px dashed rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer;}
   .icirc svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
 
-  .grid{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0;position:relative;z-index:1;}
-  nav{position:relative;z-index:1;}
-  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,0.5),rgba(22,36,79,0.5)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.6) brightness(.5) contrast(1.12) hue-rotate(184deg);opacity:.72;}
+  /* The rail grows with the text size (24rem is 432px at the 18px default) and never takes more than a third of a wide screen. */
+  .grid{flex:1;display:grid;grid-template-columns:clamp(380px,24rem,34vw) minmax(0,1fr);min-height:0;position:relative;z-index:1;}
+  .frame::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(rgba(22,36,79,.35),rgba(22,36,79,.35)),url('assets/radcliffe-observatory-watercolour.jpg') center 38%/cover no-repeat;background-blend-mode:color,normal;filter:saturate(.8) brightness(.82) contrast(1.12) hue-rotate(184deg);opacity:1;}
   .frame::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(9,14,34,0.38) 0%,rgba(8,12,30,0.74) 44%,rgba(7,11,26,0.93) 100%),radial-gradient(70% 55% at 50% 24%,rgba(201,160,40,0.09),transparent 72%);}
-  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;}
+  .left{padding:0.6rem 1.4rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-width:0;}
   .right{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;}
-  .left::-webkit-scrollbar,.right-scroll::-webkit-scrollbar{width:7px;}
-  .left::-webkit-scrollbar-thumb,.right-scroll::-webkit-scrollbar-thumb{background:rgba(201,160,40,0.25);border-radius:4px;}
 
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
   .greet{font-family:var(--display);font-size:1.7rem;font-weight:500;line-height:1.05;color:var(--cream);margin-top:.1rem;}
@@ -77,6 +61,7 @@
 
   /* Radar */
   .radar-card{padding:1.1rem 1.2rem 1.2rem;}
+  .radar-card .sec-h{flex-wrap:wrap;}
   .radar-wrap{position:relative;width:100%;max-width:280px;margin:.4rem auto 0;aspect-ratio:1;}
   #radar-canvas{width:100%;height:100%;display:block;cursor:crosshair;}
   .radar-tip{position:absolute;pointer-events:none;opacity:0;transform:translate(-50%,-130%);background:var(--navy-0);color:var(--cream);font-size:.7rem;padding:.28rem .5rem;border-radius:5px;white-space:nowrap;transition:opacity .15s;z-index:5;border:1px solid var(--line);}
@@ -93,8 +78,9 @@
   .tgrp-h.on{background:rgba(255,255,255,0.07);box-shadow:inset 0 0 0 1px var(--gc);}
   .tgrp-h b{font-family:var(--display);font-weight:500;font-size:.98rem;color:var(--cream);}
   .tgrp-h span{font-size:.72rem;font-style:italic;color:var(--dim-2);}
-  .tgrp-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
-  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;}
+  /* Three chips a row, or fewer when 6rem each no longer fits (a phone at a large Text setting). */
+  .tgrp-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,max(6rem,30%)),1fr));gap:.4rem;}
+  .tchip{display:flex;flex-direction:column;align-items:flex-start;gap:.15rem;padding:.42rem .5rem;border-radius:9px;border:1px solid var(--line-soft);background:rgba(255,255,255,0.03);cursor:pointer;font-family:var(--body);color:var(--dim);font-size:.74rem;transition:all .15s;text-align:left;min-width:0;}
   .tchip .cl{font-family:var(--mono);font-weight:600;letter-spacing:.02em;display:flex;align-items:center;gap:.3rem;}
   .tchip .cd{width:8px;height:8px;border-radius:50%;background:var(--tc);flex-shrink:0;display:inline-block;}
   .tchip .cw{font-size:.72rem;color:var(--cream);letter-spacing:.01em;}
@@ -119,7 +105,10 @@
   .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
   .hero-mask{position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(90deg,#0a1024,transparent);pointer-events:none;}
-  .hero-inner{position:relative;min-height:600px;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
+  /* flex-shrink:0: an open habit panel can make the hero taller than its 600px floor.
+     Allowed to shrink, the scrolling column squeezes it back to that floor and its
+     bottom-aligned content spills upward over the testing notice, out of scroll reach. */
+  .hero-inner{position:relative;min-height:600px;flex-shrink:0;display:flex;flex-direction:column;justify-content:flex-end;padding:4.4rem 0 1.7rem;pointer-events:none;}
   .hero-inner .fpq-toggle,.hero-inner .fpq-btn,.hero-inner .triage,.hero-inner .tri-btn,.hero-inner a{pointer-events:auto;}
   .hero-title{font-family:var(--display);font-size:2.3rem;font-weight:500;line-height:1.04;color:var(--cream);}
   .hero-title span{color:var(--dim);}
@@ -130,10 +119,9 @@
   .fpq-btn{border:none;background:none;color:var(--dim);font-family:var(--body);font-size:.8rem;font-weight:600;padding:.32rem .8rem;border-radius:16px;cursor:pointer;transition:all .18s;white-space:nowrap;}
   .fpq-btn:hover{color:var(--cream);}
   .fpq-btn.active{background:var(--gold);color:var(--navy);}
-  .fpq-hint{position:absolute;left:0;top:4.2rem;font-style:italic;font-size:.72rem;color:var(--dim-2);z-index:3;transition:opacity .3s;white-space:nowrap;}
-  .hero-inner:hover .fpq-hint{opacity:0;}
   /* Feature evidence: hero transforms to show the text itself */
-  .hero-evi{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;gap:.8rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
+  /* In normal flow below the triage row, so the triage buttons stay visible and clickable while it is open. */
+  .hero-evi{position:relative;z-index:6;display:none;flex-direction:column;gap:.8rem;margin-top:1.6rem;padding:1.2rem 0 1.4rem;pointer-events:auto;}
   .hero-evi.show{display:flex;}
   .hero-evi::before{content:'';position:absolute;inset:-.6rem -1.2rem;background:rgba(8,12,28,0.9);backdrop-filter:blur(7px);border:1px solid var(--line-soft);border-radius:16px;z-index:-1;}
   .evi-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
@@ -142,8 +130,6 @@
   .evi-flag{font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;color:#e05252;border:1px solid rgba(224,82,82,.4);background:rgba(224,82,82,.1);border-radius:4px;padding:.12rem .4rem;}
   .evi-nums{margin-left:auto;font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--dim);}
   .evi-nums b{font-family:var(--mono);font-size:.66rem;color:var(--evc,#c9a028);}
-  .evi-close{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;}
-  .evi-close:hover{color:var(--cream);border-color:var(--line);}
   .evi-desc{width:100%;font-size:.9rem;font-style:italic;color:var(--dim);margin-top:-.3rem;}
   .evi-tabs{display:flex;gap:.4rem;align-items:center;}
   .evi-tabs .tl{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim-2);margin-right:.3rem;}
@@ -159,6 +145,37 @@
   .evi-col.base .evi-txt mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
   .evi-src{margin-top:auto;padding-top:.5rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
   @media (max-width:900px){.evi-cols{grid-template-columns:1fr;}}
+  /* Past-paper mode (no analysis yet): one column per past paper, then the family's other habits.
+     Past work keeps the blue of the analysed view's "Their own past work" column. */
+  .evi-past{display:flex;flex-direction:column;gap:.85rem;}
+  .evi-fams{display:flex;gap:.4rem;flex-wrap:wrap;}
+  .evi-fam{background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.28rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .14s;}
+  .evi-fam:hover{color:var(--cream);}
+  .evi-fam[aria-pressed="true"]{background:#8ba8dd;border-color:transparent;color:#0d1530;font-weight:600;}
+  .evi-pcols{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;max-height:30rem;overflow-y:auto;}
+  .evi-pcol{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:12px;padding:1rem 1.15rem;display:flex;flex-direction:column;gap:.55rem;min-width:0;}
+  .evi-phead{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#8ba8dd;}
+  .evi-pnum{font-family:var(--mono);font-weight:700;font-size:1.05rem;color:#8ba8dd;}
+  .evi-psrc{display:block;margin-top:.15rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim-2);}
+  .evi-past .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  .evi-past .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
+  .evi-past .none{font-style:italic;color:var(--dim);font-size:.94rem;}
+  /* Related habits stay compact: a bounded box with its own scroll, like the columns above. */
+  .evi-rel{display:flex;flex-direction:column;gap:.5rem;max-height:32rem;overflow-y:auto;}
+  .evi-rel-h{font-family:var(--display);font-size:1.02rem;color:var(--cream);}
+  .evi-rel-row{display:block;width:100%;text-align:left;background:rgba(255,255,255,0.025);border:1px solid var(--line-soft);border-radius:10px;padding:.65rem .85rem;cursor:pointer;font-family:var(--body);color:var(--cream);transition:all .14s;}
+  .evi-rel-row:hover{border-color:rgba(139,168,221,.5);background:rgba(255,255,255,0.05);}
+  .evi-rel-name{display:block;font-weight:600;font-size:.92rem;margin-bottom:.4rem;}
+  .evi-rel-cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(16rem,100%),1fr));gap:.5rem .9rem;}
+  .evi-rel-cell{display:flex;flex-direction:column;gap:.15rem;min-width:0;}
+  .evi-rel-paper{font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:#8ba8dd;}
+  .evi-rel-num{font-family:var(--mono);font-size:.74rem;color:var(--cream);}
+  .evi-rel-row .evi-q{display:block;font-size:.92rem;line-height:1.55;}
+  .evi-rel-row .none{font-size:.86rem;}
+  .evi-pline{font-size:.9rem;line-height:1.55;font-style:italic;color:var(--dim);}
+  .evi-fam:focus-visible,.evi-rel-row:focus-visible,.evi-pcols:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .evi-rel-row:focus-visible{outline-offset:-2px;} /* inside the scroll box, so the ring is not clipped */
+  @media (max-width:900px){.evi-pcols,.evi-rel-cells{grid-template-columns:1fr;}}
   /* Plain-English read + triage */
   .plain-read{margin-top:.6rem;max-width:62ch;font-size:.95rem;line-height:1.55;color:var(--dim);}
   .plain-read .gS{color:#7ab2e0;font-weight:600;}.plain-read .gD{color:#b49ae6;font-weight:600;}.plain-read .gR{color:#7cc9a0;font-weight:600;}
@@ -174,11 +191,75 @@
 
   .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
   .sec-h{display:flex;align-items:baseline;gap:.55rem;margin-bottom:.2rem;}
+  /* The preliminary reading (staff only, ADR-013): a number with its label, never alone. */
+  /* Text by text: the cards js/evidence-cards.js builds for all three pages, on this page's dark ground. */
+  .tbt-card{padding:1.1rem 1.2rem .4rem;margin-top:.5rem;}
+  .tbt-lede{font-size:.92rem;color:var(--dim);line-height:1.6;margin-bottom:1rem;}
+  #tbt .ex,#hero-evi .ex{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;margin-bottom:1rem;background:rgba(7,12,28,.35);}
+  #tbt .ex-h,#hero-evi .ex-h{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .8rem;padding:.65rem 1rem;background:rgba(255,255,255,.04);border-bottom:1px solid var(--line-soft);}
+  #tbt .ex-h b,#hero-evi .ex-h b{font-family:var(--display);font-weight:500;font-size:1.02rem;color:var(--cream);}
+  #tbt .ex-diff,#hero-evi .ex-diff{font-size:.92rem;color:var(--gold-2);}
+  #tbt .ex-col,#hero-evi .ex-col{padding:.9rem 1rem;min-width:0;}
+  #tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:1px solid var(--line-soft);}
+  #tbt .ex-lbl,#hero-evi .ex-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.45rem;overflow-wrap:anywhere;}
+  #tbt .ex-lbl.this,#hero-evi .ex-lbl.this{color:var(--flag);}
+  #tbt .ex-lbl.base,#hero-evi .ex-lbl.base{color:#8ba8dd;}
+  #tbt .ex-q,#hero-evi .ex-q{font-size:.98rem;line-height:1.6;color:var(--cream);overflow-wrap:anywhere;}
+  #tbt .ex-q+.ex-src+.ex-q,#hero-evi .ex-q+.ex-src+.ex-q{margin-top:.9rem;}
+  #tbt .ex-q mark,#hero-evi .ex-q mark{background:rgba(224,114,90,.22);box-shadow:0 0 0 1px rgba(224,114,90,.35);color:inherit;border-radius:2px;padding:0 .05em;}
+  #tbt .ex-q.base mark,#hero-evi .ex-q.base mark{background:rgba(139,168,221,.2);box-shadow:0 0 0 1px rgba(139,168,221,.34);}
+  #tbt .ex-q mark.tiny,#hero-evi .ex-q mark.tiny{background:rgba(224,114,90,.36);border-bottom:2px solid var(--flag);padding:0 .22em;font-weight:700;box-shadow:none;}
+  #tbt .ex-q.base mark.tiny,#hero-evi .ex-q.base mark.tiny{background:rgba(139,168,221,.32);border-bottom-color:#8ba8dd;}
+  #tbt .ex-src,#hero-evi .ex-src{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;color:var(--dim);margin-top:.4rem;overflow-wrap:anywhere;}
+  #tbt .ex-big,#hero-evi .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--flag);margin-bottom:.3rem;}
+  #tbt .ex-unit,#hero-evi .ex-unit{font-size:.86rem;color:var(--dim);font-style:italic;}
+  #tbt .ex-vals,#hero-evi .ex-vals{list-style:none;font-size:.92rem;padding:0;margin:0;}
+  #tbt .ex-vals li,#hero-evi .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--line-soft);}
+  #tbt .ex-vals li b,#hero-evi .ex-vals li b{font-family:var(--mono);color:#8ba8dd;}
+  #tbt .none-line,#hero-evi .none-line{font-size:.92rem;font-style:italic;color:var(--dim);}
+  #tbt .um-lead,#hero-evi .um-lead{font-size:.84rem;font-style:italic;color:var(--dim);margin:.5rem 0 .4rem;}
+  #tbt .ex-note,#hero-evi .ex-note{grid-column:1/-1;padding:.7rem 1rem .8rem;border-top:1px solid var(--line-soft);font-size:.88rem;color:var(--dim);line-height:1.55;}
+  #tbt .ex-note b,#hero-evi .ex-note b{color:var(--cream);font-weight:600;}
+  #tbt .ex-note p+p,#hero-evi .ex-note p+p{margin-top:.3rem;}
+  /* About the papers (paper_profile, js/paper-profile.js): rem sizes and the page's font variables, so the Text setting applies. */
+  .pp-card{padding:1rem 1.2rem;margin-top:.5rem;overflow-x:auto;}
+  .pp-table{width:100%;border-collapse:collapse;font-family:var(--body);font-size:.92rem;color:var(--cream);}
+  .pp-table th,.pp-table td{text-align:left;vertical-align:top;padding:.5rem .6rem;border-bottom:1px solid var(--line-soft);overflow-wrap:anywhere;}
+  .pp-table thead th{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:500;}
+  .pp-table tbody th{font-weight:500;color:var(--dim);white-space:nowrap;}
+  .pp-note{font-size:.86rem;font-style:italic;color:var(--dim);line-height:1.55;margin-top:.7rem;}
+  /* On a phone the card scrolls sideways instead of squeezing each paper's column to one letter. */
+  @media (max-width:760px){.pp-table{min-width:36rem;}}
+  .pp-table .pp-pl+.pp-pl{margin-top:.35rem;}
+  /* Parts of this paper (paper_profile.parts): what was set aside and what was measured, with the teacher's control. */
+  .ppp-card{padding:1rem 1.2rem;margin-top:.5rem;}
+  .ppp-lede{font-size:.92rem;color:var(--dim);line-height:1.55;margin-bottom:.6rem;}
+  .pp-parts{list-style:none;margin:0;padding:0;}
+  .pp-part{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem;row-gap:.15rem;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--line-soft);}
+  .pp-part:last-child{border-bottom:none;}
+  .pp-part-what{font-size:.95rem;color:var(--cream);font-weight:500;}
+  .pp-part.aside .pp-part-what{color:var(--dim);}
+  .pp-part.maybe .pp-part-what{color:var(--gold-2);}
+  .pp-part-line{grid-column:1;font-size:.84rem;font-style:italic;color:var(--dim);overflow-wrap:anywhere;}
+  .pp-part-btn{grid-column:2;grid-row:1 / span 2;border-radius:999px;padding:.42rem .95rem;font-family:var(--body);font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--line);background:rgba(10,16,36,0.55);color:var(--cream);white-space:nowrap;transition:all .18s;}
+  .pp-part-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold-2);}
+  .pp-part-btn:disabled{opacity:.5;cursor:default;}
+  .ppp-msg{font-size:.88rem;color:var(--dim);margin-top:.6rem;min-height:1.2em;}
+  .ppp-msg.err{color:var(--flag);}
+  @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.35rem;}}
+  @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
   /* State vector heatmap */
-  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  /* --hm-col: one habit's column. 12px with a mouse; on a phone or touch screen each is 44px wide,
+     a comfortable tap, and the strip scrolls sideways inside the card (the hint says so). */
+  .hm-wrap{--hm-col:12px;overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-hint{display:none;margin:0 0 .6rem;font-size:.82rem;font-style:italic;color:var(--dim);}
+  @media (max-width:760px),(pointer:coarse){
+    .hm-wrap{--hm-col:44px;overscroll-behavior-x:contain;}
+    .hm-hint{display:block;position:sticky;left:0;}
+  }
   .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
   .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
   .hm-band{display:grid;gap:5px;margin-top:8px;}
@@ -238,28 +319,17 @@
 
   @media (max-width:900px){
     body{padding:0;}
-    .frame{max-width:none;height:100vh;min-height:100vh;border-radius:0;border:none;}
-    .grid{grid-template-columns:1fr;}
-    .hero{height:auto;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;}
+    .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;overflow:visible;}
+    /* minmax(0,…): at the largest text sizes a long button label wraps instead of
+       widening the column past the screen. */
+    .grid{grid-template-columns:minmax(0,1fr);}
+    .tri-btn{white-space:normal;text-align:center;}
+    /* One page that scrolls, not two hidden inner panes (the card drew over the form). */
+    .left,.right,.right-scroll{overflow:visible;}
+    .right{min-height:0;}
   }
   /* ── live suite additions (writing-state.html) ── */
   [hidden]{display:none !important;}
-  nav{z-index:2;}
-  .pills{min-width:0;overflow-x:auto;}
-  a.pill{text-decoration:none;}
-  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
-  .nav-right{flex-shrink:0;position:relative;}
-  .nav-right .avatar{cursor:pointer;}
-  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
   .grid.gated{display:grid;}
   /* Analyse a paper (card style of the left rail) */
   .an-card{padding:1.1rem 1.2rem 1.2rem;}
@@ -279,22 +349,24 @@
   .an-file:hover{color:var(--gold);}
   .an-file input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
   .an-file:focus-within{outline:2px solid var(--gold-2);outline-offset:2px;border-radius:4px;}
+  /* Phones and touch screens: the file picker is a 44px target too, and "Change student" gets a
+     44px box centred on its words whose negative margins keep the heading row its own height. */
+  @media (max-width:760px),(pointer:coarse){
+    .an-file{display:inline-flex;align-items:center;min-height:44px;}
+    .an-change{display:inline-flex;align-items:center;margin-block:-13px;}
+  }
   .an-words{font-family:var(--mono);font-size:.64rem;letter-spacing:.06em;color:var(--dim-2);}
-  .an-btn{border:none;border-radius:999px;padding:.5rem 1.15rem;font-family:var(--body);font-size:.9rem;font-weight:600;cursor:pointer;background:linear-gradient(160deg,var(--gold-2),var(--gold));color:#0d1530;transition:filter .15s;}
-  .an-btn:hover{filter:brightness(1.07);}
-  .an-btn:disabled{opacity:.55;cursor:default;filter:none;}
-  .an-btn:focus-visible,.an-again:focus-visible,.tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible,.evi-close:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .tri-btn:focus-visible,.fpq-btn:focus-visible,.tchip:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
   .an-msg{flex:1;min-width:0;font-size:.8rem;font-style:italic;color:var(--dim);}
   .an-msg.err{color:#f0a690;}
+  .an-from{margin:.1rem 0 .55rem;font-size:.82rem;font-style:italic;color:var(--gold-2);}
   .an-note{margin-top:.6rem;font-size:.86rem;font-style:italic;line-height:1.5;color:var(--dim);}
   .an-note b{color:var(--cream);font-style:normal;font-weight:500;}
   .an-note a,.plain-read a{color:var(--gold-2);}
-  .an-done{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
-  .an-done .d{flex:1;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
+  .an-done{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem .7rem;margin-top:.6rem;}
+  .an-done .d{flex:1 1 11rem;min-width:0;font-size:.84rem;color:var(--dim);line-height:1.4;}
   .an-done .d b{display:block;color:var(--cream);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .an-done .d .an-restored{display:block;font-style:italic;font-size:.78rem;color:var(--dim);margin-top:.15rem;}
-  .an-again{background:none;border:1px solid var(--line-soft);color:var(--dim);border-radius:999px;padding:.32rem .85rem;font-family:var(--body);font-size:.84rem;cursor:pointer;transition:all .15s;white-space:nowrap;}
-  .an-again:hover{color:var(--cream);border-color:var(--line);}
   /* Purity, inside a details block with its caveat */
   .fpq-readout details.rw{opacity:1;pointer-events:auto;}
   .fpq-readout summary{list-style:none;cursor:pointer;opacity:.78;}
@@ -312,6 +384,7 @@
   .fpq-btn:disabled{opacity:.45;cursor:default;}
   .fpq-btn:disabled:hover{color:var(--dim);}
   .tri-btn:disabled{opacity:.55;cursor:default;}
+  .tri-btn[hidden]{display:none;}
   .tri-done.err{color:#f0a690;}
   .tri-note{flex-basis:100%;font-size:.76rem;font-style:italic;color:var(--dim-2);}
   /* Feature detail and evidence: the server's own reading of each habit */
@@ -323,32 +396,74 @@
   .evi-col.base .evi-big{color:#8ba8dd;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
+  /* ── the essentials and the folded sections (2026-10-30) ── */
+  .ess{padding:1.4rem 1.5rem 1.2rem;}
+  /* Phones: a 1rem gutter and lighter card padding, so the reading keeps the width of the screen at a large Text setting. */
+  @media (max-width:600px){
+    .left{padding:.6rem 1rem 1rem;}
+    .right-scroll{padding:1rem 1rem 1.5rem;}
+    .ess{padding:1.1rem 1rem 1rem;}
+  }
+  .ess-eyebrow{font-family:var(--mono);font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;}
+  .ess-answer{font-family:var(--display);font-weight:500;font-size:1.85rem;line-height:1.15;color:var(--cream);margin:0 0 .55rem;}
+  .ess-answer.ok{color:#9fd8b4;}.ess-answer.warn{color:#f0c56a;}.ess-answer.talk{color:#f2a08a;}.ess-answer.far{color:#f28b8b;}.ess-answer.inc{color:#8ba8dd;}
+  .ess-sub{font-size:.92rem;font-style:italic;color:var(--dim);margin:-.2rem 0 .6rem;}
+  .ess .plain-read{margin-top:.7rem;font-size:1rem;}
+  /* A habit's name inside the sentence reads as a link in running text, so it keeps the line's
+     height on a phone (min-height:0 undoes suite.css's 44px floor; WCAG 2.5.8's inline exception). */
+  .plain-read .hab{background:none;border:none;padding:0;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;min-height:0;}
+  .plain-read .hab:hover,.plain-read .hab:focus-visible{text-decoration-style:solid;outline:none;}
+  .ess-sure{margin-top:.7rem;font-size:.9rem;color:var(--dim);}
+  .ess-sure b{color:var(--cream);font-weight:600;}
+  .ess-nums{margin-top:.5rem;display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;color:var(--dim);line-height:1.5;}
+  .ess-nums b{color:var(--cream);font-family:var(--mono);font-weight:600;}
+  .ess-chip{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,160,40,.35);border-radius:4px;padding:.1rem .4rem;margin-left:.45rem;vertical-align:middle;}
+  .ess .triage{margin-top:1rem;}
+  /* .deep-head, details.deep and .deep-body: suite.css (shared with every page that has a Look closer). */
+  .deep-body.radar-card{padding-top:.2rem;}
+  .fp-box{position:relative;height:380px;border-radius:14px;overflow:hidden;background:#0a1024;}
+  .fp-box .hero{pointer-events:auto;}
+  .fp-box .hero-inner{min-height:0;height:100%;padding:1rem 1.2rem 1.1rem;}
+  .fp-box .fpq-toggle{left:1.2rem;top:1rem;}
+  .fp-box .fpq-readout{right:1.2rem;top:1rem;}
+  .fp-box .hero-title{font-size:1.5rem;}
+  .hero-evi.solo{position:relative;inset:auto;margin:0;padding:1.1rem 1.2rem 1.2rem;}
+  .hero-evi.solo::before{inset:0;}
+  .cal-t{width:100%;border-collapse:collapse;margin-top:.4rem;font-size:.8rem;}
+  .cal-t th,.cal-t td{text-align:left;padding:.35rem .4rem;border-top:1px solid var(--line-soft);vertical-align:top;}
+  .cal-t th{font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim-2);border-top:none;}
+  .cal-t small{color:var(--dim-2);}
+  @media (max-width:900px){.ess-answer{font-size:1.5rem;}.fp-box{height:320px;}}
+  .evi-txt .evi-um-lead{font-size:.84rem;font-style:italic;color:var(--dim);margin:.5rem 0 .3rem;}
+  .evi-txt .evi-uq{font-size:1rem;line-height:1.7;color:rgba(245,239,224,.88);}
+  /* Quoted passages (staff evidence payload, ADR-013) */
+  .evi-one{width:100%;font-size:.84rem;color:var(--dim);margin-top:-.4rem;}
+  .evi-q{font-family:var(--body);font-size:1.02rem;line-height:1.7;color:rgba(245,239,224,.88);overflow-wrap:anywhere;}
+  .evi-q mark{background:var(--evc-bg,rgba(201,160,40,.24));color:var(--cream);padding:0 .14em;border-radius:3px;box-shadow:0 0 0 1px var(--evc-line,rgba(201,160,40,.35));}
+  .evi-col.base .evi-q mark{background:rgba(139,168,221,.18);box-shadow:0 0 0 1px rgba(139,168,221,.32);}
+  /* A short match (3 characters or fewer, or punctuation only) gets a solid mark, as on the packet. */
+  .evi-q mark.tiny{background:var(--evc-bg,rgba(201,160,40,.32));box-shadow:none;border-bottom:2px solid var(--evc,#c9a028);padding:0 .24em;border-radius:2px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .evi-col.base .evi-q mark.tiny{background:rgba(139,168,221,.26);box-shadow:none;border-bottom-color:#8ba8dd;}
+  .evi-tab:focus-visible,.evi-side:focus-visible,.tgrp-h:focus-visible,.hbnd:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .evi-foot{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap;}
+  .evi-notice{flex:1;min-width:16rem;font-size:.9rem;line-height:1.55;color:var(--dim);}
+  .evi-notice b{color:var(--cream);font-weight:600;}
+  .evi-side{flex-shrink:0;font-size:.86rem;font-style:italic;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.32rem .9rem;}
+  .evi-side:hover{color:var(--gold);border-color:var(--gold);}
+  .fd-row.inert{cursor:default;}
+  /* On a phone the 128px bar and 58px number left the habit's name a column a
+     word wide and pushed the number past the card's edge: the name and its
+     description take the full row, the bar and number sit under them. */
+  @media (max-width:560px){
+    .fd-row{grid-template-columns:minmax(0,1fr) 58px;row-gap:.45rem;}
+    .fd-row>:first-child{grid-column:1/-1;}
+  }
 </style>
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill on" href="students.html"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-25.1"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -368,131 +483,209 @@
         </div>
         <div class="an-note" id="an-note" role="status"></div>
         <form id="an-form" hidden novalidate>
+          <p class="an-from" id="an-from" role="status" hidden></p>
           <label class="an-lbl" for="an-assign">Assignment</label>
           <input class="an-field" id="an-assign" type="text" maxlength="200" autocomplete="off" placeholder="Optional, for your own reference" />
           <label class="an-lbl" for="an-text">The paper</label>
           <textarea class="an-field" id="an-text" rows="7" placeholder="Paste the paper here"></textarea>
           <div class="an-row">
-            <label class="an-file">or open a .txt file<input id="an-file" type="file" accept=".txt,text/plain" /></label>
+            <label class="an-file">or open a .docx, .pdf or .txt file<input id="an-file" type="file" accept=".docx,.pdf,.txt,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></label>
             <span class="an-words" id="an-words"></span>
           </div>
           <div class="an-row">
-            <button class="an-btn" id="an-go" type="submit">Analyse</button>
+            <button class="an-btn btn-gold" id="an-go" type="submit">Analyse</button>
             <span class="an-msg" id="an-msg" role="status"></span>
           </div>
         </form>
         <div class="an-done" id="an-done" hidden>
           <div class="d"><b id="an-done-t"></b><span id="an-done-s"></span><span class="an-restored" id="an-restored" hidden>Showing your last analysis of this paper.</span></div>
-          <button class="an-again" id="an-again" type="button">Analyse another</button>
+          <button class="an-again btn-chip" id="an-again" type="button">Analyse another</button>
         </div>
       </div>
 
-      <!-- Tier Profile radar -->
-      <div class="card radar-card">
-        <div class="sec-h"><b>Tier Profile</b><span>16 tiers + comparison · click to pin</span></div>
-        <div class="radar-wrap">
-          <canvas id="radar-canvas"></canvas>
-          <div class="radar-tip" id="radar-tip"></div>
-        </div>
-        <div class="tier-chips" id="tier-chips"></div>
-        <a class="feat-link" id="voice-link" href="baseline.html" style="margin-top:.3rem;" hidden>Voice baseline →</a>
-      </div>
     </aside>
 
     <!-- RIGHT -->
     <section class="right">
-      <div class="hero">
-        <canvas id="fpq-canvas"></canvas>
-        <div class="hero-grad"></div>
-        <div class="hero-mask"></div>
-      </div>
-
       <div class="right-scroll" id="right-scroll">
-        <div id="result-notice" hidden><div data-testing-notice></div></div>
-        <div class="hero-inner">
-          <div class="fpq-toggle">
-            <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
-            <button class="fpq-btn" type="button" data-state="submission" disabled title="Analyse a paper first">This submission</button>
-          </div>
-          <div class="fpq-readout" id="readout" hidden>
-            <span class="nm" id="ro-name"></span>
-            <span class="rw" id="ro-habits">HABITS MEASURED · 97</span>
-            <details class="rw" id="ro-pur" hidden>
-              <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
-              <div class="ro-pur-body">
-                <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> counted samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
-                <p><b>Testing caveat (T-01):</b> Small baselines can produce false alarms, and Original is not yet validated on real student writing.</p>
-              </div>
-            </details>
-            <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
-          </div>
-          <div class="fpq-hint">Drag across the print to disturb it</div>
-          <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
+        <!-- The essentials: the answer, why, how sure, what next. Everything
+             else this page can show is one click further down. -->
+        <div class="card ess" id="essentials">
+          <div class="ess-eyebrow" id="ess-eyebrow">Writing State</div>
+          <h2 class="ess-answer" id="ess-answer">Loading</h2>
+          <div class="ess-sub" id="ess-sub" hidden></div>
+          <div id="result-notice" hidden><div data-testing-notice></div></div>
           <div class="plain-read" id="plain-read">Loading</div>
+          <div class="ess-sure" id="ess-sure" hidden></div>
+          <div class="ess-nums" id="ess-nums" hidden></div>
           <div class="triage" id="triage" hidden>
             <a class="tri-btn packet" id="tri-packet" href="packet.html" style="text-decoration:none;">Prepare conversation packet</a>
+            <a class="tri-btn packet" id="tri-evidence" href="evidence.html" style="text-decoration:none;" hidden>See it side by side</a>
             <button class="tri-btn ok" type="button" data-act="fine">Looks fine</button>
             <button class="tri-btn talk" type="button" data-act="talk">Have a conversation</button>
             <span class="tri-done" id="tri-done" role="status"></span>
             <span class="tri-note">Kept on this computer only, for now.</span>
           </div>
-          <div class="hero-evi" id="hero-evi">
-            <div class="evi-head">
-              <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
-              <span class="evi-nums" id="evi-nums"></span>
-              <button class="evi-close" id="evi-close" type="button">✕ Back to the pattern</button>
-            </div>
-            <div class="evi-desc" id="evi-desc"></div>
-            <div class="evi-cols">
-              <div class="evi-col"><div class="evi-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
-              <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
-            </div>
+        </div>
+
+        <div class="hero-evi solo" id="hero-evi" role="region" aria-labelledby="evi-name">
+          <div class="evi-head">
+            <span class="evi-sw"></span><b id="evi-name"></b><span class="evi-flag" id="evi-flag" hidden>OUTSIDE USUAL RANGE</span>
+            <span class="evi-nums" id="evi-nums"></span>
+            <button class="evi-close btn-chip" id="evi-close" type="button">✕ Close</button>
+          </div>
+          <div class="evi-desc" id="evi-desc"></div>
+          <div class="evi-one" id="evi-one" hidden></div>
+          <div class="evi-tabs" id="evi-tabs" hidden></div>
+          <div class="evi-cols">
+            <div class="evi-col"><div class="evi-lbl" id="evi-sub-lbl">This submission</div><div class="evi-txt" id="evi-sub"></div><div class="evi-src" id="evi-sub-src"></div></div>
+            <div class="evi-col base"><div class="evi-lbl">Their own past work</div><div class="evi-txt" id="evi-base"></div><div class="evi-src" id="evi-base-src"></div></div>
+          </div>
+          <div class="evi-past" id="evi-past" hidden>
+            <div class="evi-fams" id="evi-fams" role="group" aria-label="Families of related habits"></div>
+            <div class="evi-pcols" id="evi-pcols" role="group" aria-label="Past papers" tabindex="0"></div>
+            <div class="evi-rel" id="evi-rel"></div>
+            <p class="evi-pline" id="evi-pline"></p>
+          </div>
+          <div class="evi-foot" id="evi-foot" hidden>
+            <div class="evi-notice" id="evi-notice"></div>
+            <a class="evi-side" id="evi-side" href="#" hidden>See it side by side</a>
           </div>
         </div>
-        <!-- State vector -->
-        <div>
-          <div class="sec-h"><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></div>
-          <div class="card hm-wrap">
-            <div class="hm-grid" id="heatmap"></div>
-            <div class="hm-band" id="heatmap-band"></div>
-            <div class="hm-labels" id="heatmap-labels"></div>
-            <div class="hm-legend">
-              <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline value</span>
-              <span class="k"><i style="background:#c9a028"></i>Tick = this paper</span>
-              <span class="k"><i style="background:#c0392b"></i>below ↓</span>
-              <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
-              <span class="k">red and green ticks: the habits furthest from their usual range</span>
-            </div>
-          </div>
-          <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
-            <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
-            <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
+        <!-- Text by text: after an analysis, Original's top list in the papers' own words -->
+        <div id="tbt" hidden>
+          <div class="sec-h"><b>Text by text</b><span>this paper beside their past papers, habit by habit</span></div>
+          <div class="card tbt-card">
+            <p class="tbt-lede" id="tbt-lede"></p>
+            <div id="tbt-body"></div>
           </div>
         </div>
 
-        <!-- Math note -->
-        <div>
-          <div class="sec-h"><b>How the number is made</b></div>
-          <div class="card mnote">
-            <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>.</p>
-            <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The pattern above is decorative, not drawn from ρ: it is the same pattern for every student.</p>
-            <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+        <!-- Parts of this paper: what was set aside and what was measured (paper_profile.parts), with the teacher's control; only when the server sent them -->
+        <div id="ppp" hidden>
+          <div class="sec-h"><b>Parts of this paper</b><span>what Original measured and what it set aside</span></div>
+          <div class="card ppp-card">
+            <p class="ppp-lede" id="ppp-lede">Original measures the writer&rsquo;s own prose and sets aside the parts that are not, such as a title page, an abstract and a list of sources. When its rules are unsure, it measures the part and lists it here as possible. You can set a part aside or measure it yourself; the paper is then analysed again.</p>
+            <div id="ppp-list"></div>
+            <p class="ppp-msg" id="ppp-msg" role="status" aria-live="polite"></p>
           </div>
         </div>
+
+        <!-- About the papers: teacher-only description (paper_profile), only when the server sent it -->
+        <div id="pp" hidden>
+          <div class="sec-h"><b>About the papers</b><span>headings, citations and sources; not part of the comparison</span></div>
+          <div class="card pp-card" id="pp-body"></div>
+        </div>
+
+        <div class="deep-head"><b>Look closer</b><span>every part of the reading, one click each</span></div>
+
+        <!-- Habit by habit: the state vector, one habit's numbers side by side, and the detail window -->
+        <details class="deep" id="deep-habits">
+          <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
+          <div class="deep-body">
+            <div class="card hm-wrap">
+              <p class="hm-hint">Swipe sideways along the strip for every habit; tap one to open it.</p>
+              <div class="hm-grid" id="heatmap"></div>
+              <div class="hm-band" id="heatmap-band"></div>
+              <div class="hm-labels" id="heatmap-labels"></div>
+              <div class="hm-legend">
+                <span class="k"><i style="background:linear-gradient(90deg,#4d90c8,#9a7ad0,#5aab7a)"></i>Bar = baseline value</span>
+                <span class="k"><i style="background:#c9a028"></i>Tick = this paper</span>
+                <span class="k"><i style="background:#c0392b"></i>below ↓</span>
+                <span class="k"><i style="background:#2a6b45"></i>above ↑</span>
+                <span class="k">red and green ticks: the habits furthest from their usual range</span>
+              </div>
+            </div>
+            <div class="card fd-card" id="feat-detail" style="margin-top:.9rem;">
+              <div class="fd-head"><span class="fd-swatch" id="fd-swatch"></span><div><div class="fd-title" id="fd-title">Feature Detail</div><div class="fd-sub" id="fd-sub">Hover or pin a tier: its writing habits open here</div></div><span class="fd-count" id="fd-count"></span></div>
+              <div class="fd-body" id="fd-body"><div class="fd-empty">Point at a tier chip, a bar in the state vector, or a band label above: the <b>plain-English breakdown</b> of that tier's writing habits appears here, baseline vs. this submission.</div></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Tier profile radar -->
+        <details class="deep" id="deep-tiers">
+          <summary><b>Tier profile</b><span>16 tiers + comparison · tier chips: click to pin</span></summary>
+          <div class="deep-body radar-card">
+            <div class="radar-wrap">
+              <canvas id="radar-canvas"></canvas>
+              <div class="radar-tip" id="radar-tip"></div>
+            </div>
+            <div class="tier-chips" id="tier-chips"></div>
+            <a class="feat-link" id="voice-link" href="baseline.html" style="margin-top:.3rem;" hidden>Voice baseline →</a>
+          </div>
+        </details>
+
+        <!-- Baseline strength (purity, behind its caveat) and the decorative print -->
+        <details class="deep" id="deep-pattern">
+          <summary><b>Baseline strength and writing pattern</b><span>counted samples, purity, and a decorative print</span></summary>
+          <div class="deep-body">
+            <div class="fp-box">
+              <div class="hero">
+                <canvas id="fpq-canvas"></canvas>
+                <div class="hero-grad"></div>
+                <div class="hero-mask"></div>
+              </div>
+              <div class="hero-inner">
+                <div class="fpq-toggle">
+                  <button class="fpq-btn active" type="button" data-state="baseline">Baseline ρ</button>
+                  <button class="fpq-btn" type="button" data-state="submission" disabled title="Analyse a paper first">This submission</button>
+                </div>
+                <div class="fpq-readout" id="readout" hidden>
+                  <span class="nm" id="ro-name"></span>
+                  <span class="rw" id="ro-habits">HABITS MEASURED · 97</span>
+                  <details class="rw" id="ro-pur" hidden>
+                    <summary>PURITY Tr(ρ²) · <span id="ro-pur-v"></span></summary>
+                    <div class="ro-pur-body">
+                      <p><b>Purity</b> describes the baseline, not the paper: how alike <span id="ro-pur-who">the student’s</span> counted samples are to one another. It is near 1 when they read much alike and lower when they vary. A single sample always gives 1.</p>
+                      <p><b>Testing caveat (T-01):</b> Small baselines can produce false alarms, and Original is not yet validated on real student writing.</p>
+                    </div>
+                  </details>
+                  <span class="rw">STATE · <em id="fpq-state" style="font-style:normal;"></em></span>
+                </div>
+                <div class="hero-title"><span id="hero-name" style="color:inherit;">Writing State</span><br><span>Writing pattern · decorative</span></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Math note -->
+        <details class="deep" id="deep-math">
+          <summary><b>How the number is made</b><span>the comparison, in its own terms</span></summary>
+          <div class="deep-body">
+            <div class="card mnote">
+              <p>Each of the 97 measured habits is compared with the range this student shows across their counted samples. The deviation summarises how far the paper sits from those ranges, taken together: <strong>tanh(rms z / k)</strong>. The distance in the reading above is that same deviation on a 0 to 100 scale: a distance, not a probability.</p>
+              <p>The density matrix <strong>ρ = Σᵢ wᵢ |φᵢ⟩⟨φᵢ|</strong> summarises the same counted samples. It does not produce the deviation number. The pattern above is decorative, not drawn from ρ: it is the same pattern for every student.</p>
+              <p>With few counted samples the ranges are wide and uncertain, so an honest paper on a new topic can still drift. Read the habit-by-habit numbers before the overall reading.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Calibration: how the percentage above is being measured (gate G9) -->
+        <details class="deep" id="deep-cal">
+          <summary><b>Calibration</b><span>how often this reading is right is being measured</span></summary>
+          <div class="deep-body">
+            <div class="card mnote" id="cal-body"><p>Appears with a result.</p></div>
+          </div>
+        </details>
       </div>
     </section>
   </main>
 </div>
 
-<script src="live.js?v=2026-10-15.1"></script>
-<script src="js/feature-data.js?v=2026-10-15.1"></script>
-<script src="js/fingerprint.js?v=2026-10-15.1"></script>
+<script src="live.js?v=2026-11-25.1"></script>
+<script src="js/feature-data.js?v=2026-11-25.1"></script>
+<script src="js/fingerprint.js?v=2026-11-25.1"></script>
+<script src="js/evidence-view.js?v=2026-11-25.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-25.1"></script>
+<script src="js/paper-profile.js?v=2026-11-25.1"></script>
 <script>
 (function(){
   'use strict';
   const $=id=>document.getElementById(id);
   const esc=Live.esc;
   const OF=window.OriginalFeatures;
+  const EV=window.EvidenceView, EC=window.EvidenceCards;
   const FLAT=OF.flat, TIERS=OF.tiers, N_HABITS=OF.total;
   const has=(o,k)=>!!o&&typeof o==='object'&&Object.prototype.hasOwnProperty.call(o,k);
   const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
@@ -511,15 +704,18 @@
   const FAMILY_CLS={Surface:'gS',Discourse:'gD',Rhetorical:'gR'};
   const TIER_BY_KEY=new Map(TIERS.map(t=>[t.key,t]));
 
-  // The server's recommended action (recommendation.action) in plain words.
+  // The server's recommended action (recommendation.action) in the suite's one
+  // set of words (Live.BAND_WORDS; original/evidence.py sends the same words).
   // A reading of how far the habits moved, never a finding about the student.
   const ACTION={
-    no_action:{words:'Close to their usual writing',color:'#6bbf8a',line:'rgba(107,191,138,0.42)',gold:'rgba(107,191,138,0.9)'},
-    monitor:{words:'A few habits differ',color:'#d8b04a',line:'rgba(216,176,74,0.42)',gold:'rgba(216,176,74,0.9)'},
-    schedule_conversation:{words:'Worth a conversation',color:'#e0725a',line:'rgba(224,114,90,0.42)',gold:'rgba(224,114,90,0.9)'},
-    escalate:{words:'Several habits differ markedly',color:'#e05252',line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)'}
+    no_action:{words:Live.BAND_WORDS.no_action,cls:'ok',color:'#6bbf8a',line:'rgba(107,191,138,0.42)',gold:'rgba(107,191,138,0.9)'},
+    monitor:{words:Live.BAND_WORDS.monitor,cls:'warn',color:'#d8b04a',line:'rgba(216,176,74,0.42)',gold:'rgba(216,176,74,0.9)'},
+    schedule_conversation:{words:Live.BAND_WORDS.schedule_conversation,cls:'talk',color:'#e0725a',line:'rgba(224,114,90,0.42)',gold:'rgba(224,114,90,0.9)'},
+    escalate:{words:Live.BAND_WORDS.escalate,cls:'far',color:'#e05252',line:'rgba(224,82,82,0.42)',gold:'rgba(224,82,82,0.9)'}
   };
-  const OTHER_ACTION={words:'See the habits below',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
+  const OTHER_ACTION={words:'See the habits below',cls:'inc',color:'#8ba8dd',line:'rgba(139,168,221,0.42)',gold:'rgba(139,168,221,0.9)'};
+  // The answer line when the baseline is not rated ready: no band words at all (NORTH_STAR rule 3).
+  const INCONCLUSIVE_ANSWER='Inconclusive: not enough past writing to compare yet';
   const BASE_LOOK={line:'rgba(247,243,234,0.5)',gold:'rgba(201,160,40,0.85)',color:'#8ba8dd'};
   // The server's baseline verdict is named only in the suite's one set of words (Live.VERDICT_WORDS).
   const rated=v=>'\u201c'+Live.verdictWord(v)+'\u201d';
@@ -527,17 +723,26 @@
   // ── page state ──
   const S={
     id:'', name:'', student:null, loaded:false, stErr:'', verdict:null, entryId:'',
-    base:null, sub:null, result:null, D:new Map(), C:new Map(),
-    assignment:'', words:0, analysedAt:'', view:'baseline'
+    base:null, sub:null, result:null, D:new Map(), C:new Map(), EVI:new Map(),
+    assignment:'', words:0, analysedAt:'', view:'baseline',
+    // A sealed Collections exam named in the address (?submission=), the text
+    // loaded from it, and the exam the shown analysis was made of ('' if none).
+    subId:'', fromText:'', fromSub:'', resultSub:''
   };
+  // Past-paper mode: before any analysis, the habit panel quotes the student's own
+  // past papers (GET /students/{id}/past-paper-examples, staff only, behind
+  // EVIDENCE_PASSAGES_ENABLED), one family of related habits at a time. Each
+  // family's answer is kept for the page's life; seq drops a reply that a newer
+  // request has replaced.
+  const PP={state:'idle', cache:new Map(), families:[], habit:'', seq:0};
   const who=()=>S.name||S.id;
   const poss=()=>who()+'’s';
   const baselineHref=()=>'baseline.html?student='+encodeURIComponent(S.id);
   // "Counted" is the server's authenticated_count: every sample it weighs above zero,
   // whether a teacher approved it or the student uploaded it. Only the sample list of
-  // GET /students/{id} says which, so the teacher-approved count comes from there (the
-  // same rule as baseline.html's approvedN(): proctored, verified or canvas).
-  const APPROVED=['proctored','verified','canvas'];
+  // GET /students/{id} says which, so the split comes from there (Live.approvals: a sample
+  // is approved by you when it was supervised, verified, imported, or a take-home exam or
+  // shared paper you approved; a student's own upload is not).
   function counted(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null;
@@ -549,13 +754,25 @@
   function teacherApproved(){
     const st=S.student, sm=st&&Array.isArray(st.samples)?st.samples:null;
     if(!sm||counted()!==num(st.authenticated_count)) return null;
-    return sm.filter(x=>x&&typeof x==='object'&&APPROVED.indexOf(x.provenance)>=0).length;
+    return Live.approvals(sm);
   }
-  function countedPhrase(){
+  // The split in words, or '' when there is none to give. note=false leaves out the
+  // lower-weight note, for a sentence that already sits inside brackets.
+  function approvalLine(note){
     const a=teacherApproved();
-    return plural(counted()||0,'counted sample')+(a!=null?', '+a+' teacher-approved':'');
+    return a?Live.approvalWords(a,{note:note}):'';
   }
-  const READY_NEEDS='ready needs 5 or more counted samples and an effective count of 3 or more';
+  // One plain sentence, only when a take-home exam or shared paper is in the baseline.
+  function lowerWeightNote(){
+    const a=teacherApproved();
+    return a&&a.takeHome+a.shared?' Take-home collections and shared papers you approved count at a lower weight.':'';
+  }
+  function countedPhrase(note){
+    const w=approvalLine(note);
+    return plural(counted()||0,'counted sample')+(w?', '+w:'');
+  }
+  // Ready at the score route's own floor (MIN_BASELINE_SAMPLES, 3): the alpha's three papers.
+  const READY_NEEDS='ready needs 3 or more counted samples';
   const hasBaseline=()=>!!S.student&&(counted()||0)>0;
   const actionOf=()=>(S.result&&S.result.recommendation)?S.result.recommendation.action:'';
   const look=()=>has(ACTION,actionOf())?ACTION[actionOf()]:OTHER_ACTION;
@@ -570,26 +787,6 @@
     const c=contrib(f);
     if(c&&num(c.submission_value)!=null) return c.submission_value;
     return has(S.sub,f.code)?num(S.sub[f.code]):null;
-  }
-
-  // ── account menu ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-  function initials(name){
-    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
-  function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
   }
 
   // ── shared cross-highlight state ──
@@ -683,9 +880,9 @@
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
-      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       labels.style.display='none'; band.style.display='';
-      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
       syncTab();
@@ -704,9 +901,9 @@
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
-      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
-      labels.style.gridTemplateColumns='repeat('+N+',12px)';
-      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      labels.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      band.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
       heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
@@ -795,14 +992,28 @@
       const key=ch.dataset.tier;
       ch.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)apply(key);});
       ch.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
-      ch.addEventListener('click',()=>{
+      const topHabit=t=>{
+        const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
+        return t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+      };
+      ch.addEventListener('click',e=>{
+        const t=TIER_BY_KEY.get(key);
+        // With passages (the staff evidence field after an analysis, or past-paper mode
+        // before one): the first click pins the tier and opens its most different habit
+        // (before an analysis, its first); a click on the pinned tier unpins it and closes
+        // the panel. A keyboard click (detail 0) moves focus into the panel.
+        const pastMode=!S.result&&PP.state==='on';
+        if((hasEvidence(S.result)||pastMode)&&S.base&&t&&t.features.length){
+          if(CROSS.pinned===key){ toggle(key); EVI.close(); return; }
+          toggle(key);
+          EVI.open(topHabit(t).code,e.detail===0?ch:null);
+          return;
+        }
+        // Without them, as before: pin; while a habit is open, switch to this tier's top habit.
         if($('hero-evi').classList.contains('show')&&S.base){
-          // already in a comparison: switch to this tier's most different habit
-          const t=TIER_BY_KEY.get(key); if(!t||!t.features.length) return;
-          const gap=f=>{const b=baseOf(f),s=subOf(f);return (b==null||s==null)?-1:Math.abs(s-b);};
-          const f=t.features.find(x=>S.D.has(x.code))||t.features.slice().sort((a,b)=>gap(b)-gap(a))[0];
+          if(!t||!t.features.length) return;
           if(CROSS.pinned!==key) toggle(key);
-          EVI.open(f.code);
+          EVI.open(topHabit(t).code);
           return;
         }
         toggle(key);
@@ -814,11 +1025,14 @@
       const g=head.querySelector('b').textContent;
       head.addEventListener('mouseenter',()=>{if(CROSS.pinned===null)applyGroup(g);});
       head.addEventListener('mouseleave',()=>{if(CROSS.pinned===null)clear();});
-      head.addEventListener('click',()=>{
+      const pinGroup=()=>{
         const pk='g:'+g;
         if(CROSS.pinned===pk){CROSS.pinned=null;head.classList.remove('on');clear();}
         else{CROSS.pinned=pk;chips.forEach(c=>c.classList.remove('on'));wrap.querySelectorAll('.tgrp-h').forEach(h=>h.classList.toggle('on',h===head));applyGroup(g);}
-      });
+      };
+      head.addEventListener('click',pinGroup);
+      head.tabIndex=0; head.setAttribute('role','button'); head.setAttribute('aria-label',g+' family. Pins its tiers.');
+      onPress(head,pinGroup);
     });
     // A tier with a habit the server marks outside the usual range gets the warm label.
     function mark(){ chips.forEach(ch=>{ const t=TIER_BY_KEY.get(ch.dataset.tier); ch.classList.toggle('flag',!!t&&t.features.some(f=>S.D.has(f.code))); }); }
@@ -847,7 +1061,7 @@
       body.innerHTML=rowsHTML;
       body.querySelectorAll('.fd-row').forEach(r=>{
         r.addEventListener('click',()=>{ if(S.base&&r.dataset.code) EVI.open(r.dataset.code); });
-        if(!S.base||!r.dataset.code) return;
+        if(!S.base||!r.dataset.code){ r.classList.add('inert'); return; }
         r.tabIndex=0; r.setAttribute('role','button'); r.setAttribute('aria-expanded','false');
         onPress(r,()=>EVI.open(r.dataset.code,r));
       });
@@ -885,24 +1099,160 @@
     };
   }
 
-  // Habit evidence: one habit, this paper's number beside their own.
-  // The server returns no text positions, so no passages are quoted.
+  // Habit evidence: one habit, this paper beside their own past work.
+  // With the staff-only `evidence` field (EVIDENCE_PASSAGES_ENABLED=1) the
+  // columns quote the server's own passages, the counted words marked only
+  // where the server's offsets name exactly that slice (EvidenceView.markParts).
+  // Without it, or for a habit the field does not list, the panel shows the
+  // two numbers only, as before.
   function makeEvidence(){
     const box=$('hero-evi');
     const hex2rgba=(h,a)=>{const n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';};
-    let openCode='', opener=null;
-    // `from` is the bar or row a keyboard opened it from: focus moves into the panel, and back when it closes.
-    function open(code,from){
+    const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+    let openCode='', opener=null, place=0, pastOn=false;
+    const WHOLE_WORDS='This habit is measured across the whole paper, so there is no single sentence to quote.';
+    // The server's own note for a whole-text habit (original/evidence.py NUMBERS_ONLY_NOTE);
+    // any other note on a whole-text habit says something more specific and is shown as sent.
+    const SERVER_WHOLE='Whole-text measurement, no single sentence to point to.';
+    const papers=()=>{ const ev=S.result&&S.result.evidence; return ev&&Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[]; };
+    // tag: 'span' inside a button, where a div may not go.
+    function quoteHTML(q,tag){
+      const parts=EV.markParts(q), el=tag==='span'?'span':'div';
+      const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+      return '<'+el+' class="evi-q">'+esc(lead)+esc(parts.before)+(parts.mark?'<mark'+(parts.tiny?' class="tiny"':'')+'>'+esc(parts.mark)+'</mark>':'')+esc(parts.after)+esc(tail)+'</'+el+'>';
+    }
+    // A quote's source line (EvidenceView.quoteSource, the rule all three pages share).
+    // Character offsets stay out of the visible line; they are in the tooltip.
+    function setSource(id,q,label){
+      const el=$(id);
+      el.textContent=EV.quoteSource(q,label);
+      if(num(q.start)!=null&&num(q.end)!=null) el.title='characters '+q.start+' to '+q.end;
+    }
+    const examplesOf=side=>(side&&Array.isArray(side.examples)?side.examples.filter(q=>isObj(q)&&typeof q.passage==='string'&&q.passage):[]).slice(0,3);
+    // A side that never uses a habit the other side uses: the server sends its
+    // longest sentences, nothing marked, so there is still text to read beside
+    // the other side's quotes. Shown as plain sentences (not .evi-q, which is a
+    // counted quote).
+    function addUnmarked(id,srcId,e,side,label){
+      const block=side==='this'?e.this_paper:e.past_papers;
+      const um=examplesOf({examples:isObj(block)?block.unmarked:null});
+      if(!um.length) return;
+      const q=um[Math.min(place,um.length-1)], parts=EV.markParts(q);
+      const lead=q.clipped_start?'… ':'', tail=q.clipped_end?' …':'';
+      $(id).insertAdjacentHTML('beforeend','<p class="evi-um-lead">'+esc(EV.unmarkedLead(e,side))+'</p><div class="evi-uq">'+esc(lead+parts.before+tail)+'</div>');
+      $(srcId).textContent=EV.quoteSource(q,label);
+    }
+    // The plain sentence a side shows when it has no passage to quote.
+    function noTextWords(e,side){
+      if(e.kind==='off') return EV.clean('Switched off in scoring: every paper here has the fixed value '+EV.fmt((e.engine_scale||{}).this_paper)+'.','');
+      if(e.kind==='whole_text') return EV.clean(typeof e.note==='string'&&e.note&&e.note!==SERVER_WHOLE?e.note:WHOLE_WORDS,WHOLE_WORDS);
+      // A located habit's note names the side it is about ("No ... appears in this paper.").
+      const fits=typeof e.note==='string'&&(side==='this'?/this paper/i:/past papers/i).test(e.note);
+      const plainNone=side==='this'?'No passage to quote from this paper.':'No passage to quote from their past work.';
+      return fits?EV.clean(e.note,plainNone):plainNone;
+    }
+    // `from` is the bar, row or chip a keyboard opened it from: focus moves into the panel, and back when it closes.
+    // Before any analysis, a habit with past-paper examples opens its family instead (openPast).
+    // `how` is 'open' for a teacher's click or key (scrolls the card into view), 'auto' when the page
+    // opens past-paper examples by itself on load: that never scrolls the page away from its heading.
+    function open(code,from,how){
       if(!has(OF.byCode,code)) return;
+      const fam=pastFamily(code);
+      if(fam){ openPast(code,fam,from,how==='auto'?'auto':'open'); return; }
+      openPlain(code,from);
+    }
+    function openPlain(code,from){
+      // In past-paper mode this open is newer than any family request still on its way.
+      if(PP.state==='on') PP.seq++;
+      openCode=code; opener=from||null; place=0;
+      render();
+      box.classList.add('show');
+      markExpanded(code);
+      // Bring the panel into view with the triage row still above it.
+      const rs=$('right-scroll'), tri=$('triage');
+      if(rs){
+        const anchor=tri&&!tri.hidden?tri:box;
+        rs.scrollTop+=anchor.getBoundingClientRect().top-rs.getBoundingClientRect().top-16;
+      }
+      if(from) $('evi-close').focus();
+    }
+    function render(){
+      const code=openCode;
+      pastOn=false; pastParts(false);
       const f=OF.byCode[code], t=TIER_BY_KEY.get(f.tier)||{c:'#c9a028'};
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
+      const e=S.EVI.get(code)||null;
       box.style.setProperty('--evc',t.c);
       box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
       box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
       $('evi-name').textContent=f.name;
       $('evi-flag').hidden=!out;
-      $('evi-nums').innerHTML=(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-nums').innerHTML=e?eviNums(e):(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
       $('evi-desc').textContent=f.desc||'';
+      numbersCols(f,v,s,out,within);
+      $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
+      // "This paper" beside quoted passages; without them the label stays as before.
+      $('evi-sub-lbl').textContent=e?'This paper':'This submission';
+      const foot=$('evi-foot'), tabs=$('evi-tabs'), one=$('evi-one');
+      tabs.hidden=true; tabs.innerHTML='';
+      if(!e){ one.hidden=true; one.textContent=''; foot.hidden=true; return; }
+      // A habit Original does not compare has no past range: the one line would only repeat this paper's number.
+      const line=e.kind==='not_compared'?'':(EV.differenceLine(e)||EV.oneLine(e));
+      one.hidden=!line; one.textContent=line;
+      const tp=e.kind==='located'?examplesOf(e.this_paper):[], pp=e.kind==='located'?examplesOf(e.past_papers):[];
+      const n=Math.max(tp.length,pp.length);
+      if(n>1){
+        if(place>=n) place=0;
+        tabs.innerHTML='<span class="tl" id="evi-tabs-l">Where it appears</span>'+Array.from({length:n},(x,i)=>
+          '<button type="button" class="evi-tab'+(i===place?' on':'')+'" data-i="'+i+'" aria-pressed="'+(i===place?'true':'false')+'" aria-label="Passage '+(i+1)+' of '+n+'">'+(i+1)+'</button>').join('');
+        tabs.hidden=false;
+        tabs.querySelectorAll('.evi-tab').forEach(b=>b.addEventListener('click',()=>{
+          place=+b.dataset.i; render();
+          const again=tabs.querySelector('.evi-tab[data-i="'+place+'"]'); if(again) again.focus();
+        }));
+      }
+      // This paper: the passage on the current tab, else the numbers with a plain note.
+      const addNone=(id,w)=>{ if(w) $(id).insertAdjacentHTML('beforeend','<p class="none">'+esc(w)+'</p>'); };
+      // A tab past a side's last passage keeps that side's last passage on screen.
+      const q1=tp[Math.min(place,tp.length-1)], q2=pp[Math.min(place,pp.length-1)];
+      if(q1){
+        $('evi-sub').innerHTML=quoteHTML(q1);
+        setSource('evi-sub-src',q1,EV.thisSource(S.assignment,S.analysedAt));
+      } else if(e.kind!=='not_compared'){
+        // Whole-text, switched-off and unquoted habits: the numbers, then why there is no quote.
+        addNone('evi-sub',noTextWords(e,'this'));
+        addUnmarked('evi-sub','evi-sub-src',e,'this',EV.thisSource(S.assignment,S.analysedAt));
+      }
+      if(q2){
+        $('evi-base').innerHTML=quoteHTML(q2);
+        setSource('evi-base-src',q2,EV.pastSource(q2.paper,papers()));
+      } else if(e.kind==='not_compared'){
+        // Why there is nothing here; this paper's number is already in the column beside it.
+        $('evi-base').innerHTML='<p class="none">'+esc(EV.NOT_COMPARED_LINE)+'</p>';
+        $('evi-base-src').textContent='';
+      } else if(e.kind==='located'){
+        addNone('evi-base',noTextWords(e,'base'));
+        const um=examplesOf({examples:isObj(e.past_papers)?e.past_papers.unmarked:null});
+        addUnmarked('evi-base','evi-base-src',e,'base',um.length?EV.pastSource(um[0].paper,papers()):'');
+      }
+      // What to notice (EvidenceView.noticeFor once it exists, else noteFor).
+      const notice=typeof EV.noticeFor==='function'?EV.noticeFor(e,papers()):EV.noteFor(e,papers());
+      const nt=EV.clean(notice,'');
+      $('evi-notice').innerHTML=nt?'<b>What to notice:</b> '+esc(nt):'';
+      const side=$('evi-side');
+      side.hidden=!hasEvidence(S.result);
+      side.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(code);
+      foot.hidden=!nt&&side.hidden;
+    }
+    // With an evidence entry, the header carries the same numbers and unit as the
+    // one line under it (EvidenceView.numbersOf), so the two never disagree.
+    function eviNums(e){
+      const n=EV.numbersOf(e);
+      const range=n.lo==null?'':(n.lo===n.hi?EV.fmt(n.lo):EV.fmt(n.lo)+' to '+EV.fmt(n.hi));
+      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(EV.fmt(n.thisValue))+'</b>'+esc(EV.clean(n.unit?' ('+n.unit+')':'',''));
+    }
+    // The two numbers, as the panel showed before passages existed.
+    function numbersCols(f,v,s,out,within){
       const n=counted()||0;
       if(s!=null){
         const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
@@ -921,21 +1271,198 @@
         $('evi-base').innerHTML='<p class="none">No baseline value for this habit yet.</p>';
         $('evi-base-src').textContent='';
       }
+    }
+    // ── past-paper mode (no analysis yet): one habit in full, a column per past paper,
+    // then the family's other habits in compact rows. Numbers and sentences only:
+    // nothing here compares or judges. Student text goes through esc or textContent.
+    const PICK_ROLE={typical:'Typical',longest:'Longest',shortest:'Shortest'};
+    const RELATED_HEAD={'Sentence shape':'Related: how these sentences are built','Linking ideas':'Related: how ideas are joined','Voice':'Related: how the writer speaks','Claims and confidence':'Related: how claims are made'};
+    const NUMBERS_ONLY='No passages could be shown for this paper (numbers only).';
+    // The family a habit opens in, or '' (an analysis is on the page, the mode is off, or the habit has no examples).
+    function pastFamily(code){
+      if(S.result||PP.state!=='on') return '';
+      const fam=PP.families.find(x=>x.habits.indexOf(code)>=0);
+      return fam?fam.name:'';
+    }
+    const pastFeatures=d=>d.features.filter(f=>isObj(f)&&typeof f.code==='string');
+    const pastFeature=(d,code)=>pastFeatures(d).find(f=>f.code===code)||null;
+    const perPaper=f=>Array.isArray(f.per_paper)?f.per_paper.filter(isObj):[];
+    const unitOf=f=>typeof f.unit==='string'?f.unit.trim():'';
+    const numberLine=(v,unit)=>EV.clean(EV.fmt(v)+(unit?' '+unit:''),EV.fmt(v));
+    // The analysed view's parts hide while past papers are shown; render() and close() bring them back.
+    function pastParts(on){
+      $('evi-past').hidden=!on;
+      box.querySelector('.evi-cols').hidden=on;
+      if(on){ $('evi-tabs').hidden=true; $('evi-foot').hidden=true; $('evi-flag').hidden=true; $('evi-one').hidden=true; }
+    }
+    // how: 'open' from elsewhere on the page (brought into view; focus moves in when a keyboard
+    // opened it), 'switch' from inside the panel, 'reopen' after a re-render (no scroll, no focus).
+    // A family not yet asked for is fetched once; a failed request shows the numbers-only panel.
+    // Resolves true when it changed the panel, false when a newer choice had replaced it.
+    async function openPast(code,fam,from,how){
+      let d=PP.cache.get(fam)||null;
+      if(!d){
+        const my=++PP.seq;
+        d=await fetchPastFamily(code);
+        if(my!==PP.seq||S.result||(how==='switch'&&!pastOn)) return false;
+      }
+      if(!d||!pastFeature(d,code)){ openPlain(code,from); return true; }
+      showPast(code,d,from,how);
+      return true;
+    }
+    function showPast(code,d,from,how){
+      // A habit shown now, even from the cache, is newer than any family request still on its way.
+      // A re-render's reopen is not a choice, so it leaves a pending request alone.
+      if(how!=='reopen') PP.seq++;
+      PP.habit=code; openCode=code; pastOn=true;
+      if(how!=='switch') opener=from||null;
+      renderPast(d);
       box.classList.add('show');
-      openCode=code; opener=from||null;
       markExpanded(code);
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      if(how!=='open') return;
+      try{ box.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){ /* older browser */ }
       if(from) $('evi-close').focus();
     }
-    function close(back){
+    function renderPast(d){
+      const code=PP.habit, f=pastFeature(d,code), of=OF.byCode[code]||{};
+      const t=TIER_BY_KEY.get(of.tier)||{c:'#c9a028'};
+      const papers=Array.isArray(d.baseline_papers)?d.baseline_papers.filter(isObj):[];
+      box.style.setProperty('--evc',t.c);
+      box.style.setProperty('--evc-bg',hex2rgba(t.c,.24));
+      box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
+      $('evi-name').textContent=String(f.name||of.name||code);
+      $('evi-nums').textContent=pastRange(f);
+      $('evi-desc').textContent=of.desc||(typeof f.description==='string'?f.description:'');
+      pastParts(true);
+      const fams=$('evi-fams');
+      fams.innerHTML=PP.families.map(x=>'<button type="button" class="evi-fam" data-fam="'+esc(x.name)+'" aria-pressed="'+(x.name===d.family?'true':'false')+'">'+esc(x.name)+'</button>').join('');
+      fams.querySelectorAll('.evi-fam').forEach(b=>b.addEventListener('click',()=>pickFamily(b.dataset.fam)));
+      $('evi-pcols').innerHTML=perPaper(f).map(p=>pastColumn(f,p,papers)).join('');
+      const others=pastFeatures(d).filter(x=>x.code!==code), rel=$('evi-rel');
+      rel.innerHTML=others.length?'<div class="evi-rel-h">'+esc(EV.clean(RELATED_HEAD[d.family]||'Related habits',''))+'</div>'+others.map(x=>relatedRow(x,papers)).join(''):'';
+      rel.querySelectorAll('.evi-rel-row').forEach(r=>r.addEventListener('click',()=>pickRelated(r.dataset.code,d)));
+      $('evi-pline').textContent=EV.clean('These are sentences from '+poss()+' own past papers, so you can see their usual writing before you analyse anything.','');
+    }
+    // The past papers' range and unit only: before an analysis there is no paper to set beside it.
+    function pastRange(f){
+      const vals=perPaper(f).map(p=>num(p.value)).filter(v=>v!=null);
+      if(!vals.length) return '';
+      const lo=EV.fmt(Math.min(...vals)), hi=EV.fmt(Math.max(...vals)), unit=unitOf(f);
+      return EV.clean('past papers '+(lo===hi?lo:lo+' to '+hi)+(unit?' ('+unit+')':''),'');
+    }
+    // A quote's source line: why it was picked (typical, longest, shortest), its length, a short match spelled out.
+    function pickSource(x,tag){
+      const line=EV.quoteSource(x.quote,PICK_ROLE[x.role]||''), el=tag==='span'?'span':'div';
+      if(!line) return '';
+      const q=x.quote, at=num(q.start)!=null&&num(q.end)!=null?' title="characters '+q.start+' to '+q.end+'"':'';
+      return '<'+el+' class="evi-psrc"'+at+'>'+esc(line)+'</'+el+'>';
+    }
+    // One past paper: its title and date, its own number, then its sentences, or why there are none.
+    function pastColumn(f,p,papers){
+      const v=num(p.value);
+      let h='<div class="evi-pcol"><div class="evi-phead">'+esc(EV.pastSource(p.paper,papers))+'</div>';
+      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f)))+'</span>';
+      if(p.count===0) h+='<p class="none">None in this paper.</p>';
+      else if(num(p.count)==null) h+='<p class="none">'+esc(EV.clean(typeof f.note==='string'&&f.note?f.note:NUMBERS_ONLY,NUMBERS_ONLY))+'</p>';
+      else h+=pastExamples(p).slice(0,3).map(x=>'<div class="evi-pq">'+quoteHTML(x.quote)+pickSource(x)+'</div>').join('');
+      return h+'</div>';
+    }
+    // A related row's quote: a short verbatim window of the passage, about REL_CHARS long,
+    // cut at spaces ("…" where cut). The counted part is kept whole and centred, its mark
+    // still checked against the server's offsets (EV.markParts). A counted part longer than
+    // the window (a whole sentence, for sentence length) cannot be whole, so the window is
+    // the sentence's start with no mark; the source line still gives its role and length.
+    const REL_CHARS=140, isSpace=c=>/\s/.test(c);
+    function relWindow(q){
+      const p=q.passage;
+      if(p.length<=REL_CHARS) return q;
+      const parts=EV.markParts(q), a=parts.before.length, b=a+parts.mark.length;
+      const whole=!!parts.mark&&b-a<=REL_CHARS;
+      let w0=0, w1;
+      if(whole){
+        w0=Math.max(0,a-Math.floor((REL_CHARS-(b-a))/2));
+        w1=Math.min(p.length,w0+REL_CHARS);
+        w0=Math.max(0,Math.min(w0,w1-REL_CHARS));
+        // Start at a word: after the first space between w0 and the mark, else after the last one before w0.
+        if(w0>0&&!isSpace(p[w0-1])){
+          let k=w0; while(k<a&&!isSpace(p[k])) k++;
+          if(k<a) w0=k+1;
+          else { k=w0-1; while(k>=0&&!isSpace(p[k])) k--; w0=k+1; }
+        }
+        while(w0<a&&isSpace(p[w0])) w0++;
+      } else w1=REL_CHARS;
+      // End at a word: at the last space between the mark (or the first character) and w1, else at the next one after w1.
+      const from=whole?b:1;
+      if(w1<p.length&&!isSpace(p[w1])){
+        let k=w1-1; while(k>=from&&!isSpace(p[k])) k--;
+        if(k>=from) w1=k;
+        else { k=w1; while(k<p.length&&!isSpace(p[k])) k++; w1=k; }
+      }
+      while(w1>from&&isSpace(p[w1-1])) w1--;
+      const out=Object.assign({},q,{
+        passage:p.slice(w0,w1), passage_start:q.passage_start+w0, passage_end:q.passage_start+w1,
+        clipped_start:!!q.clipped_start||w0>0, clipped_end:!!q.clipped_end||w1<p.length,
+      });
+      if(!whole){ out.match=''; out.match_start=null; out.match_end=null; }
+      return out;
+    }
+    // One compact row: the habit's name, then per paper its number and one quote (for
+    // variation, its longest and shortest). The whole row opens the habit in full.
+    function relatedRow(f,papers){
+      const unit=unitOf(f);
+      const cells=perPaper(f).map(p=>{
+        const v=num(p.value), ex=pastExamples(p);
+        const both=ex.some(x=>x.role==='longest'||x.role==='shortest');
+        let h='<span class="evi-rel-cell"><span class="evi-rel-paper">'+esc(EV.paperName(p.paper,papers))+'</span>';
+        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit))+'</span>';
+        if(p.count===0) h+='<span class="none">none in this paper</span>';
+        else if(num(p.count)==null) h+='<span class="none">numbers only</span>';
+        else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(relWindow(x.quote),'span')+pickSource(x,'span')).join('');
+        return h+'</span>';
+      }).join('');
+      // Named by its habit alone: read out whole, the row's quotes would be its name.
+      const name=String(f.name||f.code);
+      return '<button type="button" class="evi-rel-row" data-code="'+esc(f.code)+'" aria-label="'+esc(name+', show in full')+'"><span class="evi-rel-name">'+esc(name)+'</span><span class="evi-rel-cells">'+cells+'</span></button>';
+    }
+    // A related row becomes the habit in full, from the same answer (no request).
+    function pickRelated(code,d){
+      if(!pastOn||!pastFeature(d,code)) return;
+      showPast(code,d,null,'switch');
+      // The habit in full sits at the top of the panel: bring that into view and move focus to it.
+      const rs=$('right-scroll');
+      if(rs){ const up=box.getBoundingClientRect().top-rs.getBoundingClientRect().top-16; if(up<0) rs.scrollTop+=up; }
+      $('evi-pcols').focus({preventScroll:true});
+    }
+    // A family button opens that family's first habit; focus stays on the button just pressed.
+    // A reply a newer choice replaced moves nothing, focus included.
+    function pickFamily(name){
+      const fam=PP.families.find(x=>x.name===name);
+      if(!fam||!fam.habits.length) return;
+      openPast(fam.habits[0],name,null,'switch').then(changed=>{
+        if(!changed) return;
+        const on=$('evi-fams').querySelector('.evi-fam[aria-pressed="true"]');
+        if(pastOn&&on) on.focus();
+        else if(box.classList.contains('show')) $('evi-close').focus();
+      });
+    }
+    // back===true: focus returns to what opened it. rerender: renderAll's close, reopened at once.
+    function close(back,rerender){
+      // Closed by the teacher (the button, Escape, a pinned tier chip): a family request still
+      // on its way does not reopen it. A re-render is not a choice, so it leaves one alone.
+      if(!rerender&&PP.state==='on') PP.seq++;
       box.classList.remove('show');
-      openCode=''; markExpanded(null);
+      openCode=''; pastOn=false; pastParts(false); markExpanded(null);
       if(back===true&&opener&&opener.isConnected) opener.focus();
       opener=null;
     }
     $('evi-close').addEventListener('click',()=>close(true));
     box.addEventListener('keydown',e=>{ if(e.key==='Escape'&&box.classList.contains('show')){ e.preventDefault(); close(true); } });
-    return {open,close,code:()=>openCode};
+    return {
+      open, close, code:()=>openCode,
+      // The habit shown in past-paper mode, or '' (renderAll keeps it open across a re-render).
+      pastHabit:()=>pastOn?PP.habit:'',
+      reopen(code){ const d=PP.cache.get(pastFamily(code)); if(d&&pastFeature(d,code)) showPast(code,d,null,'reopen'); }
+    };
   }
 
   // Fingerprint (decorative): colours follow the toggle and the result.
@@ -1002,7 +1529,9 @@
     if(!list.length) return 'None of the habits measured in this paper sits outside '+esc(poss())+' usual range by Original\u2019s measure.';
     const named=list.map(f=>{
       const cls=FAMILY_CLS[TIER_BY_KEY.get(f.tier).group]||FAMILY_CLS.Surface, b=baseOf(f), s=subOf(f);
-      return '<span class="'+cls+'">'+esc(f.name)+'</span>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
+      // Each habit opens its own numbers side by side (the Habit by habit section).
+      // Inside the sentence the plain name keeps its lower-case first letter (f.phrase).
+      return '<button type="button" class="hab '+cls+'" data-code="'+esc(f.code)+'">'+esc(f.phrase)+'</button>'+(b!=null&&s!=null?' ('+(s<b?'lower':'higher')+')':'');
     });
     const joined=named.length>1?named.slice(0,-1).join(', ')+' and '+named[named.length-1]:named[0];
     return (list.length>1?'The habits furthest from ':'The habit furthest from ')+esc(poss())+' usual range in this paper '+(list.length>1?'are ':'is ')+joined+'.';
@@ -1011,14 +1540,14 @@
   // When the roster gave no verdict (past its 60-student cap, a failed
   // readiness call, or a student reached by link who is not on it), the
   // server's own readiness rule (original/routers/students.py, readiness)
-  // applied to the score response: ready at 5 counted samples and 3
-  // effective, building from 2, else too little. Null when a field is missing.
+  // applied to the score response: ready at 3 counted samples, building
+  // from 1, else too little. Null when a field is missing.
   function resultVerdict(){
     const bc=S.result&&S.result.baseline_confidence;
     const a=bc?num(bc.authenticated_count):null, e=bc?num(bc.effective_sample_count):null;
     if(a==null||e==null) return null;
-    if(a>=5&&e>=3) return 'ready';
-    if(a>=3) return 'developing';
+    if(a>=3) return 'ready';
+    if(a>=1) return 'developing';
     return 'insufficient';
   }
   const verdictNow=()=>S.verdict||(S.result?resultVerdict():null);
@@ -1026,53 +1555,197 @@
   // Shown with a result when the baseline is not rated ready.
   function thinResultLine(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'), so treat this reading as inconclusive.';
+    if(v==='developing'||v==='insufficient') return ' Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+'), so treat this reading as inconclusive.'+lowerWeightNote();
     if(!v) return ' Original could not read this baseline\u2019s readiness, so treat this reading as inconclusive.';
     return '';
   }
 
-  function renderPlain(){
-    const pr=$('plain-read');
-    if(!S.id){ pr.textContent='Choose a student on the left. Their baseline appears here, and you can analyse a paper against it.'; return; }
-    if(S.stErr){ pr.textContent=S.stErr; return; }
-    if(!S.loaded){ pr.textContent='Loading'; return; }
+  // ── the essentials: the answer, why, how sure, what next ──
+  function setAnswer(text,cls,eyebrow){
+    const a=$('ess-answer'); a.textContent=text; a.className='ess-answer'+(cls?' '+cls:'');
+    $('ess-eyebrow').textContent=eyebrow||'Writing State';
+  }
+  const readyNow=()=>verdictNow()==='ready';
+  function bindHabitLinks(el){
+    el.querySelectorAll('button.hab').forEach(b=>b.addEventListener('click',()=>{ if(S.base&&b.dataset.code) EVI.open(b.dataset.code,b); }));
+  }
+  function renderEssentials(){
+    const pr=$('plain-read'), sub=$('ess-sub'), sure=$('ess-sure');
+    sub.hidden=true; sub.textContent=''; sure.hidden=true; sure.innerHTML='';
+    if(!S.id){ setAnswer('Choose a student','inc'); pr.textContent='Choose a student on the left. Their baseline appears here, and you can analyse a paper against it.'; renderNumbers(); return; }
+    if(S.stErr){ setAnswer('Not available','inc',who()); pr.textContent=S.stErr; renderNumbers(); return; }
+    if(!S.loaded){ setAnswer('Loading','inc',who()); pr.textContent='Loading'; renderNumbers(); return; }
     if(!hasBaseline()){
-      pr.innerHTML='Not enough writing to compare yet: no counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
-      return;
+      setAnswer('Not enough writing to compare yet','inc',who());
+      pr.innerHTML='No counted samples are on file for <b>'+esc(who())+'</b>, so there is nothing to compare a paper with. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
+      renderNumbers(); return;
     }
-    const n=counted()||0, a=teacherApproved();
+    const n=counted()||0, w=approvalLine(false);
     if(!S.result){
-      let h='<b>'+plural(n,'counted sample')+'</b>'+(a!=null?' ('+a+' teacher-approved)':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.';
+      setAnswer('No paper analysed yet','inc',who());
+      let h='<b>'+plural(n,'counted sample')+'</b>'+(w?' ('+esc(w)+')':'')+' make'+(n===1?'s':'')+' up '+esc(poss())+' baseline. Paste a paper on the left to compare it with '+(n===1?'that sample':'them')+'.'+lowerWeightNote();
       if(S.verdict==='developing') h+=' Original rates this baseline '+rated('developing')+' ('+READY_NEEDS+'), so a result will be less steady until more approved writing is added.';
       else if(S.verdict==='insufficient') h+=' Original rates this baseline '+rated('insufficient')+' ('+READY_NEEDS+'), so read any result with extra care.';
       pr.innerHTML=h;
-      return;
+      renderNumbers(); return;
     }
-    let h=furthestLine();
-    const words=esc(lowerFirst(look().words));
-    if(actionOf()==='schedule_conversation') h+=' Overall: <b>'+words+'</b>, not a conclusion.';
-    else if(actionOf()==='no_action') h+=' Overall: <b>'+words+'</b>. A reading, not a conclusion.';
-    else h+=' Overall: <b>'+words+'</b>. That is worth a conversation, not a conclusion.';
-    h+=thinResultLine();
-    pr.innerHTML=h;
+    if(!readyNow()){
+      // A thin baseline: the answer is that there is no answer yet. The habits
+      // still show, but no band words do.
+      setAnswer(INCONCLUSIVE_ANSWER,'inc',who());
+      pr.innerHTML=furthestLine()+thinResultLine();
+    } else {
+      const lk=look();
+      setAnswer(lk.words,lk.cls,who());
+      const act=actionOf();
+      sub.textContent=(act==='schedule_conversation'||act==='escalate'?Live.BAND_INNOCENT_CLAUSE+' ':'')+'A reading, not a conclusion.';
+      sub.hidden=false;
+      pr.innerHTML=furthestLine();
+    }
+    bindHabitLinks(pr);
+    // A baseline of the student's own uploads only can be "Ready" by count; say what it rests on.
+    const ap=teacherApproved(), uploadsOnly=!!(ap&&ap.counted&&!ap.byYou&&ap.uploads===ap.counted);
+    sure.innerHTML='Based on <b>'+esc(plural(n,'counted sample'))+'</b>'+(w?' ('+esc(w)+')':'')+(readyNow()?(uploadsOnly?' · rated '+rated('ready')+' by count, but none of it is writing you approved':' · baseline rated '+rated('ready')):'')+'.'+esc(lowerWeightNote());
+    sure.hidden=false;
+    renderNumbers();
+  }
+
+  // The number row: the preliminary score the server sent (staff only, behind
+  // PRELIMINARY_SCORE_ENABLED), as a distance and a count, plus the one
+  // sentence that may carry a percentage: gate G9's measured rate for this
+  // band, present only after a recorded pass (NORTH_STAR rule 2). Nothing
+  // here is computed in the browser.
+  function renderNumbers(){
+    const nums=$('ess-nums'); nums.innerHTML=''; nums.hidden=true;
+    const pre=S.result&&S.result.preliminary;
+    if(!S.result||!readyNow()||!pre||typeof pre!=='object') return;
+    const rows=[];
+    const score=num(pre.score);
+    if(score!=null) rows.push('<div>Distance from their usual writing: <b>'+Math.round(clamp01(score)*100)+'</b> on a 0 to 100 scale<span class="ess-chip">'+esc(EV.clean(pre.label,'Preliminary · unvalidated · not a judgment'))+'</span></div>');
+    const out=num(pre.habits_outside), cmp=num(pre.habits_compared);
+    if(out!=null&&cmp!=null) rows.push('<div>Outside the range of their past papers on <b>'+Math.round(out)+'</b> of '+Math.round(cmp)+' habits compared.</div>');
+    rows.push('<div class="ess-rate">'+rateSentence(pre.band_rate)+'</div>');
+    nums.innerHTML=rows.join(''); nums.hidden=false;
+  }
+  function rateSentence(br){
+    if(!br||typeof br!=='object'||num(br.rate)==null||num(br.n)==null||typeof br.date!=='string') return esc(Live.BAND_RATE_NOT_MEASURED);
+    const pct=Math.round(clamp01(br.rate)*100)+'%';
+    const tail=' (n='+Math.round(br.n)+', measured '+esc(br.date)+')';
+    if(br.kind==='in_band') return 'In our tests, <b>'+pct+'</b> of papers that students wrote themselves read like this'+tail+'.';
+    return 'In our tests, <b>'+pct+'</b> of papers that students wrote themselves read at least this far from their past work'+tail+'.';
+  }
+
+  // Calibration: gate G9's last recorded run, whatever its verdict. These are
+  // the gate's own working numbers, labelled as such; none of them reaches
+  // the reading above until the verdict is a pass.
+  function renderCalibration(){
+    const el=$('cal-body');
+    if(!S.result){ el.innerHTML='<p>Appears with a result.</p>'; return; }
+    const pre=S.result.preliminary, st=pre&&typeof pre==='object'?pre.band_rate_status:null;
+    if(!st||typeof st!=='object'){ el.innerHTML='<p>The preliminary score is off for this workspace, so Original sent no calibration record with this result.</p>'; return; }
+    const v=String(st.verdict||'not run');
+    let h='<p>Gate G9 measures, on real student writing, how often papers a student wrote themselves land in each band. A band\u2019s rate reaches the reading above only after that gate passes in strict mode; until then the reading says the rate has not been measured. Last recorded run: <strong>'+esc(v)+'</strong>'+(st.date?' on '+esc(String(st.date)):'')+(st.corpus?', corpus: '+esc(String(st.corpus)):'')+(num(st.n_papers)!=null?', '+plural(Math.round(st.n_papers),'paper')+' from '+plural(Math.round(num(st.n_students)||0),'student'):'')+'.</p>';
+    const bands=st.bands&&typeof st.bands==='object'?st.bands:{};
+    const keys=Object.keys(ACTION).filter(k=>has(bands,k)&&bands[k]&&typeof bands[k]==='object');
+    const cell=(r,ci)=>{ r=num(r); if(r==null) return DASH; let t=Math.round(clamp01(r)*100)+'%'; if(Array.isArray(ci)&&num(ci[0])!=null&&num(ci[1])!=null) t+=' <small>('+Math.round(clamp01(ci[0])*100)+' to '+Math.round(clamp01(ci[1])*100)+')</small>'; return t; };
+    if(!keys.length) h+='<p>No band has been measured yet.</p>';
+    else h+='<p>The gate\u2019s working numbers (share of genuine papers, with a 95% interval), not a claim about this paper:</p><table class="cal-t"><tr><th>Band</th><th>In this band</th><th>This far or further</th></tr>'+keys.map(k=>'<tr><td>'+esc(ACTION[k].words)+'</td><td>'+cell(bands[k].in_band,bands[k].ci_in_band)+'</td><td>'+cell(bands[k].at_or_beyond,bands[k].ci_at_or_beyond)+'</td></tr>').join('')+'</table>';
+    el.innerHTML=h;
   }
 
   function renderResultChrome(){
     $('result-notice').hidden=!S.result;
     $('triage').hidden=!S.result;
+    renderTextByText();
+    renderPaperProfile();
+  }
+  // About the papers (teacher only): the server's paper_profile as one table
+  // (js/paper-profile.js). Only when the server sent it; never a score input.
+  function renderPaperProfile(){
+    const box=$('pp');
+    if(!box) return;
+    const PP=window.PaperProfile;
+    const ev=S.result&&S.result.evidence;
+    renderParts();
+    if(!PP||!PP.has(ev)){ box.hidden=true; $('pp-body').innerHTML=''; return; }
+    $('pp-body').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'pp-note'});
+    box.hidden=false;
+  }
+  // Parts of this paper (teacher only, paper_profile.parts): only when the server
+  // listed them (MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED). Each part's
+  // button analyses the same text again with the teacher's choice
+  // (exclude_ranges / include_ranges on POST /students/{id}/score).
+  function thisParts(){
+    const PP=window.PaperProfile, ev=S.result&&S.result.evidence;
+    return PP&&PP.hasParts(ev)?ev.paper_profile.this_paper.parts.filter(p=>p&&typeof p==='object'&&!Array.isArray(p)):null;
+  }
+  function renderParts(){
+    const box=$('ppp'); if(!box) return;
+    const parts=thisParts();
+    // Only for the text this page sent: a kept record from another tab has no text to send again.
+    if(!parts||!parts.length||!S.sentText){ box.hidden=true; $('ppp-list').innerHTML=''; return; }
+    $('ppp-list').innerHTML=window.PaperProfile.partsList(parts,{listClass:'pp-parts'});
+    box.hidden=false;
+  }
+  async function choosePart(i,act){
+    const parts=thisParts(), part=parts&&parts[i];
+    if(!part||!S.sentText||S.choosing) return;
+    const PP=window.PaperProfile;
+    const choice=PP.nextChoice(PP.choiceOf(S.result.evidence.paper_profile.this_paper),part,act);
+    const label=typeof part.label==='string'&&part.label?part.label:'part';
+    const name='the '+(part.possible===true?'possible ':'')+label.charAt(0).toLowerCase()+label.slice(1);
+    S.choosing=true;
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=true; });
+    const m=$('ppp-msg'); m.classList.remove('err'); m.textContent='Analysing the paper again.';
+    const res=await postScore({text:S.sentText,assignment:S.assignment||'',submission_id:newSubmissionId(),exclude_ranges:choice.exclude_ranges,include_ranges:choice.include_ranges});
+    S.choosing=false;
+    const d=res.data;
+    if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
+      showAnalysis(d,S.sentText,S.assignment||'',true);
+      $('ppp-msg').textContent='Analysed again with '+name+(act==='set_aside'?' set aside.':' measured.');
+      return;
+    }
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=false; });
+    m.classList.add('err');
+    if(res.status===422&&/60%/.test(JSON.stringify(d||''))) m.textContent='That would set aside more than 60% of the paper, so it was not analysed again. Measure another part first.';
+    else if(res.status===401) m.textContent='Your sign-in has ended. Sign in again, then try again.';
+    else if(res.status===403) m.textContent='You do not have access to this student\u2019s writing.';
+    else m.textContent='The paper could not be analysed again just now. Try again.';
+  }
+
+  // Text by text: after an analysis, Original's own top list as the cards the
+  // side-by-side page and the packet show (js/evidence-cards.js), with no click
+  // needed. Only when the server sent passages; any other habit opens the same
+  // way from the bars, rows and chips below.
+  function renderTextByText(){
+    const box=$('tbt');
+    if(!box) return;
+    const ev=S.result&&hasEvidence(S.result)?S.result.evidence:null;
+    if(!ev||!EC){ box.hidden=true; $('tbt-body').innerHTML=''; return; }
+    const top=EC.topList(ev);
+    const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(S.assignment,S.analysedAt)};
+    $('tbt-lede').textContent=top.length
+      ?'The habits Original lists as furthest from '+poss()+' usual range, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
+      :'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.';
+    $('tbt-body').innerHTML=top.map(f=>EC.card(f,ctx)).join('');
+    box.hidden=false;
   }
 
   function renderAll(){
     renderHead();
     renderReadout();
-    renderPlain();
+    renderEssentials();
+    renderCalibration();
     renderResultChrome();
-    EVI.close();
+    // Past-paper mode outlives a re-render (the roster's late one), never an analysis.
+    const past=EVI.pastHabit();
+    EVI.close(false,true);
     CHIPS.unpin();
     HM.build();
     RADAR.draw();
     CHIPS.mark();
     DETAIL.clear();
+    if(past&&!S.result) EVI.reopen(past);
   }
 
   // ── the Analyse card ──
@@ -1085,16 +1758,54 @@
     if(mode!=='form') msg('');
   }
   function notEnough(){
-    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref())+'">Add approved writing</a>.');
+    note('<b>Not enough writing to compare yet.</b> Original compares a paper with the samples counted in '+esc(poss())+' baseline, and none are on file. <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.');
     setCard('none');
   }
   function thinNote(){
     const v=verdictNow();
-    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+countedPhrase()+'; '+READY_NEEDS+'). <a href="'+esc(baselineHref())+'">Add approved writing</a>.';
+    if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
     return '';
   }
-  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
-  function updateWords(){ const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):''; }
+  function countWords(t){ return String(t||'').replace(/\u001f/g,' ').trim().split(/\s+/).filter(Boolean).length; }  // U+001F: an upload's page marker, not a word (JS \s does not match it)
+  function updateWords(){
+    const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):'';
+    // "Loaded from Collections" stays only while the box holds that exam's text.
+    $('an-from').hidden=!(S.fromSub&&$('an-text').value===S.fromText);
+  }
+
+  // ── a sealed Collections exam (?student=<id>&submission=<id>) ──
+  // The paper is the student's answers joined by a blank line, the same text
+  // the baseline approval uses (routers/bluebook_baselines.py _baseline_text),
+  // never the "Question N." headings the stored text carries. Nothing runs
+  // until the teacher presses Analyse.
+  function sealedPaperText(sub){ const raw=sub&&Array.isArray(sub.answers)?sub.answers:[]; if(raw.length) return raw.map(a=>String(a||'').trim()).filter(Boolean).join('\n\n'); return String((sub&&sub.text)||'').trim(); }
+  function sealedFail(text){
+    $('an-text').value=''; $('an-assign').value=''; S.fromSub=''; S.fromText='';
+    updateWords(); msg(text,true);
+  }
+  async function loadSealed(){
+    const my=++openSeq;
+    msg('Loading the sealed booklet from Collections.');
+    const res=await Live.api('/bluebook/submissions/'+encodeURIComponent(S.subId));
+    if(my!==openSeq) return;  // the teacher has typed or opened a file since
+    const d=res.data;
+    if(res.status===404){ sealedFail('This sealed booklet was not found in your workspace, so nothing was loaded.'); return; }
+    if(res.status===401){ sealedFail('Your sign-in has ended. Sign in again, then open the booklet from Collections.'); return; }
+    if(res.status===403){ sealedFail('You do not have access to this sealed booklet, so nothing was loaded.'); return; }
+    if(!res.ok||!d||typeof d!=='object'){ sealedFail('The sealed booklet could not be loaded just now. Try reloading the page.'); return; }
+    if(String(d.student_id||'')!==S.id){ sealedFail('This sealed booklet was written by a different student, so it was not loaded. Open it from that student’s row in Submissions.'); return; }
+    const text=sealedPaperText(d);
+    if(!text){ sealedFail('This sealed booklet has no written answers to analyse.'); return; }
+    const exam=String(d.exam||'').trim()||'Untitled collection';
+    const t=d.created_at?new Date(d.created_at):null;
+    const date=t&&!isNaN(t.getTime())?t.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'';
+    const label=exam+(date?', sealed '+date:'');
+    S.fromSub=S.subId; S.fromText=text;
+    $('an-text').value=text;
+    $('an-assign').value=label.slice(0,200);
+    $('an-from').textContent='Loaded from Collections: '+label+'. Press Analyse to compare it with the baseline.';
+    updateWords(); msg('');
+  }
 
   async function loadPicker(){
     const sel=$('an-student');
@@ -1120,6 +1831,36 @@
     sel.addEventListener('change',()=>{ if(sel.value) location.href='writing-state.html?student='+encodeURIComponent(sel.value); });
   }
 
+  // ── past-paper examples (PP above) ──
+  const PAST_FIRST='mean_sentence_length';
+  const isRecord=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+  // A past paper's examples the panel can quote: each a quote with a passage.
+  const pastExamples=p=>(isRecord(p)&&Array.isArray(p.examples)?p.examples.filter(x=>isRecord(x)&&isRecord(x.quote)&&typeof x.quote.passage==='string'&&x.quote.passage):[]);
+  // One family's answer, kept by family name; null for anything but a usable 200
+  // (404 with the flag off, 403, 503, a network failure, a body of the wrong shape).
+  async function fetchPastFamily(habit){
+    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/past-paper-examples?habit='+encodeURIComponent(habit));
+    const d=res.data;
+    if(res.status!==200||!isRecord(d)||typeof d.family!=='string'||!Array.isArray(d.features)||!Array.isArray(d.families)) return null;
+    PP.cache.set(d.family,d);
+    return d;
+  }
+  // With no analysis on the page: ask for the Sentence shape family once, and when
+  // a past paper has a sentence to show, open sentence length (unless a habit is
+  // already open). A late reply, one replaced by a newer request, or one that
+  // arrives after an analysis changes nothing.
+  async function startPastExamples(){
+    if(!S.id||S.result||!hasBaseline()) return;
+    const my=++PP.seq;
+    const d=await fetchPastFamily(PAST_FIRST);
+    if(!d||S.result||my!==PP.seq) return;
+    if(!d.features.some(f=>isRecord(f)&&Array.isArray(f.per_paper)&&f.per_paper.some(p=>pastExamples(p).length>0))) return;
+    PP.families=d.families.filter(x=>isRecord(x)&&typeof x.name==='string'&&Array.isArray(x.habits))
+      .map(x=>({name:x.name,habits:x.habits.filter(c=>typeof c==='string')}));
+    PP.state='on';
+    if(!EVI.code()) EVI.open(PAST_FIRST,null,'auto');
+  }
+
   async function loadStudent(){
     note('Loading');
     const st=await Live.api('/students/'+encodeURIComponent(S.id));
@@ -1135,7 +1876,9 @@
     renderAll();
     if(S.stErr){ note(esc(S.stErr)); setCard('none'); }
     else if(!hasBaseline()){ S.base=null; renderAll(); notEnough(); }
-    else if(!restoreLast()){ note(thinNote()); setCard('form'); }
+    else if(!restoreLast()){ note(thinNote()); setCard('form'); if(S.subId) loadSealed(); }
+    // That last branch (a baseline, and no analysis restored): past papers' own sentences.
+    if(!S.stErr&&!S.result) startPastExamples();
     // The name and the server's readiness verdict come from the shared roster
     // loader; until it answers, the id stands in for the name.
     try{
@@ -1143,7 +1886,7 @@
       const me=ro&&ro.ok?ro.students.find(s=>s.id===S.id):null;
       if(me){
         S.name=String(me.name||S.id); S.verdict=me.verdict||null;
-        if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderPlain(); }
+        if(!S.result) renderAll(); else { renderHead(); renderReadout(); renderEssentials(); }
         if(!S.stErr&&hasBaseline()) note(thinNote());
         if(!hasBaseline()&&!S.stErr) notEnough();
         // A note already chosen names the student: say it with the roster's name.
@@ -1163,9 +1906,25 @@
     S.D=new Map(); S.C=new Map();
     dest.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.D.set(x.code,x); });
     cons.forEach(x=>{ if(x&&typeof x.code==='string'&&has(OF.byCode,x.code)&&!S.D.has(x.code)) S.C.set(x.code,x); });
+    // The staff-only evidence entries by habit code (absent unless EVIDENCE_PASSAGES_ENABLED=1).
+    S.EVI=new Map();
+    if(hasEvidence(d)) d.evidence.all_features.forEach(x=>{ if(x&&typeof x==='object'&&typeof x.code==='string'&&has(OF.byCode,x.code)) S.EVI.set(x.code,x); });
     S.assignment=assignment; S.words=words; S.analysedAt=analysedAt||new Date().toISOString();
+    showEvidenceLink();
+  }
+  // The side-by-side page (evidence.html) only when the server sent passages:
+  // the staff-only `evidence` field, null unless EVIDENCE_PASSAGES_ENABLED=1.
+  // Without it this page looks exactly as before.
+  const hasEvidence=r=>!!(r&&r.evidence&&typeof r.evidence==='object'&&Array.isArray(r.evidence.all_features));
+  function showEvidenceLink(){
+    const a=$('tri-evidence'); if(!a) return;
+    const on=hasEvidence(S.result);
+    a.hidden=!on;
+    a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
   }
 
+  // The one place a paper is sent to be analysed: the Analyse button, and a part set aside or measured again.
+  function postScore(body){ return Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:body}); }
   async function analyse(e){
     e.preventDefault();
     if(!S.id||!hasBaseline()) return;
@@ -1177,24 +1936,12 @@
     go.disabled=true; go.textContent='Analysing'; msg('This takes a few seconds.');
     // A fresh id per analysis, so two papers never share the server's
     // default <student>_submission_<n> name.
-    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment,submission_id:newSubmissionId()}});
+    const res=await postScore({text:text,assignment:assignment,submission_id:newSubmissionId()});
     go.disabled=false; go.textContent='Analyse';
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
-      setResult(d,assignment,countWords(text));
-      S.entryId=appendAnalysis(d,text,assignment);
-      setView('submission',true);
-      renderAll();
-      $('an-done-t').textContent=assignment||'Untitled paper';
-      $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
-      $('an-restored').hidden=true;
-      note(thinNote()); setCard('done');
-      $('tri-done').textContent=''; $('tri-done').classList.remove('err');
-      document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
-      // Kept for this tab as soon as it exists, so the packet, the Voice
-      // baseline link and the browser's Back button all find it again.
-      storeForPacket();
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+      $('ppp-msg').textContent=''; $('ppp-msg').classList.remove('err');
+      showAnalysis(d,text,assignment);
       return;
     }
     const detail=d&&typeof d.detail==='string'?d.detail:'';
@@ -1204,6 +1951,31 @@
     else if(res.status===413) msg('This paper is too large to send. Try pasting only the essay text.',true);
     else if(res.status===422) msg('This text could not be analysed. Check that it is the paper itself and try again.',true);
     else msg('The analysis could not be completed just now, so the paper was not analysed. Try again.',true);
+  }
+  // One analysis on screen: from the Analyse button, or a part set aside or measured again.
+  // keepPlace: a part set aside or measured again, so the page stays where the teacher clicked.
+  function showAnalysis(d,text,assignment,keepPlace){
+    S.sentText=text;
+    setResult(d,assignment,countWords(text));
+    // Analysed exactly as loaded from Collections: kept with the result, so
+    // Back to this page's sealed-exam link shows this analysis again.
+    S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
+    S.entryId=appendAnalysis(d,text,assignment);
+    setView('submission',true);
+    renderAll();
+    $('an-done-t').textContent=assignment||'Untitled paper';
+    $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    $('an-restored').hidden=true;
+    note(thinNote()); setCard('done');
+    $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+    document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+    // Kept for this tab as soon as it exists, so the packet, the Voice
+    // baseline link and the browser's Back button all find it again.
+    storeForPacket();
+    if(keepPlace) return;
+    const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+    // On a phone the analyse card sits above the result: bring the answer up.
+    if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
   }
 
   function newSubmissionId(){
@@ -1278,8 +2050,9 @@
     const keep={
       kind:'original_writing_state', version:1,
       student_id:S.id, student_name:who(), assignment:S.assignment, analysed_at:S.analysedAt, word_count:S.words, entry_id:S.entryId,
-      habits_measured:N_HABITS, action:actionOf(), action_words:look().words,
-      summary:$('plain-read').textContent,
+      collections_submission:S.resultSub,
+      habits_measured:N_HABITS, action:actionOf(), action_words:readyNow()?look().words:INCONCLUSIVE_ANSWER,
+      summary:[$('ess-answer').textContent+'.',$('ess-sub').hidden?'':$('ess-sub').textContent,$('plain-read').textContent,$('ess-sure').hidden?'':$('ess-sure').textContent].filter(Boolean).join(' '),
       result:{
         student_id:r.student_id, submission_id:r.submission_id,
         recommendation:{action:actionOf()},
@@ -1288,6 +2061,11 @@
         feature_vector:pick(S.sub), baseline_vector:pick(S.base)
       }
     };
+    // The side-by-side page's data, only when the server sent it (staff only,
+    // behind EVIDENCE_PASSAGES_ENABLED and PRELIMINARY_SCORE_ENABLED).
+    if(hasEvidence(r)) keep.result.evidence=r.evidence;
+    if(r.preliminary&&typeof r.preliminary==='object') keep.result.preliminary=r.preliminary;
+    if(r.rule_d&&typeof r.rule_d==='object') keep.result.rule_d=r.rule_d;
     try{ window.sessionStorage.setItem('original_last_result',JSON.stringify(keep)); }catch(e){ /* storage blocked: the packet page says so */ }
   }
 
@@ -1310,19 +2088,27 @@
     const id=(typeof rec.entry_id==='string'&&rec.entry_id)||(typeof rec.result.submission_id==='string'?rec.result.submission_id:'');
     return id?(entries.find(h=>h&&typeof h==='object'&&h.id===id)||null):null;
   }
+  // A sealed-exam link (?submission=) wins over the kept record: the record is
+  // shown again only when it is the analysis of that same exam, so a link never
+  // opens on an older analysis of a different paper.
   function restoreLast(){
     let raw=null;
     try{ raw=window.sessionStorage.getItem('original_last_result'); }catch(e){ return false; }
     const rec=lastRecord(raw,S.id);
     if(!rec) return false;
+    const recSub=typeof rec.collections_submission==='string'?rec.collections_submission:'';
+    if(S.subId&&recSub!==S.subId) return false;
     const entry=keptEntry(readPortfolio(),rec);
     const assignment=typeof rec.assignment==='string'?rec.assignment.slice(0,200):'';
     const at=typeof rec.analysed_at==='string'&&!isNaN(Date.parse(rec.analysed_at))?rec.analysed_at:'';
     if(typeof rec.student_name==='string'&&rec.student_name.trim()) S.name=rec.student_name.trim();
     setResult(rec.result,assignment,num(rec.word_count)||0,at);
+    S.resultSub=recSub;
     S.entryId=entry?entry.id:'';
     $('an-assign').value=assignment;
     $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
+    // The exact text that was analysed: a part set aside or measured sends it again.
+    S.sentText=entry&&typeof entry.text==='string'?entry.text:'';
     updateWords();
     setView('submission',true);
     renderAll();
@@ -1338,35 +2124,86 @@
     return true;
   }
 
+  // .docx and .pdf are read by the server (it extracts the text and stores
+  // nothing); .txt is read in the browser. Same 10 MB cap as the server's body limit.
+  const FILE_LIMIT=10*1024*1024, TXT_LIMIT=1048576;
+  // Bumped by every newer way the paper box can change, so a late server reply never overwrites it.
+  let openSeq=0, reading=0;
+  // The opened file's name becomes the assignment unless the teacher typed one:
+  // an empty field, or one still holding the last file's name, takes the new name.
+  function nameFromFile(f){
+    const cur=$('an-assign').value.trim();
+    if(cur&&cur!==S.autoAssign) return;
+    const base=String(f&&f.name||'').replace(/\.[^.]*$/,'').slice(0,200);
+    if(base){ $('an-assign').value=base; S.autoAssign=base; }
+  }
+  async function openDocument(f,ext){
+    const my=++openSeq;
+    if(!S.id){ msg('Choose a student first, then open the file.',true); return; }
+    msg('Reading '+f.name+'...');
+    const fd=new FormData(); fd.append('file',f);
+    reading++; $('an-go').disabled=true;
+    let res;
+    try{ res=await Live.api('/students/'+encodeURIComponent(S.id)+'/upload',{method:'POST',body:fd}); }
+    finally{ if(--reading===0) $('an-go').disabled=false; }
+    if(my!==openSeq) return;
+    if(res.status===0){ msg('Original could not be reached. Check your connection and try again.',true); return; }
+    if(res.status===413){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+    if(res.status===422&&res.data&&/could not be read/i.test(String(res.data.detail||''))){ msg('That file could not be read. Try pasting the text instead.',true); return; }
+    if(res.status===422){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+    if(!res.ok||!res.data||typeof res.data.text!=='string'){ msg('That file could not be read. Try pasting the text instead.',true); return; }
+    const text=res.data.text;
+    if(!text.trim()){ msg('This file has no text Original can read. If it is a scan, paste the text instead.',true); return; }
+    $('an-text').value=text; updateWords();
+    nameFromFile(f);
+    msg('Read '+plural(res.data.word_count>=0?res.data.word_count:countWords(text),'word')+' from '+f.name+'.');
+  }
+
   function start(){
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
-    $('an-text').addEventListener('input',updateWords);
-    $('an-again').addEventListener('click',()=>{ setCard('form'); note(thinNote()); $('an-text').focus(); });
+    $('ppp-list').addEventListener('click',e=>{ const b=e.target.closest('.pp-part-btn'); if(b&&!b.disabled) choosePart(parseInt(b.dataset.part,10),b.dataset.act); });
+    $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
+    $('an-again').addEventListener('click',()=>{
+      // A new paper: the last one's title and text would otherwise label it.
+      ++openSeq; $('an-text').value=''; $('an-assign').value=''; S.autoAssign=''; updateWords();
+      setCard('form'); note(thinNote()); $('an-text').focus();
+    });
     $('an-file').addEventListener('change',e=>{
       const input=e.target, f=input.files&&input.files[0];
       input.value='';
       if(!f) return;
-      if(!/\.txt$/i.test(f.name)&&f.type!=='text/plain'){ msg('Only .txt files open here. For a .docx or .pdf, copy the text and paste it in.',true); return; }
-      if(f.size>1048576){ msg('That file is too large to analyse here.',true); return; }
+      const m=/\.([a-z0-9]+)$/i.exec(f.name), ext=m?m[1].toLowerCase():'';
+      if(ext!=='txt'&&ext!=='docx'&&ext!=='pdf'&&f.type!=='text/plain'){ msg('Original reads .docx, .pdf and .txt files. For anything else, copy the text and paste it in.',true); return; }
+      if(ext==='docx'||ext==='pdf'){
+        if(f.size>FILE_LIMIT){ msg('That file is too large to analyse here (the limit is 10 MB).',true); return; }
+        openDocument(f,ext); return;
+      }
+      if(f.size>TXT_LIMIT){ msg('That file is too large to analyse here.',true); return; }
+      const my=++openSeq;
       const rd=new FileReader();
-      rd.onload=()=>{ $('an-text').value=String(rd.result||''); updateWords(); msg(''); };
+      rd.onload=()=>{ if(my!==openSeq) return; $('an-text').value=String(rd.result||''); updateWords(); nameFromFile(f); msg(''); };
       rd.onerror=()=>msg('That file could not be read.',true);
       rd.readAsText(f);
     });
     document.querySelectorAll('.triage button.tri-btn').forEach(b=>b.addEventListener('click',()=>triage(b.dataset.act,b)));
+    // A canvas inside a closed section has no size: the radar and the print
+    // both listen for resize, so opening a section asks them to measure again.
+    document.querySelectorAll('details.deep').forEach(d=>d.addEventListener('toggle',()=>{ if(d.open) window.dispatchEvent(new Event('resize')); }));
     $('tri-packet').addEventListener('click',e=>{ if(!S.result){ e.preventDefault(); return; } storeForPacket(); });
+    $('tri-evidence').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
+    $('evi-side').addEventListener('click',e=>{ if(!hasEvidence(S.result)){ e.preventDefault(); return; } storeForPacket(); });
 
     const id=(new URLSearchParams(location.search).get('student')||'').trim();
     if(!id){ renderAll(); setView('baseline',false); loadPicker(); return; }
     S.id=id; S.name=id;
+    S.subId=(new URLSearchParams(location.search).get('submission')||'').trim();
     renderAll(); setView('baseline',false);
     loadStudent();
   }
 
   // ── go ──
-  Live.session().then(renderChrome);
   const main=document.querySelector('main');
   Live.gate(main).then(sess=>{
     if(!sess){ main.classList.add('gated'); return; }

@@ -33,6 +33,7 @@ from ..schemas import (
     BluebookUpdateExamRequest,
     SubmissionFeedbackRequest,
 )
+from . import phone_park
 from ._shared import (
     _MAGIC_SESSION_TTL,
     _bluebook_tenant,
@@ -180,9 +181,9 @@ def _with_names(recs: list[dict]) -> list[dict]:
 
 
 _LAUNCH_INVALID = (
-    "This exam link has expired or is not valid. Please ask your teacher for a new one."
+    "This collection link has expired or is not valid. Please ask your teacher for a new one."
 )
-_LAUNCH_INCOMPLETE = "This exam link is incomplete. Please ask your teacher for a new one."
+_LAUNCH_INCOMPLETE = "This collection link is incomplete. Please ask your teacher for a new one."
 
 
 def _refuse_launch(request: Request, message: str):
@@ -273,7 +274,7 @@ def bluebook_create_exam(body: BluebookCreateExamRequest, request: Request):
     if _self_serve(tenant) and len(_repo().list_bluebook_exams(tenant)) >= rules.MAX_EXAMS:
         raise HTTPException(
             status_code=403,
-            detail=f"Free workspaces can hold {rules.MAX_EXAMS} exams. Delete one to add another.",
+            detail=f"Free workspaces can hold {rules.MAX_EXAMS} collections. Delete one to add another.",
         )
     conditions, min_words, max_words = _options(
         body.conditions, _int_or(body.minWords, 0), _int_or(body.maxWords, 0)
@@ -344,7 +345,7 @@ def _student_key(body) -> str:
 # the same words (routers/bluebook_accounts.py my_exam_start). Only a
 # signed-in student and only a stored exam: staff recording a submission (a
 # teacher previewing their own exam) and sample ids behave as before.
-_ALREADY_SUBMITTED = "You have already submitted this exam."
+_ALREADY_SUBMITTED = "You have already submitted this collection."
 # The check and the write happen together, or two seals arriving at the same
 # moment could both pass the check. One lock is enough because the app runs
 # as a single worker process (render.yaml, T-18).
@@ -356,6 +357,32 @@ def _student_already_submitted(exam_id: str, student_id: str) -> bool:
         s.get("exam_id") == exam_id
         for s in _repo().list_bluebook_submissions_for_student(student_id)
     )
+
+
+_NOT_OPEN = {
+    rules.UPCOMING: "This collection has not opened yet.",
+    rules.CLOSED: "This collection is closed.",
+}
+
+
+def _student_exam_state(exam: dict, sid: str) -> str:
+    """The stored exam's state for a signed-in student, after the visibility
+    rules /bluebook/me applies (routers/bluebook_accounts.py _visible_exam):
+    a draft, or an exam on a course the student is not enrolled in, is not
+    found. The session and seal routes below used to check only the
+    workspace, so a student could pin a sitting on an upcoming exam by hand
+    (after which /bluebook/me/exams/{id} showed its prompt and the dashboard
+    start skipped its open check), or seal a closed, draft or other-course
+    exam."""
+    state = rules.exam_state(exam, rules.now_utc())
+    if state == rules.DRAFT:
+        raise HTTPException(status_code=404, detail="exam not found")
+    course_id = exam.get("course_id")
+    if course_id and course_id not in {
+        e["course_id"] for e in _repo().list_enrollments_for_student(sid)
+    }:
+        raise HTTPException(status_code=404, detail="exam not found")
+    return state
 
 
 @router.post("/bluebook/exams/{exam_id}/session", response_model=BluebookSessionResponse)
@@ -387,9 +414,28 @@ def bluebook_start_session(exam_id: str, body: BluebookStartSessionRequest, requ
         raise HTTPException(status_code=404, detail="exam not found")
     # A tab opened after this student sealed is told now, before they write.
     sid = (body.student_id or session.get("sid") or "") if session else ""
+    if sid:
+        # The sitting is always the signed-in student's own, never a typed name.
+        body = body.model_copy(update={"student_id": sid})
     if sid and _student_already_submitted(exam_id, sid):
         raise HTTPException(status_code=409, detail=_ALREADY_SUBMITTED)
-    if rules.is_timed(exam):
+    # A student starts only an exam they could start from the dashboard: one
+    # they can see, and open, unless their sitting is already under way.
+    if sid:
+        state = _student_exam_state(exam, sid)
+        if state != rules.OPEN and _repo().get_bluebook_session(exam_id, sid) is None:
+            raise HTTPException(status_code=409, detail=_NOT_OPEN[state])
+    # Phone parking (only if the teacher switched it on): a student's NEW
+    # sitting waits for their phone; staff previews and resumed sittings don't.
+    if (
+        sid
+        and rules.phone_park_required(exam)
+        and _repo().get_bluebook_session(exam_id, sid) is None
+    ):
+        phone_park.require_cleared(exam, exam_id, sid)
+    if rules.is_timed(exam) and not sid:
+        # Staff previews keep the full duration; a student's sitting is
+        # clipped to the closing time, as the dashboard start does.
         duration_seconds = max(60, _int_or(exam.get("duration"), 90) * 60)
     else:
         duration_seconds = rules.session_seconds(exam, datetime.now(UTC))
@@ -533,6 +579,11 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
                 status_code=403,
                 detail="Session does not match the submission's student_id.",
             ) from None
+        if session.get("sid"):
+            # A student's seal is always recorded as their own. Omitting
+            # student_id used to store the row under whatever candidate name
+            # was typed, outside the one-sitting rule and late tagging.
+            body = body.model_copy(update={"student_id": session["sid"]})
     else:
         if body.student_id:
             try:
@@ -560,6 +611,16 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
                 "late": prior.get("late", 0),
                 "duplicate": True,
             }
+
+    # A student seals only an exam they could have sat (see _student_exam_state).
+    # One sealed after closing with no sitting on record is kept, never
+    # refused (the student's writing is not lost), and marked late.
+    sealed_after_close = False
+    if one_sitting and _repo().get_bluebook_session(stored_exam["id"], body.student_id) is None:
+        state = _student_exam_state(stored_exam, body.student_id)
+        if state == rules.UPCOMING:
+            raise HTTPException(status_code=409, detail=_NOT_OPEN[state])
+        sealed_after_close = state == rules.CLOSED
 
     def _clamp_pct(v):
         n = _int_or(v, None)
@@ -613,9 +674,10 @@ def bluebook_record_submission(body: BluebookRecordSubmissionRequest, request: R
         "status": (body.status or "SUBMITTED").upper()[:20],
     }
     rec["submission_uuid"] = body.submission_uuid[:64] if body.submission_uuid else None
-    # Late tagging: only when this sitting has a server-pinned deadline. No
-    # session row (degrade-open client start) -> no late judgment possible.
-    rec["late"] = 0
+    # Late tagging: against this sitting's server-pinned deadline. With no
+    # session row (degrade-open client start) only a seal after the exam
+    # closed is judged late (sealed_after_close, above).
+    rec["late"] = 1 if sealed_after_close else 0
     if rec["exam_id"]:
         student_key = _student_key(body)
         sess = _repo().get_bluebook_session(rec["exam_id"], student_key) if student_key else None
@@ -718,7 +780,10 @@ def bluebook_submission_feedback(
         actor=staff.user_id,
         details={"submission_id": submission_id, "marked": bool(mark), "commented": bool(feedback)},
     )
-    return _shape(_repo().get_bluebook_submission(submission_id))
+    # Named like the list and detail routes: the reader merges this reply into
+    # the submission it shows, so a bare row turned an account student's name
+    # into "Candidate" on the reader and its print sheet after saving a mark.
+    return _shape(_with_names([_repo().get_bluebook_submission(submission_id)])[0])
 
 
 def _set_release(exam_id: str, request: Request, released: bool) -> dict:
@@ -832,7 +897,7 @@ def bluebook_delete_exam(exam_id: str, request: Request):
     if _repo().list_bluebook_submissions_for_exam(exam_id):
         raise HTTPException(
             status_code=409,
-            detail="This exam has submissions. Set its status to CLOSED instead.",
+            detail="This collection has submissions. Set its status to Closed instead.",
         )
     _repo().delete_bluebook_exam(exam_id)
     _repo().log_audit(
@@ -915,7 +980,7 @@ def bluebook_delete_course(course_id: str, request: Request):
     ):
         raise HTTPException(
             status_code=409,
-            detail="Exams still belong to this course. Move or delete them first.",
+            detail="Collections still belong to this course. Move or delete them first.",
         )
     _repo().delete_bluebook_course(course_id)
     _repo().log_audit(

@@ -32,6 +32,11 @@ SERVED_PAGES = sorted(
     {
         DEMO / "index.html",
         DEMO / "landing.html",
+        # Staff pages a real deploy also serves ("Analysis (classic)" and the
+        # operator consoles index.html sends those roles to).
+        DEMO / "professor.html",
+        DEMO / "operator.html",
+        DEMO / "admin.html",
         DEMO / "bluebook" / "index.html",
         DEMO / "bluebook" / "parked.html",
         DEMO / "_components" / "explainer.html",
@@ -61,6 +66,16 @@ def test_no_served_page_uses_banned_wording(page: Path):
     text = _visible(page.read_text(encoding="utf-8"))
     found = [m.group(0) for rx in BANNED for m in rx.finditer(text)]
     assert not found, f"{page.relative_to(ROOT)} says {found}"
+
+
+@pytest.mark.parametrize("page", SERVED_PAGES, ids=lambda p: str(p.relative_to(DEMO)))
+def test_no_served_page_loads_a_third_party_script_font_or_stylesheet(page: Path):
+    # NORTH_STAR rule 7: fonts and scripts come from the deploy itself. The
+    # sign-in page and the three staff pages above used to call Google Fonts,
+    # and professor.html ran Chart.js from a CDN beside student writing.
+    html = page.read_text(encoding="utf-8")
+    external = re.findall(r"<(?:script|link)\b[^>]*\b(?:src|href)=[\"'](?:https?:)?//[^\"']+", html, re.I)
+    assert external == [], external
 
 
 def test_the_collections_bundle_carries_no_banned_wording():
@@ -178,7 +193,7 @@ def test_the_reference_page_uses_the_runbooks_import_words():
     # docs/alpha/setup_runbook.md: "click Import papers, select the files, and click Import".
     page = (DEMO / "original" / "baseline.html").read_text(encoding="utf-8")
     assert '<button type="button" data-tab="files" aria-pressed="false">Import papers</button>' in page
-    assert '<button class="btn" id="files-go" type="button" disabled>Import</button>' in page
+    assert '<button class="btn btn-gold" id="files-go" type="button" disabled>Import</button>' in page
     runbook = ROOT / "docs" / "alpha" / "setup_runbook.md"
     if runbook.is_file():
         text = runbook.read_text(encoding="utf-8")

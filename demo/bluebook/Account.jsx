@@ -1,10 +1,11 @@
 import React from 'react';
-import { BB, BB_API, BtnPrimary, fontBody } from './components.jsx';
+import { BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
 import { examToConfig, takeSittingToResume } from './Exam.jsx';
 import { clearFormDraft, loadFormDraft, saveFormDraft } from './form-drafts.jsx';
+import { AppBar, MenuIcon, ORIGINAL_NAV_LABEL, avatarInitials } from './AppBar.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 
 // ════════════════════════════════════════════════════════════════
@@ -33,11 +34,11 @@ export function homeFor(data) {
   return data && data.role === 'student' ? 'student-home' : 'dashboard';
 }
 
-const legalLink = { color: BB.gold };
+const legalLink = { color: 'var(--gold-2)' };
 
 export function LegalLinks() {
   return (
-    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: 15, color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 18, fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--dim)' }}>
       <a href="../legal/terms.html" target="_blank" rel="noopener" style={legalLink}>Terms</a>
       {' · '}
       <a href="../legal/privacy.html" target="_blank" rel="noopener" style={legalLink}>Privacy</a>
@@ -95,7 +96,7 @@ export function SignupScreen({ onNavigate }) {
   return (
     <AuthShell title="Create a free workspace" onBack={() => onNavigate('landing')}
       footer={<>
-        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+        <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
           Already have an account? <LinkBtn onClick={() => onNavigate('login')}>Sign in</LinkBtn>
         </p>
         <LegalLinks />
@@ -148,10 +149,12 @@ export function inviteKind(search) {
 // expired, voided or already used), so the route cannot be used to probe
 // tokens (original/routers/auth.py). The screen says what to do next instead.
 const LINK_REFUSED = /invalid, expired, or already used/i;
-export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+// No lifetime is quoted: an invite lasts 14 days (or until replaced, with
+// INVITE_NO_EXPIRY), a password reset link a day (original/invites.py).
+export const INVITE_LINK_USED = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, ask your teacher for a new link.';
 // A teacher's own invitation or reset link was not sent by a teacher.
-export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works once and lasts 14 days. '
+export const INVITE_LINK_USED_STAFF = 'This link has already been used, or it has expired. Each link works only once. '
   + 'If you have already set your password, sign in with your email and password. If not, use “Forgot your password?” on the sign-in page, '
   + 'or ask the person who invited you for a new link.';
 export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be used. Please open the whole link from your invitation, '
@@ -160,7 +163,7 @@ export const INVITE_LINK_MISSING = 'This link is incomplete, so it cannot be use
 // What the set-password screen says when the server refuses a link of this kind.
 export function inviteErrorText(message, kind = 'student') {
   if (LINK_REFUSED.test(String(message || ''))) return kind === 'student' ? INVITE_LINK_USED : INVITE_LINK_USED_STAFF;
-  return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot password”.';
+  return message || 'This link could not be used. Ask your teacher for a new one, or use “Forgot your password?” on the sign-in page.';
 }
 
 function clearInviteFromUrl() {
@@ -228,7 +231,7 @@ export function InviteScreen({ onNavigate }) {
 
   const title = kind === 'reset' ? 'Choose a new password' : 'Set your password';
   const signInLine = (
-    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+    <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
       Already set your password? <LinkBtn onClick={() => toSignIn(onNavigate)}>Sign in</LinkBtn>
     </p>
   );
@@ -237,7 +240,7 @@ export function InviteScreen({ onNavigate }) {
     return (
       <AuthShell title={title} footer={<LegalLinks />}>
         <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{token ? (error || INVITE_LINK_USED) : INVITE_LINK_MISSING}</p>
-        <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: 17 }}>Go to sign in</BtnPrimary>
+        <BtnPrimary full onClick={() => toSignIn(onNavigate)} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>Go to sign in</BtnPrimary>
         <p className="bb-hint" style={{ marginTop: 16 }}>
           {kind === 'student'
             ? 'Forgot your password? Use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.'
@@ -259,7 +262,7 @@ export function InviteScreen({ onNavigate }) {
           To try the student side yourself, open this link in a private (incognito) window or a different browser.
         </p>
       )}
-      <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
         {kind === 'reset'
           ? 'Choose a new password for your Collections account. Your old password stops working once you save.'
           : 'Choose a password for your Collections account. You will use it with your email address to sign in from now on.'}
@@ -274,6 +277,148 @@ export function InviteScreen({ onNavigate }) {
         )}
         <ErrorText>{error}</ErrorText>
         <SubmitButton busy={busy} busyLabel="Saving…">Save and continue</SubmitButton>
+      </form>
+    </AuthShell>
+  );
+}
+
+// ─── Course sign-up link (?join=): make your own account ─────────────────────
+// A teacher can turn on one forwardable link per course. Anyone who opens it
+// creates their own student account here (name, email, password, and the
+// student notice) and lands on that course. It never sets a password on an
+// account that already has one: that person signs in and opens the link again.
+// An email the teacher already added uses its personal invite link instead.
+function joinTokenFromUrl() {
+  try { return new URLSearchParams(window.location.search).get('join') || ''; } catch (e) { return ''; }
+}
+
+function clearJoinFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('join');
+    window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+  } catch (e) {}
+}
+
+export const JOIN_LINK_MISSING = 'This sign-up link is incomplete, so it cannot be used. Please open the whole link your teacher sent, or ask them for it again.';
+
+export function JoinScreen({ onNavigate }) {
+  const [token] = useState(joinTokenFromUrl);
+  const [info, setInfo] = useState(null);
+  const [dead, setDead] = useState(token ? '' : JOIN_LINK_MISSING);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  // The email already has an account: sign in, then open the link again.
+  const [hasAccount, setHasAccount] = useState(false);
+  const signedInStudent = BB_API.isStudentAccount();
+  const staffHere = !signedInStudent && BB_API.isAuthed();
+
+  useEffect(() => {
+    if (!token) return;
+    BB_API.joinInfo(token).then(setInfo).catch(err => setDead(err.message || JOIN_LINK_MISSING));
+  }, []);
+
+  function toSignIn() { clearJoinFromUrl(); onNavigate('login'); }
+
+  async function finish(data) {
+    clearJoinFromUrl();
+    await resumeOrHome(onNavigate, homeFor(data || { role: 'student' }), { openExam: openStudentExam });
+  }
+
+  async function joinSignedIn() {
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await BB_API.meJoin(token); await finish(); }
+    catch (err) { setError(err.message || 'Could not join this course.'); setBusy(false); }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    if (!name.trim()) { setError('Please enter your name.'); return; }
+    const problem = passwordProblem(pw, confirm);
+    if (problem) { setError(problem); return; }
+    if (!agree) { setError('Please tick the box to say you have read the student notice and accept the terms.'); return; }
+    setError(''); setHasAccount(false);
+    setBusy(true);
+    try {
+      const data = await BB_API.joinSignup(token, name.trim(), email.trim(), pw, true);
+      await finish(data);
+    } catch (err) {
+      // Only an account with a password can sign in; an invited one uses its own invite link.
+      if (err.status === 409 && /sign in/i.test(err.message || '')) setHasAccount(true);
+      if (err.status === 400) setDead(err.message);
+      setError(err.message || 'Could not create your account.');
+      setBusy(false);
+    }
+  }
+
+  const courseLine = info
+    ? `${info.course_name || 'this course'}${info.course_code ? ` (${info.course_code})` : ''}${info.teacher_name ? `, with ${info.teacher_name}` : ''}`
+    : '';
+
+  if (dead) {
+    return (
+      <AuthShell title="Join a course" footer={<LegalLinks />}>
+        <p role="alert" className="bb-error" style={{ marginTop: 0 }}>{dead}</p>
+        <BtnPrimary full onClick={toSignIn} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>Go to sign in</BtnPrimary>
+      </AuthShell>
+    );
+  }
+  if (!info) {
+    return <AuthShell title="Join a course" footer={<LegalLinks />}><p className="bb-hint">Opening the sign-up link…</p></AuthShell>;
+  }
+
+  if (signedInStudent) {
+    return (
+      <AuthShell title="Join a course" footer={<LegalLinks />}>
+        <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 12px', lineHeight: 1.55 }}>{courseLine}</p>
+        <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
+          You are signed in as {BB_API.identity().email || 'a student'}. Join this course with that account?
+        </p>
+        <ErrorText>{error}</ErrorText>
+        <BtnPrimary full onClick={joinSignedIn} disabled={busy} style={{ padding: '14px 0', fontSize: '1.0625rem' }}>{busy ? 'Joining…' : 'Join this course'}</BtnPrimary>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="Join a course" footer={<>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)' }}>
+        Already have an account? <LinkBtn onClick={toSignIn}>Sign in</LinkBtn>, then open this link again.
+      </p>
+      <LegalLinks />
+    </>}>
+      {staffHere && (
+        <p role="note" data-testid="join-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
+          This browser is signed in as {BB_API.identity().email || 'a teacher'}. Creating a student account here signs that account out, in every tab.
+          To try the student side yourself, open this link in a private (incognito) window or a different browser.
+        </p>
+      )}
+      <p data-testid="join-course" style={{ fontFamily: fontBody, fontSize: '1.0625rem', margin: '0 0 8px', lineHeight: 1.55 }}>{courseLine}</p>
+      <p style={{ fontFamily: fontBody, fontSize: '1rem', color: 'var(--dim)', margin: '0 0 20px', lineHeight: 1.55 }}>
+        Create your Collections account to join this course. You will use your email and password to sign in from now on.
+        Please read the student notice first: it says what Collections keeps and who sees your work.
+      </p>
+      <form onSubmit={submit}>
+        <Field id="bbJoinName" label="Your name" value={name} onChange={setName} autoComplete="name" />
+        <Field id="bbJoinEmail" label="Email" type="email" value={email} onChange={setEmail}
+          placeholder="you@school.edu" autoComplete="email" />
+        <Field id="bbJoinPass" label="Password" type="password" value={pw} onChange={setPw}
+          autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
+        <Field id="bbJoinConfirm" label="Confirm password" type="password" value={confirm}
+          onChange={setConfirm} autoComplete="new-password" />
+        <TermsCheckbox id="bbJoinTerms" checked={agree} onChange={setAgree} student />
+        <ErrorText>{error}</ErrorText>
+        {hasAccount && (
+          <BtnPrimary full onClick={toSignIn} style={{ padding: '12px 0', fontSize: '1rem', marginBottom: 12 }}>Go to sign in</BtnPrimary>
+        )}
+        <SubmitButton busy={busy} busyLabel="Creating…">Create account and join</SubmitButton>
       </form>
     </AuthShell>
   );
@@ -354,11 +499,23 @@ export function PasswordForm() {
   );
 }
 
+// Settings › Text: the same panel as the Aa button, kept on this account.
+export function TextSettingsPanel() {
+  return (
+    <Panel>
+      <h2>Text</h2>
+      <p className="bb-meta" style={{ marginBottom: '.8rem' }}>Choose a font and text size. Every page changes at once, on this device and wherever you sign in. Your writing itself is never changed.</p>
+      <TextSettingsButton />
+    </Panel>
+  );
+}
+
 export function AccountScreen() {
   const id = BB_API.identity();
   return (
     <Page eyebrow="Account" title={id.name || 'Your account'} meta={id.email}>
       <Panel><h2>Change password</h2><PasswordForm /></Panel>
+      <TextSettingsPanel />
     </Page>
   );
 }
@@ -380,20 +537,25 @@ export const SHOW_STUDENT_ORIGINAL_PAGES = false;
 export function StudentShell({ onNavigate, active, children }) {
   const id = BB_API.identity();
   const studentOriginalLinks = SHOW_STUDENT_ORIGINAL_PAGES && BB_API.hasOriginal() ? STUDENT_ORIGINAL_LINKS : [];
-  const tab = (key, label) => (
-    <button key={key} onClick={() => onNavigate(key)} aria-current={active === key ? 'page' : undefined}>{label}</button>
-  );
+  // The shared bar (AppBar.jsx): a student is offered the Original side of the
+  // switch only where the shell used to offer Original's pages (none in the pilot).
+  const original = studentOriginalLinks.length
+    ? { href: studentOriginalLinks[0][0], label: ORIGINAL_NAV_LABEL, title: 'Original is in its testing phase and is not yet validated on real student writing.' }
+    : null;
   return (
     <div className="bb-student">
-      <nav className="bb-student-nav" aria-label="Student navigation">
-        <button className="brand" onClick={() => onNavigate('student-home')}>Collections</button>
-        <div className="tabs">
-          {tab('student-home', 'My exams')}
-          {studentOriginalLinks.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
-          {tab('student-account', 'Account')}
-          <button onClick={() => { BB_API.logout(); onNavigate('landing'); }}>Sign out</button>
-        </div>
-      </nav>
+      <AppBar
+        sticky
+        navLabel="Student navigation"
+        pills={[{ key: 'student-home', label: 'My collections', current: active === 'student-home', icon: <MenuIcon name="book" />, onClick: () => onNavigate('student-home') }]}
+        original={original}
+        account={{ current: active === 'student-account', onClick: () => onNavigate('student-account') }}
+        guideFor="student"
+        onSignOut={() => { BB_API.logout(); onNavigate('landing'); }}
+        name={id.name}
+        sub="Student"
+        initials={avatarInitials(id.name, 'S')}
+      />
       <main className="bb-student-body">
         {id.name && <p className="sr-only" style={{ position: 'absolute', left: -9999 }}>Signed in as {id.name}</p>}
         {children}
@@ -569,7 +731,7 @@ export function StudentHomeScreen({ onNavigate }) {
         if (err.status === 401 || /sign in|not authenticated/i.test(err.message || '')) {
           BB_API.logout(); onNavigate('login'); return;
         }
-        setError(bbStudentError(err, 'We could not load your exams just now. Please refresh the page to try again.'));
+        setError(bbStudentError(err, 'We could not load your collections just now. Please refresh the page to try again.'));
         setExams([]);
       });
     return () => { live = false; };
@@ -578,7 +740,7 @@ export function StudentHomeScreen({ onNavigate }) {
   async function open(e) {
     setOpening(e.exam_id); setError('');
     try { await openStudentExam(e.exam_id, onNavigate); }
-    catch (err) { setError(bbStudentError(err, 'We could not open that exam just now. Please try again.')); setOpening(''); }
+    catch (err) { setError(bbStudentError(err, 'We could not open that collection just now. Please try again.')); setOpening(''); }
   }
 
   const courses = (me && me.courses) || [];
@@ -586,7 +748,7 @@ export function StudentHomeScreen({ onNavigate }) {
   const sorted = sortStudentExams(exams);
 
   const examColumns = [
-    { key: 'title', label: 'Examination', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.timed === false ? 'no time limit' : (e.duration ? `${e.duration} min` : null), e.setting === 'take_home' ? 'take-home' : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
+    { key: 'title', label: 'Collection', lead: true, render: e => <>{e.title}<span className="sub">{[e.course, e.timed === false ? 'no time limit' : (e.duration ? `${e.duration} min` : null), e.setting === 'take_home' ? 'take-home' : null, e.questions_count > 1 ? `${e.questions_count} questions` : null].filter(Boolean).join(' · ')}</span></> },
     { key: 'state', label: 'Status', render: e => <Badge>{e.submitted ? 'submitted' : e.state}</Badge> },
     { key: 'when', label: 'When', render: e => examWindowText(e) || '—' },
     { key: 'go', label: 'Action', actions: true, render: e => {
@@ -595,7 +757,7 @@ export function StudentHomeScreen({ onNavigate }) {
     } },
   ];
   const subColumns = [
-    { key: 'exam', label: 'Examination', lead: true, render: s => s.exam || 'Examination' },
+    { key: 'exam', label: 'Collection', lead: true, render: s => s.exam || 'Collection' },
     { key: 'created_at', label: 'Submitted', render: s => when(s.created_at) },
     { key: 'words', label: 'Words', num: true },
     { key: 'mark', label: 'Mark', render: s => s.results_released ? (s.mark || 'Released') : 'Not yet released' },
@@ -605,12 +767,12 @@ export function StudentHomeScreen({ onNavigate }) {
   return (
     <StudentShell onNavigate={onNavigate} active="student-home">
       <Page eyebrow="Collections"
-        title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My exams'}
+        title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My collections'}
         meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'You are not in a course yet. Your teacher will add you.')}>
         <ErrorText>{error}</ErrorText>
-        <Section title="Examinations">
-          <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your examinations"
-            empty={loading ? 'Loading…' : 'No examinations yet. Your teacher will add them to your course.'} />
+        <Section title="Collections">
+          <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your collections"
+            empty={loading ? 'Loading…' : 'No collections yet. Your teacher will add them to your course.'} />
         </Section>
         <Section title="My submissions">
           <Table columns={subColumns} rows={subs} rowKey={s => s.id} caption="Your submissions" empty="Nothing submitted yet." />
@@ -635,7 +797,7 @@ export function StudentSubmissionScreen({ onNavigate }) {
       <Page eyebrow="Your submission"
         title={sub ? (sub.exam || 'Submission') : 'Submission'}
         meta={sub ? `${when(sub.created_at)} · ${sub.words} words${sub.late ? ' · after the deadline' : ''}` : ''}
-        actions={<Btn onClick={() => onNavigate('student-home')}>← My exams</Btn>}>
+        actions={<Btn onClick={() => onNavigate('student-home')}>← My collections</Btn>}>
         <ErrorText>{error}</ErrorText>
         {sub && (
           <>
@@ -648,7 +810,7 @@ export function StudentSubmissionScreen({ onNavigate }) {
                     ? <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{sub.feedback}</p>
                     : <p className="bb-meta">No written feedback.</p>}
                 </>
-              ) : <p className="bb-meta">Your teacher has not released results for this exam yet.</p>}
+              ) : <p className="bb-meta">Your teacher has not released results for this collection yet.</p>}
             </Panel>
             <div className="bb-paper">
               {answers ? answers.map((a, i) => (
@@ -671,7 +833,8 @@ export function StudentAccountScreen({ onNavigate }) {
     <StudentShell onNavigate={onNavigate} active="student-account">
       <Page eyebrow="Account" title={id.name || 'Your account'} meta={id.email}>
         <Panel><h2>Change password</h2><PasswordForm /></Panel>
-        <p className="bb-hint" style={{ marginTop: 20 }}>Forgot your password? Sign out and use “Forgot password”, or ask your teacher for a new link.</p>
+        <TextSettingsPanel />
+        <p className="bb-hint" style={{ marginTop: 20 }}>Forgot your password? Sign out and use “Forgot your password?” on the sign-in page, or ask your teacher for a new link.</p>
       </Page>
     </StudentShell>
   );
