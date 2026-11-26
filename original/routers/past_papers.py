@@ -276,8 +276,13 @@ def approve_shared_paper(paper_id: str, request: Request):
     except ValidationError:
         raise HTTPException(status_code=422, detail="This paper is too long to add.") from None
     status = "approved"
+    added = False
     try:
-        add_baseline(rec["student_id"], req, request)
+        out = add_baseline(rec["student_id"], req, request)
+        # Skipped when the text is already in the baseline (the replay guard):
+        # this approval wrote nothing, so it stands behind no sample
+        # (approved_papers.py counts only approvals that wrote one).
+        added = not (isinstance(out, dict) and out.get("skipped"))
     except HTTPException as exc:
         if exc.status_code not in (202, 409):  # drift gate: hold for review
             raise
@@ -289,7 +294,11 @@ def approve_shared_paper(paper_id: str, request: Request):
         tenant_id=rec["tenant_id"],
         actor=_actor(request),
         result=status,
-        details={"paper_id": paper_id, "baseline_source": rec.get("baseline_source")},
+        details={
+            "paper_id": paper_id,
+            "baseline_source": rec.get("baseline_source"),
+            "added": added,
+        },
     )
     return {"paper_id": paper_id, "status": status}
 

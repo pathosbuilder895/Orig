@@ -100,8 +100,11 @@ def test_each_source_value(live_client):
         (_paper(0, TOPICS[2]), "canvas", "staff_or_supervised"),
         # The approved form of a sealed take-home: answers joined, no headings.
         ("\n\n".join(take_home_parts), "unverified", "take_home"),
-        # A sample the old seal-time write stored with "Question N." headings.
-        (headed, "unverified", "take_home"),
+        # A sample stored with "Question N." headings whose approval found it
+        # already there ("already_in_baseline"): the approval wrote nothing,
+        # and the text may be the student's own earlier upload, so it is not
+        # counted as approved (PR #381 review).
+        (headed, "unverified", "student_upload"),
         # Sealed but never approved: the student uploading it is not approval.
         (_paper(0, TOPICS[6]), "unverified", "student_upload"),
         # Approved, then taken back out, then uploaded again by the student.

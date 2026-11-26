@@ -51,9 +51,18 @@ __all__ = [
 ]
 
 # What POST/DELETE /bluebook/submissions/{id}/baseline record
-# (routers/bluebook_baselines.py). An approval that found the text already in
-# the baseline still approved it; "held" and the refusals approved nothing.
-_APPROVED_RESULTS = frozenset({"added", "already_in_baseline"})
+# (routers/bluebook_baselines.py). Only an approval that wrote a sample
+# ("added") stands behind one. "already_in_baseline" found the text there
+# already, possibly as the student's own self-upload posted beforehand, so it
+# vouches for nothing; "held" and the refusals approved nothing.
+_APPROVED_RESULTS = frozenset({"added"})
+
+_APPROVAL_ACTIONS = [
+    "baseline_approve",
+    "baseline_remove",
+    "past_paper_approve",
+    "past_paper_unapprove",
+]
 
 
 def _repo():
@@ -63,11 +72,41 @@ def _repo():
 
 
 def approved_submission_ids(repo, student_id: str) -> set[str]:
-    """Submission ids a teacher approved into this student's baseline and has
-    not since removed, replayed oldest first from the audit log."""
+    """Submission ids whose approval wrote a sample into this student's
+    baseline and that a teacher has not since removed, replayed oldest first
+    from the audit log."""
+    return _approval_records(repo, student_id)[0]
+
+
+def _approval_records(repo, student_id: str) -> tuple[set[str], set[str]]:
+    """One audit read: (take-home submission ids whose approval wrote a
+    sample and was not undone, shared past-paper ids whose latest approval
+    wrote nothing). A shared paper's approval goes through the baseline route
+    with a submission_uuid, which skips a text already there (e.g. the
+    student's own earlier upload of it); past_paper_approve records that as
+    ``added: false``. Rows written before that field existed say nothing and
+    are taken as written, as they always were."""
     approved: set[str] = set()
-    rows = repo.list_audit_actions_for_student(student_id, ["baseline_approve", "baseline_remove"])
+    unwritten_papers: set[str] = set()
+    rows = repo.list_audit_actions_for_student(student_id, _APPROVAL_ACTIONS)
     for row in rows:
+        details = row.get("details") or {}
+        paper_id = details.get("paper_id")
+        if row["action"] == "past_paper_approve" and paper_id:
+            if details.get("added") is False:
+                unwritten_papers.add(paper_id)
+            else:
+                unwritten_papers.discard(paper_id)
+            continue
+        if row["action"] == "past_paper_unapprove":
+            if paper_id:
+                unwritten_papers.discard(paper_id)
+            continue
+        sub_id = details.get("submission_id")
+        if not sub_id:
+            continue
+        if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
+            approved.add(sub_id)
         sub_id = (row.get("details") or {}).get("submission_id")
         if not sub_id:
             continue
@@ -75,7 +114,7 @@ def approved_submission_ids(repo, student_id: str) -> set[str]:
             approved.add(sub_id)
         elif row["action"] == "baseline_remove" and row.get("result") == "removed":
             approved.discard(sub_id)
-    return approved
+    return approved, unwritten_papers
 
 
 def sample_sources(student_id: str, samples: Sequence) -> list[str]:
@@ -89,10 +128,14 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
     past papers, else ``student_upload``; ``unknown`` for any other
     provenance. Read-only; nothing here reaches scoring.
 
-    Each approval stands behind one sample only: the first (oldest) sample
-    whose text matches it. A further copy of the same text is labelled
-    ``student_upload``, so a student who posts the text of an approved paper
-    or of their own approved take-home answer again cannot raise the count.
+    An approval counts only when it wrote a sample itself: a take-home
+    approval recorded as ``added`` (not ``already_in_baseline``), a shared
+    paper whose approval was not skipped as a duplicate. Each approval stands
+    behind one sample only (the oldest match), and one piece of writing counts
+    once however many approvals cover it: a further copy of an already
+    counted text is ``student_upload``. So a student who posts the text of an
+    approved paper or their own take-home answer, before or after the
+    approval, cannot raise the count.
     """
     from .routers.bluebook_baselines import _fingerprints
     from .routers.past_papers import _sha
@@ -105,7 +148,7 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
     shared: dict[str, str] = {}
     if any(unverified):
         repo = _repo()
-        approved = approved_submission_ids(repo, student_id)
+        approved, unwritten_papers = _approval_records(repo, student_id)
         if approved:
             for rec in repo.list_bluebook_submission_texts_for_student(student_id):
                 if rec.get("id") in approved:
@@ -114,15 +157,23 @@ def sample_sources(student_id: str, samples: Sequence) -> list[str]:
         tenant = principal_mod.tenant_of(student_id)
         if tenant:
             for p in repo.list_past_papers(tenant, student_id):
-                if p.get("status") == "approved" and p.get("text"):
+                if (
+                    p.get("status") == "approved"
+                    and p.get("text")
+                    and p.get("paper_id") not in unwritten_papers
+                ):
                     shared.setdefault(_sha(p["text"]), f"shared:{p.get('paper_id')}")
-    used: set[str] = set()
+    used: set[str] = set()  # approvals already spent
+    counted: set[str] = set()  # text hashes already counted as approved
 
     def _claim(hashes: set[str], approvals: dict[str, str]) -> bool:
+        if hashes & counted:
+            return False
         for h in sorted(hashes):
             key = approvals.get(h)
             if key is not None and key not in used:
                 used.add(key)
+                counted.update(hashes)
                 return True
         return False
 

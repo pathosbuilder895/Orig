@@ -172,27 +172,31 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
     # "In baseline" is the same test the status route uses, so a sample the
     # old seal stored with "Question N." headings is not added a second time.
     state = _repo().get(rec["student_id"])
-    if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
-        return _row(rec, "already_in_baseline")
     # Take-home work was not written under supervision: it joins a baseline
     # only as an extension of one that already exists, one paper at a time,
     # at the self-upload provenance (never proctored). The drift gate below
     # decides whether it is substantially different, exactly as for a
     # shared past paper (routers/past_papers.py).
     take_home = _is_take_home(rec)
+    if take_home:
+        # Checked before "already in baseline": a student's own upload of the
+        # answer text must not let a take-home skip the extension rule. The
+        # baseline it extends is counted in approved papers (rule B,
+        # approved_papers.py): a student's own self-upload does not count.
+        needed = min_baseline_samples()
+        have = 0 if state is None else approved_paper_count(rec["student_id"], state.samples)
+        if have < needed:
+            return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
+    if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
+        # Nothing is written, so this approval is not counted as one
+        # (approved_papers counts "added" approvals only).
+        return _row(rec, "already_in_baseline")
     if set_aside_flagged:
         reason = ", ".join(
             r for r in (TAKE_HOME_DETAIL if take_home else "", _review_reason(rec)) if r
         )
         if reason:
             return _row(rec, "needs_review", reason)
-    if take_home:
-        # The baseline it extends is counted in approved papers (rule B,
-        # approved_papers.py): a student's own self-upload does not count.
-        needed = min_baseline_samples()
-        have = 0 if state is None else approved_paper_count(rec["student_id"], state.samples)
-        if have < needed:
-            return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
     try:
         req = AddSampleRequest(
             text=text,

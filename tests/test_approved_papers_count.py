@@ -422,7 +422,7 @@ def test_a_score_request_reads_each_record_once(live_client, monkeypatch):
     )
 
     def _audit(self, *a, **k):
-        if list(a[1:2]) == [["baseline_approve", "baseline_remove"]]:
+        if a[1:2] and "baseline_approve" in a[1]:  # the approval replay (one read)
             calls["audit"] += 1
         return audit(self, *a, **k)
 
@@ -590,3 +590,83 @@ def test_each_approval_is_spent_once_and_the_oldest_copy_keeps_it(monkeypatch):
     got = approved_papers.sample_sources("t1:s", samples)
     assert got == ["shared_paper", "take_home", "student_upload", "student_upload"]
     assert baseline_integrity.count_approved(samples, got) == 2
+
+
+# ── an approval counts only when it wrote the sample itself ──────────────────
+
+
+def _take_home(sid, ident, text):
+    repo = get_repository()
+    tenant = principal.tenant_of(sid)
+    repo.put_bluebook_exam(
+        {
+            "id": f"exam-{ident}",
+            "tenant_id": tenant,
+            "title": "Take-home",
+            "conditions": {"setting": "take_home"},
+        }
+    )
+    repo.put_bluebook_submission(
+        {
+            "id": f"bbsub-{ident}",
+            "tenant_id": tenant,
+            "exam_id": f"exam-{ident}",
+            "student_id": sid,
+            "candidate": "S0",
+            "answers": [text],
+            "text": text,
+        }
+    )
+    return f"bbsub-{ident}"
+
+
+@pytest.mark.slow
+def test_a_take_home_pre_posted_by_the_student_does_not_count(live_client):
+    """Review A: the student uploads their own take-home answer before the
+    teacher approves it. The approval finds the text already there and writes
+    nothing, so it vouches for nothing; and with no approved baseline it is
+    refused as needs_baseline before the already-in-baseline shortcut."""
+    T, [(sid, S), _] = _workspace(live_client, "apc10@example.test")
+    text = _paper(0, TOPICS[3])
+    _post_own(live_client, sid, S, text)
+    sub = _take_home(sid, "apc10a", text)
+    out = _ok(live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=T))
+    assert out["status"] == "needs_baseline", out
+    assert _readiness(live_client, sid, T)["approved_count"] == 0
+
+    # With three approved papers the take-home may extend the baseline, but a
+    # copy the student posted first is still not one the approval wrote.
+    _share_and_approve(live_client, T, S, range(3))
+    out = _ok(live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=T))
+    assert out["status"] == "already_in_baseline", out
+    assert _readiness(live_client, sid, T)["approved_count"] == 3
+    assert sorted(_sources_for(live_client, sid, T)) == sorted(
+        ["student_upload"] + ["shared_paper"] * 3
+    )
+
+
+@pytest.mark.slow
+def test_a_shared_paper_pre_posted_by_the_student_does_not_count(live_client):
+    """The same for a shared paper: its approval skips a text already in the
+    baseline, so it wrote nothing and counts for nothing."""
+    T, [(sid, S), _] = _workspace(live_client, "apc11@example.test")
+    _post_own(live_client, sid, S, _paper(0, TOPICS[0]))
+    _share_and_approve(live_client, T, S, [0])
+    assert get_repository().get(sid).sample_count == 1
+    assert _readiness(live_client, sid, T)["approved_count"] == 0
+    assert _sources_for(live_client, sid, T) == ["student_upload"]
+
+
+@pytest.mark.slow
+def test_one_piece_of_writing_counts_once_however_many_approvals_cover_it(live_client):
+    """Review B: the same text approved as a shared paper and as a take-home
+    answer is one piece of writing; a student copy of it cannot spend the
+    second approval."""
+    T, [(sid, S), _] = _workspace(live_client, "apc12@example.test")
+    _share_and_approve(live_client, T, S, range(4))  # Paper 3 is the shared copy
+    sub = _take_home(sid, "apc12a", _paper(0, TOPICS[3]))
+    _ok(live_client.post(f"/bluebook/submissions/{sub}/baseline", headers=T))
+    _post_own(live_client, sid, S, _paper(0, TOPICS[3]))
+    assert _readiness(live_client, sid, T)["approved_count"] == 4
+    staff = _ok(_score(live_client, sid, T))
+    assert staff["baseline_integrity"]["n_baselines"] == 4
