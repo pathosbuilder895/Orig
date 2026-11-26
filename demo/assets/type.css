@@ -39,7 +39,9 @@ body{font-family:var(--bb-font-body);line-height:var(--bb-line);letter-spacing:v
   border:1px solid currentColor;background:transparent;color:inherit;font:600 .9rem/1 var(--bb-font-body);cursor:pointer;white-space:nowrap}
 .bbd-btn:focus-visible{outline:3px solid #4a6cb5;outline-offset:2px}
 .bbd-btn .bbd-aa{font:600 1.05rem/1 var(--bb-font-body)}
-.bbd-float{position:fixed;left:.75rem;bottom:.75rem;z-index:9990;background:#fbf8f0;color:#1e2f57;border-color:rgba(30,47,87,.35);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.bbd-float{position:fixed;left:calc(.75rem + env(safe-area-inset-left,0px));bottom:calc(.75rem + env(safe-area-inset-bottom,0px));z-index:9990;background:#fbf8f0;color:#1e2f57;border-color:rgba(30,47,87,.35);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+/* Phones: a compact Aa chip, and room at the foot of the page so the last line can scroll clear of it. */
+@media (max-width:600px){.bbd-float>span:not(.bbd-aa){display:none}.bbd-float{min-width:44px;padding-inline:.7rem}body.bbd-has-float{padding-bottom:calc(4.5rem + env(safe-area-inset-bottom,0px))}}
 /* Room under long pages so the floating Aa never covers the last line. */
 .bbd-has-float{padding-bottom:5.5rem}
 .bbd-has-float .bk-cover-inner,

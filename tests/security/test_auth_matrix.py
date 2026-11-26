@@ -96,6 +96,7 @@ ROUTE_ROUTER: dict[str, str] = {
     "GET /students/{A_student}": "students",
     "GET /baseline-requests/pending": "students_baseline",
     "POST /students/{A_student}/score": "students_scoring",
+    "GET /students/{A_student}/samples/0/parts": "students_parts",
     "GET /tenants/{A}/stats": "tenants",
 }
 

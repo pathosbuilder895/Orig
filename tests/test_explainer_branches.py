@@ -171,7 +171,7 @@ def test_explain_uses_destructive_feature_plain_name():
     )
     result = _make_result(action="monitor", deviation_score=0.5, destructive=[feature])
     out = explain(result)
-    assert any("vocabulary bursts" in r for r in out["top_reasons"])
+    assert any("mix of short and long sentences" in r for r in out["top_reasons"])
 
 
 def test_explain_ghostwriting_signal_appends_note_to_summary():

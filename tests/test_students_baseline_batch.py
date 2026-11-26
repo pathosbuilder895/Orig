@@ -44,7 +44,7 @@ U3 = (
     "The two callings, teaching and caring, are never rightly separated in faithful practice. "
 ) * 15
 OUTLIER_TEXT = (
-    "OMG!!! ur baseline thing is SOOO weird lol -- like, \"whatever\" (i guess); "
+    'OMG!!! ur baseline thing is SOOO weird lol -- like, "whatever" (i guess); '
     "idk, u know?? c'mon -- don't u think so; totally, right?! "
     "e.g. this ain't gonna work; i.e. it's kinda broken -- (maybe) \"who knows\"; "
 ) * 15
@@ -101,7 +101,8 @@ def _add_baseline(client, sid, text, provenance="verified", **extra):
 class TestUploadBatchBranches:
     def test_unknown_provenance_is_422(self, live_client, store_reset):
         r = _post_files(
-            live_client, "s-batch-1",
+            live_client,
+            "s-batch-1",
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
             provenance="notarized",
         )
@@ -125,7 +126,8 @@ class TestUploadBatchBranches:
         sid = f"acme:selfassert-batch-{requested}"
         token = pr.mint_principal_token(sid, "student", "acme")
         r = _post_files(
-            live_client, sid,
+            live_client,
+            sid,
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
             provenance=requested,
             headers={"Authorization": f"Bearer {token}"},
@@ -147,7 +149,8 @@ class TestUploadBatchBranches:
         sid = "acme:staff-batch"
         token = pr.mint_principal_token("prof_acme", "professor", "acme")
         r = _post_files(
-            live_client, sid,
+            live_client,
+            sid,
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
             provenance="verified",
             headers={"Authorization": f"Bearer {token}"},
@@ -167,7 +170,8 @@ class TestUploadBatchBranches:
         sid = "acme:audit-batch"
         token = pr.mint_principal_token(sid, "student", "acme")
         r = _post_files(
-            live_client, sid,
+            live_client,
+            sid,
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -187,7 +191,8 @@ class TestUploadBatchBranches:
         assert first.json()["imported"] == 1
 
         again = _post_files(
-            live_client, "s-batch-2",
+            live_client,
+            "s-batch-2",
             [("b.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
         )
         body = again.json()
@@ -196,7 +201,8 @@ class TestUploadBatchBranches:
 
     def test_unsupported_extension_is_reported_not_fatal(self, live_client, store_reset):
         r = _post_files(
-            live_client, "s-batch-3",
+            live_client,
+            "s-batch-3",
             [
                 ("notes.rtf", io.BytesIO(b"whatever"), "application/rtf"),
                 ("ok.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain"),
@@ -208,21 +214,24 @@ class TestUploadBatchBranches:
 
     def test_empty_text_file_is_reported(self, live_client, store_reset):
         r = _post_files(
-            live_client, "s-batch-4",
+            live_client,
+            "s-batch-4",
             [("empty.txt", io.BytesIO(b"   \n"), "text/plain")],
         )
         assert any("no text extracted" in e for e in r.json()["errors"])
 
     def test_corrupt_docx_hits_the_extraction_error_arm(self, live_client, store_reset):
         r = _post_files(
-            live_client, "s-batch-5",
+            live_client,
+            "s-batch-5",
             [("broken.docx", io.BytesIO(b"not a zip archive"), "application/msword")],
         )
         assert any("extraction error" in e for e in r.json()["errors"])
 
     def test_extensionless_filename_takes_the_no_dot_arm(self, live_client, store_reset):
         r = _post_files(
-            live_client, "s-batch-6",
+            live_client,
+            "s-batch-6",
             [("README", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
         )
         assert any("unsupported type" in e for e in r.json()["errors"])
@@ -257,7 +266,8 @@ class TestUploadBatchRemainingArms:
         """Not a real PDF, but enters the ``elif ext == "pdf"`` branch and is
         caught by the same extraction-error path as the corrupt-docx arm."""
         r = _post_files(
-            live_client, "s-batch-pdf",
+            live_client,
+            "s-batch-pdf",
             [("broken.pdf", io.BytesIO(b"not a pdf file"), "application/pdf")],
         )
         assert any("extraction error" in e for e in r.json()["errors"])
@@ -268,7 +278,8 @@ class TestUploadBatchRemainingArms:
         extraction-error arm) — no existing test imports a genuine .docx."""
         raw = _docx_bytes([GOOD_TEXT, "A second paragraph, also long enough."])
         r = _post_files(
-            live_client, "s-batch-docx-valid",
+            live_client,
+            "s-batch-docx-valid",
             [
                 (
                     "paper.docx",
@@ -288,7 +299,8 @@ class TestUploadBatchRemainingArms:
         raising, which the corrupt-pdf test above never reaches."""
         raw = _blank_pdf_bytes()
         r = _post_files(
-            live_client, "s-batch-pdf-valid",
+            live_client,
+            "s-batch-pdf-valid",
             [("scan.pdf", io.BytesIO(raw), "application/pdf")],
         )
         assert r.status_code == 200, r.text
@@ -310,7 +322,8 @@ class TestUploadBatchRemainingArms:
         monkeypatch.setattr(students_baseline_mod, "feature_vector", _boom)
 
         r = _post_files(
-            live_client, "s-batch-featurefail",
+            live_client,
+            "s-batch-featurefail",
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
         )
         assert r.status_code == 200, r.text
@@ -335,7 +348,8 @@ class TestUploadBatchRemainingArms:
         monkeypatch.setattr(StudentState, "check_drift", _boom)
 
         r = _post_files(
-            live_client, "s-batch-drift-exc",
+            live_client,
+            "s-batch-drift-exc",
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
         )
         assert r.status_code == 200, r.text
@@ -347,7 +361,8 @@ class TestUploadBatchRemainingArms:
         """provenance not in ('proctored', 'verified') must still import the
         sample but skip the tension-arc kappa update (line 436's false arm)."""
         r = _post_files(
-            live_client, "s-batch-unverified",
+            live_client,
+            "s-batch-unverified",
             [("a.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain")],
             provenance="unverified",
         )
@@ -358,7 +373,8 @@ class TestUploadBatchRemainingArms:
         """A submission whose tension arc actually resolves/unresolves across
         paragraphs takes the ``catastrophe_index > 0`` arm (line 438 true)."""
         r = _post_files(
-            live_client, "s-batch-catastrophe",
+            live_client,
+            "s-batch-catastrophe",
             [("arc.txt", io.BytesIO(CATASTROPHE_TEXT.encode()), "text/plain")],
         )
         assert r.status_code == 200, r.text
@@ -371,7 +387,8 @@ class TestUploadBatchRemainingArms:
         pin for the seen_hashes fix: it must grow as files are admitted
         within a single call, not only seed from prior requests."""
         r = _post_files(
-            live_client, "s-batch-samecall-dup",
+            live_client,
+            "s-batch-samecall-dup",
             [
                 ("x.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain"),
                 ("y.txt", io.BytesIO(GOOD_TEXT.encode()), "text/plain"),
@@ -396,7 +413,8 @@ class TestUploadBatchRemainingArms:
         assert setup.json()["imported"] == 3
 
         r = _post_files(
-            live_client, sid,
+            live_client,
+            sid,
             [("outlier.txt", io.BytesIO(OUTLIER_TEXT.encode()), "text/plain")],
         )
         assert r.status_code == 200, r.text
@@ -486,9 +504,7 @@ class TestAddBaselineBranches:
         def _boom(student_id):
             raise RuntimeError("simulated auto-complete failure")
 
-        monkeypatch.setattr(
-            baseline_requests_mod, "mark_completed_for_student", _boom
-        )
+        monkeypatch.setattr(baseline_requests_mod, "mark_completed_for_student", _boom)
 
         r = _add_baseline(live_client, "s-addbase-autocomplete-exc", GOOD_TEXT)
 
@@ -596,6 +612,48 @@ class TestAddBaselineDriftHold:
         detail = second.json()["detail"]
         assert detail["status"] == "rebaseline_required"
         assert detail["drift"]["recommendation"] == "rebaseline"
+
+    def test_advisory_gate_admits_the_outlier_and_reports_the_drift(
+        self, live_client, store_reset, monkeypatch
+    ):
+        """DRIFT_GATE=advisory (the alpha pilot): the check still runs and its
+        reading comes back on the response, but the paper joins the baseline."""
+        monkeypatch.setenv("DRIFT_GATE", "advisory")
+        sid = "s-addbase-drift-advisory"
+        self._seed_baseline(live_client, sid)
+
+        r = _add_baseline(live_client, sid, OUTLIER_TEXT)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["authenticated_count"] == 4
+        assert body["drift"]["recommendation"] == "flag_for_review"
+
+    def test_advisory_gate_admits_the_outlier_in_a_batch(
+        self, live_client, store_reset, monkeypatch
+    ):
+        monkeypatch.setenv("DRIFT_GATE", "advisory")
+        sid = "s-batch-drift-advisory"
+        setup = _post_files(
+            live_client,
+            sid,
+            [
+                (f"u{i}.txt", io.BytesIO(t.encode()), "text/plain")
+                for i, t in enumerate([U1, U2, U3])
+            ],
+        )
+        assert setup.json()["imported"] == 3
+        r = _post_files(
+            live_client, sid, [("outlier.txt", io.BytesIO(OUTLIER_TEXT.encode()), "text/plain")]
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["imported"] == 1
+        assert r.json()["drift_holds"] == []
+
+    def test_default_and_unknown_values_keep_the_hold(self, live_client, store_reset, monkeypatch):
+        monkeypatch.setenv("DRIFT_GATE", "anything-else")
+        sid = "s-addbase-drift-unknown"
+        self._seed_baseline(live_client, sid)
+        assert _add_baseline(live_client, sid, OUTLIER_TEXT).status_code == 202
 
 
 # ── Step 3: request_proctored_baseline (Bbook integration) ───────────────────
@@ -861,3 +919,65 @@ class TestExistingTextHashesRemainingArms:
         )
         assert second.status_code == 200, second.text
         assert second.json()["sample_index"] == 1
+
+
+# ── The date papers were written, on an import (2026-11-17) ──────────────────
+
+
+def test_batch_records_the_written_date_on_every_imported_paper(live_client, store_reset):
+    """Imported papers used to be stored with no date, so every quote from one
+    read "date not recorded". The import now records the date it is given,
+    exactly as a single add does; it never changes a weight."""
+    from original.repository import get_repository
+
+    sid = "s-batch-written-date"
+    r = live_client.post(
+        BATCH.format(sid=sid),
+        files=[
+            ("files", (f"u{i}.txt", io.BytesIO(t.encode()), "text/plain"))
+            for i, t in enumerate([U1, U2])
+        ],
+        data={"provenance": "verified", "submitted_at": "2026-09-08"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"] == 2
+    samples = get_repository().get(sid).samples
+    assert [s.submitted_at for s in samples] == ["2026-09-08", "2026-09-08"]
+    # Without one, nothing is recorded, as before.
+    r = _post_files(live_client, sid, [("u3.txt", io.BytesIO(U3.encode()), "text/plain")])
+    assert r.status_code == 200 and get_repository().get(sid).samples[-1].submitted_at == ""
+
+
+@pytest.mark.parametrize("bad", ["yesterday", "08/09/2026", "2026-13-01"])
+def test_batch_refuses_a_date_that_is_not_a_date(live_client, store_reset, bad):
+    r = live_client.post(
+        BATCH.format(sid="s-batch-bad-date"),
+        files=[("files", ("u1.txt", io.BytesIO(U1.encode()), "text/plain"))],
+        data={"provenance": "verified", "submitted_at": bad},
+    )
+    assert r.status_code == 422, r.text
+    assert "YYYY-MM-DD" in r.text
+
+
+def test_health_reports_the_drift_gate_mode(live_client, monkeypatch):
+    """Voice Baseline words its drift rule from /health: "advisory" admits every
+    paper a teacher adds or approves; anything else is the default hold."""
+    monkeypatch.delenv("DRIFT_GATE", raising=False)
+    assert live_client.get("/health").json()["drift_gate"] == "hold"
+    for value in ("advisory", "off", " Advisory "):
+        monkeypatch.setenv("DRIFT_GATE", value)
+        assert live_client.get("/health").json()["drift_gate"] == "advisory"
+    monkeypatch.setenv("DRIFT_GATE", "anything-else")
+    assert live_client.get("/health").json()["drift_gate"] == "hold"
+
+
+def test_readiness_reports_the_drift_gate_mode(live_client, store_reset, monkeypatch):
+    """Voice Baseline reads the mode from the readiness answer it already loads:
+    on the live pilot a browser blocker refused the page's request to /health."""
+    sid = "s-readiness-drift-mode"
+    r = _post_files(live_client, sid, [("u1.txt", io.BytesIO(U1.encode()), "text/plain")])
+    assert r.status_code == 200, r.text
+    monkeypatch.delenv("DRIFT_GATE", raising=False)
+    assert live_client.get(f"/students/{sid}/readiness").json()["drift_gate"] == "hold"
+    monkeypatch.setenv("DRIFT_GATE", "advisory")
+    assert live_client.get(f"/students/{sid}/readiness").json()["drift_gate"] == "advisory"

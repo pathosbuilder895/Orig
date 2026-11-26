@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse import csr_matrix
 
+from .features.matter import without_page_breaks
 from .principal import tenant_of
 from .quantum.state import StudentState
 
@@ -198,8 +199,10 @@ def reset_for_tests() -> None:
 
 
 def _authenticated_texts(state: StudentState) -> list[str]:
+    # A stored page break (an uploaded file's form feed) is not writing:
+    # dropped here as features.preprocess drops it before measuring.
     texts = [
-        sample.text
+        without_page_breaks(sample.text)
         for sample in state.samples
         if sample.auth_weight > 0
         and isinstance(sample.text, str)
@@ -226,6 +229,7 @@ def predict_style_authorship(
 ) -> StyleAuthorshipResult | None:
     """Return same-author consistency evidence or abstain with ``None``."""
     try:
+        text = without_page_breaks(text)  # a stored page break is not writing
         if len(text.split()) < MIN_WORDS or not _ensure_loaded():
             return None
         artifact = _artifact

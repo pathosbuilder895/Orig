@@ -20,7 +20,7 @@ python-jose[cryptography]>=3.4.0,<4.0
 # The original-pg-backup job Fernet-encrypts every dump. Declared directly so it
 # does not depend on python-jose (kept above only for deferred LTI) pulling it
 # in; pinned at the version the lock already resolved.
-cryptography==50.0.0
+cryptography==50.0.2
 
 # ── Postgres (original/postgres_repository.py, REPO_BACKEND=postgres) ─────────
 # Unlike the local demo, the pilot deploy is exactly where REPO_BACKEND is
@@ -30,7 +30,7 @@ cryptography==50.0.0
 # `from .postgres_repository import PostgresRepository` raises ModuleNotFoundError
 # on the first request after REPO_BACKEND=postgres is set, even though the
 # process boots cleanly — pinned to match requirements.txt's versions.
-sqlalchemy==2.0.51
+sqlalchemy==2.0.54
 alembic==1.18.5
 psycopg2-binary==2.9.13
 

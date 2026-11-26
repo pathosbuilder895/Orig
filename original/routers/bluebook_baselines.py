@@ -41,14 +41,14 @@ router = APIRouter()
 NO_ORIGINAL = "This workspace's plan does not include Original."
 NOTHING_WRITTEN = "Nothing written to add."
 NOT_ADDED = "Could not be added."
-TOO_LONG = "This exam is too long to add as a baseline sample."
+TOO_LONG = "This booklet is too long to add as a baseline sample."
 TAKE_HOME_DETAIL = "take-home: approve it on its own"
 NEEDS_BASELINE_DETAIL = (
     "Take-home work can only extend a baseline. Approve at least {n} in-class "
     "papers for this student first."
 )
 HELD_DETAIL = (
-    "Not added: this exam differs strongly from the student's existing samples. "
+    "Not added: this booklet differs strongly from the student's existing samples. "
     "Approval does not override this check."
 )
 
@@ -280,6 +280,14 @@ def remove_submission_baseline(submission_id: str, request: Request):
     fusion_peers = sys.modules.get("original.fusion.peers")
     if fusion_peers is not None:
         fusion_peers.clear_student(rec["student_id"])
+    # Rule D keeps derived statistics per approved paper (RULE_D_OBSERVATION);
+    # a withdrawn paper's row goes with the approval, whatever the flag says.
+    try:
+        from ..rule_d.service import prune_profiles
+
+        prune_profiles(_repo(), state)
+    except Exception:  # pragma: no cover - logged; the next rule D run drops stale rows too
+        log.exception("rule_d profile prune failed after baseline removal")
     _repo().log_audit(
         action="baseline_remove",
         student_id=rec["student_id"],

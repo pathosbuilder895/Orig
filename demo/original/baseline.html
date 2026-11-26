@@ -4,60 +4,31 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Original · Voice Baseline</title>
+<link rel="stylesheet" href="../assets/type.css" />
+<script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-10-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-10-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   [hidden]{display:none !important;}
-  :root{
-    --navy-0:#070c1c; --navy:#0d1530; --navy-1:#101c40; --navy-2:#16244f;
-    --line:rgba(201,160,40,0.16); --line-soft:rgba(255,255,255,0.07);
-    --gold:#c9a028; --gold-2:#e0be55; --cream:#f5efe0;
-    --dim:rgba(245,239,224,0.58); --dim-2:rgba(245,239,224,0.4);
-    --flag:#e0725a; --warn:#d8b04a; --ok:#6bbf8a;
-    --display:'Playfair Display',Georgia,serif; --body:'EB Garamond',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
   html,body{height:100%;}
   body{font-family:var(--body);color:var(--cream);background:radial-gradient(120% 90% at 82% 8%, #3a2a12 0%, #1c1608 34%, #0a0a10 66%, #06060c 100%);display:flex;align-items:flex-start;justify-content:center;padding:2.2rem;min-height:100vh;-webkit-font-smoothing:antialiased;}
   .frame{width:100%;max-width:1360px;height:min(900px,calc(100vh - 4.4rem));min-height:min(900px,calc(100vh - 4.4rem));position:relative;background:linear-gradient(160deg,#0c142e 0%,#0a1024 60%,#070b1c 100%);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,0.6),0 0 0 1px rgba(201,160,40,0.05),inset 0 1px 0 rgba(255,255,255,0.04);display:flex;flex-direction:column;}
-  nav{display:flex;align-items:center;gap:1.5rem;padding:1.3rem 1.7rem;flex-shrink:0;position:relative;z-index:2;}
-  .brand{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:0.04em;color:var(--cream);display:flex;align-items:center;gap:.5rem;}
-  .brand .mk{width:9px;height:9px;background:var(--gold);transform:rotate(45deg);display:inline-block;}
-  .pills{display:flex;gap:.3rem;margin-left:1rem;min-width:0;overflow-x:auto;}
-  .pill{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .9rem;border-radius:999px;border:1px solid transparent;color:var(--dim);font-size:.9rem;cursor:pointer;transition:all .18s;background:none;font-family:var(--body);text-decoration:none;}
-  .pill svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;}
-  .pill:hover{color:var(--cream);}
-  .pill.on{background:rgba(255,255,255,0.05);border-color:var(--line);color:var(--cream);}
-  .pill:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
-  .nav-right{margin-left:auto;display:flex;align-items:center;gap:.7rem;flex-shrink:0;position:relative;}
-  .avatar{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a3a66,#16244f);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--gold);font-size:.95rem;}
-  .nav-right .avatar{cursor:pointer;}
-  .avatar:focus-visible,.me-menu a:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .me-menu{display:none;position:absolute;top:calc(100% + .6rem);right:0;min-width:220px;background:rgba(12,20,46,0.97);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:.5rem;z-index:60;}
-  .me-menu.open{display:block;}
-  .mm-head{padding:.55rem .8rem .7rem;border-bottom:1px solid var(--line-soft);margin-bottom:.35rem;}
-  .mm-head b{display:block;font-family:var(--display);font-weight:500;font-size:1rem;color:var(--cream);}
-  .mm-head span{font-size:.78rem;color:var(--dim-2);font-style:italic;}
-  .me-menu a{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:9px;color:var(--dim);text-decoration:none;font-size:.94rem;transition:all .13s;}
-  .me-menu a:hover{background:rgba(255,255,255,0.06);color:var(--cream);}
-  .me-menu a svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;flex-shrink:0;}
-  .grid{flex:1;display:grid;grid-template-columns:360px 1fr;gap:0;min-height:0;}
-  .left{padding:0.4rem 1.3rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-height:0;scrollbar-width:none;-ms-overflow-style:none;}
-  .left::-webkit-scrollbar{display:none;width:0;height:0;}
+  /* The rail grows with the text size (23rem is 414px at the 18px default) and never takes more than a third of a wide screen. */
+  .grid{flex:1;display:grid;grid-template-columns:clamp(360px,23rem,33vw) minmax(0,1fr);gap:0;min-height:0;}
+  .left{padding:0.4rem 1.3rem 1.4rem 1.7rem;display:flex;flex-direction:column;gap:1rem;overflow-y:auto;min-height:0;min-width:0;}
   .greet-eyebrow{color:var(--dim);font-style:italic;font-size:1rem;}
   .greet{font-family:var(--display);font-size:1.75rem;font-weight:500;line-height:1.06;color:var(--cream);margin-top:.1rem;overflow-wrap:anywhere;}
   .greet-id{font-family:var(--mono);font-size:.58rem;letter-spacing:.05em;color:var(--dim-2);opacity:.75;margin-top:.35rem;overflow-wrap:anywhere;}
   .greet-meta{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;color:var(--dim-2);margin-top:.5rem;line-height:1.55;overflow-wrap:anywhere;}
   .side-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
-  .side-link{display:inline-block;font-size:.9rem;color:var(--gold-2);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.4rem .95rem;transition:all .15s;}
-  .side-link:hover{border-color:rgba(201,160,40,0.5);background:rgba(201,160,40,0.08);color:var(--cream);}
-  .side-link:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .side-link{font-size:.9rem;padding:.4rem .95rem;}
   .card{background:rgba(255,255,255,0.035);border:1px solid var(--line-soft);border-radius:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
   /* kept: 3-metric card */
   .stat3{padding:.4rem .3rem;}
-  .stat3 .row{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;}
+  .stat3 .row{display:flex;align-items:center;justify-content:space-between;gap:.8rem;padding:.75rem 1rem;}
   .stat3 .row+.row{border-top:1px solid var(--line-soft);}
   .stat3 .lab{font-size:.92rem;color:var(--cream);display:flex;flex-direction:column;gap:.15rem;}
   .stat3 .lab b{font-family:var(--body);font-weight:400;font-style:italic;font-size:.76rem;color:var(--dim-2);}
@@ -89,7 +60,7 @@
   .right{position:relative;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
   .hero{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
   .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:auto;}
-  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.78) brightness(.72) contrast(1.14) hue-rotate(-6deg);}
+  .hero-photo{position:absolute;inset:0;background:url('assets/radcliffe-night-stars.jpeg') center 62%/cover no-repeat;filter:saturate(.85) brightness(.85) contrast(1.14) hue-rotate(-6deg);}
   .hero-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(58% 52% at 52% 40%,rgba(201,160,40,0.16),transparent 72%),linear-gradient(180deg,rgba(10,16,42,0.34) 0%,transparent 42%);mix-blend-mode:screen;}
   .hero-grad{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg, rgba(10,16,36,0.9) 0%, rgba(10,16,36,0.32) 24%, transparent 52%),linear-gradient(0deg, rgba(7,11,28,0.99) 30%, rgba(7,11,28,0.55) 46%, transparent 60%),radial-gradient(80% 55% at 66% 26%, rgba(201,160,40,0.12), transparent 70%);}
   .right-scroll{position:relative;z-index:1;flex:1;overflow-y:auto;overflow-x:hidden;padding:1.4rem 1.9rem 1.9rem;display:flex;flex-direction:column;gap:1.3rem;min-height:0;}
@@ -119,7 +90,7 @@
   .habits{display:flex;flex-direction:column;}
   .tier{border-top:1px solid var(--line-soft);}
   .tier:first-child{border-top:none;}
-  .tier>summary{display:grid;grid-template-columns:230px 1fr 18px;gap:1.3rem;padding:1.1rem 1.5rem;align-items:center;cursor:pointer;list-style:none;}
+  .tier>summary{display:grid;grid-template-columns:minmax(0,13rem) minmax(0,1fr) 18px;gap:1.3rem;padding:1.1rem 1.5rem;align-items:center;cursor:pointer;list-style:none;}
   .tier>summary::-webkit-details-marker{display:none;}
   .tier>summary:hover{background:rgba(201,160,40,0.04);}
   .tier>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;}
@@ -133,7 +104,7 @@
   .habit-desc{font-size:.94rem;line-height:1.55;color:var(--dim);text-wrap:pretty;}
   .habits-key{padding:1rem 1.5rem .2rem;font-size:.84rem;font-style:italic;color:var(--dim);line-height:1.45;}
   .tier-feats{padding:.1rem 1.5rem 1.1rem;display:flex;flex-direction:column;gap:.7rem;}
-  .tf{display:grid;grid-template-columns:230px 1fr;gap:1.3rem;align-items:center;}
+  .tf{display:grid;grid-template-columns:minmax(0,13rem) minmax(0,1fr);gap:1.3rem;align-items:center;}
   .tf .n{font-size:.9rem;color:var(--cream);}
   .tf .d{font-size:.84rem;line-height:1.45;color:var(--dim);font-style:italic;}
   .tf .habit-strength{margin-top:.25rem;}
@@ -147,7 +118,8 @@
   .timeline{display:flex;flex-direction:column;gap:.9rem;}
   .ti{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;padding:.9rem 1rem;background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:12px;}
   .ti-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--navy);flex-shrink:0;}
-  .ti-body{flex:1;min-width:0;}
+  /* The title keeps 10rem; when the weight no longer fits beside it, the weight moves under it. */
+  .ti-body{flex:1 1 10rem;min-width:0;}
   .ti-title{font-size:.98rem;color:var(--cream);font-weight:500;overflow-wrap:anywhere;}
   .ti-meta{font-size:.8rem;color:var(--dim-2);margin-top:.1rem;}
   .ti-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem;}
@@ -155,7 +127,7 @@
   button.tg{cursor:pointer;color:var(--gold-2);border-color:rgba(201,160,40,0.28);}
   button.tg:hover{background:rgba(201,160,40,0.1);}
   button.tg:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
-  .ti-w{text-align:right;flex-shrink:0;}
+  .ti-w{text-align:right;flex:0 1 auto;min-width:0;margin-left:auto;}
   .ti-w .l{font-size:.62rem;color:var(--dim-2);letter-spacing:.04em;}
   .ti-w .n{font-family:var(--mono);font-weight:700;font-size:1.15rem;color:var(--gold-2);margin:.05rem 0;}
   .ti-prev{flex:1 0 100%;border-top:1px solid var(--line-soft);padding-top:.8rem;}
@@ -163,6 +135,25 @@
   .ti-prev .pt{font-size:.92rem;color:var(--cream);}
   .ti-prev .pm{font-size:.76rem;color:var(--dim-2);font-style:italic;margin-top:.1rem;}
   .ti-prev .pb{margin-top:.6rem;max-height:280px;overflow-y:auto;white-space:pre-wrap;font-size:.95rem;line-height:1.6;color:rgba(245,239,224,0.86);background:rgba(0,0,0,0.18);border:1px solid var(--line-soft);border-radius:10px;padding:.8rem 1rem;overflow-wrap:anywhere;}
+  /* Parts of a past paper (GET/PUT /students/{id}/samples/{index}/parts, js/paper-profile.js): only when the server lists them. */
+  .ti-parts{margin-top:.8rem;padding:.8rem 1rem;background:rgba(0,0,0,0.14);border:1px solid var(--line-soft);border-radius:10px;}
+  .ti-parts .pph{font-size:.92rem;color:var(--cream);font-weight:500;}
+  .ti-parts .ppl{font-size:.82rem;color:var(--dim);line-height:1.5;margin:.25rem 0 .4rem;}
+  .pp-parts{list-style:none;margin:0;padding:0;}
+  .pp-part{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem;row-gap:.1rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line-soft);}
+  .pp-part:last-child{border-bottom:none;}
+  .pp-part-what{font-size:.9rem;color:var(--cream);}
+  .pp-part.aside .pp-part-what{color:var(--dim);}
+  .pp-part.maybe .pp-part-what{color:var(--gold-2);}
+  .pp-part-line{grid-column:1;font-size:.8rem;font-style:italic;color:var(--dim-2);overflow-wrap:anywhere;}
+  .pp-part-btn{grid-column:2;grid-row:1 / span 2;font-family:var(--body);font-size:.8rem;font-weight:600;color:var(--gold-2);background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.28);border-radius:999px;padding:.35rem .85rem;cursor:pointer;white-space:nowrap;}
+  .pp-part-btn:hover:not(:disabled){background:rgba(201,160,40,0.14);}
+  .pp-part-btn:disabled{opacity:.5;cursor:default;}
+  .pp-part-btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .ti-parts .ppm{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
+  .ti-parts .ppn{color:var(--gold-2);}
+  .ti-parts .ppm.err{color:var(--bad,#e0725a);}
+  @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.3rem;}}
   .wt-note{margin-top:.9rem;font-size:.8rem;color:var(--dim-2);font-style:italic;line-height:1.5;}
   .traj{display:flex;gap:.8rem;align-items:flex-start;margin-top:1.1rem;padding:1rem 1.1rem;background:rgba(201,160,40,0.06);border:1px solid rgba(201,160,40,0.2);border-radius:12px;color:var(--gold);}
   .traj svg{stroke:var(--gold);fill:none;flex-shrink:0;margin-top:.1rem;}
@@ -180,6 +171,15 @@
   .ex-msg{font-size:.86rem;margin-top:.5rem;color:var(--dim);font-style:italic;line-height:1.45;}
   .ex-msg.ok{color:var(--ok);font-style:normal;}
   .ex-msg.err{color:var(--flag);font-style:normal;}
+  /* Shared papers: the text box takes the whole row, and the buttons wrap under the title when the Text size is large. */
+  .ex.sh{flex-wrap:wrap;}
+  .ex.sh .ex-main{flex:1 1 14rem;}
+  .ex.sh .ex-side{flex:0 1 auto;max-width:100%;}
+  .sh-read{flex:1 0 100%;min-width:0;border-top:1px solid var(--line-soft);padding-top:.7rem;}
+  .sh-read .pb{max-height:320px;overflow-y:auto;white-space:pre-wrap;font-size:.95rem;line-height:1.6;color:rgba(245,239,224,0.86);background:rgba(0,0,0,0.18);border:1px solid var(--line-soft);border-radius:10px;padding:.8rem 1rem;overflow-wrap:anywhere;}
+  .sh-read .sh-acts{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;}
+  .sh-read .sh-acts a{font-size:.88rem;color:var(--gold-2);}
+  .sh-read .sh-note{font-size:.8rem;color:var(--dim);font-style:italic;margin-top:.4rem;}
   .ex-ask{font-size:.84rem;color:var(--dim);line-height:1.45;margin-top:.5rem;}
   .ex-side{display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0;}
   .ex-btns{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end;}
@@ -188,11 +188,7 @@
   .st.in{color:var(--ok);background:rgba(107,191,138,0.1);border:1px solid rgba(107,191,138,0.25);}
   .st.wait{color:var(--warn);background:rgba(216,176,74,0.1);border:1px solid rgba(216,176,74,0.25);}
   .st.off{color:var(--dim);background:rgba(255,255,255,0.04);border:1px solid var(--line-soft);}
-  .btn{font-family:var(--body);font-size:.9rem;color:#0d1530;background:linear-gradient(160deg,var(--gold-2),var(--gold));border:none;border-radius:999px;padding:.5rem 1.1rem;cursor:pointer;font-weight:600;white-space:nowrap;}
-  .btn.ghost{background:rgba(255,255,255,0.04);color:var(--cream);border:1px solid var(--line);font-weight:400;}
-  .btn.ghost:hover:not(:disabled){border-color:rgba(201,160,40,0.5);}
-  .btn:disabled{opacity:.45;cursor:not-allowed;}
-  .btn:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px;}
+  .btn{font-size:.9rem;padding:.5rem 1.1rem;}
   .rule-note{font-size:.84rem;color:var(--dim);line-height:1.5;margin-bottom:1rem;}
   .seg{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1.1rem;}
   .seg button{font-family:var(--body);font-size:.85rem;color:var(--dim);background:rgba(255,255,255,0.03);border:1px solid var(--line-soft);border-radius:999px;padding:.4rem .9rem;cursor:pointer;transition:all .15s;}
@@ -251,42 +247,21 @@
   @media (max-width:900px){
     body{padding:0;}
     .frame{max-width:none;height:auto;min-height:100vh;border-radius:0;border:none;}
-    .grid{grid-template-columns:1fr;}
+    .grid{grid-template-columns:minmax(0,1fr);}
     .left{overflow:visible;}
     .right{min-height:520px;}
-    nav{flex-wrap:wrap;gap:.7rem;}.pills{order:3;width:100%;overflow-x:auto;margin-left:0;}
-    .tier>summary,.tf{grid-template-columns:1fr;gap:.5rem;}
+    .tier>summary,.tf{grid-template-columns:minmax(0,1fr);gap:.5rem;}
     .tier>summary .chev{display:none;}
     .ex{flex-direction:column;}.ex-side{align-items:flex-start;}.ex-btns{justify-content:flex-start;}
-    .fld-row{grid-template-columns:1fr;}
+    .fld-row{grid-template-columns:minmax(0,1fr);}
     .pur{flex-direction:column;align-items:flex-start;}
   }
-  /* global: hide scrollbars */
-*::-webkit-scrollbar{width:0;height:0;display:none;}
-*{scrollbar-width:none;-ms-overflow-style:none;}
 </style>
 </head>
 <body>
 <div class="frame">
-  <nav>
-    <div class="brand"><span class="mk"></span>Original</div>
-    <div class="pills">
-      <a class="pill" href="index.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Overview</a>
-      <a class="pill on" href="students.html" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><path d="M16 5.2a3.2 3.2 0 010 5.8"/><path d="M21 20c0-2.4-1.4-4-3.6-4.7"/></svg>Students</a>
-      <a class="pill" href="submissions.html"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg>Submissions</a>
-      <a class="pill" href="bluebook.html"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/></svg>Collections</a>
-      <a class="pill" href="reports.html"><svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="5"/><line x1="18" y1="20" x2="18" y2="9"/></svg>Reports</a>
-    </div>
-    <div class="nav-right">
-      <button class="avatar" id="me-btn" title="Account" aria-haspopup="true" aria-expanded="false">··</button>
-      <div class="me-menu" id="me-menu">
-        <div class="mm-head"><b id="mm-name">Your account</b><span id="mm-sub"></span></div>
-        <a href="settings.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</a>
-        <a href="/professor.html"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Analysis (classic)</a>
-        <a href="#" id="sign-out"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
-      </div>
-    </div>
-  </nav>
+  <nav class="shell" data-audience="teacher" data-current="baseline" aria-label="Original"></nav>
+  <script src="shell.js?v=2026-11-25.1"></script>
   <main class="grid" id="live-main">
     <aside class="left">
       <div>
@@ -295,9 +270,9 @@
         <div class="greet-meta" id="meta"></div>
         <div class="greet-id" id="greet-id" hidden></div>
         <div class="side-links">
-          <a class="side-link" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
-          <a class="side-link" id="add-link" href="#add-writing" hidden>Add writing</a>
-          <a class="side-link" id="all-link" href="baseline.html" hidden>All students</a>
+          <a class="side-link btn-ghost" id="analyse-link" href="writing-state.html" hidden>Analyse a paper for this student</a>
+          <a class="side-link btn-ghost" id="add-link" href="#add-writing" hidden>Add writing</a>
+          <a class="side-link btn-ghost" id="all-link" href="baseline.html" hidden>All students</a>
         </div>
       </div>
 
@@ -373,7 +348,7 @@
         <div id="shared-sec" style="margin-top:1.3rem;" hidden>
           <div class="sec-h"><b>Papers students shared</b><span id="shared-sub"></span></div>
           <div class="card ex-card">
-            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts as a student upload, not supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration.</div>
+            <div class="rule-note">Students can share their own past papers from their Collections account. A shared paper joins the baseline only when you approve it, and it counts at the lower weight of a student upload, not as supervised writing. Nothing is read or compared until you approve. A paper marked as a section of a longer paper is tagged split-derived for calibration. <b>Read this paper</b> shows its text without adding it. <b>Undo approval</b> takes an approved paper back out of the baseline, and it waits for your approval again; nothing else changes.</div>
             <div id="shared-list"><div class="live-empty">Loading</div></div>
           </div>
         </div>
@@ -401,14 +376,14 @@
                   <div class="d" id="traj-d"></div>
                 </div>
               </div>
-              <a class="bb-cta" id="bb-cta" href="/bluebook/#students" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="bb-cta" id="bb-cta" href="bluebook.html" hidden><span class="bb-ic"></span><span><b>Add more samples:</b> run a Collections session, then approve the booklets you want to use as reference writing, below.</span><svg viewBox="0 0 24 24" width="15" height="15" style="flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;"><path d="M9 6l6 6-6 6"/></svg></a>
             </div>
           </div>
 
           <div style="margin-top:1.3rem;" id="sealed-sec">
-            <div class="sec-h"><b>Sealed Collections exams</b><span id="sealed-sub">waiting for your approval</span></div>
+            <div class="sec-h"><b>Sealed Collections booklets</b><span id="sealed-sub">waiting for your approval</span></div>
             <div class="card ex-card">
-              <div class="rule-note">A sealed exam joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</div>
+              <div class="rule-note">A sealed booklet joins this baseline only when you approve it, and you can take it out again. Approving adds it as a supervised sitting. <span data-drift="exam">If it differs strongly from the writing already in the baseline, Original holds it back, and approval does not override that check.</span></div>
               <div class="save-note" id="save-note-sealed" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
               <div id="sealed-list"><div class="live-empty">Loading</div></div>
             </div>
@@ -417,7 +392,7 @@
           <div style="margin-top:1.3rem;" id="add-writing">
             <div class="sec-h"><b>Add writing</b><span>anything you add here counts as approved by you</span></div>
             <div class="card add-card">
-              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. If a paper differs strongly from what is already there, it is held back and you are told.</div>
+              <div class="rule-note">Adding writing to a baseline is a choice only a teacher makes. Original reads each paper, adds it, and then recalculates the baseline. <span data-drift="add">If a paper differs strongly from what is already there, it is held back and you are told.</span></div>
               <div id="add-off" class="live-empty" hidden></div>
               <div id="add-body">
                 <div class="min-note" id="add-min" role="status" hidden></div>
@@ -445,7 +420,7 @@
                     <div class="fld"><label for="paste-assign">Assignment name (optional)</label><input id="paste-assign" type="text" maxlength="200" autocomplete="off" /></div>
                     <div class="fld"><label for="paste-date">Date it was written</label><input id="paste-date" type="date" /><div class="hint">Recorded with the paper. It does not change how the paper is weighted.</div></div>
                   </div>
-                  <button class="btn" id="paste-go" type="button">Add to baseline</button>
+                  <button class="btn btn-gold" id="paste-go" type="button">Add to baseline</button>
                 </div>
 
                 <div id="tab-files" hidden>
@@ -455,8 +430,11 @@
                     <span class="s">One paper per file. Duplicates of writing already in the baseline are skipped.</span>
                   </label>
                   <div class="queue" id="queue"></div>
-                  <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
-                  <button class="btn" id="files-go" type="button" disabled>Import</button>
+                  <div class="fld-row">
+                    <div class="fld"><label for="files-assign">Assignment name (optional; each file's name is used if left empty)</label><input id="files-assign" type="text" maxlength="200" autocomplete="off" /></div>
+                    <div class="fld"><label for="files-date">Date they were written</label><input id="files-date" type="date" /><div class="hint">Recorded with each paper and shown wherever it is quoted. It does not change how a paper is weighted.</div></div>
+                  </div>
+                  <button class="btn btn-gold" id="files-go" type="button" disabled>Import</button>
                 </div>
 
                 <div class="save-note" id="save-note-add" role="status" hidden>Saving... Other changes wait until this one has finished.</div>
@@ -469,9 +447,10 @@
     </section>
   </main>
 </div>
-<script src="js/fingerprint.js?v=2026-10-26.1"></script>
-<script src="js/feature-data.js?v=2026-10-26.1"></script>
-<script src="live.js?v=2026-10-26.1"></script>
+<script src="js/fingerprint.js?v=2026-11-25.1"></script>
+<script src="js/feature-data.js?v=2026-11-25.1"></script>
+<script src="live.js?v=2026-11-25.1"></script>
+<script src="js/paper-profile.js?v=2026-11-25.1"></script>
 <script>
 (function(){
   'use strict';
@@ -491,38 +470,20 @@
     student:null,        // GET /students/{id}
     ready:null,          // GET /students/{id}/readiness
     status:'loading',    // loading | ok | none | forbidden | auth | error
-    known:false,         // on the roster, or has sat a sealed exam
+    known:false,         // on the roster, or has sealed a booklet
     ro:null,             // the shared roster answer
     sealed:'loading',    // loading | ok | none | off | error  (Live.sealed())
     exams:[],
     preview:new Map(),   // sample index -> {state:'loading'|'ok', data}
     open:null,           // the sample whose paper is showing
-    saving:'',           // the one write in flight: '' | 'paste' | 'files' | 'approve' | 'undo'
+    saving:'',           // the one write in flight: '' | 'paste' | 'files' | 'approve' | 'undo' | 'parts'
+    parts:new Map(),     // sample index -> GET .../parts answer, for the paper showing
+    partsMsg:null,       // {i, text, err}: the last parts change, said under that paper
     savingId:'',         // the exam it is about, for approve and undo
     heldPaste:new Set()  // pasted texts the server has held back on this visit
   };
   const nm=()=>S.rosterName||S.sealedName||ID;
   let queue=[];          // files waiting to be uploaded
-
-  // ── account menu (same as every page in the suite) ──
-  (function(){
-    const b=$('me-btn'), m=$('me-menu');
-    b.addEventListener('click',e=>{e.stopPropagation();const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o?'true':'false');});
-    document.addEventListener('click',()=>{m.classList.remove('open');b.setAttribute('aria-expanded','false');});
-    $('sign-out').addEventListener('click',e=>{e.preventDefault();Live.signOut();});
-  })();
-  function initials(name){
-    const w=String(name||'').trim().split(/[\s_.-]+/).filter(Boolean);
-    if(!w.length) return '';
-    return (w[0].charAt(0)+(w.length>1?w[w.length-1].charAt(0):'')).toUpperCase();
-  }
-  const ROLE={professor:'Teacher',admin:'Workspace admin',operator:'Operator'};
-  function renderChrome(sess){
-    $('me-btn').textContent=initials(sess.name)||'··';
-    $('mm-name').textContent=sess.name||'Your account';
-    $('mm-sub').textContent=sess.mode==='demo'?'Demo workspace':(ROLE[sess.role]||'');
-    $('sign-out').style.display=sess.mode==='signed-in'?'':'none';
-  }
 
   // ── small helpers ──
   function parseDate(s){
@@ -538,24 +499,28 @@
     const d=new Date(), p=n=>String(n).padStart(2,'0');
     return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
   }
-  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function countWords(t){ return String(t||'').replace(/\u001f/g,' ').trim().split(/\s+/).filter(Boolean).length; }  // U+001F: an upload's page marker, not a word (JS \s does not match it)
   function detailText(d){ return d&&typeof d.detail==='string'?d.detail:''; }
 
   // Provenance in plain words. The API's words are proctored, verified, canvas, unverified.
-  // "Approved" means a teacher approved it: a supervised sitting, a paper the teacher
-  // verified, or one the teacher imported. A student upload is counted by the server, but
+  // "Approved by you" (Live.approvals): a supervised sitting, a paper the teacher
+  // verified or imported, or a take-home exam or shared paper the teacher approved (those
+  // two count at a lower weight). A student's own upload is counted by the server, but
   // nobody approved it.
   const PROV={
     proctored:{word:'Supervised sitting',color:'#4d90c8',tag:n=>plural(n,'supervised sitting')},
     verified:{word:'Verified by teacher',color:'#5aab7a',tag:n=>n+' verified by teacher'},
     canvas:{word:'Imported',color:'#9a7ad0',tag:n=>n+' imported'},
+    take_home:{word:'Take-home collection approved by you',color:'#5aab7a',tag:n=>plural(n,'take-home collection')+' approved by you'},
+    shared_paper:{word:'Shared paper approved by you',color:'#5aab7a',tag:n=>plural(n,'shared paper')+' approved by you'},
     unverified:{word:'Student upload',color:'#d8b04a',tag:n=>plural(n,'student upload')}
   };
-  const APPROVED=['proctored','verified','canvas'];
   const provOf=p=>has(PROV,p)?PROV[p]:{word:'Other source',color:'#8a8a8a',tag:n=>n+' other'};
+  // A sample's key into PROV: its server `source` where it says so, else its provenance.
+  const kindOf=s=>Live.sampleKind(s);
 
   // The server's readiness rule, in full (original/routers/students.py).
-  const RULE='Original calls a baseline ready at 5 or more counted samples with an effective count of 3 or more, and building from 3 counted samples. Below 3, Original does not compare new writing.';
+  const RULE='Original calls a baseline ready at 3 or more counted samples. Below 3 it is building, and Original does not compare new writing.';
 
   // The words are the suite's one map (Live.VERDICT_WORDS); this only adds a colour and a sentence.
   const VERDICT={
@@ -569,8 +534,9 @@
   };
 
   const samples=()=>(S.student&&Array.isArray(S.student.samples))?S.student.samples.filter(s=>s&&typeof s==='object'):[];
-  const approvedN=()=>samples().filter(s=>APPROVED.indexOf(s.provenance)>=0).length;
-  const uploadsN=()=>samples().filter(s=>s.provenance==='unverified').length;
+  const appr=()=>Live.approvals(samples());
+  const approvedN=()=>appr().byYou;
+  const uploadsN=()=>appr().uploads;
   // What the server counts toward the baseline (its authenticated_count): approved papers
   // and, for now, student uploads. Never shown as "approved".
   const countedN=()=>{
@@ -595,16 +561,17 @@
     }
     $('greet').textContent=nm();
     // The raw id is small, secondary text, and only when the heading is a name (else it would say the same thing twice).
+    // Staff pages show the writer's name, not an id: the raw id is only a tooltip on the
+    // name (for support), and the visible line stays hidden.
     $('greet-id').textContent='ID '+ID;
-    $('greet-id').hidden=nm()===ID;
+    $('greet-id').hidden=true;
+    $('greet').title=nm()!==ID?'ID '+ID:'';
     const parts=[];
     const codes=S.courses.map(c=>c.code||c.name).filter(Boolean);
     if(codes.length) parts.push(codes.join(', '));
     if(S.status==='ok'){
-      const sm=samples(), a=approvedN(), up=uploadsN(), other=sm.length-a-up;
-      parts.push(plural(a,'teacher-approved sample'));
-      if(up) parts.push(plural(up,'student upload'));
-      if(other>0) parts.push(plural(other,'sample')+' from another source');
+      const w=Live.approvalWords(appr());
+      if(w) parts.push(plural(samples().length,'sample')+': '+w);
     }
     $('meta').textContent=parts.join(' · ');
     $('analyse-link').href='writing-state.html?student='+enc(ID);
@@ -674,7 +641,7 @@
   }
 
   // ── hero ──
-  const NO_WRITING='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Collections exams you approve.';
+  const NO_WRITING='Writing joins a baseline when a teacher approves it: papers you add on this page, and sealed Collections booklets you approve.';
   function renderHero(){
     const t=$('hero-title'), sum=$('hero-sum'), tags=$('hero-tags'), eb=$('hero-eyebrow');
     tags.innerHTML=''; $('hero-cap').hidden=!ID;
@@ -712,9 +679,9 @@
     let line='Original has read '+(n===1?'this paper':'these papers')+(k?', written for '+plural(k,'assignment'):'')+', and averaged '+(n===1?'its':'their')+' habits into the profile below. '+NO_WRITING;
     if(up) line+=' '+(up===1?'1 paper was':up+' papers were')+' uploaded by the student; they are counted, but nobody approved them.';
     sum.textContent=line;
-    const order=['proctored','verified','canvas','unverified'];
+    const order=['proctored','verified','canvas','take_home','shared_paper','unverified'];
     const counts=new Map();
-    sm.forEach(s=>{ const key=has(PROV,s.provenance)?s.provenance:'other'; counts.set(key,(counts.get(key)||0)+1); });
+    sm.forEach(s=>{ const key=has(PROV,kindOf(s))?kindOf(s):'other'; counts.set(key,(counts.get(key)||0)+1); });
     order.concat(['other']).forEach(key=>{
       if(!counts.get(key)) return;
       const sp=document.createElement('span'); sp.className='tag';
@@ -737,14 +704,15 @@
     const name=esc(nm());
     if(unknownStudent()){ Live.empty(el,'No student with this id is on your roster, so there is no baseline to show.'); return; }
     if(S.status==='none'||!samples().length){
-      el.innerHTML='<p>Original has <b>no approved writing</b> for '+name+' yet. '+esc(RULE)+' Add papers below, or approve a sealed Collections exam.</p>'+
+      el.innerHTML='<p>Original has <b>no approved writing</b> for '+name+' yet. '+esc(RULE)+' Add papers below, or approve a sealed Collections booklet.</p>'+
         '<p>The rule is simple: <em>writing joins a baseline when a teacher approves it</em>.</p>';
       return;
     }
     const r=S.ready, v=verdictOf();
-    const a=approvedN(), up=uploadsN(), counted=countedN();
+    const ap=appr(), counted=countedN();
     const eff=r&&num(r.effective_sample_count)!==null?r.effective_sample_count:num(S.student.effective_sample_count);
-    const split=esc(plural(counted,'counted sample'))+' ('+esc(a+' teacher-approved')+(up?', '+esc(plural(up,'student upload')):'')+')';
+    const words=Live.approvalWords(ap,{note:false});
+    const split=esc(plural(counted,'counted sample'))+(words?' ('+esc(words)+')':'');
     const paras=[];
     if(v==='ready'){
       paras.push(name+'’s baseline is <b>ready to compare against</b>: '+split+(eff!==null?', which come to about '+esc(eff.toFixed(1))+' once each is weighted for how it was verified and how recently it was added':'')+'.');
@@ -771,12 +739,18 @@
       bits.push(s);
     }
     if(mix){
-      const order=['proctored','verified','canvas','unverified'];
-      const parts=order.filter(k=>num(mix[k])>0).map(k=>PROV[k].tag(mix[k]));
+      const order=['proctored','verified','canvas','take_home','shared_paper','unverified'];
+      // The server's mix is by provenance (a take-home exam reads "unverified"). When it
+      // describes the same list the page holds, say how each sample got in instead.
+      const mixTotal=Object.keys(mix).reduce((t,k)=>t+(num(mix[k])>0?mix[k]:0),0);
+      const byKind={};
+      if(mixTotal===samples().length) samples().forEach(x=>{ const k=kindOf(x); byKind[k]=(byKind[k]||0)+1; });
+      const src=mixTotal===samples().length?byKind:mix;
+      const parts=order.filter(k=>num(src[k])>0).map(k=>PROV[k].tag(src[k]));
       if(parts.length) bits.push('They are '+esc(parts.join(', '))+'.');
     }
     if(bits.length) paras.push(bits.join(' '));
-    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections exams you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.');
+    paras.push('The rule is simple: <em>writing joins a baseline when a teacher approves it</em>. Papers you add on this page and sealed Collections booklets you approve below are the ways in. For now the server also counts student uploads, at the lowest weight.'+(ap.takeHome+ap.shared?' Take-home collections and shared papers you approved count at the same lower weight as uploads.':''));
     el.innerHTML=paras.map(p=>'<p>'+p+'</p>').join('');
   }
 
@@ -822,7 +796,7 @@
     if(!sm.length){ Live.empty(el,'No approved writing yet. Add some below.'); return; }
     el.innerHTML=sm.map((s,pos)=>{
       const i=num(s.index)!==null?s.index:pos;
-      const p=provOf(s.provenance), w=num(s.auth_weight);
+      const p=provOf(kindOf(s)), w=num(s.auth_weight);
       const when=fmtDate(s.submitted_at)||(String(s.submitted_at||'').trim()?String(s.submitted_at).trim().slice(0,24):'Date not recorded');
       return '<div class="ti" data-i="'+i+'"><div class="ti-dot" style="background:'+esc(p.color)+'">'+(pos+1)+'</div>'+
         '<div class="ti-body"><div class="ti-title">'+esc(String(s.assignment||'').trim()||'Untitled sample')+'</div><div class="ti-meta">'+esc(when)+'</div>'+
@@ -873,8 +847,60 @@
     }
     const d=rec.data, p=provOf(d.provenance);
     const meta=[p.word, fmtDate(d.submitted_at), (num(d.word_count)!==null?plural(d.word_count,'word'):'')].filter(Boolean).join(' · ');
-    cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost" data-close="1">Close</button></div><div class="pb"></div>';
+    cur.innerHTML='<div class="ph"><div><div class="pt">'+esc(String(d.assignment||'').trim()||'Untitled sample')+'</div><div class="pm">'+esc(meta)+'</div></div><button type="button" class="btn ghost btn-ghost" data-close="1">Close</button></div><div class="pb"></div>';
     cur.querySelector('.pb').textContent=typeof d.text==='string'&&d.text?d.text:'(empty)';
+    showParts(i);
+  }
+  // Parts of this past paper (teacher only, js/paper-profile.js): the title page, abstract,
+  // list of sources and the possible parts the rules were unsure of, each with a button that
+  // stores the teacher's choice with the paper and measures that one paper again. Only when
+  // the server lists them (MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED); otherwise nothing.
+  async function showParts(i){
+    const PP=window.PaperProfile; if(!PP) return;
+    let got=S.parts.get(i);
+    if(!got){
+      const res=await Live.api('/students/'+enc(ID)+'/samples/'+enc(String(i))+'/parts');
+      if(!res.ok||!res.data||typeof res.data!=='object'||res.data.enabled!==true||!Array.isArray(res.data.parts)) return;
+      got=res.data; S.parts.set(i,got);
+    }
+    renderParts(i);
+  }
+  function renderParts(i){
+    const PP=window.PaperProfile, got=S.parts.get(i);
+    const cur=document.querySelector('.ti[data-i="'+i+'"] .ti-prev');
+    if(!PP||!got||!cur||cur.hidden||S.open!==i) return;
+    let box=cur.querySelector('.ti-parts');
+    if(!box){ box=document.createElement('div'); box.className='ti-parts'; cur.appendChild(box); }
+    const parts=got.parts.filter(p=>p&&typeof p==='object');
+    const m=S.partsMsg&&S.partsMsg.i===i?S.partsMsg:null;
+    box.innerHTML='<div class="pph">Parts of this paper</div>'+
+      '<p class="ppl">'+(parts.length?'Original measures the writer\u2019s own prose and sets aside the parts that are not. When its rules are unsure, it measures the part and lists it as possible. A change here is kept with this paper and measures it again, so the baseline changes only when you choose.':'Original found no title page, abstract or list of sources to set aside in this paper; all of it is measured.')+'</p>'+
+      (got.measurement_in_use===false&&typeof got.measurement_note==='string'?'<p class="ppl ppn">'+esc(got.measurement_note)+'</p>':'')+
+      PP.partsList(parts,{listClass:'pp-parts'})+
+      '<p class="ppm'+(m&&m.err?' err':'')+'" role="status" aria-live="polite">'+(m?esc(m.text):'')+'</p>';
+    box.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=!!S.saving; });
+  }
+  async function choosePart(i,k,act){
+    const PP=window.PaperProfile, got=S.parts.get(i);
+    const parts=got?got.parts.filter(p=>p&&typeof p==='object'):[];
+    const part=parts[k];
+    if(!PP||!part||!startSave('parts',String(i))) return;
+    const choice=PP.nextChoice(PP.choiceOf(got),part,act);
+    const label=typeof part.label==='string'&&part.label?part.label:'part';
+    const name='the '+(part.possible===true?'possible ':'')+label.charAt(0).toLowerCase()+label.slice(1);
+    S.partsMsg={i:i,text:'Measuring this paper again.'}; renderParts(i);
+    const res=await Live.api('/students/'+enc(ID)+'/samples/'+enc(String(i))+'/parts',{method:'PUT',body:choice});
+    endSave();
+    if(res.ok&&res.data&&typeof res.data==='object'&&res.data.enabled===true){
+      S.partsMsg={i:i,text:'Measured again with '+name+(act==='set_aside'?' set aside':' measured')+'. The baseline now uses this paper this way.'};
+      await refreshAfterWrite();
+      S.parts.set(i,res.data);
+      S.open=null; showPreview(i,true);
+      return;
+    }
+    const detail=res.data&&typeof res.data.detail==='string'?res.data.detail:'';
+    S.partsMsg={i:i,err:true,text:res.status===422&&/60%/.test(detail)?'That would set aside more than 60% of this paper, so nothing was changed. Measure another part first.':(res.status===409?'Choosing the parts of a paper is turned off here.':'This paper could not be measured again just now, so nothing was changed. Try again.')};
+    renderParts(i);
   }
   function closePreview(){
     S.open=null;
@@ -885,6 +911,9 @@
     const t=e.target.closest('button'); if(!t) return;
     if(t.hasAttribute('data-read')) showPreview(parseInt(t.getAttribute('data-read'),10),false);
     else if(t.hasAttribute('data-close')) closePreview();
+    else if(t.classList.contains('pp-part-btn')&&!t.disabled){
+      const item=t.closest('.ti'); if(item) choosePart(parseInt(item.dataset.i,10),parseInt(t.dataset.part,10),t.dataset.act);
+    }
   });
 
   // ── one write at a time ──
@@ -908,6 +937,7 @@
     fg.disabled=on||!queue.some(q=>q.status==='pending'); fg.textContent=S.saving==='files'?'Saving...':'Import';
     $('file-in').disabled=on;
     ['save-note-add','save-note-sealed'].forEach(id=>{ $(id).hidden=!on; });
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=on; });
     renderQueue();
     renderSealed();
   }
@@ -918,7 +948,8 @@
   function bluebookHref(){
     const list=S.sealed==='ok'?S.exams:[];
     const pick=list.find(m=>m.exam_id&&m.in_baseline!==true&&m.has_text!==false&&!m.held)||list.find(m=>m.exam_id);
-    return '/bluebook/#'+(pick?'exam/'+enc(pick.exam_id):'students');
+    // No sealed exam to open: Original's own "Start a new collection" page, not the roster.
+    return pick?'/bluebook/#exam/'+enc(pick.exam_id):'bluebook.html';
   }
   function renderSealed(){
     const el=$('sealed-list'), sub=$('sealed-sub');
@@ -926,11 +957,11 @@
     $('bb-cta').href=bluebookHref();
     if(!ID){ sub.textContent=''; Live.empty(el,'Choose a student above.'); return; }
     if(S.sealed==='loading'){ return; }
-    if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Collections is off for this workspace, so there are no sealed exams to approve.'); return; }
-    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed exams could not be loaded just now. If your sign-in has ended, sign in again; otherwise reload the page.'); return; }
-    if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed exams for this student yet.'); return; }
+    if(S.sealed==='off'){ sub.textContent=''; Live.empty(el,'Collections is off for this workspace, so there are no sealed booklets to approve.'); return; }
+    if(S.sealed==='error'){ sub.textContent=''; Live.empty(el,'Sealed booklets could not be loaded just now. If your sign-in has ended, sign in again; otherwise reload the page.'); return; }
+    if(S.sealed==='none'||!S.exams.length){ sub.textContent=''; Live.empty(el,'No sealed booklets for this student yet.'); return; }
     const waiting=S.exams.filter(m=>m.in_baseline!==true&&m.has_text!==false&&!m.held).length;
-    sub.textContent=waiting?plural(waiting,'exam')+' waiting for your approval':'none waiting for your approval';
+    sub.textContent=waiting?plural(waiting,'booklet')+' waiting for your approval':'none waiting for your approval';
     const dis=S.saving?' disabled':'';
     const lbl=(act,m,text)=>(S.saving===act&&S.savingId===m.id)?'Saving...':text;
     el.innerHTML=S.exams.map(m=>{
@@ -940,22 +971,22 @@
       if(why.length) look='<div class="ex-look">Before approving, note: '+esc(why.join(', '))+'.</div>';
       let st, btns='';
       if(m.has_text===false){ st='<span class="st off"><span class="d"></span>Nothing written</span>'; }
-      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }
+      else if(m.in_baseline===true){ st='<span class="st in"><span class="d"></span>In the baseline</span>'; if(!m.confirm) btns='<button type="button" class="btn ghost btn-ghost" data-act="undo" data-id="'+esc(m.id)+'"'+dis+'>Undo</button>'; }
       else if(m.held){ st='<span class="st off"><span class="d"></span>Held back</span>'; }
-      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
-      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
+      else if(m.in_baseline===false){ st='<span class="st wait"><span class="d"></span>Waiting for approval</span>'; btns='<button type="button" class="btn btn-gold" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
+      else { st='<span class="st off"><span class="d"></span>Status not available</span>'; btns='<button type="button" class="btn btn-gold" data-act="approve" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('approve',m,'Approve')+'</button>'; }
       let ask='';
       if(m.confirm){
-        ask='<div class="ex-ask">Take this exam out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
-          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
+        ask='<div class="ex-ask">Take this booklet out of the baseline? The baseline is recalculated from the samples that remain. You can approve it again later, but Original may hold it back if it differs strongly from them.</div>'+
+          '<div class="ex-btns" style="justify-content:flex-start;margin-top:.5rem;"><button type="button" class="btn btn-gold" data-act="undo-yes" data-id="'+esc(m.id)+'"'+dis+'>'+lbl('undo',m,'Take it out')+'</button><button type="button" class="btn ghost btn-ghost" data-act="undo-no" data-id="'+esc(m.id)+'"'+dis+'>Keep it</button></div>';
       }
-      return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled exam')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
+      return '<div class="ex" data-sub="'+esc(m.id)+'"><div class="ex-main"><div class="ex-t">'+esc(m.title||'Untitled collection')+'</div><div class="ex-m">'+esc(meta||'Date not recorded')+'</div>'+look+ask+
         (m.msg?'<div class="ex-msg'+(m.kind?' '+m.kind:'')+'" role="status">'+esc(m.msg)+'</div>':'')+'</div>'+
         '<div class="ex-side">'+st+(btns?'<div class="ex-btns">'+btns+'</div>':'')+'</div></div>';
     }).join('');
   }
 
-  const HELD='Not added: this exam differs strongly from the student’s existing samples. Approval does not override this check.';
+  const HELD='Not added: this booklet differs strongly from the student’s existing samples. Approval does not override this check.';
   const MAYBE='The server did not confirm the save, so it may not have been saved. Reload the page to check.';
   const writeFailed=res=>res.status===0||res.status>=500;
   async function actOnExam(id,kind){
@@ -970,7 +1001,7 @@
     if(res.ok&&kind==='approve'){
       if(word==='added'){ m.in_baseline=true; m.msg='Added to the baseline.'; m.kind='ok'; changed=true; }
       else if(word==='already_in_baseline'){ m.in_baseline=true; m.msg='It was already in the baseline.'; m.kind='ok'; }
-      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this exam on this visit.'; m.kind='err'; }
+      else if(word==='held'){ m.held=true; m.msg=((typeof d.detail==='string'&&d.detail)?d.detail:HELD)+' Approve is not offered again for this booklet on this visit.'; m.kind='err'; }
       else { m.msg='Original answered in a way this page does not recognise. Reload the page to see the current state.'; m.kind='err'; }
     } else if(res.ok&&kind==='undo'){
       if(word==='removed'){ m.in_baseline=false; m.msg='Taken out of the baseline. The baseline was recalculated from the remaining samples.'; m.kind='ok'; changed=true; }
@@ -980,7 +1011,7 @@
     else if(writeFailed(res)){ m.msg=MAYBE; m.kind='err'; }
     else if(res.status===403||res.status===404||res.status===422){
       if(res.status===422&&/nothing written/i.test(detail)) m.has_text=false;
-      m.msg=detail||(res.status===403?'You do not have access to this exam.':'This exam could not be found.'); m.kind='err';
+      m.msg=detail||(res.status===403?'You do not have access to this booklet.':'This booklet could not be found.'); m.kind='err';
     }
     else { m.msg='That did not go through, so nothing changed.'; m.kind='err'; }
     if(changed&&!(await refreshAfterWrite())) m.msg+=' '+NOT_REFRESHED;
@@ -1011,7 +1042,7 @@
     off.hidden=false; body.hidden=true;
     off.textContent=S.status==='forbidden'?'You do not have access to this student.':
       S.status==='auth'?'Your sign-in has ended. Sign in again to add writing.':
-      unknownStudent()?'Writing can only be added for a student on your roster or one who has sat a sealed exam.':
+      unknownStudent()?'Writing can only be added for a student on your roster or one who has sealed a booklet.':
       'Writing cannot be added until this student has loaded. Try reloading the page.';
   }
   const TABS=['paste','files'];
@@ -1054,7 +1085,7 @@
   // The count after a write comes from reading the student again. When that read
   // failed there is no count to give: an empty profile would say "now has 0".
   const NOT_REFRESHED='The count could not be refreshed just now. Reload the page to see it.';
-  const nowHas=()=>(S.status==='ok'&&S.student)?nm()+' now has '+plural(approvedN(),'teacher-approved sample')+'.':NOT_REFRESHED;
+  const nowHas=()=>(S.status==='ok'&&S.student)?nm()+' now has '+plural(approvedN(),'sample')+' approved by you.':NOT_REFRESHED;
   // Reads the student again after a write that went through. Resolves true when it
   // could be read, false when it could not (the write is not undone by that).
   async function refreshAfterWrite(){
@@ -1167,6 +1198,7 @@
     pend.forEach(q=>fd.append('files',q.file));
     fd.append('provenance',prov);
     if(assign) fd.append('assignment',assign);
+    fd.append('submitted_at',$('files-date').value||today());
     if(!startSave('files')) return;
     try{
     pend.forEach(q=>{ q.status='sending'; }); renderQueue();
@@ -1211,13 +1243,14 @@
     const st=rs[0], rd=rs[1];
     S.student=null; S.ready=null;
     // Samples can come and go (an exam approved or taken out), so a cached paper may no longer sit at its index.
-    S.preview.clear(); S.open=null;
+    S.preview.clear(); S.parts.clear(); S.open=null;
     if(st.ok&&st.data&&typeof st.data==='object'){ S.student=st.data; S.status='ok'; }
     else if(st.status===404) S.status='none';
     else if(st.status===403) S.status='forbidden';
     else if(st.status===401) S.status='auth';
     else S.status='error';
     if(rd.ok&&rd.data&&typeof rd.data==='object') S.ready=rd.data;
+    driftWords();
   }
   function renderAll(){
     renderHead(); renderStats(); renderPurity(); renderHero(); renderShort();
@@ -1294,11 +1327,25 @@
   }
 
   // ── papers students shared (2026-10 alpha) ──
-  // Pending papers a student shared from their Collections account. Approve adds the paper
-  // as a student upload through the server's baseline write; Decline leaves it out. With a
-  // student chosen, only theirs; on the all-students view, everyone's.
-  const SH={rows:[],busy:'',msg:{}};
+  // Papers a student shared from their Collections account. Approve adds the paper as a
+  // student upload through the server's baseline write; Decline leaves it out. Read this
+  // paper shows its text (GET /bluebook/past-papers/{id}) without adding it, so a teacher
+  // can read a paper they keep aside; Undo approval takes an approved paper back out of
+  // the baseline and leaves it waiting again (2026-11, four-paper alpha). With a student
+  // chosen, only theirs; on the all-students view, everyone's.
+  const SH={rows:[],busy:'',msg:{},open:'',read:new Map(),copied:''};
   const SHARED_STATUS={pending:'Waiting for approval',approved:'In the baseline',declined:'Declined',held:'Held back'};
+  function sharedReadPanel(r){
+    const rec=SH.read.get(r.paper_id);
+    if(!rec||rec.state==='loading') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">Loading</div></div>';
+    if(rec.state!=='ok') return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="live-empty">'+esc(rec.status===404?'This paper is no longer available. Reload the page.':'This paper could not be loaded just now.')+'</div><div class="sh-acts"><button type="button" class="btn ghost btn-ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div></div>';
+    const who=r.student||'this student';
+    return '<div class="sh-read" data-read-of="'+esc(r.paper_id)+'"><div class="pb" tabindex="0" aria-label="Text of '+esc(r.title||'the paper')+'"></div>'+
+      '<div class="sh-acts"><button type="button" class="btn ghost btn-ghost" data-sact="copy" data-id="'+esc(r.paper_id)+'">'+(SH.copied===r.paper_id?'Copied':'Copy text')+'</button>'+
+      '<a href="writing-state.html?student='+enc(r.student_id)+'">Open Writing State for '+esc(who)+'</a>'+
+      '<button type="button" class="btn ghost btn-ghost" data-sact="close" data-id="'+esc(r.paper_id)+'">Close</button></div>'+
+      '<div class="sh-note">Reading a paper does not add it to the baseline or change its status.</div></div>';
+  }
   function renderShared(){
     const sec=$('shared-sec'), el=$('shared-list');
     const rows=ID?SH.rows.filter(r=>r.student_id===ID):SH.rows;
@@ -1311,43 +1358,97 @@
       const src=r.baseline_source==='split'?('Section of a longer paper'+(r.parent_title?': '+r.parent_title:'')+' (split-derived)'):'Whole paper (independent)';
       const meta=[ID?'':(r.student||'Student'), fmtDate(r.shared_at), plural(num(r.word_count)||0,'word'), src].filter(Boolean).join(' · ');
       const st='<span class="st '+(r.status==='approved'?'in':r.status==='pending'?'wait':'off')+'"><span class="d"></span>'+esc(SHARED_STATUS[r.status]||r.status)+'</span>';
-      const btns=(r.status==='pending'||r.status==='held')?('<div class="ex-btns">'+
-        (r.status==='pending'?'<button type="button" class="btn" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(SH.busy===r.paper_id?'Saving...':'Approve')+'</button>':'')+
-        '<button type="button" class="btn ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button></div>'):'';
+      const open=SH.open===r.paper_id;
+      const saving=SH.busy===r.paper_id;
+      const read='<button type="button" class="btn ghost btn-ghost" data-sact="read" data-id="'+esc(r.paper_id)+'" aria-expanded="'+(open?'true':'false')+'">'+(open?'Hide paper':'Read this paper')+'</button>';
+      let acts='';
+      if(r.status==='pending') acts='<button type="button" class="btn btn-gold" data-sact="approve" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Approve')+'</button>';
+      if(r.status==='pending'||r.status==='held') acts+='<button type="button" class="btn ghost btn-ghost" data-sact="decline" data-id="'+esc(r.paper_id)+'"'+dis+'>Decline</button>';
+      const inBaseline=r.status==='approved';
+      if(inBaseline) acts='<button type="button" class="btn ghost btn-ghost" data-sact="unapprove" data-id="'+esc(r.paper_id)+'"'+dis+'>'+(saving?'Saving...':'Undo approval')+'</button>';
+      const btns='<div class="ex-btns">'+read+acts+'</div>';
       const m=SH.msg[r.paper_id];
-      return '<div class="ex" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
-        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div></div>';
+      return '<div class="ex sh" data-paper="'+esc(r.paper_id)+'"><div class="ex-main"><div class="ex-t">'+esc(r.title||'Untitled paper')+'</div><div class="ex-m">'+esc(meta)+'</div>'+
+        (m?'<div class="ex-msg '+(m.kind||'')+'" role="status">'+esc(m.text)+'</div>':'')+'</div><div class="ex-side">'+st+btns+'</div>'+(open?sharedReadPanel(r):'')+'</div>';
     }).join('');
+    // The paper's words go in as text, never as markup.
+    const rec=SH.open?SH.read.get(SH.open):null;
+    const box=rec&&rec.state==='ok'?el.querySelector('.sh-read[data-read-of="'+SH.open+'"] .pb'):null;
+    if(box) box.textContent=typeof rec.text==='string'&&rec.text?rec.text:'(empty)';
   }
   async function loadShared(){
     const res=await Live.api('/bluebook/past-papers');
     if(!res.ok||!res.data||!Array.isArray(res.data.papers)){ $('shared-sec').hidden=true; return; }
     SH.rows=res.data.papers; renderShared();
   }
+  async function readShared(id){
+    if(SH.open===id){ SH.open=''; renderShared(); return; }
+    SH.open=id; SH.copied='';
+    const have=SH.read.get(id);
+    if(have&&have.state!=='error'){ renderShared(); return; }
+    SH.read.set(id,{state:'loading'}); renderShared();
+    const res=await Live.api('/bluebook/past-papers/'+enc(id));
+    SH.read.set(id,res.ok&&res.data&&typeof res.data.text==='string'?{state:'ok',text:res.data.text}:{state:'error',status:res.status});
+    if(SH.open===id) renderShared();
+  }
+  async function copyShared(id){
+    const rec=SH.read.get(id); if(!rec||rec.state!=='ok') return;
+    let ok=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(rec.text); ok=true; } }catch(e){ ok=false; }
+    if(ok){ SH.copied=id; renderShared(); return; }
+    // No clipboard here (an insecure page, or permission refused): select the words instead.
+    const box=document.querySelector('.sh-read[data-read-of="'+id+'"] .pb');
+    if(box&&window.getSelection&&document.createRange){ const g=document.createRange(); g.selectNodeContents(box); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(g); }
+    SH.msg[id]={text:'Copying is not available in this browser. The text is selected: copy it with your keyboard.',kind:'err'};
+    renderShared();
+  }
   $('shared-list').addEventListener('click',async e=>{
-    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled||SH.busy) return;
+    const b=e.target.closest('button[data-sact]'); if(!b||b.disabled) return;
     const id=b.getAttribute('data-id'), act=b.getAttribute('data-sact');
     const r=SH.rows.find(x=>x.paper_id===id); if(!r) return;
+    if(act==='read') return readShared(id);
+    if(act==='close'){ SH.open=''; renderShared(); return; }
+    if(act==='copy') return copyShared(id);
+    if(SH.busy) return;
     SH.busy=id; renderShared();
     try{
       const res=await Live.api('/bluebook/past-papers/'+enc(id)+'/'+act,{method:'POST'});
       if(res.ok&&res.data&&typeof res.data.status==='string'){
+        const was=r.status;
         r.status=res.data.status;
-        SH.msg[id]=r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
+        SH.msg[id]=act==='unapprove'?{text:'Taken back out of the baseline. It is waiting for your approval again.',kind:'ok'}:
+          r.status==='approved'?{text:'Added to the baseline.',kind:'ok'}:
           r.status==='held'?{text:'Not added: this paper differs strongly from the student’s existing samples. Approval does not override this check.',kind:'err'}:
           {text:'Declined. It is not used.',kind:'ok'};
-        if(r.status==='approved'&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
+        const changed=r.status==='approved'||(was==='approved'&&act==='unapprove');
+        if(changed&&ID&&r.student_id===ID&&!(await refreshAfterWrite())) SH.msg[id].text+=' '+NOT_REFRESHED;
       } else if(res.status===401){ SH.msg[id]={text:'Your sign-in has ended. Sign in again, then try once more.',kind:'err'}; }
       else { SH.msg[id]={text:detailText(res.data)||'That did not go through, so nothing changed.',kind:'err'}; }
     }finally{ SH.busy=''; renderShared(); }
   });
 
+  // The drift check's rule in this server's own mode (the readiness answer's
+  // drift_gate; /health carries it too, but some browsers' blockers refuse a
+  // page's request to /health). "advisory" (the alpha pilot): nothing a teacher
+  // adds or approves is held back, and the check only reports. The page's words
+  // otherwise stay those of "hold", the default, so an unreadable answer never
+  // promises an admission.
+  function driftWords(){
+    const mode=S.ready&&typeof S.ready.drift_gate==='string'?S.ready.drift_gate:'';
+    if(mode!=='advisory') return;
+    document.querySelectorAll('[data-drift]').forEach(el=>{
+      el.textContent=el.dataset.drift==='exam'
+        ?'If it differs strongly from the writing already in the baseline, Original says so, and it still joins the baseline.'
+        :'If a paper differs strongly from what is already there, Original says so, and the paper still joins the baseline.';
+    });
+  }
+
   // ── go ──
-  Live.session().then(renderChrome);
   Live.gate($('live-main')).then(async sess=>{
     if(!sess) return;
     startFingerprint();
     $('paste-date').value=today();
+    $('files-date').value=today();
     setTab('paste');
     loadShared().catch(()=>{ $('shared-sec').hidden=true; });
     if(!ID){ await pickStudent(); return; }

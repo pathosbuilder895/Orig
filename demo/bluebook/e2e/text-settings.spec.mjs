@@ -10,6 +10,7 @@
  */
 
 import { isolatedTest as test, expect } from './fixtures/tenancy.mjs'
+import { COLLECTIONS_HOME } from './fixtures/api-setup.mjs'
 
 const BASE_PX = 18
 const SCALE = { small: 0.875, default: 1, large: 1.15, xlarge: 1.3, xxlarge: 1.5 }
@@ -18,8 +19,15 @@ async function rootPx(page) {
   return page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
 }
 
+// On the signed-in screens the Text setting lives in the account menu (the shared top bar).
+async function openTextButton(page) {
+  const btn = page.getByTestId('text-settings-button').first()
+  if (!(await btn.isVisible())) await page.locator('#me-btn').click()
+  return btn
+}
+
 async function pickText(page, { font, size }) {
-  await page.getByTestId('text-settings-button').first().click()
+  await (await openTextButton(page)).click()
   const panel = page.getByTestId('text-settings')
   await expect(panel).toBeVisible()
   if (font) await panel.locator(`[role=radio][data-value="${font}"]`).click()
@@ -156,10 +164,11 @@ test.describe('Text setting', () => {
     test(`teacher screens fit at the largest size (${label})`, async ({ staffPage }) => {
       await staffPage.setViewportSize(viewport)
       await staffPage.addInitScript(() => localStorage.setItem('bb.display.v1', JSON.stringify({ font: 'serif', size: 'xxlarge' })))
-      await staffPage.goto('/bluebook/')
+      await staffPage.goto(COLLECTIONS_HOME)
       await staffPage.waitForLoadState('networkidle')
       // The pill strip scrolls inside itself by design (phone-nav.spec.mjs).
-      await expectNoOverflow(staffPage, ['h1', '.teacher-nav-right button', '.bb-stat', '[data-testid=text-settings-button]'])
+      await staffPage.locator('#me-btn').click()
+      await expectNoOverflow(staffPage, ['h1', '.shell .nav-right button', '.shell .me-menu', '.bb-stat', '[data-testid=text-settings-button]'])
       await staffPage.goto('/bluebook/#students')
       await staffPage.waitForLoadState('networkidle')
       await expectNoOverflow(staffPage, ['h1'])
@@ -177,7 +186,7 @@ test.describe('Text setting', () => {
   test('a signed-in teacher keeps the setting on the account (another browser picks it up)', async ({
     staffPage, browser, testTenant,
   }) => {
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     const saved = staffPage.waitForResponse(r => r.url().endsWith('/bluebook/me/display') && r.request().method() === 'PUT')
     await pickText(staffPage, { font: 'classic', size: 'large' })
@@ -189,16 +198,17 @@ test.describe('Text setting', () => {
       origins: state.origins.map(o => ({ ...o, localStorage: o.localStorage.filter(i => i.name !== 'bb.display.v1') })),
     } })
     const p2 = await fresh.newPage()
-    await p2.goto('/bluebook/')
+    await p2.goto(COLLECTIONS_HOME)
     await expect.poll(() => p2.evaluate(() => document.documentElement.dataset.bbFont)).toBe('classic')
     expect(await rootPx(p2)).toBeCloseTo(BASE_PX * SCALE.large, 1)
     await fresh.close()
   })
 
   test('the account page offers the Text setting', async ({ staffPage }) => {
-    await staffPage.goto('/bluebook/')
+    await staffPage.goto(COLLECTIONS_HOME)
     await staffPage.waitForLoadState('networkidle')
     await staffPage.evaluate(() => { location.hash = '' })
+    await staffPage.locator('#me-btn').click()
     await expect(staffPage.getByTestId('text-settings-button').first()).toBeVisible()
   })
 })

@@ -20,6 +20,8 @@ from ..constants import (
     STOP_WORDS,
     THEOLOGICAL_TERMS,
 )
+from . import feature_flags as _ff
+from . import lexicon_v2 as _v2
 from .tier1 import TextDoc, _tokenize
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,21 +53,35 @@ def epistemic_certainty_ratio(doc: TextDoc) -> float:
     Assert markers / (assert + hedge markers).
     Near 1.0 = highly assertive; near 0.0 = heavily hedged.
     """
-    hedges = _count_phrases(doc.clean, HEDGE_WORDS)
-    asserts = _count_phrases(doc.clean, ASSERTION_WORDS)
+    hedges, asserts = _epistemic_counts(doc)
     total = hedges + asserts
     if total == 0:
         return 0.5  # neutral baseline
     return asserts / total
 
 
+def _epistemic_counts(doc: TextDoc) -> tuple[int, int]:
+    """(hedge markers, assertion markers). Shared with features/opportunity.py,
+    so the mask counts what the extractor divides by under either word-list
+    version (FEATURE_SET)."""
+    if _ff.lexicon_v2():
+        return len(_v2.hedge_spans(doc)), len(_v2.assertion_spans(doc))
+    hedges = _count_phrases(doc.clean, HEDGE_WORDS)
+    asserts = _count_phrases(doc.clean, ASSERTION_WORDS)
+    return hedges, asserts
+
+
 def hedging_density(doc: TextDoc) -> float:
     """Hedge markers per 100 words."""
+    if _ff.lexicon_v2():
+        return _per_100(len(_v2.hedge_spans(doc)), doc.word_count)
     return _per_100(_count_phrases(doc.clean, HEDGE_WORDS), doc.word_count)
 
 
 def assertion_density(doc: TextDoc) -> float:
     """Strong assertion markers per 100 words."""
+    if _ff.lexicon_v2():
+        return _per_100(len(_v2.assertion_spans(doc)), doc.word_count)
     return _per_100(_count_phrases(doc.clean, ASSERTION_WORDS), doc.word_count)
 
 
@@ -242,9 +258,14 @@ def imperative_density(doc: TextDoc) -> float:
     return _per_100(count, doc.word_count)
 
 
+def _personal_pronoun_count(doc: TextDoc) -> int:
+    """Personal pronouns of any person. Shared with features/opportunity.py."""
+    return sum(1 for w in doc.lower_words if w in PERSONAL_PRONOUNS)
+
+
 def first_person_ratio(doc: TextDoc) -> float:
     """First-person pronouns / all personal pronouns."""
-    all_pron = sum(1 for w in doc.lower_words if w in PERSONAL_PRONOUNS)
+    all_pron = _personal_pronoun_count(doc)
     if not all_pron:
         return 0.0
     first = sum(1 for w in doc.lower_words if w in FIRST_PERSON)

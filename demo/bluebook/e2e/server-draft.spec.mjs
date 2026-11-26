@@ -4,6 +4,7 @@
  * After the seal the draft is gone and cannot be saved again.
  */
 import { test, expect } from '@playwright/test'
+import { confirmSeal } from './fixtures/seal.mjs'
 
 const uid = () => `${process.pid}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
 const PASS = 'e2e-student-pass-1'
@@ -60,9 +61,9 @@ test('an unsealed draft written in one browser opens in another, and is gone aft
   await A.page.getByRole('checkbox').check()
   await A.page.getByRole('button', { name: 'Save and continue' }).click()
   await A.page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: 'Open' }).click({ timeout: 10_000 })
-  await A.page.getByRole('button', { name: /Begin Examination|Resume Examination/ }).click()
+  await A.page.getByRole('button', { name: /Begin writing|Resume writing/ }).click()
   const words = 'Written on the first computer and carried to the second.'
-  await A.page.getByLabel('Your examination answer').focus()
+  await A.page.getByLabel('Your answer', { exact: true }).focus()
   await A.page.keyboard.type(words, { delay: 1 })
   const saved = A.page.waitForResponse(r => r.url().includes('/draft') && r.request().method() === 'PUT')
   await A.page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
@@ -78,16 +79,16 @@ test('an unsealed draft written in one browser opens in another, and is gone aft
   await B.page.getByRole('button', { name: 'Sign in' }).last().click()
   // Signing in resumes at the exam's briefing (resume-location.jsx), or the
   // student opens it from their list.
-  const begin = B.page.getByRole('button', { name: /Begin Examination|Resume Examination/ })
+  const begin = B.page.getByRole('button', { name: /Begin writing|Resume writing/ })
   const openRow = B.page.getByRole('row', { name: new RegExp(title) }).getByRole('button', { name: /^(Open|Resume)$/ })
   await expect(begin.or(openRow)).toBeVisible({ timeout: 10_000 })
   if (!(await begin.isVisible())) await openRow.click()
   await begin.click()
-  const box = B.page.getByLabel('Your examination answer')
+  const box = B.page.getByLabel('Your answer', { exact: true })
   await expect(box).toHaveValue(words, { timeout: 10_000 })
-  B.page.once('dialog', d => d.accept())
   await B.page.locator('button', { hasText: /Seal & Submit|Sealing/ }).click()
-  await expect(B.page.getByText('Examination Sealed')).toBeVisible({ timeout: 30_000 })
+  await confirmSeal(B.page)
+  await expect(B.page.getByText('Collection Sealed')).toBeVisible({ timeout: 30_000 })
 
   // After the seal: no draft, and a save is refused.
   const examId = await B.page.evaluate(async (t) => {

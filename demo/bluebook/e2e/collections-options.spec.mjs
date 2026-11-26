@@ -7,10 +7,11 @@
 
 import { test, expect } from './fixtures/tenancy.mjs'
 import { isolatedTest } from './fixtures/tenancy.mjs'
+import { COLLECTIONS_HOME } from './fixtures/api-setup.mjs'
 
 test('a take-home Great is untimed, starts above 1,000 words and is listed as such', async ({ staffPage, workerTenant }) => {
   const title = `E2E Take-home Great ${workerTenant.tenant.tenant_id}`
-  await staffPage.goto('/bluebook/')
+  await staffPage.goto(COLLECTIONS_HOME)
   await staffPage.waitForLoadState('networkidle')
   await staffPage.getByRole('button', { name: 'Collections', exact: true }).click()
   await staffPage.getByRole('button', { name: '+ New collection' }).click()
@@ -108,8 +109,8 @@ isolatedTest('an untimed sitting shows no clock', async ({ studentPage, testTena
   await studentPage.goto('/bluebook/')
   await studentPage.waitForLoadState('networkidle')
   await expect(studentPage.getByText(/no time limit/i).first()).toBeVisible()
-  await studentPage.getByRole('button', { name: 'Begin Examination' }).click()
-  await expect(studentPage.getByLabel('Your examination answer')).toBeVisible()
+  await studentPage.getByRole('button', { name: 'Begin writing' }).click()
+  await expect(studentPage.getByLabel('Your answer', { exact: true })).toBeVisible()
   await expect(studentPage.getByText('No time limit')).toBeVisible()
   await expect(studentPage.getByRole('timer')).toHaveCount(0)
 })

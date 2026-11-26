@@ -34,7 +34,7 @@
  */
 
 import { test, expect } from './fixtures/tenancy.mjs'
-import { createExam } from './fixtures/api-setup.mjs'
+import { COLLECTIONS_HOME, createExam } from './fixtures/api-setup.mjs'
 
 /** The hint one "phone" types on parked.html — initials, which is all this
  *  feature ever stores about a student (see the router's privacy banner). */
@@ -64,7 +64,7 @@ async function openProctorScreen(page) {
 }
 
 async function gotoProctorScreen(page) {
-  await page.goto('/bluebook/')
+  await page.goto(COLLECTIONS_HOME)
   await page.waitForLoadState('networkidle')
   await openProctorScreen(page)
 }
@@ -412,7 +412,7 @@ test.describe('Proctor screen — QR phone park', () => {
 
     // Next poll (POLL_MS = 5s) — auto-waiting, no sleep.
     await expect(tile).toHaveCount(0, { timeout: 15_000 })
-    await expect(staffPage.getByText('No phone park is open for this examination yet.'))
+    await expect(staffPage.getByText('No phone park is open for this collection yet.'))
       .toBeVisible()
     await expect(staffPage.locator('[role="alert"]')).toHaveCount(0)
     // Distinct from the never-started empty state: this screen still HAS an

@@ -1,0 +1,72 @@
+{
+  "concern": false,
+  "cut_points": {
+    "escalate": 0.703,
+    "monitor": 0.517,
+    "schedule_conversation": 0.622
+  },
+  "exploratory": "3 past papers per author, development partition; decides nothing",
+  "skipped": {
+    "1200/300": 89,
+    "1200/600": 89,
+    "1500/450": 89
+  },
+  "study_id": "length-match-thresholds-2026-11-19",
+  "summary": {
+    "action_agreement": 0.5154,
+    "auc_off": 0.7562,
+    "auc_on": 0.8211,
+    "by_cell": {
+      "1200/300": {
+        "caught_off_product": 0.9441,
+        "caught_on_new": 0.0382,
+        "honest_flagged_off_product": 0.7647,
+        "honest_flagged_on_new": 0.0
+      },
+      "1200/600": {
+        "caught_off_product": 0.6971,
+        "caught_on_new": 0.1529,
+        "honest_flagged_off_product": 0.2426,
+        "honest_flagged_on_new": 0.0221
+      },
+      "1500/450": {
+        "caught_off_product": 0.8471,
+        "caught_on_new": 0.1059,
+        "honest_flagged_off_product": 0.4853,
+        "honest_flagged_on_new": 0.0074
+      }
+    },
+    "engagement": 1.0,
+    "honest_escalate_ci95_by_author": [
+      0.0,
+      0.0
+    ],
+    "honest_flagged_ci95_by_author": [
+      0.0,
+      0.0221
+    ],
+    "n_authors": 68,
+    "n_honest": 408,
+    "n_other_writer": 1020,
+    "off_catch_at_on_new_flag_rate": 0.0843,
+    "off_product_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.4975,
+      "honest_monitor_or_higher": 0.9975,
+      "other_writers_caught": 0.8294
+    },
+    "on_new_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.0098,
+      "honest_monitor_or_higher": 0.1544,
+      "other_writers_caught": 0.099
+    },
+    "on_product_cut_points": {
+      "honest_escalate": 0.0,
+      "honest_flagged": 0.0196,
+      "honest_monitor_or_higher": 0.7525,
+      "other_writers_caught": 0.1794
+    }
+  },
+  "writing": "published scholars' single-author journal articles; not student writing"
+}

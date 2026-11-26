@@ -18,7 +18,10 @@ import {
 import { openExam } from './Dashboard.jsx';
 import { LiveTeacherSessions } from './TeacherWorkspace.jsx';
 import { installResumeTracking, trackScreen } from './resume-location.jsx';
-import { DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, rememberScreen } from './deep-link.jsx';
+import {
+  DEEP_LINK_SCREEN, FORGOT_HASH, clearDeepLink, deepLinkScreen, parseDeepLink, markCollectionsTab, rememberScreen,
+  staffHomeRedirect,
+} from './deep-link.jsx';
 import {
   useTweaks, TweaksPanel, TweakSection, TweakSelect, TweakSlider, TweakColor,
 } from './tweaks-panel.jsx';
@@ -38,7 +41,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const PRE_AUTH_SCREENS = ['landing', 'login', 'signup', 'invite', 'join', 'forgot'];
 // Screens whose own bar or sidebar already carries the Text button.
 const TEXT_IN_NAV = new Set(['dashboard', 'sessions', 'collections', 'exams', 'courses', 'students', 'results',
-  'proctor', 'manage-exam', 'roster', 'account', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
+  'proctor', 'manage-exam', 'roster', 'account', 'new-exam', 'student-home', 'student-submission', 'student-account', 'exam', 'briefing']);
 const BB_SESSION_WATCH = ['original_principal_token', 'original_session_token', 'original_role'];
 
 function App() {
@@ -179,6 +182,11 @@ function App() {
   React.useEffect(() => { trackScreen(screen); }, [screen]);
   // The Text setting follows the signed-in account (display only).
   React.useEffect(() => { syncDisplayWithAccount(); }, [screen]);
+  // A signed-in teacher is working in Collections in this tab: a reload of a
+  // screen the address does not name stays here (staffOriginalHome, deep-link.jsx).
+  React.useEffect(() => {
+    if (BB_API.isAuthed() && !BB_API.isStudentAccount() && !BB_API.isStudentLaunch()) markCollectionsTab();
+  }, [screen]);
   // A Bluebook-only workspace (and its students) never sees Original's name.
   React.useEffect(() => {
     document.title = (BB_API.isAuthed() && BB_API.hasOriginal()) ? 'Original · Collections' : 'Collections';
@@ -193,7 +201,7 @@ function App() {
   switch (screen) {
     case 'login':
       content = <>
-        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your exam. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
+        {expired && <p role="alert" data-testid="signin-expired" style={{ textAlign: 'center', margin: '1.5rem auto 0', maxWidth: 520, color: '#C47A6B' }}>{expiredStudent ? 'Your sign-in has expired. Please sign in again to finish submitting your collection. Your answers are kept on this computer.' : 'Your sign-in has expired. Please sign in again. Nothing was lost.'}</p>}
         <LoginScreen onNavigate={(n) => { setExpired(false); navigate(n); }} />
       </>;
       break;
@@ -360,9 +368,9 @@ function App() {
             { label: '④c Students',             value: 'students'  },
             { label: '④d Results',              value: 'results'   },
             { label: '④e Proctor',              value: 'proctor'   },
-            { label: '⑤ Exam Briefing',         value: 'briefing'  },
+            { label: '⑤ Briefing',              value: 'briefing'  },
             { label: '⑥ New Collection',         value: 'new-exam'  },
-            { label: '⑦ Active Examination',    value: 'exam'      },
+            { label: '⑦ Writing',                value: 'exam'      },
             { label: '⑧ Submitted',             value: 'submitted' },
           ]}
           onChange={(v) => navigate(v)}
@@ -387,4 +395,11 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// A teacher whose workspace has Original opens Original, not the Collections
+// dashboard, when they arrive at the bare /bluebook/ address signed in
+// (staffOriginalHome in deep-link.jsx says exactly when). Decided before the
+// app draws anything, so the dashboard never flashes or saves itself as the
+// place to resume.
+const staffHome = staffHomeRedirect(BB_API);
+if (staffHome) window.location.replace(staffHome);
+else ReactDOM.createRoot(document.getElementById('root')).render(<App />);

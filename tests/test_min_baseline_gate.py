@@ -66,10 +66,11 @@ def test_readiness_floor_follows_the_minimum(live_client, store_reset, productio
     for t in _texts(2):
         _add_baseline(live_client, sid, text=t)
     r = live_client.get(f"/students/{sid}/readiness").json()
-    assert r["verdict"] == "insufficient"
+    assert r["verdict"] == "developing"  # building: some papers, below the floor
     assert any("at least 3 approved baseline papers" in x for x in r["recommendations"])
     _add_baseline(live_client, sid, text="A third. " + LONG_TEXT)
-    assert live_client.get(f"/students/{sid}/readiness").json()["verdict"] == "developing"
+    # Ready at the floor the score route enforces (the alpha's three papers).
+    assert live_client.get(f"/students/{sid}/readiness").json()["verdict"] == "ready"
 
 
 # ── invites ──────────────────────────────────────────────────────────────────

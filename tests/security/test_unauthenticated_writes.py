@@ -185,6 +185,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/bluebook/me/papers"),
     ("POST", "/bluebook/past-papers/{paper_id}/approve"),
     ("POST", "/bluebook/past-papers/{paper_id}/decline"),
+    ("POST", "/bluebook/past-papers/{paper_id}/unapprove"),
     ("POST", "/bluebook/submissions/{submission_id}/baseline"),
     ("POST", "/canvas/baseline/{student_id}/fetch-submission-text"),
     ("POST", "/canvas/baseline/{student_id}/import-baseline"),
@@ -193,6 +194,7 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/me/formation/advance"),
     ("POST", "/me/work"),
     ("POST", "/proctor/park/open"),
+    ("POST", "/students"),
     ("POST", "/students/{student_id}/baseline"),
     ("POST", "/students/{student_id}/baseline/upload-batch"),
     ("POST", "/students/{student_id}/formation"),
@@ -204,6 +206,8 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/submissions/{submission_id}/correct"),
     ("POST", "/tenants"),
     ("POST", "/test/score"),
+    ("PUT", "/students/{student_id}/samples/{index}/parts"),
+    ("DELETE", "/students/{student_id}/samples/{index}/parts"),
 ]
 
 # Routes whose Pydantic body model has a required field, so an empty `{}`

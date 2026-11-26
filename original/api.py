@@ -65,6 +65,7 @@ from .routers import (
     proctor,
     students,
     students_baseline,
+    students_parts,
     students_scoring,
     tenants,
 )
@@ -156,6 +157,11 @@ async def lifespan(app: FastAPI):
         _GUARD_DESTRUCTIVE,
         "GUARDED (X-Guard-Token required)" if _GUARD_DESTRUCTIVE else "open (demo mode)",
     )
+    # The two staff-only explainability flags (ADR-013): report-only, never
+    # change a score or action. One line so a deploy's state is readable from logs.
+    from .evidence import staff_explainability_status
+
+    _log.info("%s", staff_explainability_status())
     # Tells an operator who exported SENDGRID_API_KEY that no email is sent.
     # No-ops when the key is unset. See routers/_shared.py.
     log_email_sender_status()
@@ -290,7 +296,20 @@ async def security_headers(request: Request, call_next):
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     if _ENABLE_HSTS:
         resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    # Pages, scripts and styles: revalidate on every load (ETag, so an unchanged
+    # file is a quick 304). Without a Cache-Control header browsers cache them
+    # heuristically for a fraction of their age, so after a deploy a teacher
+    # could keep seeing the old page for minutes to hours. A route that sets
+    # its own Cache-Control keeps it.
+    ctype = resp.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if ctype in _REVALIDATE_TYPES:
+        resp.headers.setdefault("Cache-Control", "no-cache")
     return resp
+
+
+_REVALIDATE_TYPES = frozenset(
+    {"text/html", "text/javascript", "application/javascript", "text/css"}
+)
 
 
 # ── Tenant-isolation middleware (ADR-003, Phase 1) ────────────────────────────
@@ -652,6 +671,7 @@ app.router.routes.extend(past_papers.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)
+app.router.routes.extend(students_parts.router.routes)
 app.router.routes.extend(tenants.router.routes)
 app.router.routes.extend(me.router.routes)
 app.router.routes.extend(imports.router.routes)

@@ -272,9 +272,9 @@
     "severity": "watch",
     "summary": "This submission shows minor stylistic variations from the baseline (deviation score: 56%), which may reflect topic differences or natural writing variation. No immediate action required, but continued monitoring is recommended.",
     "top_reasons": [
-      "integration of sources is dramatically higher than usual",
+      "commenting on sources is dramatically higher than usual",
       "use of passive voice is dramatically higher than usual",
-      "pattern of hesitation markers is dramatically higher than usual"
+      "bunching of hedge words is dramatically higher than usual"
     ],
     "verdict": "This submission shows minor variation from the student's baseline."
   },
@@ -416,6 +416,14 @@
     },
     "total_probability": 0.8915057781
   },
+  "length_match_action_preview": null,
+  "length_match_applied": false,
+  "length_match_deviation_preview": null,
+  "length_match_mode": null,
+  "length_match_pieces": null,
+  "opportunity_deviation_preview": null,
+  "opportunity_mask_applied": false,
+  "opportunity_mode": null,
   "preliminary": null,
   "recommendation": {
     "action": "monitor",
@@ -423,6 +431,7 @@
     "rationale": "Deviation score 0.568 (primary verdict signal). Born authorship probability 0.892 (secondary alignment check). 5 destructive interference features detected. Primary anomaly: Source Integration Style. Born and deviation signals diverge by 0.46 \u2014 confidence reduced; manual review advised. Broken entanglement: T1\u2013T7 passive\u2013hedge entanglement."
   },
   "report": null,
+  "rule_d": null,
   "student_id": "flagbi:alice",
   "style_authorship": null,
   "submission_id": "flagbi-sub-001",
@@ -464,5 +473,6 @@
   "typicality_n": 0,
   "typicality_p_central": null,
   "typicality_p_far": null,
-  "typicality_source": null
+  "typicality_source": null,
+  "unmeasured_features": null
 }

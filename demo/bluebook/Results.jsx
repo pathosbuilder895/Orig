@@ -167,7 +167,7 @@ function ScoredResultsScreen({ onNavigate }) {
 
       <div className="bb-filter" role="group" aria-label="Show submissions">
         {[['all','All'],['SUBMITTED','Submitted'],...(showMark ? [['FLAGGED','Worth a look']] : []),['REVIEWED','Reviewed']].map(([val,label]) => (
-          <button key={val} type="button" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
+          <button key={val} type="button" className="btn-chip" aria-pressed={statusFilter === val} onClick={() => setFilter(val)}>{label}</button>
         ))}
       </div>
 
@@ -181,7 +181,7 @@ function ScoredResultsScreen({ onNavigate }) {
         {filtered.length === 0 && (
           <p role="status" className="bb-empty" style={{ padding: '1rem' }}>
             {serverResults === null && BB_API.isAuthed() ? 'Loading submissions…'
-              : results.length ? 'Nothing matches this filter.' : 'No sealed exams yet. They appear here as students submit them.'}
+              : results.length ? 'Nothing matches this filter.' : 'No sealed booklets yet. They appear here as students submit them.'}
           </p>
         )}
         {filtered.map(result => (

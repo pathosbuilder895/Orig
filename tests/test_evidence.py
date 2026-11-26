@@ -4,17 +4,23 @@ What these pin:
 * every quote is a verbatim slice of the stored text at its recorded offsets;
 * located places are exactly what the engine's own measurement counted;
 * same input -> same evidence;
-* both features are off by default and never reach a student session.
+* evidence is on by default while testing, the preliminary score off; neither reaches a
+  student session.
 """
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 
+# Imported at collection, not inside a test: the import configures the root logger
+# (configure_logging), which would drop caplog's handler mid-test.
+from original import api as api_mod
 from original import evidence as ev
 from original.constants import ALL_FEATURE_CODES, FEATURE_DIM
 from original.evidence_features import feature_info
@@ -127,7 +133,11 @@ def test_every_quote_is_a_verbatim_slice_at_its_offsets():
         assert q["start"] <= q["match_start"] and q["match_end"] <= q["end"]
         assert len(q["passage"]) <= ev.MAX_QUOTE_CHARS + 40
     # Nothing the engine set aside is quoted as a counted place: the citation and back matter are gone.
-    assert not any("Smith, 2020" in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # (An in-sentence citation like "(Smith, 2020)" is part of a counted sentence; the reference entry is not.)
+    assert not any("Smith, J." in q["match"] or "Night markets" in q["match"] for q in quotes)
+    # Every quote that touches the inline citation still says it runs into set-aside text.
+    assert any("Smith, 2020" in q["match"] for q in quotes)
+    assert all(q["crosses_set_aside"] for q in quotes if "Smith, 2020" in q["match"])
 
 
 def test_long_sentences_are_clipped_to_a_verbatim_window():
@@ -147,6 +157,13 @@ def test_short_matches_inside_long_sentences_get_a_window_around_them():
     (q,) = evidence["features"][0]["this_paper"]["examples"]
     assert q["match"] == ";" and q["clipped_start"] and not q["clipped_end"]
     assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+
+
+def test_a_match_outside_every_sentence_is_quoted_as_it_stands():
+    """A counted span the sentence split did not cover (text between two
+    sentences) is quoted exactly, unclipped, rather than borrowing a sentence."""
+    text = "One sentence. ; Another sentence."
+    assert ev._passage(text, [(0, 13), (16, len(text))], 14, 15) == (14, 15, False, False)
 
 
 def test_evidence_is_deterministic():
@@ -254,30 +271,150 @@ def test_case_folding_that_changes_length_fails_closed():
     assert ev.read_paper(text, "semicolon_colon_rate").places is not None
 
 
+NOT_RUN = {"verdict": "not run", "n_papers": None, "n_students": None, "corpus": None, "date": None, "bands": {}}
+
+
 def test_preliminary_score_is_the_engines_numbers_with_its_label():
     p = ev.preliminary_score(0.6789, "schedule_conversation", inconclusive=False)
     assert p == {"label": "Preliminary · unvalidated · not a judgment", "score": 0.68,
-                 "band": "schedule_conversation", "band_words": "Outside the usual range", "note": ev.PRELIMINARY_NOTE}
+                 "band": "schedule_conversation",
+                 "band_words": "Reads differently in several habits; worth a conversation",
+                 "note": ev.PRELIMINARY_NOTE, "habits_outside": None, "habits_compared": None,
+                 "band_rate": None, "band_rate_status": NOT_RUN}
     for args in ((0.9, "escalate", True), (None, "monitor", False), (0.2, "error", False)):
-        q = ev.preliminary_score(args[0], args[1], inconclusive=args[2])
+        q = ev.preliminary_score(args[0], args[1], inconclusive=args[2], habits_outside=3, habits_compared=90)
         assert q["score"] is None and q["band_words"] == "Not enough writing on file to compare yet."
+        assert q["habits_outside"] is None and q["band_rate"] is None and q["band_rate_status"] == NOT_RUN
+    counted = ev.preliminary_score(0.2, "no_action", inconclusive=False, habits_outside=12, habits_compared=90)
+    assert (counted["habits_outside"], counted["habits_compared"]) == (12, 90)
     banned = re.compile(r"\bAI\b|detect|cheat|authorship verification|accura|percent|%|authentic|misconduct",
                         re.IGNORECASE)
     for words in [ev.PRELIMINARY_LABEL, ev.PRELIMINARY_NOTE, *ev.BAND_WORDS.values(), ev.NUMBERS_ONLY_NOTE,
-                  ev.NOT_LOCATED_NOTE]:
+                  ev.NOT_LOCATED_NOTE, ev.BAND_INNOCENT_CLAUSE, ev.BAND_RATE_NOT_MEASURED]:
         assert not banned.search(words), words
 
 
-def test_flags_default_off(monkeypatch):
+def _rates(verdict="pass", **over):
+    cell = {"in_band": 0.7, "at_or_beyond": 0.3, "ci_in_band": [0.6, 0.8], "ci_at_or_beyond": [0.2, 0.4]}
+    data = {"schema": 1, "gate": "G9", "verdict": verdict, "corpus": "pilot 2027", "date": "2027-01-05",
+            "n_papers": 80, "n_students": 9,
+            "bands": {"no_action": dict(cell), "monitor": dict(cell), "schedule_conversation": dict(cell)}}
+    data.update(over)
+    return data
+
+
+def test_band_rates_reach_the_teacher_only_after_a_pass(tmp_path):
+    path = tmp_path / "band_rates.json"
+    path.write_text(json.dumps(_rates()), encoding="utf-8")
+    rates = ev.load_band_rates(path)
+    assert rates is not None
+    p = ev.preliminary_score(0.5, "monitor", inconclusive=False, band_rates=rates)
+    assert p["band_rate"] == {"rate": 0.3, "kind": "at_or_beyond", "ci": [0.2, 0.4], "n": 80, "students": 9,
+                              "corpus": "pilot 2027", "date": "2027-01-05"}
+    assert p["band_rate_status"]["verdict"] == "pass" and set(p["band_rate_status"]["bands"]) == {
+        "no_action", "monitor", "schedule_conversation"}
+    # Below the first band the share quoted is the share that read like this.
+    assert ev.preliminary_score(0.1, "no_action", inconclusive=False, band_rates=rates)["band_rate"]["kind"] == "in_band"
+    # A band the run did not cover has no rate even after a pass.
+    assert ev.preliminary_score(0.9, "escalate", inconclusive=False, band_rates=rates)["band_rate"] is None
+    # Any other verdict keeps the status (for the staff page) and withholds the rate.
+    for verdict in ("fail", "uninformative"):
+        path.write_text(json.dumps(_rates(verdict)), encoding="utf-8")
+        q = ev.preliminary_score(0.5, "monitor", inconclusive=False, band_rates=ev.load_band_rates(path))
+        assert q["band_rate"] is None and q["band_rate_status"]["verdict"] == verdict
+        assert q["band_rate_status"]["bands"]["monitor"]["at_or_beyond"] == 0.3
+
+
+def test_band_rates_loader_fails_closed(tmp_path):
+    path = tmp_path / "band_rates.json"
+    assert ev.load_band_rates(path) is None  # missing
+    bad = [
+        "not json", json.dumps([]), json.dumps(_rates(schema=2)), json.dumps(_rates(gate="G1")),
+        json.dumps(_rates("passed")), json.dumps(_rates(corpus="")), json.dumps(_rates(n_papers=-1)),
+        json.dumps(_rates(n_papers=True)), json.dumps(_rates(bands="x")),
+        json.dumps(_rates(bands={"verdict_band": {}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 1.5, "at_or_beyond": 0.3, "ci_in_band": [0, 1], "ci_at_or_beyond": [0, 1]}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 0.5, "at_or_beyond": 0.3, "ci_in_band": [0.9, 0.1], "ci_at_or_beyond": [0, 1]}})),
+        json.dumps(_rates(bands={"monitor": {"in_band": 0.5, "at_or_beyond": 0.3, "ci_in_band": [0, 1]}})),
+    ]
+    for text in bad:
+        path.write_text(text, encoding="utf-8")
+        assert ev.load_band_rates(path) is None, text
+    assert ev.band_rate_status(None) == NOT_RUN and ev.band_rate_for("monitor", None) is None
+
+
+def test_committed_band_rates_file_is_valid_and_not_yet_a_pass():
+    rates = ev.load_band_rates()
+    assert rates is not None, "validation/band_rates.json must stay loadable"
+    assert rates["verdict"] != "pass" or rates["n_papers"] > 0
+
+
+def test_range_counts_match_the_side_by_side_summary():
+    base = [[0.5] * FEATURE_DIM, [0.6] * FEATURE_DIM]
+    this = [0.55] * FEATURE_DIM
+    this[0] = 0.9  # outside, provided code 0 is a measured habit
+    outside, compared = ev.range_counts(this, base)
+    measured = [c for c in ALL_FEATURE_CODES if ev.feature_info()[c]["kind"] == "measured"]
+    assert compared == len(measured) and 0 < compared < FEATURE_DIM
+    assert outside == (1 if ALL_FEATURE_CODES[0] in measured else 0)
+    assert ev.range_counts(this, []) == (None, None)
+    # The same rule the full list applies.
+    full = ev.build_all_features("One. Two.", [("a", "Three. Four."), ("b", "Five. Six.")],
+                                 submission_vector=this, baseline_vectors=base)
+    flags = [e["engine_scale"]["outside_past_range"] for e in full if e["kind"] in ("located", "whole_text")]
+    assert (sum(flags), len(flags)) == (outside, compared)
+
+
+def test_flags_default_on(monkeypatch):
+    """Since 2026-11 both are on unless set to an off value: the text-by-text
+    view must not depend on a deploy remembering a variable."""
     monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
     monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
-    assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
-    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
-    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "true")
-    assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
-    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
-    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
     assert ev.evidence_enabled() is True and ev.preliminary_enabled() is True
+    for off in ("0", "off", "false", "no", " OFF "):
+        monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", off)
+        monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", off)
+        assert ev.evidence_enabled() is False and ev.preliminary_enabled() is False
+    for on in ("1", "true", "on", "", "anything"):
+        monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", on)
+        monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", on)
+        assert ev.evidence_enabled() is True and ev.preliminary_enabled() is True
+
+
+@pytest.mark.parametrize(
+    ("evidence_flag", "preliminary_flag", "expected"),
+    [
+        (None, None, "staff_explainability evidence_passages=on preliminary_score=on"),
+        ("1", "1", "staff_explainability evidence_passages=on preliminary_score=on"),
+        ("1", "0", "staff_explainability evidence_passages=on preliminary_score=off"),
+        ("0", " 1 ", "staff_explainability evidence_passages=off preliminary_score=on"),
+        ("off", "false", "staff_explainability evidence_passages=off preliminary_score=off"),
+    ],
+)
+def test_startup_logs_one_line_naming_both_staff_flags(monkeypatch, caplog, evidence_flag, preliminary_flag, expected):
+    """Both are on by default; the boot log says which are on, by the same
+    rule the score route uses."""
+    class _NoSqliteRepo:  # the Postgres shape: no in-app backup task is started
+        def db_path(self):
+            raise NotImplementedError
+
+    monkeypatch.setattr(api_mod, "_secret_key_pinned", True)
+    monkeypatch.setattr(api_mod, "_repo", lambda: _NoSqliteRepo())
+    monkeypatch.setattr(api_mod, "_GUARD_DESTRUCTIVE", False)
+    monkeypatch.delenv("AI_LIKELIHOOD_ENABLED", raising=False)
+    monkeypatch.delenv("AI_LIKELIHOOD_SHADOW", raising=False)
+    for name, value in (("EVIDENCE_PASSAGES_ENABLED", evidence_flag), ("PRELIMINARY_SCORE_ENABLED", preliminary_flag)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    assert ev.staff_explainability_status() == expected
+    with caplog.at_level(logging.INFO, logger="original.api"):
+        with TestClient(api_mod.app):
+            pass
+    lines = [r for r in caplog.records if r.getMessage().startswith("staff_explainability ")]
+    assert [r.getMessage() for r in lines] == [expected]
+    assert lines[0].levelno == logging.INFO
 
 
 def test_html_report_has_two_columns_and_escapes_text():
@@ -301,7 +438,7 @@ def test_descriptions_come_from_the_suite_feature_data(monkeypatch):
     assert ev.describe("sentence_length_variance")[1] == "How much the writer's sentence lengths bounce around compared with staying even."
     ev._descriptions.cache_clear()
     monkeypatch.setattr(ev, "_FEATURE_DATA", Path("/nonexistent/feature-data.js"))
-    assert ev.describe("comma_rate") == ("Comma Rate", "")
+    assert ev.describe("comma_rate") == ("Comma usage", "")
     ev._descriptions.cache_clear()
 
 
@@ -338,7 +475,9 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
         assert response.evidence is None and response.preliminary is None
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, state, result)
-    assert response.preliminary.score == 0.66 and response.preliminary.band_words == "Outside the usual range"
+    assert response.preliminary.score == 0.66 and response.preliminary.band_words == ev.BAND_WORDS["schedule_conversation"]
+    assert response.preliminary.habits_compared is not None and response.preliminary.band_rate is None
+    assert response.preliminary.band_rate_status.verdict in ("not run", "uninformative", "fail")
     assert [p["paper"] for p in response.evidence["measured"]["past_papers"]] == ["past paper 1", "past paper 2", "past paper 3"]
     assert response.evidence["features"][0]["this_paper"]["count"] == len(ev.read_paper(EDGE, "comma_rate").places) == 7
     # Where each past paper came from: only what the samples store.
@@ -372,10 +511,17 @@ def test_staff_explainability_never_reaches_students_or_in_process_callers(monke
     assert compared[-1]["engine_scale"]["past_papers_average"] == 0.5
     assert response.evidence["all_features"][-1]["engine_scale"]["past_papers_average"] is None
 
-    thin = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=3.0)})
+    # Below the three-paper floor: no number. At it (the alpha's three papers): a number.
+    # conftest lowers the floor to 1 for fixtures; pin the deployed default here.
+    monkeypatch.setenv("MIN_BASELINE_SAMPLES", "3")
+    thin =SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=2, effective_sample_count=2.0)})
     response = fresh()
     ss._attach_staff_explainability(response, teacher, EDGE, state, thin)
     assert response.preliminary.score is None
+    three = SimpleNamespace(**{**vars(result), "baseline_confidence": SimpleNamespace(authenticated_count=3, effective_sample_count=2.4)})
+    response = fresh()
+    ss._attach_staff_explainability(response, teacher, EDGE, state, three)
+    assert response.preliminary.score == 0.66
 
     monkeypatch.setattr("original.evidence.build_evidence", lambda *a, **k: 1 / 0)
     response = fresh()
@@ -402,8 +548,8 @@ def _post_baselines(client, sid):
 
 
 def test_score_api_is_unchanged_with_flags_off_and_adds_evidence_when_on(live_client, store_reset, monkeypatch):
-    monkeypatch.delenv("EVIDENCE_PASSAGES_ENABLED", raising=False)
-    monkeypatch.delenv("PRELIMINARY_SCORE_ENABLED", raising=False)
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "0")
     sid = "evidence_api_alice"
     _post_baselines(live_client, sid)
     text = _corpus_texts(4)[3]
@@ -417,7 +563,9 @@ def test_score_api_is_unchanged_with_flags_off_and_adds_evidence_when_on(live_cl
     assert [f["code"] for f in on["evidence"]["features"]] == [
         f["code"] for f in off["interference"]["destructive_features"]]
     assert on["preliminary"]["label"] == ev.PRELIMINARY_LABEL
-    assert on["preliminary"]["score"] is None  # three counted samples is below "ready"
+    # Three approved papers is the score route's floor, so the reading is given
+    # (the alpha's exact case); the number is the engine's own deviation.
+    assert on["preliminary"]["score"] == round(on["authorship"]["deviation_score"], 2)
     for q in _all_quotes(on["evidence"]):
         if q["paper"] == "this paper":
             assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
@@ -448,15 +596,171 @@ def test_overview_and_full_markdown_render():
     assert "Measured:" not in html_out
 
 
+TYPICAL = ("The dog ran. We walked down to the river and sat there quietly. "
+           "She said the old bridge had been closed for many years. "
+           "The long road ran on and on past every field and farm and river and town "
+           "until the light was gone and the night came down on all of us.")
+
+
+def test_mean_sentence_length_quotes_each_papers_typical_sentences():
+    r = ev.read_paper(TYPICAL, "mean_sentence_length")
+    assert r.value == 13.5 and [p.words for p in r.places] == [3, 10, 11, 30]
+    assert [p.words for p in ev._typical_pick(r.places, r.value, 3)] == [11, 10, 3]
+
+
+def test_sentence_length_examples_do_not_depend_on_direction():
+    past = [("past paper 1", PLAIN[0]), ("past paper 2", TYPICAL)]
+    low = ev.build_feature_evidence(_feature("mean_sentence_length", -0.3), TYPICAL, past, rank=1)
+    high = ev.build_feature_evidence(_feature("mean_sentence_length", 0.3), TYPICAL, past, rank=1)
+    assert low["this_paper"] == high["this_paper"] and low["past_papers"] == high["past_papers"]
+    assert [q["words"] for q in low["this_paper"]["examples"]] == [11, 10, 3]
+    # Round-robin across papers, each paper's own typical sentence first.
+    p1 = ev.read_paper(PLAIN[0], "mean_sentence_length")
+    first = ev._typical_pick(p1.places, p1.value, 1)[0].words
+    assert [(q["paper"], q["words"]) for q in low["past_papers"]["examples"]][:2] == [("past paper 1", first), ("past paper 2", 11)]
+
+
 def test_sentence_spread_examples_do_not_repeat_a_sentence():
     places = ev.read_paper("Only one sentence here.", "sentence_length_variance").places
-    assert len(ev._length_pick(places, "spread", "higher", 3)) == 1
+    assert len(ev._spread_pick(places, 3)) == 1
     many = ev.read_paper(PLAIN[0], "sentence_length_variance").places
-    assert len(ev._length_pick(many, "spread", "higher", 2)) == 2
-    assert ev._length_pick(many, "mean", "lower", 1)[0].words == min(p.words for p in many)
+    assert len(ev._spread_pick(many, 2)) == 2
 
 
 def test_engine_view_mirrors_paragraph_style_indentation():
     text = "\tMy first paragraph, typed with a tab.\n\n\tMy second paragraph, also tabbed, goes on."
     view = ev.engine_view(text)
     assert view is not None and view.prose.text == pp.preprocess(text)[0]
+
+
+def test_every_locatable_habit_is_in_exactly_one_family():
+    assert list(ev.FAMILIES) == ["Sentence shape", "Linking ideas", "Voice", "Claims and confidence"]
+    codes = [c for group in ev.FAMILIES.values() for c in group]
+    assert len(codes) == len(set(codes))
+    assert sorted(codes) == sorted(ev.LOCATABLE)
+    assert ev.family_of("comma_rate") == "Sentence shape"
+    assert ev.family_of("typing_speed_cv") is None
+
+
+@pytest.mark.parametrize("code", list(ev.LOCATABLE))
+def test_past_paper_examples_return_the_whole_family_in_order(code):
+    out = ev.build_past_paper_examples(code, [("past paper 1", PLAIN[0])])
+    assert out["habit"] == code
+    assert out["family"] == ev.family_of(code)
+    assert [f["code"] for f in out["features"]] == list(ev.FAMILIES[out["family"]])
+    assert out["features"][0]["name"] == ev._name_and_description(out["features"][0]["code"])[0]
+    assert out["families"][0] == {"name": "Sentence shape", "habits": list(ev.FAMILIES["Sentence shape"])}
+
+
+@pytest.mark.parametrize("habit", ["discourse_marker_density", "mean_sentence_length"])
+def test_past_paper_examples_label_papers_in_order_and_quote_verbatim(habit):
+    baselines = [(f"past paper {i + 1}", t) for i, t in enumerate(PLAIN)]
+    texts = dict(baselines)
+    out = ev.build_past_paper_examples(habit, baselines)
+    for feature in out["features"]:
+        assert [p["paper"] for p in feature["per_paper"]] == ["past paper 1", "past paper 2", "past paper 3"]
+        for paper in feature["per_paper"]:
+            text = texts[paper["paper"]]
+            assert len(paper["examples"]) <= 3
+            for example in paper["examples"]:
+                q = example["quote"]
+                assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
+                if feature["code"] not in ("mean_sentence_length", "sentence_length_variance"):
+                    assert example["role"] is None
+
+
+def test_sentence_length_is_typical_and_variation_is_longest_and_shortest():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", TYPICAL)])
+    by_code = {f["code"]: f for f in out["features"]}
+    mean = by_code["mean_sentence_length"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in mean] == [("typical", 11), ("typical", 10), ("typical", 3)]
+    var = by_code["sentence_length_variance"]["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in var] == [("longest", 30), ("shortest", 3)]
+
+
+def test_a_single_sentence_paper_gets_one_variation_quote_without_a_role():
+    out = ev.build_past_paper_examples("mean_sentence_length", [("past paper 1", "Only one sentence here.")])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    assert [(e["role"], e["quote"]["words"]) for e in var["per_paper"][0]["examples"]] == [(None, 4)]
+
+
+def test_sentences_of_one_length_are_neither_longest_nor_shortest():
+    text = "The cat sat on the mat today. The dog ran in the park now."
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    examples = var["per_paper"][0]["examples"]
+    assert [(e["role"], e["quote"]["words"]) for e in examples] == [(None, 7), (None, 7)]
+    assert [e["quote"]["passage"] for e in examples] == ["The cat sat on the mat today.", "The dog ran in the park now."]
+
+
+def test_past_paper_examples_rebuild_each_paper_once_however_many_papers():
+    # More papers than engine_view's cache holds: each is still rebuilt once, not once per habit.
+    baselines = [(f"past paper {i + 1}", f"Paper {i} starts here. " + PLAIN[i % 3]) for i in range(70)]
+    ev.engine_view.cache_clear()
+    ev.build_past_paper_examples("comma_rate", baselines)
+    assert ev.engine_view.cache_info().misses == 70
+
+
+@pytest.mark.parametrize("text", ["References\nSmith, J. (2020). Night markets. Press.", "   \n  "])
+def test_a_past_paper_with_no_measured_sentence_reads_count_zero(text):
+    # Back matter only, or whitespace only: the engine measures no sentence at all.
+    out = ev.build_past_paper_examples("sentence_length_variance", [("past paper 1", text)])
+    var = next(f for f in out["features"] if f["code"] == "sentence_length_variance")
+    (paper,) = var["per_paper"]
+    assert paper["count"] == 0
+    assert paper["examples"] == []
+
+
+def test_a_paper_that_cannot_be_located_has_no_examples_and_says_so(monkeypatch):
+    monkeypatch.setattr(ev, "_original_sentences", lambda view: None)
+    out = ev.build_past_paper_examples("comma_rate", [("past paper 1", PLAIN[0])])
+    for feature in out["features"]:
+        assert feature["note"] == ev.NOT_LOCATED_NOTE
+        for paper in feature["per_paper"]:
+            assert paper["examples"] == [] and paper["count"] is None
+            assert isinstance(paper["value"], float)
+
+
+def test_no_past_papers_gives_empty_lists():
+    out = ev.build_past_paper_examples("comma_rate", [])
+    assert len(out["features"]) == 7
+    for feature in out["features"]:
+        assert feature["per_paper"] == [] and "note" not in feature
+
+
+def test_unknown_habit_is_refused():
+    for habit in ("typing_speed_cv", "nope"):
+        with pytest.raises(ValueError):
+            ev.build_past_paper_examples(habit, [])
+
+
+def test_a_failed_range_count_leaves_the_preliminary_reading_without_it(monkeypatch, caplog):
+    from original.routers import students_scoring as ss
+
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
+
+    def broken(*_a, **_k):
+        raise ValueError("vectors of different lengths")
+
+    monkeypatch.setattr(ev, "range_counts", broken)
+    flat = [0.5] * FEATURE_DIM
+    result = SimpleNamespace(
+        baseline_confidence=SimpleNamespace(authenticated_count=5, effective_sample_count=3.2),
+        authorship=SimpleNamespace(deviation_score=0.66),
+        recommendation=SimpleNamespace(action="schedule_conversation"),
+        interference=SimpleNamespace(destructive_features=[]),
+        feature_vector={code: 0.5 for code in ALL_FEATURE_CODES},
+    )
+    state = SimpleNamespace(
+        samples=[SimpleNamespace(text=t, auth_weight=1.0, vector=flat) for t in PLAIN],
+        baseline_mean=flat,
+    )
+    response = SimpleNamespace(evidence=None, preliminary=None)
+    teacher = SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role="professor")))
+    with caplog.at_level(logging.ERROR):
+        ss._attach_staff_explainability(response, teacher, EDGE, state, result)
+    assert response.preliminary.score == 0.66
+    prelim = response.preliminary
+    assert prelim.habits_outside is None and prelim.habits_compared is None
+    assert "range counts failed; omitted" in caplog.text

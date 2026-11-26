@@ -85,6 +85,20 @@ def test_pilot_pins_the_null_model_off():
     assert _env("original-pilot")["NULL_MODEL"]["value"] == "none"
 
 
+def test_pilot_turns_on_the_staff_only_explainability():
+    # ADR-013: report-only and staff-only, so on for the pilot (and on by
+    # default in code since 2026-11; only "0"/"off"/"false"/"no" turn it off).
+    env = _env("original-pilot")
+    assert env["EVIDENCE_PASSAGES_ENABLED"]["value"] == "1"
+    assert env["PRELIMINARY_SCORE_ENABLED"]["value"] == "1"
+
+
+def test_pilot_drift_gate_is_advisory_for_the_alpha():
+    # A held baseline paper had no override; the alpha needs every approved
+    # paper in (original/routers/_shared.py drift_gate_advisory).
+    assert _env("original-pilot")["DRIFT_GATE"]["value"] == "advisory"
+
+
 @pytest.mark.parametrize("service", sorted(SERVICES))
 def test_no_secret_value_is_committed(service):
     for key, entry in _env(service).items():
