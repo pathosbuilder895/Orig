@@ -53,11 +53,11 @@
     },
     deviation: {
       title: 'How the score is computed',
-      body:  'Each submission is compared with the student\'s established voice across 103 stylometric features in seventeen tiers. The comparison produces a deviation score in [0, 1] which we present as authenticity = (1 − deviation) × 100. Higher is closer to the voice we already know.',
+      body:  'Each submission is compared with the student\'s counted samples across many writing habits, grouped in tiers: sentence rhythm, punctuation, word choice, citation style and more. The comparison produces a deviation from 0 to 1, where 0 means no measured difference. This page shows it as Voice Match = (1 − deviation) × 100, so higher is closer to their past papers. It is not a probability, and how often this reading is right has not been measured on student writing yet.',
     },
     tiers: {
       title: 'Tier breakdown',
-      body:  'Seventeen tiers group the 103 features by what they measure — sentence rhythm, character habits, citation style, etc. Tiers most resistant to editing (character n-grams, error patterns) weight slightly more heavily when something looks unusual.',
+      body:  'Tiers group the habits by what they measure: sentence rhythm, character habits, citation style and so on. Tiers that are harder to change by editing, such as punctuation and error patterns, count a little more in every comparison; topic-sensitive ones, such as connecting words, count a little less.',
     },
     peerCompare: {
       title: 'Compared with classmates',

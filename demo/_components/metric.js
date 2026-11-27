@@ -8,12 +8,15 @@
      </div>
 
    data-domain values:
-     "deviation01"   raw ∈ [0,1] where LOWER is better (Original deviation).
-                     authenticity = (1 - raw) * 100.
-     "score100"      raw ∈ [0,100] where HIGHER is better (Bbook score).
-                     authenticity = raw.
-     "growth01"      raw ∈ [0,1] where HIGHER is better (e.g. fidelity).
-                     authenticity = raw * 100.
+     "deviation01"   raw ∈ [0,1] where LOWER is closer (Original deviation).
+                     shown as Voice Match = (1 - raw) * 100.
+     "score100"      raw ∈ [0,100] where HIGHER is closer (Bbook score).
+                     shown as raw.
+     "growth01"      raw ∈ [0,1] where HIGHER is closer (e.g. fidelity).
+                     shown as raw * 100.
+
+   None of these is a probability, and no page renders a data-metric
+   element today.
 
    The script can be loaded once per page; it observes any .metric in the
    DOM and (re)renders them. Idempotent — safe to call render() repeatedly.
@@ -105,8 +108,8 @@
     const status = classifyPercent(pct);
 
     const interpretation = ({
-      deviation01: 'Lower deviation means the submission stays closer to the established voice. The percentage shown is authenticity = (1 − deviation) × 100.',
-      score100:    'A 0–100 authenticity score derived from the deviation. Higher means more consistent with the established voice.',
+      deviation01: 'Lower deviation means the submission stays closer to the established voice. The percentage shown is Voice Match = (1 − deviation) × 100. It is not a probability.',
+      score100:    'A 0–100 score derived from the deviation. Higher means closer to the established voice. It is not a probability.',
       growth01:    'A 0–1 fidelity value. The percentage shown is fidelity × 100. Higher means a clearer signal of the student\'s voice.',
     })[domain] || '';
 

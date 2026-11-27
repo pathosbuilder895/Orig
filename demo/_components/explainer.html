@@ -154,7 +154,7 @@
   <li><a href="#review">Worth a conversation</a></li>
   <li><a href="#deviation">How the score is computed</a></li>
   <li><a href="#tiers">Tier breakdown</a></li>
-  <li><a href="#metrics">Reading the metrics</a></li>
+  <li><a href="#metrics">Reading the figures</a></li>
   <li><a href="#privacy">Privacy and FERPA</a></li>
 </ul>
 
@@ -202,21 +202,20 @@
 <p><strong>Inconclusive is a valid result.</strong> When there isn't enough writing on file, or the piece is too short to compare, the system says so instead of guessing. Every reading is a prompt for a conversation, never a decision on its own.</p>
 
 <h2 id="tiers">Tier breakdown</h2>
-<p>The tiers group the features by what they measure. Some are highly resistant to editing — character n-grams, error patterns, citation habits — and those tiers weight a little more heavily when something unusual appears. The instructor view shows the full tier breakdown; the student view stays at the seven blended dimensions.</p>
+<p>The tiers group the habits by what they measure. Tiers that are harder to change by editing, such as punctuation, error patterns and citation habits, count a little more in every comparison; topic-sensitive ones, such as connecting words, count a little less. The instructor view shows the full tier breakdown; the student view stays at the seven blended dimensions.</p>
 
 <h2 id="peerCompare">Compared with classmates</h2>
 <p>The primary score always asks one question: <em>does this match this student's own established voice?</em> Where enough data exists, the instructor view also shows a second, independent read: <em>does this look more like a typical classmate's writing than like this student's own baseline?</em></p>
 <p>This second read never changes the primary score or the recommended action — it's shown alongside, not instead of. It requires at least three other students at the same school with baseline samples on file; below that, there isn't a real comparison group yet, so the line doesn't appear at all rather than guessing from too little data.</p>
 
-<h2 id="metrics">Reading the metrics on the dashboard</h2>
-<p>Every metric on the dashboard follows the same pattern:</p>
+<h2 id="metrics">Reading the figures on the Analysis page</h2>
+<p>Each figure on the classic Analysis page has its name and what it measures written beside it:</p>
 <ul>
-  <li>A status icon (<strong>✓ Consistent</strong>, <strong>⚠ Worth a look</strong>, <strong>✗ Diverged</strong>) tells you the headline at a glance.</li>
-  <li>A percentage between 0 and 100 tells you where the metric sits.</li>
-  <li>A coloured bar tells you the same thing visually.</li>
-  <li>A small <em>Technical view</em> link reveals the underlying raw number for the curious.</li>
+  <li><strong>Voice Match</strong> is (1 − deviation) × 100: higher is closer to the student's past papers.</li>
+  <li><strong>Consistency with Earlier Work</strong> is how closely the paper lines up with the pattern the student's counted samples share.</li>
+  <li><strong>Trajectory Conformance</strong> is whether the paper moves the way their past papers were moving; 50 means unrelated.</li>
 </ul>
-<p>The thresholds are the same everywhere: <strong>70–100 is consistent</strong>, <strong>40–70 is worth a look</strong>, <strong>under 40 is diverged</strong>.</p>
+<p>None of these is a probability. Each card colours its figure by its own cut points, so the same number can take a different colour on another card. How often a reading is right has not been measured on student writing yet.</p>
 
 <h2 id="privacy">Privacy and FERPA</h2>
 <p>Your writing is yours. Original operates per-institution, keeps each school's data separate, and never trains a model on your work. Raw text is never sent to another service. How long your data is kept, and who can see it, is set by your institution's agreement with us; the full data inventory is available from your instructor or institution administrator.</p>

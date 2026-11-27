@@ -268,11 +268,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .metric-card:nth-child(1){transition-delay:0.05s}
 .metric-card:nth-child(2){transition-delay:0.12s}
 .metric-card:nth-child(3){transition-delay:0.19s}
-.metric-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.metric-header{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-bottom:12px}
 .metric-icon{display:inline-flex;align-items:center}
 .metric-icon svg{width:15px;height:15px;stroke:var(--gold);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.metric-title{font-size:0.78rem;font-weight:600;color:var(--text-secondary)}
-.metric-sub{font-size:0.68rem;color:var(--text-dim);margin-left:auto}
+.metric-title{font-size:0.78rem;font-weight:600;color:var(--text-secondary);flex:1 1 0;min-width:0}
+/* The figure's meaning gets its own line under the title (NORTH_STAR rule 2). */
+.metric-sub{font-size:0.68rem;color:var(--text-dim);flex-basis:100%;line-height:1.4}
 .metric-body{display:flex;align-items:flex-end;justify-content:space-between;gap:8px}
 .sparkline-wrap{flex:1;height:36px}
 .sparkline-wrap svg{width:100%;height:100%}
@@ -544,6 +545,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 .pd-row{display:flex;align-items:center;justify-content:space-between}
 .pd-score{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;letter-spacing:-0.04em}
 .pd-action{font-size:0.75rem;font-weight:500}
+/* What a figure measures, written beside it (NORTH_STAR rule 2). */
+.figure-meaning{font-size:0.7rem;color:var(--text-muted);line-height:1.45;margin-top:6px}
 
 /* Tabs top */
 .tabs-header{
@@ -1158,7 +1161,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
             </div>
           </div>
           <div class="input-notice">
-            Original compares this submission against the student's <strong>authenticated voice baseline</strong> across 103 stylometric features — verifying not just that it isn't AI, but that it <em>is</em> theirs.
+            Original compares this submission with the student's <strong>counted samples</strong>, habit by habit: sentence rhythm, punctuation, word choice, citation style and more. Each figure below says what it measures.
           </div>
           <textarea class="submission-textarea" id="subText" rows="6"
             placeholder="Paste the student's submitted text here…"
@@ -1203,11 +1206,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <div class="metric-header">
                 <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
                 <span class="metric-title">Voice Match</span>
-                <span class="metric-sub">confirmed voice consistency</span>
+                <span class="metric-sub">(1 − deviation) × 100: higher is closer to their past papers (not a probability)</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline1"></div>
-                <div class="metric-value" id="mcVal1" style="color:var(--amber)">71%</div>
+                <div class="metric-value" id="mcVal1" style="color:var(--amber)">–</div>
               </div>
               <div class="metric-gloss" id="mcGloss1"></div>
             </div>
@@ -1215,11 +1218,11 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <div class="metric-header">
                 <span class="metric-icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
                 <span class="metric-title">Consistency with Earlier Work</span>
-                <span class="metric-sub">how closely this fits approved samples (not a probability)</span>
+                <span class="metric-sub">how closely this paper lines up with the pattern their counted samples share (not a probability)</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline2"></div>
-                <div class="metric-value" id="mcVal2" style="color:var(--red)">31%</div>
+                <div class="metric-value" id="mcVal2" style="color:var(--red)">–</div>
               </div>
               <div class="metric-gloss" id="mcGloss2"></div>
             </div>
@@ -1227,15 +1230,18 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
               <div class="metric-header">
                 <span class="metric-icon"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg></span>
                 <span class="metric-title">Trajectory Conformance</span>
-                <span class="metric-sub">growth pattern</span>
+                <span class="metric-sub">whether this paper moves the way their past papers were moving (50 means unrelated)</span>
               </div>
               <div class="metric-body">
                 <div class="sparkline-wrap" id="sparkline3"></div>
-                <div class="metric-value" id="mcVal3" style="color:var(--flag-green)">42%</div>
+                <div class="metric-value" id="mcVal3" style="color:var(--flag-green)">–</div>
               </div>
               <div class="metric-gloss" id="mcGloss3"></div>
             </div>
           </div>
+          <!-- NORTH_STAR rule 2: no hit rate until gate G9 passes. Same text as
+               demo/original/live.js BAND_RATE_NOT_MEASURED. -->
+          <p class="figure-meaning" style="margin:-6px 2px 0">How often this reading is right has not been measured on student writing yet.</p>
 
           <!-- Interpretation box -->
           <div class="interp-card severity-amber" id="interpCard">
@@ -1453,6 +1459,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
                 <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">Rhythm Identity Match</span>
                 <span id="arcIdentityPct" style="font-size:0.88rem;font-weight:700"></span>
               </div>
+              <div class="figure-meaning" style="margin:0 0 6px">How close this paper’s tension index κ is to their past papers’ (100 means the same).</div>
               <div style="height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden">
                 <div id="arcIdentityFill" style="height:100%;border-radius:4px;transition:width 0.45s ease"></div>
               </div>
@@ -1611,11 +1618,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
 
     <!-- Deviation display (appears after scoring) -->
     <div class="panel-deviation" id="panelDeviation">
-      <div class="pd-label help-hint" data-topic="deviation">Latest Submission · Voice Match</div>
+      <div class="pd-label">Latest Submission · Voice Match<span class="help-hint" data-topic="deviation" data-hint="How Voice Match is computed"></span></div>
       <div class="pd-row">
-        <div class="pd-score" id="pdScore" style="color:var(--amber)">29%</div>
+        <div class="pd-score" id="pdScore" style="color:var(--amber)">–</div>
         <div class="pd-action" id="pdAction" style="color:var(--amber)">Schedule Conversation</div>
       </div>
+      <div class="figure-meaning">(1 − deviation) × 100. Higher is closer to their past papers. Not a probability.</div>
+      <!-- Same text as demo/original/live.js BAND_RATE_NOT_MEASURED. -->
+      <div class="figure-meaning">How often this reading is right has not been measured on student writing yet.</div>
     </div>
 
     <!-- Legend -->
@@ -1628,6 +1638,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--cream);col
     <!-- Trait bars -->
     <div class="panel-traits">
       <div class="panel-traits-label">Voice Profile</div>
+      <div class="figure-meaning" style="margin:-4px 0 10px">Where their past papers sit on each habit, on that habit’s 0 to 100 scale. Not a score.</div>
       <div class="trait-row">
         <span class="trait-label">Theological register</span>
         <div class="trait-bar-bg"><div class="trait-bar-fill" id="ptb1" style="background:#2563EB;width:0%"></div></div>
@@ -2208,9 +2219,7 @@ async function selectStudent(s) {
   activeReadiness = readiness;
 
   if (data) {
-    const pct = Math.round(data.purity * 100);
-    document.getElementById('panelMeta').textContent =
-      `${data.authenticated_count} verified baselines · ${Math.round(data.purity * 100)}% baseline confidence`;
+    document.getElementById('panelMeta').textContent = baselineSummary(data);
     updatePanelBars(data.baseline_vector);
   } else {
     document.getElementById('panelMeta').textContent = 'No profile yet — add baselines to begin';
@@ -2218,6 +2227,20 @@ async function selectStudent(s) {
 
   renderHistory();
   renderBaselines();
+}
+
+/* ── The line under the student's name ──
+   authenticated_count is every sample the server weighs above zero, the
+   student's own uploads included, so it is a count of counted samples, not of
+   verified ones. Purity Tr(ρ²) says how alike those samples are to one
+   another; it is not a confidence in any reading. */
+function baselineSummary(d) {
+  const n = (d && typeof d.authenticated_count === 'number') ? d.authenticated_count : 0;
+  let s = `${n} counted sample${n === 1 ? '' : 's'}`;
+  if (d && typeof d.purity === 'number' && isFinite(d.purity)) {
+    s += ` · ${Math.round(d.purity * 100)}% purity (how alike those samples are)`;
+  }
+  return s;
 }
 
 /* ── Update right-panel trait bars from baseline_vector ── */
@@ -2399,12 +2422,12 @@ function renderBaselines() {
     const cnt = activeApiData.sample_count ?? 0;
     const purityColor = purity > 0.7 ? 'var(--green)' : purity > 0.4 ? 'var(--amber)' : 'var(--red)';
     html += `<div style="margin:12px 0 8px;display:flex;gap:16px;align-items:center">
-      <span class="help-hint" data-topic="baseline" style="font-size:0.78rem;color:var(--text-muted)">Baseline confidence</span>
+      <span style="font-size:0.78rem;color:var(--text-muted);white-space:nowrap">Purity<span class="help-hint" data-topic="baseline" data-hint="What baseline samples are"></span></span>
       <div style="flex:1;height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.round(purity*100)}%;background:${purityColor};border-radius:3px;transition:width 0.4s"></div>
       </div>
       <span style="font-size:0.78rem;font-weight:600;color:${purityColor}">${(purity*100).toFixed(0)}%</span>
-      <span style="font-size:0.74rem;color:var(--text-dim)">${cnt} sample${cnt===1?'':'s'}</span>
+      <span style="font-size:0.74rem;color:var(--text-dim)">how alike these ${cnt} sample${cnt===1?' is':'s are'} to one another</span>
     </div>`;
   }
 
@@ -2603,8 +2626,7 @@ async function submitAllFiles() {
   // Refresh student data
   activeApiData = await API.getStudent(active.id);
   if (activeApiData) {
-    document.getElementById('panelMeta').textContent =
-      `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+    document.getElementById('panelMeta').textContent = baselineSummary(activeApiData);
     updatePanelBars(activeApiData.baseline_vector);
   }
   _fileQueue = _fileQueue.filter(f => f.status !== 'done');
@@ -2636,8 +2658,7 @@ async function submitPasted() {
     addBaselineOpen = false;
     renderBaselines();
     if (activeApiData) {
-      document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+      document.getElementById('panelMeta').textContent = baselineSummary(activeApiData);
       updatePanelBars(activeApiData.baseline_vector);
     }
   } catch(e) {
@@ -2757,8 +2778,7 @@ async function importSelectedCanvas() {
     // Refresh student data and baseline panel
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
-      document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+      document.getElementById('panelMeta').textContent = baselineSummary(activeApiData);
       updatePanelBars(activeApiData.baseline_vector);
     }
     setTimeout(() => renderBaselines(), 1000);
@@ -3545,8 +3565,7 @@ async function runBatchUpload() {
     // Refresh student panel
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
-      document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+      document.getElementById('panelMeta').textContent = baselineSummary(activeApiData);
       updatePanelBars(activeApiData.baseline_vector);
     }
     renderBaselines();
@@ -3799,8 +3818,7 @@ async function importCanvasFromDrawer() {
     if (statusEl) statusEl.textContent = `✓ Imported ${result.imported}, skipped ${result.skipped}${result.errors?.length?', '+result.errors.length+' errors':''}.`;
     activeApiData = await API.getStudent(active.id);
     if (activeApiData) {
-      document.getElementById('panelMeta').textContent =
-        `${activeApiData.authenticated_count} verified baselines · ${Math.round(activeApiData.purity * 100)}% baseline confidence`;
+      document.getElementById('panelMeta').textContent = baselineSummary(activeApiData);
       updatePanelBars(activeApiData.baseline_vector);
     }
     renderBaselines();
