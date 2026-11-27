@@ -18,7 +18,7 @@
         "target": ".tab-btn",
         "eye": "Stop 3 of 5 · Analyse",
         "title": "Score a new submission",
-        "body": "Paste a piece of student writing here and click Analyse. The result returns a percentage authenticity score, a tier breakdown, and a recommendation written in plain English. Click \"Technical view\" on any metric for the raw deviation."
+        "body": "Paste a piece of student writing here and click Analyse. The result shows Voice Match, which is (1 − deviation) × 100 and higher when the paper is closer to their past papers, with a tier breakdown and a recommended next step in plain English. Each figure says what it measures; the small i icons explain more."
       },
       {
         "target": "#sb-baselines, .nav-item[onclick*='switchTab']",

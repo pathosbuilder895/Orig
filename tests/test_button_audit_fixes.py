@@ -13,6 +13,8 @@ import shutil
 import subprocess
 from html.parser import HTMLParser
 
+import pytest
+
 from tests.test_original_suite_static import (  # noqa: F401
     BASELINE_HARNESS,
     DEMO,
@@ -370,6 +372,129 @@ def test_the_classic_page_has_a_visible_way_back_to_original_and_signs_out_to_th
     assert "data-demo-only" not in line
     assert "location.replace('/index.html');" in page
     assert "location.replace('professor.html')" not in page
+
+
+# ── The classic page's figures say what they are (NORTH_STAR rule 2) ──────────
+# Andrew, 2026-11-20: keep the percentages and make them accurate. Each figure
+# is named, its meaning sits beside it, and the page says its hit rate has not
+# been measured. The values, colours and cut points stay as they were.
+
+HELP_HINT = DEMO / "_components" / "help-hint.js"
+METRIC_JS = DEMO / "_components" / "metric.js"
+TOUR = DEMO / "_tour" / "tour-content.json"
+EXPLAINER = DEMO / "_components" / "explainer.html"
+COUNT_COPY = (CLASSIC, HELP_HINT, METRIC_JS, TOUR, EXPLAINER)
+
+
+def _rate_not_measured() -> str:
+    live = (SUITE / "live.js").read_text(encoding="utf-8")
+    found = re.search(r"var BAND_RATE_NOT_MEASURED = '([^']+)';", live)
+    assert found, "live.js no longer defines BAND_RATE_NOT_MEASURED"
+    return found.group(1)
+
+
+@pytest.mark.parametrize("path", COUNT_COPY, ids=lambda p: p.name)
+def test_classic_page_copy_quotes_no_feature_or_tier_count(path):
+    # The code has 109 features, at most 90 compared; "103 in seventeen tiers" was never true.
+    text = path.read_text(encoding="utf-8")
+    assert not re.search(r"\b\d{2,3} (stylometric )?features\b", text, re.I), path.name
+    assert not re.search(r"\b(sixteen|seventeen|eighteen) tiers\b", text, re.I), path.name
+
+
+@pytest.mark.parametrize("path", (HELP_HINT, METRIC_JS, TOUR), ids=lambda p: p.name)
+def test_help_metric_and_tour_copy_name_the_figure_the_screen_shows(path):
+    # The screen calls it Voice Match; "authenticity" named a quantity nothing computes.
+    assert "authenticity" not in path.read_text(encoding="utf-8").lower(), path.name
+
+
+def test_the_deviation_help_says_how_voice_match_is_computed_and_what_it_is_not():
+    help_js = HELP_HINT.read_text(encoding="utf-8")
+    body = re.search(r"deviation: \{\n\s*title: '[^']*',\n\s*body:\s*'((?:[^'\\]|\\.)*)'", help_js)
+    assert body, "help-hint.js has no deviation topic"
+    text = body.group(1)
+    assert "Voice Match = (1 − deviation) × 100" in text
+    assert "not a probability" in text
+    assert _rate_not_measured()[:-1].lower() in text.lower()
+    tour = json.loads(TOUR.read_text(encoding="utf-8"))
+    analyse = next(s for s in tour["professor"]["stops"] if s["eye"].endswith("Analyse"))
+    assert "Voice Match, which is (1 − deviation) × 100" in analyse["body"]
+    assert "Technical view" not in analyse["body"]  # the classic cards have none
+
+
+def test_every_figure_on_the_classic_page_carries_its_meaning():
+    page = _classic()
+    for meaning in (
+        "(1 − deviation) × 100: higher is closer to their past papers (not a probability)",
+        "how closely this paper lines up with the pattern their counted samples share (not a probability)",
+        "whether this paper moves the way their past papers were moving (50 means unrelated)",
+    ):
+        assert f'<span class="metric-sub">{meaning}</span>' in page, meaning
+    assert "(1 − deviation) × 100. Higher is closer to their past papers. Not a probability." in page
+    assert "How close this paper’s tension index κ is to their past papers’ (100 means the same)." in page
+    assert "Where their past papers sit on each habit, on that habit’s 0 to 100 scale. Not a score." in page
+    # The hit-rate sentence is live.js's, word for word, under the cards and in the panel.
+    assert page.count(_rate_not_measured()) == 2
+    assert "verifying not just that it isn" not in page
+    # A help icon is a 16px circle: a figure's name put inside one is unreadable.
+    assert not re.findall(r'<[^>]*class="[^"]*\bhelp-hint\b[^"]*"[^>]*>[^<]+<', page)
+    assert '<div class="pd-label">Latest Submission · Voice Match<span class="help-hint"' in page
+
+
+def test_the_classic_page_starts_with_no_sample_figures():
+    page = _classic()
+    for ident in ("mcVal1", "mcVal2", "mcVal3", "pdScore"):
+        found = re.search(rf'id="{ident}"[^>]*>([^<]*)<', page)
+        assert found and found.group(1) == "–", (ident, found and found.group(1))
+
+
+@needs_node
+def test_the_line_under_the_students_name_counts_samples_and_names_purity():
+    src = _extract(_inline_scripts(CLASSIC), "baselineSummary")
+    cases = [
+        {"authenticated_count": 4, "purity": 0.8249},
+        {"authenticated_count": 1, "purity": 1},
+        {"authenticated_count": 3},
+        {"authenticated_count": 0, "purity": None},
+        None,
+    ]
+    run = subprocess.run(
+        [shutil.which("node"), "-e", "const fs=require('fs');const sc=JSON.parse(fs.readFileSync(0,'utf8'));"
+         "const f=new Function(sc.src+'\\nreturn baselineSummary;')();process.stdout.write(JSON.stringify(sc.cases.map(f)));"],
+        input=json.dumps({"src": src, "cases": cases}),
+        capture_output=True, text=True, timeout=60,
+    )
+    assert run.returncode == 0, run.stderr
+    assert json.loads(run.stdout) == [
+        "4 counted samples · 82% purity (how alike those samples are)",
+        "1 counted sample · 100% purity (how alike those samples are)",
+        "3 counted samples",
+        "0 counted samples",
+        "0 counted samples",
+    ]
+    page = _classic()
+    assert "baseline confidence" not in page.lower() and "verified baselines ·" not in page
+    assert page.count("document.getElementById('panelMeta').textContent = baselineSummary(") == 6
+    # The Baselines tab's strip shows the same purity, under its own name.
+    assert '>Purity<span class="help-hint" data-topic="baseline"' in page
+    assert "how alike these ${cnt} sample${cnt===1?' is':'s are'} to one another" in page
+
+
+def test_the_classic_page_keeps_its_values_colours_and_cut_points():
+    # Copy only: these are the lines that decide each figure and its colour.
+    page = _classic()
+    for line in (
+        "const vmPct     = Math.max(0, Math.round((1 - r.deviation) * 100));",
+        "const matchColor= vmPct >= 75 ? 'var(--green)' : vmPct >= 50 ? 'var(--amber)' : 'var(--red)';",
+        "const probColor = r.prob <= 0.3 ? 'var(--red)' : r.prob <= 0.55 ? 'var(--amber)' : 'var(--green)';",
+        "const trajColor = r.traj <= 0.35 ? 'var(--red)' : r.traj <= 0.6 ? 'var(--blue)' : 'var(--green)';",
+        "document.getElementById('mcVal1').textContent = vmPct + '%';",
+        "document.getElementById('mcVal2').textContent = Math.round(r.prob * 100) + '%';",
+        "document.getElementById('mcVal3').textContent = Math.round(r.traj * 100) + '%';",
+        "document.getElementById('pdScore').textContent = Math.max(0, Math.round((1 - r.deviation) * 100)) + '%';",
+        "const pct = Math.round(arc.authenticity_signal * 100);",
+        "const color = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';",
+    ):
+        assert page.count(line) == 1, line
 
 
 # ── The Bluebook Sessions page after review (demo/original/bluebook.html) ─────
