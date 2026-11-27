@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from .. import bluebook_rules as rules
 from .. import principal as principal_mod
+from ..approved_papers import approved_paper_count
 from ..schemas import AddSampleRequest
 from ..tension_arc import analyze_tension_arc, update_student_baseline_kappa
 from ._shared import (
@@ -44,8 +45,7 @@ NOT_ADDED = "Could not be added."
 TOO_LONG = "This booklet is too long to add as a baseline sample."
 TAKE_HOME_DETAIL = "take-home: approve it on its own"
 NEEDS_BASELINE_DETAIL = (
-    "Take-home work can only extend a baseline. Approve at least {n} in-class "
-    "papers for this student first."
+    "Take-home work can only extend a baseline. Approve at least {n} papers for this student first."
 )
 HELD_DETAIL = (
     "Not added: this booklet differs strongly from the student's existing samples. "
@@ -172,25 +172,31 @@ def _add(rec: dict, request: Request, set_aside_flagged: bool = False) -> dict:
     # "In baseline" is the same test the status route uses, so a sample the
     # old seal stored with "Question N." headings is not added a second time.
     state = _repo().get(rec["student_id"])
-    if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
-        return _row(rec, "already_in_baseline")
     # Take-home work was not written under supervision: it joins a baseline
     # only as an extension of one that already exists, one paper at a time,
     # at the self-upload provenance (never proctored). The drift gate below
     # decides whether it is substantially different, exactly as for a
     # shared past paper (routers/past_papers.py).
     take_home = _is_take_home(rec)
+    if take_home:
+        # Checked before "already in baseline": a student's own upload of the
+        # answer text must not let a take-home skip the extension rule. The
+        # baseline it extends is counted in approved papers (rule B,
+        # approved_papers.py): a student's own self-upload does not count.
+        needed = min_baseline_samples()
+        have = 0 if state is None else approved_paper_count(rec["student_id"], state.samples)
+        if have < needed:
+            return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
+    if state is not None and _fingerprints(rec) & _hashes_from_samples(state.samples):
+        # Nothing is written, so this approval is not counted as one
+        # (approved_papers counts "added" approvals only).
+        return _row(rec, "already_in_baseline")
     if set_aside_flagged:
         reason = ", ".join(
             r for r in (TAKE_HOME_DETAIL if take_home else "", _review_reason(rec)) if r
         )
         if reason:
             return _row(rec, "needs_review", reason)
-    if take_home:
-        needed = min_baseline_samples()
-        have = 0 if state is None else state.sample_count
-        if have < needed:
-            return _row(rec, "needs_baseline", NEEDS_BASELINE_DETAIL.format(n=needed))
     try:
         req = AddSampleRequest(
             text=text,
@@ -271,6 +277,9 @@ def remove_submission_baseline(submission_id: str, request: Request):
     indices = _matching_indices(state, fingerprints) if state is not None else []
     if not indices:
         return _row(rec, "not_in_baseline")
+    # Every text this removal takes out, so approved_papers can undo any other
+    # approval (a shared paper, another take-home) whose sample went with it.
+    removed_hashes = sorted(_hashes_from_samples([state.samples[i] for i in indices]))
     for index in indices:
         state.remove_sample(index)
     _rebuild_kappa(state)
@@ -298,6 +307,7 @@ def remove_submission_baseline(submission_id: str, request: Request):
             "submission_id": rec["id"],
             "samples_removed": len(indices),
             "sample_count_after": state.sample_count,
+            "text_hashes": removed_hashes,
         },
     )
     return _row(rec, "removed")

@@ -55,7 +55,7 @@ test.describe('past-paper examples, flags set to 0', () => {
   test('no analysis yet: no examples panel, flags off', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const examples = page.waitForResponse(r => isExamples(r.url()), { timeout: 30_000 })
     await page.goto(`/original/writing-state.html?student=${encodeURIComponent(student.student_id)}`)
@@ -79,7 +79,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('past papers fill the panel before any analysis @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
@@ -188,7 +188,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('a related row and a family button switch the habit @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
@@ -272,7 +272,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('a habit with no examples shows its numbers, and the newest choice wins over a slow family @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
@@ -330,7 +330,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('a choice from the cache wins over a slow family, and a tier chip opens its family @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(120_000)
     const { staff, student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
@@ -396,7 +396,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('an analysis replaces past papers with this paper beside them @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(180_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     const errors = []
     page.on('pageerror', e => errors.push(String(e)))
@@ -433,7 +433,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   test('a late examples reply never covers an analysis @evidence-on', async ({ browser, request, testTenant }) => {
     test.setTimeout(180_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const { context, page } = await staffPage(browser, testTenant)
     // Hold the first examples reply until the analysis is on the page (Review Focus 1).
     let releaseExamples
@@ -467,7 +467,7 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     const text = 'The note said <img src=x onerror="window.__x=1"> & <b>bold</b> in the margin of the old book. '
       + 'The second sentence is a plain one about the weather in the old town today. '
       + 'The third sentence tells of a long walk along the river in the cool evening.'
-    await addBaselineFor(request, student.student_id, student.token, { text, provenance: 'verified', assignment: 'A <b>marked</b> & paper', submittedAt: DATES[0] })
+    await addBaselineFor(request, student.student_id, testTenant.staff.token, { text, provenance: 'verified', assignment: 'A <b>marked</b> & paper', submittedAt: DATES[0] })
     const { context, page } = await staffPage(browser, testTenant)
     await page.goto(`/original/writing-state.html?student=${encodeURIComponent(student.student_id)}`)
     await expect(page.locator('#evi-past')).toBeVisible({ timeout: 30_000 })
@@ -483,8 +483,11 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
   })
 
   test('a student session gets no examples @evidence-on', async ({ request, testTenant }) => {
+    // Three teacher-added papers (verified also runs the tension-arc read) can
+    // outlast the 30 s default on a busy runner, as every other seeding test here allows.
+    test.setTimeout(120_000)
     const { student } = testTenant
-    await seedPastPapers(request, student)
+    await seedPastPapers(request, student, testTenant.staff)
     const res = await request.get(`/students/${encodeURIComponent(student.student_id)}/past-paper-examples`, {
       headers: { Authorization: `Bearer ${student.token}` },
     })

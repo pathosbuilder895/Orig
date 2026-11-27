@@ -17,9 +17,13 @@ export const DATES = ['2026-01-14', '2026-02-11', '2026-03-10']
 export const PAST = [1, 2, 3].map(i => ({ text: read(`mill-${i}.txt`), assignment: `On Liberty, part ${i}`, date: DATES[i - 1] }))
 export const PAPER = read('chesterton.txt')
 
-export async function seedPastPapers(request, student) {
+// The teacher adds the three past papers (verified). A student's own upload is
+// kept as unverified and, since rule B (original/approved_papers.py), does not
+// count toward the three-paper floor, so seeding with the student's token would
+// leave Writing State nothing it may analyse.
+export async function seedPastPapers(request, student, staff) {
   for (const p of PAST) {
-    await addBaselineFor(request, student.student_id, student.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.date })
+    await addBaselineFor(request, student.student_id, staff.token, { text: p.text, provenance: 'verified', assignment: p.assignment, submittedAt: p.date })
   }
 }
 

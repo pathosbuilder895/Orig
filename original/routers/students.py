@@ -16,6 +16,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from .. import principal as principal_mod
 from .. import student_auth
+from ..approved_papers import approved_submission_ids, count_approved, gate_sources, sample_sources
 from ..features.matter import without_page_breaks
 from ..repository import get_repository
 from ..schemas import (
@@ -126,81 +127,11 @@ def create_writer(body: WriterCreateRequest, request: Request):
 
 # ── Student state ─────────────────────────────────────────────────────────────
 
-_SUPERVISED = frozenset({"verified", "proctored", "canvas"})
-
-
-# What POST/DELETE /bluebook/submissions/{id}/baseline record
-# (routers/bluebook_baselines.py). An approval that found the text already in
-# the baseline still approved it; "held" and the refusals approved nothing.
-_APPROVED_RESULTS = frozenset({"added", "already_in_baseline"})
-
-
-def _approved_submission_ids(repo, student_id: str) -> set[str]:
-    """Submission ids a teacher approved into this student's baseline and has
-    not since removed, replayed oldest first from the audit log."""
-    approved: set[str] = set()
-    rows = repo.list_audit_actions_for_student(student_id, ["baseline_approve", "baseline_remove"])
-    for row in rows:
-        sub_id = (row.get("details") or {}).get("submission_id")
-        if not sub_id:
-            continue
-        if row["action"] == "baseline_approve" and row.get("result") in _APPROVED_RESULTS:
-            approved.add(sub_id)
-        elif row["action"] == "baseline_remove" and row.get("result") == "removed":
-            approved.discard(sub_id)
-    return approved
-
-
-def _sample_sources(student_id: str, samples) -> list[str]:
-    """How each sample got into the baseline, for staff wording only.
-
-    Derived at read time from what is already stored; provenance and weight
-    are untouched and nothing here reaches scoring. An ``unverified`` sample
-    is ``take_home`` when its text hash is one of the approval's own text
-    forms (``bluebook_baselines._fingerprints``) of a Collections submission
-    of this student that a teacher approved into the baseline and has not
-    since taken out. Nothing stores that state, so it is replayed from the
-    audit rows the approve and undo routes write. ``shared_paper`` is the
-    text of one of their approved past papers, else ``student_upload``.
-    One audit read and one past-papers read, plus one submissions read only
-    when something is approved; none at all when nothing is unverified.
-    """
-    from .bluebook_baselines import _fingerprints
-    from .past_papers import _sha
-    from .students_baseline import _hashes_from_samples
-
-    unverified = [s.provenance == "unverified" for s in samples]
-    take_home: set[str] = set()
-    shared: set[str] = set()
-    if any(unverified):
-        repo = _repo()
-        approved = _approved_submission_ids(repo, student_id)
-        if approved:
-            for rec in repo.list_bluebook_submission_texts_for_student(student_id):
-                if rec.get("id") in approved:
-                    take_home |= _fingerprints(rec)
-        tenant = principal_mod.tenant_of(student_id)
-        if tenant:
-            shared = {
-                _sha(p["text"])
-                for p in repo.list_past_papers(tenant, student_id)
-                if p.get("status") == "approved" and p.get("text")
-            }
-    out = []
-    for s, is_unverified in zip(samples, unverified, strict=True):
-        if s.provenance in _SUPERVISED:
-            out.append("staff_or_supervised")
-        elif not is_unverified:
-            out.append("unknown")
-        else:
-            hashes = _hashes_from_samples([s])
-            if hashes & take_home:
-                out.append("take_home")
-            elif hashes & shared:
-                out.append("shared_paper")
-            else:
-                out.append("student_upload")
-    return out
+# How each sample got into the baseline, and so whether it is an approved
+# past paper (rule B), is defined once in original/approved_papers.py. The
+# old private names stay importable for callers that used them.
+_approved_submission_ids = approved_submission_ids
+_sample_sources = sample_sources
 
 
 @router.get("/students/{student_id}", response_model=StudentStateResponse)
@@ -254,10 +185,12 @@ def get_student(student_id: str, request: Request):
 # ── Baseline-readiness check (pilot onboarding surface) ──────────────────────
 # Answers "is this student's baseline good enough to score against yet?" in
 # one call, with plain-language recommendations. Verdict thresholds: ready at
-# MIN_BASELINE_SAMPLES (3 by default), the minimum the score endpoint accepts;
-# building with 1 or 2; needs more with 0 (the score endpoint 422s below the
-# floor). 5 is still where scoring confidence saturates (quantum/scoring.py),
-# and the recommendations still suggest 5 to 8.
+# MIN_BASELINE_SAMPLES approved papers (3 by default, rule B in
+# original/approved_papers.py), the minimum the score endpoint accepts;
+# building with something on file but fewer approved papers; needs more with
+# nothing on file (the score endpoint 422s below the floor). 5 is still where
+# scoring confidence saturates (quantum/scoring.py), and the recommendations
+# still suggest 5 to 8.
 
 
 @router.get("/students/{student_id}/readiness", response_model=ReadinessResponse)
@@ -283,12 +216,18 @@ def get_student_readiness(student_id: str):
 
     auth = state.authenticated_count
     eff = state.effective_sample_count
+    # Approved papers (rule B, original/approved_papers.py): a trusted
+    # provenance, or a shared paper / take-home sitting a teacher approved.
+    # A student's own self-upload is on file and counted in
+    # authenticated_count, but it does not bring the student to the floor.
+    approved = count_approved(state.samples, gate_sources(student_id, state.samples))
+    floor = min_baseline_samples()
     # Ready at the floor the score route enforces (3 approved papers by
     # default, MIN_BASELINE_SAMPLES): the 2026-11 alpha builds every baseline
     # from exactly three. It used to need 5 (and an effective count of 3), so
-    # every alpha reading said "inconclusive". Building: some papers, not yet
-    # enough to compare. Needs more: none.
-    if auth >= min_baseline_samples():
+    # every alpha reading said "inconclusive". Building: some papers on file,
+    # not yet enough approved ones to compare. Needs more: none.
+    if approved >= floor:
         verdict = "ready"
     elif auth >= 1:
         verdict = "developing"
@@ -296,10 +235,10 @@ def get_student_readiness(student_id: str):
         verdict = "insufficient"
 
     recs: list[str] = []
-    if 0 < auth < max(2, min_baseline_samples()):
+    if auth > 0 and approved < floor:
         recs.append(
             f"Original will not compare new writing until this student has at least "
-            f"{min_baseline_samples()} approved baseline papers."
+            f"{floor} approved baseline papers; this student has {approved}."
         )
     if auth == 0:
         recs.append(
@@ -329,6 +268,7 @@ def get_student_readiness(student_id: str):
         student_id=student_id,
         sample_count=state.sample_count,
         authenticated_count=auth,
+        approved_count=approved,
         effective_sample_count=eff,
         purity=state.purity,
         provenance_mix=provenance_mix,

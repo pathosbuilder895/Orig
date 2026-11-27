@@ -118,28 +118,38 @@ def _require_student_exam_scoring(request: Request | None, student_id: str) -> N
 # ── Score submission ──────────────────────────────────────────────────────────
 
 
+from ..approved_papers import count_approved, gate_sources  # noqa: E402
 from ._shared import min_baseline_samples  # noqa: E402
 
 
-def _require_min_baseline(state) -> None:
+def _require_min_baseline(state, sources: list[str] | None) -> int:
+    """Refuse with 422 below the floor; return the approved count otherwise.
+
+    Counts approved papers only (rule B, original/approved_papers.py): a
+    trusted provenance, or a shared paper / take-home sitting a teacher
+    approved; only a student's own self-upload is left out. ``sources`` is
+    the request's one lookup (``gate_sources``); ``None`` (the lookup failed)
+    counts no ``unverified`` sample."""
     _min_baseline = min_baseline_samples()
-    if state.authenticated_count < _min_baseline:
+    have = count_approved(state.samples, sources)
+    if have < _min_baseline:
         # Too few approved papers to know this student's normal range: return
         # a clear "insufficient baseline" state instead of a number. With two
-        # papers the false-flag rate roughly triples in simulation.
+        # papers the false-flag rate roughly triples in simulation. A
+        # student's own self-upload is on file but does not count here.
         raise HTTPException(
             status_code=422,
             detail={
                 "code": "insufficient_baseline",
                 "message": (
                     f"Original needs at least {_min_baseline} approved baseline papers "
-                    f"before it can compare new writing; this student has "
-                    f"{state.authenticated_count}."
+                    f"before it can compare new writing; this student has {have}."
                 ),
                 "required": _min_baseline,
-                "have": state.authenticated_count,
+                "have": have,
             },
         )
+    return have
 
 
 @router.post("/students/{student_id}/score", response_model=Layer7OutputResponse)
@@ -198,7 +208,12 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             detail="No authenticated baseline samples found. "
             "Add at least one 'proctored' or 'verified' sample first.",
         )
-    _require_min_baseline(state)
+    # How each past paper got in, read once for this request (one audit and
+    # one past-papers read, none when nothing is unverified): the floor, the
+    # readiness report, the preliminary chip and the evidence all use it.
+    sources = gate_sources(student_id, state.samples)
+    approved = _require_min_baseline(state, sources)
+    gate_state = state  # the stored state ``sources`` describe, one entry per sample
 
     # ── Versioned measurements (original/measurement.py) ──────────────────────
     # Default (both measurement switches off): plan.used == "v1", the state is
@@ -851,11 +866,13 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             logging.getLogger(__name__).exception("rule_d observation failed; omitted")
             _rule_d_obs = None
 
-    response = _to_response(result, arc, report=report)
+    response = _to_response(result, arc, report=report, sources=sources, state=gate_state)
     stamp = plan.stamp()
     if stamp is not None:
         response.measurement = MeasurementOut(**stamp)
-    _attach_staff_explainability(response, request, _text, state, result, student_id)
+    _attach_staff_explainability(
+        response, request, _text, state, result, student_id, approved=approved, sources=sources
+    )
     if _rd_mode == "on" and _rule_d_obs is not None:
         try:
             _attach_rule_d(response, request, _rule_d_obs)
@@ -885,23 +902,24 @@ def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
     return used, [(f"past paper {i + 1}", _po.text_of(s)) for i, s in enumerate(used)]
 
 
-def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
+def _baseline_papers(
+    state, used, baselines, student_id: str | None, sources: list[str] | None = None
+) -> list[dict[str, Any]]:
     """How each past paper got into the baseline, read now (staff wording
     only), so an analysis kept for later still says what was true when it ran.
     No student id (in-process callers): no source. A failed lookup loses only
-    `source`, never the side-by-side. No past paper to show: no lookup."""
+    `source`, never the side-by-side. No past paper to show: no lookup.
+    ``sources`` is the score request's own lookup (``gate_sources``), so the
+    records are not read twice; when it is ``None`` they are read here."""
     by_sample: dict[int, str] = {}
     if student_id and used:
         try:
-            from .students import _sample_sources
+            if sources is None:
+                from ..approved_papers import sample_sources
 
+                sources = sample_sources(student_id, state.samples)
             by_sample = {
-                id(sample): src
-                for sample, src in zip(
-                    state.samples,
-                    _sample_sources(student_id, state.samples),
-                    strict=True,
-                )
+                id(sample): src for sample, src in zip(state.samples, sources, strict=True)
             }
         except Exception:
             logging.getLogger(__name__).exception(
@@ -922,13 +940,21 @@ def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dic
 
 
 def _attach_staff_explainability(
-    response, request, text: str, state, result, student_id: str | None = None
+    response,
+    request,
+    text: str,
+    state,
+    result,
+    student_id: str | None = None,
+    approved: int | None = None,
+    sources: list[str] | None = None,
 ) -> None:
-    """ADR-013: located evidence and the preliminary score, both off by default.
+    """ADR-013: located evidence and the preliminary score, both on by default.
 
     Only for an HTTP caller that is not a student session. In-process callers
     (``/me/work`` scores a student's own piece with ``request=None``) never
-    get either, and neither changes the score or the action.
+    get either, and neither changes the score or the action. ``approved`` and
+    ``sources`` are the score route's own count and lookup (rule B).
     """
     from ..evidence import (
         build_evidence,
@@ -949,12 +975,14 @@ def _attach_staff_explainability(
     if want_preliminary:
         from ..schemas import PreliminaryScoreOut
 
-        confidence = result.baseline_confidence
         # The same floor the score route itself enforces (_require_min_baseline,
-        # 3 approved papers by default). The alpha builds every baseline from
-        # exactly three papers, so the old "ready" line (5 papers) made every
-        # alpha reading inconclusive. Below the floor the route 422s anyway.
-        ready = confidence.authenticated_count >= min_baseline_samples()
+        # 3 approved papers by default, rule B). The alpha builds every baseline
+        # from exactly three papers, so the old "ready" line (5 papers) made
+        # every alpha reading inconclusive. Below the floor the route 422s
+        # anyway. Without the route's count, no unverified sample counts.
+        if approved is None:
+            approved = count_approved(state.samples, None)
+        ready = approved >= min_baseline_samples()
         # The counted samples' own vectors, the same ones the score compared
         # against; a count that cannot be made is simply absent.
         try:
@@ -991,7 +1019,7 @@ def _attach_staff_explainability(
                 past_average=state.baseline_mean if complete else None,
             )
             response.evidence["baseline_papers"] = _baseline_papers(
-                state, used, baselines, student_id
+                state, used, baselines, student_id, sources
             )
             if paper_profile_enabled():
                 # Teacher-only description of each paper's headings, citations and
@@ -1082,7 +1110,7 @@ def _score_blend(student_id: str, req: BlendDetectionRequest, request):
             "Add at least one 'proctored' or 'verified' sample first.",
         )
 
-    _require_min_baseline(state)
+    _require_min_baseline(state, gate_sources(student_id, state.samples))
 
     # Same rule as /score: like with like, stamped when anything but the default
     # was asked for.

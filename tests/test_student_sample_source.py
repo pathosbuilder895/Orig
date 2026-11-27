@@ -100,8 +100,11 @@ def test_each_source_value(live_client):
         (_paper(0, TOPICS[2]), "canvas", "staff_or_supervised"),
         # The approved form of a sealed take-home: answers joined, no headings.
         ("\n\n".join(take_home_parts), "unverified", "take_home"),
-        # A sample the old seal-time write stored with "Question N." headings.
-        (headed, "unverified", "take_home"),
+        # A sample stored with "Question N." headings whose approval found it
+        # already there ("already_in_baseline"): the approval wrote nothing,
+        # and the text may be the student's own earlier upload, so it is not
+        # counted as approved (PR #381 review).
+        (headed, "unverified", "student_upload"),
         # Sealed but never approved: the student uploading it is not approval.
         (_paper(0, TOPICS[6]), "unverified", "student_upload"),
         # Approved, then taken back out, then uploaded again by the student.
@@ -336,7 +339,9 @@ def test_take_home_through_the_real_approve_and_undo_routes(live_client, monkeyp
 def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_client, monkeypatch):
     """The staff score response records how each past paper got in as of the
     analysis (take_home and student_upload here). A student scoring their own
-    work never gets evidence, and with the flag off no lookup runs."""
+    work never gets evidence. With the flag off the lookup still runs, once
+    each, because the minimum-baseline floor counts approved papers with it
+    (rule B, original/approved_papers.py)."""
     from original import principal
     from tests.alpha.test_past_papers import _ok, _workspace
 
@@ -393,7 +398,10 @@ def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_clie
         )
     )
     assert off["evidence"] is None
-    assert calls == {"audit": 0, "subs": 0, "papers": 0}
+    assert calls == {"audit": 1, "subs": 1, "papers": 1}
+    # Three verified papers and the approved take-home: four approved, the
+    # student's own upload is on file but not counted.
+    assert off["baseline_integrity"]["n_baselines"] == 4
 
     monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "1")
     on = _ok(
@@ -416,13 +424,14 @@ def test_score_evidence_carries_each_past_papers_source_for_staff_only(live_clie
     assert "baseline_papers" not in mine.text
 
     # A failed source lookup loses only `source`: the side-by-side and every
-    # score stay exactly as they were.
-    from original.routers import students as students_router
+    # score stay exactly as they were (the floor then counts the three
+    # verified papers alone, which still meet it).
+    from original import approved_papers
 
     def _boom(*a, **k):
         raise RuntimeError("lookup failed")
 
-    monkeypatch.setattr(students_router, "_sample_sources", _boom)
+    monkeypatch.setattr(approved_papers, "sample_sources", _boom)
     broken = _ok(
         live_client.post(
             f"/students/{sid}/score", json={"text": paper, "submission_id": "ev3"}, headers=T
