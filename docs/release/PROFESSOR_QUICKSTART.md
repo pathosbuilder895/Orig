@@ -46,6 +46,25 @@ opens a short guide from any screen; your students have the same button.
    student account and joins this course. **Replace link** stops the old one
    working; **Turn off** stops it altogether.
 
+Other ways onto the same roster:
+
+- **Upload class list:** press **Upload class list** and choose a CSV, either
+  your Canvas gradebook export (**Grades** → **Export**) or any file with name
+  and email columns. Check the matched columns, then the preview: new
+  students, students already on the roster, and rows with problems. A Canvas
+  export usually has no email column; enter your school's email domain to make
+  addresses from each student's login (`jdoe` becomes `jdoe@school.edu`), or
+  skip those students. **Invite *N* new students** sends the invitations as
+  above. The file stays on your computer and is not kept.
+- **Class code:** under **Class code** (below **Sign-up link**), tick **Let
+  students join this course with a class code** and share the six-character
+  code (students type it on the sign-in page) or its link. Each student enters
+  their name and email and chooses a password. Unlike the sign-up link, you
+  can limit joining to one email domain, and tick **Approve each student
+  before they join**: they then show as **Pending** on the roster until you
+  press **Approve** (or **Decline**). **Reset code** stops the old code and
+  its link at once. Untick the box to turn the class code off.
+
 ## 3. Set a collection
 
 1. Open **Collections** and press **+ New collection**.

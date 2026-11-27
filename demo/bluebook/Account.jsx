@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
+import { BB, BB_API, BtnPrimary, TextSettingsButton, fontBody } from './components.jsx';
 import {
   AuthShell, Badge, Btn, ErrorText, Field, LinkBtn, Notice, Page, Panel, Section, SubmitButton, Table, TextArea, when,
 } from './forms.jsx';
@@ -424,6 +424,132 @@ export function JoinScreen({ onNavigate }) {
   );
 }
 
+// ─── Join a course by class code ─────────────────────────────────────────────
+// A course's class code link is /bluebook/?class=<code> (original/routers/
+// course_join.py); the sign-in page's "join with a class code" opens this
+// screen without one, and the student types it. A course sign-up link
+// (?join=, JoinScreen above) is a separate way in and is unchanged.
+export function classCodeFromUrl(search) {
+  try { return new URLSearchParams(search || '').get('class') || ''; } catch (e) { return ''; }
+}
+
+function clearClassCodeFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('class');
+    window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+  } catch (e) {}
+}
+
+// What the screen says about a course, before the student types anything.
+export function classCodeIntro(course) {
+  const label = course.course_code ? `${course.course_name} (${course.course_code})` : course.course_name;
+  return `Create your Original Collections account to join ${label}. `
+    + 'Already have a Collections account? Use the same email and the password you already have.';
+}
+export const CLASS_CODE_APPROVAL_NOTE = 'Your teacher approves each new student. You can sign in straight away, '
+  + 'and the course appears here once you are approved.';
+
+export function ClassCodeScreen({ onNavigate }) {
+  const [code, setCode] = useState(() => classCodeFromUrl(window.location.search));
+  const [course, setCourse] = useState(null);   // what the code names, once checked
+  const [checking, setChecking] = useState(() => !!classCodeFromUrl(window.location.search));
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function check(c) {
+    setChecking(true); setError('');
+    try { setCourse(await BB_API.classCodeInfo(String(c || '').trim())); }
+    catch (err) { setCourse(null); setError(err.message || 'This join link or code isn’t working. Ask your teacher for a new link.'); }
+    setChecking(false);
+  }
+  useEffect(() => { if (code) check(code); }, []);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (busy || !course) return;
+    const problem = passwordProblem(pw, confirm);
+    if (problem) { setError(problem); return; }
+    const domain = course.allowed_domain;
+    if (domain && !email.trim().toLowerCase().endsWith('@' + domain)) {
+      setError(`This course only accepts email addresses ending in @${domain}.`);
+      return;
+    }
+    if (!agree) { setError('Please tick the box to say you have read the student notice and accept the terms.'); return; }
+    setError('');
+    setBusy(true);
+    try {
+      await BB_API.classCodeJoin(course.code, name.trim(), email.trim(), pw, true);
+      clearClassCodeFromUrl();
+      onNavigate('student-home');
+    } catch (err) {
+      setError(err.message || 'We could not add you to the course. Please try again.');
+      setBusy(false);
+    }
+  }
+
+  const footer = (
+    <>
+      <p style={{ textAlign: 'center', marginTop: 20, fontFamily: fontBody, fontSize: 16, color: BB.fade }}>
+        Already joined? <LinkBtn onClick={() => { clearClassCodeFromUrl(); onNavigate('login'); }}>Sign in</LinkBtn>
+      </p>
+      <LegalLinks />
+    </>
+  );
+
+  if (!course) {
+    return (
+      <AuthShell title="Join a course" onBack={() => { clearClassCodeFromUrl(); onNavigate('login'); }} footer={footer}>
+        <form onSubmit={e => { e.preventDefault(); if (!checking && code.trim()) check(code); }}>
+          <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 20px', lineHeight: 1.55 }}>
+            Enter the class code your teacher gave you. It has six letters and numbers.
+          </p>
+          <Field id="bbClassCodeEntry" label="Class code" value={code} onChange={setCode} placeholder="K7QW3X"
+            autoComplete="off" autoCapitalize="characters" spellCheck={false} />
+          <ErrorText>{error}</ErrorText>
+          <SubmitButton busy={checking} busyLabel="Checking…">Continue</SubmitButton>
+        </form>
+      </AuthShell>
+    );
+  }
+
+  // A teacher opening a join link in their own browser: joining signs the
+  // teacher out of this browser, as setting a student's password does.
+  const staffHere = BB_API.isAuthed();
+  return (
+    <AuthShell title={`Join ${course.course_name}`} footer={footer}>
+      {staffHere && (
+        <p role="note" data-testid="class-code-signs-out-teacher" className="bb-error" style={{ marginTop: 0 }}>
+          This browser is signed in as {BB_API.identity().email || 'a teacher'}. Joining as a student signs that account out here, in every tab.
+          To try the student side yourself, open this link in a private (incognito) window or a different browser.
+        </p>
+      )}
+      <p style={{ fontFamily: fontBody, fontSize: 16, color: BB.fade, margin: '0 0 12px', lineHeight: 1.55 }}>{classCodeIntro(course)}</p>
+      {course.require_approval && <p className="bb-hint" style={{ margin: '0 0 16px' }}>{CLASS_CODE_APPROVAL_NOTE}</p>}
+      <form onSubmit={submit}>
+        <Field id="bbClassCodeName" label="Your name" value={name} onChange={setName} autoComplete="name" />
+        <Field id="bbClassCodeEmail" label="Email" type="email" value={email} onChange={setEmail} autoComplete="email"
+          placeholder={course.allowed_domain ? `you@${course.allowed_domain}` : 'you@school.edu'}
+          hint={course.allowed_domain ? `Use your @${course.allowed_domain} email address.` : undefined} />
+        <Field id="bbClassCodePass" label="Password" type="password" value={pw} onChange={setPw}
+          autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters. If you already have an account, your current password.`} />
+        <Field id="bbClassCodeConfirm" label="Confirm password" type="password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+        <TermsCheckbox id="bbClassCodeTerms" checked={agree} onChange={setAgree} student />
+        <ErrorText>{error}</ErrorText>
+        <SubmitButton busy={busy} busyLabel="Joining…">Join course</SubmitButton>
+      </form>
+      <p className="bb-hint" style={{ marginTop: 16 }}>
+        Wrong course? <LinkBtn onClick={() => { setCourse(null); setError(''); }}>Use a different code</LinkBtn>
+      </p>
+    </AuthShell>
+  );
+}
+
 // ─── Forgot password ─────────────────────────────────────────────────────────
 export function ForgotPasswordScreen({ onNavigate }) {
   const [email, setEmail] = useState('');
@@ -710,6 +836,15 @@ export function SharePastPaper() {
   );
 }
 
+// What a student waiting for approval is told, or '' when they wait on nothing.
+export function pendingNotice(pending) {
+  const names = (pending || []).map(c => c.name || c.code).filter(Boolean);
+  if (!names.length) return '';
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return `Waiting for your teacher to approve you for ${list}. `
+    + `${names.length === 1 ? 'Its' : 'Their'} collections appear here once you are approved.`;
+}
+
 export function StudentHomeScreen({ onNavigate }) {
   const [me, setMe] = useState(null);
   const [exams, setExams] = useState(null);
@@ -744,6 +879,9 @@ export function StudentHomeScreen({ onNavigate }) {
   }
 
   const courses = (me && me.courses) || [];
+  // Courses joined by link that wait for the teacher's approval.
+  const pending = (me && me.pending_courses) || [];
+  const waitingOnly = !courses.length && pending.length > 0;
   const loading = exams === null;
   const sorted = sortStudentExams(exams);
 
@@ -768,16 +906,17 @@ export function StudentHomeScreen({ onNavigate }) {
     <StudentShell onNavigate={onNavigate} active="student-home">
       <Page eyebrow="Collections"
         title={me ? (me.name ? `Welcome, ${me.name}.` : 'Welcome.') : 'My collections'}
-        meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : 'You are not in a course yet. Your teacher will add you.')}>
+        meta={courses.length ? courses.map(c => c.code || c.name).join(' · ') : (loading ? 'Loading…' : (waitingOnly ? 'Waiting for your teacher to approve you.' : 'You are not in a course yet. Your teacher will add you.'))}>
         <ErrorText>{error}</ErrorText>
+        <Notice>{pendingNotice(pending)}</Notice>
         <Section title="Collections">
           <Table columns={examColumns} rows={sorted} rowKey={e => e.exam_id} caption="Your collections"
-            empty={loading ? 'Loading…' : 'No collections yet. Your teacher will add them to your course.'} />
+            empty={loading ? 'Loading…' : (waitingOnly ? 'Your collections appear here once your teacher approves you.' : 'No collections yet. Your teacher will add them to your course.')} />
         </Section>
         <Section title="My submissions">
           <Table columns={subColumns} rows={subs} rowKey={s => s.id} caption="Your submissions" empty="Nothing submitted yet." />
         </Section>
-        <SharePastPaper />
+        {!waitingOnly && <SharePastPaper />}
       </Page>
     </StudentShell>
   );

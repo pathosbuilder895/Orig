@@ -56,6 +56,8 @@ from original.db.models.live import (
     RuleDProfile,
     UserLastLocation,
     BluebookPhonePark,
+    BluebookCourseJoin,
+    BluebookJoinRequest,
     StudentProfile,
     SubmissionManifest,
     Tenant,
@@ -94,6 +96,8 @@ EXPECTED_TABLES = {
     "rule_d_profiles",  # rule D statistics per approved past paper (2026-11)
     "bluebook_phone_parks",  # a student's own parked phone per collection (2026-10)
     "bluebook_join_links",  # forwardable course sign-up links (2026-10)
+    "bluebook_course_joins",  # a course's class code and its settings (2026-10)
+    "bluebook_join_requests",  # a student waiting for approval to join a course (2026-10)
 }
 
 TENANT_ID = "seminary-dallas"
@@ -469,6 +473,21 @@ REPRESENTATIVE_ROWS = {
         override_by="",
         override_at=None,
         override_note="",
+    ),
+    BluebookCourseJoin: dict(
+        course_id="c" * 16,
+        tenant_id=TENANT_ID,
+        code="K7QW3X",
+        enabled=True,
+        allowed_domain="school.edu",
+        require_approval=False,
+        updated_at=NOW,
+    ),
+    BluebookJoinRequest: dict(
+        course_id="c" * 16,
+        student_id=f"{TENANT_ID}:marcus",
+        tenant_id=TENANT_ID,
+        created_at=NOW,
     ),
 }
 

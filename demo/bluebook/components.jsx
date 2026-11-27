@@ -551,6 +551,18 @@ export const BB_API = {
   joinLinkEnable(courseId)     { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
   joinLinkRegenerate(courseId) { return this._json('POST',   `/bluebook/courses/${encodeURIComponent(courseId)}/join-link/regenerate`); },
   joinLinkDisable(courseId)    { return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/join-link`); },
+  // A course's class code (original/routers/course_join.py): a short code
+  // and its link, with an optional email domain limit and approval.
+  classCodeSettings(courseId)   { return this._json('GET', `/bluebook/courses/${encodeURIComponent(courseId)}/class-code`); },
+  updateClassCode(courseId, fields) { return this._json('PUT', `/bluebook/courses/${encodeURIComponent(courseId)}/class-code`, fields); },
+  resetClassCode(courseId)      { return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/class-code/reset`); },
+  approveJoin(courseId, sid) {
+    return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/${encodeURIComponent(sid)}/approve`);
+  },
+  approveAllJoins(courseId)     { return this._json('POST', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/approve-all`); },
+  declineJoin(courseId, sid) {
+    return this._json('DELETE', `/bluebook/courses/${encodeURIComponent(courseId)}/join-requests/${encodeURIComponent(sid)}`);
+  },
   async listStudents()  { return (await this._json('GET', '/bluebook/students')).students || []; },
   examLive(id)          { return this._json('GET', `/bluebook/exams/${encodeURIComponent(id)}/live`); },
   saveFeedback(id, { mark, feedback }) {
@@ -689,6 +701,22 @@ export const BB_API = {
       throw err;
     }
     return r.json();
+  },
+  // The course a class code names, for the class code screen. No sign-in needed.
+  async classCodeInfo(code) {
+    const r = await fetch(this.base + `/auth/class-code/${encodeURIComponent(code)}`);
+    if (!r.ok) {
+      const err = new Error(await bbDetail(r));
+      err.status = r.status;
+      throw err;
+    }
+    return r.json();
+  },
+  // Join a course by its class code and sign in as the student account it
+  // made (or the existing one, with its own password).
+  classCodeJoin(code, name, email, password, acceptTerms = false) {
+    return this._auth(`/auth/class-code/${encodeURIComponent(code)}`,
+      { name, email, password, accept_terms: acceptTerms }, 'We could not add you to the course. Please try again.');
   },
   // Create a student account from a course sign-up link and sign in.
   async joinSignup(token, name, email, password, acceptTerms) {

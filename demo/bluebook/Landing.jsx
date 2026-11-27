@@ -1,5 +1,5 @@
 import React from 'react';
-import { BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
+import { BB, BB_API, BtnGhost, BtnPrimary, GoldRule, Logotype, MetaLabel, Ornament, Seal, fontBody, fontDisplay, fontMono } from './components.jsx';
 import { homeFor, LegalLinks, openStudentExam } from './Account.jsx';
 import { resumeOrHome } from './resume-location.jsx';
 import { staffHomeRedirect } from './deep-link.jsx';
@@ -336,7 +336,11 @@ export function LoginScreen({ onNavigate }) {
               fontFamily: fontBody, fontSize: '.9375rem', color: 'var(--gold-2)', textDecoration: 'underline',
               background: 'none', border: 'none', padding: 0, cursor: 'pointer',
             }}>Forgot your password?</button>
-            {' '}Students joining a class: use the invite link from your teacher.
+            {' '}Students joining a class: use the invite link from your teacher, or{' '}
+            <button type="button" data-testid="join-with-code" onClick={() => onNavigate('class-code')} style={{
+              fontFamily: fontBody, fontSize: '.9375rem', color: BB.gold, textDecoration: 'underline',
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+            }}>join with a class code</button>.
           </p>
           {demoDeploy && (
             <div style={{ textAlign: 'center' }}>
