@@ -11,7 +11,7 @@ const EV = require('../../original/js/evidence-view.js');
 const past = (values) => values.map((value, i) => ({ paper: `past paper ${i + 1}`, value }));
 function feature(over = {}) {
   const base = {
-    rank: 1, code: 'comma_rate', name: 'Comma Rate', group: 4, in_top_list: true, kind: 'located',
+    rank: 1, code: 'comma_rate', name: 'Comma Rate', group: 4, in_top_list: true, kind: 'located', display: { style: 'unit', unit: 'per 100 words' },
     description: 'How often commas appear.',
     engine_scale: {
       this_paper: 0.2, past_papers: past([0.6, 0.62, 0.64]), past_papers_average: 0.62, past_range: [0.6, 0.64],
@@ -54,43 +54,46 @@ test('numbers print at three significant figures, never in exponent form', () =>
 test('a counted measurement\u2019s note gives the counts, the plain values and the side of the range', () => {
   const note = EV.noteFor(feature(), [{ paper: 'past paper 2', assignment: 'On Liberty' }]);
   assert.equal(note,
-    'Counting each comma: this paper has 47 (3.25 per 100 words). Past paper 1 has 105 (8.01), On Liberty has 111 (8.04) and Past paper 3 has 105 (8.23). ' +
-    'On Original\u2019s 0 to 1 scale this paper is below the lowest of the 3 past papers.');
+    'Counting each comma: this paper has 47 (3.3 per 100 words). Past paper 1 has 105 (8.0), On Liberty has 111 (8.0) and Past paper 3 has 105 (8.2). ' +
+    'This paper is below the lowest of the 3 past papers.');
   const above = feature({ engine_scale: { ...feature().engine_scale, difference: 0.3 } });
   assert.match(EV.noteFor(above, []), /above the highest of the 3 past papers\.$/);
   const inside = feature({ engine_scale: { ...feature().engine_scale, outside_past_range: false } });
   assert.match(EV.noteFor(inside, []), /within the past papers\u2019 range\.$/);
 });
 
-test('a whole-text measurement\u2019s note lists each paper\u2019s value, in plain units or the 0 to 1 scale', () => {
-  const whole = feature({ kind: 'whole_text', code: 'burstiness', what_is_marked: undefined, this_paper: undefined, past_papers: undefined,
-    plain: { unit: 'variance \u00f7 mean', this_paper: 6.31, past_papers: past([7.53, 13, 20.8]), past_range: [7.53, 20.8] } });
+test('a whole-text measurement\u2019s note lists each paper\u2019s value in plain units, or says where it sits in words', () => {
+  const whole = feature({ kind: 'whole_text', code: 'adjective_rate', what_is_marked: undefined, this_paper: undefined, past_papers: undefined,
+    display: { style: 'unit', unit: 'adjectives per 100 tokens' },
+    plain: { unit: 'per 100 tokens', this_paper: 6.31, past_papers: past([7.53, 13, 20.8]), past_range: [7.53, 20.8] } });
   assert.equal(EV.noteFor(whole, []),
-    'This paper: 6.31 (variance \u00f7 mean). Past papers: Past paper 1 7.53, Past paper 2 13 and Past paper 3 20.8. ' +
-    'On Original\u2019s 0 to 1 scale this paper is below the lowest of the 3 past papers.');
-  const scale = { ...whole, plain: null, engine_scale: { ...whole.engine_scale, past_papers: past([0.5]), past_range: [0.5, 0.5], outside_past_range: false } };
-  assert.equal(EV.noteFor(scale, []),
-    'This paper: 0.2 (on Original\u2019s 0 to 1 scale). Past papers: Past paper 1 0.5. On Original\u2019s 0 to 1 scale this paper matches the past paper.');
-  assert.equal(EV.oneLine(scale), 'This paper 0.2; past papers 0.5 (on Original\u2019s 0 to 1 scale).');
-  assert.equal(EV.oneLine(feature()), 'This paper 3.25; past papers 8.01 to 8.23 (per 100 words).');
+    'This paper: 6.3 adjectives per 100 tokens. Past papers: Past paper 1 7.5, Past paper 2 13.0 and Past paper 3 20.8. ' +
+    'This paper is below the lowest of the 3 past papers.');
+  // No everyday unit (burstiness: variance \u00f7 mean): words only, never the engine's position.
+  const scale = { ...whole, code: 'burstiness', display: { style: 'compare' }, plain: null,
+    engine_scale: { ...whole.engine_scale, past_papers: past([0.5]), past_range: [0.5, 0.5], outside_past_range: false } };
+  assert.equal(EV.noteFor(scale, []), 'This paper is lower than the past paper.');
+  assert.equal(EV.oneLine(scale), 'This paper is lower than the past paper.');
+  assert.equal(EV.oneLine(feature()), 'This paper 3.3; past papers 8.0 to 8.2 (per 100 words).');
   const lonely = { ...scale, engine_scale: { ...scale.engine_scale, past_papers: [], past_range: null } };
-  assert.equal(EV.noteFor(lonely, []), 'This paper: 0.2 (on Original\u2019s 0 to 1 scale). There are no past papers to compare with.');
+  assert.equal(EV.noteFor(lonely, []), 'There are no past papers to compare with.');
   assert.equal(EV.noteFor(null), '');
-  const one = { ...scale, engine_scale: { ...scale.engine_scale, outside_past_range: true, difference: -0.3 } };
-  assert.match(EV.noteFor(one, []), /this paper is below the past paper\.$/);
+  const one = { ...whole, plain: { ...whole.plain, past_papers: past([7.53]), past_range: [7.53, 7.53] },
+    engine_scale: { ...whole.engine_scale, past_papers: past([0.5]), outside_past_range: true, difference: -0.3 } };
+  assert.match(EV.noteFor(one, []), /This paper is below the past paper\.$/);
 });
 
 test('a sentence-length measurement is described by its values, not as a count', () => {
   const longest = feature({ code: 'sentence_length_variance', what_is_marked: 'the longest and shortest sentences',
     this_paper: { count: 2, examples: [{ passage: 'A b c.', words: 3 }] } });
-  assert.match(EV.noteFor(longest, []), /^This paper: 3\.25 \(per 100 words\)\. Past papers: /);
+  assert.match(EV.noteFor(longest, []), /^This paper: 3\.3 per 100 words\. Past papers: /);
 });
 
 test('the note never carries banned wording, even from a server name', () => {
-  const sneaky = feature({ kind: 'whole_text', plain: { unit: 'cheating units', this_paper: 1, past_papers: past([1]), past_range: [1, 1] } });
+  const sneaky = feature({ kind: 'whole_text', display: { style: 'unit', unit: 'cheating units' }, plain: { unit: 'x', this_paper: 1, past_papers: past([1]), past_range: [1, 1] } });
   const note = EV.noteFor(sneaky, []);
   assert.equal(EV.isClean(note), true);
-  assert.equal(note, 'On Original\u2019s 0 to 1 scale this paper is below the lowest of the 3 past papers.');
+  assert.equal(note, 'This paper is below the lowest of the 3 past papers.');
 });
 
 const flat = (v) => ({ this_paper: v, past_papers: past([v, v, v]), past_papers_average: v, past_range: [v, v], difference: 0, weighted_size: 0, group_weight: 1, outside_past_range: false });
@@ -102,7 +105,7 @@ test('a comparison measurement past papers have no value for is never listed or 
   const one = feature({ kind: 'not_compared', code: 'punctuation_error_ratio', direction: 'not_compared', plain: null, engine_scale: notCompared({}) });
   assert.equal(EV.isNotCompared(one), true);
   assert.equal(EV.NOT_COMPARED_WORDS, 'not compared: past papers have no value for this');
-  assert.equal(EV.noteFor(one, []), 'This paper: 1 (on Original\u2019s 0 to 1 scale). Not compared: past papers have no value for this.');
+  assert.equal(EV.noteFor(one, []), 'Not compared: past papers have no value for this.');
   assert.equal(EV.noteFor({ ...one, engine_scale: notCompared({ this_paper: null }) }, []), 'Not compared: past papers have no value for this.');
   assert.equal(EV.isListed(one), false);
   assert.equal(EV.isActive(one), false);
@@ -196,13 +199,12 @@ const CAUTION = 'A shift like this can come from a new topic, genre, length, rev
 
 test('noticeFor: a located measurement above or below the past range says which way, by how much, and the fixed caution', () => {
   assert.equal(EV.noticeFor(feature(), []),
-    'This paper is lower than the past papers on comma rate (3.25 against 8.01 to 8.23 per 100 words). ' + CAUTION);
+    'This paper is lower than the past papers on comma rate (3.3 against 8.0 to 8.2 per 100 words). ' + CAUTION);
   const above = feature({ engine_scale: { ...feature().engine_scale, difference: 0.3 } });
   assert.match(EV.noticeFor(above, []), /^This paper is higher than the past papers on comma rate \(/);
-  // One past paper: a single value, not a range. Original's 0 to 1 scale when no plain units were sent.
+  // No plain values sent and the engine's value is not the raw one: no numbers, only the direction.
   const scale = feature({ plain: null, engine_scale: { ...feature().engine_scale, past_papers: past([0.5]), past_range: [0.5, 0.5], difference: 0.3 } });
-  assert.equal(EV.noticeFor(scale, []),
-    'This paper is higher than the past papers on comma rate (0.2 against 0.5 on Original’s 0 to 1 scale). ' + CAUTION);
+  assert.equal(EV.noticeFor(scale, []), 'This paper is higher than the past papers on comma rate. ' + CAUTION);
   // No numbers to quote: the direction alone.
   const bare = feature({ plain: null, engine_scale: { ...feature().engine_scale, this_paper: null, past_range: null } });
   assert.equal(EV.noticeFor(bare, []), 'This paper is lower than the past papers on comma rate. ' + CAUTION);
@@ -225,23 +227,28 @@ test('noticeFor: within the range, one plain sentence (plus the whole-text note 
 
 test('differenceLine: how this paper differs, in plain words and the plain numbers', () => {
   // The example the alpha asked for, word for word.
-  assert.equal(EV.differenceLine(feature()), 'This paper uses far fewer commas: 3.25 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine(feature()), 'This paper uses far fewer commas: 3.3 vs 8.0 to 8.2 per 100 words.');
   const plain = (v) => feature({ plain: { ...feature().plain, this_paper: v } });
-  assert.equal(EV.differenceLine(plain(6)), 'This paper uses fewer commas: 6 vs 8.01 to 8.23 per 100 words.');
-  assert.equal(EV.differenceLine(plain(0)), 'This paper uses no commas: 0 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine(plain(6)), 'This paper uses fewer commas: 6.0 vs 8.0 to 8.2 per 100 words.');
+  assert.equal(EV.differenceLine(plain(0)), 'This paper uses no commas: 0 vs 8.0 to 8.2 per 100 words.');
   const up = feature({ engine_scale: { ...feature().engine_scale, this_paper: 0.9, difference: 0.28 }, plain: { ...feature().plain, this_paper: 20 } });
-  assert.equal(EV.differenceLine(up), 'This paper uses far more commas: 20 vs 8.01 to 8.23 per 100 words.');
-  assert.equal(EV.differenceLine({ ...up, plain: { ...up.plain, this_paper: 9 } }), 'This paper uses more commas: 9 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine(up), 'This paper uses far more commas: 20.0 vs 8.0 to 8.2 per 100 words.');
+  assert.equal(EV.differenceLine({ ...up, plain: { ...up.plain, this_paper: 9 } }), 'This paper uses more commas: 9.0 vs 8.0 to 8.2 per 100 words.');
   // Inside the past papers' span.
   const inside = feature({ in_top_list: false, engine_scale: { ...feature().engine_scale, outside_past_range: false }, plain: { ...feature().plain, this_paper: 8.1 } });
-  assert.equal(EV.differenceLine(inside), 'This paper sits within the past papers\u2019 range: 8.1 vs 8.01 to 8.23 per 100 words.');
+  assert.equal(EV.differenceLine(inside), 'This paper sits within the past papers\u2019 range: 8.1 vs 8.0 to 8.2 per 100 words.');
   assert.match(EV.differenceLine({ ...inside, in_top_list: true }), /^This paper sits inside the past papers\u2019 range, but far from where they usually sit: 8\.1 vs/);
   // Sentence length has its own words; a habit outside the phrase table gets the generic line.
-  const len = feature({ code: 'mean_sentence_length', name: 'Mean Sentence Length', plain: { unit: 'words per sentence', this_paper: 9, past_papers: past([20, 22]), past_range: [20, 22] } });
-  assert.equal(EV.differenceLine(len), 'This paper writes far shorter sentences: 9 vs 20 to 22 words per sentence.');
+  const len = feature({ code: 'mean_sentence_length', name: 'Mean Sentence Length', display: { style: 'unit', unit: 'words per sentence' }, plain: { unit: 'words per sentence', this_paper: 9, past_papers: past([20, 22]), past_range: [20, 22] } });
+  assert.equal(EV.differenceLine(len), 'This paper writes far shorter sentences: 9.0 vs 20.0 to 22.0 words per sentence.');
+  // A true share read from the engine's own value (NORM_BOUNDS exactly (0, 1)): a percent.
   const other = feature({ code: 'pronoun_ambiguity_rate', name: 'Pronoun Ambiguity Rate', kind: 'whole_text', plain: undefined,
+    display: { style: 'percent', of: 'of sentences with he, she, it or they', engine_is_raw: true },
     engine_scale: { ...feature().engine_scale, this_paper: 0.167, past_papers: past([0.625, 0.875]), past_range: [0.625, 0.875] } });
-  assert.equal(EV.differenceLine(other), 'This paper is far lower than the past papers on pronoun ambiguity rate: 0.167 vs 0.625 to 0.875 on Original\u2019s 0 to 1 scale.');
+  assert.equal(EV.differenceLine(other), 'This paper is far lower than the past papers on pronoun ambiguity rate: 17% vs 63% to 88% of sentences with he, she, it or they.');
+  // No everyday unit: where it sits, in words, and never a number.
+  const words = { ...other, display: { style: 'compare' } };
+  assert.equal(EV.differenceLine(words), 'This paper is lower than both past papers on pronoun ambiguity rate.');
   // Nothing to compare, not compared, switched off: no line.
   assert.equal(EV.differenceLine(feature({ engine_scale: { ...feature().engine_scale, past_papers: [] }, plain: undefined })), '');
   assert.equal(EV.differenceLine({ kind: 'not_compared' }), '');
@@ -264,7 +271,7 @@ test('thisSource and unmarkedLead name the paper, its day and what is missing', 
 test('noticeFor: a whole-text shift says there is no single sentence to quote', () => {
   const whole = feature({ kind: 'whole_text', name: 'Burstiness' });
   assert.equal(EV.noticeFor(whole, []),
-    'This paper is lower than the past papers on burstiness (3.25 against 8.01 to 8.23 per 100 words). ' +
+    'This paper is lower than the past papers on burstiness (3.3 against 8.0 to 8.2 per 100 words). ' +
     'It is measured across the whole text, so there is no single sentence to quote. ' + CAUTION);
 });
 
@@ -283,8 +290,8 @@ test('noticeFor: no past papers, not compared and switched off each get a plain 
 test('noticeFor: banned wording from a server name falls back to a generic sentence and every output is clean', () => {
   const sneaky = feature({ name: 'cheating rate' });
   const out = EV.noticeFor(sneaky, []);
-  assert.equal(out, 'This paper is lower than the past papers on this habit (3.25 against 8.01 to 8.23 per 100 words). ' + CAUTION);
-  const bad = feature({ plain: { unit: 'AI units', this_paper: 1, past_papers: past([2]), past_range: [2, 2] } });
+  assert.equal(out, 'This paper is lower than the past papers on this habit (3.3 against 8.0 to 8.2 per 100 words). ' + CAUTION);
+  const bad = feature({ display: { style: 'unit', unit: 'AI units' }, plain: { unit: 'x', this_paper: 1, past_papers: past([2]), past_range: [2, 2] } });
   assert.equal(EV.noticeFor(bad, []), 'This paper is lower than the past papers on comma rate. ' + CAUTION);
   const all = [
     feature(), feature({ kind: 'whole_text' }), feature({ engine_scale: { ...feature().engine_scale, outside_past_range: false } }),

@@ -657,7 +657,11 @@ def test_evidence_and_preliminary_are_staff_only_with_both_flags_on(monkeypatch)
     assert client.get(f"/students/{sid}/past-paper-examples", headers=hdr).status_code == 403
     examples = client.get(f"/students/{sid}/past-paper-examples")
     assert examples.status_code == 200, examples.text
-    assert len(examples.json()["features"]) == 7
+    # The first family (Sentence shape) has 9 habits since 2026-11-26.
+    from original.evidence import FAMILIES
+
+    assert [f["code"] for f in examples.json()["features"]] == list(FAMILIES["Sentence shape"])
+    assert len(examples.json()["features"]) == 9
 
     work = client.post("/me/work", headers=hdr, json={"text": piece["text"], "title": "A piece"})
     assert work.status_code == 200, work.text

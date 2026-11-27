@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -83,6 +83,25 @@
   .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.6rem;line-height:1.1;color:var(--flag);margin-bottom:.35rem;}
   .ex-big.base{color:var(--base);}
   .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
+  /* Readable numbers (EvidenceView.readable): a comparison in words, its exact position folded away, and the "Other patterns" list. */
+  .ex-rel{font-size:1.05rem;font-weight:600;line-height:1.35;color:var(--flag);margin:.2rem 0 .35rem;}
+  .ex-vals li b.rel{font-family:inherit;font-weight:600;}
+  .ex-exact{font-size:.82rem;color:var(--ink-2);margin-top:.45rem;}
+  .ex-exact summary{cursor:pointer;}
+  .ex-break{margin-top:.7rem;font-size:.88rem;}
+  .ex-break-h{font-weight:600;margin:.5rem 0 .3rem;}
+  .ex-break-h span{font-weight:400;font-style:italic;color:var(--ink-2);}
+  .ex-break-wrap{overflow-x:auto;}
+  .ex-break-t{border-collapse:collapse;font-size:.85rem;}
+  .ex-break-t th,.ex-break-t td{padding:.2rem .5rem;border-bottom:1px dotted var(--rule);text-align:right;white-space:nowrap;}
+  .ex-break-t th[scope=row]{text-align:left;font-weight:600;}
+  .ex-break-t td.ex-short{text-align:left;font-style:italic;}
+  .ex-cols2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media (max-width:760px){.ex-cols2{grid-template-columns:1fr;}}
+  .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
+  .ex-other-row{padding:.6rem 0;border-top:1px solid var(--rule);}
+  .ex-other-row b,.ex-other-line,.ex-other-why{display:block;}
+  .ex-other-why{font-size:.86rem;color:var(--ink-2);font-style:italic;}
   .ex-q{font-size:.98rem;line-height:1.65;color:var(--ink);overflow-wrap:anywhere;}
   .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .ex-q mark{background:none;box-shadow:inset 0 -6px 0 rgba(168,70,47,0.22);color:inherit;padding:0 .05em;}
@@ -166,7 +185,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="evidence" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-25.1"></script>
+  <script src="shell.js?v=2026-11-26.2"></script>
   <main class="body" id="live-main">
     <div class="wrap">
       <div class="chrome">
@@ -225,10 +244,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-25.1"></script>
-<script src="js/evidence-view.js?v=2026-11-25.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-25.1"></script>
-<script src="js/paper-profile.js?v=2026-11-25.1"></script>
+<script src="live.js?v=2026-11-26.2"></script>
+<script src="js/evidence-view.js?v=2026-11-26.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.2"></script>
+<script src="js/paper-profile.js?v=2026-11-26.2"></script>
 <script>
 (function(){
   'use strict';
@@ -249,8 +268,7 @@
   const KIND_WORDS={located:'Quoted',whole_text:'Whole text'};
   // Why a measurement is not used, with the value every paper has.
   function notUsedWhy(f){
-    const v=EV.fmt((f.engine_scale||{}).this_paper);
-    if(f.kind==='off') return 'Switched off in scoring: every paper here has the fixed value '+v+'.';
+    if(f.kind==='off') return 'Switched off in scoring: every paper here gets the same fixed value, so it cannot differ.';
     if(EV.isNotCompared(f)) return EV.noteFor(f);
     return 'Not used.';
   }
@@ -310,7 +328,7 @@
   // How the two lists are ordered, in the words of the server's own ordering
   // notes (original/evidence.py) without their code references.
   const TOP_ORDER='Original\u2019s own top list, in its own order: the measurements it puts furthest from the past papers.';
-  const ALL_ORDER='Sorted by how far this paper sits from the past-paper average on Original\u2019s 0 to 1 scale, times the weight Original gives that measurement\u2019s group: the same size Original uses to pick its top list. Ties keep Original\u2019s own feature order. The top list only takes measurements more than one standard deviation from the writer\u2019s usual range, so a measurement can sit high here and still be missing from it, for example when the past papers themselves vary widely on it. Comparison measurements that past papers have no value for are not compared; they are listed under \u201cNot used\u201d.';
+  const ALL_ORDER='Sorted by how far this paper sits from the past-paper average on Original\u2019s internal scale, times the weight Original gives that measurement\u2019s group: the same size Original uses to pick its top list. Ties keep Original\u2019s own feature order. The top list only takes measurements more than one standard deviation from the writer\u2019s usual range, so a measurement can sit high here and still be missing from it, for example when the past papers themselves vary widely on it. Comparison measurements that past papers have no value for are not compared; they are listed under \u201cNot used\u201d.';
   const AVERAGE_DIFFERS='The past-paper averages in Original\u2019s own top list differ from the ones in the full list (for example when the score blended in a wider reference average for a short baseline, or some past papers have no stored text), so compare the two lists with care.';
 
   // ── sections ──
@@ -340,11 +358,11 @@
     $('p-summary').insertAdjacentHTML('beforeend','<p class="none-line" id="measured-as">'+esc(text)+'</p>');
   }
   function renderTop(ev,byCode){
-    const top=Array.isArray(ev.features)?ev.features.filter(isObj):[];
+    const top=EC.topList(ev);
     if(!top.length){ $('p-diff').innerHTML='<p class="none-line">Original&rsquo;s top list is empty for this paper: no measurement sits far enough from the past papers to make it.</p>'; return; }
     const lede=typeof ev.ordering==='string'?TOP_ORDER:'';
     $('p-diff').innerHTML=(lede?'<p class="sec-lede">'+esc(lede)+'</p>':'')+
-      top.map(f=>card(has(byCode,f.code)?byCode[f.code]:f)).join('');
+      top.map(f=>card(f)).join('');
   }
   function renderSteady(ev){
     const list=EV.steady(ev,3,2);
@@ -354,7 +372,9 @@
   }
   function renderAll(ev){
     const full=ev.all_features.filter(isObj);
-    const active=full.filter(EV.isListed), unused=full.filter(f=>!EV.isListed(f));
+    // A habit the server marks hidden (display.style "hidden") is used in the score but never listed here.
+    const hidden=full.filter(EV.isHidden);
+    const active=full.filter(f=>EV.isListed(f)&&!EV.isHidden(f)), unused=full.filter(f=>!EV.isListed(f)&&!EV.isHidden(f));
     $('all-count').textContent=active.length+' listed, largest difference first';
     const lede=typeof ev.all_features_ordering==='string'?ALL_ORDER:'';
     const rows=active.map(f=>{
@@ -362,17 +382,21 @@
       const n=EV.numbersOf(f);
       const pos=EV.position(f);
       const posWords=pos==='within'?'within range':(pos==='above'?'above range':(pos==='below'?'below range':'no past papers'));
-      const plainRow=n.plain?'<tr><th scope="row">'+esc(n.unit)+'</th><td class="v">'+esc(EV.fmt(n.thisValue))+'</td>'+n.past.map(p=>'<td class="v">'+esc(EV.fmt(p.value))+'</td>').join('')+'</tr>':'';
-      const past=Array.isArray(eng.past_papers)?eng.past_papers:[];
-      const engRow='<tr><th scope="row">Original&rsquo;s 0 to 1 scale</th><td class="v">'+esc(EV.fmt(eng.this_paper))+'</td>'+past.map(p=>'<td class="v">'+esc(EV.fmt(p&&p.value))+'</td>').join('')+'</tr>';
-      const table='<div class="nums-wrap"><table class="nums"><thead><tr><th scope="col"></th><th scope="col">This paper</th>'+
-        past.map(p=>'<th scope="col">'+esc(nameOf(p&&p.paper))+'</th>').join('')+'</tr></thead><tbody>'+plainRow+engRow+'</tbody></table></div>';
+      // The numbers table only where the numbers read as they are (a percent, a
+      // plain unit or a kind, EvidenceView.readable); otherwise the card below
+      // says where this paper sits in words.
+      const past=n.plain?n.past:[];
+      const rowHead=n.mode==='category'?'Kind':n.unit;
+      const table=n.plain?'<div class="nums-wrap"><table class="nums"><thead><tr><th scope="col"></th><th scope="col">This paper</th>'+
+        past.map(p=>'<th scope="col">'+esc(nameOf(p&&p.paper))+'</th>').join('')+'</tr></thead><tbody>'+
+        '<tr><th scope="row">'+esc(rowHead)+'</th><td class="v">'+esc(n.show(n.thisValue))+'</td>'+past.map(p=>'<td class="v">'+esc(n.show(p.value))+'</td>').join('')+'</tr>'+
+        '</tbody></table></div>':'';
       const desc=EV.clean(f.description,'');
       const body=card(f,{noHead:true});
       return '<details class="m" id="m-'+esc(f.code)+'" data-code="'+esc(f.code)+'" data-kind="'+esc(f.kind)+'">'+
         '<summary><span class="rk">'+esc(f.rank)+'</span><span class="nm">'+esc(EV.clean(f.name,f.code))+(f.in_top_list?' ★':'')+
           '<small>'+esc([groupName(num(f.group)),KIND_WORDS[f.kind]||''].filter(Boolean).join(' · '))+'</small></span>'+
-          '<span class="pos'+(pos==='above'||pos==='below'?' out':'')+'">'+esc(posWords)+' · '+esc(EV.signed(eng.difference))+'</span></summary>'+
+          '<span class="pos'+(pos==='above'||pos==='below'?' out':'')+'">'+esc(posWords)+'</span></summary>'+
         '<div class="m-body">'+(desc?'<p class="desc">'+esc(desc)+'</p>':'')+table+body+'</div></details>';
     }).join('');
     let notUsed='';
@@ -383,7 +407,8 @@
         '</ul></details>';
     }
     const differs=ev.past_average_matches_top_list===false?'<p class="sec-lede" id="average-differs"><b>Note:</b> '+esc(AVERAGE_DIFFERS)+'</p>':'';
-    $('p-all').innerHTML=differs+(lede?'<p class="sec-lede">'+esc(lede)+' ★ marks Original&rsquo;s top list. Open any row to see its numbers'+(active.some(hasText)?' and, where Original can point to them, the sentences':'')+'.</p>':'')+rows+notUsed;
+    const hiddenNote=hidden.length?'<p class="none-line" id="hidden-note">'+esc(hidden.length===1?'One measurement ('+EV.habitName(hidden[0])+') is used in the score but not listed: it takes only a few values and almost never varies, so it says little on its own.':hidden.length+' measurements are used in the score but not listed: each takes only a few values and almost never varies.')+'</p>':'';
+    $('p-all').innerHTML=differs+(lede?'<p class="sec-lede">'+esc(lede)+' ★ marks Original&rsquo;s top list. Open any row to see its numbers'+(active.some(hasText)?' and, where Original can point to them, the sentences':'')+'.</p>':'')+rows+notUsed+hiddenNote;
   }
   function renderPast(ev,d){
     const papers=Array.isArray(ev.baseline_papers)?ev.baseline_papers.filter(isObj):[];

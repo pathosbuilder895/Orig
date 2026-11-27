@@ -103,10 +103,17 @@ test.describe('side by side, flags on @evidence-on', () => {
     await expect(page.locator('#thin-note')).toHaveCount(0)
     await expect(page.locator('#prelim-chip b')).toHaveText(/^\d\.\d\d$/)
 
-    // Biggest differences: Original's top list, in its order.
-    await expect(page.locator('#p-diff > .ex')).toHaveCount(ev.features.length)
+    // A habit the server marks hidden (display.style "hidden", today only
+    // conclusion_strategy_score) stays in the API's all_features, is still
+    // scored, and is never listed to a teacher.
+    const hiddenCodes = ev.all_features.filter(f => f.display && f.display.style === 'hidden').map(f => f.code)
+    expect(hiddenCodes).toEqual(['conclusion_strategy_score'])
+    const shownTop = ev.features.filter(f => !hiddenCodes.includes(f.code)).map(f => f.code)
+
+    // Biggest differences: Original's top list, in its order, hidden habits left out.
+    await expect(page.locator('#p-diff > .ex')).toHaveCount(shownTop.length)
     const topCodes = await page.locator('#p-diff > .ex').evaluateAll(els => els.map(e => e.dataset.code))
-    expect(topCodes).toEqual(ev.features.map(f => f.code))
+    expect(topCodes).toEqual(shownTop)
     await expect(page.locator('#p-steady > .ex').first()).toBeVisible()
 
     // Every marked word is the exact slice of its passage the API named.
@@ -142,14 +149,19 @@ test.describe('side by side, flags on @evidence-on', () => {
       expect(f.in_top_list).toBe(false)
       expect(ev.features.map(t => t.code)).not.toContain(f.code)
     }
-    const unused = ev.all_features.filter(f => f.kind === 'not_compared' || (!(f.kind === 'located' || f.kind === 'whole_text') && constant(f)))
+    const unused = ev.all_features.filter(f => !hiddenCodes.includes(f.code) &&
+      (f.kind === 'not_compared' || (!(f.kind === 'located' || f.kind === 'whole_text') && constant(f))))
     for (const f of notCompared) await expect(page.locator(`#m-not-used li[data-code="${f.code}"]`)).toContainText('Not compared: past papers have no value for this.')
     await expect(page.locator('#p-summary')).toContainText('7 comparison measurements not compared, because past papers have no value for them')
-    await expect(page.locator('#p-all > details.m:not(.notused)')).toHaveCount(ev.all_features.length - unused.length)
+    await expect(page.locator('#p-all > details.m:not(.notused)')).toHaveCount(ev.all_features.length - unused.length - hiddenCodes.length)
     await expect(page.locator('#m-not-used li')).toHaveCount(unused.length)
     const listed = await page.locator('#p-all [data-code]').evaluateAll(els => els.filter(e => e.matches('details.m, li')).map(e => e.dataset.code))
-    expect(listed.sort()).toEqual(ev.all_features.map(f => f.code).sort())
+    expect(listed.sort()).toEqual(ev.all_features.map(f => f.code).filter(c => !hiddenCodes.includes(c)).sort())
     expect(ev.all_features.length).toBe(109)
+    for (const c of hiddenCodes) await expect(page.locator(`#p-all [data-code="${c}"]`)).toHaveCount(0)
+    await expect(page.locator('#hidden-note')).toHaveText(/^One measurement \(how the conclusion is built\) is used in the score but not listed/)
+    // No raw 0-1 scale wording anywhere on the page.
+    await expect(page.locator('#paper')).not.toContainText('0 to 1')
 
     // A row opens from the keyboard and shows its side-by-side card.
     const located = active.find(f => f.kind === 'located' && f.this_paper.examples.length && f.past_papers.examples.length)
@@ -193,15 +205,32 @@ test.describe('side by side, flags on @evidence-on', () => {
       return `${p.assignment} · ${await dayOf(p.submitted_at.slice(0, 10))}`
     }
     const examples = (f, side) => (f && f[side] && f[side].examples) || []
+    // Lead with the writing: the top list's habits with sentences to quote get
+    // the full card, in the server's order; the rest of the list (numbers or a
+    // whole-paper pattern) go to "Other patterns", in order; hidden ones nowhere.
+    const isHidden = f => !!(f && f.display && f.display.style === 'hidden')
+    const hasQuotes = f => !!f && f.kind === 'located' && (examples(f, 'this_paper').length > 0 || examples(f, 'past_papers').length > 0)
+    const topFull = ev.features.map(t => byCode.get(t.code)).filter(f => f && !isHidden(f))
+    const quotedTop = topFull.filter(hasQuotes).map(f => f.code)
+    const otherTop = topFull.filter(f => !hasQuotes(f)).map(f => f.code)
+    expect(quotedTop.length + otherTop.length).toBe(topFull.length)
+    expect(quotedTop.length, 'the fixture writer has quoted habits on the top list').toBeGreaterThan(0)
 
     // 0. Without a click: Original's top list as text-by-text cards, in its order,
     // each with a plain line, marks that are the API's own slices, and the chip.
     await expect(page.locator('#tbt')).toBeVisible()
-    await expect(page.locator('#tbt .ex')).toHaveCount(ev.features.length)
-    expect(await page.locator('#tbt .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(ev.features.map(f => f.code))
-    for (const t of ev.features) {
-      await expect(page.locator(`#tbt .ex[data-code="${t.code}"] .ex-diff`)).toHaveText(/^This paper /)
+    await expect(page.locator('#tbt .ex')).toHaveCount(quotedTop.length)
+    expect(await page.locator('#tbt .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(quotedTop)
+    for (const code of quotedTop) {
+      await expect(page.locator(`#tbt .ex[data-code="${code}"] .ex-diff`)).toHaveText(/^This paper /)
     }
+    expect(await page.locator('#tbt .ex-other-row').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(otherTop)
+    if (otherTop.length) await expect(page.locator('#tbt-other')).toHaveText('Other patterns')
+    for (const code of otherTop) {
+      await expect(page.locator(`#tbt .ex-other-row[data-code="${code}"] .ex-other-line`)).toHaveText(/^This paper /)
+      await expect(page.locator(`#tbt .ex-other-row[data-code="${code}"] .ex-q`)).toHaveCount(0)
+    }
+    await expect(page.locator('#tbt')).not.toContainText('0 to 1')
     const allSlices = new Set()
     for (const f of ev.all_features) for (const side of ['this_paper', 'past_papers']) for (const q of examples(f, side)) allSlices.add(slice(q))
     for (const m of await page.locator('#tbt .ex-q mark').allTextContents()) expect(allSlices.has(m), m).toBe(true)
@@ -216,7 +245,7 @@ test.describe('side by side, flags on @evidence-on', () => {
 
     // Habit codes, tiers and names from the heatmap bars themselves.
     const bars = await page.locator('#heatmap [data-code]').evaluateAll(els => els.map(e => ({
-      code: e.dataset.code, tier: e.dataset.tier, name: (/^(.*?): (?:baseline \d|no baseline yet)/.exec(e.title) || [])[1] || '' })))
+      code: e.dataset.code, tier: e.dataset.tier, name: (/^(.*?): /.exec(e.title) || [])[1] || '' })))
     expect(bars.length).toBeGreaterThan(80)
 
     const panelFor = async (code, name) => {
@@ -323,13 +352,18 @@ test.describe('side by side, flags on @evidence-on', () => {
     // The top habit's first sentences, exactly.
     const top = ev.features.map(t => byCode.get(t.code)).find(f => f.kind === 'located' && examples(f, 'this_paper').length && examples(f, 'past_papers').length)
     if (top) await expect(page.locator(`#p-side .ex[data-code="${top.code}"] .ex-q mark`).first()).toHaveText(slice(examples(top, 'this_paper')[0]))
-    // Every habit on Original's top list, with the same quotes as Writing State.
-    expect(await page.locator('#p-side .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(ev.features.map(f => f.code))
+    // The quoted habits of Original's top list lead, with the same quotes as
+    // Writing State; the rest are under Other patterns, in the same order.
+    expect(await page.locator('#p-side .ex').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(quotedTop)
+    expect(await page.locator('#p-side .ex-other-row').evaluateAll(els => els.map(e => e.dataset.code))).toEqual(otherTop)
     expect(await quotesByCode('#p-side .ex')).toEqual(onWritingState)
-    // And the side-by-side page's top list, the same again.
+    await expect(page.locator('#p-side')).not.toContainText('0 to 1')
+    // And the side-by-side page's top list (every shown habit as a full card):
+    // the quoted ones carry the same quotes again.
     await page.goto('/original/evidence.html')
     await expect(page.locator('#p-diff > .ex').first()).toBeVisible({ timeout: 15_000 })
-    expect(await quotesByCode('#p-diff > .ex')).toEqual(onWritingState)
+    const onSideBySide = await quotesByCode('#p-diff > .ex')
+    expect(Object.fromEntries(quotedTop.map(c => [c, onSideBySide[c]]))).toEqual(onWritingState)
     // No page along the way (the panel, the side-by-side link, the packet) threw.
     expect(errors).toEqual([])
     await context.close()

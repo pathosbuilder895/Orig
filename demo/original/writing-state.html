@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -213,6 +213,25 @@
   #tbt .ex-src,#hero-evi .ex-src{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;color:var(--dim);margin-top:.4rem;overflow-wrap:anywhere;}
   #tbt .ex-big,#hero-evi .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--flag);margin-bottom:.3rem;}
   #tbt .ex-unit,#hero-evi .ex-unit{font-size:.86rem;color:var(--dim);font-style:italic;}
+  /* Readable numbers (EvidenceView.readable): a comparison in words, its exact position folded away, and the "Other patterns" list. */
+  #tbt .ex-rel,#hero-evi .ex-rel{font-size:1rem;font-weight:600;line-height:1.35;color:var(--flag);margin:.2rem 0 .35rem;}
+  #tbt .ex-exact,#hero-evi .ex-exact,#tbt .ex-other-why{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
+  #tbt .ex-exact summary,#hero-evi .ex-exact summary{cursor:pointer;}
+  #tbt .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
+  #tbt .ex-break,#hero-evi .ex-break{margin-top:.7rem;font-size:.86rem;}
+  #tbt .ex-break-h,#hero-evi .ex-break-h{font-weight:600;margin:.5rem 0 .3rem;}
+  #tbt .ex-break-h span,#hero-evi .ex-break-h span{font-weight:400;font-style:italic;color:var(--dim);}
+  #tbt .ex-break-wrap,#hero-evi .ex-break-wrap{overflow-x:auto;}
+  #tbt .ex-break-t,#hero-evi .ex-break-t{border-collapse:collapse;font-size:.84rem;}
+  #tbt .ex-break-t th,#tbt .ex-break-t td,#hero-evi .ex-break-t th,#hero-evi .ex-break-t td{padding:.2rem .5rem;border-bottom:1px dotted var(--line-soft);text-align:right;white-space:nowrap;}
+  #tbt .ex-break-t th[scope=row],#hero-evi .ex-break-t th[scope=row]{text-align:left;}
+  #tbt .ex-break-t td.ex-short,#hero-evi .ex-break-t td.ex-short{text-align:left;font-style:italic;}
+  #tbt .ex-cols2,#hero-evi .ex-cols2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media (max-width:760px){#tbt .ex-cols2,#hero-evi .ex-cols2{grid-template-columns:1fr;}}
+  #tbt .ex-other-row{padding:.6rem 0;border-top:1px solid var(--line-soft);}
+  #tbt .ex-other-row b,#tbt .ex-other-line,#tbt .ex-other-why{display:block;}
+  #tbt .ex-other-why{font-style:italic;}
+  #tbt .tbt-other-h{margin:1.2rem 0 .2rem;font-size:1rem;}
   #tbt .ex-vals,#hero-evi .ex-vals{list-style:none;font-size:.92rem;padding:0;margin:0;}
   #tbt .ex-vals li,#hero-evi .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--line-soft);}
   #tbt .ex-vals li b,#hero-evi .ex-vals li b{font-family:var(--mono);color:#8ba8dd;}
@@ -394,6 +413,9 @@
   .fd-base{background:linear-gradient(90deg,color-mix(in srgb,var(--fdc,#c9a028) 80%,transparent),color-mix(in srgb,var(--fdc,#c9a028) 40%,transparent));}
   .evi-big{display:block;font-family:var(--mono);font-weight:700;font-size:2rem;line-height:1.1;color:var(--evc,#c9a028);margin-bottom:.4rem;}
   .evi-col.base .evi-big{color:#8ba8dd;}
+  .evi-rel{font-size:1.05rem;font-weight:600;line-height:1.35;color:var(--evc,#c9a028);margin:.1rem 0 .4rem;}
+  .evi-col.base .evi-rel{color:#8ba8dd;}
+  .evi-unit{font-size:.86rem;color:var(--dim);font-style:italic;margin:-.2rem 0 .4rem;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
   /* ── the essentials and the folded sections (2026-10-30) ── */
@@ -463,7 +485,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-25.1"></script>
+  <script src="shell.js?v=2026-11-26.2"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -673,12 +695,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-25.1"></script>
-<script src="js/feature-data.js?v=2026-11-25.1"></script>
-<script src="js/fingerprint.js?v=2026-11-25.1"></script>
-<script src="js/evidence-view.js?v=2026-11-25.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-25.1"></script>
-<script src="js/paper-profile.js?v=2026-11-25.1"></script>
+<script src="live.js?v=2026-11-26.2"></script>
+<script src="js/feature-data.js?v=2026-11-26.2"></script>
+<script src="js/fingerprint.js?v=2026-11-26.2"></script>
+<script src="js/evidence-view.js?v=2026-11-26.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.2"></script>
+<script src="js/paper-profile.js?v=2026-11-26.2"></script>
 <script>
 (function(){
   'use strict';
@@ -691,7 +713,6 @@
   const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
   const clamp01=v=>Math.max(0,Math.min(1,v));
   const plural=(n,one,many)=>n+' '+(n===1?one:(many||one+'s'));
-  const signed=d=>(d>=0?'+':'')+d.toFixed(2);
   const lowerFirst=s=>s.charAt(0).toLowerCase()+s.slice(1);
   const DASH='–';
 
@@ -782,6 +803,19 @@
     if(c&&num(c.baseline_value)!=null) return c.baseline_value;
     return has(S.base,f.code)?num(S.base[f.code]):null;
   }
+  // A habit's reading in words, for a tooltip or a screen reader: with the
+  // staff evidence entry, its readable numbers (EvidenceView); without it,
+  // only which way this paper sits (the numbers here are Original's internal
+  // positions, which are not shares or counts, so they are never printed).
+  function habitWords(f){
+    const e=S.EVI.get(f.code);
+    if(e&&!EV.isHidden(e)){ const l=EV.differenceLine(e)||EV.oneLine(e); if(l) return l; }
+    const v=baseOf(f), s=subOf(f);
+    if(v==null) return 'no baseline yet';
+    if(s==null) return 'baseline on file';
+    return 'this paper is '+(s>v+1e-9?'higher than':s<v-1e-9?'lower than':'about the same as')+' their usual';
+  }
+  const wayWord=(s,v)=>(s==null||v==null)?DASH:s>v+1e-9?'higher':s<v-1e-9?'lower':'same';
   function subOf(f){
     if(!S.sub) return null;
     const c=contrib(f);
@@ -846,11 +880,11 @@
           dot.style.cssText='position:absolute;bottom:0;left:50%;transform:translate(-50%,-50%) translateY(-'+subH+'px);width:5px;height:5px;border-radius:50%;background:'+subColor+';z-index:3;box-shadow:0 0 0 2px #0d1530;';
           col.appendChild(marker); col.appendChild(dot);
         }
-        col.title=f.name+(v!=null?': baseline '+v.toFixed(3):': no baseline yet')+(sub!=null?' · this paper '+sub.toFixed(3):'')+(out?' · outside their usual range':'');
+        col.title=f.name+': '+habitWords(f)+(out?' · outside their usual range':'');
         col.style.cursor='pointer';
         // A keyboard reaches the bars as one group: Tab enters it, the arrow keys move along it.
         col.tabIndex=-1; col.setAttribute('role','button'); col.setAttribute('aria-expanded','false');
-        col.setAttribute('aria-label',f.name+(v!=null?', baseline '+v.toFixed(2):', no baseline yet')+(sub!=null?', this paper '+sub.toFixed(2):'')+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
+        col.setAttribute('aria-label',f.name+', '+habitWords(f)+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
         onPress(col,()=>{ if(S.base) EVI.open(f.code,col); else CHIPS.toggle(f.tier); });
         col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
         col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
@@ -914,7 +948,8 @@
   }
 
   // Radar over all tiers: the per-tier mean of the baseline (gold) and of
-  // this paper (dashed), on the same 0 to 1 scale as the habits.
+  // this paper (dashed), from Original's internal positions for each habit.
+  // The tooltip says which way in words; the positions are not printed.
   function makeRadar(){
     const canvas=$('radar-canvas'), ctx=canvas.getContext('2d'), radarTip=$('radar-tip');
     const GCOLOR={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
@@ -958,7 +993,7 @@
     }
     function tipText(p){
       if(p.b==null) return esc(p.name);
-      return esc(p.name)+' <b>'+p.b.toFixed(3)+'</b>'+(p.s!=null?' / '+p.s.toFixed(3):'');
+      return esc(p.name)+(p.s!=null?' · this paper <b>'+esc(wayWord(p.s,p.b)==='same'?'about the same as':wayWord(p.s,p.b)+' than')+'</b> their usual, on average':'');
     }
     canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=15;
       poly(p=>p.b==null?1:p.b).forEach((p,k)=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bd){bd=d;best={p,k};}});
@@ -1044,6 +1079,7 @@
     const swatch=$('fd-swatch'), titleEl=$('fd-title'), subEl=$('fd-sub'), countEl=$('fd-count'), body=$('fd-body'), card=$('feat-detail');
     const GCOL={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
     function rowHTML(f){
+      if(EV.isHidden(f)) return '';  // used in the score, never listed (EvidenceView.HIDDEN_CODES)
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
       const diff=(v!=null&&s!=null)?s-v:null;
       const sc=out&&diff!=null?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
@@ -1052,7 +1088,7 @@
       return '<div class="fd-row" data-tier="'+esc(f.tier)+'" data-code="'+esc(f.code)+'">'+
         '<div><div class="fd-nm">'+esc(f.name)+badge+'</div><div class="fd-ds">'+esc(f.desc||'')+'</div></div>'+
         '<div class="fd-bar"><div class="fd-track"></div>'+(v!=null?'<div class="fd-base" style="width:'+Math.round(clamp01(v)*100)+'%"></div>':'')+(s!=null?'<div class="fd-sub-mark" style="left:'+Math.round(clamp01(s)*100)+'%;--sm:'+sc+'"></div>':'')+'</div>'+
-        '<div class="fd-delta" style="color:'+sc+'">'+(diff!=null?signed(diff):DASH)+'</div></div>';
+        '<div class="fd-delta" style="color:'+sc+'">'+esc(wayWord(s,v))+'</div></div>';
     }
     function paint(color,title,sub,rowsHTML,count){
       card.style.setProperty('--fdc',color); swatch.style.background=color;
@@ -1187,7 +1223,7 @@
       box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
       $('evi-name').textContent=f.name;
       $('evi-flag').hidden=!out;
-      $('evi-nums').innerHTML=e?eviNums(e):(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-nums').innerHTML=e?eviNums(e):(v==null?'no baseline':s==null?'baseline on file':'this paper <b>'+esc(wayWord(s,v)==='same'?'about the same as':wayWord(s,v)+' than')+'</b> their usual');
       $('evi-desc').textContent=f.desc||'';
       numbersCols(f,v,s,out,within);
       $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
@@ -1238,7 +1274,7 @@
       // What to notice (EvidenceView.noticeFor once it exists, else noteFor).
       const notice=typeof EV.noticeFor==='function'?EV.noticeFor(e,papers()):EV.noteFor(e,papers());
       const nt=EV.clean(notice,'');
-      $('evi-notice').innerHTML=nt?'<b>What to notice:</b> '+esc(nt):'';
+      $('evi-notice').innerHTML=(nt?'<b>What to notice:</b> '+esc(nt):'')+(EC&&EC.breakdownHTML?EC.breakdownHTML(e,{papers:papers(),thisSource:EV.thisSource(S.assignment,S.analysedAt)}):'');
       const side=$('evi-side');
       side.hidden=!hasEvidence(S.result);
       side.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(code);
@@ -1248,24 +1284,40 @@
     // one line under it (EvidenceView.numbersOf), so the two never disagree.
     function eviNums(e){
       const n=EV.numbersOf(e);
-      const range=n.lo==null?'':(n.lo===n.hi?EV.fmt(n.lo):EV.fmt(n.lo)+' to '+EV.fmt(n.hi));
-      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(EV.fmt(n.thisValue))+'</b>'+esc(EV.clean(n.unit?' ('+n.unit+')':'',''));
+      if(!n.plain){ const cw=EV.compareWords(e); return cw?'this paper <b>'+esc(EV.clean(cw,''))+'</b>':''; }
+      const range=EV.rangeText(n), unit=n.unit&&n.mode!=='category'?n.unit:'';
+      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(n.show(n.thisValue))+'</b>'+esc(EV.clean(unit?' ('+unit+')':'',''));
     }
     // The two numbers, as the panel showed before passages existed.
+    // The numbers as EvidenceView.readable writes them (a percent, a plain unit
+    // or a kind); with no everyday unit, or without the staff evidence, which
+    // way this paper sits, in words. Original's internal positions are never printed.
     function numbersCols(f,v,s,out,within){
       const n=counted()||0;
+      const e=S.EVI.get(f.code)||null, r=e?EV.numbersOf(e):null;
+      const readable=!!(r&&r.plain&&r.thisValue!=null);
+      const unitP=u=>u?'<p class="evi-unit">'+esc(u)+'</p>':'';
+      const unit=r&&r.mode!=='category'?r.unit:'';
       if(s!=null){
         const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
           :within?'This is one of the habits closest to '+poss()+' usual range in this paper, by Original\u2019s measure.'
-          :'This paper’s value for this habit, on a scale from 0 to 1.';
-        $('evi-sub').innerHTML='<span class="evi-big">'+s.toFixed(2)+'</span><p>'+esc(line)+'</p>';
+          :'This paper\u2019s reading for this habit.';
+        let big;
+        if(readable) big='<span class="evi-big">'+esc(r.show(r.thisValue))+'</span>'+unitP(unit);
+        else {
+          const cw=e?EV.compareWords(e):'';
+          big='<p class="evi-rel">'+esc(cw?EV.clean('This paper is '+cw+'.',''):v==null?'':(wayWord(s,v)==='same'?'About the same as ':(wayWord(s,v)==='higher'?'Higher':'Lower')+' than ')+poss()+' usual')+'</p>';
+        }
+        $('evi-sub').innerHTML=big+'<p>'+esc(line)+'</p>';
         $('evi-sub-src').textContent=(S.assignment||'This paper')+' · '+plural(S.words,'word');
       } else {
         $('evi-sub').innerHTML='<p class="none">Analyse a paper to see where it sits on this habit.</p>';
         $('evi-sub-src').textContent='';
       }
       if(v!=null){
-        $('evi-base').innerHTML='<span class="evi-big">'+v.toFixed(2)+'</span><p>'+esc('The average across '+plural(n,'counted sample')+' of '+poss()+' writing, on the same scale.')+'</p>';
+        const range=readable?EV.rangeText(r):'';
+        $('evi-base').innerHTML=(range?'<span class="evi-big">'+esc(range)+'</span>'+unitP(unit)+'<p>'+esc('From the lowest to the highest of the past papers set beside this paper.')+'</p>'
+          :'<p class="evi-rel">'+esc(poss()+' usual level')+'</p><p>'+esc('The average across '+plural(n,'counted sample')+' of '+poss()+' writing.')+'</p>');
         $('evi-base-src').textContent=countedPhrase();
       } else {
         $('evi-base').innerHTML='<p class="none">No baseline value for this habit yet.</p>';
@@ -1288,7 +1340,8 @@
     const pastFeature=(d,code)=>pastFeatures(d).find(f=>f.code===code)||null;
     const perPaper=f=>Array.isArray(f.per_paper)?f.per_paper.filter(isObj):[];
     const unitOf=f=>typeof f.unit==='string'?f.unit.trim():'';
-    const numberLine=(v,unit)=>EV.clean(EV.fmt(v)+(unit?' '+unit:''),EV.fmt(v));
+    // One past paper's value as EvidenceView writes it (a percent or a plain unit, from the habit's `display`).
+    const numberLine=(v,unit,f)=>EV.clean(EV.valueWords(f&&f.display,unit,v),'');
     // The analysed view's parts hide while past papers are shown; render() and close() bring them back.
     function pastParts(on){
       $('evi-past').hidden=!on;
@@ -1347,8 +1400,8 @@
     function pastRange(f){
       const vals=perPaper(f).map(p=>num(p.value)).filter(v=>v!=null);
       if(!vals.length) return '';
-      const lo=EV.fmt(Math.min(...vals)), hi=EV.fmt(Math.max(...vals)), unit=unitOf(f);
-      return EV.clean('past papers '+(lo===hi?lo:lo+' to '+hi)+(unit?' ('+unit+')':''),'');
+      const n=EV.readable({display:f.display,plain:{unit:unitOf(f),this_paper:null,past_papers:[],past_range:[Math.min(...vals),Math.max(...vals)]}});
+      return EV.clean('past papers '+EV.rangeWords(n),'');
     }
     // A quote's source line: why it was picked (typical, longest, shortest), its length, a short match spelled out.
     function pickSource(x,tag){
@@ -1361,7 +1414,7 @@
     function pastColumn(f,p,papers){
       const v=num(p.value);
       let h='<div class="evi-pcol"><div class="evi-phead">'+esc(EV.pastSource(p.paper,papers))+'</div>';
-      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f)))+'</span>';
+      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f),f))+'</span>';
       if(p.count===0) h+='<p class="none">None in this paper.</p>';
       else if(num(p.count)==null) h+='<p class="none">'+esc(EV.clean(typeof f.note==='string'&&f.note?f.note:NUMBERS_ONLY,NUMBERS_ONLY))+'</p>';
       else h+=pastExamples(p).slice(0,3).map(x=>'<div class="evi-pq">'+quoteHTML(x.quote)+pickSource(x)+'</div>').join('');
@@ -1414,7 +1467,7 @@
         const v=num(p.value), ex=pastExamples(p);
         const both=ex.some(x=>x.role==='longest'||x.role==='shortest');
         let h='<span class="evi-rel-cell"><span class="evi-rel-paper">'+esc(EV.paperName(p.paper,papers))+'</span>';
-        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit))+'</span>';
+        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit,f))+'</span>';
         if(p.count===0) h+='<span class="none">none in this paper</span>';
         else if(num(p.count)==null) h+='<span class="none">numbers only</span>';
         else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(relWindow(x.quote),'span')+pickSource(x,'span')).join('');
@@ -1722,12 +1775,17 @@
     if(!box) return;
     const ev=S.result&&hasEvidence(S.result)?S.result.evidence:null;
     if(!ev||!EC){ box.hidden=true; $('tbt-body').innerHTML=''; return; }
-    const top=EC.topList(ev);
+    // Lead with the writing: habits with sentences to quote get the full card;
+    // the rest of Original's list goes to a short "Other patterns" list below.
+    const split=EC.splitTop(ev), top=split.quoted.concat(split.other);
     const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(S.assignment,S.analysedAt)};
-    $('tbt-lede').textContent=top.length
-      ?'The habits Original lists as furthest from '+poss()+' usual range, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
-      :'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.';
-    $('tbt-body').innerHTML=top.map(f=>EC.card(f,ctx)).join('');
+    $('tbt-lede').textContent=!top.length
+      ?'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.'
+      :split.quoted.length
+        ?'The habits Original lists as furthest from '+poss()+' usual range that can be shown in the writing, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
+        :'None of the habits Original lists as furthest from '+poss()+' usual range has sentences to quote; they are under Other patterns. Any habit opens from the habit-by-habit bars below.';
+    $('tbt-body').innerHTML=split.quoted.map(f=>EC.card(f,ctx)).join('')+
+      (split.other.length?'<h3 class="tbt-other-h" id="tbt-other">Other patterns</h3><p class="tbt-lede">'+esc('Also on Original\u2019s list, but measured across the whole paper or not yet tied to sentences, so there is nothing to quote.')+'</p>'+EC.otherList(split.other,ctx):'');
     box.hidden=false;
   }
 

@@ -124,7 +124,9 @@ test.describe('past-paper examples, flags on @evidence-on', () => {
     await expect(cols.first()).toContainText(`${msl.unit}`)
 
     // The family's other habits, one compact row each, in a box of bounded height.
-    await expect(page.locator('#evi-rel .evi-rel-row')).toHaveCount(6)
+    // Sentence shape holds 9 habits since 2026-11-26 (comma splices and repeated-and lists joined it).
+    expect(api.features.length).toBe(9)
+    await expect(page.locator('#evi-rel .evi-rel-row')).toHaveCount(api.features.length - 1)
     await expect(page.locator('#evi-rel')).toContainText('Related: how these sentences are built')
     const relBox = await page.locator('#evi-rel').boundingBox()
     expect(relBox.height).toBeLessThanOrEqual(600)

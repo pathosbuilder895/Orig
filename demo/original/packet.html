@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-25.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-25.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -87,6 +87,26 @@
   .ex-q+.ex-src+.ex-q{margin-top:1rem;}
   .um-lead{font-size:.85rem;font-style:italic;color:var(--ink-2);margin:.55rem 0 .45rem;}
   .ex-unit{font-size:.9rem;color:var(--ink-2);font-style:italic;}
+  /* Readable numbers (EvidenceView.readable): a comparison in words, its exact position folded away, and the "Other patterns" list. */
+  .ex-rel{font-size:1.05rem;font-weight:600;line-height:1.35;color:var(--flag);margin:.2rem 0 .35rem;}
+  .ex-vals li b.rel{font-family:inherit;font-weight:600;}
+  .ex-exact{font-size:.82rem;color:var(--ink-2);margin-top:.45rem;}
+  .ex-exact summary{cursor:pointer;}
+  .ex-break{margin-top:.7rem;font-size:.88rem;}
+  .ex-break-h{font-weight:600;margin:.5rem 0 .3rem;}
+  .ex-break-h span{font-weight:400;font-style:italic;color:var(--ink-2);}
+  .ex-break-wrap{overflow-x:auto;}
+  .ex-break-t{border-collapse:collapse;font-size:.85rem;}
+  .ex-break-t th,.ex-break-t td{padding:.2rem .5rem;border-bottom:1px dotted var(--rule);text-align:right;white-space:nowrap;}
+  .ex-break-t th[scope=row]{text-align:left;font-weight:600;}
+  .ex-break-t td.ex-short{text-align:left;font-style:italic;}
+  .ex-cols2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media (max-width:760px){.ex-cols2{grid-template-columns:1fr;}}
+  .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
+  .ex-other-row{padding:.6rem 0;border-top:1px solid var(--rule);}
+  .ex-other-row b,.ex-other-line,.ex-other-why{display:block;}
+  .ex-other-why{font-size:.86rem;color:var(--ink-2);font-style:italic;}
+  .sec-t.other{margin-top:1.4rem;}
   .ex-vals{list-style:none;font-size:.95rem;padding:0;margin:0;}
   .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--rule);}
   .ex-vals li b{font-family:var(--mono);font-weight:600;color:var(--base);}
@@ -192,7 +212,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="packet" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-25.1"></script>
+  <script src="shell.js?v=2026-11-26.2"></script>
   <main class="body" id="live-main">
     <div class="wrap">
       <div class="chrome">
@@ -255,10 +275,10 @@
     </div>
   </main>
 </div>
-<script src="live.js?v=2026-11-25.1"></script>
-<script src="js/feature-data.js?v=2026-11-25.1"></script>
-<script src="js/evidence-view.js?v=2026-11-25.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-25.1"></script>
+<script src="live.js?v=2026-11-26.2"></script>
+<script src="js/feature-data.js?v=2026-11-26.2"></script>
+<script src="js/evidence-view.js?v=2026-11-26.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.2"></script>
 <script>
 (function(){
   'use strict';
@@ -347,7 +367,7 @@
     const vecB=res.baseline_vector, vecS=res.feature_vector;
     const cards=[];
     list.forEach(c=>{
-      if(cards.length>=SHOW_HABITS||!c||typeof c.code!=='string'||!has(OF.byCode,c.code)) return;
+      if(cards.length>=SHOW_HABITS||!c||typeof c.code!=='string'||!has(OF.byCode,c.code)||(EV&&EV.isHidden(c))) return;
       const f=OF.byCode[c.code];
       const b=num(c.baseline_value)!=null?c.baseline_value:(has(vecB,c.code)?num(vecB[c.code]):null);
       const s=num(c.submission_value)!=null?c.submission_value:(has(vecS,c.code)?num(vecS[c.code]):null);
@@ -359,17 +379,23 @@
       const paper=(d.assignment&&typeof d.assignment==='string'?d.assignment:'This paper');
       // baseline_mean is weighted by provenance (AUTH_WEIGHTS) and recency (RECENCY_DECAY)
       const basedOn=nUsed!=null?plural(nUsed,'counted sample'):null;
-      const avgLine='A weighted average of '+(basedOn||poss+' counted samples')+' (newer and supervised writing counts for more), on the same scale as this paper.';
+      const avgLine='A weighted average of '+(basedOn||poss+' counted samples')+' (newer and supervised writing counts for more).';
+      // Without the staff evidence there are no plain units here, only Original's
+      // internal positions: the card says which way in words, and keeps the exact
+      // positions folded away (never a percent, never a bare decimal on its own).
+      const way=diff<0?'Lower':diff>0?'Higher':'About the same';
+      const exact='Exact position in the range Original expects for this habit (low end 0.00, high end 1.00; a position, not a share or a count): this paper '+s.toFixed(2)+', '+poss+' usual '+b.toFixed(2)+'.';
       cards.push(
         '<div class="ex">'+
           '<div class="ex-h"><b>'+esc(f.name)+'</b><span>'+esc(sub)+'</span></div>'+
-          '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-big">'+esc(s.toFixed(2))+'</span>'+
+          '<div class="ex-col"><div class="ex-lbl this">This paper</div><span class="ex-rel">'+esc(way+' than '+poss+' usual')+'</span>'+
             '<div class="ex-q">'+esc('This is one of the habits furthest from '+poss+' usual range in this paper, by Original’s measure.')+'</div>'+
             '<div class="ex-src">'+esc(paper)+'</div></div>'+
-          '<div class="ex-col"><div class="ex-lbl base">'+esc(poss+' usual writing')+'</div><span class="ex-big base">'+esc(b.toFixed(2))+'</span>'+
+          '<div class="ex-col"><div class="ex-lbl base">'+esc(poss+' usual writing')+'</div><span class="ex-rel base">'+esc('Their usual level')+'</span>'+
             '<div class="ex-q">'+esc(avgLine)+'</div>'+
             (basedOn?'<div class="ex-src">'+esc(basedOn)+'</div>':'')+'</div>'+
-          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':'higher')+' than '+poss+' usual by '+Math.abs(diff).toFixed(2)+', on a scale from 0 to 1.')+(f.desc?' <b>What this habit measures:</b> '+esc(f.desc):'')+'</div>'+
+          '<div class="ex-note"><b>What to notice:</b> '+esc('Here the paper is '+(diff<0?'lower':diff>0?'higher':'about the same')+' than '+poss+' usual.')+(f.desc?' <b>What this habit measures:</b> '+esc(f.desc):'')+
+            '<details class="ex-exact"><summary>Exact position</summary><p>'+esc(exact)+'</p></details></div>'+
         '</div>');
     });
     if(!cards.length){
@@ -446,13 +472,19 @@
   // numbers and say why there is no sentence to quote.
   const EV=window.EvidenceView, EC=window.EvidenceCards;
   const isObj=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
+  // Lead with the writing: habits with sentences to quote get the full card;
+  // the rest (numbers or a whole-paper pattern) go to a short "Other patterns" list.
   function textByText(d){
     const ev=d.result.evidence;
     if(!EV||!EC||!isObj(ev)||!Array.isArray(ev.features)||!Array.isArray(ev.all_features)) return '';
-    const top=EC.topList(ev);
-    if(!top.length) return '';
+    const split=EC.splitTop(ev);
+    if(!split.quoted.length&&!split.other.length) return '';
     const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(d.assignment,d.analysed_at)};
-    return top.map(f=>EC.card(f,ctx)).join('');
+    const cards=split.quoted.length?split.quoted.map(f=>EC.card(f,ctx)).join('')
+      :'<p class="none-line">None of the habits Original lists has sentences to quote; they are listed under Other patterns below.</p>';
+    const other=split.other.length?'<div class="sec-t other" id="p-other">Other patterns <span>no single sentence to quote</span></div>'+
+      '<p class="sec-lede">'+esc('Also on Original\u2019s list, but measured across the whole paper or not yet tied to sentences, so there is nothing to quote.')+'</p>'+EC.otherList(split.other,ctx):'';
+    return cards+other;
   }
   // The cards take the place of the numbers-only section, which says less.
   function addSideBySide(d,anchor,poss){

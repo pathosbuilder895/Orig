@@ -59,6 +59,7 @@ from .constants import (
     FEATURE_NAMES,
     FEATURE_TIER,
     FIRST_PERSON,
+    FUNCTION_WORDS,
     HEDGE_WORDS,
     MODAL_VERBS,
     PASSIVE_PATTERNS,
@@ -67,7 +68,7 @@ from .constants import (
     TIER_WEIGHTS,
     TRANSITION_PHRASES,
 )
-from .evidence_features import feature_info
+from .evidence_features import WHOLE_PAPER, display_info, feature_info
 from .explainer import FEATURE_PLAIN_NAMES
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
@@ -75,7 +76,7 @@ from .features import matter as _matter
 from .features import paragraphs as _para
 from .features import pdf_reflow as _reflow
 from .features import preprocess as _pp
-from .features import tier1, tier2, tier3, tier4, tier6
+from .features import prosodic, tier1, tier2, tier3, tier4, tier6
 from .features.baseline_scope import NOT_COMPARED_WORDS
 from .features.tier1 import TextDoc, _tokenize
 
@@ -84,7 +85,7 @@ from .features.tier1 import TextDoc, _tokenize
 PRELIMINARY_LABEL = "Preliminary · unvalidated · not a judgment"
 PRELIMINARY_NOTE = (
     "From Original's own comparison math only: how far this paper sits from the "
-    "writer's past papers on a 0 to 1 scale (higher is further). It is not "
+    "writer's past papers (0 means no difference; higher is further). It is not "
     "validated on real student writing and is a reason to read closely, not a finding."
 )
 INCONCLUSIVE_WORDS = "Not enough writing on file to compare yet."
@@ -106,6 +107,33 @@ BAND_RATE_NOT_MEASURED = (
 )
 #: Shown for a measured habit that is a statistic over the whole paper.
 NUMBERS_ONLY_NOTE = "Whole-text measurement, no single sentence to point to."
+#: Shown for a habit Original counts but does not yet point to in the text.
+NOT_POINTED_NOTE = (
+    "Original counts this across the paper but does not yet point to the places it "
+    "counted, so only the numbers are shown."
+)
+#: The note on the engine's own number (``engine_scale``).
+ENGINE_SCALE_NOTE = (
+    "Original's internal position for this habit, as used in the score: where the value "
+    "sits in the range Original expects (low end 0, high end 1). Not a share or a count."
+)
+
+
+def whole_text_note(code: str) -> str:
+    """The plain note for a measured habit with no located places: the
+    whole-paper sentence when no single sentence can show it, else the
+    numbers-only note."""
+    return WHOLE_PAPER.get(code, NOT_POINTED_NOTE)
+
+
+#: Why a quotable habit has no places in some paper, by design (not a mismatch).
+UNPLACED_NOTES = {
+    "no_citations": (
+        "Numbers only: with no citing sentence in a paper, Original scores summary "
+        "phrases (in other words, this means) for this habit instead, and those are "
+        "not tied to sentences here."
+    ),
+}
 NOT_LOCATED_NOTE = (
     "The places counted could not be matched exactly to the stored text of this "
     "paper, so no passages are shown for it (numbers only)."
@@ -636,8 +664,123 @@ def _ratio(category):
     return lambda doc: tier2._marker_category_ratios(doc)[category]
 
 
+# ── Habits added 2026-11-26: each re-runs its extractor's own rule ──────────
+# The rule is the extractor's own function where one exists (tier3._is_imperative,
+# tier3._opens_with_contrast, tier3._source_integration_parts, tier2._paragraph_fronted,
+# prosodic._is_comma_splice, prosodic._pronoun_ambiguity_flags) or its own compiled
+# pattern (tier6.THAT_REL_RE, prosodic._NOMINALIZATION_RE, prosodic._POLY_RE,
+# prosodic._LATINATE_SUFFIXES), run over the same TextDoc strings. read_paper then
+# checks the located count rebuilds the extractor's value exactly, or shows numbers only.
+
+
+def _share_or_half(n: int, total: int) -> float:
+    """The extractors' "0.5 when there is nothing to count" share."""
+    return n / total if total else 0.5
+
+
+def _sentence_indices(indices: Callable[[TextDoc], list[int]]):
+    def locate(view: EngineView):
+        spans = _sentence_spans(view)
+        if spans is None:
+            return "clean", None
+        return "clean", [spans[i] for i in indices(view.doc)]
+
+    return locate
+
+
+def _pattern(pattern: re.Pattern, *, lower: bool = False):
+    """Spans of ``pattern.findall`` on TextDoc.clean (lower-cased when the extractor is)."""
+
+    def locate(view: EngineView):
+        text = _lower(view) if lower else view.clean.text
+        if text is None:
+            return "clean", None
+        return "clean", [mt.span() for mt in pattern.finditer(text)]
+
+    return locate
+
+
+def _commented_citations(view: EngineView):
+    citing, commented = tier3._source_integration_parts(view.doc)
+    if not citing:  # no citations: the extractor scores summary phrases instead
+        return "unplaced:no_citations", None
+    spans = _sentence_spans(view)
+    if spans is None:
+        return "clean", None
+    return "clean", [spans[i] for i in commented]
+
+
+def _commented_share(n, doc):
+    citing, _ = tier3._source_integration_parts(doc)
+    return n / len(citing) if citing else float("nan")
+
+
+def _abbreviations(view: EngineView):
+    lower = _lower(view)
+    if lower is None:
+        return "clean", None
+    spans = [
+        mt.span()
+        for abbrev in tier6.THEOLOGICAL_ABBREVIATIONS
+        for mt in re.finditer(r"\b" + re.escape(abbrev) + r"\b", lower)
+    ]
+    return "clean", sorted(spans)
+
+
+def _latinate_words(view: EngineView):
+    spans = []
+    for mt in re.finditer(r"\b\w+(?:'\w+)?\b", view.clean.text):  # TextDoc's own tokenizer
+        word = mt.group(0)
+        low = word.lower()
+        if (
+            word.isalpha()
+            and low not in FUNCTION_WORDS
+            and len(low) >= 3
+            and prosodic._LATINATE_SUFFIXES.search(low)
+        ):
+            spans.append(mt.span())
+    return "clean", spans
+
+
+def _latinate_share(n, doc):
+    content = [w for w in doc.lower_words if w not in FUNCTION_WORDS and len(w) >= 3]
+    return _share_or_half(n, len(content))
+
+
+def _paragraph_openers(view: EngineView):
+    """First sentence of each paragraph tier2.paragraph_topic_position counts,
+    found in the prose string the paragraphs were split from (doc.raw)."""
+    prose = view.prose.text
+    segments, pos = [], 0
+    for mt in re.finditer(r"\n\s*\n", prose):  # tier1._split_paragraphs's own split
+        segments.append((pos, mt.start()))
+        pos = mt.end()
+    segments.append((pos, len(prose)))
+    segments = [(a, b) for a, b in segments if prose[a:b].strip()]
+    paragraphs = view.doc.paragraphs
+    if len(segments) != len(paragraphs):
+        return "prose", None
+    spans = []
+    for (a, b), para in zip(segments, paragraphs, strict=True):
+        if not tier2._paragraph_fronted(para):
+            continue
+        i = prose.find(para[0], a, b)
+        if i == -1:
+            return "prose", None
+        spans.append((i, i + len(para[0])))
+    return "prose", spans
+
+
+def _ambiguous_sentences(doc: TextDoc) -> list[int]:
+    return [i for i, flagged in prosodic._pronoun_ambiguity_flags(doc) if flagged]
+
+
 #: Habits whose every counted occurrence maps to a place in the text, in the
-#: engine's feature order (constants.ALL_FEATURE_CODES). See ADR-013.
+#: engine's feature order (constants.ALL_FEATURE_CODES). See ADR-013. Habits
+#: parsed with spaCy (adjectives, adverbs, clause depth, article omission,
+#: mirrored patterns) are left out on purpose: re-parsing every past paper
+#: whole with spaCy is what took the pilot instance past its memory (2026-11-17,
+#: _paper_values_from_vector).
 LOCATABLE: dict[str, Locatable] = {
     spec.code: spec
     for spec in (
@@ -820,8 +963,108 @@ LOCATABLE: dict[str, Locatable] = {
             _per_sentence,
             tier6.sentence_initial_conjunction_rate,
         ),
+        Locatable(
+            "paragraph_topic_position",
+            "paragraph opening with its fullest sentence (first sentence shown)",
+            "share of paragraphs",
+            _paragraph_openers,
+            lambda n, doc: n / len(doc.paragraphs) if doc.paragraphs else 0.5,
+            tier2.paragraph_topic_position,
+        ),
+        Locatable(
+            "epistemic_certainty_ratio",
+            "confident-statement word, counted against softening words",
+            "share of stance words",
+            _phrases(ASSERTION_WORDS, _lex2.assertion_spans),
+            lambda n, doc: _share_or_half(n, sum(tier3._epistemic_counts(doc))),
+            tier3.epistemic_certainty_ratio,
+        ),
+        Locatable(
+            "source_integration_style",
+            "citing sentence followed by the writer's own comment",
+            "share of citing sentences",
+            _commented_citations,
+            _commented_share,
+            tier3.source_integration_style,
+        ),
+        Locatable(
+            "counter_argument_ratio",
+            "sentence opening with a contrast or concession (however, although, …)",
+            "share of sentences",
+            _sentences_where(tier3._opens_with_contrast),
+            _per_sentence,
+            tier3.counter_argument_ratio,
+        ),
+        Locatable(
+            "imperative_density",
+            "sentence starting with a command verb (consider, note, remember, …)",
+            "per 100 words",
+            _sentences_where(tier3._is_imperative),
+            _per100,
+            tier3.imperative_density,
+        ),
+        Locatable(
+            "that_which_ratio",
+            "“that” in a relative-clause pattern, counted against “which”",
+            "share of that/which",
+            _pattern(tier6.THAT_REL_RE, lower=True),
+            lambda n, doc: _share_or_half(n, n + tier6._that_which_counts(doc)[1]),
+            tier6.that_which_ratio,
+        ),
+        Locatable(
+            "abbreviation_tendency",
+            "short form of a theological term (NT, cf., Rom, …)",
+            "share of short forms",
+            _abbreviations,
+            lambda n, doc: _share_or_half(n, n + tier6._abbreviation_counts(doc)[1]),
+            tier6.abbreviation_tendency,
+        ),
+        Locatable(
+            "pronoun_ambiguity_rate",
+            "sentence whose he, she, it or they follows two busy sentences",
+            "share of sentences with a third-person pronoun",
+            _sentence_indices(_ambiguous_sentences),
+            lambda n, doc: _share_or_half(n, len(prosodic._pronoun_ambiguity_flags(doc))),
+            prosodic._pronoun_ambiguity_rate,
+        ),
+        Locatable(
+            "comma_splice_rate",
+            "likely comma splice (a heuristic, not a grammar check)",
+            "extractor score (per 100 sentences ÷ 30, capped at 1)",
+            _sentences_where(prosodic._is_comma_splice),
+            lambda n, doc: (
+                min(n / doc.sentence_count * 100 / 30.0, 1.0) if doc.sentence_count else 0.0
+            ),
+            prosodic._comma_splice_rate,
+        ),
+        Locatable(
+            "polysyndeton_ratio",
+            "list joined with repeated and/or/but, counted against bare comma lists",
+            "share of lists",
+            _pattern(prosodic._POLY_RE),
+            lambda n, doc: _share_or_half(n, n + prosodic._polysyndeton_counts(doc)[1]),
+            prosodic._polysyndeton_ratio,
+        ),
+        Locatable(
+            "latinate_ratio",
+            "word with a Latin- or French-style ending (-tion, -ment, -ity, …)",
+            "share of content words",
+            _latinate_words,
+            _latinate_share,
+            prosodic._latinate_ratio,
+        ),
+        Locatable(
+            "nominalization_density",
+            "noun ending in -tion, -ment, -ness, -ity, -ance or -ence",
+            "extractor score (per 100 words ÷ 15, capped at 1)",
+            _pattern(prosodic._NOMINALIZATION_RE),
+            lambda n, doc: min(n / doc.word_count * 100 / 15.0, 1.0) if doc.word_count else 0.0,
+            prosodic._nominalization_density,
+        ),
     )
 }
+# Kept in the engine's feature order (constants.ALL_FEATURE_CODES), as before.
+LOCATABLE = {code: LOCATABLE[code] for code in ALL_FEATURE_CODES if code in LOCATABLE}
 
 
 # ── Located places ───────────────────────────────────────────────────────────
@@ -845,6 +1088,8 @@ class PaperReading:
 
     value: float
     places: tuple[Place, ...] | None  # None = could not be located exactly
+    #: Why there are no places by design (not a mismatch): a key of UNPLACED_NOTES.
+    unplaced: str | None = None
 
 
 def _passage(
@@ -909,7 +1154,8 @@ def read_paper(text: str, code: str) -> PaperReading | None:
         return PaperReading(value, places)
     level, spans = spec.locate(view)
     if spans is None:
-        return PaperReading(value, None)
+        why = level.split(":", 1)[1] if level.startswith("unplaced:") else None
+        return PaperReading(value, None, unplaced=why)
     if abs(spec.formula(len(spans), view.doc) - value) > 1e-9:
         return PaperReading(value, None)  # fail closed: counts disagree
     mapped = view.prose if level == "prose" else view.clean
@@ -1125,13 +1371,14 @@ def build_feature_evidence(
         "engine_scale": {
             "this_paper": _round(feature.get("submission_value")),
             "past_papers_average": _round(feature.get("baseline_value")),
-            "note": "Original's 0 to 1 scale for this habit, as used in the score.",
+            "note": ENGINE_SCALE_NOTE,
         },
         "locatable": code in LOCATABLE,
+        "display": display_info(code),
     }
     spec = LOCATABLE.get(code)
     if spec is None:
-        out["note"] = NUMBERS_ONLY_NOTE
+        out["note"] = whole_text_note(code)
         return out
     this = read_paper(submission_text, code)
     past = [(label, text, read_paper(text, code)) for label, text in baselines]
@@ -1145,7 +1392,14 @@ def build_feature_evidence(
     out["what_is_marked"] = spec.what
     if this.places is None or any(r.places is None for _, _, r in past):
         out["locatable"] = False
-        out["note"] = NOT_LOCATED_NOTE
+        readings = [this, *(r for _, _, r in past)]
+        unplaced = {r.unplaced for r in readings if r.places is None}
+        # Only when every paper without places has none by design, never for a mismatch.
+        out["note"] = (
+            UNPLACED_NOTES[next(iter(unplaced))]
+            if len(unplaced) == 1 and None not in unplaced
+            else NOT_LOCATED_NOTE
+        )
         return out
 
     def chosen(places, reading):
@@ -1206,6 +1460,8 @@ FAMILIES: dict[str, tuple[str, ...]] = {
         "dash_rate",
         "parenthetical_rate",
         "sentence_initial_conjunction_rate",
+        "comma_splice_rate",
+        "polysyndeton_ratio",
     ),
     "Linking ideas": (
         "discourse_marker_density",
@@ -1214,6 +1470,9 @@ FAMILIES: dict[str, tuple[str, ...]] = {
         "causal_ratio",
         "temporal_ratio",
         "transition_density",
+        "counter_argument_ratio",
+        "paragraph_topic_position",
+        "that_which_ratio",
     ),
     "Voice": (
         "first_person_ratio",
@@ -1221,6 +1480,11 @@ FAMILIES: dict[str, tuple[str, ...]] = {
         "question_ratio",
         "modal_verb_ratio",
         "passive_voice_ratio",
+        "imperative_density",
+        "pronoun_ambiguity_rate",
+        "latinate_ratio",
+        "nominalization_density",
+        "abbreviation_tendency",
     ),
     "Claims and confidence": (
         "hedging_density",
@@ -1228,6 +1492,8 @@ FAMILIES: dict[str, tuple[str, ...]] = {
         "claim_density",
         "appeal_to_authority_density",
         "quote_rate",
+        "epistemic_certainty_ratio",
+        "source_integration_style",
     ),
 }
 
@@ -1304,12 +1570,18 @@ def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) 
             "name": name,
             "description": description,
             "unit": spec.unit,
+            "display": display_info(code),
             "what_is_marked": spec.what,
             "kind": "located",
             "per_paper": per_paper,
         }
         if any(p["count"] is None for p in per_paper):
-            entry["note"] = NOT_LOCATED_NOTE
+            unplaced = {pr[i].unplaced for pr in readings if pr[i].places is None}
+            entry["note"] = (
+                UNPLACED_NOTES[next(iter(unplaced))]
+                if len(unplaced) == 1 and None not in unplaced
+                else NOT_LOCATED_NOTE
+            )
         features.append(entry)
     return {
         "family": family,
@@ -1413,12 +1685,14 @@ def countable_overview(
 
 WHOLE_TEXT_NOTE = NUMBERS_ONLY_NOTE
 PLAIN_UNREADABLE_NOTE = (
-    "Shown on Original's 0 to 1 scale only: a paper sits at an end of that scale, "
-    "where its value in plain units is not kept."
+    "Compared in words only: a paper sits at an end of the range Original expects for "
+    "this habit, where its value in plain units is not kept."
 )
+#: For a habit whose extractor returns a score of its own, with no everyday unit.
+OWN_SCORE_NOTE = "Original measures this as a score of its own, with no everyday unit."
 #: The documented order of the full list.
 ALL_FEATURES_ORDERING = (
-    "Sorted by how far this paper sits from the past-paper average on Original's 0 to 1 "
+    "Sorted by how far this paper sits from the past-paper average on Original's internal "
     "scale, times the weight Original gives that measurement's group (constants."
     "TIER_WEIGHTS). This is the same size measure the engine uses to pick its top "
     "differences (quantum/scoring.py _decompose), applied to every measurement. Ties, "
@@ -1560,6 +1834,125 @@ def _as_row(vector: Any) -> list[float]:
     return [float(x) for x in vector]
 
 
+# ── Per-part breakdowns for whole-paper habits (display only) ────────────────
+# A whole-paper score with cheap intermediate values gets those values shown
+# instead of its one 0–1 number: the same arithmetic as the extractor, before
+# it is folded into the score. Below the extractor's own minimum it says "too
+# short to measure" rather than show the stand-in value.
+
+ARC_MIN_SENTENCES = 8  # prosodic._arc_resolution_score returns 0.5 below this
+VOCAB_MIN_WORDS = 20  # tier7.vocabulary_introduction_rate returns 0.5 below this
+BREAKDOWN_CLOSING = 3
+
+
+def _doc_of(text: str) -> TextDoc:
+    view = engine_view(text)
+    return view.doc if view is not None else TextDoc(_pp.preprocess(text)[0])
+
+
+def _arc_quarters(doc: TextDoc) -> list[float] | None:
+    """Average words per sentence in each quarter of the paper, exactly as
+    prosodic._arc_resolution_score splits it (the last quarter takes the
+    remainder). None under ARC_MIN_SENTENCES, where the extractor returns 0.5."""
+    sents = doc.sentences
+    if len(sents) < ARC_MIN_SENTENCES:
+        return None
+    lengths = [len(_tokenize(x)) for x in sents]
+    q = len(lengths) // 4
+    parts = [lengths[:q], lengths[q : 2 * q], lengths[2 * q : 3 * q], lengths[3 * q :]]
+    return [round(sum(part) / len(part), 1) for part in parts]
+
+
+def _vocab_tenths(doc: TextDoc) -> list[float] | None:
+    """Share of the paper's distinct words already used at the end of each
+    tenth of the text, as tier7.vocabulary_introduction_rate counts them. None
+    under VOCAB_MIN_WORDS, where the extractor returns 0.5."""
+    words = doc.lower_words
+    if len(words) < VOCAB_MIN_WORDS:
+        return None
+    size = max(1, len(words) // 10)
+    seen: set[str] = set()
+    cumulative = []
+    for i in range(10):
+        start = i * size
+        end = min(start + size, len(words)) if i < 9 else len(words)
+        seen.update(words[start:end])
+        cumulative.append(len(seen))
+    return [round(c / cumulative[-1], 4) for c in cumulative]
+
+
+_BREAKDOWNS: dict[str, dict[str, Any]] = {
+    "arc_resolution_score": {
+        "kind": "quarters",
+        "label": "Average sentence length in each quarter of the paper",
+        "parts": ["1st quarter", "2nd quarter", "3rd quarter", "last quarter"],
+        "unit": "words per sentence",
+        "style": "unit",
+        "too_short": "Too short to measure (under 8 sentences).",
+        "compute": _arc_quarters,
+    },
+    "vocabulary_introduction_rate": {
+        "kind": "tenths",
+        "label": "Share of the paper's different words already used, tenth by tenth",
+        "parts": [f"{10 * (i + 1)}%" for i in range(10)],
+        "unit": "of the paper's different words",
+        "style": "percent",
+        "too_short": "Too short to measure (under 20 words).",
+        "compute": _vocab_tenths,
+    },
+}
+
+
+def _closing_quotes(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
+    """The paper's last sentences, verbatim, in document order ([] if the
+    sentences cannot be mapped back exactly: fail closed)."""
+    view = engine_view(text)
+    sentences = _original_sentences(view) if view is not None else None
+    if not sentences:
+        return []
+    out = []
+    for a, b in sentences[-limit:]:
+        p0, p1, c0, c1 = _passage(text, sentences, a, b)
+        out.append(
+            {
+                "paper": paper,
+                "passage_start": p0,
+                "passage_end": p1,
+                "passage": _shown(text[p0:p1]),
+                "clipped_start": c0,
+                "clipped_end": c1,
+                "words": len(_tokenize(text[a:b])),
+            }
+        )
+    return out
+
+
+def build_breakdown(
+    code: str, submission_text: str, baselines: Sequence[tuple[str, str]]
+) -> dict[str, Any] | None:
+    """The per-part values behind ``code``'s whole-paper score, this paper and
+    each past paper, or None when the habit has no breakdown."""
+    spec = _BREAKDOWNS.get(code)
+    if spec is None:
+        return None
+    out = {k: v for k, v in spec.items() if k != "compute"}
+    out["this_paper"] = spec["compute"](_doc_of(submission_text))
+    out["past_papers"] = [
+        {"paper": label, "values": spec["compute"](_doc_of(text))} for label, text in baselines
+    ]
+    if code == "arc_resolution_score":
+        out["closing"] = {
+            "what": "closing sentences",
+            "this_paper": _closing_quotes(submission_text, "this paper", BREAKDOWN_CLOSING),
+            "past_papers": [
+                q
+                for label, text in baselines[-1:]
+                for q in _closing_quotes(text, label, BREAKDOWN_CLOSING)
+            ],
+        }
+    return out
+
+
 def _rr(value: float) -> float | None:
     return None if value != value else _round(value)  # NaN -> None
 
@@ -1621,6 +2014,7 @@ def build_all_features(
             "group": tier,
             "in_top_list": code in top_codes,
             "description": meta["description"],
+            "display": display_info(code),
             "direction": direction,
             "engine_scale": {
                 "this_paper": _round(this),
@@ -1637,6 +2031,9 @@ def build_all_features(
             },
         }
         kind = meta["kind"]
+        breakdown = build_breakdown(code, submission_text, baselines)
+        if breakdown is not None:
+            entry["breakdown"] = breakdown
         if kind == "measured" and code in LOCATABLE:
             located = build_feature_evidence(
                 {"code": code, "submission_value": this, "baseline_value": avg, "delta": delta},
@@ -1653,7 +2050,7 @@ def build_all_features(
             kind = "whole_text"
             raw_past = [r[d] for r, _ in past_raw_norm]
             if meta["unit"] is not None and any(v != v for v in (sub_raw[d], *raw_past)):
-                # A paper sits at an end of the 0 to 1 scale, where its plain
+                # A paper sits at an end of the engine's scale, where its plain
                 # value was not read back (_unnormalise): numbers on that scale only.
                 entry["plain_note"] = PLAIN_UNREADABLE_NOTE
             elif meta["unit"] is not None:
@@ -1667,8 +2064,8 @@ def build_all_features(
                     "past_range": [_rr(min(raw_past)), _rr(max(raw_past))] if raw_past else None,
                 }
             else:
-                entry["plain_note"] = "The measurement is itself a 0 to 1 score."
-            entry["note"] = WHOLE_TEXT_NOTE
+                entry["plain_note"] = OWN_SCORE_NOTE
+            entry["note"] = whole_text_note(code)
         elif kind == "not_compared":
             # Past papers have no value for it (features/baseline_scope.py):
             # no past values, no difference, no size; listed last. This
