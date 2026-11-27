@@ -172,8 +172,8 @@ def test_parse_legs_is_case_insensitive_and_skips_blanks():
 
 
 def test_parse_legs_rejects_unknown_names():
-    with pytest.raises(ValueError, match="unknown leg 'G9'"):
-        parse_legs("G1,G9")
+    with pytest.raises(ValueError, match="unknown leg 'G99'"):
+        parse_legs("G1,G99")
 
 
 # -- CLI -----------------------------------------------------------------------
@@ -230,7 +230,7 @@ def test_cli_leg_mode(tmp_path):
 
 def test_cli_unknown_leg_is_a_usage_error(tmp_path):
     with pytest.raises(SystemExit) as exc:
-        main([_write(tmp_path, _full()), "--legs", "G9"])
+        main([_write(tmp_path, _full()), "--legs", "G99"])
     assert exc.value.code == 2
 
 
@@ -240,7 +240,10 @@ def test_cli_unknown_leg_is_a_usage_error(tmp_path):
 def _legs(tmp_path, overrides=None, drop=(), error=None):
     """One report per CI matrix leg group, as the workflow's merge job sees them."""
     overrides = overrides or {}
-    groups = [("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "T")]
+    groups = [
+        ("G1", "G1p"), ("G2",), ("G2b",), ("G3", "G4"), ("G5",), ("G6", "G7", "G8", "G9", "G-REBIND", "G-WRITERLINE", "T"),
+        ("G-A1", "G-A2", "G-A3", "G-A4", "G-A5", "G-A6"),
+    ]
     paths = []
     for i, legs in enumerate(groups):
         names = [n for leg in legs if leg not in drop for n in LEG_GATES[leg]]

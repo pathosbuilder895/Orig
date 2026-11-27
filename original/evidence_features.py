@@ -28,7 +28,8 @@ so a new measurement cannot ship without a description.
 
 from __future__ import annotations
 
-from functools import lru_cache
+from functools import cache, lru_cache
+from typing import Any
 
 from .constants import TIER17_CODES, TIER18_CODES
 from .features.baseline_scope import NOT_COMPUTED_FOR_BASELINES
@@ -120,7 +121,7 @@ _MEASURED: dict[str, tuple[str, str | None]] = {
     "lexical_chain_density": (
         "How much neighbouring sentences share vocabulary: the average overlap (Jaccard) of "
         "their content words (three letters or more, not stop words).",
-        "average overlap, 0 to 1",
+        "average overlap (share of shared words)",
     ),
     "paragraph_topic_position": (
         "Share of paragraphs whose first sentence has the highest share of content words in "
@@ -512,4 +513,212 @@ def feature_info() -> dict[str, dict[str, str | None]]:
             "unit": None,
             "kind": "not_compared",
         }
+    return out
+
+
+# ── How a page shows each measurement's number (display only) ──────────────
+#
+# A teacher reads a habit's number in one of five ways, and one shared
+# formatter (demo/original/js/evidence-view.js ``readable``) follows this
+# table, so the pages cannot disagree. Nothing here changes a value.
+#
+# * ``percent``: the plain value is a true proportion (a share of sentences,
+#   of linking words, ...). Shown as a whole-number percent, one decimal under
+#   10%. ``of`` is what it is a share of.
+# * ``unit``: a count rate or an everyday measure ("2.4 per 100 words",
+#   "18.4 words per sentence"). ``unit`` is the label shown. ``scale`` and
+#   ``cap`` undo an extractor's own fixed scaling (``comma_splice_rate`` is
+#   splices per 100 sentences ÷ 30, capped at 1): the shown number is
+#   ``value × scale``, and a value at ``cap`` reads "N or more".
+# * ``category``: the value is a code for a kind, not an amount; ``labels``
+#   names each code.
+# * ``compare``: no everyday unit and no true share (entropies, spreads,
+#   similarity scores, positions in a calibration range). Shown only as a
+#   plain comparison with the past papers ("higher than all 3 past papers");
+#   the exact position is kept for a details line, never as a percent.
+# * ``hidden``: not shown to teachers at all (still used in scoring).
+#
+# ``engine_is_raw`` says the 0–1 value the score uses *is* the extractor's
+# value (``NORM_BOUNDS`` is exactly (0, 1)), so a page may read the number
+# from it when no plain value was sent. Elsewhere the 0–1 value is a position
+# in a calibration range, not a share, and only ``compare`` may use it.
+#
+# ``whole_paper`` (plain words) marks a habit that no single sentence can show:
+# a spread, a variety, a similarity between parts, or a score of the whole.
+# ``neutral`` is the sentence for a habit whose extractor returns 0.5 when
+# there is nothing to count, so a 50% is not read as a measured half.
+
+_PERCENT: dict[str, str] = {
+    "type_token_ratio": "distinct words",
+    "hapax_legomena_rate": "words used only once",
+    "function_word_ratio": "function words",
+    "passive_voice_ratio": "of sentences",
+    "modal_verb_ratio": "modal verbs",
+    "stop_word_ratio": "stop words",
+    "additive_ratio": "of linking words",
+    "adversative_ratio": "of linking words",
+    "causal_ratio": "of linking words",
+    "temporal_ratio": "of linking words",
+    "thematic_progression_score": "of sentence pairs",
+    "lexical_chain_density": "average word overlap between neighbouring sentences",
+    "paragraph_topic_position": "of paragraphs",
+    "cohesion_device_ratio": "linking and repeated words",
+    "epistemic_certainty_ratio": "of stance words are confident",
+    "source_integration_style": "of citing sentences",
+    "counter_argument_ratio": "of sentences",
+    "question_ratio": "of sentences",
+    "first_person_ratio": "of personal pronouns",
+    "sentence_initial_conjunction_rate": "of sentences",
+    "that_which_ratio": "“that” rather than “which”",
+    "abbreviation_tendency": "of terms with a short form",
+    "vowel_sonority_ratio": "of vowel sounds are long",
+    "pronoun_ambiguity_rate": "of sentences with he, she, it or they",
+    "polysyndeton_ratio": "of lists joined with repeated and/or",
+    "latinate_ratio": "of content words",
+    "source_loyalty_index": "of author-year citations",
+    "ibid_usage_rate": "of citations",
+}
+
+#: code -> (shown unit, scale, cap). scale/cap None: the plain value as it is.
+_UNIT: dict[str, tuple[str, float | None, float | None]] = {
+    "mean_sentence_length": ("words per sentence", None, None),
+    "sentence_length_variance": ("words² (spread of sentence length)", None, None),
+    "avg_word_length": ("letters per word", None, None),
+    "discourse_marker_density": ("different linking words per 100 words", None, None),
+    "pronoun_reference_density": ("pointing words per sentence", None, None),
+    "avg_paragraph_length": ("sentences per paragraph", None, None),
+    "transition_density": ("transitions per 100 words", None, None),
+    "hedging_density": ("softening words per 100 words", None, None),
+    "assertion_density": ("confident words per 100 words", None, None),
+    "claim_density": ("claim phrases per 100 words", None, None),
+    "imperative_density": ("command sentences per 100 words", None, None),
+    "appeal_to_authority_density": ("source phrases per 100 words", None, None),
+    "theological_register_score": ("theology terms per 100 words", 15.0, 1.0),
+    "comma_rate": ("commas per 100 words", None, None),
+    "semicolon_colon_rate": ("semicolons and colons per 100 words", None, None),
+    "parenthetical_rate": ("brackets per 100 words", None, None),
+    "dash_rate": ("dashes per 100 words", None, None),
+    "quote_rate": ("quotation marks per 100 words", None, None),
+    "noun_verb_ratio": ("nouns per verb", None, None),
+    "adjective_rate": ("adjectives per 100 tokens", None, None),
+    "adverb_rate": ("adverbs per 100 tokens", None, None),
+    "subordination_ratio": ("subordinating words per sentence", None, None),
+    "clause_depth_mean": ("levels of grammatical nesting, sentence average", None, None),
+    "contraction_rate": ("contractions per 100 words", None, None),
+    "comma_splice_rate": ("likely comma splices per 100 sentences", 30.0, 1.0),
+    "chiasmus_rate": ("mirrored patterns per 100 sentence pairs", 5.0, 1.0),
+    "nominalization_density": ("-tion, -ment, -ness words per 100 words", 15.0, 1.0),
+    "block_quote_rate": ("words in long quotations per 1,000 words", None, None),
+    "paraphrase_density": ("attribution phrases per 100 words", None, None),
+}
+
+_CATEGORY: dict[str, dict[str, str]] = {
+    # tier6.list_marker_preference's own codes.
+    "list_marker_preference": {
+        "0": "no lists",
+        "0.2": "numbered lists",
+        "0.4": "lettered lists",
+        "0.6": "roman-numeral lists",
+        "0.8": "bulleted lists",
+        "1": "lists inside sentences (first, second, finally)",
+    },
+}
+
+#: Degenerate on real writing (constants.NORM_BOUNDS note: P95 = 0, only
+#: 0, 1/3, 2/3 or 1): kept in scoring, never shown to a teacher.
+HIDDEN_CODES = frozenset({"conclusion_strategy_score"})
+
+_SPREAD = (
+    "This is a pattern across the whole paper: how evenly something is spread or how "
+    "much it varies from part to part. No single sentence shows it."
+)
+_VARIETY = (
+    "This is a pattern across the whole paper: how varied the writing is overall. "
+    "No single sentence shows it."
+)
+_BETWEEN = (
+    "This is a pattern across the whole paper: how its sentences or paragraphs compare "
+    "with each other. No single sentence shows it."
+)
+_WHOLE_SCORE = (
+    "This is one score for the whole paper, built from all of it at once. No single "
+    "sentence shows it."
+)
+WHOLE_PAPER: dict[str, str] = {
+    "type_token_ratio": _VARIETY,
+    "hapax_legomena_rate": _VARIETY,
+    "char_trigram_entropy": _VARIETY,
+    "punctuation_diversity": _VARIETY,
+    "pos_bigram_entropy": _VARIETY,
+    "pos_trigram_entropy": _VARIETY,
+    "sentence_opener_variety": _VARIETY,
+    "repetition_gap_entropy": _VARIETY,
+    "stress_entropy_unigram": _VARIETY,
+    "stress_entropy_bigram": _VARIETY,
+    "signal_verb_entropy": _VARIETY,
+    "citation_style_consistency": _VARIETY,
+    "burstiness": _SPREAD,
+    "breath_group_variance": _SPREAD,
+    "breath_group_regularity": _SPREAD,
+    "citation_density_cv": _SPREAD,
+    "metric_flatness_score": _SPREAD,
+    "filler_hedge_cluster_rate": _SPREAD,
+    "clausulae_consistency": _SPREAD,
+    "clausula_type_consistency": _SPREAD,
+    "error_topology_consistency": _SPREAD,
+    "lexical_chain_density": _BETWEEN,
+    "thematic_progression_score": _BETWEEN,
+    "transition_predictability": _BETWEEN,
+    "semantic_field_dispersion": _BETWEEN,
+    "semantic_field_concentration": _BETWEEN,
+    "structural_centrist_penalty": _BETWEEN,
+    "catastrophe_index": _WHOLE_SCORE,
+    "arc_resolution_score": _WHOLE_SCORE,
+    "clausula_shape_preference": _WHOLE_SCORE,
+    "perplexity_proxy": _WHOLE_SCORE,
+    "vocabulary_introduction_rate": _WHOLE_SCORE,
+    "cohesion_device_ratio": _WHOLE_SCORE,
+}
+
+_NEUTRAL_WORDS = "Original records 50% when there is nothing to count, so 50% can also mean none."
+#: Extractors that return exactly 0.5 when nothing was found (prosodic.py, tier3, tier6, tier16).
+_NEUTRAL = frozenset(
+    {
+        "epistemic_certainty_ratio",
+        "that_which_ratio",
+        "abbreviation_tendency",
+        "pronoun_ambiguity_rate",
+        "polysyndeton_ratio",
+        "source_loyalty_index",
+        "vowel_sonority_ratio",
+        "latinate_ratio",
+    }
+)
+
+
+@cache
+def display_info(code: str) -> dict[str, Any]:
+    """How the pages show ``code``'s number (see the table notes above).
+
+    Cached: callers must not mutate the result."""
+    from .constants import NORM_BOUNDS
+
+    out: dict[str, Any] = {"engine_is_raw": tuple(NORM_BOUNDS.get(code, ())) == (0.0, 1.0)}
+    if code in HIDDEN_CODES:
+        out["style"] = "hidden"
+    elif code in _PERCENT:
+        out.update(style="percent", of=_PERCENT[code])
+    elif code in _UNIT:
+        unit, scale, cap = _UNIT[code]
+        out.update(style="unit", unit=unit)
+        if scale is not None:
+            out.update(scale=scale, cap=cap)
+    elif code in _CATEGORY:
+        out.update(style="category", labels=dict(_CATEGORY[code]))
+    else:
+        out["style"] = "compare"
+    if code in WHOLE_PAPER:
+        out["whole_paper"] = WHOLE_PAPER[code]
+    if code in _NEUTRAL:
+        out["neutral"] = _NEUTRAL_WORDS
     return out

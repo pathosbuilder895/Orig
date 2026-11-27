@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from .. import measurement as _measurement
 from ..features import feature_flags as _ff
+from ..features import part_overrides as _po
 from ..features.pipeline import extract_features, feature_vector
 from ..principal import tenant_of
 from ..quantum.scoring import ScoringConfig
@@ -155,8 +156,36 @@ def score_submission(
     return contextvars.copy_context().run(_score_submission, student_id, req, force, request)
 
 
+def _part_choice(req: ScoreSubmissionRequest, request: Request | None):
+    """The teacher's choice of parts for this paper (features/part_overrides.py),
+    or None. ``exclude_ranges`` / ``include_ranges`` are a teacher's control:
+    a student session that sends either gets 403. Empty or null is no choice.
+    A choice is refused with 409 unless MATTER_SPLITTER_ENABLED and
+    PAPER_PROFILE_ENABLED are both on, and with 422 when it does not fit the
+    text. Nothing is scored on a refusal."""
+    if req.exclude_ranges is None and req.include_ranges is None:
+        return None
+    principal = getattr(getattr(request, "state", None), "principal", None)
+    if principal is not None and principal.role == "student":
+        raise HTTPException(
+            status_code=403, detail="Only staff can choose which parts of a paper are measured."
+        )
+    if not req.exclude_ranges and not req.include_ranges:
+        return None
+    if not _po.switches_on():
+        raise HTTPException(
+            status_code=409,
+            detail="Choosing the parts of a paper is turned off on this deployment.",
+        )
+    try:
+        return _po.validate(req.text, req.exclude_ranges, req.include_ranges)
+    except _po.OverrideError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool, request):
     _throttle_score(request)
+    _choice = _part_choice(req, request)
     _require_student_exam_scoring(request, student_id)
     state = _repo().get(student_id)
     if state is None:
@@ -179,6 +208,11 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
     plan = _measurement.plan_for(state)
     state = plan.state
     _ff.set_measurement(plan.used)
+    # This paper's text as it is measured: carrying the teacher's choice of
+    # parts from this request, if any (features/part_overrides.py). Past
+    # papers carry their own stored choices (part_overrides.text_of); a choice
+    # applies only to the splitter's measurement with both switches on.
+    _text = _po.chosen(req.text, _choice)
 
     # Results are recomputed on every request. Keep the legacy `force` query
     # parameter for client compatibility; there is no persisted result cache.
@@ -199,7 +233,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
         from ..context.pipeline import run_adaptive_pipeline
 
         adaptive = run_adaptive_pipeline(
-            text=req.text,
+            text=_text,
             state=state,
             submission_id=submission_id,
             keystroke_data=req.keystroke_data,
@@ -220,8 +254,8 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             submission_id,
             e,
         )
-        feat_dict = extract_features(req.text, keystroke_data=req.keystroke_data)
-        vec = feature_vector(req.text, keystroke_data=req.keystroke_data)
+        feat_dict = extract_features(_text, keystroke_data=req.keystroke_data)
+        vec = feature_vector(_text, keystroke_data=req.keystroke_data)
         manifest = None
         adaptive_weights = None
 
@@ -406,7 +440,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
         try:
             from ..features.opportunity import unmeasured_mask
 
-            _unmeasured_mask = unmeasured_mask(req.text)
+            _unmeasured_mask = unmeasured_mask(_text)
         except Exception:
             logging.getLogger(__name__).exception("opportunity mask failed: scored without it")
 
@@ -425,7 +459,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
         try:
             from ..quantum.length_match import body_word_count, build_length_matched_state
 
-            _body_words = body_word_count(req.text)
+            _body_words = body_word_count(_text)
             _length_state = build_length_matched_state(state, _body_words, feature_vector)
         except Exception:
             logging.getLogger(__name__).exception("length match failed: scored without it")
@@ -520,6 +554,24 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
             result.characteristic_factor_dispersion,
             result.authorship.deviation_score,
             result.characteristic_deviation_preview,
+        )
+
+    # ── Per-writer line audit line ─────────────────────────────────────────────
+    # One INFO line per scoring call whenever WRITER_LINE is not "off". Same
+    # privacy rule as the lines above: no student id, aggregate numbers only.
+    if _scoring_config_env.writer_line != "off":
+        if result.writer_line_action is None:
+            _wl_outcome = "abstain"
+        elif _scoring_config_env.writer_line == "on":
+            _wl_outcome = "applied"
+        else:
+            _wl_outcome = "shadow"
+        logging.getLogger(__name__).info(
+            "writer_line mode=%s outcome=%s would=%s z=%s",
+            _scoring_config_env.writer_line,
+            _wl_outcome,
+            result.writer_line_action,
+            None if result.writer_line_z is None else round(result.writer_line_z, 4),
         )
 
     # Default-off, report-only longitudinal signal. The probe is never added
@@ -803,7 +855,7 @@ def _score_submission(student_id: str, req: ScoreSubmissionRequest, force: bool,
     stamp = plan.stamp()
     if stamp is not None:
         response.measurement = MeasurementOut(**stamp)
-    _attach_staff_explainability(response, request, req.text, state, result, student_id)
+    _attach_staff_explainability(response, request, _text, state, result, student_id)
     if _rd_mode == "on" and _rule_d_obs is not None:
         try:
             _attach_rule_d(response, request, _rule_d_obs)
@@ -829,7 +881,8 @@ def _past_papers_of(state) -> tuple[list, list[tuple[str, str]]]:
     """The past papers the engine can show: samples that count toward the
     baseline and kept their text, labelled ``past paper 1…N`` in that order."""
     used = [s for s in state.samples if s.auth_weight > 0 and s.text]
-    return used, [(f"past paper {i + 1}", s.text) for i, s in enumerate(used)]
+    # Each past paper's text carries its own stored choice of parts, if any.
+    return used, [(f"past paper {i + 1}", _po.text_of(s)) for i, s in enumerate(used)]
 
 
 def _baseline_papers(state, used, baselines, student_id: str | None) -> list[dict[str, Any]]:
@@ -978,8 +1031,9 @@ def past_paper_examples(
         raise HTTPException(status_code=422, detail="Unknown habit")
     try:
         used, baselines = _past_papers_of(state)
+        examples = evidence.build_past_paper_examples(habit, baselines)
         body = {
-            **evidence.build_past_paper_examples(habit, baselines),
+            **examples,
             "baseline_papers": _baseline_papers(state, used, baselines, student_id),
         }
         return PastPaperExamplesResponse(**body)

@@ -443,13 +443,21 @@ peers** (`original/quantum/null_pool.py`), producing
 distinctly this student's voice; toward 1 = fits the peer pool better than
 the claimed student's own baseline.
 
-**Measured lift** (binary authorship verification, N=3 baselines,
-`validation/benchmarks/2026-07-01/*nullmodel*`): seminary median
-per-author AUC 0.8125 → **1.0** (pooled 0.8925 → **0.9325**, Brier 0.51 →
-0.17); public authors pooled 0.8551 → **0.8993** (Brier 0.34 → 0.09).
-TPR at 5% FPR rose from 0.6 → 0.8. Ledoit-Wolf shrinkage
-(`RANK_REMEDIATION=shrinkage`) was A/B'd at the same time and *hurt* —
-the null model alone accounts for the entire gain.
+**Measured lift** (binary same-writer comparison, N=3 baselines). Seminary
+(`validation/benchmarks/2026-07-01/*nullmodel*`; 5 synthetic template
+"students", 10 same-author / 40 different-author pairs, not real student
+writing): median per-author AUC 0.8125 → **1.0** (pooled 0.8925 →
+**0.9325**, Brier 0.51 → 0.17), TPR at 5% FPR 0.6 → 0.8. Public authors,
+decontaminated corpus (`validation/benchmarks/2026-08-01/*public_authors*`;
+11 authors, 27 same-author / 270 different-author pairs): pooled AUC
+0.8868 → **0.9527** (Brier 0.64 → 0.13), TPR at 5% FPR 0.6667 → 0.6667.
+For 9 of those 11 authors the baseline and held-out essays come from the
+same book, so this measures within-work continuity as much as authorial
+voice. The 2026-07-01 public-authors figures (0.8551 → 0.8993) came from the
+contaminated corpus and are superseded; see
+`validation/benchmarks/2026-08-01/CONTAMINATION_COMPARISON.md`. Ledoit-Wolf
+shrinkage (`RANK_REMEDIATION=shrinkage`) was A/B'd on seminary at the same
+time and *hurt*; the null model alone accounts for the entire gain there.
 
 **Contract**
 
@@ -467,6 +475,14 @@ the null model alone accounts for the entire gain.
   pilot-semester recalibration against the llr distribution.
 
 ---
+
+### LLR rebind action mode (2026-11-16, default off, not validated)
+
+`rebind` reads the action tier straight off `llr_deviation_score` via `LLR_REBIND_THRESHOLDS` (`quantum/scoring.py:_rebind_action`), raising or lowering any number of steps; `shadow` logs `rebind_would=` so a soak can see it without changing anything. Cut-offs were chosen on the derivation split only (`python -m validation.rebind.run`, seed 20261116, `validation/rebind/report_2026-11-16.json`; records committed in `validation/rebind/records/`): monitor 0.593, schedule_conversation 0.743, escalate 0.769. Author-disjoint hold-out, catch @ schedule_conversation+ / honest false alarm @ schedule_conversation+, gate vs rebind: **PAN20 cross-fandom** 72.2% / 0.0% vs 11.1% / 0.0% (9 genuine, 18 impostor); **public_authors** 76.8% / 0.0% vs 37.5% / 0.0% (14 genuine, 56 impostor); **seminary** (synthetic, seminary_01–05) 0.0% / 0.0% vs 0.0% / 0.0% (6 genuine, 12 impostor). False alarm @ escalate 0.0% for both modes on all three. **G-REBIND: `UNINFORMATIVE`** — 29 genuine hold-out pairs, so even 0 false alarms has a Wilson 95% upper bound of 11.7% > 5%; uninformative is not a pass, and on these corpora rebind caught *fewer* impostors than gate. Caveats: the harness's gate baseline maps `deviation_score` through deviation bands only, simpler than live `_recommend` (which also applies typicality, entanglement and conformal adjustments); outsider impostor texts (submission authors with no baseline of their own) can appear on both sides of the split; it is a single fixed-seed split. Nothing here is validated on real student writing — run `shadow` first.
+
+### Per-writer line, `WRITER_LINE` (2026-11-16, default off, negative result)
+
+`WRITER_LINE` maps the z of a submission's `deviation_score` against the leave-one-out scores of the student's own baseline papers (at least 3) to an action. It is built and default off, and it should not be enabled. Gate G-WRITERLINE is `uninformative`; on the author-disjoint hold-out it caught 32.6% at schedule_conversation+ with 10.3% honest false alarms, against 66.3% and 0% for the existing gate. Averaged over 200 splits it caught 19.1% at 6.5% false alarms against the gate's 29.3% at 6.8%. An earlier exploratory test looked positive only because it used the writer's other honest submissions as the reference, which is not available at scoring time; a 3-paper baseline gives a reference built from 2 papers each. The record values were regenerated in a local environment missing `en_core_web_sm` and differ from the committed rebind records by up to 0.18, so re-run in a clean environment before quoting. Possible future direction, untested: a reference built from teacher-cleared past submissions. See the `WRITER_LINE` row in `CLAUDE.md`.
 
 ## Length-Adaptive Tier Weighting (evaluated, kept OFF)
 
@@ -584,7 +600,7 @@ investigation of the ghostwritten-pulls-prior-toward-it hypothesis above.
 
 ---
 
-## Cross-Work Authorship Verification (2026-08-04)
+## Cross-Work Same-Writer Comparison (2026-08-04)
 
 A source-work-disjoint corpus now uses three 2,500-word baseline windows from
 one book and three probe windows from another for G.K. Chesterton, Agatha

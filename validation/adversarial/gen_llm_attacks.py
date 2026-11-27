@@ -14,10 +14,18 @@ attack}` per doc (see `validation/adversarial/generators.py`'s
 authoritative contract — this script and the three cache-reading
 `Generator` subclasses there must never drift apart on it).
 
-This script has NOT been run in this task. No `ANTHROPIC_API_KEY` is
-available in this environment, so `corpus/llm_attacks/` does not exist
-after this commit — that is expected and correct. A human runs this once,
-later, with their own key:
+Update 2026-11-19: `corpus/llm_attacks/` now exists, but it was NOT made
+by this script. With no API key available, the owner approved building it
+with Claude Code subagents through `llm_attack_jobs.py`, which reuses this
+module's prompt builders so every `prompt_sha` means the same thing on
+both routes; see `corpus/llm_attacks/PROVENANCE.md`. Known limit of this
+API route, recorded there: `_complete` sends `max_tokens=4096` and never
+checks `stop_reason`, so a long translation would be truncated silently.
+Fix that before using this script to extend the corpus.
+
+This script itself has not been run. No `ANTHROPIC_API_KEY` was
+available in this environment when it was written. A human runs it,
+with their own key:
 
     ANTHROPIC_API_KEY=sk-ant-... /Users/andrew/Desktop/Original/.venv/bin/python \\
         -m validation.adversarial.gen_llm_attacks --n-baselines 3,5,10

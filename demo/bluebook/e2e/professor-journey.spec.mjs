@@ -221,12 +221,14 @@ test.describe('Professor journey — sealed evidence review @smoke', () => {
     // write the audit entry the correction step below needs. With one or two
     // the seal records INCONCLUSIVE and no score (NORTH_STAR rule 3; see
     // thin-baseline.spec.mjs); three is the fewest that is read normally.
+    // The teacher seeds them: readiness counts approved samples only, and a
+    // student's own upload is downgraded to 'unverified'.
     for (const text of [
       'An earlier verified writing sample establishing this student’s baseline voice profile for comparison.',
       'A second approved piece in which the student reflects on duty, consequence and the shape of a good argument.',
       'A third approved essay where the student weighs inclination against obligation in ordinary moral choices.',
     ]) {
-      await addBaselineFor(request, workerTenant.student.student_id, workerTenant.student.token, { text })
+      await addBaselineFor(request, workerTenant.student.student_id, workerTenant.staff.token, { text })
     }
 
     // The exam sits on the course the professor created above, and a student

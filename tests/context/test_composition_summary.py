@@ -241,8 +241,7 @@ class TestIngestEndpointPersistsCompositionSummary:
         resp = client.post(
             f"/students/{sid}/baseline",
             json={
-                "text": "An uploaded paper with no macro-timing telemetry attached "
-                "at all. " * 3,
+                "text": "An uploaded paper with no macro-timing telemetry attached at all. " * 3,
                 "provenance": "verified",
                 "assignment": "essay1",
             },
@@ -454,3 +453,82 @@ class TestResolveCompositionModeKeystrokePathUnchanged:
             "edit_signature": "normal",
             "software_mediated": False,
         }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 9. A request's composition_summary never moves a score
+#
+# The summary comes from the student's own browser (Exam.jsx posts it with the
+# student's session), so a client-reported paste count must not reach the
+# composition_mode resolver from the score route: there it would mark the
+# sitting tool_cleaned and attenuate T11/T14, which can only lower
+# deviation_score. These pin that the same paper scores identically with and
+# without a summary, at flag defaults and with the manifest and adaptive
+# weights both on.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_FAKED_PASTES = {"paste_attempts": 5, "exam_config": {"block_copy": False}}
+
+_SCORE_BASELINES = (
+    "The seminar met on Tuesday to weigh duty against inclination, and the "
+    "discussion ran long because nobody would concede the first premise. " * 3,
+    "A second paper on consequence and obligation, in which the argument turns "
+    "on what a reasonable person could have foreseen at the time. " * 3,
+    "Ordinary moral choices rarely announce themselves; this third essay asks "
+    "how habit shapes what we notice before we ever deliberate. " * 3,
+)
+
+
+def _score_with_and_without(client, sid, summary):
+    for i, text in enumerate(_SCORE_BASELINES):
+        resp = client.post(
+            f"/students/{sid}/baseline",
+            json={"text": text, "provenance": "verified", "assignment": f"e{i}"},
+        )
+        assert resp.status_code == 200, resp.text
+
+    def _score(extra):
+        # Identical submission_id: it feeds cluster matching, so varying it
+        # would not be a fair comparison.
+        resp = client.post(
+            f"/students/{sid}/score",
+            json={"text": _CM_TEXT, "submission_id": "cs-inert-1", **extra},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        manifest = body.get("context_manifest") or {}
+        return {
+            "deviation_score": body["authorship"]["deviation_score"],
+            "quantum_fidelity": body["authorship"]["quantum_fidelity"],
+            "recommendation": body["recommendation"],
+            "composition_mode": (manifest.get("composition_mode") or {}).get("mode"),
+            "manifest_built": bool(manifest),
+        }
+
+    without = _score({})
+    with_summary = _score({"composition_summary": summary})
+    assert without["deviation_score"] is not None
+    return without, with_summary
+
+
+class TestScoreRequestSummaryIsInert:
+    def test_flag_off_score_is_byte_identical_with_and_without_summary(self, client, monkeypatch):
+        monkeypatch.delenv("CONTEXT_MANIFEST_ENABLED", raising=False)
+        monkeypatch.delenv("ADAPTIVE_WEIGHTS_ENABLED", raising=False)
+        without, with_summary = _score_with_and_without(
+            client, "demo:cs-inert-off", {**_COMPOSITION_SUMMARY, **_FAKED_PASTES}
+        )
+        assert with_summary == without
+
+    def test_manifest_and_adaptive_weights_ignore_a_reported_paste_count(self, client, monkeypatch):
+        monkeypatch.setenv("CONTEXT_MANIFEST_ENABLED", "1")
+        monkeypatch.setenv("ADAPTIVE_WEIGHTS_ENABLED", "1")
+        # The exact body the removal is pinned against:
+        # {"composition_summary": {"paste_attempts": 5,
+        #                          "exam_config": {"block_copy": false}}}
+        without, with_summary = _score_with_and_without(client, "demo:cs-inert-on", _FAKED_PASTES)
+        # The guarded path really ran: a manifest was built, and its
+        # composition mode is the text-only reading, not tool_cleaned.
+        assert without["manifest_built"] and with_summary["manifest_built"]
+        assert with_summary["composition_mode"] == "natural_drafted"
+        assert with_summary == without

@@ -32,6 +32,7 @@ from original.quantum.scoring import (
     ScoringConfig,
     _apply_llr_action_mode,
     _llr_action_candidates,
+    _rebind_action,
     score,
 )
 from original.quantum.state import BaselineSample, StudentState
@@ -99,9 +100,7 @@ def test_thresholds_are_symmetric_around_the_documented_midpoint():
     # AuthorshipSignal.llr_deviation_score docstring: 0.5 = "as consistent
     # with one as the other". The action thresholds must straddle it evenly.
     assert LLR_ACTION_GENUINE_THRESHOLD < 0.5 < LLR_ACTION_IMPOSTOR_THRESHOLD
-    assert 0.5 - LLR_ACTION_GENUINE_THRESHOLD == pytest.approx(
-        LLR_ACTION_IMPOSTOR_THRESHOLD - 0.5
-    )
+    assert 0.5 - LLR_ACTION_GENUINE_THRESHOLD == pytest.approx(LLR_ACTION_IMPOSTOR_THRESHOLD - 0.5)
 
 
 # ── Unit: _apply_llr_action_mode ──────────────────────────────────────────────
@@ -136,7 +135,36 @@ def test_mode_is_a_noop_when_no_candidate_change():
 
 def test_unknown_mode_raises():
     with pytest.raises(ValueError):
-        _apply_llr_action_mode(_action("no_action"), deviation=0.1, llr_deviation_score=0.9, mode="bogus")
+        _apply_llr_action_mode(
+            _action("no_action"), deviation=0.1, llr_deviation_score=0.9, mode="bogus"
+        )
+
+
+def test_rebind_action_maps_tiers():
+    assert _rebind_action(0.10) == "no_action"
+    assert _rebind_action(0.59) == "no_action"
+    assert _rebind_action(0.60) == "monitor"
+    assert _rebind_action(0.74) == "monitor"
+    assert _rebind_action(0.75) == "schedule_conversation"
+    assert _rebind_action(0.77) == "escalate"
+    assert _rebind_action(1.0) == "escalate"
+    assert _rebind_action(1.7) == "escalate"
+
+
+def test_rebind_mode_replaces_action():
+    out = _apply_llr_action_mode(_action("no_action"), 0.2, 0.8, "rebind")
+    assert out.action == "escalate"
+    assert "LLR rebind" in out.rationale
+
+
+def test_rebind_mode_can_lower_to_no_action():
+    out = _apply_llr_action_mode(_action("escalate"), 0.9, 0.1, "rebind")
+    assert out.action == "no_action"
+
+
+def test_unknown_mode_still_raises():
+    with pytest.raises(ValueError):
+        _apply_llr_action_mode(_action("no_action"), 0.1, 0.9, "rebnd")
 
 
 # ── Integration: score() actually threads llr_action_mode through ────────────
@@ -288,7 +316,9 @@ def test_gate_mode_does_not_touch_deviation_score_or_llr_value():
         scoring_config=ScoringConfig(null_model="impostor", llr_action_mode="gate"),
     )
     assert gated_result.authorship.deviation_score == shadow_result.authorship.deviation_score
-    assert gated_result.authorship.llr_deviation_score == shadow_result.authorship.llr_deviation_score
+    assert (
+        gated_result.authorship.llr_deviation_score == shadow_result.authorship.llr_deviation_score
+    )
 
 
 def test_trigger_mode_catches_a_no_action_impostor_end_to_end():
@@ -344,3 +374,55 @@ def test_catastrophic_drift_still_overrides_a_gate_downgrade():
     )
     assert result.catastrophic_drift is True
     assert result.recommendation.action == "escalate"
+
+
+def test_rebind_needs_impostor_null():
+    submission = np.full(FEATURE_DIM, FAR)
+    impostor_stats = (np.full(FEATURE_DIM, IMPOSTOR_MEAN), np.full(FEATURE_DIM, IMPOSTOR_SIGMA))
+    rebind = score(
+        state=_baseline_state(0.30),
+        submission_vector=submission,
+        feature_dict={},
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(null_model="none", llr_action_mode="rebind"),
+    )
+    gate = score(
+        state=_baseline_state(0.30),
+        submission_vector=submission,
+        feature_dict={},
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(null_model="none", llr_action_mode="gate"),
+    )
+    assert rebind.recommendation.action == gate.recommendation.action
+
+
+def test_rebind_changes_action_with_impostor_null():
+    # Same FAR fixture as the gate test: raw deviation escalates, llr reads
+    # confidently genuine, so rebind must land on the llr-derived tier.
+    submission = np.full(FEATURE_DIM, FAR)
+    impostor_stats = (np.full(FEATURE_DIM, IMPOSTOR_MEAN), np.full(FEATURE_DIM, IMPOSTOR_SIGMA))
+    result = score(
+        state=_baseline_state(0.30),
+        submission_vector=submission,
+        feature_dict={},
+        impostor_stats=impostor_stats,
+        scoring_config=ScoringConfig(null_model="impostor", llr_action_mode="rebind"),
+    )
+    assert result.catastrophic_drift is False
+    llr = result.authorship.llr_deviation_score
+    assert llr is not None
+    assert result.recommendation.action == _rebind_action(llr)
+    assert result.recommendation.action != "escalate"
+    assert "LLR rebind" in result.recommendation.rationale
+
+
+def test_rebind_action_nan_is_no_action():
+    assert _rebind_action(float("nan")) == "no_action"
+
+
+def test_shadow_logs_rebind_would(caplog):
+    rec = _action("no_action")
+    with caplog.at_level("INFO", logger="original.quantum.scoring"):
+        out = _apply_llr_action_mode(rec, deviation=0.5, llr_deviation_score=0.8, mode="shadow")
+    assert out is rec
+    assert "rebind_would=escalate" in caplog.text

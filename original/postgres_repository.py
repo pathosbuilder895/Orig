@@ -78,8 +78,10 @@ from .quantum.state import BaselineSample, StudentState
 # import, so this costs nothing.
 from .store import (
     PARK_MAX_TRANSITIONS,
+    _extra_vector_rules_from_doc,
     _extra_vectors_doc,
     _extra_vectors_from_doc,
+    _part_overrides_doc,
     _refuse_measurement_view,
     genre_stats_from_groups,
     park_iso_utc,
@@ -201,6 +203,8 @@ class PostgresRepository:
                     "composition_summary": s.composition_summary,
                     # Versioned measurements — mirrors store.py's _serialize.
                     **_extra_vectors_doc(s),
+                    # A teacher's choice of parts: mirrors store.py's _serialize.
+                    **_part_overrides_doc(s),
                 }
                 for s in state.samples
             ],
@@ -259,6 +263,8 @@ class PostgresRepository:
                     # summary-less samples.
                     composition_summary=s.get("composition_summary"),
                     extra_vectors=_extra_vectors_from_doc(s, doc["student_id"]),
+                    extra_vector_rules=_extra_vector_rules_from_doc(s),
+                    part_overrides=s.get("part_overrides") or None,
                 )
             )
         return state
@@ -2724,6 +2730,16 @@ class PostgresRepository:
                 return result.rowcount == 1
         except Exception as e:
             log.error("consume_proctor_attestation failed for student=%s: %s", student_id, e)
+            raise
+
+    def release_proctor_attestation(self, jti) -> None:
+        try:
+            with session_scope() as session:
+                session.execute(
+                    ConsumedAttestation.__table__.delete().where(ConsumedAttestation.jti == jti)
+                )
+        except Exception as e:
+            log.error("release_proctor_attestation failed: %s", e)
             raise
 
     # ── Formation ─────────────────────────────────────────────────────────

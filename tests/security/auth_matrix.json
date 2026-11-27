@@ -111,6 +111,16 @@
     "tampered": 401,
     "expired": 401
   },
+  "GET /students/{A_student}/samples/0/parts": {
+    "anonymous": 401,
+    "student_own": 403,
+    "student_other": 403,
+    "professor_own": 200,
+    "professor_other": 403,
+    "operator": 200,
+    "tampered": 401,
+    "expired": 401
+  },
   "GET /tenants/{A}/stats": {
     "anonymous": 401,
     "student_own": 401,

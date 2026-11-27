@@ -159,6 +159,13 @@ def test_short_matches_inside_long_sentences_get_a_window_around_them():
     assert q["passage"] == text[q["passage_start"]:q["passage_end"]]
 
 
+def test_a_match_outside_every_sentence_is_quoted_as_it_stands():
+    """A counted span the sentence split did not cover (text between two
+    sentences) is quoted exactly, unclipped, rather than borrowing a sentence."""
+    text = "One sentence. ; Another sentence."
+    assert ev._passage(text, [(0, 13), (16, len(text))], 14, 15) == (14, 15, False, False)
+
+
 def test_evidence_is_deterministic():
     baselines = [(f"past paper {i + 1}", t) for i, t in enumerate(PLAIN)]
     feats = [_feature("transition_density"), _feature("char_trigram_entropy"), _feature("comma_rate", -0.2)]
@@ -175,12 +182,15 @@ def test_statistical_habits_are_numbers_only_and_labelled():
                                  [("past paper 1", PLAIN[0])])
     for feature in evidence["features"]:
         assert feature["locatable"] is False
-        assert feature["note"] == ev.NUMBERS_ONLY_NOTE
+        # A whole-paper pattern says so in plain words (no single sentence shows it).
+        assert feature["note"] == ev.whole_text_note(feature["code"]) == ev.WHOLE_PAPER[feature["code"]]
+        assert "No single sentence shows it." in feature["note"]
         assert "this_paper" not in feature and "past_papers" not in feature
         assert feature["engine_scale"] == {"this_paper": 0.7, "past_papers_average": 0.4,
-                                           "note": "Original's 0 to 1 scale for this habit, as used in the score."}
+                                           "note": ev.ENGINE_SCALE_NOTE}
+        assert feature["display"]["style"] == "compare"
     md = ev.render_markdown("s", evidence, None)
-    assert ev.NUMBERS_ONLY_NOTE in md
+    assert ev.WHOLE_PAPER["char_trigram_entropy"] in md
 
 
 def test_engine_order_is_kept_and_capped():
@@ -283,6 +293,8 @@ def test_preliminary_score_is_the_engines_numbers_with_its_label():
     banned = re.compile(r"\bAI\b|detect|cheat|authorship verification|accura|percent|%|authentic|misconduct",
                         re.IGNORECASE)
     for words in [ev.PRELIMINARY_LABEL, ev.PRELIMINARY_NOTE, *ev.BAND_WORDS.values(), ev.NUMBERS_ONLY_NOTE,
+                  ev.NOT_POINTED_NOTE, ev.ENGINE_SCALE_NOTE, ev.PLAIN_UNREADABLE_NOTE, ev.OWN_SCORE_NOTE,
+                  *set(ev.WHOLE_PAPER.values()),
                   ev.NOT_LOCATED_NOTE, ev.BAND_INNOCENT_CLAUSE, ev.BAND_RATE_NOT_MEASURED]:
         assert not banned.search(words), words
 
@@ -420,7 +432,7 @@ def test_html_report_has_two_columns_and_escapes_text():
     assert "&lt;b&gt;hi&lt;/b&gt;<mark>;</mark>" in html_out
     assert "<b>hi</b>" not in html_out and "sub&lt;1&gt;" in html_out and "past &lt;1&gt;" in html_out
     assert "Preliminary · unvalidated · not a judgment" in html_out
-    assert "None in the past papers." in html_out and ev.NUMBERS_ONLY_NOTE in html_out
+    assert "None in the past papers." in html_out and ev.WHOLE_PAPER["char_trigram_entropy"] in html_out
     assert "words)</small>" in html_out
     whole = ev.render_html("s", ev.build_evidence([_feature("question_ratio")], "Why now? Fine.", [("p", "Who? Yes.")]), None)
     assert "<mark>" not in whole
@@ -725,3 +737,35 @@ def test_unknown_habit_is_refused():
     for habit in ("typing_speed_cv", "nope"):
         with pytest.raises(ValueError):
             ev.build_past_paper_examples(habit, [])
+
+
+def test_a_failed_range_count_leaves_the_preliminary_reading_without_it(monkeypatch, caplog):
+    from original.routers import students_scoring as ss
+
+    monkeypatch.setenv("EVIDENCE_PASSAGES_ENABLED", "0")
+    monkeypatch.setenv("PRELIMINARY_SCORE_ENABLED", "1")
+
+    def broken(*_a, **_k):
+        raise ValueError("vectors of different lengths")
+
+    monkeypatch.setattr(ev, "range_counts", broken)
+    flat = [0.5] * FEATURE_DIM
+    result = SimpleNamespace(
+        baseline_confidence=SimpleNamespace(authenticated_count=5, effective_sample_count=3.2),
+        authorship=SimpleNamespace(deviation_score=0.66),
+        recommendation=SimpleNamespace(action="schedule_conversation"),
+        interference=SimpleNamespace(destructive_features=[]),
+        feature_vector={code: 0.5 for code in ALL_FEATURE_CODES},
+    )
+    state = SimpleNamespace(
+        samples=[SimpleNamespace(text=t, auth_weight=1.0, vector=flat) for t in PLAIN],
+        baseline_mean=flat,
+    )
+    response = SimpleNamespace(evidence=None, preliminary=None)
+    teacher = SimpleNamespace(state=SimpleNamespace(principal=SimpleNamespace(role="professor")))
+    with caplog.at_level(logging.ERROR):
+        ss._attach_staff_explainability(response, teacher, EDGE, state, result)
+    assert response.preliminary.score == 0.66
+    prelim = response.preliminary
+    assert prelim.habits_outside is None and prelim.habits_compared is None
+    assert "range counts failed; omitted" in caplog.text

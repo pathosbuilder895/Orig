@@ -3544,3 +3544,21 @@ class TestSampleSourceLookups:
         assert set(rows) == {"pp-1", "pp-2"}
         assert rows["pp-1"]["text"] == "text of pp-1" and rows["pp-1"]["status"] == "approved"
         assert rows["pp-2"]["status"] == "pending"
+
+
+class TestProctorAttestationLedger:
+    """Single-use consumption and its release (T-69) behave the same on
+    both backends."""
+
+    def test_consume_is_single_use(self, repo):
+        assert repo.consume_proctor_attestation("jti-a", "acme", "Exam", "acme:s") is True
+        assert repo.consume_proctor_attestation("jti-a", "acme", "Exam", "acme:s") is False
+
+    def test_release_makes_the_sitting_redeemable_again(self, repo):
+        assert repo.consume_proctor_attestation("jti-b", "acme", "Exam", "acme:s") is True
+        repo.release_proctor_attestation("jti-b")
+        assert repo.consume_proctor_attestation("jti-b", "acme", "Exam", "acme:s") is True
+
+    def test_release_of_an_unknown_jti_is_a_no_op(self, repo):
+        repo.release_proctor_attestation("never-used")
+        assert repo.consume_proctor_attestation("never-used", "acme", "", "acme:s") is True

@@ -1,0 +1,2614 @@
+{
+ "label": "pan20_cross_fandom_nullmodel_N3",
+ "generated_at": "2026-11-16T16:59:22.994056Z",
+ "extra": {
+  "pairs": [
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5744289461253107,
+    "llr": 0.5667095145075799
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5586334843843964,
+    "llr": 0.5630182274789325
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.4239130376246455,
+    "llr": 0.39471668256031534
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7554293104244514,
+    "llr": 0.5576316096093055
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.714861573392155,
+    "llr": 0.5933873523404121
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.65059480273181,
+    "llr": 0.5922547441886339
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5950488512737029,
+    "llr": 0.6820488232984164
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6298706951306947,
+    "llr": 0.7141657011610084
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6234072240161972,
+    "llr": 0.7393148890697815
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6809573640368167,
+    "llr": 0.7690038438624396
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6423458491189512,
+    "llr": 0.7377203600439678
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6455786073345864,
+    "llr": 0.6980513236496839
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7002533878309452,
+    "llr": 0.6444019487844119
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6441446226521406,
+    "llr": 0.5116462030503957
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6594510258074243,
+    "llr": 0.5456176766386218
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6872719364891349,
+    "llr": 0.7772187489749838
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6314590650948786,
+    "llr": 0.6617433474556984
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.599187562395664,
+    "llr": 0.6573663132101012
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6619467899616611,
+    "llr": 0.7156193544529673
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6558623231855963,
+    "llr": 0.6869142610610113
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6368953625021209,
+    "llr": 0.6510378734288027
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6443289581936023,
+    "llr": 0.6229852124291396
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6379649015508982,
+    "llr": 0.6131151582084998
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6560282370872565,
+    "llr": 0.5401868019818207
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7165719563071862,
+    "llr": 0.7913966875882499
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7009624431684369,
+    "llr": 0.7302659614376821
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7076278971550223,
+    "llr": 0.6930356907703941
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5797759834289863,
+    "llr": 0.6498756849249868
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.7234981446890884,
+    "llr": 0.6646772600421098
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6846656879092662,
+    "llr": 0.6383908473510436
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6720419617335728,
+    "llr": 0.7325741953229743
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6772670325094291,
+    "llr": 0.720331077704462
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6440861755247149,
+    "llr": 0.6654506502799316
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.6093441110880384,
+    "llr": 0.6732932615845936
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.6086321431440762,
+    "llr": 0.7015401754169518
+   },
+   {
+    "baseline_author": "pan20_00061789a54d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5804782115514203,
+    "llr": 0.6691788659640094
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5667321506971561,
+    "llr": 0.6563846720577302
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5804340635641714,
+    "llr": 0.6738218768564118
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5594270358201962,
+    "llr": 0.5898185563163426
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6361291717915583,
+    "llr": 0.35359197925759456
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.550794360331923,
+    "llr": 0.345107573301047
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.4406192795269098,
+    "llr": 0.30753553573777037
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5095940674715979,
+    "llr": 0.6044385401311266
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6051267471578509,
+    "llr": 0.6999902944182266
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5026818282801323,
+    "llr": 0.5945083976790061
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.7029790846107441,
+    "llr": 0.7803908985425534
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.521008864540823,
+    "llr": 0.6397153738480683
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5556685520623161,
+    "llr": 0.6619457418475677
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6253057799828367,
+    "llr": 0.5425245050516284
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6546937170997209,
+    "llr": 0.5204372724563854
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6383356587262217,
+    "llr": 0.5055798114578226
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6711973017326358,
+    "llr": 0.7744061812573833
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6955268006179202,
+    "llr": 0.7547144892888981
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6146218677121634,
+    "llr": 0.6855119147309352
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6063827477383025,
+    "llr": 0.7311263686895348
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5963066510013382,
+    "llr": 0.6557829571542375
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6455158422130967,
+    "llr": 0.7357198904000001
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4725950677822594,
+    "llr": 0.5453282472676737
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4767791908280068,
+    "llr": 0.5504516509880476
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5845535120759209,
+    "llr": 0.5507830528252093
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6885256686865309,
+    "llr": 0.7586979831199209
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6220920297487391,
+    "llr": 0.6343376986903535
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6893088921797588,
+    "llr": 0.7046090532863871
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5882011959773517,
+    "llr": 0.6862379218953918
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6239494859063776,
+    "llr": 0.5071241781993501
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.622204539772294,
+    "llr": 0.5697027114800577
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.7072200622376067,
+    "llr": 0.7544378020760298
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.7113928672103618,
+    "llr": 0.7461015059846521
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6833722913550697,
+    "llr": 0.7168015353410488
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.640817392329128,
+    "llr": 0.7260673698990265
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.6345100687819324,
+    "llr": 0.7421728772492779
+   },
+   {
+    "baseline_author": "pan20_4cc9a6a1e25f",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5876677613841084,
+    "llr": 0.6902705419220702
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.7263463190837025,
+    "llr": 0.8238207955765524
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.7361596533225505,
+    "llr": 0.8222005184226271
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.7166415271176567,
+    "llr": 0.7888037863163468
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.794922918301732,
+    "llr": 0.7752042494365237
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7784110020650805,
+    "llr": 0.7651670149586876
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6752773261942844,
+    "llr": 0.6690477721669885
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6119193453617512,
+    "llr": 0.7425641849220357
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5435589085110281,
+    "llr": 0.6456880359946235
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5962839356520088,
+    "llr": 0.7260710085309439
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.637469276060633,
+    "llr": 0.7601566763433918
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6532087641441837,
+    "llr": 0.7540901649787676
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6798167578603654,
+    "llr": 0.7964198071688924
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7478230886950266,
+    "llr": 0.7293128160852691
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7107246204519138,
+    "llr": 0.6177610647486186
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7144571539869256,
+    "llr": 0.6546314713895938
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6004220626812312,
+    "llr": 0.6480271427132879
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4812459799586899,
+    "llr": 0.5482011531829378
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5816770727973982,
+    "llr": 0.6904301006061917
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6774425174819645,
+    "llr": 0.780987080042042
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6671400386691669,
+    "llr": 0.7458426402387419
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.511693450262069,
+    "llr": 0.5066489668495562
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6817814479198409,
+    "llr": 0.7968014635894292
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6784301759906868,
+    "llr": 0.7984435537113954
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.7040732986105463,
+    "llr": 0.6862429763798766
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7628718228208186,
+    "llr": 0.8274880156733109
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.9169912945237166,
+    "llr": 0.8397526245481413
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7797866906862037,
+    "llr": 0.8231636289730679
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6870967771646972,
+    "llr": 0.8199658071820493
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.7236965125502344,
+    "llr": 0.7843085793584397
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.7211884844776857,
+    "llr": 0.7824252374148337
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6421832339476756,
+    "llr": 0.7817274182505305
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6662614284472798,
+    "llr": 0.7929194544539748
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.640129654701471,
+    "llr": 0.7359969586795818
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.7042197079591227,
+    "llr": 0.797233661691995
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.6941664537144996,
+    "llr": 0.8100084104390515
+   },
+   {
+    "baseline_author": "pan20_4ec3c12ab85e",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.7115113263508401,
+    "llr": 0.799137840949485
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5460814776303119,
+    "llr": 0.5718623663574315
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5372727791811146,
+    "llr": 0.5609726287108135
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5288875975134084,
+    "llr": 0.5830298103785393
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7218562659989655,
+    "llr": 0.5162735378716716
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.674612114867226,
+    "llr": 0.49110496333936837
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6190103342517322,
+    "llr": 0.5405779232404128
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.4432934830960197,
+    "llr": 0.4271784222346138
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.3562426516371872,
+    "llr": 0.35616669426377445
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.45217848101539065,
+    "llr": 0.4883469144849207
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5091024950274637,
+    "llr": 0.5899936086340928
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4785181855326225,
+    "llr": 0.5960478095083932
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4428562138824207,
+    "llr": 0.4769911230125281
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5300142644483955,
+    "llr": 0.47495398819208423
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5759271554386919,
+    "llr": 0.4725270573020591
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5697270913379332,
+    "llr": 0.4807549526850237
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5120180476981635,
+    "llr": 0.5830582230747838
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5459371513746474,
+    "llr": 0.6052651961214315
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5638009237573051,
+    "llr": 0.6275560269579638
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.4615312242070685,
+    "llr": 0.51994398061694
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5645635199518215,
+    "llr": 0.6072002380867603
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5398733895916653,
+    "llr": 0.5975044643943765
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.538008574067365,
+    "llr": 0.520069463253079
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5509863976408701,
+    "llr": 0.5317155793092334
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5618068029542511,
+    "llr": 0.4750539249789571
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.4675759630502309,
+    "llr": 0.49260179739046456
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.540680215977296,
+    "llr": 0.5790976928846686
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6018044057281292,
+    "llr": 0.5957972984262838
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.4536228430529506,
+    "llr": 0.557253406036283
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6234790532661144,
+    "llr": 0.5466753366307443
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5303558052521561,
+    "llr": 0.4727868254916252
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5553856574907667,
+    "llr": 0.61990185576025
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5575218294637707,
+    "llr": 0.6031473950068028
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.562673479914642,
+    "llr": 0.6025376824619969
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5199861307381595,
+    "llr": 0.5931829498946494
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5070219956837617,
+    "llr": 0.6059138114469027
+   },
+   {
+    "baseline_author": "pan20_766a0e384021",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5618929425016873,
+    "llr": 0.6738758477127784
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.4977651061430106,
+    "llr": 0.5165711715468392
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5083837779430278,
+    "llr": 0.5207618614155177
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.505793258320914,
+    "llr": 0.5755531096333761
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6504230046649069,
+    "llr": 0.42482505564836304
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6116139289305458,
+    "llr": 0.41466600338696324
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.5043568151615149,
+    "llr": 0.36547557543246567
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.473254550672872,
+    "llr": 0.5072718802876712
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.39304975995942776,
+    "llr": 0.4487626862456745
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.48171810807832605,
+    "llr": 0.5740288881669722
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4565110359100483,
+    "llr": 0.5998170466199846
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.49595734228817984,
+    "llr": 0.6338454040098223
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4479559710633215,
+    "llr": 0.49327454138149635
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.3593296695575412,
+    "llr": 0.2803473289042921
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.39505460773813195,
+    "llr": 0.3068248969337254
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.3815627836970028,
+    "llr": 0.2960214544151386
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.45722910161188524,
+    "llr": 0.5477001764759775
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.46212369525225655,
+    "llr": 0.5738962353906816
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5280872297751696,
+    "llr": 0.6531770632472378
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5035774759495528,
+    "llr": 0.5858528956459119
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5078605009306941,
+    "llr": 0.585725150452344
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5330208017499963,
+    "llr": 0.6171405032162729
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5237157925482011,
+    "llr": 0.4896626438853723
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5245274191331835,
+    "llr": 0.48640259871758534
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5669790348253841,
+    "llr": 0.46496248901974224
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.4586651129629787,
+    "llr": 0.4847493895022968
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.56506039337293,
+    "llr": 0.6105401999834211
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5601035830046378,
+    "llr": 0.4962856911313577
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.4165612185081785,
+    "llr": 0.5556556910094104
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5529244975191697,
+    "llr": 0.5253878033121705
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5239827259053881,
+    "llr": 0.48227361766065713
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5101628287923605,
+    "llr": 0.673027594430713
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5079317063955813,
+    "llr": 0.6501060140406919
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5152598247685981,
+    "llr": 0.6603760898646059
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.44823932593176613,
+    "llr": 0.45842585937285296
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.43594199323649835,
+    "llr": 0.4664496393860778
+   },
+   {
+    "baseline_author": "pan20_7bb9c1ae632c",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.4953965583867196,
+    "llr": 0.5846899110032026
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.4899062087939105,
+    "llr": 0.6064994871364656
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.49172745906100396,
+    "llr": 0.606225614710133
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.47074993324755565,
+    "llr": 0.5519114782365437
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7337331063389488,
+    "llr": 0.5055136261421252
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6852552482516389,
+    "llr": 0.5642108467179239
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.5512671688414248,
+    "llr": 0.48351919711816105
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.34783984376354965,
+    "llr": 0.4573491131453206
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.3659372630829088,
+    "llr": 0.4341847515567613
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.3698235898825936,
+    "llr": 0.5043925548286072
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4744362277565295,
+    "llr": 0.5286241986329087
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.45313493099895696,
+    "llr": 0.4830090373573751
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.38269976802605526,
+    "llr": 0.3112482446135051
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5611444520981343,
+    "llr": 0.49952136083279
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5660286164643633,
+    "llr": 0.4808062928589973
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.559150674330479,
+    "llr": 0.48716926526706894
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4552266538605187,
+    "llr": 0.5220853406608538
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.41316730613927044,
+    "llr": 0.3564166944611146
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4309473191005847,
+    "llr": 0.4414013533790635
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5258517711846442,
+    "llr": 0.5458236052006299
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.47431197808199,
+    "llr": 0.45656120454845806
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5057854980993043,
+    "llr": 0.5998523714213425
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.45068491257326004,
+    "llr": 0.4544748527723447
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4496366759296911,
+    "llr": 0.43859345044292875
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5466491291622618,
+    "llr": 0.4706816981317218
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5544862546174589,
+    "llr": 0.622769351700517
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5795699518422296,
+    "llr": 0.6274940872074697
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5942015548115178,
+    "llr": 0.5288918529290711
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.4414594789270687,
+    "llr": 0.5290609643922546
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5958794048389425,
+    "llr": 0.5519616882548503
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5166660844363334,
+    "llr": 0.46195972826861986
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5558808750878703,
+    "llr": 0.592183341084838
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5623620551317952,
+    "llr": 0.5791887332743031
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5419405755837003,
+    "llr": 0.5835394577306348
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.4821462608620242,
+    "llr": 0.4554141816114138
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.46757730780793355,
+    "llr": 0.4547430439264638
+   },
+   {
+    "baseline_author": "pan20_807178b1bc07",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5023394663214287,
+    "llr": 0.5832215866548465
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5982065790161645,
+    "llr": 0.7451123123591709
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6012716543090306,
+    "llr": 0.7469387859393428
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6306544995319822,
+    "llr": 0.7142567419520628
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.694528539399825,
+    "llr": 0.6187344076450637
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.668465218082321,
+    "llr": 0.624431634222428
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6093982910014252,
+    "llr": 0.4941528130889852
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.49327820152532437,
+    "llr": 0.6118138511296121
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.4708330597527852,
+    "llr": 0.5480176851155407
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.4200431385732118,
+    "llr": 0.5369250263624518
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5713621696166183,
+    "llr": 0.6935014700799501
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5362688873855376,
+    "llr": 0.6722570723472902
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5363275882416487,
+    "llr": 0.6076014224285862
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6503509970099184,
+    "llr": 0.6291234656378026
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6860111563748088,
+    "llr": 0.6481474341419402
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6776477934596145,
+    "llr": 0.6589720885498516
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4387338626538296,
+    "llr": 0.5082156474021242
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4134467066868255,
+    "llr": 0.5198121607456787
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.3536006836155888,
+    "llr": 0.43722320007098153
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.34907168925542836,
+    "llr": 0.4692979113515198
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.4190136647724611,
+    "llr": 0.4948932693081417
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5196141211479544,
+    "llr": 0.5728932451616332
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5205129974470605,
+    "llr": 0.6202748451812878
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5209698796792657,
+    "llr": 0.6257317310475816
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6183176017614944,
+    "llr": 0.6093000453230272
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6078214618426249,
+    "llr": 0.6548419049804391
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6346546723391208,
+    "llr": 0.6995081981660629
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.616999743326474,
+    "llr": 0.6221332741410279
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5113702646318076,
+    "llr": 0.6346897290011986
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5687867550259732,
+    "llr": 0.528626024537304
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6664876890206535,
+    "llr": 0.641856485027985
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.49048357922716274,
+    "llr": 0.620652879934576
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.4745587601901284,
+    "llr": 0.5755656365758326
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6214334871879336,
+    "llr": 0.7289620295701608
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5192908591921016,
+    "llr": 0.6074166435484039
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5094072746640319,
+    "llr": 0.6100597606904956
+   },
+   {
+    "baseline_author": "pan20_8997a58b97e3",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.4468596063150771,
+    "llr": 0.601749770086254
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6796945961418082,
+    "llr": 0.6997549498499513
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6570498924743557,
+    "llr": 0.6692643897124289
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5819833683639184,
+    "llr": 0.6019860534825762
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7648755161778987,
+    "llr": 0.5793732826779345
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7191894193595337,
+    "llr": 0.5377951036002376
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.65632716947361,
+    "llr": 0.5919021627751119
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5538921566109288,
+    "llr": 0.5882290611697794
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.572787426232642,
+    "llr": 0.6270579968691778
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5817603802347575,
+    "llr": 0.6752003609226622
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.41493768129627445,
+    "llr": 0.4770243420284357
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6078820139691679,
+    "llr": 0.7009533337563294
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5002402053203397,
+    "llr": 0.4966729164847309
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6513411909093926,
+    "llr": 0.6169054821976551
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6297294239212872,
+    "llr": 0.6117064535264002
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6368743646853242,
+    "llr": 0.6052661622396193
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4587429183606426,
+    "llr": 0.5563595959666428
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6003774923727465,
+    "llr": 0.6594983946695195
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.444977119426324,
+    "llr": 0.5416579186799345
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6022958882553292,
+    "llr": 0.6409193385215324
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.623270507172356,
+    "llr": 0.6108028610948579
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5123736220927279,
+    "llr": 0.605361423570714
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6947466453736287,
+    "llr": 0.6138281788535271
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6933626001003266,
+    "llr": 0.6042951145004782
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.7027865816017252,
+    "llr": 0.5773736274004092
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5555121935914334,
+    "llr": 0.6101446925655175
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5953812846637178,
+    "llr": 0.6377712661428199
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6123494291746513,
+    "llr": 0.5554128220091898
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6102085980704957,
+    "llr": 0.7152066952891186
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6524133266571875,
+    "llr": 0.6469158702392417
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6340432388149962,
+    "llr": 0.547902516464755
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5242709897952662,
+    "llr": 0.5532342149766514
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5528200573088093,
+    "llr": 0.5678806125376074
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5632230400442181,
+    "llr": 0.5514585096295805
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5575222022785274,
+    "llr": 0.6038999916682017
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5564539507280032,
+    "llr": 0.632696422336929
+   },
+   {
+    "baseline_author": "pan20_abdda173163d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5069626177298371,
+    "llr": 0.5731296660395458
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6104862536580904,
+    "llr": 0.7129294876560504
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6092403950652254,
+    "llr": 0.6990171640269391
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5929843680928695,
+    "llr": 0.6669663912028576
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7129640271713852,
+    "llr": 0.4978877360117503
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6869098137744408,
+    "llr": 0.5420731863730388
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6317968126946141,
+    "llr": 0.6341379260809521
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5975542756468982,
+    "llr": 0.6670967026361683
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6419525020982327,
+    "llr": 0.7302725288378368
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5844541562518566,
+    "llr": 0.7127079362086336
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.590504292992666,
+    "llr": 0.6764156914379004
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5245316500701038,
+    "llr": 0.6419719222386777
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4668415416683988,
+    "llr": 0.48102151698630013
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5833325108472159,
+    "llr": 0.5601407757940757
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6071261957909774,
+    "llr": 0.5832911561499928
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6074461110762459,
+    "llr": 0.5841402557125993
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6151099340687228,
+    "llr": 0.6799238715073191
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6388989937239397,
+    "llr": 0.6925864108906259
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5637084685987519,
+    "llr": 0.6489491650402639
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5873496798677073,
+    "llr": 0.6809864907454752
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5637657993292011,
+    "llr": 0.610578142394009
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6473151898711219,
+    "llr": 0.7372375370320488
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.46502048479594504,
+    "llr": 0.4829314749768128
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4720216523317198,
+    "llr": 0.4823414837306527
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.569017751036026,
+    "llr": 0.4880050060377771
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.3637352904664412,
+    "llr": 0.327115304314788
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.24722312813212347,
+    "llr": 0.24500391575450303
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.32128891123572884,
+    "llr": 0.21383089832315189
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5342837435122798,
+    "llr": 0.6335731957977135
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6913945001463013,
+    "llr": 0.6379520484526646
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.4110997362114788,
+    "llr": 0.37396208398432274
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6325136371583896,
+    "llr": 0.6909835272247709
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6279802832945031,
+    "llr": 0.6680310877381257
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6607218303179434,
+    "llr": 0.6801145635438247
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5847837519154038,
+    "llr": 0.5762133447885858
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.586092165497575,
+    "llr": 0.5981859564942328
+   },
+   {
+    "baseline_author": "pan20_b1adf819debf",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.6123415899200375,
+    "llr": 0.6786000341861202
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6698270262680468,
+    "llr": 0.7315951734646646
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.7186045316514618,
+    "llr": 0.7895578559444527
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.7010831143467072,
+    "llr": 0.7886251360167884
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.726387042295081,
+    "llr": 0.46638450722788805
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7287437594671307,
+    "llr": 0.5431575204497865
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.5604386325906143,
+    "llr": 0.5385642032732335
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6557534892836145,
+    "llr": 0.7672278558850375
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.7170250590378322,
+    "llr": 0.8282602835848578
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.6462907443732326,
+    "llr": 0.716781124063169
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.7148808839840385,
+    "llr": 0.8591855951184233
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6177681836465065,
+    "llr": 0.7145222447808843
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6343284057967802,
+    "llr": 0.7378816403474726
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7166576109075029,
+    "llr": 0.7493961320078981
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7572669703926634,
+    "llr": 0.7591195605892047
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7526559670422743,
+    "llr": 0.7605039579587545
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.7302487569065721,
+    "llr": 0.8284088109601626
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6835901262159485,
+    "llr": 0.7803886335669419
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.6959065582771807,
+    "llr": 0.8180273740269389
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6709805333399229,
+    "llr": 0.7692331138751527
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6020689848928354,
+    "llr": 0.6984780865121466
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.7084531106081909,
+    "llr": 0.7815881534855935
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6287005094960265,
+    "llr": 0.7377353946153208
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.62399038174537,
+    "llr": 0.7352704072581256
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6984858698554942,
+    "llr": 0.6953184441355491
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7578112186246142,
+    "llr": 0.8300903831632265
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.742449925793933,
+    "llr": 0.7659066704753072
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.7518193353455045,
+    "llr": 0.8010948969847362
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6329757931784976,
+    "llr": 0.7694366994049205
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5133065158403212,
+    "llr": 0.4099608700936827
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6613748744425284,
+    "llr": 0.7364066262069021
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6362502110517362,
+    "llr": 0.7721837704582497
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6150905661853407,
+    "llr": 0.7490549018768193
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.6326272613706598,
+    "llr": 0.7583895732481786
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.7208252590600548,
+    "llr": 0.829500797996412
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.7105308943919525,
+    "llr": 0.844080078427627
+   },
+   {
+    "baseline_author": "pan20_bca27dab9789",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.7250092895094062,
+    "llr": 0.8152480570675578
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6435165941944725,
+    "llr": 0.6783794359667437
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6419030062095035,
+    "llr": 0.674987558835496
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.6549854836159035,
+    "llr": 0.7273189455854746
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7877151632885799,
+    "llr": 0.6296983584989005
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7460734679163339,
+    "llr": 0.6588764135250781
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6312697551925488,
+    "llr": 0.6385612607796234
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5986444097442104,
+    "llr": 0.6919660310529234
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5101821305234279,
+    "llr": 0.5920327389629855
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.5539333918627627,
+    "llr": 0.6778609550399117
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5759053768295435,
+    "llr": 0.6467006335810099
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.5910960431439077,
+    "llr": 0.7258456177144315
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.6212315051044712,
+    "llr": 0.7077569994092259
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.6951404232152298,
+    "llr": 0.7069337629655079
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7144660754182833,
+    "llr": 0.6903142816465629
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.7122257324625101,
+    "llr": 0.6816621516455271
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4933026410090808,
+    "llr": 0.537086530644002
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5483255158254792,
+    "llr": 0.5796714874156849
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.5666455184727403,
+    "llr": 0.6055971621703878
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5097969058612621,
+    "llr": 0.5573342359103615
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.6364483410768658,
+    "llr": 0.7096269258650323
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.5504916098805318,
+    "llr": 0.6012978062019555
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6746353958845431,
+    "llr": 0.7148873333197646
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6913679049125672,
+    "llr": 0.7349462062139553
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.6720508396470722,
+    "llr": 0.6183500262743344
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6092888563637142,
+    "llr": 0.6427423178813412
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6721343500152569,
+    "llr": 0.6447546526822958
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.6886857038357784,
+    "llr": 0.5986516080326948
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5618834937636917,
+    "llr": 0.6458801753689869
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6658921749879685,
+    "llr": 0.5858529574981916
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6894228633879792,
+    "llr": 0.6695137543528802
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.48129129904966217,
+    "llr": 0.49750336013177177
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.4835092294760189,
+    "llr": 0.47701376098869225
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5225381551629882,
+    "llr": 0.4821177073655911
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5289642366515364,
+    "llr": 0.49591589606125297
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5180262310165626,
+    "llr": 0.4974911115559291
+   },
+   {
+    "baseline_author": "pan20_c8db09317f5d",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.5273328978366854,
+    "llr": 0.5361398223876491
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5441723453986843,
+    "llr": 0.6425612164511592
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5479845937011333,
+    "llr": 0.6429390233843423
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_00061789a54d",
+    "deviation": 0.5444042423144272,
+    "llr": 0.6009678242485091
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.7094579499993133,
+    "llr": 0.44499732854071516
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.6648984665158038,
+    "llr": 0.476504665856843
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4cc9a6a1e25f",
+    "deviation": 0.5915084899626222,
+    "llr": 0.4730084199444246
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.46439334246175873,
+    "llr": 0.49319719668202083
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.46154466268704303,
+    "llr": 0.4961010153481901
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_4ec3c12ab85e",
+    "deviation": 0.43894797497632676,
+    "llr": 0.5132656928512894
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.40839359874677433,
+    "llr": 0.4829737757645602
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.4409594496046989,
+    "llr": 0.5369686048368911
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_766a0e384021",
+    "deviation": 0.3975644239623728,
+    "llr": 0.3880902310159181
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5958192847928988,
+    "llr": 0.548135246105699
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5948988929582109,
+    "llr": 0.5084642423178083
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_7bb9c1ae632c",
+    "deviation": 0.5909636853291965,
+    "llr": 0.5167165957249815
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.3507461249201127,
+    "llr": 0.39690696346304655
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.4850123383936788,
+    "llr": 0.5474042471433572
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_807178b1bc07",
+    "deviation": 0.3836882950250757,
+    "llr": 0.4213502738353263
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.4378750080066456,
+    "llr": 0.5539544245112628
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.4282399890629635,
+    "llr": 0.3684407300139043
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_8997a58b97e3",
+    "deviation": 0.449779722000603,
+    "llr": 0.55125342798829
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4520204650872542,
+    "llr": 0.46649989682420046
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.4559857533668339,
+    "llr": 0.4674966973206
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_abdda173163d",
+    "deviation": 0.5549315792874473,
+    "llr": 0.5165910052041441
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.48458354954508637,
+    "llr": 0.4802241562734905
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.565110629877067,
+    "llr": 0.5780802994094146
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_b1adf819debf",
+    "deviation": 0.5179780583451723,
+    "llr": 0.4166362999867513
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.4925519541155745,
+    "llr": 0.5923433339217109
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.6052982113388885,
+    "llr": 0.530628638558708
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_bca27dab9789",
+    "deviation": 0.5191167501010283,
+    "llr": 0.4373173338353853
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5614801965088442,
+    "llr": 0.6175537151510545
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5513002578561962,
+    "llr": 0.5978250413708603
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_c8db09317f5d",
+    "deviation": 0.5536698032474963,
+    "llr": 0.572082042392327
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.3592477946566997,
+    "llr": 0.3802333955503575
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.3504454278497348,
+    "llr": 0.38624973232892806
+   },
+   {
+    "baseline_author": "pan20_df48e8c8bfa1",
+    "submission_author": "pan20_df48e8c8bfa1",
+    "deviation": 0.4691608320247901,
+    "llr": 0.5475168679858323
+   }
+  ],
+  "eligible_authors": [
+   "pan20_00061789a54d",
+   "pan20_4cc9a6a1e25f",
+   "pan20_4ec3c12ab85e",
+   "pan20_766a0e384021",
+   "pan20_7bb9c1ae632c",
+   "pan20_807178b1bc07",
+   "pan20_8997a58b97e3",
+   "pan20_abdda173163d",
+   "pan20_b1adf819debf",
+   "pan20_bca27dab9789",
+   "pan20_c8db09317f5d",
+   "pan20_df48e8c8bfa1"
+  ]
+ }
+}

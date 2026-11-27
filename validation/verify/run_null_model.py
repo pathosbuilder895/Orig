@@ -46,6 +46,7 @@ from original.constants import ALL_FEATURE_CODES
 from original.features.pipeline import extract_features, feature_vector
 from original.quantum.state import StudentState, BaselineSample
 from original.quantum.scoring import ScoringConfig, score
+from original.quantum.writer_line import loo_deviation_scores
 from validation.verify.binary_auc import _ScoringPair, summarize
 from validation.verify.null_models import fit_impostor_gaussian
 from validation.verify.report import paths_for, write_report
@@ -155,10 +156,21 @@ def run(
     #      llr_deviation_score (impostor-adjusted) from the same call. ──
     baseline_pairs: List[_ScoringPair] = []
     llr_pairs: List[_ScoringPair] = []
+    # Per-pair leave-one-out deviation reference of the claimed author, for
+    # G-WRITERLINE (computed once per target with the run's scoring config).
+    writer_rows: List[list] = []
     t0 = time.perf_counter()
     for target in eligible:
         state = states[target]
         n_for_target = 0
+        loo_dev = loo_deviation_scores(
+            state,
+            score,
+            adaptive_weights=None,
+            manifest=None,
+            impostor_stats=impostor_stats[target],
+            scoring_config=ScoringConfig.from_env(),
+        )
         for source in eligible:
             source_authentic = [
                 e for e in by_author[source]["scoring"] if e.get("label") == "authentic"
@@ -189,6 +201,7 @@ def run(
                     )
                 )
                 llr = result.authorship.llr_deviation_score
+                writer_rows.append(list(loo_dev))
                 llr_pairs.append(
                     _ScoringPair(
                         baseline_author=target,
@@ -220,6 +233,18 @@ def run(
             "baseline_median_per_author_auc": baseline_report.median_per_author_auc,
             "baseline_iqr_per_author_auc": baseline_report.iqr_per_author_auc,
             "baseline_pooled_uncalibrated_auc": baseline_report.pooled_uncalibrated_auc,
+            # Per-pair rows for the G-REBIND harness (validation/rebind/):
+            # deviation_score and llr_deviation_score from the same score().
+            "pairs": [
+                {
+                    "baseline_author": b.baseline_author,
+                    "submission_author": b.submission_author,
+                    "deviation": b.deviation,
+                    "llr": lp.deviation,
+                    "loo_dev": wr,
+                }
+                for b, lp, wr in zip(baseline_pairs, llr_pairs, writer_rows, strict=True)
+            ],
         },
     )
 

@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-20.8" />
-<link rel="stylesheet" href="suite.css?v=2026-11-20.8" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.1" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.1" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.1" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -213,6 +213,15 @@
   #tbt .ex-src,#hero-evi .ex-src{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;color:var(--dim);margin-top:.4rem;overflow-wrap:anywhere;}
   #tbt .ex-big,#hero-evi .ex-big{display:block;font-family:var(--mono);font-weight:700;font-size:1.5rem;color:var(--flag);margin-bottom:.3rem;}
   #tbt .ex-unit,#hero-evi .ex-unit{font-size:.86rem;color:var(--dim);font-style:italic;}
+  /* Readable numbers (EvidenceView.readable): a comparison in words, its exact position folded away, and the "Other patterns" list. */
+  #tbt .ex-rel,#hero-evi .ex-rel{font-size:1rem;font-weight:600;line-height:1.35;color:var(--flag);margin:.2rem 0 .35rem;}
+  #tbt .ex-exact,#hero-evi .ex-exact,#tbt .ex-other-why{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
+  #tbt .ex-exact summary,#hero-evi .ex-exact summary{cursor:pointer;}
+  #tbt .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
+  #tbt .ex-other-row{padding:.6rem 0;border-top:1px solid var(--line-soft);}
+  #tbt .ex-other-row b,#tbt .ex-other-line,#tbt .ex-other-why{display:block;}
+  #tbt .ex-other-why{font-style:italic;}
+  #tbt .tbt-other-h{margin:1.2rem 0 .2rem;font-size:1rem;}
   #tbt .ex-vals,#hero-evi .ex-vals{list-style:none;font-size:.92rem;padding:0;margin:0;}
   #tbt .ex-vals li,#hero-evi .ex-vals li{display:flex;justify-content:space-between;gap:1rem;padding:.2rem 0;border-bottom:1px dotted var(--line-soft);}
   #tbt .ex-vals li b,#hero-evi .ex-vals li b{font-family:var(--mono);color:#8ba8dd;}
@@ -230,12 +239,36 @@
   .pp-note{font-size:.86rem;font-style:italic;color:var(--dim);line-height:1.55;margin-top:.7rem;}
   /* On a phone the card scrolls sideways instead of squeezing each paper's column to one letter. */
   @media (max-width:760px){.pp-table{min-width:36rem;}}
+  .pp-table .pp-pl+.pp-pl{margin-top:.35rem;}
+  /* Parts of this paper (paper_profile.parts): what was set aside and what was measured, with the teacher's control. */
+  .ppp-card{padding:1rem 1.2rem;margin-top:.5rem;}
+  .ppp-lede{font-size:.92rem;color:var(--dim);line-height:1.55;margin-bottom:.6rem;}
+  .pp-parts{list-style:none;margin:0;padding:0;}
+  .pp-part{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:1rem;row-gap:.15rem;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--line-soft);}
+  .pp-part:last-child{border-bottom:none;}
+  .pp-part-what{font-size:.95rem;color:var(--cream);font-weight:500;}
+  .pp-part.aside .pp-part-what{color:var(--dim);}
+  .pp-part.maybe .pp-part-what{color:var(--gold-2);}
+  .pp-part-line{grid-column:1;font-size:.84rem;font-style:italic;color:var(--dim);overflow-wrap:anywhere;}
+  .pp-part-btn{grid-column:2;grid-row:1 / span 2;border-radius:999px;padding:.42rem .95rem;font-family:var(--body);font-size:.85rem;font-weight:600;cursor:pointer;border:1px solid var(--line);background:rgba(10,16,36,0.55);color:var(--cream);white-space:nowrap;transition:all .18s;}
+  .pp-part-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold-2);}
+  .pp-part-btn:disabled{opacity:.5;cursor:default;}
+  .ppp-msg{font-size:.88rem;color:var(--dim);margin-top:.6rem;min-height:1.2em;}
+  .ppp-msg.err{color:var(--flag);}
+  @media (max-width:560px){.pp-part{grid-template-columns:1fr;}.pp-part-btn{grid-column:1;grid-row:auto;justify-self:start;margin-top:.35rem;}}
   @media (max-width:760px){#tbt .ex,#hero-evi .ex{grid-template-columns:1fr;}#tbt .ex-col+.ex-col,#hero-evi .ex-col+.ex-col{border-left:none;border-top:1px solid var(--line-soft);}}
   .sec-h b{font-family:var(--display);font-weight:500;font-size:1.2rem;color:var(--cream);}
   .sec-h span{color:var(--dim);font-size:.86rem;}
 
   /* State vector heatmap */
-  .hm-wrap{overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  /* --hm-col: one habit's column. 12px with a mouse; on a phone or touch screen each is 44px wide,
+     a comfortable tap, and the strip scrolls sideways inside the card (the hint says so). */
+  .hm-wrap{--hm-col:12px;overflow-x:auto;padding:1.4rem 1.2rem .6rem;}
+  .hm-hint{display:none;margin:0 0 .6rem;font-size:.82rem;font-style:italic;color:var(--dim);}
+  @media (max-width:760px),(pointer:coarse){
+    .hm-wrap{--hm-col:44px;overscroll-behavior-x:contain;}
+    .hm-hint{display:block;position:sticky;left:0;}
+  }
   .hm-grid{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;align-items:flex-end;height:150px;transition:grid-template-columns .25s;}
   .hm-labels{display:grid;grid-template-columns:repeat(34,1fr);gap:5px;margin-top:8px;}
   .hm-band{display:grid;gap:5px;margin-top:8px;}
@@ -370,6 +403,9 @@
   .fd-base{background:linear-gradient(90deg,color-mix(in srgb,var(--fdc,#c9a028) 80%,transparent),color-mix(in srgb,var(--fdc,#c9a028) 40%,transparent));}
   .evi-big{display:block;font-family:var(--mono);font-weight:700;font-size:2rem;line-height:1.1;color:var(--evc,#c9a028);margin-bottom:.4rem;}
   .evi-col.base .evi-big{color:#8ba8dd;}
+  .evi-rel{font-size:1.05rem;font-weight:600;line-height:1.35;color:var(--evc,#c9a028);margin:.1rem 0 .4rem;}
+  .evi-col.base .evi-rel{color:#8ba8dd;}
+  .evi-unit{font-size:.86rem;color:var(--dim);font-style:italic;margin:-.2rem 0 .4rem;}
   .evi-txt p{font-size:.98rem;line-height:1.6;}
   .evi-txt .none{font-style:italic;color:var(--dim);}
   /* ── the essentials and the folded sections (2026-10-30) ── */
@@ -395,19 +431,7 @@
   .ess-nums b{color:var(--cream);font-family:var(--mono);font-weight:600;}
   .ess-chip{display:inline-block;font-family:var(--mono);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid rgba(201,160,40,.35);border-radius:4px;padding:.1rem .4rem;margin-left:.45rem;vertical-align:middle;}
   .ess .triage{margin-top:1rem;}
-  .deep-head{display:flex;align-items:baseline;gap:.55rem;margin:.4rem 0 -.6rem;}
-  .deep-head b{font-family:var(--display);font-weight:500;font-size:1.1rem;color:var(--cream);}
-  .deep-head span{color:var(--dim-2);font-size:.84rem;font-style:italic;}
-  details.deep{border:1px solid var(--line-soft);border-radius:16px;background:rgba(255,255,255,0.025);}
-  details.deep>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .55rem;padding:.85rem 1.2rem;}
-  details.deep>summary::-webkit-details-marker{display:none;}
-  details.deep>summary b{font-family:var(--display);font-weight:500;font-size:1.08rem;color:var(--cream);}
-  details.deep>summary span{color:var(--dim);font-size:.84rem;}
-  details.deep>summary::after{content:'+';margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:1rem;}
-  details.deep[open]>summary::after{content:'-';}
-  details.deep>summary:hover{background:rgba(255,255,255,0.03);border-radius:16px;}
-  details.deep>summary:focus-visible{outline:2px solid var(--gold-2);outline-offset:-2px;border-radius:16px;}
-  .deep-body{padding:.2rem 1.2rem 1.2rem;}
+  /* .deep-head, details.deep and .deep-body: suite.css (shared with every page that has a Look closer). */
   .deep-body.radar-card{padding-top:.2rem;}
   .fp-box{position:relative;height:380px;border-radius:14px;overflow:hidden;background:#0a1024;}
   .fp-box .hero{pointer-events:auto;}
@@ -451,7 +475,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-20.8"></script>
+  <script src="shell.js?v=2026-11-26.1"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -549,6 +573,16 @@
           </div>
         </div>
 
+        <!-- Parts of this paper: what was set aside and what was measured (paper_profile.parts), with the teacher's control; only when the server sent them -->
+        <div id="ppp" hidden>
+          <div class="sec-h"><b>Parts of this paper</b><span>what Original measured and what it set aside</span></div>
+          <div class="card ppp-card">
+            <p class="ppp-lede" id="ppp-lede">Original measures the writer&rsquo;s own prose and sets aside the parts that are not, such as a title page, an abstract and a list of sources. When its rules are unsure, it measures the part and lists it here as possible. You can set a part aside or measure it yourself; the paper is then analysed again.</p>
+            <div id="ppp-list"></div>
+            <p class="ppp-msg" id="ppp-msg" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
         <!-- About the papers: teacher-only description (paper_profile), only when the server sent it -->
         <div id="pp" hidden>
           <div class="sec-h"><b>About the papers</b><span>headings, citations and sources; not part of the comparison</span></div>
@@ -562,6 +596,7 @@
           <summary><b>Habit by habit</b><span id="hm-sub">97 measured writing habits</span></summary>
           <div class="deep-body">
             <div class="card hm-wrap">
+              <p class="hm-hint">Swipe sideways along the strip for every habit; tap one to open it.</p>
               <div class="hm-grid" id="heatmap"></div>
               <div class="hm-band" id="heatmap-band"></div>
               <div class="hm-labels" id="heatmap-labels"></div>
@@ -650,12 +685,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-20.8"></script>
-<script src="js/feature-data.js?v=2026-11-20.8"></script>
-<script src="js/fingerprint.js?v=2026-11-20.8"></script>
-<script src="js/evidence-view.js?v=2026-11-20.8"></script>
-<script src="js/evidence-cards.js?v=2026-11-20.8"></script>
-<script src="js/paper-profile.js?v=2026-11-20.8"></script>
+<script src="live.js?v=2026-11-26.1"></script>
+<script src="js/feature-data.js?v=2026-11-26.1"></script>
+<script src="js/fingerprint.js?v=2026-11-26.1"></script>
+<script src="js/evidence-view.js?v=2026-11-26.1"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.1"></script>
+<script src="js/paper-profile.js?v=2026-11-26.1"></script>
 <script>
 (function(){
   'use strict';
@@ -668,7 +703,6 @@
   const num=v=>(typeof v==='number'&&isFinite(v))?v:null;
   const clamp01=v=>Math.max(0,Math.min(1,v));
   const plural=(n,one,many)=>n+' '+(n===1?one:(many||one+'s'));
-  const signed=d=>(d>=0?'+':'')+d.toFixed(2);
   const lowerFirst=s=>s.charAt(0).toLowerCase()+s.slice(1);
   const DASH='–';
 
@@ -759,6 +793,19 @@
     if(c&&num(c.baseline_value)!=null) return c.baseline_value;
     return has(S.base,f.code)?num(S.base[f.code]):null;
   }
+  // A habit's reading in words, for a tooltip or a screen reader: with the
+  // staff evidence entry, its readable numbers (EvidenceView); without it,
+  // only which way this paper sits (the numbers here are Original's internal
+  // positions, which are not shares or counts, so they are never printed).
+  function habitWords(f){
+    const e=S.EVI.get(f.code);
+    if(e&&!EV.isHidden(e)){ const l=EV.differenceLine(e)||EV.oneLine(e); if(l) return l; }
+    const v=baseOf(f), s=subOf(f);
+    if(v==null) return 'no baseline yet';
+    if(s==null) return 'baseline on file';
+    return 'this paper is '+(s>v+1e-9?'higher than':s<v-1e-9?'lower than':'about the same as')+' their usual';
+  }
+  const wayWord=(s,v)=>(s==null||v==null)?DASH:s>v+1e-9?'higher':s<v-1e-9?'lower':'same';
   function subOf(f){
     if(!S.sub) return null;
     const c=contrib(f);
@@ -823,11 +870,11 @@
           dot.style.cssText='position:absolute;bottom:0;left:50%;transform:translate(-50%,-50%) translateY(-'+subH+'px);width:5px;height:5px;border-radius:50%;background:'+subColor+';z-index:3;box-shadow:0 0 0 2px #0d1530;';
           col.appendChild(marker); col.appendChild(dot);
         }
-        col.title=f.name+(v!=null?': baseline '+v.toFixed(3):': no baseline yet')+(sub!=null?' · this paper '+sub.toFixed(3):'')+(out?' · outside their usual range':'');
+        col.title=f.name+': '+habitWords(f)+(out?' · outside their usual range':'');
         col.style.cursor='pointer';
         // A keyboard reaches the bars as one group: Tab enters it, the arrow keys move along it.
         col.tabIndex=-1; col.setAttribute('role','button'); col.setAttribute('aria-expanded','false');
-        col.setAttribute('aria-label',f.name+(v!=null?', baseline '+v.toFixed(2):', no baseline yet')+(sub!=null?', this paper '+sub.toFixed(2):'')+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
+        col.setAttribute('aria-label',f.name+', '+habitWords(f)+(out?', outside their usual range':'')+'. Opens the evidence for this habit.');
         onPress(col,()=>{ if(S.base) EVI.open(f.code,col); else CHIPS.toggle(f.tier); });
         col.addEventListener('mouseenter',()=>{baseBar.style.opacity='1';baseBar.style.transform='scaleY(1.03)';});
         col.addEventListener('mouseleave',()=>{baseBar.style.opacity=baseAlpha;baseBar.style.transform='none';});
@@ -857,9 +904,9 @@
     function filterGroup(g){
       const count=FLAT.filter(f=>TIER_GRP[f.tier]===g).length;
       heatmap.classList.add('filtered');
-      heatmap.style.gridTemplateColumns='repeat('+count+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       labels.style.display='none'; band.style.display='';
-      band.style.gridTemplateColumns='repeat('+count+',12px)';
+      band.style.gridTemplateColumns='repeat('+count+',var(--hm-col))';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display=TIER_GRP[b.dataset.tier]===g?'':'none';});
       cols.forEach((c,i)=>{const m=TIER_GRP[c.dataset.tier]===g;c.style.display=m?'':'none';labs[i].style.display='none';c._bar.style.width='12px';});
       syncTab();
@@ -878,9 +925,9 @@
     }
     function reset(){
       heatmap.classList.remove('filtered'); labels.classList.remove('horiz');
-      heatmap.style.gridTemplateColumns='repeat('+N+',12px)';
-      labels.style.gridTemplateColumns='repeat('+N+',12px)';
-      band.style.gridTemplateColumns='repeat('+N+',12px)';
+      heatmap.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      labels.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
+      band.style.gridTemplateColumns='repeat('+N+',var(--hm-col))';
       heatmap.style.minWidth=labels.style.minWidth=band.style.minWidth='';
       labels.style.display='none'; band.style.display='';
       band.querySelectorAll('.hbnd').forEach(b=>{b.style.display='';});
@@ -891,7 +938,8 @@
   }
 
   // Radar over all tiers: the per-tier mean of the baseline (gold) and of
-  // this paper (dashed), on the same 0 to 1 scale as the habits.
+  // this paper (dashed), from Original's internal positions for each habit.
+  // The tooltip says which way in words; the positions are not printed.
   function makeRadar(){
     const canvas=$('radar-canvas'), ctx=canvas.getContext('2d'), radarTip=$('radar-tip');
     const GCOLOR={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
@@ -935,7 +983,7 @@
     }
     function tipText(p){
       if(p.b==null) return esc(p.name);
-      return esc(p.name)+' <b>'+p.b.toFixed(3)+'</b>'+(p.s!=null?' / '+p.s.toFixed(3):'');
+      return esc(p.name)+(p.s!=null?' · this paper <b>'+esc(wayWord(p.s,p.b)==='same'?'about the same as':wayWord(p.s,p.b)+' than')+'</b> their usual, on average':'');
     }
     canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();const mx=e.clientX-r.left,my=e.clientY-r.top;let best=null,bd=15;
       poly(p=>p.b==null?1:p.b).forEach((p,k)=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bd){bd=d;best={p,k};}});
@@ -1021,6 +1069,7 @@
     const swatch=$('fd-swatch'), titleEl=$('fd-title'), subEl=$('fd-sub'), countEl=$('fd-count'), body=$('fd-body'), card=$('feat-detail');
     const GCOL={Surface:'#4d90c8',Discourse:'#9a7ad0',Rhetorical:'#5aab7a'};
     function rowHTML(f){
+      if(EV.isHidden(f)) return '';  // used in the score, never listed (EvidenceView.HIDDEN_CODES)
       const v=baseOf(f), s=subOf(f), out=S.D.has(f.code), within=S.C.has(f.code);
       const diff=(v!=null&&s!=null)?s-v:null;
       const sc=out&&diff!=null?(diff<0?'#c0392b':'#2a6b45'):'#c9a028';
@@ -1029,7 +1078,7 @@
       return '<div class="fd-row" data-tier="'+esc(f.tier)+'" data-code="'+esc(f.code)+'">'+
         '<div><div class="fd-nm">'+esc(f.name)+badge+'</div><div class="fd-ds">'+esc(f.desc||'')+'</div></div>'+
         '<div class="fd-bar"><div class="fd-track"></div>'+(v!=null?'<div class="fd-base" style="width:'+Math.round(clamp01(v)*100)+'%"></div>':'')+(s!=null?'<div class="fd-sub-mark" style="left:'+Math.round(clamp01(s)*100)+'%;--sm:'+sc+'"></div>':'')+'</div>'+
-        '<div class="fd-delta" style="color:'+sc+'">'+(diff!=null?signed(diff):DASH)+'</div></div>';
+        '<div class="fd-delta" style="color:'+sc+'">'+esc(wayWord(s,v))+'</div></div>';
     }
     function paint(color,title,sub,rowsHTML,count){
       card.style.setProperty('--fdc',color); swatch.style.background=color;
@@ -1164,7 +1213,7 @@
       box.style.setProperty('--evc-line',hex2rgba(t.c,.38));
       $('evi-name').textContent=f.name;
       $('evi-flag').hidden=!out;
-      $('evi-nums').innerHTML=e?eviNums(e):(v!=null?'baseline '+v.toFixed(2):'no baseline')+(s!=null?' · this paper <b>'+s.toFixed(2)+'</b>'+(v!=null?' ('+signed(s-v)+')':''):'');
+      $('evi-nums').innerHTML=e?eviNums(e):(v==null?'no baseline':s==null?'baseline on file':'this paper <b>'+esc(wayWord(s,v)==='same'?'about the same as':wayWord(s,v)+' than')+'</b> their usual');
       $('evi-desc').textContent=f.desc||'';
       numbersCols(f,v,s,out,within);
       $('evi-sub-src').removeAttribute('title'); $('evi-base-src').removeAttribute('title');
@@ -1225,24 +1274,40 @@
     // one line under it (EvidenceView.numbersOf), so the two never disagree.
     function eviNums(e){
       const n=EV.numbersOf(e);
-      const range=n.lo==null?'':(n.lo===n.hi?EV.fmt(n.lo):EV.fmt(n.lo)+' to '+EV.fmt(n.hi));
-      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(EV.fmt(n.thisValue))+'</b>'+esc(EV.clean(n.unit?' ('+n.unit+')':'',''));
+      if(!n.plain){ const cw=EV.compareWords(e); return cw?'this paper <b>'+esc(EV.clean(cw,''))+'</b>':''; }
+      const range=EV.rangeText(n), unit=n.unit&&n.mode!=='category'?n.unit:'';
+      return esc(EV.clean((range?'past papers '+range+' · ':'')+'this paper ',''))+'<b>'+esc(n.show(n.thisValue))+'</b>'+esc(EV.clean(unit?' ('+unit+')':'',''));
     }
     // The two numbers, as the panel showed before passages existed.
+    // The numbers as EvidenceView.readable writes them (a percent, a plain unit
+    // or a kind); with no everyday unit, or without the staff evidence, which
+    // way this paper sits, in words. Original's internal positions are never printed.
     function numbersCols(f,v,s,out,within){
       const n=counted()||0;
+      const e=S.EVI.get(f.code)||null, r=e?EV.numbersOf(e):null;
+      const readable=!!(r&&r.plain&&r.thisValue!=null);
+      const unitP=u=>u?'<p class="evi-unit">'+esc(u)+'</p>':'';
+      const unit=r&&r.mode!=='category'?r.unit:'';
       if(s!=null){
         const line=out?'This is one of the habits furthest from '+poss()+' usual range in this paper, by Original\u2019s measure.'
           :within?'This is one of the habits closest to '+poss()+' usual range in this paper, by Original\u2019s measure.'
-          :'This paper’s value for this habit, on a scale from 0 to 1.';
-        $('evi-sub').innerHTML='<span class="evi-big">'+s.toFixed(2)+'</span><p>'+esc(line)+'</p>';
+          :'This paper\u2019s reading for this habit.';
+        let big;
+        if(readable) big='<span class="evi-big">'+esc(r.show(r.thisValue))+'</span>'+unitP(unit);
+        else {
+          const cw=e?EV.compareWords(e):'';
+          big='<p class="evi-rel">'+esc(cw?EV.clean('This paper is '+cw+'.',''):v==null?'':(wayWord(s,v)==='same'?'About the same as ':(wayWord(s,v)==='higher'?'Higher':'Lower')+' than ')+poss()+' usual')+'</p>';
+        }
+        $('evi-sub').innerHTML=big+'<p>'+esc(line)+'</p>';
         $('evi-sub-src').textContent=(S.assignment||'This paper')+' · '+plural(S.words,'word');
       } else {
         $('evi-sub').innerHTML='<p class="none">Analyse a paper to see where it sits on this habit.</p>';
         $('evi-sub-src').textContent='';
       }
       if(v!=null){
-        $('evi-base').innerHTML='<span class="evi-big">'+v.toFixed(2)+'</span><p>'+esc('The average across '+plural(n,'counted sample')+' of '+poss()+' writing, on the same scale.')+'</p>';
+        const range=readable?EV.rangeText(r):'';
+        $('evi-base').innerHTML=(range?'<span class="evi-big">'+esc(range)+'</span>'+unitP(unit)+'<p>'+esc('From the lowest to the highest of the past papers set beside this paper.')+'</p>'
+          :'<p class="evi-rel">'+esc(poss()+' usual level')+'</p><p>'+esc('The average across '+plural(n,'counted sample')+' of '+poss()+' writing.')+'</p>');
         $('evi-base-src').textContent=countedPhrase();
       } else {
         $('evi-base').innerHTML='<p class="none">No baseline value for this habit yet.</p>';
@@ -1265,7 +1330,8 @@
     const pastFeature=(d,code)=>pastFeatures(d).find(f=>f.code===code)||null;
     const perPaper=f=>Array.isArray(f.per_paper)?f.per_paper.filter(isObj):[];
     const unitOf=f=>typeof f.unit==='string'?f.unit.trim():'';
-    const numberLine=(v,unit)=>EV.clean(EV.fmt(v)+(unit?' '+unit:''),EV.fmt(v));
+    // One past paper's value as EvidenceView writes it (a percent or a plain unit, from the habit's `display`).
+    const numberLine=(v,unit,f)=>EV.clean(EV.valueWords(f&&f.display,unit,v),'');
     // The analysed view's parts hide while past papers are shown; render() and close() bring them back.
     function pastParts(on){
       $('evi-past').hidden=!on;
@@ -1324,8 +1390,8 @@
     function pastRange(f){
       const vals=perPaper(f).map(p=>num(p.value)).filter(v=>v!=null);
       if(!vals.length) return '';
-      const lo=EV.fmt(Math.min(...vals)), hi=EV.fmt(Math.max(...vals)), unit=unitOf(f);
-      return EV.clean('past papers '+(lo===hi?lo:lo+' to '+hi)+(unit?' ('+unit+')':''),'');
+      const n=EV.readable({display:f.display,plain:{unit:unitOf(f),this_paper:null,past_papers:[],past_range:[Math.min(...vals),Math.max(...vals)]}});
+      return EV.clean('past papers '+EV.rangeWords(n),'');
     }
     // A quote's source line: why it was picked (typical, longest, shortest), its length, a short match spelled out.
     function pickSource(x,tag){
@@ -1338,7 +1404,7 @@
     function pastColumn(f,p,papers){
       const v=num(p.value);
       let h='<div class="evi-pcol"><div class="evi-phead">'+esc(EV.pastSource(p.paper,papers))+'</div>';
-      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f)))+'</span>';
+      if(v!=null) h+='<span class="evi-pnum">'+esc(numberLine(v,unitOf(f),f))+'</span>';
       if(p.count===0) h+='<p class="none">None in this paper.</p>';
       else if(num(p.count)==null) h+='<p class="none">'+esc(EV.clean(typeof f.note==='string'&&f.note?f.note:NUMBERS_ONLY,NUMBERS_ONLY))+'</p>';
       else h+=pastExamples(p).slice(0,3).map(x=>'<div class="evi-pq">'+quoteHTML(x.quote)+pickSource(x)+'</div>').join('');
@@ -1391,7 +1457,7 @@
         const v=num(p.value), ex=pastExamples(p);
         const both=ex.some(x=>x.role==='longest'||x.role==='shortest');
         let h='<span class="evi-rel-cell"><span class="evi-rel-paper">'+esc(EV.paperName(p.paper,papers))+'</span>';
-        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit))+'</span>';
+        if(v!=null) h+='<span class="evi-rel-num">'+esc(numberLine(v,unit,f))+'</span>';
         if(p.count===0) h+='<span class="none">none in this paper</span>';
         else if(num(p.count)==null) h+='<span class="none">numbers only</span>';
         else h+=ex.slice(0,both?2:1).map(x=>quoteHTML(relWindow(x.quote),'span')+pickSource(x,'span')).join('');
@@ -1643,10 +1709,53 @@
     if(!box) return;
     const PP=window.PaperProfile;
     const ev=S.result&&S.result.evidence;
+    renderParts();
     if(!PP||!PP.has(ev)){ box.hidden=true; $('pp-body').innerHTML=''; return; }
     $('pp-body').innerHTML=PP.table(ev.paper_profile,{tableClass:'pp-table',noteClass:'pp-note'});
     box.hidden=false;
   }
+  // Parts of this paper (teacher only, paper_profile.parts): only when the server
+  // listed them (MATTER_SPLITTER_ENABLED and PAPER_PROFILE_ENABLED). Each part's
+  // button analyses the same text again with the teacher's choice
+  // (exclude_ranges / include_ranges on POST /students/{id}/score).
+  function thisParts(){
+    const PP=window.PaperProfile, ev=S.result&&S.result.evidence;
+    return PP&&PP.hasParts(ev)?ev.paper_profile.this_paper.parts.filter(p=>p&&typeof p==='object'&&!Array.isArray(p)):null;
+  }
+  function renderParts(){
+    const box=$('ppp'); if(!box) return;
+    const parts=thisParts();
+    // Only for the text this page sent: a kept record from another tab has no text to send again.
+    if(!parts||!parts.length||!S.sentText){ box.hidden=true; $('ppp-list').innerHTML=''; return; }
+    $('ppp-list').innerHTML=window.PaperProfile.partsList(parts,{listClass:'pp-parts'});
+    box.hidden=false;
+  }
+  async function choosePart(i,act){
+    const parts=thisParts(), part=parts&&parts[i];
+    if(!part||!S.sentText||S.choosing) return;
+    const PP=window.PaperProfile;
+    const choice=PP.nextChoice(PP.choiceOf(S.result.evidence.paper_profile.this_paper),part,act);
+    const label=typeof part.label==='string'&&part.label?part.label:'part';
+    const name='the '+(part.possible===true?'possible ':'')+label.charAt(0).toLowerCase()+label.slice(1);
+    S.choosing=true;
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=true; });
+    const m=$('ppp-msg'); m.classList.remove('err'); m.textContent='Analysing the paper again.';
+    const res=await postScore({text:S.sentText,assignment:S.assignment||'',submission_id:newSubmissionId(),exclude_ranges:choice.exclude_ranges,include_ranges:choice.include_ranges});
+    S.choosing=false;
+    const d=res.data;
+    if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
+      showAnalysis(d,S.sentText,S.assignment||'',true);
+      $('ppp-msg').textContent='Analysed again with '+name+(act==='set_aside'?' set aside.':' measured.');
+      return;
+    }
+    document.querySelectorAll('.pp-part-btn').forEach(b=>{ b.disabled=false; });
+    m.classList.add('err');
+    if(res.status===422&&/60%/.test(JSON.stringify(d||''))) m.textContent='That would set aside more than 60% of the paper, so it was not analysed again. Measure another part first.';
+    else if(res.status===401) m.textContent='Your sign-in has ended. Sign in again, then try again.';
+    else if(res.status===403) m.textContent='You do not have access to this student\u2019s writing.';
+    else m.textContent='The paper could not be analysed again just now. Try again.';
+  }
+
   // Text by text: after an analysis, Original's own top list as the cards the
   // side-by-side page and the packet show (js/evidence-cards.js), with no click
   // needed. Only when the server sent passages; any other habit opens the same
@@ -1656,12 +1765,17 @@
     if(!box) return;
     const ev=S.result&&hasEvidence(S.result)?S.result.evidence:null;
     if(!ev||!EC){ box.hidden=true; $('tbt-body').innerHTML=''; return; }
-    const top=EC.topList(ev);
+    // Lead with the writing: habits with sentences to quote get the full card;
+    // the rest of Original's list goes to a short "Other patterns" list below.
+    const split=EC.splitTop(ev), top=split.quoted.concat(split.other);
     const ctx={papers:EC.papersOf(ev),thisSource:EV.thisSource(S.assignment,S.analysedAt)};
-    $('tbt-lede').textContent=top.length
-      ?'The habits Original lists as furthest from '+poss()+' usual range, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
-      :'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.';
-    $('tbt-body').innerHTML=top.map(f=>EC.card(f,ctx)).join('');
+    $('tbt-lede').textContent=!top.length
+      ?'No habit sits far enough from '+poss()+' usual range to make Original\u2019s list. Any habit opens from the habit-by-habit bars below.'
+      :split.quoted.length
+        ?'The habits Original lists as furthest from '+poss()+' usual range that can be shown in the writing, each with sentences from this paper beside sentences from the past papers. The marked words are the ones Original counted. Any other habit opens the same way from the habit-by-habit bars below.'
+        :'None of the habits Original lists as furthest from '+poss()+' usual range has sentences to quote; they are under Other patterns. Any habit opens from the habit-by-habit bars below.';
+    $('tbt-body').innerHTML=split.quoted.map(f=>EC.card(f,ctx)).join('')+
+      (split.other.length?'<h3 class="tbt-other-h" id="tbt-other">Other patterns</h3><p class="tbt-lede">'+esc('Also on Original\u2019s list, but measured across the whole paper or not yet tied to sentences, so there is nothing to quote.')+'</p>'+EC.otherList(split.other,ctx):'');
     box.hidden=false;
   }
 
@@ -1700,7 +1814,7 @@
     if(v==='developing'||v==='insufficient') return 'Original rates this baseline '+rated(v)+' ('+esc(countedPhrase(false))+'; '+READY_NEEDS+').'+esc(lowerWeightNote())+' <a href="'+esc(baselineHref()+'#add-writing')+'">Add approved writing</a>.';
     return '';
   }
-  function countWords(t){ return String(t||'').trim().split(/\s+/).filter(Boolean).length; }
+  function countWords(t){ return String(t||'').replace(/\u001f/g,' ').trim().split(/\s+/).filter(Boolean).length; }  // U+001F: an upload's page marker, not a word (JS \s does not match it)
   function updateWords(){
     const n=countWords($('an-text').value); $('an-words').textContent=n?plural(n,'word'):'';
     // "Loaded from Collections" stays only while the box holds that exam's text.
@@ -1857,6 +1971,8 @@
     a.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'');
   }
 
+  // The one place a paper is sent to be analysed: the Analyse button, and a part set aside or measured again.
+  function postScore(body){ return Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:body}); }
   async function analyse(e){
     e.preventDefault();
     if(!S.id||!hasBaseline()) return;
@@ -1868,29 +1984,12 @@
     go.disabled=true; go.textContent='Analysing'; msg('This takes a few seconds.');
     // A fresh id per analysis, so two papers never share the server's
     // default <student>_submission_<n> name.
-    const res=await Live.api('/students/'+encodeURIComponent(S.id)+'/score',{method:'POST',body:{text:text,assignment:assignment,submission_id:newSubmissionId()}});
+    const res=await postScore({text:text,assignment:assignment,submission_id:newSubmissionId()});
     go.disabled=false; go.textContent='Analyse';
     const d=res.data;
     if(res.ok&&d&&typeof d==='object'&&d.feature_vector&&d.baseline_vector){
-      setResult(d,assignment,countWords(text));
-      // Analysed exactly as loaded from Collections: kept with the result, so
-      // Back to this page's sealed-exam link shows this analysis again.
-      S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
-      S.entryId=appendAnalysis(d,text,assignment);
-      setView('submission',true);
-      renderAll();
-      $('an-done-t').textContent=assignment||'Untitled paper';
-      $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
-      $('an-restored').hidden=true;
-      note(thinNote()); setCard('done');
-      $('tri-done').textContent=''; $('tri-done').classList.remove('err');
-      document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
-      // Kept for this tab as soon as it exists, so the packet, the Voice
-      // baseline link and the browser's Back button all find it again.
-      storeForPacket();
-      const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
-      // On a phone the analyse card sits above the result: bring the answer up.
-      if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
+      $('ppp-msg').textContent=''; $('ppp-msg').classList.remove('err');
+      showAnalysis(d,text,assignment);
       return;
     }
     const detail=d&&typeof d.detail==='string'?d.detail:'';
@@ -1900,6 +1999,31 @@
     else if(res.status===413) msg('This paper is too large to send. Try pasting only the essay text.',true);
     else if(res.status===422) msg('This text could not be analysed. Check that it is the paper itself and try again.',true);
     else msg('The analysis could not be completed just now, so the paper was not analysed. Try again.',true);
+  }
+  // One analysis on screen: from the Analyse button, or a part set aside or measured again.
+  // keepPlace: a part set aside or measured again, so the page stays where the teacher clicked.
+  function showAnalysis(d,text,assignment,keepPlace){
+    S.sentText=text;
+    setResult(d,assignment,countWords(text));
+    // Analysed exactly as loaded from Collections: kept with the result, so
+    // Back to this page's sealed-exam link shows this analysis again.
+    S.resultSub=S.fromSub&&$('an-text').value===S.fromText?S.fromSub:'';
+    S.entryId=appendAnalysis(d,text,assignment);
+    setView('submission',true);
+    renderAll();
+    $('an-done-t').textContent=assignment||'Untitled paper';
+    $('an-done-s').textContent=plural(S.words,'word')+' · analysed '+new Date(S.analysedAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+    $('an-restored').hidden=true;
+    note(thinNote()); setCard('done');
+    $('tri-done').textContent=''; $('tri-done').classList.remove('err');
+    document.querySelectorAll('.tri-btn').forEach(x=>{x.classList.remove('sel'); if(x.tagName==='BUTTON') x.disabled=false;});
+    // Kept for this tab as soon as it exists, so the packet, the Voice
+    // baseline link and the browser's Back button all find it again.
+    storeForPacket();
+    if(keepPlace) return;
+    const rs=$('right-scroll'); if(rs) rs.scrollTop=0;
+    // On a phone the analyse card sits above the result: bring the answer up.
+    if(window.innerWidth<=900){ try{ $('essentials').scrollIntoView({block:'start',behavior:'smooth'}); }catch(e){ /* older browser */ } }
   }
 
   function newSubmissionId(){
@@ -2031,6 +2155,8 @@
     S.entryId=entry?entry.id:'';
     $('an-assign').value=assignment;
     $('an-text').value=entry&&typeof entry.text==='string'?entry.text:'';
+    // The exact text that was analysed: a part set aside or measured sends it again.
+    S.sentText=entry&&typeof entry.text==='string'?entry.text:'';
     updateWords();
     setView('submission',true);
     renderAll();
@@ -2085,6 +2211,7 @@
     HM=makeHeatmap(); RADAR=makeRadar(); DETAIL=makeDetail(); EVI=makeEvidence(); FP=makeFingerprint(); CHIPS=makeChips();
     document.querySelectorAll('.fpq-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(!btn.disabled) setView(btn.dataset.state,true); }));
     $('an-form').addEventListener('submit',analyse);
+    $('ppp-list').addEventListener('click',e=>{ const b=e.target.closest('.pp-part-btn'); if(b&&!b.disabled) choosePart(parseInt(b.dataset.part,10),b.dataset.act); });
     $('an-text').addEventListener('input',()=>{ ++openSeq; updateWords(); });
     $('an-again').addEventListener('click',()=>{
       // A new paper: the last one's title and text would otherwise label it.

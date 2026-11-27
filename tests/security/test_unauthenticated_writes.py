@@ -219,6 +219,8 @@ GENERIC_ROUTES: list[tuple[str, str]] = [
     ("POST", "/submissions/{submission_id}/correct"),
     ("POST", "/tenants"),
     ("POST", "/test/score"),
+    ("PUT", "/students/{student_id}/samples/{index}/parts"),
+    ("DELETE", "/students/{student_id}/samples/{index}/parts"),
 ]
 
 # Routes whose Pydantic body model has a required field, so an empty `{}`

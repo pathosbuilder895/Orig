@@ -26,6 +26,7 @@ argument beyond the first by keyword for exactly this reason — a positional
 slip silently binds to the wrong parameter and can flip a witness from
 "tests the guard" to "tests something else that happens to also fail".
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -44,13 +45,23 @@ from validation.calibration_gate import (
     evaluate_g7_cross_topic_fpr,
     evaluate_g8_genre_discrimination,
     evaluate_g9_band_false_alarm,
+    evaluate_g_a1_cold_start_fpr,
+    evaluate_g_a2_imitation,
+    evaluate_g_a3_paraphrase,
+    evaluate_g_a4_peer_imitation,
+    evaluate_g_a5_sigma_inflation,
+    evaluate_g_a6_baseline_integrity,
+    evaluate_g_rebind,
     evaluate_g_rule_d_report_only,
     evaluate_g_t1_honest_term,
     evaluate_g_t2_detection,
     evaluate_g_t3_growth,
     evaluate_g_t4_coldstart,
+    evaluate_g_writerline,
 )
+from validation.rebind.harness import PairRecord
 from validation.termsim.gate import FUSED_COMPRESSION_SLOPE
+from validation.writer_line.harness import WriterPairRecord
 
 
 @dataclass(frozen=True)
@@ -62,29 +73,86 @@ class GateContract:
     notes: str = ""
 
 
+def _rebind_inverted_records() -> list[PairRecord]:
+    """llr inverted: genuine pairs read impostor-like, impostors genuine-like."""
+    genuine = [PairRecord(f"g{k % 20}", True, 0.8, 0.9, "witness") for k in range(400)]
+    impostor = [PairRecord(f"i{k % 20}", False, 0.5, 0.1, "witness") for k in range(400)]
+    return genuine + impostor
+
+
+def _rebind_witness() -> GateResult:
+    from original.quantum.scoring import LLR_REBIND_THRESHOLDS
+
+    return evaluate_g_rebind(_rebind_inverted_records(), thresholds=LLR_REBIND_THRESHOLDS)
+
+
+def _writerline_witness() -> GateResult:
+    """Genuine papers sit far above their own leave-one-out deviations (writer z ~6,
+    escalate under fixed bands) while gate leaves them at monitor; impostors sit
+    at their writer's mean."""
+    bands = {
+        "no_action": (float("-inf"), 1.0),
+        "monitor": (1.0, 2.0),
+        "schedule_conversation": (2.0, 3.0),
+        "escalate": (3.0, float("inf")),
+    }
+    loo = (0.25, 0.3, 0.35)
+    genuine = [
+        WriterPairRecord(f"g{k % 20}", True, 0.55, 0.5, "witness", loo_dev=loo) for k in range(400)
+    ]
+    impostor = [
+        WriterPairRecord(f"i{k % 20}", False, 0.3, 0.5, "witness", loo_dev=loo) for k in range(400)
+    ]
+    return evaluate_g_writerline(genuine + impostor, thresholds=bands)
+
+
 GATE_CONTRACTS: dict[str, GateContract] = {
+    "evaluate_g_writerline": GateContract(
+        gate="G-WRITERLINE",
+        claims="the per-writer line catches more impostors at "
+        "schedule_conversation+ than gate on held-out writers without raising "
+        "honest false alarms (<= 5% and <= gate's at schedule_conversation+, "
+        "<= gate's at escalate)",
+        failure_witness=_writerline_witness,
+        notes="Witness inverts the writer line at n=400 per side: every genuine "
+        "pair escalates while gate leaves it at no_action, so the false-alarm "
+        "legs fail.",
+    ),
+    "evaluate_g_rebind": GateContract(
+        gate="G-REBIND",
+        claims="rebind catches more impostors at schedule_conversation+ than "
+        "gate on held-out writers without raising honest false alarms "
+        "(<= 5% and <= gate's at schedule_conversation+, <= gate's at escalate)",
+        failure_witness=_rebind_witness,
+        notes="Witness is inverted llr separation at n=400 per side: rebind "
+        "flags every genuine pair, so the false-alarm legs fail.",
+    ),
     "evaluate_g_t1_honest_term": GateContract(
-        gate="T-1", claims="honest-term action budget",
+        gate="T-1",
+        claims="honest-term action budget",
         failure_witness=lambda: evaluate_g_t1_honest_term(0.20, 0.03, 8),
         notes="Deployment outcome gate; label destruction is not applicable to honest-term rates.",
     ),
     "evaluate_g_t2_detection": GateContract(
-        gate="T-2", claims="GHOST detection floor",
+        gate="T-2",
+        claims="GHOST detection floor",
         failure_witness=lambda: evaluate_g_t2_detection(0.20, 5),
         notes="The scenario is itself the positive control; no separate label-destruction leg.",
     ),
     "evaluate_g_t3_growth": GateContract(
-        gate="T-3", claims="baseline-growth neutrality",
+        gate="T-3",
+        claims="baseline-growth neutrality",
         # The witness is the MEASURED fused compression-channel confound
         # (0.799 @ 3 baselines -> 0.730 @ 48; tests/test_fusion_confound.py),
         # not a synthetic number: T-3's bound is calibrated below it so the
         # known-bad channel demonstrably fails this gate when attached.
         failure_witness=lambda: evaluate_g_t3_growth(FUSED_COMPRESSION_SLOPE, 8),
         notes="Longitudinal neutrality has no authorship-label input to destroy; "
-              "witness = the measured fused C1 slope.",
+        "witness = the measured fused C1 slope.",
     ),
     "evaluate_g_t4_coldstart": GateContract(
-        gate="T-4", claims="cold-start parity",
+        gate="T-4",
+        claims="cold-start parity",
         failure_witness=lambda: evaluate_g_t4_coldstart(0.50, 0.10, 8),
         notes="Cohort parity has no authorship-label input to destroy.",
     ),
@@ -196,8 +264,7 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     ),
     "evaluate_g3_attribution": GateContract(
         gate="G3",
-        claims="public_authors top-1 attribution accuracy >= 0.7 "
-        "(impostor-calibrated)",
+        claims="public_authors top-1 attribution accuracy >= 0.7 (impostor-calibrated)",
         failure_witness=lambda: evaluate_g3_attribution(0.455),
         label_destruction=lambda: evaluate_g3_attribution(1.0 / 9.0),
         notes=(
@@ -275,11 +342,8 @@ GATE_CONTRACTS: dict[str, GateContract] = {
     ),
     "evaluate_g6_fairness": GateContract(
         gate="G6",
-        claims="native/non-native flagged-rate ratio on the p_central "
-        "action does not exceed 2x",
-        failure_witness=lambda: evaluate_g6_fairness(
-            native_fpr=0.01, non_native_fpr=0.10
-        ),
+        claims="native/non-native flagged-rate ratio on the p_central action does not exceed 2x",
+        failure_witness=lambda: evaluate_g6_fairness(native_fpr=0.01, non_native_fpr=0.10),
         label_destruction=None,
         notes=(
             "No label-destruction leg is registered for the same reason as "
@@ -434,12 +498,222 @@ GATE_CONTRACTS: dict[str, GateContract] = {
             "be passes."
         ),
     ),
+    "evaluate_g_a1_cold_start_fpr": GateContract(
+        gate="G-A1",
+        claims="genuine held-out writing is flagged (monitor+) at most 5% of the "
+        "time at EVERY baseline size N in {3, 5, 10}, on the live scoring path",
+        failure_witness=lambda: evaluate_g_a1_cold_start_fpr(
+            {
+                3: ["monitor"] * 2 + ["no_action"] * 18,
+                5: ["no_action"] * 40,
+                10: ["no_action"] * 40,
+            }
+        ),
+        notes=(
+            "The witness is chosen so that the POOLED rate passes (2 of 100 "
+            "flagged, 2%) while N=3 alone is at 10%: it fails only because the "
+            "gate reads every N separately, which is the whole point of a "
+            "cold-start gate (thin baselines must not hide behind thick ones). "
+            "Pinned in TestWitnessesFailForTheRightReason."
+            "test_g_a1_fails_on_n3_although_the_pooled_rate_passes.\n\n"
+            "No label-destruction leg: the gate scores genuine documents only, "
+            "so there is no authorship label in its input to destroy. The "
+            "complementary failure, a verifier that flags nothing and so passes "
+            "here trivially, is G-A4's catch leg's job."
+        ),
+    ),
+    "evaluate_g_a2_imitation": GateContract(
+        gate="G-A2",
+        claims="LLM imitations of a student's own baselines are caught (monitor+) "
+        ">= 60% AND out-score that student's genuine holdouts (AUROC >= 0.60)",
+        failure_witness=lambda: evaluate_g_a2_imitation(
+            [
+                {
+                    "name": "llm_imitation N=3",
+                    "attack_actions": ["no_action"] * 7 + ["monitor"] * 3,
+                    "attack_scores": [0.8] * 10,
+                    "genuine_scores": [0.2] * 10,
+                }
+            ]
+        ),
+        label_destruction=lambda: evaluate_g_a2_imitation(
+            [
+                {
+                    "name": "llm_imitation N=3",
+                    "attack_actions": ["monitor"] * 10,
+                    "attack_scores": [0.3, 0.5, 0.7] * 4,
+                    "genuine_scores": [0.3, 0.5, 0.7] * 4,
+                }
+            ]
+        ),
+        notes=(
+            "The failure witness is the published threat (R3, ~50% attack "
+            "success): 7 of 10 imitations land at no_action. It fails on the "
+            "catch leg while the AUROC leg passes (1.0), so the fail cannot "
+            "come from the separation leg. The label-destruction leg makes the "
+            "imitations exchangeable with genuine work: every document is "
+            "flagged, so the catch leg passes at 100%, and the AUROC is exactly "
+            "0.5, which fails. That is the cold-start 'flag everything' shape "
+            "the separation leg exists to refuse."
+        ),
+    ),
+    "evaluate_g_a3_paraphrase": GateContract(
+        gate="G-A3",
+        claims="LLM paraphrases and MT round-trips of a student's own work are "
+        "caught (monitor+) >= 60% AND out-score the genuine originals "
+        "(AUROC >= 0.60), for every attack",
+        failure_witness=lambda: evaluate_g_a3_paraphrase(
+            [
+                {
+                    "name": "llm_paraphrase N=3",
+                    "attack_actions": ["monitor"] * 10,
+                    "attack_scores": [0.8] * 10,
+                    "genuine_scores": [0.2] * 10,
+                },
+                {
+                    "name": "llm_roundtrip_de N=3",
+                    "attack_actions": ["no_action"] * 9 + ["monitor"],
+                    "attack_scores": [0.8] * 10,
+                    "genuine_scores": [0.2] * 10,
+                },
+            ]
+        ),
+        label_destruction=lambda: evaluate_g_a3_paraphrase(
+            [
+                {
+                    "name": "llm_paraphrase N=3",
+                    "attack_actions": ["monitor"] * 10,
+                    "attack_scores": [0.3, 0.5, 0.7] * 4,
+                    "genuine_scores": [0.3, 0.5, 0.7] * 4,
+                }
+            ]
+        ),
+        notes=(
+            "The failure witness passes every leg of the paraphrase population "
+            "and fails only the round-trip population's catch leg (R1: machine "
+            "translation roughly halves attribution): one laundering route "
+            "getting through fails the gate, it is not averaged away by another "
+            "that is caught. Label destruction: exchangeable scores, AUROC 0.5."
+        ),
+    ),
+    "evaluate_g_a4_peer_imitation": GateContract(
+        gate="G-A4",
+        claims="a classmate's own writing under this student's name is caught "
+        "(monitor+) >= 60% AND out-scores the student's genuine holdouts "
+        "(AUROC >= 0.60), for every corpus",
+        failure_witness=lambda: evaluate_g_a4_peer_imitation(
+            [
+                {
+                    "name": "public_authors/peer_swap N=3",
+                    "attack_actions": ["monitor"] * 9 + ["schedule_conversation"],
+                    "attack_scores": [0.45, 0.50, 0.55, 0.60, 0.52] * 2,
+                    "genuine_scores": [0.48, 0.53, 0.58, 0.61, 0.50] * 2,
+                }
+            ]
+        ),
+        label_destruction=lambda: evaluate_g_a4_peer_imitation(
+            [
+                {
+                    "name": "public_authors/peer_swap N=3",
+                    "attack_actions": ["no_action"] * 5 + ["monitor"] * 5,
+                    "attack_scores": [0.3, 0.5, 0.7] * 4,
+                    "genuine_scores": [0.3, 0.5, 0.7] * 4,
+                }
+            ]
+        ),
+        notes=(
+            "The failure witness is the cold-start shape measured on the live "
+            "path at N=3 (every peer swap flagged, but genuine work flagged at "
+            "the same scores): the catch leg passes at 100% and the gate fails "
+            "on separation (AUROC below 0.5). A catch rate bought by flagging "
+            "everyone is not detection. The label-destruction leg is "
+            "exchangeable scores with a coin-flip catch rate; it fails both "
+            "legs."
+        ),
+    ),
+    "evaluate_g_a5_sigma_inflation": GateContract(
+        gate="G-A5",
+        claims="padding a minority of the baselines with someone else's writing "
+        "does not cost more than 10pt of impostor catch, and impostors still "
+        "out-score genuine holdouts under the padded baseline (AUROC >= 0.60)",
+        failure_witness=lambda: evaluate_g_a5_sigma_inflation(
+            [
+                {
+                    "n": 10,
+                    "n_pairs": 6,
+                    "clean_caught": 9,
+                    "clean_n": 10,
+                    "inflated_caught": 3,
+                    "inflated_n": 10,
+                    "clean_mean_sigma": 0.084,
+                    "inflated_mean_sigma": 0.097,
+                    "inflated_impostor_scores": [0.8] * 10,
+                    "inflated_genuine_scores": [0.2] * 10,
+                }
+            ]
+        ),
+        label_destruction=lambda: evaluate_g_a5_sigma_inflation(
+            [
+                {
+                    "n": 10,
+                    "n_pairs": 6,
+                    "clean_caught": 9,
+                    "clean_n": 10,
+                    "inflated_caught": 9,
+                    "inflated_n": 10,
+                    "clean_mean_sigma": 0.084,
+                    "inflated_mean_sigma": 0.097,
+                    "inflated_impostor_scores": [0.3, 0.5, 0.7] * 4,
+                    "inflated_genuine_scores": [0.3, 0.5, 0.7] * 4,
+                }
+            ]
+        ),
+        notes=(
+            "The failure witness is the collapse the gate exists for: catch "
+            "falls from 90% to 30% at N=10 once sigma has grown and the injected "
+            "documents were admitted, with separation intact, "
+            "so the fail is the drop leg's. Label destruction keeps the catch "
+            "rate flat (no drop) but makes impostors and genuine work "
+            "exchangeable under the inflated baseline: AUROC 0.5 fails, so a "
+            "flat catch rate held up by flagging everything cannot pass."
+        ),
+    ),
+    "evaluate_g_a6_baseline_integrity": GateContract(
+        gate="G-A6",
+        claims="poisoned baselines (obfuscated or outsourced) are surfaced by the "
+        "drift gate or the integrity block on an injected document >= 60% of "
+        "the time, while clean baselines draw a note <= 5% of the time",
+        failure_witness=lambda: evaluate_g_a6_baseline_integrity(
+            {"public_authors/outsourced_baselines N=3": (0, 25)},
+            clean={"public_authors/clean N=3": (0, 25)},
+        ),
+        label_destruction=lambda: evaluate_g_a6_baseline_integrity(
+            {"public_authors/outsourced_baselines N=3": (6, 20)},
+            clean={"public_authors/clean N=3": (6, 20)},
+        ),
+        notes=(
+            "The failure witness is the case an internal-consistency check "
+            "cannot see by construction: a baseline written entirely by "
+            "someone else is consistent with itself, so nothing is flagged "
+            "(0 of 25) while clean baselines are also quiet. It fails on the "
+            "detection leg alone.\n\n"
+            "The label-destruction leg is a MATHEMATICAL GUARANTEE, the G7 "
+            "argument: with poisoned and clean labels destroyed both rates "
+            "converge on one shared value, and no value is both >= 0.60 "
+            "(detection) and <= 0.05 (false alarm). The witness uses 0.30, "
+            "which misses both bars at once."
+        ),
+    ),
     "evaluate_g_rule_d_report_only": GateContract(
         gate="G-RD",
         claims="RULE_D_OBSERVATION never changes deviation_score or the recommended action, "
         "and returns no index below the class-size floor",
         failure_witness=lambda: evaluate_g_rule_d_report_only(
-            {"off": (0.41, "monitor"), "shadow": (0.41, "monitor"), "on": (0.41, "schedule_conversation")},
+            {
+                "off": (0.41, "monitor"),
+                "shadow": (0.41, "monitor"),
+                "on": (0.41, "schedule_conversation"),
+            },
             {"status": "observed", "index": 0.2},
         ),
         notes=(

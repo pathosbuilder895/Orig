@@ -67,10 +67,13 @@ from .constants import (
     TIER_WEIGHTS,
     TRANSITION_PHRASES,
 )
-from .evidence_features import feature_info
+from .evidence_features import WHOLE_PAPER, display_info, feature_info
 from .explainer import FEATURE_PLAIN_NAMES
 from .features import feature_flags as _ff
 from .features import lexicon_v2 as _lex2
+from .features import matter as _matter
+from .features import paragraphs as _para
+from .features import pdf_reflow as _reflow
 from .features import preprocess as _pp
 from .features import tier1, tier2, tier3, tier4, tier6
 from .features.baseline_scope import NOT_COMPARED_WORDS
@@ -81,7 +84,7 @@ from .features.tier1 import TextDoc, _tokenize
 PRELIMINARY_LABEL = "Preliminary · unvalidated · not a judgment"
 PRELIMINARY_NOTE = (
     "From Original's own comparison math only: how far this paper sits from the "
-    "writer's past papers on a 0 to 1 scale (higher is further). It is not "
+    "writer's past papers (0 means no difference; higher is further). It is not "
     "validated on real student writing and is a reason to read closely, not a finding."
 )
 INCONCLUSIVE_WORDS = "Not enough writing on file to compare yet."
@@ -103,6 +106,25 @@ BAND_RATE_NOT_MEASURED = (
 )
 #: Shown for a measured habit that is a statistic over the whole paper.
 NUMBERS_ONLY_NOTE = "Whole-text measurement, no single sentence to point to."
+#: Shown for a habit Original counts but does not yet point to in the text.
+NOT_POINTED_NOTE = (
+    "Original counts this across the paper but does not yet point to the places it "
+    "counted, so only the numbers are shown."
+)
+#: The note on the engine's own number (``engine_scale``).
+ENGINE_SCALE_NOTE = (
+    "Original's internal position for this habit, as used in the score: where the value "
+    "sits in the range Original expects (low end 0, high end 1). Not a share or a count."
+)
+
+
+def whole_text_note(code: str) -> str:
+    """The plain note for a measured habit with no located places: the
+    whole-paper sentence when no single sentence can show it, else the
+    numbers-only note."""
+    return WHOLE_PAPER.get(code, NOT_POINTED_NOTE)
+
+
 NOT_LOCATED_NOTE = (
     "The places counted could not be matched exactly to the stored text of this "
     "paper, so no passages are shown for it (numbers only)."
@@ -376,6 +398,23 @@ def _drop(m: Mapped, pattern: re.Pattern) -> Mapped:
     return _msub(m, pattern, lambda mt: ("", ()))
 
 
+def _apply_ops(m: Mapped, ops: list[tuple[int, int, str]]) -> Mapped:
+    """``pdf_reflow.apply_ops`` on a mapped string: each replacement character
+    maps to the first character it replaces (the line break it stands for)."""
+    out: list[str] = []
+    origin: list[int] = []
+    last = 0
+    for start, end, repl in ops:
+        out.append(m.text[last:start])
+        origin.extend(m.origin[last:start])
+        out.append(repl)
+        origin.extend([m.origin[start] if start < end else -1] * len(repl))
+        last = end
+    out.append(m.text[last:])
+    origin.extend(m.origin[last:])
+    return Mapped("".join(out), tuple(origin))
+
+
 @dataclass(frozen=True)
 class EngineView:
     """The two strings the engine measures, mapped back to the stored text."""
@@ -395,6 +434,11 @@ def engine_view(text: str) -> EngineView | None:
         "".join(text[a:b] for a, b in segments),
         tuple(i for a, b in segments for i in range(a, b)),
     )
+    if _pp.reflows(text):  # a PDF measured with the splitter on: its paragraphs
+        m = _apply_ops(m, _reflow.reflow_ops(m.text))
+    m = _drop(m, _matter.LONE_PAGE_MARK)  # a stored page marker is not measured
+    if _ff.paragraph_breaks_enabled():  # a Word-style paste: line breaks as paragraphs
+        m = _apply_ops(m, _para.paragraph_ops(m.text))
     if not _pp._indent_is_paragraph_style(m.text):  # every paragraph indented: nothing stripped
         m = _msub(m, _pp._INDENT_BLOCK, lambda mt: (" ", (-1,)))  # removed: no origin
 
@@ -964,7 +1008,7 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
                 "end": b,
                 "words": len(text[a:b].split()),
                 "preview_end": min(b, a + preview_chars),
-                "preview": text[a : min(b, a + preview_chars)],
+                "preview": _shown(text[a : min(b, a + preview_chars)]),
             }
             for a, b in ranges[:max_ranges]
         ],
@@ -972,6 +1016,12 @@ def measured_coverage(text: str, *, max_ranges: int = 5, preview_chars: int = 80
 
 
 # ── Evidence objects ─────────────────────────────────────────────────────────
+
+
+def _shown(s: str) -> str:
+    """A slice of the stored text as a teacher sees it: an upload's page
+    marker shown as a space (same length, so every offset still holds)."""
+    return s.replace(_matter.PAGE_MARK, " ") if _matter.PAGE_MARK in s else s
 
 
 def _quote(text: str, place: Place, paper: str) -> dict[str, Any]:
@@ -986,10 +1036,10 @@ def _quote(text: str, place: Place, paper: str) -> dict[str, Any]:
         "end": place.end,
         "match_start": m0,
         "match_end": m1,
-        "match": text[m0:m1],
+        "match": _shown(text[m0:m1]),
         "passage_start": place.sentence_start,
         "passage_end": place.sentence_end,
-        "passage": text[place.sentence_start : place.sentence_end],
+        "passage": _shown(text[place.sentence_start : place.sentence_end]),
         "clipped_start": place.clipped_start,
         "clipped_end": place.clipped_end,
         "crosses_set_aside": place.crosses_set_aside,
@@ -1054,7 +1104,7 @@ def _unmarked(text: str, paper: str, limit: int) -> list[dict[str, Any]]:
                 "paper": paper,
                 "passage_start": p0,
                 "passage_end": p1,
-                "passage": text[p0:p1],
+                "passage": _shown(text[p0:p1]),
                 "clipped_start": c0,
                 "clipped_end": c1,
                 "words": words,
@@ -1094,13 +1144,14 @@ def build_feature_evidence(
         "engine_scale": {
             "this_paper": _round(feature.get("submission_value")),
             "past_papers_average": _round(feature.get("baseline_value")),
-            "note": "Original's 0 to 1 scale for this habit, as used in the score.",
+            "note": ENGINE_SCALE_NOTE,
         },
         "locatable": code in LOCATABLE,
+        "display": display_info(code),
     }
     spec = LOCATABLE.get(code)
     if spec is None:
-        out["note"] = NUMBERS_ONLY_NOTE
+        out["note"] = whole_text_note(code)
         return out
     this = read_paper(submission_text, code)
     past = [(label, text, read_paper(text, code)) for label, text in baselines]
@@ -1273,6 +1324,7 @@ def build_past_paper_examples(habit: str, baselines: Sequence[tuple[str, str]]) 
             "name": name,
             "description": description,
             "unit": spec.unit,
+            "display": display_info(code),
             "what_is_marked": spec.what,
             "kind": "located",
             "per_paper": per_paper,
@@ -1382,12 +1434,14 @@ def countable_overview(
 
 WHOLE_TEXT_NOTE = NUMBERS_ONLY_NOTE
 PLAIN_UNREADABLE_NOTE = (
-    "Shown on Original's 0 to 1 scale only: a paper sits at an end of that scale, "
-    "where its value in plain units is not kept."
+    "Compared in words only: a paper sits at an end of the range Original expects for "
+    "this habit, where its value in plain units is not kept."
 )
+#: For a habit whose extractor returns a score of its own, with no everyday unit.
+OWN_SCORE_NOTE = "Original measures this as a score of its own, with no everyday unit."
 #: The documented order of the full list.
 ALL_FEATURES_ORDERING = (
-    "Sorted by how far this paper sits from the past-paper average on Original's 0 to 1 "
+    "Sorted by how far this paper sits from the past-paper average on Original's internal "
     "scale, times the weight Original gives that measurement's group (constants."
     "TIER_WEIGHTS). This is the same size measure the engine uses to pick its top "
     "differences (quantum/scoring.py _decompose), applied to every measurement. Ties, "
@@ -1590,6 +1644,7 @@ def build_all_features(
             "group": tier,
             "in_top_list": code in top_codes,
             "description": meta["description"],
+            "display": display_info(code),
             "direction": direction,
             "engine_scale": {
                 "this_paper": _round(this),
@@ -1622,7 +1677,7 @@ def build_all_features(
             kind = "whole_text"
             raw_past = [r[d] for r, _ in past_raw_norm]
             if meta["unit"] is not None and any(v != v for v in (sub_raw[d], *raw_past)):
-                # A paper sits at an end of the 0 to 1 scale, where its plain
+                # A paper sits at an end of the engine's scale, where its plain
                 # value was not read back (_unnormalise): numbers on that scale only.
                 entry["plain_note"] = PLAIN_UNREADABLE_NOTE
             elif meta["unit"] is not None:
@@ -1636,8 +1691,8 @@ def build_all_features(
                     "past_range": [_rr(min(raw_past)), _rr(max(raw_past))] if raw_past else None,
                 }
             else:
-                entry["plain_note"] = "The measurement is itself a 0 to 1 score."
-            entry["note"] = WHOLE_TEXT_NOTE
+                entry["plain_note"] = OWN_SCORE_NOTE
+            entry["note"] = whole_text_note(code)
         elif kind == "not_compared":
             # Past papers have no value for it (features/baseline_scope.py):
             # no past values, no difference, no size; listed last. This

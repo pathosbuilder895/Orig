@@ -66,6 +66,7 @@ from .routers import (
     proctor,
     students,
     students_baseline,
+    students_parts,
     students_scoring,
     tenants,
 )
@@ -674,6 +675,7 @@ app.router.routes.extend(past_papers.router.routes)
 app.router.routes.extend(students.router.routes)
 app.router.routes.extend(students_baseline.router.routes)
 app.router.routes.extend(students_scoring.router.routes)
+app.router.routes.extend(students_parts.router.routes)
 app.router.routes.extend(tenants.router.routes)
 app.router.routes.extend(me.router.routes)
 app.router.routes.extend(imports.router.routes)

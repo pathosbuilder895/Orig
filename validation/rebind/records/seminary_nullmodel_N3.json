@@ -1,0 +1,315 @@
+{
+ "label": "seminary_nullmodel_N3",
+ "generated_at": "2026-11-16T16:58:09.602219Z",
+ "extra": {
+  "pairs": [
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_01",
+    "deviation": 0.368037737176011,
+    "llr": 0.375786278791211
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_01",
+    "deviation": 0.4397856368471482,
+    "llr": 0.4706032204631537
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_02",
+    "deviation": 0.6066436895908427,
+    "llr": 0.6241746517202005
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_02",
+    "deviation": 0.5933871966772984,
+    "llr": 0.5813724751048082
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_03",
+    "deviation": 0.4749801398647034,
+    "llr": 0.5534735032064668
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_03",
+    "deviation": 0.5097026153078441,
+    "llr": 0.5564758227932896
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_04",
+    "deviation": 0.5472881421335685,
+    "llr": 0.5831595832831703
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_04",
+    "deviation": 0.5540012435796502,
+    "llr": 0.6787442100197026
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_05",
+    "deviation": 0.5778512503567609,
+    "llr": 0.647024070889479
+   },
+   {
+    "baseline_author": "seminary_01",
+    "submission_author": "seminary_05",
+    "deviation": 0.5322666979219666,
+    "llr": 0.5686755481263862
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_01",
+    "deviation": 0.5909323456791576,
+    "llr": 0.6249368569909287
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_01",
+    "deviation": 0.5913805068895452,
+    "llr": 0.7085132243169425
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_02",
+    "deviation": 0.5042625260079263,
+    "llr": 0.44922184825551315
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_02",
+    "deviation": 0.4955471908486439,
+    "llr": 0.4257886823929083
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_03",
+    "deviation": 0.6241508567055285,
+    "llr": 0.7603817606936576
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_03",
+    "deviation": 0.5914986018754116,
+    "llr": 0.6593366444306733
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_04",
+    "deviation": 0.5241627951444302,
+    "llr": 0.5718979721586568
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_04",
+    "deviation": 0.45520797706359817,
+    "llr": 0.5477827748685654
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_05",
+    "deviation": 0.699562861090009,
+    "llr": 0.7667427476528443
+   },
+   {
+    "baseline_author": "seminary_02",
+    "submission_author": "seminary_05",
+    "deviation": 0.7022984624215096,
+    "llr": 0.7898946018545454
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_01",
+    "deviation": 0.46697026993568774,
+    "llr": 0.514669405142101
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_01",
+    "deviation": 0.46782033394326317,
+    "llr": 0.5476021254168619
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_02",
+    "deviation": 0.6501272482161574,
+    "llr": 0.6982694126541898
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_02",
+    "deviation": 0.6606782375675632,
+    "llr": 0.7236954821281492
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_03",
+    "deviation": 0.34390932010520026,
+    "llr": 0.4499693229435777
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_03",
+    "deviation": 0.4706253762927729,
+    "llr": 0.5765519171183597
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_04",
+    "deviation": 0.6038237033718311,
+    "llr": 0.695038233006837
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_04",
+    "deviation": 0.5513815517792853,
+    "llr": 0.680607331640762
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_05",
+    "deviation": 0.46057427852386507,
+    "llr": 0.51049356366028
+   },
+   {
+    "baseline_author": "seminary_03",
+    "submission_author": "seminary_05",
+    "deviation": 0.465313209195953,
+    "llr": 0.39470413972056834
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_01",
+    "deviation": 0.6314590442726432,
+    "llr": 0.6776422388823239
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_01",
+    "deviation": 0.5039564505996911,
+    "llr": 0.6082927796955002
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_02",
+    "deviation": 0.5383403581604974,
+    "llr": 0.4811590114208358
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_02",
+    "deviation": 0.560555010337827,
+    "llr": 0.5168938644708919
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_03",
+    "deviation": 0.5103431198401552,
+    "llr": 0.6176757189098491
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_03",
+    "deviation": 0.513742952466239,
+    "llr": 0.5867388854606044
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_04",
+    "deviation": 0.42983804772836737,
+    "llr": 0.4326118716533105
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_04",
+    "deviation": 0.4135026995384815,
+    "llr": 0.386161321765555
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_05",
+    "deviation": 0.5997320803566308,
+    "llr": 0.645320120964301
+   },
+   {
+    "baseline_author": "seminary_04",
+    "submission_author": "seminary_05",
+    "deviation": 0.6360238266166289,
+    "llr": 0.7312553769327342
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_01",
+    "deviation": 0.5049780710992843,
+    "llr": 0.5552518400276341
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_01",
+    "deviation": 0.446895618358907,
+    "llr": 0.5585892824735696
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_02",
+    "deviation": 0.6191687909609531,
+    "llr": 0.7086769443322213
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_02",
+    "deviation": 0.607251102895039,
+    "llr": 0.5735977289302167
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_03",
+    "deviation": 0.42382711794487404,
+    "llr": 0.4553705054461929
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_03",
+    "deviation": 0.42442823120372675,
+    "llr": 0.46422182547625845
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_04",
+    "deviation": 0.6168370428416885,
+    "llr": 0.6942561228159063
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_04",
+    "deviation": 0.5464497839565483,
+    "llr": 0.6519646607900847
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_05",
+    "deviation": 0.4160567598650516,
+    "llr": 0.3365941657150968
+   },
+   {
+    "baseline_author": "seminary_05",
+    "submission_author": "seminary_05",
+    "deviation": 0.4326236186169595,
+    "llr": 0.29062422703344815
+   }
+  ],
+  "eligible_authors": [
+   "seminary_01",
+   "seminary_02",
+   "seminary_03",
+   "seminary_04",
+   "seminary_05"
+  ]
+ }
+}

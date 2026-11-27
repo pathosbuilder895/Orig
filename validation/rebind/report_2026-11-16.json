@@ -1,0 +1,96 @@
+{
+  "seed": 20261116,
+  "records": [
+    "validation/rebind/records/pan20_cross_fandom_nullmodel_N3.json",
+    "validation/rebind/records/public_authors_nullmodel_N3.json",
+    "validation/rebind/records/seminary_nullmodel_N3.json"
+  ],
+  "n_derivation": 329,
+  "n_holdout": 115,
+  "thresholds": {
+    "no_action": [
+      0.0,
+      0.5925641849220357
+    ],
+    "monitor": [
+      0.5925641849220357,
+      0.7425641849220357
+    ],
+    "schedule_conversation": [
+      0.7425641849220357,
+      0.7694367004049205
+    ],
+    "escalate": [
+      0.7694367004049205,
+      1.0
+    ]
+  },
+  "rates": {
+    "gate": {
+      "catch_sc": 0.6511627906976745,
+      "fa_sc": 0.0,
+      "fa_esc": 0.0,
+      "n_genuine": 29,
+      "n_impostor": 86
+    },
+    "rebind": {
+      "catch_sc": 0.26744186046511625,
+      "fa_sc": 0.0,
+      "fa_esc": 0.0,
+      "n_genuine": 29,
+      "n_impostor": 86
+    }
+  },
+  "per_corpus": {
+    "pan20_cross_fandom_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.7222222222222222,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 9,
+        "n_impostor": 18
+      },
+      "rebind": {
+        "catch_sc": 0.1111111111111111,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 9,
+        "n_impostor": 18
+      }
+    },
+    "public_authors_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.7678571428571429,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 14,
+        "n_impostor": 56
+      },
+      "rebind": {
+        "catch_sc": 0.375,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 14,
+        "n_impostor": 56
+      }
+    },
+    "seminary_nullmodel_N3": {
+      "gate": {
+        "catch_sc": 0.0,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 6,
+        "n_impostor": 12
+      },
+      "rebind": {
+        "catch_sc": 0.0,
+        "fa_sc": 0.0,
+        "fa_esc": 0.0,
+        "n_genuine": 6,
+        "n_impostor": 12
+      }
+    }
+  },
+  "verdict": "uninformative",
+  "current_value": "n_genuine=29 too small: even 0 false alarms has Wilson 95% upper bound 11.7% > 5%"
+}

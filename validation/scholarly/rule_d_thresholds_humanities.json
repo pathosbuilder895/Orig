@@ -1,0 +1,12 @@
+{
+ "collection": "humanities",
+ "study_id": "scholarly-rule-d-2026-11-12",
+ "chosen_on": "calibration",
+ "rule": "95th percentile of calibration honest D (seeds 7, 11, 23 pooled); flag = D strictly above",
+ "vectorizers_sha256": "56ca76c8486e5ee61144688ebb6f9cd78914cb873664d18c776d1a5e6d651a06",
+ "thresholds": {
+  "matched_300_300": -0.529301,
+  "matched_1200_1200": -1.244517,
+  "long_past_1200_short_new_300": -0.919008
+ }
+}

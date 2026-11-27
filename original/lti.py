@@ -298,6 +298,7 @@ def principal_from_claims(claims: dict) -> dict:
     exam = is_exam_launch(claims)
     resource = claims.get(CLAIM_RESOURCE_LINK) or {}
     exam_title = (resource.get("title") if isinstance(resource, dict) else "") or ""
+    resource_id = str((resource.get("id") if isinstance(resource, dict) else "") or "")
 
     if role == "student":
         sid = student_auth.derive_student_id(tenant, email or f"{sub}@lti.local")
@@ -326,7 +327,9 @@ def principal_from_claims(claims: dict) -> dict:
                 # proctored baseline write. Without it a bare student session
                 # token is downgraded to 'unverified' at ingestion, so a student
                 # cannot self-author high-trust samples (see api._authorize_provenance).
-                "bluebook_proctor_token": student_auth.mint_proctor_attestation(sid, exam_title),
+                "bluebook_proctor_token": student_auth.mint_proctor_attestation(
+                    sid, exam_title, sitting=f"lti:{resource_id}" if resource_id else ""
+                ),
             }
             result["params"] = {
                 k: v for k, v in {"exam": exam_title, "candidate": name}.items() if v

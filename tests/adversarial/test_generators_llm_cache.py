@@ -8,11 +8,12 @@ call — plus `validation.adversarial.gen_llm_attacks`'s fail-fast
 "no ANTHROPIC_API_KEY" path.
 
 Everything here is hermetic:
-  - The real, current state of this repo has no
-    `validation/adversarial/corpus/llm_attacks/` directory (populating it
-    requires a human to run `gen_llm_attacks.py` with a real API key,
-    which is explicitly NOT done in this task) — the "cache absent"
-    assertions exercise that real state directly.
+  - The "cache absent" assertions point every generator class's
+    `CACHE_DIR` at a directory under `tmp_path` that does not exist. Until
+    2026-11-19 they read the real repo, which had no
+    `validation/adversarial/corpus/llm_attacks/`; that cache is now
+    committed (built by `llm_attack_jobs.py`), and
+    `test_committed_cache_verifies` checks every doc in it.
   - The "cache present" assertions build a synthetic fixture cache under
     `tmp_path` and monkeypatch each generator class's `CACHE_DIR` class
     attribute to point at it, so the real corpus directory is never
@@ -56,23 +57,46 @@ def _write_manifest(cache_dir: Path, entries: list[dict]) -> None:
     )
 
 
-# --- cache absent (the real, current repo state) --------------------------
+# --- the committed cache -----------------------------------------------------
 
 
-def test_real_repo_has_no_llm_attacks_cache_yet():
-    # Sanity check on the premise of every "cache absent" assertion below:
-    # this directory genuinely does not exist in this checkout, since
-    # populating it requires a human to run gen_llm_attacks.py with a real
-    # API key (a future step, not this task's).
-    assert not _REAL_CACHE_DIR.exists()
+def test_committed_cache_verifies():
+    """Every manifest entry of the committed cache loads through its reader,
+    which re-hashes the file on disk against the manifest's doc_sha, and
+    records which model and route produced it."""
+    manifest = json.loads((_REAL_CACHE_DIR / "manifest.json").read_text(encoding="utf-8"))
+    entries = manifest["entries"]
+    assert entries
+    readers = {
+        "imitation": lambda v: LLMImitation(v),
+        "paraphrase": lambda v: LLMParaphrase(v),
+        "roundtrip_de": lambda v: LLMRoundTrip(v, "de"),
+        "roundtrip_ja": lambda v: LLMRoundTrip(v, "ja"),
+    }
+    loaded = 0
+    for attack, victim in sorted({(e["attack"], e["victim_id"]) for e in entries}):
+        loaded += len(readers[attack](victim).load_entries())
+    assert loaded == len(entries)
+    assert all(e["model_id"] and e.get("route") for e in entries)
 
 
-def test_configured_false_when_cache_absent():
+# --- cache absent ---------------------------------------------------------------
+
+
+@pytest.fixture(autouse=False)
+def absent_cache(tmp_path, monkeypatch):
+    missing = tmp_path / "absent"
+    for cls in (LLMImitation, LLMParaphrase, LLMRoundTrip):
+        monkeypatch.setattr(cls, "CACHE_DIR", missing)
+    return missing
+
+
+def test_configured_false_when_cache_absent(absent_cache):
     gen = LLMImitation(victim_id="thoreau")
     assert gen.configured is False
 
 
-def test_skip_reason_mentions_missing_path_when_cache_absent():
+def test_skip_reason_mentions_missing_path_when_cache_absent(absent_cache):
     gen = LLMParaphrase(victim_id="thoreau")
     reason = gen.skip_reason()
     assert reason is not None
@@ -80,7 +104,7 @@ def test_skip_reason_mentions_missing_path_when_cache_absent():
     assert "manifest.json" in reason
 
 
-def test_load_samples_raises_when_cache_absent():
+def test_load_samples_raises_when_cache_absent(absent_cache):
     gen = LLMRoundTrip(victim_id="thoreau", language="de")
     with pytest.raises(LookupError):
         gen.load_samples(prompts=[])

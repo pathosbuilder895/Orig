@@ -911,7 +911,34 @@ def _extra_vectors_doc(sample) -> dict:
     extra = getattr(sample, "extra_vectors", None)
     if not extra:
         return {}
-    return {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    doc: dict = {"extra_vectors": {k: np.asarray(v).tolist() for k, v in sorted(extra.items())}}
+    rules = getattr(sample, "extra_vector_rules", None)
+    if rules:  # rules-version stamp per measurement (features/rules_stamp.py)
+        doc["extra_vector_rules"] = {
+            k: v if isinstance(v, str) else int(v) for k, v in sorted(rules.items())
+        }
+    return doc
+
+
+def _extra_vector_rules_from_doc(s: dict) -> dict | None:
+    """Stored rules-version stamps (features/rules_stamp.py), or None
+    (unstamped: see UNSTAMPED_RULES_VERSION in features/matter.py and
+    features/paragraphs.py). A value that is not a stamp is dropped."""
+    from .features import rules_stamp
+
+    raw = s.get("extra_vector_rules")
+    if not raw or not isinstance(raw, dict):
+        return None
+    out = {k: v for k, v in raw.items() if rules_stamp.parse(v) is not None}
+    return out or None
+
+
+def _part_overrides_doc(sample) -> dict:
+    """``{"part_overrides": {...}}`` for a sample with a teacher's choice of
+    parts (features/part_overrides.py), else {}: a sample with none stores
+    exactly as before."""
+    choice = getattr(sample, "part_overrides", None)
+    return {"part_overrides": choice} if choice else {}
 
 
 def _extra_vectors_from_doc(s: dict, student_id: str) -> dict | None:
@@ -968,12 +995,14 @@ def _serialize(state: StudentState) -> str:
             # only scripts/tier17_report.py reads it back out.
             "keystroke_data": s.keystroke_data,
             # ADR-010 macro-only composition timing (additive) — None for
-            # legacy/summary-less samples. Not yet read by any scorer (Task 9
-            # wires resolve_composition_mode to it).
+            # legacy/summary-less samples. Stored for audit; no scorer reads
+            # it, and the score request's own summary is ignored too (T-81).
             "composition_summary": s.composition_summary,
             # Versioned measurements (additive): written only when present,
             # so a document with none is byte-identical to before.
             **_extra_vectors_doc(s),
+            # A teacher's choice of parts (additive, same rule).
+            **_part_overrides_doc(s),
         }
         for s in state.samples
     ]
@@ -1049,6 +1078,8 @@ def _deserialize(data: str) -> StudentState:
                 # field existed.
                 composition_summary=s.get("composition_summary"),
                 extra_vectors=_extra_vectors_from_doc(s, d["student_id"]),
+                extra_vector_rules=_extra_vector_rules_from_doc(s),
+                part_overrides=s.get("part_overrides") or None,
             )
         )
     return state
@@ -3848,6 +3879,14 @@ def consume_proctor_attestation(
         consumed = cur.rowcount == 1
         conn.commit()
     return consumed
+
+
+def release_proctor_attestation(jti: str) -> None:
+    """Undo ``consume_proctor_attestation`` for a write that was never
+    stored, so the retry of the same sitting can still redeem it."""
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM consumed_attestations WHERE jti = ?", (jti,))
+        conn.commit()
 
 
 # ── Phase 2: Tenant-scoped student operations ─────────────────────────────────
