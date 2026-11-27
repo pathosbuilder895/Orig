@@ -97,14 +97,7 @@ def source_integration_style(doc: TextDoc) -> float:
     """
     lower = doc.clean.lower()
     sents = doc.sentences
-
-    # Detect citation sentences
-    citation_indices = set()
-    for i, sent in enumerate(sents):
-        has_ref = any(re.search(p, sent) for p in SCRIPTURE_PATTERNS)
-        has_auth = _count_phrases(sent, set(AUTHORITY_MARKERS)) > 0
-        if has_ref or has_auth:
-            citation_indices.add(i)
+    citation_indices, commented = _source_integration_parts(doc)
 
     if not citation_indices:
         # No citations detected — check if synthesis language present
@@ -119,17 +112,61 @@ def source_integration_style(doc: TextDoc) -> float:
         synth_count = _count_phrases(lower, synth_markers)
         return min(synth_count / max(1, len(sents)) * 3, 1.0)
 
-    comment_count = 0
+    return len(commented) / len(citation_indices)
+
+
+def _source_integration_parts(doc: TextDoc) -> tuple[list[int], list[int]]:
+    """(citing sentences, citing sentences followed by the writer's own comment),
+    as sentence indices in document order. source_integration_style's rule;
+    shared with original/evidence.py, which quotes the second list."""
+    sents = doc.sentences
+    citation_indices = []
+    for i, sent in enumerate(sents):
+        has_ref = any(re.search(p, sent) for p in SCRIPTURE_PATTERNS)
+        has_auth = _count_phrases(sent, set(AUTHORITY_MARKERS)) > 0
+        if has_ref or has_auth:
+            citation_indices.append(i)
+    citing = set(citation_indices)
+    commented = []
     for idx in citation_indices:
         if idx + 1 < len(sents):
             next_sent = sents[idx + 1]
             # Commentary: no citation, has evaluative/analytical words
-            if (idx + 1) not in citation_indices:
+            if (idx + 1) not in citing:
                 cw = [w for w in _tokenize(next_sent) if w.lower() not in STOP_WORDS and len(w) > 3]
                 if len(cw) >= 4:
-                    comment_count += 1
+                    commented.append(idx)
+    return citation_indices, commented
 
-    return comment_count / len(citation_indices)
+
+_ADVERSATIVE_OPENERS = {
+    "however",
+    "nevertheless",
+    "nonetheless",
+    "yet",
+    "but",
+    "although",
+    "even though",
+    "while",
+    "despite",
+    "granted",
+    "admittedly",
+    "it might be objected",
+    "one might argue",
+    "some would argue",
+    "critics contend",
+    "it could be said",
+    "one could argue",
+}
+
+
+def _opens_with_contrast(sentence: str) -> bool:
+    """counter_argument_ratio's rule for one sentence: a contrast or concession
+    word among its first six words. Shared with original/evidence.py."""
+    first_words = " ".join(_tokenize(sentence)[:6]).lower()
+    # Use word-boundary regex to avoid false positives from substring matches
+    # (e.g. "but" inside "about"). Check only the first ~6 tokens.
+    return any(re.search(r"\b" + re.escape(op) + r"\b", first_words) for op in _ADVERSATIVE_OPENERS)
 
 
 def counter_argument_ratio(doc: TextDoc) -> float:
@@ -137,34 +174,9 @@ def counter_argument_ratio(doc: TextDoc) -> float:
     Adversative / concessive sentences / total sentences.
     Signals that the writer acknowledges and addresses objections.
     """
-    adversative_openers = {
-        "however",
-        "nevertheless",
-        "nonetheless",
-        "yet",
-        "but",
-        "although",
-        "even though",
-        "while",
-        "despite",
-        "granted",
-        "admittedly",
-        "it might be objected",
-        "one might argue",
-        "some would argue",
-        "critics contend",
-        "it could be said",
-        "one could argue",
-    }
     if not doc.sentence_count:
         return 0.0
-    count = 0
-    for sent in doc.sentences:
-        first_words = " ".join(_tokenize(sent)[:6]).lower()
-        # Use word-boundary regex to avoid false positives from substring matches
-        # (e.g. "but" inside "about"). Check only the first ~6 tokens.
-        if any(re.search(r"\b" + re.escape(op) + r"\b", first_words) for op in adversative_openers):
-            count += 1
+    count = sum(1 for sent in doc.sentences if _opens_with_contrast(sent))
     return count / doc.sentence_count
 
 
@@ -181,6 +193,72 @@ def question_ratio(doc: TextDoc) -> float:
     return questions / doc.sentence_count
 
 
+# Academic-prose imperatives
+_ACADEMIC_IMPERATIVES = {
+    "consider",
+    "note",
+    "observe",
+    "recall",
+    "recognize",
+    "acknowledge",
+    "see",
+    "compare",
+    "contrast",
+    "examine",
+    "notice",
+    "imagine",
+    "suppose",
+    "assume",
+    "grant",
+    "reflect",
+    "think",
+    "understand",
+    "distinguish",
+    "apply",
+    "evaluate",
+    "assess",
+}
+# Pastoral / homiletical imperatives common in theological writing
+_PASTORAL_IMPERATIVES = {
+    "receive",
+    "pray",
+    "confess",
+    "serve",
+    "give",
+    "seek",
+    "trust",
+    "follow",
+    "remember",
+    "read",
+    "listen",
+    "come",
+    "go",
+    "be",
+    "love",
+    "forgive",
+    "worship",
+    "ask",
+    "rest",
+    "rejoice",
+    "repent",
+    "believe",
+    "obey",
+    "know",
+    "take",
+    "keep",
+    "let",
+}
+_IMPERATIVE_VERBS = _ACADEMIC_IMPERATIVES | _PASTORAL_IMPERATIVES
+
+
+def _is_imperative(sentence: str) -> bool:
+    """imperative_density's rule for one sentence: it starts with a verb from the list.
+
+    Shared with original/evidence.py, which re-runs it to quote the sentences counted."""
+    first = re.match(r"(\w+)", sentence.lstrip())
+    return bool(first and first.group(1).lower() in _IMPERATIVE_VERBS)
+
+
 def imperative_density(doc: TextDoc) -> float:
     """
     Imperative constructions per 100 words.
@@ -193,68 +271,7 @@ def imperative_density(doc: TextDoc) -> float:
     if not doc.word_count:
         return 0.0
 
-    # Academic-prose imperatives
-    academic_imperatives = {
-        "consider",
-        "note",
-        "observe",
-        "recall",
-        "recognize",
-        "acknowledge",
-        "see",
-        "compare",
-        "contrast",
-        "examine",
-        "notice",
-        "imagine",
-        "suppose",
-        "assume",
-        "grant",
-        "reflect",
-        "think",
-        "understand",
-        "distinguish",
-        "apply",
-        "evaluate",
-        "assess",
-    }
-    # Pastoral / homiletical imperatives common in theological writing
-    pastoral_imperatives = {
-        "receive",
-        "pray",
-        "confess",
-        "serve",
-        "give",
-        "seek",
-        "trust",
-        "follow",
-        "remember",
-        "read",
-        "listen",
-        "come",
-        "go",
-        "be",
-        "love",
-        "forgive",
-        "worship",
-        "ask",
-        "rest",
-        "rejoice",
-        "repent",
-        "believe",
-        "obey",
-        "know",
-        "take",
-        "keep",
-        "let",
-    }
-    imperative_verbs = academic_imperatives | pastoral_imperatives
-
-    count = 0
-    for sent in doc.sentences:
-        first = re.match(r"(\w+)", sent.lstrip())
-        if first and first.group(1).lower() in imperative_verbs:
-            count += 1
+    count = sum(1 for sent in doc.sentences if _is_imperative(sent))
     return _per_100(count, doc.word_count)
 
 

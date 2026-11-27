@@ -228,6 +228,34 @@
     return vals.some(function (v) { return v === 0.5; }) ? n.neutral : '';
   }
 
+  // A whole-paper habit with a per-part breakdown (original/evidence.py
+  // build_breakdown) can be too short to measure on one side: the extractor
+  // then records a stand-in value, which must never be compared or shown.
+  function breakdownOf(f) {
+    var b = f && f.breakdown;
+    return b && typeof b === 'object' && !Array.isArray(b) ? b : null;
+  }
+  function tooShort(f) {
+    var b = breakdownOf(f);
+    if (!b) return '';
+    var past = Array.isArray(b.past_papers) ? b.past_papers : [];
+    var short = String(b.too_short || 'Too short to measure.').replace(/^Too short to measure/, 'too short to measure');
+    if (!Array.isArray(b.this_paper)) return clean('This paper is ' + short, '');
+    if (past.length && past.every(function (p) { return !p || !Array.isArray(p.values); })) {
+      return clean('The past papers are ' + short, '');
+    }
+    return '';
+  }
+  // Past papers whose breakdown says they were too short to measure.
+  function shortPapers(f) {
+    var b = breakdownOf(f), out = {};
+    if (!b) return out;
+    (Array.isArray(b.past_papers) ? b.past_papers : []).forEach(function (p) {
+      if (p && typeof p.paper === 'string' && !Array.isArray(p.values)) out[p.paper] = true;
+    });
+    return out;
+  }
+
   // Where this paper sits against each past paper, in words, from the
   // engine's own values (the same order as any plain value: NORM_BOUNDS is
   // a straight line). "higher than all 3 past papers", "lower than 2 of 3
@@ -235,7 +263,10 @@
   function compareWords(f) {
     var eng = (f && f.engine_scale) || {};
     var t = num(eng.this_paper);
-    var past = (Array.isArray(eng.past_papers) ? eng.past_papers : []).map(function (p) { return num(p && p.value); })
+    if (tooShort(f)) return '';
+    var skip = shortPapers(f);
+    var past = (Array.isArray(eng.past_papers) ? eng.past_papers : []).filter(function (p) { return !(p && skip[p.paper]); })
+      .map(function (p) { return num(p && p.value); })
       .filter(function (v) { return v != null; });
     var n = past.length;
     if (t == null || !n) return '';
@@ -255,7 +286,7 @@
   function positionDetail(f) {
     var eng = (f && f.engine_scale) || {};
     var t = num(eng.this_paper);
-    if (t == null) return '';
+    if (t == null || tooShort(f)) return '';
     var past = (Array.isArray(eng.past_papers) ? eng.past_papers : []).map(function (p) { return num(p && p.value); })
       .filter(function (v) { return v != null; });
     var two = function (v) { return v.toFixed(2); };
@@ -290,6 +321,7 @@
   // One line under a card's title: this paper's number beside the past range,
   // or, with no everyday unit, where it sits in words.
   function oneLine(f) {
+    if (tooShort(f)) return tooShort(f);
     var n = readable(f);
     if (!n.plain) {
       var cw = compareWords(f);
@@ -304,6 +336,7 @@
   function noteFor(f, papers) {
     if (!f || typeof f !== 'object') return '';
     if (isNotCompared(f)) return clean(notComparedNote(f), '');
+    if (tooShort(f)) return tooShort(f);
     var n = readable(f);
     var parts = [];
     if (!n.plain) {
@@ -370,6 +403,7 @@
     if (isNotCompared(f)) return clean('Original does not compare this one: past papers have no value for it, so it plays no part in the score.', '');
     if (f.kind === 'off') return clean('This measurement is switched off, so it plays no part in the score.', '');
     if (!isActive(f)) return '';
+    if (tooShort(f)) return clean(tooShort(f) + ' ' + wholeWords(f), tooShort(f));
     var pos = position(f);
     var whole = f.kind === 'whole_text';
     if (pos === 'none') return clean('There are no past papers to compare this with.', '');
@@ -511,6 +545,7 @@
   };
   function differenceLine(f) {
     if (!isActive(f)) return '';
+    if (tooShort(f)) return tooShort(f);
     var n = readable(f);
     var pos = position(f);
     if (pos === 'none') return '';
@@ -633,7 +668,7 @@
     differenceLine: differenceLine, unmarkedLead: unmarkedLead, PHRASES: PHRASES,
     displayOf: displayOf, isHidden: isHidden, HIDDEN_CODES: HIDDEN_CODES, readable: readable, pct: pct, unitNum: unitNum,
     rangeText: rangeText, rangeWords: rangeWords, compareWords: compareWords, positionDetail: positionDetail,
-    valueWords: valueWords,
+    valueWords: valueWords, breakdownOf: breakdownOf, tooShort: tooShort,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.EvidenceView = API;

@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="../assets/type.css" />
 <script src="../assets/display-prefs.js"></script>
 <link rel="stylesheet" href="../bluebook/fonts.css" />
-<link rel="stylesheet" href="fonts.css?v=2026-11-26.1" />
-<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.1" />
-<link rel="stylesheet" href="suite.css?v=2026-11-26.1" />
+<link rel="stylesheet" href="fonts.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="../assets/tokens.css?v=2026-11-26.2" />
+<link rel="stylesheet" href="suite.css?v=2026-11-26.2" />
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
   /* This page's own colours, on top of ../assets/tokens.css. */
@@ -218,6 +218,16 @@
   #tbt .ex-exact,#hero-evi .ex-exact,#tbt .ex-other-why{font-size:.82rem;color:var(--dim);margin-top:.4rem;}
   #tbt .ex-exact summary,#hero-evi .ex-exact summary{cursor:pointer;}
   #tbt .ex-other{list-style:none;padding:0;margin:.4rem 0 0;}
+  #tbt .ex-break,#hero-evi .ex-break{margin-top:.7rem;font-size:.86rem;}
+  #tbt .ex-break-h,#hero-evi .ex-break-h{font-weight:600;margin:.5rem 0 .3rem;}
+  #tbt .ex-break-h span,#hero-evi .ex-break-h span{font-weight:400;font-style:italic;color:var(--dim);}
+  #tbt .ex-break-wrap,#hero-evi .ex-break-wrap{overflow-x:auto;}
+  #tbt .ex-break-t,#hero-evi .ex-break-t{border-collapse:collapse;font-size:.84rem;}
+  #tbt .ex-break-t th,#tbt .ex-break-t td,#hero-evi .ex-break-t th,#hero-evi .ex-break-t td{padding:.2rem .5rem;border-bottom:1px dotted var(--line-soft);text-align:right;white-space:nowrap;}
+  #tbt .ex-break-t th[scope=row],#hero-evi .ex-break-t th[scope=row]{text-align:left;}
+  #tbt .ex-break-t td.ex-short,#hero-evi .ex-break-t td.ex-short{text-align:left;font-style:italic;}
+  #tbt .ex-cols2,#hero-evi .ex-cols2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media (max-width:760px){#tbt .ex-cols2,#hero-evi .ex-cols2{grid-template-columns:1fr;}}
   #tbt .ex-other-row{padding:.6rem 0;border-top:1px solid var(--line-soft);}
   #tbt .ex-other-row b,#tbt .ex-other-line,#tbt .ex-other-why{display:block;}
   #tbt .ex-other-why{font-style:italic;}
@@ -475,7 +485,7 @@
 <body>
 <div class="frame">
   <nav class="shell" data-audience="teacher" data-current="writing-state" aria-label="Original"></nav>
-  <script src="shell.js?v=2026-11-26.1"></script>
+  <script src="shell.js?v=2026-11-26.2"></script>
 
   <main class="grid" id="live-main">
     <!-- LEFT RAIL -->
@@ -685,12 +695,12 @@
   </main>
 </div>
 
-<script src="live.js?v=2026-11-26.1"></script>
-<script src="js/feature-data.js?v=2026-11-26.1"></script>
-<script src="js/fingerprint.js?v=2026-11-26.1"></script>
-<script src="js/evidence-view.js?v=2026-11-26.1"></script>
-<script src="js/evidence-cards.js?v=2026-11-26.1"></script>
-<script src="js/paper-profile.js?v=2026-11-26.1"></script>
+<script src="live.js?v=2026-11-26.2"></script>
+<script src="js/feature-data.js?v=2026-11-26.2"></script>
+<script src="js/fingerprint.js?v=2026-11-26.2"></script>
+<script src="js/evidence-view.js?v=2026-11-26.2"></script>
+<script src="js/evidence-cards.js?v=2026-11-26.2"></script>
+<script src="js/paper-profile.js?v=2026-11-26.2"></script>
 <script>
 (function(){
   'use strict';
@@ -1264,7 +1274,7 @@
       // What to notice (EvidenceView.noticeFor once it exists, else noteFor).
       const notice=typeof EV.noticeFor==='function'?EV.noticeFor(e,papers()):EV.noteFor(e,papers());
       const nt=EV.clean(notice,'');
-      $('evi-notice').innerHTML=nt?'<b>What to notice:</b> '+esc(nt):'';
+      $('evi-notice').innerHTML=(nt?'<b>What to notice:</b> '+esc(nt):'')+(EC&&EC.breakdownHTML?EC.breakdownHTML(e,{papers:papers(),thisSource:EV.thisSource(S.assignment,S.analysedAt)}):'');
       const side=$('evi-side');
       side.hidden=!hasEvidence(S.result);
       side.href='evidence.html'+(S.id?'?student='+encodeURIComponent(S.id):'')+'#m-'+encodeURIComponent(code);

@@ -73,7 +73,7 @@ def test_staff_get_the_whole_family_with_the_scores_labels(seeded, monkeypatch):
     body = _ok(c.get(_url(seeded.sid), headers=seeded.T))
     assert body["family"] == "Sentence shape"
     assert body["habit"] == "mean_sentence_length"
-    assert len(body["features"]) == 7
+    assert len(body["features"]) == 9
     mean = next(f for f in body["features"] if f["code"] == "mean_sentence_length")
     assert [p["paper"] for p in mean["per_paper"]] == [
         "past paper 1",

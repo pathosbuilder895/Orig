@@ -364,7 +364,7 @@ _MEASURED: dict[str, tuple[str, str | None]] = {
     "arc_resolution_score": (
         "Whether sentences get shorter at the end: compares the average sentence length in the "
         "last quarter of the text with the longest of the first three quarters. Higher means a "
-        "shorter final quarter. 0.5 under eight sentences.",
+        "shorter final quarter. Not measured under eight sentences.",
         None,
     ),
     "metric_flatness_score": (

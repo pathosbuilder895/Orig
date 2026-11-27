@@ -113,6 +113,11 @@ def sentence_initial_conjunction_rate(doc: TextDoc) -> float:
     return count / doc.sentence_count
 
 
+#: that_which_ratio's two patterns (shared with original/evidence.py, which quotes them).
+THAT_REL_RE = re.compile(r"\b\w+\s+that\s+(?:is|are|was|were|has|have|had|the|a|an|\w+s\b)")
+WHICH_REL_RE = re.compile(r"\b\w+\s+which\s+")
+
+
 def that_which_ratio(doc: TextDoc) -> float:
     """
     Uses of "that" vs. "which" in relative clause contexts.
@@ -136,10 +141,8 @@ def _that_which_counts(doc: TextDoc) -> tuple[int, int]:
     """
     # Match relative clause patterns (word + that/which)
     lower = doc.clean.lower()
-    that_rel = len(
-        re.findall(r"\b\w+\s+that\s+(?:is|are|was|were|has|have|had|the|a|an|\w+s\b)", lower)
-    )
-    which_rel = len(re.findall(r"\b\w+\s+which\s+", lower))
+    that_rel = len(THAT_REL_RE.findall(lower))
+    which_rel = len(WHICH_REL_RE.findall(lower))
     return that_rel, which_rel
 
 

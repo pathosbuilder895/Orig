@@ -116,3 +116,35 @@ test('hidden habits are not shown, and no output anywhere says "0 to 1"', () => 
     }
   }
 });
+
+test('a whole-paper habit with a breakdown shows its parts, and "too short to measure" instead of a stand-in', () => {
+  const breakdown = (thisValues, pastValues) => ({
+    kind: 'quarters', label: 'Average sentence length in each quarter of the paper', unit: 'words per sentence', style: 'unit',
+    parts: ['1st quarter', '2nd quarter', '3rd quarter', 'last quarter'], too_short: 'Too short to measure (under 8 sentences).',
+    this_paper: thisValues, past_papers: pastValues.map((values, i) => ({ paper: `past paper ${i + 1}`, values })),
+    closing: { this_paper: [{ paper: 'this paper', passage: 'And so it ends.', words: 4 }], past_papers: [] },
+  });
+  const f = entry({ style: 'compare', whole_paper: 'x' }, [0.8, 0.2, 0.3], null,
+    { code: 'arc_resolution_score', name: 'Shorter sentences toward the end', breakdown: breakdown([18.4, 21, 19.7, 12.3], [[20, 20, 20, 21], [19, 18, 20, 20]]) });
+  const html = EC.card(f, {});
+  assert.match(html, /<tr><th scope="row">This paper<\/th><td>18\.4<\/td><td>21\.0<\/td><td>19\.7<\/td><td>12\.3<\/td><\/tr>/);
+  assert.match(html, /Closing sentences/);
+  assert.match(html, /And so it ends\./);
+  assert.equal(EV.tooShort(f), '');
+  assert.equal(EV.differenceLine(f), 'This paper is higher than both past papers on shorter sentences toward the end.');
+  // This paper too short: no comparison, no exact position, the words instead.
+  const short = { ...f, breakdown: breakdown(null, [[20, 20, 20, 21]]) };
+  assert.equal(EV.tooShort(short), 'This paper is too short to measure (under 8 sentences).');
+  assert.equal(EV.differenceLine(short), 'This paper is too short to measure (under 8 sentences).');
+  assert.equal(EV.oneLine(short), 'This paper is too short to measure (under 8 sentences).');
+  assert.equal(EV.positionDetail(short), '');
+  const shortHtml = EC.card(short, {});
+  assert.match(shortHtml, /<td colspan="4" class="ex-short">Too short to measure \(under 8 sentences\)\.<\/td>/);
+  assert.doesNotMatch(shortHtml, /ex-exact|0\.5/);
+  // A past paper too short is left out of the comparison.
+  const onePastShort = { ...f, breakdown: breakdown([18, 18, 18, 10], [[20, 20, 20, 21], null]) };
+  assert.equal(EV.compareWords(onePastShort), 'higher than the past paper');
+  // Tenths as percents.
+  const vocab = { ...f, breakdown: { ...breakdown([0.35, 0.5, 1], []), style: 'percent', parts: ['10%', '20%', '100%'], closing: undefined } };
+  assert.match(EC.card(vocab, {}), /<td>35%<\/td><td>50%<\/td><td>100%<\/td>/);
+});
