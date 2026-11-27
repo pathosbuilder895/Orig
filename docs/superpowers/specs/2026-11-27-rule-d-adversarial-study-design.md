@@ -67,7 +67,8 @@ NORTH_STAR rule 4). If it does not, that case is what to fix next.
 - Everything runs locally; no text leaves the machine (NORTH_STAR rule 7).
 - Honest claims only (rule 2): every number in the write-up recomputes from the committed JSON.
 - `.venv/bin/python` from the checkout root.
-- CI enforces 98% statement + branch coverage, so the new module needs tests (on fixtures).
+- CI's 98% coverage bar measures `original/` only (`--cov=original`), so it does not cover this
+  study's code under `validation/`. The module still gets tests on fixtures, for correctness.
 - Use the repo's validation conventions: three-valued verdicts decided by the gates' own
   document-level interval screens (author-level bootstrap intervals reported alongside, not
   deciding), reviewed by the `validation-gatekeeper` agent before the opening and before results
@@ -173,11 +174,13 @@ scored as `matched_1200_1200`, a shorter one against long past papers as
 imitations are about 650, so an uncut comparison changes the threshold and the setting along
 with the writer.
 
-- For every LLM attack comparison (G-A2, G-A3), the genuine side is `genuine_slice`: the
-  first W words of each genuine held-out document, W the word count of that victim's attack
-  document at that N, cut on the original text as `validation/adversarial/imitation_controls.py`
-  does. That comparison counts.
+- For G-A2, the genuine side is `genuine_slice`: the first W words of each genuine held-out
+  document, W the word count of that victim's imitation at that N (583 to 722 words), cut on
+  the original text as `validation/adversarial/imitation_controls.py` does. That comparison
+  counts.
 - The uncut comparison (G-A2's own) is reported beside it as non-counting, for continuity.
+- G-A3 needs no cut. The rewordings and round trips run 2,414 to 2,775 words against 2,500-word
+  genuine documents, so both sides fall in one setting and one range (measured 2026-11-27).
 - Riddell-Juola essays are all 375 to 588 words; no cutting. G-A1 uses the genuine holdouts as
   the gate does; the genuine slices' flag rates are reported too.
 - **What "differ in length" means here:** a length difference *between the two sides* that
@@ -197,7 +200,7 @@ to a bar cannot leave the study quietly out of step.
 | Gate | Rule D criterion (at every N) |
 |---|---|
 | G-A1 | genuine flag rate <= 5%, public authors and `rj_clean` separately. For `rj_clean` **both** readings must pass: an honest student should not be flagged whichever class they sit in. |
-| G-A2, G-A3 | attack flag rate >= 60% AND AUROC of D (attack vs the same victims' length-matched genuine) >= 0.60 |
+| G-A2, G-A3 | attack flag rate >= 60% AND AUROC of D (attack vs the same victims' genuine documents, length-matched for G-A2 per section 4) >= 0.60 |
 | G-A4 | the same, on `rj_clean`, for each of the two readings |
 | G-A5 | flag rate under the inflated baseline no more than 10 points below the clean-baseline rate AND AUROC under the inflated baseline >= 0.60, under the "classmate's essay" reading |
 
