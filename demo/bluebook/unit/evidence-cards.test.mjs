@@ -20,7 +20,7 @@ const papers = [
 ];
 function comma(over = {}) {
   return {
-    rank: 1, code: 'comma_rate', name: 'Comma Rate', group: 4, in_top_list: true, kind: 'located',
+    rank: 1, code: 'comma_rate', name: 'Comma Rate', group: 4, in_top_list: true, kind: 'located', display: { style: 'unit', unit: 'per 100 words' },
     engine_scale: { this_paper: 0.2, past_papers: past([0.6, 0.64]), past_range: [0.6, 0.64], difference: -0.42, outside_past_range: true },
     plain: { unit: 'per 100 words', this_paper: 3.25, past_papers: past([8.01, 8.23]), past_range: [8.01, 8.23] },
     what_is_marked: 'comma',
@@ -35,7 +35,7 @@ const ctx = { papers, thisSource: 'This paper · The Lighthouse · analysed Nov 
 test('a located habit: both sides quoted, the counted part marked, every quote labelled with source and date', () => {
   const html = EC.card(comma(), ctx);
   assert.match(html, /^<div class="ex" data-code="comma_rate">/);
-  assert.match(html, /<b>Comma Rate<\/b><span class="ex-diff">This paper uses far fewer commas: 3\.25 vs 8\.01 to 8\.23 per 100 words\.<\/span>/);
+  assert.match(html, /<b>Comma Rate<\/b><span class="ex-diff">This paper uses far fewer commas: 3\.3 vs 8\.0 to 8\.2 per 100 words\.<\/span>/);
   assert.equal((html.match(/<mark class="tiny">,<\/mark>/g) || []).length, 3);
   assert.match(html, /This paper · The Lighthouse · analysed Nov 17, 2026 · Counted: “,”/);
   const day = new Date(2026, 8, 8).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -57,17 +57,48 @@ test('a side that never uses the habit shows its longest sentences, nothing mark
   assert.match(html, /This paper · The Lighthouse · analysed Nov 17, 2026 · 5 words/);
 });
 
-test('a whole-text habit shows numbers for every paper, with dates, and says there is no sentence to quote', () => {
+test('a whole-text habit with no everyday unit says where it sits in words, the exact position folded away', () => {
   const f = {
-    code: 'pronoun_ambiguity_rate', name: 'Pronoun Ambiguity Rate', kind: 'whole_text', in_top_list: true,
-    engine_scale: { this_paper: 0.167, past_papers: past([0.625, 0.875]), past_range: [0.625, 0.875], difference: -0.6, outside_past_range: true },
-    note: 'Whole-text measurement, no single sentence to point to.',
+    code: 'catastrophe_index', name: 'Loose ends across paragraphs', kind: 'whole_text', in_top_list: true, display: { style: 'compare', whole_paper: 'x' },
+    engine_scale: { this_paper: 0.524, past_papers: past([0, 0]), past_range: [0, 0], difference: 0.52, outside_past_range: true },
+    note: 'This is one score for the whole paper, built from all of it at once. No single sentence shows it.',
   };
   const html = EC.card(f, ctx);
-  assert.match(html, /<span class="ex-big">0\.167<\/span>/);
-  assert.ok(html.includes('<li><span>The Ferry · date not recorded</span><b>0.875</b></li>'));
-  assert.match(html, /It is measured across the whole text, so there is no single sentence to quote\./);
+  assert.match(html, /<span class="ex-diff">This paper is higher than both past papers on loose ends across paragraphs\.<\/span>/);
+  assert.match(html, /<p class="ex-rel">This paper is higher than both past papers\.<\/p>/);
+  assert.ok(html.includes('<li><span>The Ferry · date not recorded</span><b class="rel">lower than this paper</b></li>'));
+  assert.match(html, /No single sentence shows it\./);
+  assert.match(html, /<details class="ex-exact"><summary>Exact position<\/summary><p>[^<]*this paper 0\.52; past papers 0\.00\.<\/p><\/details>/);
+  // Outside the folded details no raw position, and nowhere a "0 to 1" scale or a percent.
+  const open = html.replace(/<details[\s\S]*?<\/details>/g, '');
+  assert.doesNotMatch(open, /0\.524|0\.52\b/);
+  assert.doesNotMatch(html, /0 to 1|%/);
   assert.doesNotMatch(html, /<mark/);
+});
+
+test('a share read from the engine\u2019s own value shows as a percent in the card', () => {
+  const f = {
+    code: 'first_person_ratio', name: 'First person', kind: 'whole_text', display: { style: 'percent', of: 'of personal pronouns', engine_is_raw: true },
+    engine_scale: { this_paper: 0.38, past_papers: past([0.05, 0.072]), past_range: [0.05, 0.072], difference: 0.3, outside_past_range: true },
+  };
+  const html = EC.card(f, ctx);
+  assert.match(html, /<span class="ex-big">38%<\/span><div class="ex-unit">of personal pronouns<\/div>/);
+  assert.ok(html.includes('<b>5%</b>') && html.includes('<b>7.2%</b>'));
+  assert.doesNotMatch(html, /ex-exact|0\.38/);
+});
+
+test('the top list leads with quoted habits; the rest go to Other patterns, hidden habits nowhere', () => {
+  const whole = { code: 'burstiness', name: 'Unevenness', kind: 'whole_text', display: { style: 'compare' }, note: 'A whole-paper pattern. No single sentence shows it.',
+    engine_scale: { this_paper: 0.3, past_papers: past([0.5, 0.6]), past_range: [0.5, 0.6], difference: -0.25, outside_past_range: true } };
+  const hidden = { ...whole, code: 'conclusion_strategy_score', name: 'Conclusion', display: { style: 'hidden' } };
+  const ev = { features: [{ code: 'burstiness' }, { code: 'conclusion_strategy_score' }, { code: 'comma_rate' }], all_features: [whole, hidden, comma()] };
+  const split = EC.splitTop(ev);
+  assert.deepEqual(split.quoted.map((f) => f.code), ['comma_rate']);
+  assert.deepEqual(split.other.map((f) => f.code), ['burstiness']);
+  assert.deepEqual(EC.topList(ev).map((f) => f.code), ['burstiness', 'comma_rate']);
+  const html = EC.otherList(split.other, ctx);
+  assert.match(html, /^<ul class="ex-other"><li class="ex-other-row" data-code="burstiness"><b>Unevenness<\/b><span class="ex-other-line">This paper is lower than both past papers on unevenness\.<\/span><span class="ex-other-why">A whole-paper pattern\. No single sentence shows it\.<\/span><details class="ex-exact">/);
+  assert.equal(EC.otherList([], ctx), '');
 });
 
 test('the top list resolves to full-list entries in the server’s order; rows can drop the name', () => {

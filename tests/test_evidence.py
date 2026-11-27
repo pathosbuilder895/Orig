@@ -182,12 +182,15 @@ def test_statistical_habits_are_numbers_only_and_labelled():
                                  [("past paper 1", PLAIN[0])])
     for feature in evidence["features"]:
         assert feature["locatable"] is False
-        assert feature["note"] == ev.NUMBERS_ONLY_NOTE
+        # A whole-paper pattern says so in plain words (no single sentence shows it).
+        assert feature["note"] == ev.whole_text_note(feature["code"]) == ev.WHOLE_PAPER[feature["code"]]
+        assert "No single sentence shows it." in feature["note"]
         assert "this_paper" not in feature and "past_papers" not in feature
         assert feature["engine_scale"] == {"this_paper": 0.7, "past_papers_average": 0.4,
-                                           "note": "Original's 0 to 1 scale for this habit, as used in the score."}
+                                           "note": ev.ENGINE_SCALE_NOTE}
+        assert feature["display"]["style"] == "compare"
     md = ev.render_markdown("s", evidence, None)
-    assert ev.NUMBERS_ONLY_NOTE in md
+    assert ev.WHOLE_PAPER["char_trigram_entropy"] in md
 
 
 def test_engine_order_is_kept_and_capped():
@@ -290,6 +293,8 @@ def test_preliminary_score_is_the_engines_numbers_with_its_label():
     banned = re.compile(r"\bAI\b|detect|cheat|authorship verification|accura|percent|%|authentic|misconduct",
                         re.IGNORECASE)
     for words in [ev.PRELIMINARY_LABEL, ev.PRELIMINARY_NOTE, *ev.BAND_WORDS.values(), ev.NUMBERS_ONLY_NOTE,
+                  ev.NOT_POINTED_NOTE, ev.ENGINE_SCALE_NOTE, ev.PLAIN_UNREADABLE_NOTE, ev.OWN_SCORE_NOTE,
+                  *set(ev.WHOLE_PAPER.values()),
                   ev.NOT_LOCATED_NOTE, ev.BAND_INNOCENT_CLAUSE, ev.BAND_RATE_NOT_MEASURED]:
         assert not banned.search(words), words
 
@@ -427,7 +432,7 @@ def test_html_report_has_two_columns_and_escapes_text():
     assert "&lt;b&gt;hi&lt;/b&gt;<mark>;</mark>" in html_out
     assert "<b>hi</b>" not in html_out and "sub&lt;1&gt;" in html_out and "past &lt;1&gt;" in html_out
     assert "Preliminary · unvalidated · not a judgment" in html_out
-    assert "None in the past papers." in html_out and ev.NUMBERS_ONLY_NOTE in html_out
+    assert "None in the past papers." in html_out and ev.WHOLE_PAPER["char_trigram_entropy"] in html_out
     assert "words)</small>" in html_out
     whole = ev.render_html("s", ev.build_evidence([_feature("question_ratio")], "Why now? Fine.", [("p", "Who? Yes.")]), None)
     assert "<mark>" not in whole
